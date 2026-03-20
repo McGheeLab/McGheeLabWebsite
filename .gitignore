@@ -32,6 +32,9 @@ Thumbs.db
 *.coreftp
 *.duck
 
+# Large Adobe Illustrator source files (not needed for live site)
+*.ai
+
 # Office temp files
 ~$*
 
