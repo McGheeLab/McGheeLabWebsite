@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Results (generated data)
+results/
+
+# Logs
+*.log
+
+# User configs (contain personal info)
+User.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# FTP credentials (NEVER commit these)
+*.coreftp
+*.duck
+
+# Office temp files
+~$*
+
+# Node
+node_modules/

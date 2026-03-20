@@ -75,7 +75,7 @@
 
   async function safeFetchJSON(url){
     try{
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-cache' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     }catch(e){
@@ -223,14 +223,20 @@
     state.idCounters = Object.create(null); // reset id counters per page
 
     let view;
-    switch (page){
-      case 'mission':  view = renderMission();  break;
-      case 'research': view = renderResearch(); break;
-      case 'projects': view = renderProjects(); break;
-      case 'team':     view = renderTeam();     break;
-      case 'classes':  view = renderClasses();  break;
-      case 'contact':  view = renderContact();  break;
-      default:         view = renderNotFound();
+    try {
+      switch (page){
+        case 'mission':  view = renderMission();  break;
+        case 'research': view = renderResearch(); break;
+        case 'projects': view = renderProjects(); break;
+        case 'team':     view = renderTeam();     break;
+        case 'classes':  view = renderClasses();  break;
+        case 'contact':  view = renderContact();  break;
+        default:         view = renderNotFound();
+      }
+    } catch (err) {
+      console.error('Render error on page "' + page + '":', err);
+      view = sectionEl();
+      view.appendChild(infoBox('Something went wrong loading this page. Please try refreshing.'));
     }
 
     appEl.innerHTML = '';
@@ -516,7 +522,7 @@
     block.appendChild(infoBoxEl);
     wrap.appendChild(block);
 
-    // Simple mailto handler
+    // Simple mailto handler with email validation
     setTimeout(() => {
       const form = document.getElementById('contactForm');
       form?.addEventListener('submit', (e) => {
@@ -524,6 +530,7 @@
         const data = new FormData(form);
         const name = data.get('name'); const email = data.get('email'); const message = data.get('message');
         if(!name || !email || !message){ alert('Please complete all fields.'); return; }
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ alert('Please enter a valid email address.'); return; }
         const mailto = `mailto:${state.data.site.contact.email}?subject=${encodeURIComponent('Website contact from ' + name)}&body=${encodeURIComponent(message + '\n\nFrom: ' + name + ' <' + email + '>')}`;
         window.location.href = mailto;
       });
