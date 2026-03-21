@@ -1,0 +1,84 @@
+{
+  "eventTitle": "Poster Scoring 2025",
+  "metrics": [
+    {
+      "id": "clarity",
+      "label": "Clarity",
+      "min": 1,
+      "max": 10,
+      "step": 1
+    },
+    {
+      "id": "novelty",
+      "label": "Novelty",
+      "min": 1,
+      "max": 10,
+      "step": 1
+    },
+    {
+      "id": "method",
+      "label": "Method Rigor",
+      "min": 1,
+      "max": 10,
+      "step": 1
+    },
+    {
+      "id": "impact",
+      "label": "Impact",
+      "min": 1,
+      "max": 10,
+      "step": 1
+    },
+    {
+      "id": "presentation",
+      "label": "Presentation",
+      "min": 1,
+      "max": 10,
+      "step": 1
+    }
+  ],
+  "posters": [
+    {
+      "id": "P001",
+      "title": "Poster 001"
+    },
+    {
+      "id": "P002",
+      "title": "Poster 002"
+    },
+    {
+      "id": "P003",
+      "title": "Poster 003"
+    },
+    {
+      "id": "P004",
+      "title": "Poster 004"
+    },
+    {
+      "id": "P005",
+      "title": "Poster 005"
+    },
+    {
+      "id": "P006",
+      "title": "Poster 006"
+    },
+    {
+      "id": "P007",
+      "title": "Poster 007"
+    },
+    {
+      "id": "P008",
+      "title": "Poster 008"
+    }
+  ],
+  "defaults": {
+    "itemsPerJudge": 5,
+    "ratingsPerItemBase": 2,
+    "useAnchors": true,
+    "anchorFraction": 0.1,
+    "anchorExtraRounds": 1,
+    "assignmentStrategy": "near_bibd",
+    "aggregator": "zscore_weighted",
+    "shrinkage": 10.0
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "site": {
+    "name": "McGheeLab",
+    "mission": "We build in vitro models to study the mechanisms driving metastasis.",
+    "contact": {
+      "address": "123 Science Dr, Tucson, AZ 85701",
+      "email": "info@mcgheelab.org",
+      "phone": "(520) 555-0123"
+    }
+  },
+
+  "mission": [
+  {
+    "title": "Our Mission",
+    "body": "We engineer in-vitro models of human organ systems to reveal how cancer cells respond to physical, chemical, and biological cues. By integrating engineering principles with cancer biology, our work enables the development of scalable translational models that empower oncologists to make informed, personalized treatment decisions.",
+    "points": [
+      "Quantify forces and flows in tumor microenvironments",
+      "Single-cell and collective invasion assays",
+      "From biophysics to therapeutic hypotheses"
+    ],
+    "image": "Images/mission/tissue.png",
+    "imageAlt": "Fluorescent cells"
+  },
+  {
+    "title": "Our Approach",
+    "body": "We combine advanced engineering tools with biological insight to bridge the gap between model systems and clinical needs. Our designs include custom equipment that integrates seamlessly with standard laboratory tools, enhancing experimental precision and scalability.",
+    "points": [
+      "Microfluidics for flow, 3D bioprinting for architecture, and traction microscopy for mechanics",
+      "Open, reproducible methods",
+      "Tight experiment–computation loop",
+      "Accessible tools for education"
+    ],
+    "image": "Images/mission/Mlab.png",
+    "imageAlt": "logo"
+  }
+],
+
+  "research": {
+    "topics": [
+      {
+        "title": "Microscope Enabled 3D-Bioprinting",
+        "summary": "Our custom 3D bioprinting system integrates a precision printing head with an inverted microscope, giving us direct visual feedback during fabrication. Python-based control coordinates the XY stage, Z-axis needle movement, and three independently driven syringe pumps, enabling multi-resolution bioink delivery. This level of control allows accurate placement of diverse materials to create high-fidelity, biologically relevant structures.",
+        "image": "Images/research/ME3B/me3b.jpg",
+        "imageAlt": "3D Bioprinting head on a microscope",
+        "keywords": ["ME3B", "3D Bioprinting", "Microscopy"],
+        "story": [
+          { "text": "We are writing our story, come back later." }
+        ]
+      },
+      {
+        "title": "Microfluidic Systems",
+        "summary": "We design microfluidic chips to support advanced in vitro tissue models. Using our GELS platform, cells within these chips self-assemble into organized tissue constructs. Carefully engineered channel dimensions maintain a passive, steady flow that supplies nutrients and removes waste without external pumps—sustaining healthy, functional tissues over extended periods.",
+        "image": "Images/research/microfluidics/col1coatedchip.png",
+        "imageAlt": "Microfluidic chip",
+        "keywords": ["gradients", "shear", "chemotaxis"],
+        "story": [
+          { "text": "This chip supports the development of complex tissue architectures, as well as tissue explants.", "image": "Images/research/microfluidics/Microfluidic_Droplet-02.png", "imageAlt": "Flow setup" }
+        ]
+      },
+      {
+        "title": "Traction Force Microscopy",
+        "summary": "Our 3D traction force microscopy technique quantifies how cells exert forces at the gel interface of granular hydrogels. By mapping these forces in three dimensions, we gain insight into the mechanical processes that drive cells to remodel their surroundings and self-organize into complex, composite tissue structures.",
+        "image": "Images/research/tfm/ptv.png",
+        "story": [
+          { "text": "We are writing our story, come back later." }
+        ]
+      }
+    ],
+    "references": [
+      { "title": "In Situ 3D Spatiotemporal Measurement of Soluble Biomarkers in Spheroid Culture", "authors": "McGhee, Alexander J., Eric O. McGhee, Jack E. Famiglietti, and W. Gregory Sawyer", "journal": "In Vitro Models", "year": "2022", "doi": "https://doi.org/10.1007/s44164-022-00037-6" }
+    ]
+  },
+
+  "projects": [
+    {
+      "title": "Open Microfluidic Syringe Pump",
+      "summary": "We are developing an open microfluidic syringe pump that combines precise temperature control with multi-channel flow delivery. The system can heat or cool bioinks and culture media in real time, ensuring optimal conditions throughout experiments. Designed for seamless integration with microfluidic chips, it enables on-demand droplet generation and supports a wide range of advanced tissue engineering and cell culture applications.",
+      "tags": ["microfluidics", "dropplet generation"],
+      "story": [
+        { "text": "We are writing our story, come back later."}
+      ]
+    },
+    {
+      "title": "Auto In-Vitro platform",
+      "summary": "Our automated in-vitro device maintains and monitors cell cultures in a standard well plate format. A cooled reservoir keeps media and reagents fresh, while an integrated 3D printing module enables continuous fabrication directly into the culture environment. Coupled with real-time imaging from an integrated microscope, the system supports long-term experiments with minimal manual intervention.",
+      "tags": ["continuous cell culture", "automation"],
+      "link": "https://autoinvitro.com",
+      "story": [
+        { "text": "We are writing our story, come back later." }
+      ]
+    }
+  ],
+
+  "team": {
+    "postdoc": [
+      { "name": "No Postdocs currently"}
+    ],
+    "undergrad": [
+      { "name": "Ally Friedholm",  
+      "role": "Senior Undergraduate", 
+      "photo": "Images/team/ally_friedholm.jpg", 
+      "bio": "" },
+      { "name": "Cris Angeles",  
+      "role": "Junior Undergraduate", 
+      "photo": "Images/team/cris_angeles.jpg", 
+      "bio": "" },      
+      { "name": "Ethan Lin",  
+      "role": "Senior Undergraduate", 
+      "photo": "Images/team/ethan_lin.jpg", 
+      "bio": "I am a senior undergraduate majoring in biomedical engineering with minors in electrical and computer engineering, math, and environmental engineering. I am currently working on developing a microfluidic system with LLS for organ modeling. This system can be used for culturing patient derived tissue ex-plants for precision medicine or creating 3D cell cultures to study their behavior. Outside of lab, I enjoy running marathons, playing soccer, or listening to vinyl." },
+      { "name": "Ezekiel Pangelinan",  
+      "role": "Senior Undergraduate", 
+      "photo": "Images/team/ezekiel_pangelinan.jpg", 
+      "bio": "" }
+    ],
+    "grad": [
+      { "name": "Alia Starman", 
+      "role": "Second Year PhD Student",        
+      "photo": "Images/team/alia_starman.jpg", 
+      "bio": "I earned my bachelor’s in Bioengineering from Oregon State University, where I studied neuronal gap junction networks and communication. Since joining the McGhee Lab as a PhD student in 2024, my research has focused on in-vitro models of the tumor microenvironment to uncover how cancer grows, spreads, and responds to therapy." },
+      { "name": "Gabriel Declerq", 
+      "role": "First Year PhD Student",        
+      "photo": "Images/team/gabriel_declercq.png", 
+      "bio": "I am a biomedical engineer and first-year PhD student specializing in device design and interdisciplinary research. As a 2025 UROC Mentor and 2025 Star Labs Mentor, I guide emerging scientists while leading multiple research initiatives, including CELLS, TF-ELISA, Spatial Growth Factor Release in LLS, and Syringe Pump development. My work bridges engineering innovation with biomedical applications to advance scientific discovery and practical healthcare solutions." },
+      { "name": "Cason Hancock", 
+      "role": "Third Year PhD Student",        
+      "photo": "Images/team/cason_hancock.jpeg", 
+      "bio": "I’m a third-year PhD student in the Cancer Biology Graduate Interdisciplinary Program at the University of Arizona. With degrees in Biochemistry (Centenary College of Louisiana) and Biomedical Engineering (Columbia University), my work bridges engineering and cancer biology. I focus on developing advanced in-vitro tools, currently combining in-situ bead-based ELISA with Raman Spectroscopy for non-invasive, real-time measurements of changes in the tumor microenvironment. My goal is to become a Principal Investigator, creating innovative ways to profile and manipulate cancer to improve patient outcomes. Outside the lab, I enjoy ultimate frisbee, cooking, exploring new music, and discovering Tucson." },
+      { "name": "Alex Moncada", 
+      "role": "Masters Student",        
+      "photo": "Images/team/alex_moncada.jpeg", 
+      "bio": "" },
+      { "name": "Suraj Bharaj", 
+      "role": "Masters Student",        
+      "photo": "Images/team/suraj_bharaj.jpeg", 
+      "bio": "" }
+    ],
+    "highschool": [
+      { "name": "Melayna Matheson",  
+      "role": "Highschool Senior", 
+      "photo": "Images/team/melayna_matheson.jpg",  
+      "bio": "Development of brain on a chip microfluidic model." }
+    ],
+    "alumni": [
+      { "name": "Elijah Keeswood",  
+      "role": "Masters of Science", 
+      "photo": "Images/team/elijah_keeswood.jpg",
+      "bio": "Thesis title \"Traction-Force ELISA\" \n Graduated Summer 2025" },      
+      { "name": "Nataly Karlinsey",  
+      "role": "Senior Undergraduate", 
+      "photo": "Images/team/nataly_karlinsey.jpg", 
+      "bio": "" }
+    ]
+  },
+
+  "classes": {
+    "intro": "Current course offerings for F25/S26",
+    "courses": [
+      { "title": "Biomechanics 466/566", "description": "", "level": "Undergrad / Graduate", "when": "Fall 25",   "registrationLink": "" },
+      { "title": "Senior Design (Auto In-vitro)",          "description": "", "level": "Undergrad",     "when": "Fall/Spring 25", "registrationLink": "" }
+    ]
+  }
+}

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Poster Scoring</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Firebase SDKs (modular v10) will be loaded in firebase.js -->
+</head>
+<body>
+  <header class="container">
+    <div class="card flex">
+      <div>
+        <h1 id="eventTitle">Poster Scoring</h1>
+        <p class="small">Sign in, score assigned posters, and track progress in real time.</p>
+      </div>
+      <div class="right flex">
+        <span id="userInfo" class="badge">Not signed in</span>
+        <button id="btnSignOut" class="ghost" style="display:none">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- AUTH -->
+    <section id="authSection" class="card">
+      <h2>Sign in</h2>
+      <div class="row grid-2">
+        <div>
+          <label>Email</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="username" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+      </div>
+      <div class="flex" style="margin-top:12px;">
+        <button id="btnSignIn" class="primary">Sign in</button>
+        <button id="btnRegister" class="ghost">Register</button>
+        <span id="authMsg" class="small"></span>
+      </div>
+      <p class="small" style="margin-top:8px;">New users default to <b>judge</b> role. An admin can promote users to <b>admin</b> in the dashboard.</p>
+    </section>
+
+    <!-- JUDGE VIEW -->
+    <section id="judgeSection" class="card" style="display:none">
+      <div class="flex">
+        <h2>My Assignments</h2>
+        <span id="judgeProgress" class="badge right">0 / 0 complete</span>
+      </div>
+      <div id="judgeAssignments" class="row grid-3" style="margin-top:12px;"></div>
+
+      <div id="scorePanel" class="card" style="margin-top:18px;">
+        <div class="flex">
+          <h3 id="panelTitle">Select a poster to score</h3>
+          <span id="saveStatus" class="small right"></span>
+        </div>
+        <div id="metricsForm" style="margin-top:8px;"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN VIEW -->
+    <section id="adminSection" style="display:none" class="row grid-2">
+      <div class="card">
+        <div class="flex">
+          <h2>Settings</h2>
+          <button id="btnSaveSettings" class="primary right">Save</button>
+        </div>
+        <div class="row grid-2" style="margin-top:10px;">
+          <div>
+            <label>Items per judge (k)</label>
+            <input id="itemsPerJudge" type="number" min="1" value="5" />
+          </div>
+          <div>
+            <label>Ratings per item (r)</label>
+            <input id="ratingsPerItemBase" type="number" min="1" value="2" />
+          </div>
+          <div>
+            <label>Use anchors</label>
+            <select id="useAnchors">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div>
+            <label>Anchor fraction (0..1)</label>
+            <input id="anchorFraction" type="number" step="0.01" min="0" max="1" value="0.08" />
+          </div>
+          <div>
+            <label>Anchor extra rounds</label>
+            <input id="anchorExtraRounds" type="number" min="0" value="1" />
+          </div>
+          <div>
+            <label>Assignment strategy</label>
+            <select id="assignmentStrategy">
+              <option value="near_bibd">near_bibd</option>
+              <option value="random">random</option>
+            </select>
+          </div>
+          <div>
+            <label>Aggregator</label>
+            <select id="aggregator">
+              <option value="zscore_weighted">zscore_weighted</option>
+              <option value="zscore">zscore</option>
+              <option value="rankcentrality">rankcentrality</option>
+              <option value="hybrid">hybrid</option>
+              <option value="naive">naive</option>
+            </select>
+          </div>
+          <div>
+            <label>Shrinkage</label>
+            <input id="shrinkage" type="number" step="0.5" value="10" />
+          </div>
+        </div>
+        <div class="small" style="margin-top:8px;">Metrics are defined in <code>config.json</code>. To modify metrics, update that file and reload.</div>
+      </div>
+
+      <div class="card">
+        <div class="flex">
+          <h2>Assignments</h2>
+          <button id="btnGenerateAssignments" class="primary right">Generate</button>
+        </div>
+        <p class="small">Generates balanced assignments using the selected strategy and settings. Existing assignments will be replaced.</p>
+        <div style="margin-top:10px;">
+          <div class="flex">
+            <div class="kpi" id="kpiPosters">0</div><div class="small">posters</div>
+            <div class="kpi" id="kpiJudges" style="margin-left:24px;">0</div><div class="small">judges</div>
+            <div class="kpi" id="kpiEdges" style="margin-left:24px;">0</div><div class="small">scores (edges)</div>
+            <div class="kpi" id="kpiComplete" style="margin-left:24px;">0%</div><div class="small">complete</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex">
+          <h2>Live Scores</h2>
+          <button id="btnExportScores" class="ghost right">Export CSV</button>
+        </div>
+        <table class="table" id="scoresTable">
+          <thead><tr><th>Poster</th><th>Title</th><th>#Scores</th><th>Last update</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="flex">
+          <h2>Algorithms</h2>
+          <button id="btnSuggest" class="ghost right">Suggest</button>
+        </div>
+        <div class="row grid-2">
+          <div>
+            <label>Selected algorithm</label>
+            <select id="algoSelect">
+              <option value="zscore_weighted">zscore_weighted</option>
+              <option value="zscore">zscore</option>
+              <option value="rankcentrality">rankcentrality</option>
+              <option value="hybrid">hybrid</option>
+              <option value="naive">naive</option>
+            </select>
+          </div>
+          <div>
+            <label>Hybrid α (z-score weight)</label>
+            <input id="hybridAlpha" type="number" step="0.1" min="0" max="1" value="0.7" />
+          </div>
+        </div>
+        <div class="flex" style="margin-top:8px;">
+          <button id="btnComputeRanking" class="primary">Compute Ranking</button>
+          <button id="btnExportRanking" class="ghost">Export CSV</button>
+          <span id="algoMsg" class="small right"></span>
+        </div>
+        <table class="table" id="rankingTable" style="margin-top:10px;">
+          <thead><tr><th>#</th><th>Poster</th><th>Title</th><th>Score</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="flex">
+          <h2>Users</h2>
+          <span class="small right">Promote/demote roles</span>
+        </div>
+        <table class="table" id="usersTable">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container">
+    <div class="card small">© <span id="year"></span> Poster Scoring — Real-time judging. Built for BME DAY.</div>
+  </footer>
+
+  <!-- SDK bootstrapping and app logic -->
+  <script type="module" src="firebase.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

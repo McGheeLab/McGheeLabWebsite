@@ -24,6 +24,17 @@
   <!-- Preload JSON so content is snappy -->
   <link rel="preload" href="content.json" as="fetch" crossorigin="anonymous" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="user-styles.css" />
+
+  <!-- Firebase SDK (compat — works with vanilla JS, no build step) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+
+  <!-- User system (must load after Firebase SDK, before app.js) -->
+  <script defer src="firebase-config.js"></script>
+  <script defer src="user-system.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -54,7 +65,10 @@
           <li><a href="#/projects" data-route="projects">Projects</a></li>
           <li><a href="#/team" data-route="team">Team</a></li>
           <li><a href="#/classes" data-route="classes">Classes</a></li>
-          <li><a href="#/contact" data-route="contact">Contact</a></li>
+          <li><a href="#/opportunities" data-route="opportunities">Opportunities</a></li>
+          <li id="nav-dashboard" style="display:none"><a href="#/dashboard" data-route="dashboard">Dashboard</a></li>
+          <li id="nav-admin" style="display:none"><a href="#/admin" data-route="admin">Admin</a></li>
+          <li><a href="#/login" data-route="login" id="nav-login">Login</a></li>
         </ul>
       </nav>
     </div>
@@ -96,7 +110,7 @@
           <li><a href="#/projects">Projects</a></li>
           <li><a href="#/team">Team</a></li>
           <li><a href="#/classes">Classes</a></li>
-          <li><a href="#/contact">Contact</a></li>
+          <li><a href="#/opportunities">Opportunities</a></li>
         </ul>
       </nav>
 

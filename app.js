@@ -168,7 +168,11 @@
         };
       });
 
-    const link = str(item?.link || item?.hyperlink || '');   // <— add this
+    const link = str(item?.link || item?.hyperlink || '');
+
+    // Team & references passthrough (for story-team connections)
+    const team = item?.team || null;
+    const references = item?.references || null;
 
     return {
       slug,
@@ -179,7 +183,9 @@
       keywords: toArray(item?.keywords).map(str),
       tags: toArray(item?.tags).map(str),
       story: storyBlocks,
-      link                                   // <— include it
+      link,
+      team,
+      references
     };
   }
 
@@ -201,9 +207,9 @@
      =========================== */
   function onRouteChange(){
     const hash = window.location.hash || '#/mission';
-    const [, route] = hash.split('/');
-    const page = (route || 'mission').toLowerCase();
-    render(page);
+    const parts = hash.slice(2).split('/');
+    const page = (parts[0] || 'mission').toLowerCase().split('?')[0];
+    render(page, parts.slice(1));
     setActiveTopNav(page);
   }
 
@@ -216,7 +222,8 @@
   /* ===========================
      PAGE RENDERER
      =========================== */
-  async function render(page){
+  async function render(page, subParts){
+    subParts = subParts || [];
     // Clean previous page observers/listeners
     state.observers.forEach(o => o.disconnect()); state.observers = [];
     state.cleanups.forEach(fn => { try{ fn(); }catch{} }); state.cleanups = [];
@@ -230,7 +237,43 @@
         case 'projects': view = renderProjects(); break;
         case 'team':     view = renderTeam();     break;
         case 'classes':  view = renderClasses();  break;
-        case 'contact':  view = renderContact();  break;
+        case 'opportunities': {
+          const html = window.McgheeLab?.renderOpportunities?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        case 'login': {
+          const html = window.McgheeLab?.renderLogin?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        case 'dashboard': {
+          let html;
+          if (subParts[0] === 'story' && subParts[1]) {
+            html = window.McgheeLab?.renderStoryEditor?.(subParts[1]);
+          } else if (subParts[0] === 'project' && subParts[1]) {
+            html = window.McgheeLab?.renderProjectEditor?.(subParts[1]);
+          } else {
+            html = window.McgheeLab?.renderDashboard?.();
+          }
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        case 'guide': {
+          const html = window.McgheeLab?.renderGuide?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        case 'admin': {
+          const html = window.McgheeLab?.renderAdmin?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        case 'contact':
+          window.location.hash = '#/opportunities'; return;
+        case 'logout':
+          if (window.McgheeLab?.Auth?.logout) { McgheeLab.Auth.logout(); return; }
+          window.location.hash = '#/mission'; return;
         default:         view = renderNotFound();
       }
     } catch (err) {
@@ -252,6 +295,210 @@
     // Reveal + Lazy images
     enableReveal();
     enableLazyImages();
+
+    // Wire user-system pages (auth, dashboard, story editor, admin)
+    try {
+      switch (page) {
+        case 'login':     window.McgheeLab?.wireLogin?.(); break;
+        case 'dashboard':
+          if (subParts[0] === 'story' && subParts[1]) {
+            await window.McgheeLab?.wireStoryEditor?.(subParts[1]);
+          } else if (subParts[0] === 'project' && subParts[1]) {
+            await window.McgheeLab?.wireProjectEditor?.(subParts[1]);
+          } else {
+            await window.McgheeLab?.wireDashboard?.();
+          }
+          break;
+        case 'opportunities': await window.McgheeLab?.wireOpportunities?.(); break;
+        case 'admin':     await window.McgheeLab?.wireAdmin?.(); break;
+      }
+    } catch (err) { console.warn('User system wiring error:', err); }
+
+    // Append Firestore-published stories to the projects page
+    if (page === 'projects' && window.McgheeLab?.DB) {
+      McgheeLab.DB.getPublishedStories().then(stories => {
+        const userStories = stories.filter(s => s.source !== 'migrated');
+        if (!userStories.length) return;
+        const grid = appEl.querySelector('.grid');
+        if (!grid) return;
+
+        userStories.forEach(s => {
+          const storyBlocks = (s.sections || []).map(sec => ({
+            text: sec.text || '',
+            image: sec.image?.medium || sec.image?.full || '',
+            video: sec.video || '',
+            imageAlt: sec.imageAlt || ''
+          }));
+          const expandedContent = buildExpandedHTML(storyBlocks, s);
+          const refBadges = buildRefLinksHTML(s.references);
+          const item = div('card class-item reveal project-card');
+
+          item.innerHTML = `
+            <h3>${esc(s.title || 'Untitled')}</h3>
+            <p class="role">by ${esc(s.authorName || '')}</p>
+            ${s.description ? `<p>${esc(s.description)}</p>` : ''}
+            ${refBadges}
+            ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
+          `;
+
+          if (expandedContent) {
+            const btn = item.querySelector('.expand-toggle');
+            const det = item.querySelector('.expandable-details');
+            wireExpandable(btn, det);
+          }
+          grid.appendChild(item);
+        });
+        enableReveal();
+        enableLazyImages();
+      }).catch(e => console.warn('Firestore stories unavailable:', e));
+
+      // Append published project packages
+      McgheeLab.DB.getPublishedProjects().then(projects => {
+        if (!projects.length) return;
+        const grid = appEl.querySelector('.grid');
+        if (!grid) return;
+
+        projects.forEach(p => {
+          const expandedContent = buildStoryTeamHTML(p.team)
+            + (p.outcomes ? `<div class="section" style="margin-top:8px"><div class="media"><div style="grid-column:1/-1"><h4>Outcomes</h4><p>${esc(p.outcomes)}</p></div></div></div>` : '')
+            + buildStoryRefsHTML(p.references);
+          const refBadges = buildRefLinksHTML(p.references);
+          const item = div('card class-item reveal project-card');
+
+          item.innerHTML = `
+            <h3>${esc(p.title || 'Untitled')}</h3>
+            <p class="role">by ${esc(p.authorName || '')}</p>
+            ${p.description ? `<p>${esc(p.description)}</p>` : ''}
+            ${refBadges}
+            ${p.link ? `<p><a class="btn" href="${esc(p.link)}" target="_blank" rel="noopener">View Project Site</a></p>` : ''}
+            ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
+          `;
+
+          if (expandedContent) {
+            const btn = item.querySelector('.expand-toggle');
+            const det = item.querySelector('.expandable-details');
+            wireExpandable(btn, det);
+          }
+          grid.appendChild(item);
+        });
+        enableReveal();
+        enableLazyImages();
+      }).catch(e => console.warn('Firestore projects unavailable:', e));
+    }
+
+    // Overlay registered user profiles onto team page cards
+    if (page === 'team' && window.McgheeLab?.DB) {
+      Promise.all([
+        McgheeLab.DB.getClaimedProfiles(),
+        McgheeLab.DB.getAllUsers()
+      ]).then(([claimed, users]) => {
+        // Build a map: claimed teamProfile name → registered user data
+        const userMap = {};
+        const matchedUids = new Set();
+        users.forEach(u => { if (u.claimedProfileId) userMap[u.claimedProfileId] = u; });
+
+        // Update existing content.json cards with Firestore data
+        claimed.forEach(profile => {
+          const user = userMap[profile.id];
+          if (!user) return;
+
+          const cards = appEl.querySelectorAll('.card.person');
+          cards.forEach(card => {
+            const nameEl = card.querySelector('strong');
+            if (!nameEl) return;
+            const cardName = nameEl.textContent.trim().toLowerCase();
+            const profileName = (profile.name || '').trim().toLowerCase();
+            if (cardName !== profileName) return;
+
+            matchedUids.add(user.id);
+            const photoSrc = user.photo?.medium || user.photo?.full || profile.photo?.medium || '';
+            card.innerHTML = `
+              ${photoSrc ? `<img src="${esc(photoSrc)}" alt="Photo of ${esc(user.name)}" loading="lazy" />` : '<div></div>'}
+              <div><strong>${esc(user.name || profile.name)}</strong></div>
+              ${user.category ? `<div class="role">${esc(user.category)}</div>` : ''}
+              ${user.bio ? `<p>${esc(user.bio)}</p>` : ''}
+            `;
+          });
+        });
+
+        // Add Firestore-only users (not in content.json) to their category sections
+        const unmatched = users.filter(u => !matchedUids.has(u.id) && u.name && u.category);
+        if (!unmatched.length) return;
+
+        // Category label map for section headings
+        const catLabels = {
+          pi: 'Principal Investigator', postdoc: 'Postdoctoral', grad: 'Graduate',
+          undergrad: 'Undergraduate', highschool: 'High School', alumni: 'Alumni'
+        };
+        // Category display order
+        const catOrder = ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni'];
+
+        // Group unmatched users by category
+        const byCat = {};
+        unmatched.forEach(u => {
+          const cat = u.category || 'undergrad';
+          if (!byCat[cat]) byCat[cat] = [];
+          byCat[cat].push(u);
+        });
+
+        catOrder.forEach(cat => {
+          const catUsers = byCat[cat];
+          if (!catUsers) return;
+
+          // Try to find an existing section for this category
+          let grid = null;
+          const sections = appEl.querySelectorAll('.section');
+          sections.forEach(sec => {
+            const h2 = sec.querySelector('h2');
+            if (h2 && h2.textContent.trim() === catLabels[cat]) {
+              grid = sec.querySelector('.grid');
+            }
+          });
+
+          // If no section exists for this category, create one
+          if (!grid) {
+            const section = div('section reveal');
+            section.innerHTML = `<div class="max-w"><h2>${esc(catLabels[cat])}</h2></div>`;
+            grid = div('max-w grid grid-fit-250');
+            section.appendChild(grid);
+
+            // Insert in correct order: find the first section that comes after this category
+            const allSections = appEl.querySelectorAll('.section');
+            let insertBefore = null;
+            const catIdx = catOrder.indexOf(cat);
+            allSections.forEach(sec => {
+              const h2 = sec.querySelector('h2');
+              if (!h2) return;
+              const secCatIdx = catOrder.findIndex(c => catLabels[c] === h2.textContent.trim());
+              if (secCatIdx > catIdx && !insertBefore) insertBefore = sec;
+            });
+
+            if (insertBefore) {
+              insertBefore.parentNode.insertBefore(section, insertBefore);
+            } else {
+              // Append at end (but before any non-section content)
+              const container = allSections.length ? allSections[0].parentNode : appEl;
+              container.appendChild(section);
+            }
+          }
+
+          catUsers.forEach(u => {
+            const photoSrc = u.photo?.medium || u.photo?.full || '';
+            const card = div('card person');
+            card.innerHTML = `
+              ${photoSrc ? `<img src="${esc(photoSrc)}" alt="Photo of ${esc(u.name)}" loading="lazy" />` : '<div></div>'}
+              <div><strong>${esc(u.name)}</strong></div>
+              ${u.category ? `<div class="role">${esc(u.category)}</div>` : ''}
+              ${u.bio ? `<p>${esc(u.bio)}</p>` : ''}
+            `;
+            grid.appendChild(card);
+          });
+        });
+
+        enableReveal();
+        enableLazyImages();
+      }).catch(e => console.warn('Firestore team overlay unavailable:', e));
+    }
   }
 
   /* ===========================
@@ -306,7 +553,8 @@
       const id = links[i].id;
       const art = div('section card reveal'); art.id = id;
 
-      const storyHTML = buildStoryHTML(t.story);
+      const expandedContent = buildExpandedHTML(t.story, t);
+      const refBadges = buildRefLinksHTML(t.references);
 
       art.innerHTML = `
         <div class="max-w">
@@ -315,15 +563,16 @@
             <div>
               ${t.summary ? `<p>${esc(t.summary)}</p>` : ''}
               ${isNonEmptyArray(t.keywords) ? `<p>${t.keywords.map(k=>`<span class="badge">${esc(k)}</span>`).join(' ')}</p>` : ''}
-              ${storyHTML ? expandableHTML() : ''}
+              ${refBadges}
+              ${expandedContent ? expandableHTML() : ''}
             </div>
             ${imageHTML(t.image, t.imageAlt || t.title || 'image')}
           </div>
-          ${storyHTML ? `<div class="expandable-details" hidden>${storyHTML}</div>` : ''}
+          ${expandedContent ? `<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
         </div>
       `;
 
-      // Wire expand/collapse if story exists
+      // Wire expand/collapse if expanded content exists
       const btn = art.querySelector('.expand-toggle');
       if (btn){
         const details = art.querySelector('.expandable-details');
@@ -370,7 +619,8 @@
     const grid = div('max-w grid grid-fit-250');
     projects.forEach((p, i)=>{
       const id = links[i].id;
-      const storyHTML = buildStoryHTML(p.story);
+      const expandedContent = buildExpandedHTML(p.story, p);
+      const refBadges = buildRefLinksHTML(p.references);
       const item = div('card class-item reveal project-card'); item.id = id;
 
       item.innerHTML = `
@@ -378,11 +628,12 @@
         <h3>${esc(p.title || 'Untitled')}</h3>
         ${p.summary ? `<p>${esc(p.summary)}</p>` : ''}
         ${isNonEmptyArray(p.tags) ? `<p>${p.tags.map(t=>`<span class="badge">${esc(t)}</span>`).join(' ')}</p>` : ''}
+        ${refBadges}
         ${p.link ? `<p><a class="btn" href="${esc(p.link)}" target="_blank" rel="noopener">View Project Page</a></p>` : ''}
-        ${storyHTML ? `${expandableHTML()}<div class="expandable-details" hidden>${storyHTML}</div>` : ''}
+        ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
       `;
 
-      if (storyHTML){
+      if (expandedContent){
         const btn = item.querySelector('.expand-toggle');
         const det = item.querySelector('.expandable-details');
         wireExpandable(btn, det);
@@ -404,12 +655,12 @@
     const wrap = sectionEl();
 
     const categories = [
+      ['pi',         'Principal Investigator'],
       ['postdoc',    'Postdoctoral'],
       ['grad',       'Graduate'],
       ['undergrad',  'Undergraduate'],
       ['highschool', 'High School'],
-      ['alumni', 'Alumni']
-
+      ['alumni',     'Alumni']
     ];
 
     const existing = categories.filter(([k]) => isNonEmptyArray(team[k]));
@@ -484,60 +735,7 @@
     return wrap;
   }
 
-  function renderContact(){
-    const site = state.data.site;
-    const wrap = sectionEl();
-
-    // Quick links for the two sections
-    const links = [
-      { id: uniqueId('contact-form'), label: 'Form' },
-      { id: uniqueId('contact-info'), label: 'Info' }
-    ];
-    wrap.appendChild(buildSubnav(links));
-
-    const block = div('max-w grid');
-
-    const formBox = div('card class-item reveal'); formBox.id = links[0].id;
-    formBox.innerHTML = `
-      <h2>Contact Us</h2>
-      <form id="contactForm" novalidate>
-        <label> Name
-          <input name="name" type="text" placeholder="Your name" required />
-        </label>
-        <label> Email
-          <input name="email" type="email" placeholder="you@example.com" required />
-        </label>
-        <label> Message
-          <textarea name="message" placeholder="How can we help?" required></textarea>
-        </label>
-        <button type="submit">Send</button>
-      </form>
-      <p class="muted">This demo uses <code>mailto:</code>. Replace with your backend or a form service.</p>
-    `;
-
-    const infoBoxEl = div('card class-item reveal'); infoBoxEl.id = links[1].id;
-    infoBoxEl.innerHTML = `<h2>Info</h2>${formatContact(site.contact)}`;
-
-    block.appendChild(formBox);
-    block.appendChild(infoBoxEl);
-    wrap.appendChild(block);
-
-    // Simple mailto handler with email validation
-    setTimeout(() => {
-      const form = document.getElementById('contactForm');
-      form?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const data = new FormData(form);
-        const name = data.get('name'); const email = data.get('email'); const message = data.get('message');
-        if(!name || !email || !message){ alert('Please complete all fields.'); return; }
-        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ alert('Please enter a valid email address.'); return; }
-        const mailto = `mailto:${state.data.site.contact.email}?subject=${encodeURIComponent('Website contact from ' + name)}&body=${encodeURIComponent(message + '\n\nFrom: ' + name + ' <' + email + '>')}`;
-        window.location.href = mailto;
-      });
-    }, 0);
-
-    return wrap;
-  }
+  // Contact page removed — replaced by #/opportunities (rendered by user-system.js)
 
   function renderNotFound(){
     const wrap = sectionEl();
@@ -617,9 +815,23 @@
   if (!isNonEmptyArray(story)) return '';
 
   return story.map(block => {
-    const hasImg  = !!(block.image && String(block.image).trim());
-    const hasText = !!(block.text && String(block.text).trim());
+    const hasImg   = !!(block.image && String(block.image).trim());
+    const hasVideo = !!(block.video && String(block.video).trim());
+    const hasText  = !!(block.text && String(block.text).trim());
     const textHTML = hasText ? `<p>${esc(block.text)}</p>` : '';
+
+    // With video: two-column layout with video element
+    if (hasVideo) {
+      return `
+        <div class="section" style="margin-top:8px">
+          <div class="media">
+            <div>${textHTML}</div>
+            <video src="${esc(block.video)}" controls playsinline preload="metadata"
+              class="story-video" aria-label="${esc(block.imageAlt || 'video')}"></video>
+          </div>
+        </div>
+      `;
+    }
 
     // With image: keep the standard two-column ".media" layout
     if (hasImg) {
@@ -633,8 +845,7 @@
       `;
     }
 
-    // No image: make the text span the FULL width of the media grid
-    // (grid-column: 1 / -1 makes this child span all columns)
+    // No media: make the text span the FULL width of the media grid
     return `
       <div class="section" style="margin-top:8px">
         <div class="media">
@@ -644,6 +855,102 @@
     `;
   }).join('');
 }
+
+  /* ===========================
+     STORY TEAM & REFERENCES
+     =========================== */
+
+  /** Render team members grid (author, contributors, mentor) */
+  function buildStoryTeamHTML(team) {
+    if (!team) return '';
+    const members = [];
+
+    if (team.author) {
+      members.push({ ...team.author, teamRole: 'Author' });
+    }
+    if (isNonEmptyArray(team.contributors)) {
+      team.contributors.forEach(c => members.push({ ...c, teamRole: 'Contributor' }));
+    }
+    if (team.mentor) {
+      members.push({ ...team.mentor, teamRole: 'Mentor' });
+    }
+    if (!members.length) return '';
+
+    return `
+      <div class="story-team">
+        <h4 class="story-team-heading">Team</h4>
+        <div class="story-team-grid">
+          ${members.map(m => `
+            <div class="story-team-member">
+              ${m.photo
+                ? `<img src="${esc(m.photo)}" alt="${esc(m.name || '')}" class="story-team-photo" loading="lazy">`
+                : `<div class="story-team-photo story-team-photo-placeholder">${esc((m.name || '?')[0])}</div>`}
+              <div class="story-team-info">
+                <span class="story-team-name">${esc(m.name || 'Unknown')}</span>
+                <span class="story-team-role">${esc(m.teamRole)}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  /** Render full references section (patents, publications, presentations, posters) */
+  function buildStoryRefsHTML(refs) {
+    if (!refs) return '';
+    const categories = [
+      { key: 'publications',   icon: '📄', label: 'Publications' },
+      { key: 'patents',        icon: '⚙',  label: 'Patents' },
+      { key: 'presentations',  icon: '🎤', label: 'Presentations' },
+      { key: 'posters',        icon: '📋', label: 'Posters' }
+    ];
+    const sections = categories
+      .filter(cat => isNonEmptyArray(refs[cat.key]))
+      .map(cat => `
+        <div class="story-refs-category">
+          <h5>${cat.icon} ${cat.label}</h5>
+          <ul>
+            ${refs[cat.key].map(r => `
+              <li>
+                ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title || r.url)}</a>` : esc(r.title || '')}
+                ${r.detail ? `<span class="ref-detail"> — ${esc(r.detail)}</span>` : ''}
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+      `);
+    if (!sections.length) return '';
+    return `<div class="story-refs"><h4 class="story-refs-heading">References</h4>${sections.join('')}</div>`;
+  }
+
+  /** Render compact ref-badge links for unopened cards */
+  function buildRefLinksHTML(refs) {
+    if (!refs) return '';
+    const badges = [
+      { key: 'publications',  label: 'Publications' },
+      { key: 'patents',       label: 'Patents' },
+      { key: 'presentations', label: 'Presentations' },
+      { key: 'posters',       label: 'Posters' }
+    ];
+    const html = badges
+      .filter(b => isNonEmptyArray(refs[b.key]))
+      .map(b => {
+        const first = refs[b.key][0];
+        const url = first?.url || '#';
+        return `<a href="${esc(url)}" target="_blank" rel="noopener" class="ref-badge" title="${esc(b.label)}">${esc(b.label)}</a>`;
+      })
+      .join(' ');
+    return html ? `<p class="ref-badges">${html}</p>` : '';
+  }
+
+  /** Build complete expandable content: team → story sections → references */
+  function buildExpandedHTML(storyBlocks, data) {
+    const teamHTML = buildStoryTeamHTML(data?.team);
+    const storyHTML = buildStoryHTML(storyBlocks);
+    const refsHTML = buildStoryRefsHTML(data?.references);
+    const combined = teamHTML + storyHTML + refsHTML;
+    return combined || '';
+  }
 
   function expandableHTML(){
     return `

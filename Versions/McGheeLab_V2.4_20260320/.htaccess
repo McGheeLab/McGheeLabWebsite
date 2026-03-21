@@ -1,0 +1,15 @@
+# Correct MIME types for JS and other assets
+AddType application/javascript .js
+AddType text/css .css
+AddType application/json .json
+AddType image/webp .webp
+AddType video/mp4 .mp4
+AddType video/webm .webm
+
+# SPA fallback — serve index.html for paths that don't match a file
+# (needed if anyone navigates to a non-hash URL)
+RewriteEngine On
+RewriteBase /
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
