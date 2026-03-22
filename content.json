@@ -35,62 +35,6 @@
   }
 ],
 
-  "research": {
-    "topics": [
-      {
-        "title": "Microscope Enabled 3D-Bioprinting",
-        "summary": "Our custom 3D bioprinting system integrates a precision printing head with an inverted microscope, giving us direct visual feedback during fabrication. Python-based control coordinates the XY stage, Z-axis needle movement, and three independently driven syringe pumps, enabling multi-resolution bioink delivery. This level of control allows accurate placement of diverse materials to create high-fidelity, biologically relevant structures.",
-        "image": "Images/research/ME3B/me3b.jpg",
-        "imageAlt": "3D Bioprinting head on a microscope",
-        "keywords": ["ME3B", "3D Bioprinting", "Microscopy"],
-        "story": [
-          { "text": "We are writing our story, come back later." }
-        ]
-      },
-      {
-        "title": "Microfluidic Systems",
-        "summary": "We design microfluidic chips to support advanced in vitro tissue models. Using our GELS platform, cells within these chips self-assemble into organized tissue constructs. Carefully engineered channel dimensions maintain a passive, steady flow that supplies nutrients and removes waste without external pumps—sustaining healthy, functional tissues over extended periods.",
-        "image": "Images/research/microfluidics/col1coatedchip.png",
-        "imageAlt": "Microfluidic chip",
-        "keywords": ["gradients", "shear", "chemotaxis"],
-        "story": [
-          { "text": "This chip supports the development of complex tissue architectures, as well as tissue explants.", "image": "Images/research/microfluidics/Microfluidic_Droplet-02.png", "imageAlt": "Flow setup" }
-        ]
-      },
-      {
-        "title": "Traction Force Microscopy",
-        "summary": "Our 3D traction force microscopy technique quantifies how cells exert forces at the gel interface of granular hydrogels. By mapping these forces in three dimensions, we gain insight into the mechanical processes that drive cells to remodel their surroundings and self-organize into complex, composite tissue structures.",
-        "image": "Images/research/tfm/ptv.png",
-        "story": [
-          { "text": "We are writing our story, come back later." }
-        ]
-      }
-    ],
-    "references": [
-      { "title": "In Situ 3D Spatiotemporal Measurement of Soluble Biomarkers in Spheroid Culture", "authors": "McGhee, Alexander J., Eric O. McGhee, Jack E. Famiglietti, and W. Gregory Sawyer", "journal": "In Vitro Models", "year": "2022", "doi": "https://doi.org/10.1007/s44164-022-00037-6" }
-    ]
-  },
-
-  "projects": [
-    {
-      "title": "Open Microfluidic Syringe Pump",
-      "summary": "We are developing an open microfluidic syringe pump that combines precise temperature control with multi-channel flow delivery. The system can heat or cool bioinks and culture media in real time, ensuring optimal conditions throughout experiments. Designed for seamless integration with microfluidic chips, it enables on-demand droplet generation and supports a wide range of advanced tissue engineering and cell culture applications.",
-      "tags": ["microfluidics", "dropplet generation"],
-      "story": [
-        { "text": "We are writing our story, come back later."}
-      ]
-    },
-    {
-      "title": "Auto In-Vitro platform",
-      "summary": "Our automated in-vitro device maintains and monitors cell cultures in a standard well plate format. A cooled reservoir keeps media and reagents fresh, while an integrated 3D printing module enables continuous fabrication directly into the culture environment. Coupled with real-time imaging from an integrated microscope, the system supports long-term experiments with minimal manual intervention.",
-      "tags": ["continuous cell culture", "automation"],
-      "link": "https://autoinvitro.com",
-      "story": [
-        { "text": "We are writing our story, come back later." }
-      ]
-    }
-  ],
-
   "team": {
     "postdoc": [
       { "name": "No Postdocs currently"}

@@ -88,8 +88,6 @@
           contact: { address: "", email: "", phone: "" }
         },
         mission: [],
-        research: { topics: [], references: [] },
-        projects: [],
         team: { highschool: [], undergrad: [], grad: [], postdoc: [], alumni: [] },
         classes: { intro: "", courses: [] }
       };
@@ -108,23 +106,6 @@
 
     // New simple shape, with fallback to old:
     const mission = toArray(raw.mission?.length ? raw.mission : raw?.pages?.missionPage?.sections);
-
-    const research = (() => {
-      const r = raw.research || raw?.pages?.research || {};
-      return {
-        topics: toArray(r.topics).map(normalizeTopicOrProject),
-        references: toArray(r.references).map((ref) => ({
-          title:  str(ref?.title),
-          authors:str(ref?.authors),
-          journal:str(ref?.journal),
-          year:   str(ref?.year),
-          doi:    str(ref?.doi)
-        }))
-      };
-    })();
-
-    const projects = toArray((raw.projects && !raw.projects.projects) ? raw.projects : raw?.pages?.projects?.projects)
-      .map(normalizeTopicOrProject);
 
     const teamSrc = raw.team || raw?.pages?.team || {};
     const team = {
@@ -147,46 +128,7 @@
       }))
     };
 
-    return { site, mission, research, projects, team, classes };
-  }
-
-  // Normalize Research Topic or Project item
-  function normalizeTopicOrProject(item){
-    const title = str(item?.title);
-    const slug  = slugify(item?.slug || title || 'section');
-
-    const image = item?.image || (isNonEmptyArray(item?.images) ? item.images[0]?.src : '');
-    const imageAlt = item?.imageAlt || (isNonEmptyArray(item?.images) ? item.images[0]?.alt : '');
-
-    const storyBlocks = toArray(item?.story?.length ? item.story : item?.details)
-      .map(block => {
-        if (typeof block === 'string') return { text: block, image: '', imageAlt: '' };
-        return {
-          text: str(block?.text || block?.content),
-          image: str(block?.image || block?.src),
-          imageAlt: str(block?.imageAlt || block?.alt)
-        };
-      });
-
-    const link = str(item?.link || item?.hyperlink || '');
-
-    // Team & references passthrough (for story-team connections)
-    const team = item?.team || null;
-    const references = item?.references || null;
-
-    return {
-      slug,
-      title,
-      summary: str(item?.summary),
-      image: str(image),
-      imageAlt: str(imageAlt || title),
-      keywords: toArray(item?.keywords).map(str),
-      tags: toArray(item?.tags).map(str),
-      story: storyBlocks,
-      link,
-      team,
-      references
-    };
+    return { site, mission, team, classes };
   }
 
   function normalizePerson(p){
@@ -314,76 +256,52 @@
       }
     } catch (err) { console.warn('User system wiring error:', err); }
 
-    // Append Firestore-published stories to the projects page
+    // Load Firestore-driven projects page
     if (page === 'projects' && window.McgheeLab?.DB) {
-      McgheeLab.DB.getPublishedStories().then(stories => {
-        const userStories = stories.filter(s => s.source !== 'migrated');
-        if (!userStories.length) return;
-        const grid = appEl.querySelector('.grid');
-        if (!grid) return;
-
-        userStories.forEach(s => {
-          const storyBlocks = (s.sections || []).map(sec => ({
-            text: sec.text || '',
-            image: sec.image?.medium || sec.image?.full || '',
-            video: sec.video || '',
-            imageAlt: sec.imageAlt || ''
-          }));
-          const expandedContent = buildExpandedHTML(storyBlocks, s);
-          const refBadges = buildRefLinksHTML(s.references);
-          const item = div('card class-item reveal project-card');
-
-          item.innerHTML = `
-            <h3>${esc(s.title || 'Untitled')}</h3>
-            <p class="role">by ${esc(s.authorName || '')}</p>
-            ${s.description ? `<p>${esc(s.description)}</p>` : ''}
-            ${refBadges}
-            ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
-          `;
-
-          if (expandedContent) {
-            const btn = item.querySelector('.expand-toggle');
-            const det = item.querySelector('.expandable-details');
-            wireExpandable(btn, det);
+      const stackEl = appEl.querySelector('#projects-stack');
+      if (stackEl) {
+        try {
+          const projects = await McgheeLab.DB.getPublishedProjects();
+          if (!projects.length) {
+            stackEl.innerHTML = '<div class="empty-state-card"><p>No projects published yet.</p></div>';
+          } else {
+            stackEl.innerHTML = '';
+            for (const p of projects) {
+              const card = await buildProjectStackCard(p);
+              stackEl.appendChild(card);
+            }
+            enableReveal();
+            enableLazyImages();
           }
-          grid.appendChild(item);
-        });
-        enableReveal();
-        enableLazyImages();
-      }).catch(e => console.warn('Firestore stories unavailable:', e));
+        } catch (e) {
+          stackEl.innerHTML = '<p class="error-text">Failed to load projects.</p>';
+          console.warn('Projects load error:', e);
+        }
+      }
+    }
 
-      // Append published project packages
-      McgheeLab.DB.getPublishedProjects().then(projects => {
-        if (!projects.length) return;
-        const grid = appEl.querySelector('.grid');
-        if (!grid) return;
-
-        projects.forEach(p => {
-          const expandedContent = buildStoryTeamHTML(p.team)
-            + (p.outcomes ? `<div class="section" style="margin-top:8px"><div class="media"><div style="grid-column:1/-1"><h4>Outcomes</h4><p>${esc(p.outcomes)}</p></div></div></div>` : '')
-            + buildStoryRefsHTML(p.references);
-          const refBadges = buildRefLinksHTML(p.references);
-          const item = div('card class-item reveal project-card');
-
-          item.innerHTML = `
-            <h3>${esc(p.title || 'Untitled')}</h3>
-            <p class="role">by ${esc(p.authorName || '')}</p>
-            ${p.description ? `<p>${esc(p.description)}</p>` : ''}
-            ${refBadges}
-            ${p.link ? `<p><a class="btn" href="${esc(p.link)}" target="_blank" rel="noopener">View Project Site</a></p>` : ''}
-            ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
-          `;
-
-          if (expandedContent) {
-            const btn = item.querySelector('.expand-toggle');
-            const det = item.querySelector('.expandable-details');
-            wireExpandable(btn, det);
+    // Load Firestore-driven research stories feed
+    if (page === 'research' && window.McgheeLab?.DB) {
+      const feedEl = appEl.querySelector('#stories-feed');
+      if (feedEl) {
+        try {
+          const stories = await McgheeLab.DB.getPublishedStories();
+          if (!stories.length) {
+            feedEl.innerHTML = '<div class="empty-state-card"><p>No research stories published yet.</p></div>';
+          } else {
+            feedEl.innerHTML = '';
+            for (const s of stories) {
+              feedEl.appendChild(buildStoryFeedCard(s));
+            }
+            enableReveal();
+            enableLazyImages();
+            wireStoryFeedInteractions(feedEl);
           }
-          grid.appendChild(item);
-        });
-        enableReveal();
-        enableLazyImages();
-      }).catch(e => console.warn('Firestore projects unavailable:', e));
+        } catch (e) {
+          feedEl.innerHTML = '<p class="error-text">Failed to load stories.</p>';
+          console.warn('Stories feed error:', e);
+        }
+      }
     }
 
     // Overlay registered user profiles onto team page cards
@@ -540,114 +458,168 @@
   }
 
   function renderResearch(){
-    const { topics = [], references = [] } = state.data.research || {};
     const wrap = sectionEl();
-
-    const links = [
-      ...topics.map(t => ({ id: uniqueId(t.slug), label: t.title || 'Topic' })),
-      ...(references.length ? [{ id: uniqueId('references'), label: 'References' }] : [])
-    ];
-    wrap.appendChild(buildSubnav(links));
-
-    topics.forEach((t, i)=>{
-      const id = links[i].id;
-      const art = div('section card reveal'); art.id = id;
-
-      const expandedContent = buildExpandedHTML(t.story, t);
-      const refBadges = buildRefLinksHTML(t.references);
-
-      art.innerHTML = `
-        <div class="max-w">
-          <h2>${esc(t.title || 'Untitled')}</h2>
-          <div class="media">
-            <div>
-              ${t.summary ? `<p>${esc(t.summary)}</p>` : ''}
-              ${isNonEmptyArray(t.keywords) ? `<p>${t.keywords.map(k=>`<span class="badge">${esc(k)}</span>`).join(' ')}</p>` : ''}
-              ${refBadges}
-              ${expandedContent ? expandableHTML() : ''}
-            </div>
-            ${imageHTML(t.image, t.imageAlt || t.title || 'image')}
-          </div>
-          ${expandedContent ? `<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
-        </div>
-      `;
-
-      // Wire expand/collapse if expanded content exists
-      const btn = art.querySelector('.expand-toggle');
-      if (btn){
-        const details = art.querySelector('.expandable-details');
-        wireExpandable(btn, details);
-      }
-
-      wrap.appendChild(art);
-    });
-
-    // References
-    if (references.length){
-      const refs = div('section card reveal'); refs.id = links.at(-1).id;
-      refs.innerHTML = `
-        <div class="max-w">
-          <h2>Selected References</h2>
-          <ol>
-            ${references.map(r => `
-              <li>
-                <strong>${esc(r.title)}</strong>${r.authors ? `<br/><span>${esc(r.authors)}</span>` : ''}
-                ${r.journal ? ` <em>${esc(r.journal)}</em>` : ''}${r.year ? ` (${esc(r.year)})` : ''}
-                ${r.doi ? ` — <a href="${esc(r.doi)}" target="_blank" rel="noopener">DOI</a>` : ''}
-              </li>
-            `).join('')}
-          </ol>
-        </div>
-      `;
-      wrap.appendChild(refs);
-    }
-
-    if (!topics.length && !references.length){
-      wrap.appendChild(infoBox('Add research topics in content.json → "research.topics": [ ... ]'));
-    }
-
+    wrap.innerHTML = `
+      <div class="max-w">
+        <h2>Research Stories</h2>
+        <p class="page-subtitle">The latest research from our lab members.</p>
+      </div>
+      <div class="max-w" id="stories-feed">
+        <p class="loading-text">Loading stories\u2026</p>
+      </div>
+    `;
     return wrap;
   }
 
   function renderProjects(){
-    const projects = state.data.projects || [];
     const wrap = sectionEl();
+    wrap.innerHTML = `
+      <div class="max-w">
+        <h2>Projects</h2>
+        <p class="page-subtitle">Active research projects in the McGhee Lab.</p>
+      </div>
+      <div class="max-w" id="projects-stack">
+        <p class="loading-text">Loading projects\u2026</p>
+      </div>
+    `;
+    return wrap;
+  }
 
-    const links = projects.map(p => ({ id: uniqueId(p.slug), label: p.title || 'Project' }));
-    wrap.appendChild(buildSubnav(links));
+  /* ── Project stack card (Firestore-driven) ── */
+  async function buildProjectStackCard(p) {
+    const card = div('card project-stack-card reveal');
+    const coverSrc = p.coverImage?.medium || p.coverImage?.full || '';
+    const memberCount = (p.team?.contributors?.length || 0) + (p.team?.mentor ? 1 : 0) + 1;
 
-    const grid = div('max-w grid grid-fit-250');
-    projects.forEach((p, i)=>{
-      const id = links[i].id;
-      const expandedContent = buildExpandedHTML(p.story, p);
-      const refBadges = buildRefLinksHTML(p.references);
-      const item = div('card class-item reveal project-card'); item.id = id;
+    let relatedStories = [];
+    try {
+      relatedStories = await McgheeLab.DB.getStoriesByProject(p.id);
+    } catch (e) { console.warn('Stories for project:', e); }
 
-      item.innerHTML = `
-        <div class="thumb">${imageHTML(p.image, p.imageAlt || p.title || 'image')}</div>
-        <h3>${esc(p.title || 'Untitled')}</h3>
-        ${p.summary ? `<p>${esc(p.summary)}</p>` : ''}
-        ${isNonEmptyArray(p.tags) ? `<p>${p.tags.map(t=>`<span class="badge">${esc(t)}</span>`).join(' ')}</p>` : ''}
-        ${refBadges}
-        ${p.link ? `<p><a class="btn" href="${esc(p.link)}" target="_blank" rel="noopener">View Project Page</a></p>` : ''}
-        ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
-      `;
+    const expandedContent = buildProjectExpandedHTML(p, relatedStories);
 
-      if (expandedContent){
-        const btn = item.querySelector('.expand-toggle');
-        const det = item.querySelector('.expandable-details');
-        wireExpandable(btn, det);
-      }
+    card.innerHTML = `
+      <div class="project-stack-layout">
+        ${coverSrc
+          ? `<div class="project-stack-image"><img data-src="${esc(coverSrc)}" alt="${esc(p.title || '')}" loading="lazy"></div>`
+          : ''}
+        <div class="project-stack-body">
+          <h3>${esc(p.title || 'Untitled')}</h3>
+          ${p.description ? `<p>${esc(p.description)}</p>` : ''}
+          <div class="project-stack-metrics">
+            <span class="badge">${memberCount} team member${memberCount !== 1 ? 's' : ''}</span>
+            <span class="badge">${relatedStories.length} stor${relatedStories.length !== 1 ? 'ies' : 'y'}</span>
+          </div>
+          ${expandedContent ? expandableHTML() : ''}
+        </div>
+      </div>
+      ${expandedContent ? `<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
+    `;
 
-      grid.appendChild(item);
+    const btn = card.querySelector('.expand-toggle');
+    if (btn) wireExpandable(btn, card.querySelector('.expandable-details'));
+    return card;
+  }
+
+  function buildProjectExpandedHTML(p, stories) {
+    let html = '';
+    if (p.outcomes) {
+      html += `<div class="project-expanded-section"><h4>Goals &amp; Outcomes</h4><p>${esc(p.outcomes)}</p></div>`;
+    }
+    html += buildStoryTeamHTML(p.team);
+    html += buildStoryRefsHTML(p.references);
+    if (p.link) {
+      html += `<p style="padding:.5rem 0"><a class="btn" href="${esc(p.link)}" target="_blank" rel="noopener">View Project Site</a></p>`;
+    }
+    if (stories.length) {
+      html += `<div class="project-stories-section"><h4>Research Stories</h4><div class="project-stories-grid">`;
+      stories.forEach(s => {
+        html += `<div class="project-story-mini-card">
+          <strong>${esc(s.title || 'Untitled')}</strong>
+          <span class="hint">by ${esc(s.authorName || '')}</span>
+          ${s.description ? `<p>${esc(s.description)}</p>` : ''}
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
+    return html;
+  }
+
+  /* ── Story feed card (Firestore-driven) ── */
+  function buildStoryFeedCard(s) {
+    const card = div('card story-feed-card reveal');
+    card.dataset.storyId = s.id;
+
+    const dateStr = s.publishedAt?.toDate?.()
+      ? s.publishedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      : '';
+
+    const authorPhoto = s.team?.author?.photo?.thumb || s.team?.author?.photo || '';
+    const storyBlocks = (s.sections || []).map(sec => ({
+      text: sec.text || '',
+      image: sec.image?.medium || sec.image?.full || '',
+      video: sec.video || '',
+      imageAlt: sec.imageAlt || ''
+    }));
+    const expandedContent = buildExpandedHTML(storyBlocks, s);
+
+    card.innerHTML = `
+      <div class="story-feed-header">
+        ${authorPhoto
+          ? `<img src="${esc(authorPhoto)}" alt="" class="story-feed-avatar">`
+          : `<div class="story-feed-avatar story-feed-avatar-placeholder">${esc((s.authorName || '?')[0])}</div>`}
+        <div class="story-feed-meta">
+          <span class="story-feed-author">${esc(s.authorName || 'Unknown')}</span>
+          <span class="story-feed-date">${esc(dateStr)}</span>
+          ${s.projectTitle ? `<span class="badge story-feed-project">${esc(s.projectTitle)}</span>` : ''}
+        </div>
+      </div>
+      <h3 class="story-feed-title">${esc(s.title || 'Untitled')}</h3>
+      ${s.description ? `<p class="story-feed-desc">${esc(s.description)}</p>` : ''}
+      ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
+      <div class="story-feed-actions">
+        <div class="reaction-bar" data-story-id="${esc(s.id)}"></div>
+        <button type="button" class="comment-toggle" data-story-id="${esc(s.id)}" title="Comments">
+          <span class="comment-icon">\uD83D\uDCAC</span>
+          <span class="comment-count" data-comment-count="${esc(s.id)}">0</span>
+        </button>
+      </div>
+      <div class="comments-section" data-comments-for="${esc(s.id)}" hidden></div>
+    `;
+
+    const btn = card.querySelector('.expand-toggle');
+    if (btn) wireExpandable(btn, card.querySelector('.expandable-details'));
+    return card;
+  }
+
+  /* ── Wire reactions + comments on story feed ── */
+  function wireStoryFeedInteractions(feedEl) {
+    // Load reactions for each story
+    feedEl.querySelectorAll('.reaction-bar').forEach(bar => {
+      const storyId = bar.dataset.storyId;
+      if (window.McgheeLab?.loadReactions) McgheeLab.loadReactions(storyId, bar);
     });
 
-    if (!projects.length){
-      grid.appendChild(infoBox('Add projects in content.json → "projects": [ ... ]'));
-    }
+    // Load comment counts
+    feedEl.querySelectorAll('.comment-toggle').forEach(btn => {
+      const storyId = btn.dataset.storyId;
+      const countEl = feedEl.querySelector(`[data-comment-count="${storyId}"]`);
+      if (window.McgheeLab?.DB) {
+        McgheeLab.DB.getCommentsByStory(storyId).then(comments => {
+          if (countEl) countEl.textContent = comments.length || '0';
+        }).catch(() => {});
+      }
 
-    wrap.appendChild(grid);
-    return wrap;
+      btn.addEventListener('click', () => {
+        const section = feedEl.querySelector(`[data-comments-for="${storyId}"]`);
+        if (!section) return;
+        const wasHidden = section.hidden;
+        section.hidden = !wasHidden;
+        if (wasHidden && window.McgheeLab?.loadComments) {
+          McgheeLab.loadComments(storyId, section);
+        }
+      });
+    });
   }
 
   function renderTeam(){

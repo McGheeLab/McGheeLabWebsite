@@ -71,5 +71,24 @@ service cloud.firestore {
       allow read:  if true;
       allow write: if isAdmin();
     }
+
+    // Comments — public read, authenticated create, own or admin delete
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.authorUid;
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.authorUid || isAdmin());
+    }
+
+    // Reactions — public read, authenticated create (own uid only), own delete
+    match /reactions/{reactionId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.authorUid == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.authorUid == request.auth.uid;
+    }
   }
 }

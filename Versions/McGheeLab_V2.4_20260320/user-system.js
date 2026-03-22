@@ -145,6 +145,7 @@ const DB = {
       await McgheeLab.db.collection('stories').doc(id).set(rest, { merge: true });
       return id;
     }
+    delete data.id;
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     const ref = await McgheeLab.db.collection('stories').add(data);
     return ref.id;
@@ -170,7 +171,7 @@ const DB = {
   },
   async getPublishedProjects() {
     const snap = await McgheeLab.db.collection('projectPackages')
-      .where('status', '==', 'published').orderBy('publishedAt', 'desc').get();
+      .where('status', '==', 'published').orderBy('order', 'asc').get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async saveProject(data) {
@@ -182,12 +183,65 @@ const DB = {
       await McgheeLab.db.collection('projectPackages').doc(id).set(rest, { merge: true });
       return id;
     }
+    delete data.id;
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     const ref = await McgheeLab.db.collection('projectPackages').add(data);
     return ref.id;
   },
   async deleteProject(id) {
     await McgheeLab.db.collection('projectPackages').doc(id).delete();
+  },
+  async updateProjectOrder(projectId, order) {
+    await McgheeLab.db.collection('projectPackages').doc(projectId).update({
+      order, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async getStoriesByProject(projectId) {
+    const snap = await McgheeLab.db.collection('stories')
+      .where('projectId', '==', projectId)
+      .where('status', '==', 'published')
+      .orderBy('publishedAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  /* ── Comments ── */
+  async getCommentsByStory(storyId) {
+    const snap = await McgheeLab.db.collection('comments')
+      .where('storyId', '==', storyId)
+      .orderBy('createdAt', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async addComment(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    const ref = await McgheeLab.db.collection('comments').add(data);
+    return ref.id;
+  },
+  async deleteComment(id) {
+    await McgheeLab.db.collection('comments').doc(id).delete();
+  },
+
+  /* ── Reactions ── */
+  async getReactionsByStory(storyId) {
+    const snap = await McgheeLab.db.collection('reactions')
+      .where('storyId', '==', storyId).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async toggleReaction(storyId, emoji) {
+    const uid = Auth.currentUser?.uid;
+    if (!uid) return;
+    const docId = storyId + '_' + uid + '_' + emoji;
+    const ref = McgheeLab.db.collection('reactions').doc(docId);
+    const doc = await ref.get();
+    if (doc.exists) {
+      await ref.delete();
+      return false;
+    }
+    await ref.set({
+      storyId, authorUid: uid, emoji,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return true;
   },
 
   /* ── Opportunities ── */
@@ -494,9 +548,12 @@ function renderDashboard() {
         <div class="dash-card dash-card-full">
           <div class="card-head">
             <h3>Project Packages</h3>
-            <button class="btn btn-primary btn-small" id="new-project-btn">+ New Project</button>
+            <div class="card-head-actions">
+              <button class="btn btn-secondary btn-small" id="reorder-projects-btn">Reorder</button>
+              <button class="btn btn-primary btn-small" id="new-project-btn">+ New Project</button>
+            </div>
           </div>
-          <p class="hint">Compile published stories into a project with outcomes. Assign stories, set their order, and link to external sites.</p>
+          <p class="hint">Create projects, then students publish research stories under them.</p>
           <div id="projects-list" class="stories-list">
             <p class="loading-text">Loading projects\u2026</p>
           </div>
@@ -520,11 +577,68 @@ async function wireDashboard() {
   // Load story list
   await refreshStoryList();
 
-  // Project package section (grad/postdoc/admin only)
+  // Project package section (admin only)
   if (Auth.canCreateProject()) {
     document.getElementById('new-project-btn')?.addEventListener('click', () => {
       window.location.hash = '#/dashboard/project/new';
     });
+
+    // Reorder projects UI
+    document.getElementById('reorder-projects-btn')?.addEventListener('click', async () => {
+      const listEl = document.getElementById('projects-list');
+      if (!listEl) return;
+      let projects = [];
+      try { projects = await DB.getPublishedProjects(); } catch (e) { return; }
+      if (!projects.length) { alert('No published projects to reorder.'); return; }
+
+      listEl.innerHTML = `
+        <p class="hint">Use arrows to reorder. Click "Save Order" when done.</p>
+        <div id="reorder-list"></div>
+        <div style="margin-top:.75rem;display:flex;gap:.5rem">
+          <button class="btn btn-primary btn-small" id="save-order-btn">Save Order</button>
+          <button class="btn btn-secondary btn-small" id="cancel-order-btn">Cancel</button>
+        </div>
+      `;
+
+      const reorderList = document.getElementById('reorder-list');
+      function renderReorderList() {
+        reorderList.innerHTML = projects.map((p, i) => `
+          <div class="proj-story-row" data-idx="${i}">
+            <span class="proj-story-num">${i + 1}</span>
+            <span class="proj-story-title">${escapeHTML(p.title || 'Untitled')}</span>
+            <div class="proj-story-controls">
+              <button type="button" class="btn-icon" data-move="up" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+              <button type="button" class="btn-icon" data-move="down" ${i === projects.length - 1 ? 'disabled' : ''}>&darr;</button>
+            </div>
+          </div>
+        `).join('');
+        reorderList.querySelectorAll('[data-move="up"]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const idx = Number(btn.closest('.proj-story-row').dataset.idx);
+            if (idx > 0) { [projects[idx - 1], projects[idx]] = [projects[idx], projects[idx - 1]]; renderReorderList(); }
+          });
+        });
+        reorderList.querySelectorAll('[data-move="down"]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const idx = Number(btn.closest('.proj-story-row').dataset.idx);
+            if (idx < projects.length - 1) { [projects[idx], projects[idx + 1]] = [projects[idx + 1], projects[idx]]; renderReorderList(); }
+          });
+        });
+      }
+      renderReorderList();
+
+      document.getElementById('save-order-btn').addEventListener('click', async () => {
+        try {
+          for (let i = 0; i < projects.length; i++) {
+            await DB.updateProjectOrder(projects[i].id, i);
+          }
+          alert('Project order saved!');
+          await refreshProjectList();
+        } catch (err) { alert('Error saving order: ' + err.message); }
+      });
+      document.getElementById('cancel-order-btn').addEventListener('click', () => refreshProjectList());
+    });
+
     await refreshProjectList();
   }
 
@@ -669,9 +783,8 @@ function renderProjectEditor(projectId) {
       <div class="wizard-steps">
         <button class="wizard-step active" data-step="1"><span class="step-num">1</span> Details</button>
         <button class="wizard-step" data-step="2"><span class="step-num">2</span> Team</button>
-        <button class="wizard-step" data-step="3"><span class="step-num">3</span> Stories</button>
-        <button class="wizard-step" data-step="4"><span class="step-num">4</span> References</button>
-        <button class="wizard-step" data-step="5"><span class="step-num">5</span> Review</button>
+        <button class="wizard-step" data-step="3"><span class="step-num">3</span> References</button>
+        <button class="wizard-step" data-step="4"><span class="step-num">4</span> Review</button>
       </div>
 
       <form id="project-form">
@@ -681,6 +794,15 @@ function renderProjectEditor(projectId) {
           <div class="form-group">
             <label for="proj-title">Project Title</label>
             <input type="text" id="proj-title" required placeholder="Give your project a title">
+          </div>
+          <div class="form-group">
+            <label>Cover Image</label>
+            <div class="project-cover-upload">
+              <div class="project-cover-preview" id="proj-cover-preview">
+                <p class="upload-hint">Click or drag an image here</p>
+              </div>
+              <input type="file" id="proj-cover-input" accept="image/*" hidden>
+            </div>
           </div>
           <div class="form-group">
             <label for="proj-description">Description</label>
@@ -693,6 +815,10 @@ function renderProjectEditor(projectId) {
           <div class="form-group">
             <label for="proj-link">External Link <span class="hint">(optional — link to project site)</span></label>
             <input type="url" id="proj-link" placeholder="https://example.com">
+          </div>
+          <div class="form-group">
+            <label for="proj-order">Display Order <span class="hint">(lower number = shown first)</span></label>
+            <input type="number" id="proj-order" value="0" min="0">
           </div>
         </div>
 
@@ -723,31 +849,16 @@ function renderProjectEditor(projectId) {
           </div>
         </div>
 
-        <!-- Step 3: Stories -->
+        <!-- Step 3: References -->
         <div class="wizard-panel" data-panel="3">
-          <h3>Assign Stories</h3>
-          <p class="hint">Add published stories to this project. Drag to reorder, or use the arrows. Remove stories you no longer need.</p>
-          <div class="proj-story-add-row">
-            <select id="proj-story-select">
-              <option value="">— Select a story to add —</option>
-            </select>
-            <button type="button" id="proj-add-story-btn" class="btn btn-secondary btn-small">+ Add</button>
-          </div>
-          <div id="proj-story-list" class="proj-story-list">
-            <p class="empty-state">No stories assigned yet.</p>
-          </div>
-        </div>
-
-        <!-- Step 4: References -->
-        <div class="wizard-panel" data-panel="4">
           <h3>References</h3>
           <p class="hint">Link publications, patents, presentations, or posters to this project.</p>
           <div id="proj-refs-container" class="refs-container"></div>
           <button type="button" id="proj-add-ref-btn" class="btn btn-secondary">+ Add Reference</button>
         </div>
 
-        <!-- Step 5: Review & Publish -->
-        <div class="wizard-panel" data-panel="5">
+        <!-- Step 4: Review & Publish -->
+        <div class="wizard-panel" data-panel="4">
           <h3>Review &amp; Publish</h3>
           <div id="proj-review-summary" class="review-summary"></div>
         </div>
@@ -775,11 +886,9 @@ async function wireProjectEditor(projectId) {
   let existing = null;
   const selectedContributors = [];
   let _projRefCounter = 0;
-  // Ordered list of story objects: { id, title, authorName }
-  const assignedStories = [];
-  let allStories = [];
+  let coverImageUrls = null;
   let currentStep = 1;
-  const totalSteps = 5;
+  const totalSteps = 4;
 
   // ── Wizard navigation ──
   const steps = document.querySelectorAll('.wizard-step');
@@ -858,79 +967,53 @@ async function wireProjectEditor(projectId) {
     contribSelect.value = '';
   });
 
-  // ── Step 3: Stories (ordered list with add/reorder/delete) ──
-  const storySelect = document.getElementById('proj-story-select');
-  const storyListEl = document.getElementById('proj-story-list');
+  // ── Cover image upload ──
+  const coverPreview = document.getElementById('proj-cover-preview');
+  const coverInput = document.getElementById('proj-cover-input');
 
-  try {
-    allStories = await DB.getPublishedStories();
-  } catch (e) { console.warn('Failed to load stories:', e); }
-
-  // Populate the story dropdown
-  function refreshStoryDropdown() {
-    const assignedIds = new Set(assignedStories.map(s => s.id));
-    storySelect.innerHTML = '<option value="">— Select a story to add —</option>';
-    allStories.filter(s => !assignedIds.has(s.id)).forEach(s => {
-      const o = document.createElement('option');
-      o.value = s.id;
-      o.textContent = `${s.title || 'Untitled'} — ${s.authorName || ''}`;
-      storySelect.appendChild(o);
-    });
-  }
-
-  function renderStoryList() {
-    if (!assignedStories.length) {
-      storyListEl.innerHTML = '<p class="empty-state">No stories assigned yet.</p>';
-      refreshStoryDropdown();
-      return;
-    }
-    storyListEl.innerHTML = assignedStories.map((s, i) => `
-      <div class="proj-story-row" data-idx="${i}">
-        <span class="proj-story-num">${i + 1}</span>
-        <span class="proj-story-title">${escapeHTML(s.title || 'Untitled')}</span>
-        <span class="hint">${escapeHTML(s.authorName || '')}</span>
-        <div class="proj-story-controls">
-          <button type="button" class="btn-icon" data-move-story="up" title="Move up" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
-          <button type="button" class="btn-icon" data-move-story="down" title="Move down" ${i === assignedStories.length - 1 ? 'disabled' : ''}>&darr;</button>
-          <button type="button" class="btn-icon btn-danger-icon" data-remove-story title="Remove">&times;</button>
-        </div>
-      </div>
-    `).join('');
-
-    storyListEl.querySelectorAll('[data-move-story="up"]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = Number(btn.closest('.proj-story-row').dataset.idx);
-        if (idx > 0) { [assignedStories[idx - 1], assignedStories[idx]] = [assignedStories[idx], assignedStories[idx - 1]]; renderStoryList(); }
-      });
-    });
-    storyListEl.querySelectorAll('[data-move-story="down"]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = Number(btn.closest('.proj-story-row').dataset.idx);
-        if (idx < assignedStories.length - 1) { [assignedStories[idx], assignedStories[idx + 1]] = [assignedStories[idx + 1], assignedStories[idx]]; renderStoryList(); }
-      });
-    });
-    storyListEl.querySelectorAll('[data-remove-story]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = Number(btn.closest('.proj-story-row').dataset.idx);
-        assignedStories.splice(idx, 1);
-        renderStoryList();
-      });
-    });
-    refreshStoryDropdown();
-  }
-
-  document.getElementById('proj-add-story-btn').addEventListener('click', () => {
-    const id = storySelect.value;
-    if (!id) return;
-    const story = allStories.find(s => s.id === id);
-    if (!story) return;
-    assignedStories.push({ id: story.id, title: story.title || '', authorName: story.authorName || '' });
-    renderStoryList();
+  coverPreview.addEventListener('click', () => coverInput.click());
+  coverPreview.addEventListener('dragover', e => { e.preventDefault(); coverPreview.style.borderColor = 'var(--accent)'; });
+  coverPreview.addEventListener('dragleave', () => { coverPreview.style.borderColor = ''; });
+  coverPreview.addEventListener('drop', e => {
+    e.preventDefault();
+    coverPreview.style.borderColor = '';
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) handleCoverUpload(file);
+  });
+  coverInput.addEventListener('change', () => {
+    if (coverInput.files[0]) handleCoverUpload(coverInput.files[0]);
   });
 
-  renderStoryList();
+  async function handleCoverUpload(file) {
+    coverPreview.innerHTML = '<p class="upload-hint">Uploading...</p>';
+    try {
+      const projectRef = existing?.id || 'draft_' + Date.now();
+      const sizes = [
+        { name: 'thumb', maxW: 300, quality: 0.7 },
+        { name: 'medium', maxW: 800, quality: 0.8 },
+        { name: 'full', maxW: 1600, quality: 0.9 }
+      ];
+      const urls = {};
+      for (const sz of sizes) {
+        const canvas = document.createElement('canvas');
+        const img = await createImageBitmap(file);
+        const scale = Math.min(1, sz.maxW / img.width);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', sz.quality));
+        const ref = McgheeLab.storage.ref(`projects/${projectRef}/cover/${sz.name}.webp`);
+        await ref.put(blob, { contentType: 'image/webp' });
+        urls[sz.name] = await ref.getDownloadURL();
+      }
+      coverImageUrls = urls;
+      coverPreview.innerHTML = `<img src="${escapeHTML(urls.medium)}" alt="Cover preview">`;
+    } catch (err) {
+      coverPreview.innerHTML = `<p class="error-text">Upload failed: ${escapeHTML(err.message)}</p>`;
+    }
+  }
 
-  // ── Step 4: References ──
+  // ── Step 3: References ──
   const refsContainer = document.getElementById('proj-refs-container');
   function projRefBlockHTML(data) {
     const id = _projRefCounter++;
@@ -969,18 +1052,17 @@ async function wireProjectEditor(projectId) {
       document.getElementById('proj-description').value = existing.description || '';
       document.getElementById('proj-outcomes').value = existing.outcomes || '';
       document.getElementById('proj-link').value = existing.link || '';
+      document.getElementById('proj-order').value = existing.order ?? 0;
+      if (existing.coverImage) {
+        coverImageUrls = existing.coverImage;
+        if (existing.coverImage.medium) {
+          coverPreview.innerHTML = `<img src="${escapeHTML(existing.coverImage.medium)}" alt="Cover preview">`;
+        }
+      }
       if (existing.team?.mentor?.uid) mentorSelect.value = existing.team.mentor.uid;
       if (existing.team?.contributors) {
         existing.team.contributors.forEach(c => selectedContributors.push(c));
         renderChips();
-      }
-      // Restore stories in order
-      if (existing.storyIds) {
-        existing.storyIds.forEach(id => {
-          const s = allStories.find(st => st.id === id);
-          assignedStories.push(s ? { id: s.id, title: s.title || '', authorName: s.authorName || '' } : { id, title: '(deleted story)', authorName: '' });
-        });
-        renderStoryList();
       }
       if (existing.references) {
         for (const [type, items] of Object.entries(existing.references)) {
@@ -995,27 +1077,28 @@ async function wireProjectEditor(projectId) {
     }
   }
 
-  // ── Step 5: Review summary ──
+  // ── Step 4: Review summary ──
   function buildReview() {
     const el = document.getElementById('proj-review-summary');
     const title = document.getElementById('proj-title').value || '(no title)';
     const desc = document.getElementById('proj-description').value || '(no description)';
     const outcomes = document.getElementById('proj-outcomes').value || '(none)';
     const link = document.getElementById('proj-link').value;
+    const order = document.getElementById('proj-order').value;
     const mentorOpt = mentorSelect.options[mentorSelect.selectedIndex];
     const mentorName = mentorSelect.value ? (mentorOpt?.dataset?.name || mentorOpt?.textContent || '') : '(none)';
     const contribNames = selectedContributors.map(c => c.name || c.uid).join(', ') || '(none)';
-    const storyCount = assignedStories.length;
     const refCount = refsContainer.querySelectorAll('.ref-block').length;
 
     el.innerHTML = `
       <div class="review-row"><strong>Title:</strong> ${escapeHTML(title)}</div>
+      ${coverImageUrls ? '<div class="review-row"><strong>Cover Image:</strong> uploaded</div>' : '<div class="review-row"><strong>Cover Image:</strong> (none)</div>'}
       <div class="review-row"><strong>Description:</strong> ${escapeHTML(desc)}</div>
       <div class="review-row"><strong>Outcomes:</strong> ${escapeHTML(outcomes)}</div>
       ${link ? `<div class="review-row"><strong>External Link:</strong> <a href="${escapeHTML(link)}" target="_blank" rel="noopener">${escapeHTML(link)}</a></div>` : ''}
+      <div class="review-row"><strong>Display Order:</strong> ${escapeHTML(order)}</div>
       <div class="review-row"><strong>Mentor:</strong> ${escapeHTML(mentorName)}</div>
       <div class="review-row"><strong>Contributors:</strong> ${escapeHTML(contribNames)}</div>
-      <div class="review-row"><strong>Stories:</strong> ${storyCount} assigned</div>
       <div class="review-row"><strong>References:</strong> ${refCount} entries</div>
       ${!outcomes.trim() ? '<p class="form-status error" style="margin-top:.75rem">Outcomes are required before publishing.</p>' : ''}
     `;
@@ -1051,19 +1134,21 @@ async function wireProjectEditor(projectId) {
       references[type].push({ title, url, detail });
     });
 
-    return {
-      id: existing?.id || undefined,
+    const result = {
       title: document.getElementById('proj-title').value,
       description: document.getElementById('proj-description').value,
       outcomes: document.getElementById('proj-outcomes').value,
       link: document.getElementById('proj-link').value.trim(),
+      coverImage: coverImageUrls,
+      order: parseInt(document.getElementById('proj-order').value) || 0,
       authorUid: Auth.currentUser.uid,
       authorName: Auth.currentProfile?.name || '',
-      storyIds: assignedStories.map(s => s.id),
       team,
       references,
       status
     };
+    if (existing?.id) result.id = existing.id;
+    return result;
   }
 
   async function saveProject(status) {
@@ -1249,8 +1334,10 @@ function renderStoryEditor(storyId) {
           <input type="text" id="story-title" required placeholder="Give your story a title">
         </div>
         <div class="form-group">
-          <label for="story-project">Associated Project (optional)</label>
-          <input type="text" id="story-project" placeholder="e.g., Microfluidic Cell Sorting">
+          <label for="story-project">Project <span class="hint">(required)</span></label>
+          <select id="story-project" required>
+            <option value="">-- Select a project --</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="story-description">Brief Description</label>
@@ -1401,6 +1488,20 @@ async function wireStoryEditor(storyId) {
 
   authorField.value = Auth.currentProfile?.name || Auth.currentUser.email;
 
+  // Populate project dropdown from published Firestore projects
+  const projectSelect = document.getElementById('story-project');
+  let allProjects = [];
+  try {
+    allProjects = await DB.getPublishedProjects();
+    allProjects.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.title || 'Untitled Project';
+      o.dataset.title = p.title || '';
+      projectSelect.appendChild(o);
+    });
+  } catch (e) { console.warn('Failed to load projects for dropdown:', e); }
+
   allUsers.forEach(u => {
     const opt = (sel) => {
       const o = document.createElement('option');
@@ -1466,7 +1567,12 @@ async function wireStoryEditor(storyId) {
     } catch (e) { console.warn('Failed to load story:', e); }
     if (existing) {
       document.getElementById('story-title').value = existing.title || '';
-      document.getElementById('story-project').value = existing.project || '';
+      if (existing.projectId) projectSelect.value = existing.projectId;
+      else if (existing.project) {
+        // Legacy: try to match old free-text project to a Firestore project
+        const match = allProjects.find(p => p.title === existing.project);
+        if (match) projectSelect.value = match.id;
+      }
       document.getElementById('story-description').value = existing.description || '';
 
       // Restore team
@@ -1634,10 +1740,10 @@ async function wireStoryEditor(storyId) {
       references[type].push({ title, url, detail });
     });
 
-    return {
-      id: existing?.id || undefined,
+    const result = {
       title: document.getElementById('story-title').value,
-      project: document.getElementById('story-project').value,
+      projectId: projectSelect.value,
+      projectTitle: projectSelect.options[projectSelect.selectedIndex]?.dataset?.title || projectSelect.options[projectSelect.selectedIndex]?.textContent || '',
       description: document.getElementById('story-description').value,
       authorUid: Auth.currentUser.uid,
       authorName: Auth.currentProfile?.name || '',
@@ -1646,6 +1752,8 @@ async function wireStoryEditor(storyId) {
       references,
       status
     };
+    if (existing?.id) result.id = existing.id;
+    return result;
   }
 
   async function saveStory(status) {
@@ -2170,6 +2278,113 @@ McgheeLab.renderOpportunities  = renderOpportunities;
 McgheeLab.wireOpportunities    = wireOpportunities;
 McgheeLab.renderAdmin      = renderAdmin;
 McgheeLab.wireAdmin        = wireAdmin;
+
+/* ================================================================
+   SOCIAL: Reactions & Comments (called from app.js feed)
+   ================================================================ */
+const REACTION_EMOJIS = [
+  { key: 'thumbsup', display: '\uD83D\uDC4D' },
+  { key: 'heart', display: '\u2764\uFE0F' },
+  { key: 'celebrate', display: '\uD83C\uDF89' },
+  { key: 'insightful', display: '\uD83D\uDCA1' },
+  { key: 'fire', display: '\uD83D\uDD25' }
+];
+
+McgheeLab.loadReactions = async function(storyId, barEl) {
+  let reactions = [];
+  try { reactions = await DB.getReactionsByStory(storyId); } catch (e) { return; }
+
+  const counts = {};
+  const userReacted = {};
+  reactions.forEach(r => {
+    counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+    if (Auth.currentUser && r.authorUid === Auth.currentUser.uid) userReacted[r.emoji] = true;
+  });
+
+  barEl.innerHTML = REACTION_EMOJIS.map(e => `
+    <button type="button" class="reaction-btn ${userReacted[e.key] ? 'reacted' : ''}"
+      data-emoji="${e.key}" data-story-id="${escapeHTML(storyId)}"
+      ${!Auth.currentUser ? 'disabled title="Log in to react"' : ''}>
+      ${e.display}${counts[e.key] ? ` <span class="reaction-count">${counts[e.key]}</span>` : ''}
+    </button>
+  `).join('');
+
+  barEl.querySelectorAll('.reaction-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!Auth.currentUser) return;
+      await DB.toggleReaction(storyId, btn.dataset.emoji);
+      McgheeLab.loadReactions(storyId, barEl);
+    });
+  });
+};
+
+McgheeLab.loadComments = async function(storyId, sectionEl) {
+  let comments = [];
+  try { comments = await DB.getCommentsByStory(storyId); } catch (e) { return; }
+
+  let html = comments.map(c => {
+    const dateStr = c.createdAt?.toDate?.()
+      ? c.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '';
+    const canDelete = Auth.currentUser && (c.authorUid === Auth.currentUser.uid || Auth.isAdmin());
+    return `
+      <div class="comment-item">
+        <div class="comment-header">
+          ${c.authorPhoto
+            ? `<img src="${escapeHTML(c.authorPhoto)}" class="comment-avatar" alt="">`
+            : `<div class="comment-avatar comment-avatar-placeholder">${escapeHTML((c.authorName || '?')[0])}</div>`}
+          <strong>${escapeHTML(c.authorName || 'Anonymous')}</strong>
+          <span class="comment-date">${escapeHTML(dateStr)}</span>
+          ${canDelete ? `<button type="button" class="btn-icon btn-danger-icon comment-delete" data-delete-comment="${escapeHTML(c.id)}">&times;</button>` : ''}
+        </div>
+        <p class="comment-text">${escapeHTML(c.text)}</p>
+      </div>
+    `;
+  }).join('');
+
+  if (Auth.currentUser) {
+    html += `
+      <form class="comment-form" data-story-id="${escapeHTML(storyId)}">
+        <textarea class="comment-input" placeholder="Add a comment\u2026" rows="2" required></textarea>
+        <button type="submit" class="btn btn-primary btn-small">Post</button>
+      </form>
+    `;
+  } else {
+    html += '<p class="hint" style="padding:.5rem 0">Log in to comment.</p>';
+  }
+
+  sectionEl.innerHTML = html;
+
+  sectionEl.querySelectorAll('.comment-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await DB.deleteComment(btn.dataset.deleteComment);
+      McgheeLab.loadComments(storyId, sectionEl);
+      // Update count
+      const countEl = document.querySelector(`[data-comment-count="${storyId}"]`);
+      if (countEl) countEl.textContent = String(Math.max(0, (parseInt(countEl.textContent) || 0) - 1));
+    });
+  });
+
+  const form = sectionEl.querySelector('.comment-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = form.querySelector('.comment-input');
+      if (!input.value.trim()) return;
+      await DB.addComment({
+        storyId,
+        authorUid: Auth.currentUser.uid,
+        authorName: Auth.currentProfile?.name || '',
+        authorPhoto: Auth.currentProfile?.photo?.thumb || Auth.currentProfile?.photo || '',
+        text: input.value.trim()
+      });
+      input.value = '';
+      McgheeLab.loadComments(storyId, sectionEl);
+      const countEl = document.querySelector(`[data-comment-count="${storyId}"]`);
+      if (countEl) countEl.textContent = String((parseInt(countEl.textContent) || 0) + 1);
+    });
+  }
+};
 
 // Initialize auth listener on DOM ready
 document.addEventListener('DOMContentLoaded', () => Auth.init());
