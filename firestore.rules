@@ -8,9 +8,9 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Users — own profile or admin
+    // Users — public read (team page needs this), own profile or admin write
     match /users/{userId} {
-      allow read:  if request.auth != null;
+      allow read:  if true;
       allow write: if request.auth.uid == userId || isAdmin();
     }
 
@@ -72,6 +72,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // News posts — public reads for published, owner or admin for writes
+    match /newsPosts/{postId} {
+      allow read: if resource.data.status == 'published'
+                  || (request.auth != null && request.auth.uid == resource.data.authorUid)
+                  || isAdmin();
+      allow create: if request.auth != null;
+      allow update: if request.auth != null &&
+                    (request.auth.uid == resource.data.authorUid || isAdmin());
+      allow delete: if request.auth != null &&
+                    (request.auth.uid == resource.data.authorUid || isAdmin());
+    }
+
     // Comments — public read, authenticated create, own or admin delete
     match /comments/{commentId} {
       allow read: if true;
@@ -89,6 +101,53 @@ service cloud.firestore {
                     && request.resource.data.authorUid == request.auth.uid;
       allow delete: if request.auth != null
                     && resource.data.authorUid == request.auth.uid;
+    }
+
+    // CV data — own read/write, admin can read any
+    match /cvData/{userId} {
+      allow read:  if request.auth != null
+                   && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null
+                   && request.auth.uid == userId;
+    }
+
+    // Schedules — reusable schedule definitions (classes, events, reviews, etc.)
+    // Public read so schedule pages render; owner or admin manages lifecycle
+    match /schedules/{scheduleId} {
+      allow read:  if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+    }
+
+    // Participants — linked to a schedule via scheduleId field
+    // Public read for confirmed assignments; admin manages roster;
+    // participants update own doc via auth OR invite key (no login needed)
+    match /participants/{participantId} {
+      allow read:  if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.speakerUid == request.auth.uid)
+                    || (resource.data.key != null
+                        && resource.data.key == request.resource.data.key
+                        && resource.data.scheduleId == request.resource.data.scheduleId);
+      allow delete: if isAdmin();
+    }
+
+    // Classes — course listings for the classes page (public read, admin write)
+    match /classes/{classId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // Class files — metadata for uploaded class materials
+    // Public read so students can download; authenticated users can upload;
+    // admin can update or delete any file
+    match /classFiles/{fileId} {
+      allow read:   if true;
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
     }
   }
 }

@@ -62,6 +62,18 @@
     window.addEventListener('hashchange', onRouteChange);
     onRouteChange();
 
+    // Re-render current page when auth state resolves (fixes dashboard on refresh)
+    let authResolved = false;
+    if (window.McgheeLab?.Auth?.onChange) {
+      window.McgheeLab.Auth.onChange(() => {
+        if (authResolved) return;
+        authResolved = true;
+        const hash = window.location.hash || '';
+        const page = hash.slice(2).split('/')[0]?.toLowerCase();
+        if (page === 'dashboard' || page === 'admin' || page === 'login' || page === 'cv') onRouteChange();
+      });
+    }
+
     // Reduced-motion: stop hero video
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const v = document.getElementById('heroVideo');
@@ -89,7 +101,7 @@
         },
         mission: [],
         team: { highschool: [], undergrad: [], grad: [], postdoc: [], alumni: [] },
-        classes: { intro: "", courses: [] }
+        classes: { intro: "" }
       };
     }
   }
@@ -118,14 +130,7 @@
 
     const classesSrc = raw.classes || raw?.pages?.classesPage || {};
     const classes = {
-      intro:   str(classesSrc.intro),
-      courses: toArray(classesSrc.courses).map(c => ({
-        title: str(c?.title),
-        description: str(c?.description),
-        level: str(c?.level),
-        when:  str(c?.when),
-        registrationLink: str(c?.registrationLink)
-      }))
+      intro: str(classesSrc.intro)
     };
 
     return { site, mission, team, classes };
@@ -178,7 +183,17 @@
         case 'research': view = renderResearch(); break;
         case 'projects': view = renderProjects(); break;
         case 'team':     view = renderTeam();     break;
-        case 'classes':  view = renderClasses();  break;
+        case 'classes': {
+          const classSlug = (subParts[0] || '').split('?')[0];
+          if (classSlug) {
+            const html = window.McgheeLab?.renderClassPage?.(classSlug);
+            if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          } else {
+            view = renderClasses();
+          }
+          break;
+        }
+        case 'news':     view = renderNews();     break;
         case 'opportunities': {
           const html = window.McgheeLab?.renderOpportunities?.();
           if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
@@ -195,6 +210,10 @@
             html = window.McgheeLab?.renderStoryEditor?.(subParts[1]);
           } else if (subParts[0] === 'project' && subParts[1]) {
             html = window.McgheeLab?.renderProjectEditor?.(subParts[1]);
+          } else if (subParts[0] === 'news' && subParts[1]) {
+            html = window.McgheeLab?.renderNewsEditor?.(subParts[1]);
+          } else if (subParts[0] === 'scheduler' && subParts[1]) {
+            html = window.McgheeLab?.renderSchedulerEditor?.(subParts[1]);
           } else {
             html = window.McgheeLab?.renderDashboard?.();
           }
@@ -206,9 +225,24 @@
           if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
           break;
         }
+        case 'cv': {
+          const html = window.McgheeLab?.renderCV?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
         case 'admin': {
           const html = window.McgheeLab?.renderAdmin?.();
           if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        case 'schedule': {
+          const schedSlug = (subParts[0] || '').split('?')[0];
+          if (schedSlug) {
+            const html = window.McgheeLab?.renderSchedulePage?.(schedSlug);
+            if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          } else {
+            view = renderNotFound();
+          }
           break;
         }
         case 'contact':
@@ -228,11 +262,19 @@
     appEl.appendChild(view);
     appEl.focus({ preventScroll: true });
 
+    // CV builder uses its own full layout — hide hero
+    const heroEl = document.querySelector('.hero');
+    if (heroEl) heroEl.style.display = page === 'cv' ? 'none' : '';
+
     // Wire subnav (desktop clicks + touch/pen swipe)
     wireUpSubnav(view);
 
     // Start the body just under hero on route change
-    window.scrollTo({ top: headerBottom(), behavior: 'smooth' });
+    if (page === 'cv') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+      window.scrollTo({ top: headerBottom(), behavior: 'smooth' });
+    }
 
     // Reveal + Lazy images
     enableReveal();
@@ -247,12 +289,28 @@
             await window.McgheeLab?.wireStoryEditor?.(subParts[1]);
           } else if (subParts[0] === 'project' && subParts[1]) {
             await window.McgheeLab?.wireProjectEditor?.(subParts[1]);
+          } else if (subParts[0] === 'news' && subParts[1]) {
+            await window.McgheeLab?.wireNewsEditor?.(subParts[1]);
+          } else if (subParts[0] === 'scheduler' && subParts[1]) {
+            await window.McgheeLab?.wireSchedulerEditor?.(subParts[1]);
           } else {
             await window.McgheeLab?.wireDashboard?.();
           }
           break;
         case 'opportunities': await window.McgheeLab?.wireOpportunities?.(); break;
+        case 'cv':        await window.McgheeLab?.wireCV?.(); break;
         case 'admin':     await window.McgheeLab?.wireAdmin?.(); break;
+        case 'guide':     window.McgheeLab?.wireGuide?.(); break;
+        case 'classes': {
+          const wireSlug = (subParts[0] || '').split('?')[0];
+          if (wireSlug) await window.McgheeLab?.wireClassPage?.(wireSlug);
+          break;
+        }
+        case 'schedule': {
+          const wireSchedSlug = (subParts[0] || '').split('?')[0];
+          if (wireSchedSlug) await window.McgheeLab?.wireSchedulePage?.(wireSchedSlug);
+          break;
+        }
       }
     } catch (err) { console.warn('User system wiring error:', err); }
 
@@ -298,8 +356,75 @@
             wireStoryFeedInteractions(feedEl);
           }
         } catch (e) {
-          feedEl.innerHTML = '<p class="error-text">Failed to load stories.</p>';
+          feedEl.innerHTML = '<p class="error-text">Failed to load stories: ' + (e.message || e) + '</p>';
           console.warn('Stories feed error:', e);
+        }
+      }
+    }
+
+    // Load Firestore-driven news feed
+    if (page === 'news' && window.McgheeLab?.DB) {
+      const feedEl = appEl.querySelector('#news-feed');
+      if (feedEl) {
+        try {
+          const posts = await McgheeLab.DB.getPublishedNews();
+          if (!posts.length) {
+            feedEl.innerHTML = '<div class="empty-state-card"><p>No news posted yet.</p></div>';
+          } else {
+            feedEl.innerHTML = '';
+            for (const p of posts) {
+              feedEl.appendChild(buildNewsFeedCard(p));
+            }
+            enableReveal();
+            enableLazyImages();
+            wireNewsFeedInteractions(feedEl);
+          }
+        } catch (e) {
+          feedEl.innerHTML = '<p class="error-text">Failed to load news: ' + (e.message || e) + '</p>';
+          console.warn('News feed error:', e);
+        }
+      }
+    }
+
+    // Load Firestore-driven classes listing
+    if (page === 'classes' && window.McgheeLab?.DB) {
+      const gridEl = appEl.querySelector('#classes-grid');
+      if (gridEl) {
+        try {
+          const courses = await McgheeLab.DB.getPublishedClasses();
+          if (!courses.length) {
+            gridEl.innerHTML = '<div class="empty-state-card"><p>No classes listed yet.</p></div>';
+          } else {
+            gridEl.innerHTML = '';
+            for (const course of courses) {
+              const card = div('card class-item reveal');
+              const cd = course.classDates || {};
+              const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+              const daysStr = (cd.daysOfWeek || []).map(d => dayNames[d]).join(', ');
+              const timeStr = cd.startTime && cd.endTime ? `${cd.startTime} - ${cd.endTime}` : '';
+              const dateRange = cd.startDate && cd.endDate
+                ? new Date(cd.startDate + 'T00:00').toLocaleDateString('en-US', {month:'short',day:'numeric'}) + ' - ' + new Date(cd.endDate + 'T00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})
+                : '';
+              const schedLine = [daysStr, timeStr, cd.frequency && cd.frequency !== 'weekly' ? cd.frequency : ''].filter(Boolean).join(' &middot; ');
+
+              card.innerHTML = `
+                <h3>${course.detailPage ? `<a href="#/classes/${esc(course.detailPage)}">${esc(course.title || 'Untitled')}</a>` : esc(course.title || 'Untitled')}</h3>
+                ${course.description ? `<p>${esc(course.description)}</p>` : ''}
+                <p>
+                  ${course.level ? `<span class="badge">${esc(course.level)}</span>` : ''}
+                  ${course.when  ? ` <span class="badge">${esc(course.when)}</span>` : ''}
+                </p>
+                ${schedLine || dateRange ? `<p class="class-schedule-line" style="font-size:.85rem;color:var(--muted,#a8b3c7);">${schedLine}${schedLine && dateRange ? '<br>' : ''}${dateRange}</p>` : ''}
+                ${course.detailPage ? `<p><a href="#/classes/${esc(course.detailPage)}" class="btn">View Class &rarr;</a></p>` : ''}
+                ${course.registrationLink ? `<p><a href="${esc(course.registrationLink)}" target="_blank" rel="noopener">Register</a></p>` : ''}
+              `;
+              gridEl.appendChild(card);
+            }
+            enableReveal();
+          }
+        } catch (e) {
+          gridEl.innerHTML = '<p class="error-text">Failed to load classes.</p>';
+          console.warn('Classes load error:', e);
         }
       }
     }
@@ -308,50 +433,355 @@
     if (page === 'team' && window.McgheeLab?.DB) {
       Promise.all([
         McgheeLab.DB.getClaimedProfiles(),
-        McgheeLab.DB.getAllUsers()
-      ]).then(([claimed, users]) => {
-        // Build a map: claimed teamProfile name → registered user data
-        const userMap = {};
-        const matchedUids = new Set();
-        users.forEach(u => { if (u.claimedProfileId) userMap[u.claimedProfileId] = u; });
+        McgheeLab.DB.getAllUsers(),
+        McgheeLab.DB.getPublishedStories().catch(() => [])
+      ]).then(([claimed, users, allStories]) => {
+        // Remove loading placeholder
+        const loadingEl = document.getElementById('team-loading');
+        if (loadingEl) loadingEl.remove();
 
-        // Update existing content.json cards with Firestore data
-        claimed.forEach(profile => {
-          const user = userMap[profile.id];
-          if (!user) return;
+        // Exclude guests from team page
+        const teamUsers = users.filter(u => u.role !== 'guest');
 
-          const cards = appEl.querySelectorAll('.card.person');
-          cards.forEach(card => {
-            const nameEl = card.querySelector('strong');
-            if (!nameEl) return;
-            const cardName = nameEl.textContent.trim().toLowerCase();
-            const profileName = (profile.name || '').trim().toLowerCase();
-            if (cardName !== profileName) return;
-
-            matchedUids.add(user.id);
-            const photoSrc = user.photo?.medium || user.photo?.full || profile.photo?.medium || '';
-            card.innerHTML = `
-              ${photoSrc ? `<img src="${esc(photoSrc)}" alt="Photo of ${esc(user.name)}" loading="lazy" />` : '<div></div>'}
-              <div><strong>${esc(user.name || profile.name)}</strong></div>
-              ${user.category ? `<div class="role">${esc(user.category)}</div>` : ''}
-              ${user.bio ? `<p>${esc(user.bio)}</p>` : ''}
-            `;
-          });
+        // Index published stories by authorUid
+        const storiesByAuthor = {};
+        allStories.forEach(s => {
+          if (!s.authorUid) return;
+          if (!storiesByAuthor[s.authorUid]) storiesByAuthor[s.authorUid] = [];
+          storiesByAuthor[s.authorUid].push(s);
         });
 
-        // Add Firestore-only users (not in content.json) to their category sections
-        const unmatched = users.filter(u => !matchedUids.has(u.id) && u.name && u.category);
-        if (!unmatched.length) return;
+        const matchedUids = new Set();
+        const matchedCards = new Set();
 
-        // Category label map for section headings
+        // Badge definitions (from user-system.js)
+        const badges = window.McgheeLab?.BADGE_DEFS || [];
+
+        // Build badge row HTML for a team card
+        function buildBadgesHTML(user, storyCount) {
+          let html = '';
+          const items = [
+            { key: 'papers',        count: (user.papers || []).length },
+            { key: 'posters',       count: (user.posters || []).length },
+            { key: 'presentations', count: (user.presentations || []).length },
+            { key: 'patents',       count: (user.patents || []).length },
+            { key: 'protocols',     count: (user.protocols || []).length },
+            { key: 'stories',       count: storyCount },
+          ];
+          items.forEach(({ key, count }) => {
+            if (!count) return;
+            const def = badges.find(b => b.key === key);
+            if (!def) return;
+            html += `<span class="team-badge" title="${def.label}">${def.svg} ${count}</span>`;
+          });
+          // Presence-only badges (no count)
+          if (user.finalWork?.url) {
+            const fwDef = badges.find(b => b.key === 'finalWork');
+            const fwLabel = user.priorCategory === 'grad' || user.priorCategory === 'postdoc' ? 'Thesis' : 'Final Project';
+            if (fwDef) html += `<a href="${esc(user.finalWork.url)}" target="_blank" class="team-badge team-badge-link" title="${fwLabel}">${fwDef.svg}</a>`;
+          }
+          if (user.cv) {
+            const cvDef = badges.find(b => b.key === 'cv');
+            if (cvDef) html += `<a href="${esc(user.cv)}" target="_blank" class="team-badge team-badge-link" title="Download CV">${cvDef.svg}</a>`;
+          }
+          if (user.github) {
+            const ghDef = badges.find(b => b.key === 'github');
+            if (ghDef) html += `<a href="${esc(user.github)}" target="_blank" class="team-badge team-badge-link" title="GitHub">${ghDef.svg}</a>`;
+          }
+          return html ? `<div class="team-badges">${html}</div>` : '';
+        }
+
+        // Build CV-style expanded HTML for PI cards — collapsible, sorted by year, with citations
+        function buildPiExpandedHTML(user) {
+          const uid = user.id || user.uid;
+          const stories = uid ? (storiesByAuthor[uid] || []) : [];
+
+          // Sort helper: descending year, items without year go last
+          const byYear = (a, b) => {
+            const ya = parseInt(a.year, 10) || 0;
+            const yb = parseInt(b.year, 10) || 0;
+            if (ya && yb) return yb - ya;
+            if (ya) return -1;
+            if (yb) return 1;
+            return (a.title || '').localeCompare(b.title || '');
+          };
+
+          // Build rich item lists with year + metadata
+          const pubItems = (user.papers || []).map(p => ({
+            title: p.title, href: p.url, year: p.year || '',
+            citations: parseInt(p.citations, 10) || 0,
+            meta: [p.journal, p.volume ? ('vol. ' + p.volume) : '', p.issue ? ('(' + p.issue + ')') : '', p.pages].filter(Boolean).join(', ')
+          })).sort(byYear);
+
+          const patentItems = (user.patents || []).map(p => ({
+            title: p.title, href: p.url, year: p.year || '',
+            meta: [p.inventors, p.status].filter(Boolean).join(' — ')
+          })).sort(byYear);
+
+          const presItems = (user.presentations || []).map(p => ({
+            title: p.title, href: p.url, year: p.year || '',
+            meta: [p.event, p.type].filter(Boolean).join(' — ')
+          })).sort(byYear);
+
+          const posterItems = (user.posters || []).map(p => ({
+            title: p.title, href: p.url, year: p.year || '',
+            meta: p.conference || ''
+          })).sort(byYear);
+
+          const protoItems = (user.protocols || []).map(p => ({
+            title: p.title, href: p.url, year: p.year || '', meta: ''
+          })).sort(byYear);
+
+          const storyItems = stories.map(s => ({
+            title: s.title || 'Untitled', href: '#/research', year: '',
+            meta: '', extra: s.projectTitle ? `<span class="hint">${esc(s.projectTitle)}</span>` : ''
+          }));
+
+          const sections = [
+            { key: 'publications',    label: 'Publications',     items: pubItems,     showCitations: true },
+            { key: 'patents',         label: 'Patents',          items: patentItems,  showCitations: false },
+            { key: 'presentations',   label: 'Presentations',    items: presItems,    showCitations: false },
+            { key: 'posters',         label: 'Posters',          items: posterItems,  showCitations: false },
+            { key: 'protocols',       label: 'Protocols',        items: protoItems,   showCitations: false },
+            { key: 'stories',         label: 'Research Stories', items: storyItems,   showCitations: false },
+          ];
+
+          const nonEmpty = sections.filter(s => s.items.length > 0);
+          if (!nonEmpty.length && !user.cv && !user.github) return '';
+
+          let html = '';
+
+          // Filter bar — only if 2+ sections
+          if (nonEmpty.length >= 2) {
+            html += `<div class="pi-cv-filter" role="tablist">`;
+            html += `<button class="pi-cv-chip is-active" data-filter="all">All</button>`;
+            nonEmpty.forEach(s => {
+              html += `<button class="pi-cv-chip" data-filter="${s.key}">${s.label} (${s.items.length})</button>`;
+            });
+            html += `</div>`;
+          }
+
+          // Render each section as collapsible <details>
+          nonEmpty.forEach((s, i) => {
+            const renderItem = (item) => {
+              const link = item.href
+                ? `<a href="${esc(item.href)}" ${item.href.startsWith('#') ? '' : 'target="_blank"'}>${esc(item.title)}</a>`
+                : esc(item.title);
+              const yearTag = item.year ? `<span class="pi-cv-year">(${esc(String(item.year))})</span>` : '';
+              const citTag = s.showCitations && item.citations > 0
+                ? `<span class="pi-cv-citation" title="Citations">${item.citations} cited</span>` : '';
+              const metaTag = item.meta ? `<span class="pi-cv-meta">${esc(item.meta)}</span>` : '';
+              return `<li>${link} ${yearTag}${citTag}${item.extra || ''}${metaTag}</li>`;
+            };
+
+            html += `<details class="team-expanded-section pi-cv-detail-section" data-section="${s.key}" ${i === 0 ? 'open' : ''}>
+              <summary><h4>${s.label} (${s.items.length})</h4></summary>
+              <ul class="team-stories-list">${s.items.map(renderItem).join('')}</ul>
+            </details>`;
+          });
+
+          // Links row
+          const links = [];
+          if (user.cv) links.push(`<a href="${esc(user.cv)}" target="_blank" class="btn btn-secondary btn-small">Download CV</a>`);
+          if (user.github) links.push(`<a href="${esc(user.github)}" target="_blank" class="btn btn-secondary btn-small">GitHub</a>`);
+          if (links.length) html += `<div class="pi-cv-links">${links.join(' ')}</div>`;
+
+          return html;
+        }
+
+        // Wire PI CV filter chips (call after inserting PI expanded HTML into DOM)
+        function wirePiCvFilter(container) {
+          if (!container) return;
+          const chips = container.querySelectorAll('.pi-cv-chip');
+          const sections = container.querySelectorAll('.pi-cv-detail-section');
+          if (!chips.length) return;
+          chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+              const filter = chip.dataset.filter;
+              chips.forEach(c => c.classList.remove('is-active'));
+              chip.classList.add('is-active');
+              sections.forEach(sec => {
+                if (filter === 'all') {
+                  sec.style.display = '';
+                } else {
+                  sec.style.display = sec.dataset.section === filter ? '' : 'none';
+                  if (sec.dataset.section === filter) sec.open = true;
+                }
+              });
+            });
+          });
+        }
+
+        // Build expandable details HTML for non-PI team members
+        function buildTeamExpandedHTML(user) {
+          const uid = user.id || user.uid;
+          const stories = uid ? (storiesByAuthor[uid] || []) : [];
+          let html = '';
+          // Bio is rendered separately by showDetail() — don't duplicate it here
+
+          // Array association types with <details> for click-to-expand
+          const sections = [
+            { key: 'stories', label: 'Research Stories', items: stories.map(s => ({
+              title: s.title || 'Untitled',
+              url: null,
+              extra: s.projectTitle ? `<span class="hint">${esc(s.projectTitle)}</span>` : '',
+              href: '#/research'
+            })) },
+            { key: 'papers',        label: 'Papers',        items: (user.papers || []).map(p => ({ title: p.title, href: p.url })) },
+            { key: 'posters',       label: 'Posters',       items: (user.posters || []).map(p => ({ title: p.title, href: p.url })) },
+            { key: 'presentations', label: 'Presentations', items: (user.presentations || []).map(p => ({ title: p.title, href: p.url })) },
+            { key: 'patents',       label: 'Patents',       items: (user.patents || []).map(p => ({ title: p.title, href: p.url })) },
+            { key: 'protocols',     label: 'Protocols',     items: (user.protocols || []).map(p => ({ title: p.title, href: p.url })) },
+          ];
+
+          sections.forEach(({ key, label, items }) => {
+            if (!items.length) return;
+            const def = badges.find(b => b.key === key);
+            const icon = def ? def.svg + ' ' : '';
+            html += `<details class="team-expanded-section">
+              <summary><h4>${icon}${label} (${items.length})</h4></summary>
+              <ul class="team-stories-list">${items.map(item => {
+                const link = item.href
+                  ? `<a href="${esc(item.href)}" ${item.href.startsWith('#') ? '' : 'target="_blank"'}>${esc(item.title)}</a>`
+                  : esc(item.title);
+                return `<li>${link}${item.extra || ''}</li>`;
+              }).join('')}</ul>
+            </details>`;
+          });
+
+          // Final work (thesis / final project) — alumni
+          if (user.finalWork?.url) {
+            const fwDef = badges.find(b => b.key === 'finalWork');
+            const fwLabel = user.priorCategory === 'grad' || user.priorCategory === 'postdoc' ? 'Thesis' : 'Final Project';
+            html += `<div class="team-expanded-section"><a href="${esc(user.finalWork.url)}" target="_blank" class="btn btn-secondary btn-small">${fwDef ? fwDef.svg + ' ' : ''}${esc(user.finalWork.title || fwLabel)}</a></div>`;
+          }
+          if (user.cv) {
+            const cvDef = badges.find(b => b.key === 'cv');
+            html += `<div class="team-expanded-section"><a href="${esc(user.cv)}" target="_blank" class="btn btn-secondary btn-small">${cvDef ? cvDef.svg + ' ' : ''}Download CV</a></div>`;
+          }
+          if (user.github) {
+            const ghDef = badges.find(b => b.key === 'github');
+            html += `<div class="team-expanded-section"><a href="${esc(user.github)}" target="_blank" class="btn btn-secondary btn-small">${ghDef ? ghDef.svg + ' ' : ''}GitHub Profile</a></div>`;
+          }
+
+          return html;
+        }
+
+        // Helper: get story count for a user
+        function getStoryCount(user) {
+          const uid = user.id || user.uid;
+          return uid ? (storiesByAuthor[uid] || []).length : 0;
+        }
+
+        // Helper: update a DOM card with Firestore user data
+        function updateCard(card, user) {
+          const photoSrc = user.photo?.medium || user.photo?.full || '';
+          const badgesHtml = buildBadgesHTML(user, getStoryCount(user));
+
+          if (card.classList.contains('pi-card')) {
+            // PI card: CV-style expanded content, bio visible on card
+            const piExpanded = buildPiExpandedHTML(user);
+            const photoEl = card.querySelector('.pi-photo');
+            const infoEl = card.querySelector('.pi-info');
+            if (photoEl) {
+              photoEl.innerHTML = photoSrc
+                ? `<img src="${esc(photoSrc)}" alt="Photo of ${esc(user.name)}" loading="lazy" />`
+                : '';
+            }
+            if (infoEl) {
+              infoEl.innerHTML = `
+                <div><strong>${esc(user.name)}</strong></div>
+                <div class="role">PI</div>
+                ${user.bio ? `<div class="pi-bio"><p>${esc(user.bio)}</p></div>` : ''}
+                ${badgesHtml}
+                <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+              `;
+            }
+            const detailContent = card.querySelector('.team-detail-content');
+            if (detailContent) {
+              detailContent.innerHTML = piExpanded;
+              wirePiCvFilter(detailContent);
+            }
+            const btn = card.querySelector('.expand-toggle');
+            if (btn) wireExpandable(btn, card.querySelector('.expandable-details'));
+          } else {
+            // Regular card: horizontal layout — photo left, info right
+            const expanded = buildTeamExpandedHTML(user);
+            card.innerHTML = `
+              <div class="person-layout">
+                <div class="person-photo">
+                  ${photoSrc ? `<img src="${esc(photoSrc)}" alt="Photo of ${esc(user.name)}" loading="lazy" />` : '<div></div>'}
+                </div>
+                <div class="person-info">
+                  <div><strong>${esc(user.name)}</strong></div>
+                  ${user.category ? `<div class="role">${esc(user.category)}</div>` : ''}
+                  ${badgesHtml}
+                  <button type="button" class="team-expand team-detail-btn">Learn More</button>
+                </div>
+              </div>
+            `;
+            card.dataset.personName = user.name || '';
+            // Store expanded HTML for the detail panel to use
+            card.dataset.detailHtml = expanded || '';
+            card.dataset.detailBio = user.bio || '';
+            card.dataset.detailRole = user.category || '';
+          }
+          matchedCards.add(card);
+        }
+
+        // Helper: find a DOM card by name (case-insensitive, trimmed)
+        function findCardByName(name) {
+          if (!name) return null;
+          const target = name.trim().toLowerCase();
+          const cards = appEl.querySelectorAll('.card.person');
+          for (const card of cards) {
+            if (matchedCards.has(card)) continue;
+            const nameEl = card.querySelector('strong');
+            if (!nameEl) continue;
+            if (nameEl.textContent.trim().toLowerCase() === target) return card;
+          }
+          return null;
+        }
+
+        // Pass 1: Match users via claimedProfileId → teamProfile → DOM card
+        const claimMap = {};
+        teamUsers.forEach(u => { if (u.claimedProfileId) claimMap[u.claimedProfileId] = u; });
+
+        claimed.forEach(profile => {
+          const user = claimMap[profile.id];
+          if (!user) return;
+          const card = findCardByName(profile.name);
+          if (card) {
+            updateCard(card, user);
+            matchedUids.add(user.id);
+          }
+        });
+
+        // Pass 2: Match remaining users by name (for users without claimedProfileId)
+        teamUsers.forEach(user => {
+          if (matchedUids.has(user.id)) return;
+          const card = findCardByName(user.name);
+          if (card) {
+            updateCard(card, user);
+            matchedUids.add(user.id);
+          }
+        });
+
+        // Re-wire detail panels after overlay updates
+        appEl.querySelectorAll('.team-grid').forEach(g => {
+          if (g._rewireDetailPanel) g._rewireDetailPanel();
+        });
+
+        // Pass 3: Add Firestore-only users (no content.json match) to their category sections
+        const unmatched = teamUsers.filter(u => !matchedUids.has(u.id) && u.name && u.category);
+        if (!unmatched.length) { enableReveal(); enableLazyImages(); return; }
+
         const catLabels = {
           pi: 'Principal Investigator', postdoc: 'Postdoctoral', grad: 'Graduate',
           undergrad: 'Undergraduate', highschool: 'High School', alumni: 'Alumni'
         };
-        // Category display order
         const catOrder = ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni'];
 
-        // Group unmatched users by category
         const byCat = {};
         unmatched.forEach(u => {
           const cat = u.category || 'undergrad';
@@ -363,7 +793,6 @@
           const catUsers = byCat[cat];
           if (!catUsers) return;
 
-          // Try to find an existing section for this category
           let grid = null;
           const sections = appEl.querySelectorAll('.section');
           sections.forEach(sec => {
@@ -373,14 +802,75 @@
             }
           });
 
-          // If no section exists for this category, create one
+          // PI category gets its own structure (no grid, no detail panel)
+          if (cat === 'pi') {
+            let piSection = null;
+            appEl.querySelectorAll('.section').forEach(sec => {
+              const h2 = sec.querySelector('h2');
+              if (h2 && h2.textContent.trim() === catLabels.pi) piSection = sec;
+            });
+            if (!piSection) {
+              piSection = div('section reveal');
+              piSection.innerHTML = `<div class="max-w"><h2>${esc(catLabels.pi)}</h2></div>`;
+              const allSections = appEl.querySelectorAll('.section');
+              const first = allSections[0];
+              if (first) first.parentNode.insertBefore(piSection, first);
+              else (allSections.length ? allSections[0].parentNode : appEl).appendChild(piSection);
+            }
+            let piWrap = piSection.querySelector('.pi-wrap');
+            if (!piWrap) {
+              piWrap = div('max-w pi-wrap');
+              piSection.appendChild(piWrap);
+            }
+            catUsers.forEach(u => {
+              const card = div('card person pi-card');
+              const photoSrc = u.photo?.medium || u.photo?.full || '';
+              const piExpanded = buildPiExpandedHTML(u);
+              const badgesHtml = buildBadgesHTML(u, getStoryCount(u));
+              card.innerHTML = `
+                <div class="pi-layout">
+                  <div class="pi-photo">
+                    ${photoSrc ? `<img src="${esc(photoSrc)}" alt="Photo of ${esc(u.name)}" loading="lazy" />` : ''}
+                  </div>
+                  <div class="pi-info">
+                    <div><strong>${esc(u.name)}</strong></div>
+                    <div class="role">PI</div>
+                    ${u.bio ? `<div class="pi-bio"><p>${esc(u.bio)}</p></div>` : ''}
+                    ${badgesHtml}
+                    <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+                  </div>
+                </div>
+                <div class="expandable-details pi-details" hidden>
+                  <div class="team-detail-content">${piExpanded}</div>
+                </div>
+              `;
+              const btn = card.querySelector('.expand-toggle');
+              if (btn) wireExpandable(btn, card.querySelector('.expandable-details'));
+              wirePiCvFilter(card.querySelector('.team-detail-content'));
+              piWrap.appendChild(card);
+            });
+            return; // skip normal grid flow for PI
+          }
+
           if (!grid) {
             const section = div('section reveal');
             section.innerHTML = `<div class="max-w"><h2>${esc(catLabels[cat])}</h2></div>`;
-            grid = div('max-w grid grid-fit-250');
+            grid = div('max-w grid grid-fit-250 team-grid');
+
+            // Create detail panel inside the new grid
+            const dp = document.createElement('div');
+            dp.className = 'team-detail-panel';
+            dp.hidden = true;
+            dp.innerHTML = `
+              <div class="team-detail-arrow"></div>
+              <div class="team-detail-card card">
+                <button type="button" class="team-detail-close" aria-label="Close">&times;</button>
+                <div class="team-detail-content"></div>
+              </div>
+            `;
+            grid.appendChild(dp);
             section.appendChild(grid);
 
-            // Insert in correct order: find the first section that comes after this category
             const allSections = appEl.querySelectorAll('.section');
             let insertBefore = null;
             const catIdx = catOrder.indexOf(cat);
@@ -394,23 +884,27 @@
             if (insertBefore) {
               insertBefore.parentNode.insertBefore(section, insertBefore);
             } else {
-              // Append at end (but before any non-section content)
               const container = allSections.length ? allSections[0].parentNode : appEl;
               container.appendChild(section);
             }
+
+            // Wire the new grid's detail panel
+            wireTeamDetailPanel(grid, dp);
           }
 
           catUsers.forEach(u => {
-            const photoSrc = u.photo?.medium || u.photo?.full || '';
             const card = div('card person');
-            card.innerHTML = `
-              ${photoSrc ? `<img src="${esc(photoSrc)}" alt="Photo of ${esc(u.name)}" loading="lazy" />` : '<div></div>'}
-              <div><strong>${esc(u.name)}</strong></div>
-              ${u.category ? `<div class="role">${esc(u.category)}</div>` : ''}
-              ${u.bio ? `<p>${esc(u.bio)}</p>` : ''}
-            `;
-            grid.appendChild(card);
+            updateCard(card, u);
+            // Insert before the detail panel (which is last child of grid)
+            const panelEl = grid.querySelector('.team-detail-panel');
+            if (panelEl) grid.insertBefore(card, panelEl);
+            else grid.appendChild(card);
           });
+        });
+
+        // Re-wire after adding new cards
+        appEl.querySelectorAll('.team-grid').forEach(g => {
+          if (g._rewireDetailPanel) g._rewireDetailPanel();
         });
 
         enableReveal();
@@ -494,7 +988,7 @@
     let relatedStories = [];
     try {
       relatedStories = await McgheeLab.DB.getStoriesByProject(p.id);
-    } catch (e) { console.warn('Stories for project:', e); }
+    } catch (e) { console.warn('Stories for project ' + p.id + ':', e); }
 
     const expandedContent = buildProjectExpandedHTML(p, relatedStories);
 
@@ -622,6 +1116,96 @@
     });
   }
 
+  /* ── News page ── */
+  function renderNews(){
+    const wrap = sectionEl();
+    wrap.innerHTML = `
+      <div class="max-w">
+        <h2>News</h2>
+        <p class="page-subtitle">Updates, events, and highlights from the McGhee Lab.</p>
+      </div>
+      <div class="max-w" id="news-feed">
+        <p class="loading-text">Loading news\u2026</p>
+      </div>
+    `;
+    return wrap;
+  }
+
+  function buildNewsFeedCard(p) {
+    const card = div('card story-feed-card news-feed-card reveal');
+    card.dataset.newsId = p.id;
+
+    const dateStr = p.publishedAt?.toDate?.()
+      ? p.publishedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      : '';
+
+    const authorPhoto = p.authorPhoto?.thumb || p.authorPhoto?.medium || '';
+    const catLabel = (window.McgheeLab?.NEWS_CATEGORIES || []).find(c => c.value === p.category)?.label || p.category || '';
+
+    const newsBlocks = (p.sections || []).map(sec => ({
+      text: sec.text || '',
+      image: sec.image?.medium || sec.image?.full || '',
+      video: sec.video || '',
+      imageAlt: sec.imageAlt || ''
+    }));
+    const expandedContent = buildStoryHTML(newsBlocks);
+
+    card.innerHTML = `
+      <div class="story-feed-header">
+        ${authorPhoto
+          ? `<img src="${esc(authorPhoto)}" alt="" class="story-feed-avatar">`
+          : `<div class="story-feed-avatar story-feed-avatar-placeholder">${esc((p.authorName || '?')[0])}</div>`}
+        <div class="story-feed-meta">
+          <span class="story-feed-author">${esc(p.authorName || 'Unknown')}</span>
+          <span class="story-feed-date">${esc(dateStr)}</span>
+          ${catLabel ? `<span class="badge news-cat-badge">${esc(catLabel)}</span>` : ''}
+        </div>
+      </div>
+      <h3 class="story-feed-title">${esc(p.title || 'Untitled')}</h3>
+      ${p.description ? `<p class="story-feed-desc">${esc(p.description)}</p>` : ''}
+      ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
+      <div class="story-feed-actions">
+        <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
+        <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
+          <span class="comment-icon">\uD83D\uDCAC</span>
+          <span class="comment-count" data-comment-count="${esc(p.id)}">0</span>
+        </button>
+      </div>
+      <div class="comments-section" data-comments-for="${esc(p.id)}" hidden></div>
+    `;
+
+    const btn = card.querySelector('.expand-toggle');
+    if (btn) wireExpandable(btn, card.querySelector('.expandable-details'));
+    return card;
+  }
+
+  function wireNewsFeedInteractions(feedEl) {
+    feedEl.querySelectorAll('.reaction-bar').forEach(bar => {
+      const storyId = bar.dataset.storyId;
+      if (window.McgheeLab?.loadReactions) McgheeLab.loadReactions(storyId, bar);
+    });
+
+    feedEl.querySelectorAll('.comment-toggle').forEach(btn => {
+      const storyId = btn.dataset.storyId;
+      const countEl = feedEl.querySelector(`[data-comment-count="${storyId}"]`);
+      if (window.McgheeLab?.DB) {
+        McgheeLab.DB.getCommentsByStory(storyId).then(comments => {
+          if (countEl) countEl.textContent = comments.length || '0';
+        }).catch(() => {});
+      }
+
+      btn.addEventListener('click', () => {
+        const section = feedEl.querySelector(`[data-comments-for="${storyId}"]`);
+        if (!section) return;
+        const wasHidden = section.hidden;
+        section.hidden = !wasHidden;
+        if (wasHidden && window.McgheeLab?.loadComments) {
+          McgheeLab.loadComments(storyId, section);
+        }
+      });
+    });
+  }
+
   function renderTeam(){
     const team = state.data.team || {};
     const wrap = sectionEl();
@@ -645,64 +1229,176 @@
       const section = div('section reveal'); section.id = id;
       section.innerHTML = `<div class="max-w"><h2>${esc(label)}</h2></div>`;
 
-      const grid = div('max-w grid grid-fit-250');
-      people.forEach(person=>{
-        const card = div('card person');
-        card.innerHTML = `
-          ${imageHTML(person.photo, `Photo of ${esc(person.name)}`)}
-          <div><strong>${esc(person.name || 'Name')}</strong></div>
-          ${person.role ? `<div class="role">${esc(person.role)}</div>` : ''}
-          ${person.bio  ? `<p>${esc(person.bio)}</p>` : ''}
+      if (k === 'pi') {
+        // PI: horizontal card with bio visible beside photo
+        const piWrap = div('max-w');
+        people.forEach(person => {
+          const card = div('card person pi-card');
+          card.innerHTML = `
+            <div class="pi-layout">
+              <div class="pi-photo">
+                ${imageHTML(person.photo, `Photo of ${esc(person.name)}`)}
+              </div>
+              <div class="pi-info">
+                <div><strong>${esc(person.name || 'Name')}</strong></div>
+                ${person.role ? `<div class="role">${esc(person.role)}</div>` : ''}
+                ${person.bio ? `<div class="pi-bio"><p>${esc(person.bio)}</p></div>` : ''}
+                <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+              </div>
+            </div>
+            <div class="expandable-details pi-details" hidden>
+              <div class="team-detail-content" data-person-name="${esc(person.name || '')}"></div>
+            </div>
+          `;
+          const btn = card.querySelector('.expand-toggle');
+          if (btn) wireExpandable(btn, card.querySelector('.expandable-details'));
+          piWrap.appendChild(card);
+        });
+        section.appendChild(piWrap);
+      } else {
+        // Other categories: compact cards with shared detail panel inside the grid
+        const grid = div('max-w grid grid-fit-250 team-grid');
+        const detailPanel = document.createElement('div');
+        detailPanel.className = 'team-detail-panel';
+        detailPanel.hidden = true;
+        detailPanel.innerHTML = `
+          <div class="team-detail-arrow"></div>
+          <div class="team-detail-card card">
+            <button type="button" class="team-detail-close" aria-label="Close">&times;</button>
+            <div class="team-detail-content"></div>
+          </div>
         `;
-        grid.appendChild(card);
-      });
 
-      section.appendChild(grid);
+        people.forEach(person => {
+          const card = div('card person');
+          card.dataset.personName = person.name || '';
+          card.dataset.detailBio = person.bio || '';
+          card.dataset.detailRole = person.role || '';
+          card.innerHTML = `
+            <div class="person-layout">
+              <div class="person-photo">
+                ${imageHTML(person.photo, `Photo of ${esc(person.name)}`)}
+              </div>
+              <div class="person-info">
+                <div><strong>${esc(person.name || 'Name')}</strong></div>
+                ${person.role ? `<div class="role">${esc(person.role)}</div>` : ''}
+                <button type="button" class="team-expand team-detail-btn">Learn More</button>
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+        // Panel lives inside the grid so it can be repositioned per row
+        grid.appendChild(detailPanel);
+        wireTeamDetailPanel(grid, detailPanel);
+
+        section.appendChild(grid);
+      }
+
       wrap.appendChild(section);
     });
 
     if (!existing.length){
-      wrap.appendChild(infoBox('Add team members in content.json → "team": { "highschool": [], ... }'));
+      // Show loading state — Firestore overlay will populate team members
+      const loading = div('max-w');
+      loading.id = 'team-loading';
+      loading.innerHTML = '<p class="hint" style="text-align:center;padding:2rem;">Loading team…</p>';
+      wrap.appendChild(loading);
     }
 
     return wrap;
+  }
+
+  function wireTeamDetailPanel(grid, panel) {
+    const contentEl = panel.querySelector('.team-detail-content');
+    const arrow = panel.querySelector('.team-detail-arrow');
+    const closeBtn = panel.querySelector('.team-detail-close');
+    let activeCard = null;
+
+    // Find the last card in the same visual row as the target card
+    function getLastCardInRow(card) {
+      const cards = [...grid.querySelectorAll('.card.person')];
+      const top = card.offsetTop;
+      const rowCards = cards.filter(c => Math.abs(c.offsetTop - top) < 10);
+      return rowCards[rowCards.length - 1];
+    }
+
+    function showDetail(card) {
+      if (activeCard === card) { closeDetail(); return; }
+
+      if (activeCard) activeCard.classList.remove('team-card-active');
+      activeCard = card;
+      card.classList.add('team-card-active');
+
+      const name = card.dataset.personName || card.querySelector('strong')?.textContent || '';
+      const role = card.dataset.detailRole || card.querySelector('.role')?.textContent || '';
+      const firestoreHtml = card.dataset.detailHtml || '';
+      const bio = card.dataset.detailBio || '';
+
+      contentEl.innerHTML = `
+        <h3>${esc(name)}</h3>
+        ${role ? `<div class="role">${esc(role)}</div>` : ''}
+        ${bio ? `<div class="team-bio"><p>${esc(bio)}</p></div>` : ''}
+        ${firestoreHtml}
+        ${!bio && !firestoreHtml ? '<p class="hint">No bio available yet.</p>' : ''}
+      `;
+
+      // Move panel right after the last card in this row
+      const lastInRow = getLastCardInRow(card);
+      lastInRow.after(panel);
+
+      positionArrow(card);
+      panel.hidden = false;
+      setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    }
+
+    function closeDetail() {
+      if (activeCard) activeCard.classList.remove('team-card-active');
+      activeCard = null;
+      panel.hidden = true;
+    }
+
+    function positionArrow(card) {
+      const gridRect = grid.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      const cardCenter = cardRect.left + cardRect.width / 2 - gridRect.left;
+      arrow.style.left = cardCenter + 'px';
+    }
+
+    function wireButtons() {
+      grid.querySelectorAll('.team-detail-btn').forEach(btn => {
+        if (btn._wired) return;
+        btn._wired = true;
+        btn.addEventListener('click', () => {
+          showDetail(btn.closest('.card.person'));
+        });
+      });
+    }
+    wireButtons();
+
+    // Expose rewire for Firestore overlay to call after updating cards
+    grid._rewireDetailPanel = wireButtons;
+
+    if (closeBtn) closeBtn.addEventListener('click', closeDetail);
+    window.addEventListener('resize', () => {
+      if (activeCard && !panel.hidden) positionArrow(activeCard);
+    });
   }
 
   function renderClasses(){
     const c = state.data.classes || {};
     const wrap = sectionEl();
 
-    const links = [];
-    if (c.intro) links.push({ id: uniqueId('classes-intro'), label: 'Overview' });
-    links.push(...toArray(c.courses).map(course => ({ id: uniqueId(slugify(course.title || 'course')), label: course.title || 'Course' })));
-    if (links.length) wrap.appendChild(buildSubnav(links));
-
     if (c.intro){
-      const intro = div('section card reveal'); intro.id = links[0].id;
+      const intro = div('section card reveal');
       intro.innerHTML = `<div class="max-w"><h2>Classes</h2><p>${esc(c.intro)}</p></div>`;
       wrap.appendChild(intro);
     }
 
     const grid = div('max-w grid grid-fit-250');
-    toArray(c.courses).forEach((course, idx)=>{
-      const id = (c.intro ? links[idx+1] : links[idx])?.id || uniqueId(slugify(course.title || 'course'));
-      const card = div('card class-item reveal'); card.id = id;
-      card.innerHTML = `
-        <h3>${esc(course.title || 'Untitled')}</h3>
-        ${course.description ? `<p>${esc(course.description)}</p>` : ''}
-        <p>
-          ${course.level ? `<span class="badge">${esc(course.level)}</span>` : ''}
-          ${course.when  ? ` <span class="badge">${esc(course.when)}</span>` : ''}
-        </p>
-        ${course.registrationLink ? `<p><a href="${esc(course.registrationLink)}" target="_blank" rel="noopener">Register</a></p>` : ''}
-      `;
-      grid.appendChild(card);
-    });
-
-    if (!isNonEmptyArray(c.courses)){
-      grid.appendChild(infoBox('Add courses in content.json → "classes.courses": [ ... ]'));
-    }
-
+    grid.id = 'classes-grid';
+    grid.innerHTML = '<p class="hint" style="text-align:center;padding:2rem;">Loading classes\u2026</p>';
     wrap.appendChild(grid);
     return wrap;
   }
@@ -838,13 +1534,13 @@
     const members = [];
 
     if (team.author) {
-      members.push({ ...team.author, teamRole: 'Author' });
+      members.push({ ...team.author, teamRole: 'PI' });
     }
     if (isNonEmptyArray(team.contributors)) {
       team.contributors.forEach(c => members.push({ ...c, teamRole: 'Contributor' }));
     }
     if (team.mentor) {
-      members.push({ ...team.mentor, teamRole: 'Mentor' });
+      members.push({ ...team.mentor, teamRole: 'Project Lead' });
     }
     if (!members.length) return '';
 
@@ -852,17 +1548,25 @@
       <div class="story-team">
         <h4 class="story-team-heading">Team</h4>
         <div class="story-team-grid">
-          ${members.map(m => `
+          ${members.map(m => {
+            const rawPhoto = m.photo;
+            let photoSrc = '';
+            if (typeof rawPhoto === 'object' && rawPhoto) {
+              photoSrc = rawPhoto.thumb || rawPhoto.medium || rawPhoto.full || '';
+            } else if (typeof rawPhoto === 'string' && rawPhoto && !rawPhoto.includes('[object')) {
+              photoSrc = rawPhoto;
+            }
+            return `
             <div class="story-team-member">
-              ${m.photo
-                ? `<img src="${esc(m.photo)}" alt="${esc(m.name || '')}" class="story-team-photo" loading="lazy">`
+              ${photoSrc
+                ? `<img src="${esc(photoSrc)}" alt="${esc(m.name || '')}" class="story-team-photo" loading="lazy">`
                 : `<div class="story-team-photo story-team-photo-placeholder">${esc((m.name || '?')[0])}</div>`}
               <div class="story-team-info">
                 <span class="story-team-name">${esc(m.name || 'Unknown')}</span>
                 <span class="story-team-role">${esc(m.teamRole)}</span>
               </div>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
       </div>`;
   }

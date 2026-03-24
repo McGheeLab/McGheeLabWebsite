@@ -60,6 +60,9 @@
 /* Allow percentage-based children (e.g., full-height sections) */
 html,body{ height:100%; }
 
+/* Reserve scrollbar space so expanding content doesn't shift layout */
+html{ scrollbar-gutter: stable; }
+
 /* Global body defaults */
 body{
   margin:0;
@@ -130,7 +133,8 @@ svg{
   z-index: 100;                     /* On top of subnav/drawer */
   height: var(--banner-height);
   display: grid;
-  grid-template-columns: 1fr auto;  /* Brand on left, menu button on right */
+  grid-template-columns: 1fr auto auto;  /* Brand left, user btn, menu button right */
+  gap: .5rem;
   align-items: center;
   background: rgba(10,14,22,.75);   /* Slightly translucent + blur */
   backdrop-filter: blur(10px);
@@ -143,6 +147,44 @@ svg{
 .logo{ display: inline-flex; align-items: center; }
 
 /* Hamburger button: square, rounded, easy tap target */
+/* Header user button */
+.header-user-btn{
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .5rem;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+  font-size: .75rem;
+  font-weight: 500;
+  transition: background .15s;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+  height: 34px;
+}
+.header-user-btn:hover{ background: rgba(255,255,255,.12); }
+.header-user-icon{ flex-shrink: 0; width: 18px; height: 18px; }
+.header-user-name{ overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+.header-user-name:empty{ display: none; }
+
+/* When logged in, show avatar instead of icon */
+.header-user-btn.has-photo .header-user-icon{ display: none; }
+.header-user-avatar{
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Hide name on small screens, show only icon/avatar */
+@media (max-width: 480px) {
+  .header-user-name { display: none; }
+  .header-user-btn { padding: .25rem .4rem; }
+}
+
 .hamburger{
   width: 44px; height: 44px;
   border: 0;
@@ -375,6 +417,9 @@ svg{
 /* Grid that fits as many ~240px-wide items as possible (220px on narrow phones) */
 .grid-fit-250{ grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
 
+/* Team grids use auto-fill so cards stay consistent size even with fewer items */
+.team-grid{ grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+
 /* Two-column media layout: text + image/video */
 .media{
   display: grid;
@@ -403,22 +448,335 @@ svg{
    - Small building blocks used across pages.
    ========================================= */
 
-/* Team member card */
+/* Team member card — horizontal: photo left, info right */
 .person{
-  display: grid;
-  gap: 10px;
   padding: 12px;
-  align-content: start;
 }
-.person img{
-  width: 30%;                  /* Small portrait within card */
-  aspect-ratio: 1/1;           /* Square */
+.person-layout{
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: .75rem;
+  align-items: start;
+}
+.person-photo img{
+  width: 100%;
+  aspect-ratio: 1/1;
   object-fit: cover;
   border-radius: 10px;
 }
+.person-info{
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
 .person .role{
   color: var(--muted);
-  font-size: .95rem;
+  font-size: .85rem;
+}
+@media (max-width: 400px) {
+  .person-layout{ grid-template-columns: 60px 1fr; }
+}
+
+/* ── PI card: horizontal layout ── */
+.pi-card{ padding: 1.5rem; }
+.pi-layout{
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+.pi-photo img{
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.pi-info strong{ font-size: 1.15rem; }
+.pi-role{
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--accent, #60a5fa);
+  margin-bottom: .5rem;
+}
+.pi-bio p{
+  font-size: .9rem;
+  line-height: 1.6;
+  color: var(--text, #eef2f7);
+  margin: .5rem 0 .75rem;
+}
+.pi-details{
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+  margin-top: 1rem;
+}
+/* PI CV-style sections (legacy — kept for compat) */
+.pi-cv-section{
+  margin-bottom: 1rem;
+}
+.pi-cv-section h4{
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted, #a8b3c7);
+  margin: 0 0 .35rem;
+  padding-bottom: .25rem;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.pi-cv-links{
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-top: .75rem;
+}
+
+/* ── PI CV filter bar ── */
+.pi-cv-filter{
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.pi-cv-chip{
+  display: inline-block;
+  padding: .3rem .7rem;
+  border-radius: 100px;
+  font-size: .75rem;
+  font-weight: 500;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--muted, #a8b3c7);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  white-space: nowrap;
+}
+.pi-cv-chip:hover{
+  background: rgba(255,255,255,.08);
+  color: var(--text, #eef2f7);
+}
+.pi-cv-chip.is-active{
+  background: rgba(91,174,209,.18);
+  border-color: rgba(91,174,209,.4);
+  color: var(--accent, #5baed1);
+}
+
+/* ── PI CV item metadata ── */
+.pi-cv-year{
+  font-size: .78rem;
+  color: var(--muted, #a8b3c7);
+  margin-left: .3rem;
+}
+.pi-cv-citation{
+  display: inline-block;
+  padding: .1rem .4rem;
+  margin-left: .35rem;
+  border-radius: 100px;
+  font-size: .7rem;
+  font-weight: 600;
+  background: rgba(124,196,255,.12);
+  color: var(--link, #7cc4ff);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.pi-cv-meta{
+  display: block;
+  font-size: .78rem;
+  color: var(--muted, #a8b3c7);
+  margin-top: .1rem;
+  font-style: italic;
+}
+
+/* Detail sections within PI expanded view */
+.pi-cv-detail-section{
+  margin-bottom: .75rem;
+}
+.pi-cv-detail-section .team-stories-list li{
+  padding: .4rem 0;
+  border-bottom: 1px solid rgba(255,255,255,.03);
+}
+.pi-cv-detail-section .team-stories-list li:last-child{
+  border-bottom: none;
+}
+@media (max-width: 600px) {
+  .pi-layout{ grid-template-columns: 1fr; }
+  .pi-photo{ max-width: 180px; }
+}
+
+/* ── Team card badges ── */
+.team-badges{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin: .4rem 0;
+}
+.team-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  padding: .15rem .45rem;
+  border-radius: 100px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  font-size: .7rem;
+  color: var(--muted, #a8b3c7);
+  white-space: nowrap;
+  line-height: 1;
+}
+.team-badge svg{
+  flex-shrink: 0;
+  opacity: .7;
+}
+.team-badge-link{
+  text-decoration: none;
+  color: var(--accent, #60a5fa);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.team-badge-link:hover{
+  background: rgba(96,165,250,.12);
+  border-color: var(--accent, #60a5fa);
+}
+
+/* ── Team expanded <details> sections ── */
+.team-expanded-section summary{
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.team-expanded-section summary::-webkit-details-marker{ display: none; }
+.team-expanded-section summary h4{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--accent, #60a5fa);
+  margin: 0;
+  padding: .35rem 0;
+  transition: color .15s;
+}
+.team-expanded-section summary:hover h4{ color: var(--text, #eef2f7); }
+.team-expanded-section summary h4 svg{
+  width: 14px; height: 14px; flex-shrink: 0;
+}
+.team-expanded-section[open] summary h4{
+  color: var(--text, #eef2f7);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  padding-bottom: .35rem;
+  margin-bottom: .35rem;
+}
+
+/* ── Team card expand/learn more button ── */
+.team-expand{
+  background: transparent;
+  color: var(--accent, #60a5fa);
+  border: 1px solid var(--accent, #60a5fa);
+  padding: .3rem .8rem;
+  font-size: .8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  margin-top: .25rem;
+}
+.team-expand:hover{
+  background: var(--accent, #60a5fa);
+  color: #031a16;
+}
+
+/* Active card highlight */
+.team-card-active{
+  border-color: var(--accent, #60a5fa);
+  box-shadow: 0 0 0 2px rgba(96,165,250,.3);
+}
+
+/* ── Shared detail panel (inside grid, spans full row) ── */
+.team-detail-panel{
+  grid-column: 1 / -1;
+  position: relative;
+  margin-top: .25rem;
+}
+.team-detail-arrow{
+  position: absolute;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-bottom: none;
+  border-right: none;
+  transform: rotate(45deg);
+  z-index: 2;
+  transition: left .25s ease;
+}
+.team-detail-card{
+  position: relative;
+  padding: 1.5rem;
+  z-index: 1;
+}
+.team-detail-close{
+  position: absolute;
+  top: .75rem;
+  right: .75rem;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  color: var(--muted, #a8b3c7);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background .15s;
+}
+.team-detail-close:hover{
+  background: rgba(255,255,255,.12);
+  color: var(--text, #eef2f7);
+}
+.team-detail-content h3{
+  margin: 0 0 .25rem;
+  color: var(--text, #eef2f7);
+}
+
+/* ── Shared expanded content styles ── */
+.team-bio p{
+  font-size: .9rem;
+  line-height: 1.5;
+  color: var(--text, #eef2f7);
+  margin: .5rem 0 .75rem;
+}
+.team-expanded-section{
+  margin-bottom: .75rem;
+}
+.team-expanded-section h4{
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted, #a8b3c7);
+  margin: 0 0 .35rem;
+}
+.team-stories-list{
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.team-stories-list li{
+  padding: .3rem 0;
+  font-size: .85rem;
+}
+.team-stories-list a{
+  color: var(--accent, #60a5fa);
+  text-decoration: none;
+}
+.team-stories-list a:hover{ text-decoration: underline; }
+.team-stories-list .hint{
+  color: var(--muted, #a8b3c7);
+  font-size: .8rem;
+  margin-left: .4rem;
 }
 
 /* Course/Generic item spacing within cards */
@@ -439,12 +797,16 @@ svg{
 form{ display: grid; gap: 12px; }
 input, textarea, select, button{ font: inherit; color: var(--text); }
 
-/* Inputs/Textareas share the same surface look */
-input, textarea{
+/* Inputs/Textareas/Selects share the same surface look */
+input, textarea, select{
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 10px;
   padding: 10px 12px;
+}
+select option{
+  background: var(--surface, #121620);
+  color: var(--text, #eef2f7);
 }
 textarea{ min-height: 120px; resize: vertical; }
 
