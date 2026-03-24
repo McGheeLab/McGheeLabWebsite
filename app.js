@@ -36,6 +36,7 @@
     // Navigation
     setupMenu();
     setupBottomTabs();
+    setupDesktopDropdowns();
 
     // Load + normalize content
     const raw = await safeFetchJSON('content.json');
@@ -159,35 +160,57 @@
     const page = (parts[0] || 'mission').toLowerCase().split('?')[0];
     render(page, parts.slice(1));
     setActiveTopNav(page);
-    closeMoreSheet();
+    closeAllSheets();
+    closeAllDropdowns();
   }
 
+  // Route-to-group mapping for nav highlighting
+  const NAV_GROUPS = {
+    research: 'research', projects: 'research', news: 'research',
+    team: 'people', opportunities: 'people',
+    classes: 'classes'
+  };
+
   function setActiveTopNav(page){
-    // Desktop inline nav
+    const group = NAV_GROUPS[page] || null;
+
+    // Desktop dropdown links
     document.querySelectorAll('#desktop-nav a[data-route]').forEach(a => {
       a.setAttribute('aria-current', a.dataset.route === page ? 'page' : 'false');
     });
-    // Old drawer (kept as fallback)
+    // Desktop group buttons — highlight when any child route is active
+    document.querySelectorAll('#desktop-nav .nav-group-btn').forEach(btn => {
+      const hasActive = btn.closest('.nav-group')?.querySelector(`a[data-route="${page}"]`);
+      btn.classList.toggle('group-active', !!hasActive);
+    });
+
+    // Mobile bottom tabs — highlight by group
+    document.querySelectorAll('#bottom-tabs .tab-item').forEach(item => {
+      let isActive = false;
+      if(item.dataset.route){
+        // Direct link tab (Classes)
+        isActive = item.dataset.route === page;
+      } else if(item.dataset.group){
+        if(item.dataset.group === 'more'){
+          // "More" tab: active for auth-only pages
+          isActive = !group && page !== 'mission';
+        } else {
+          isActive = group === item.dataset.group;
+        }
+      }
+      item.classList.toggle('active', isActive);
+      if(item.dataset.route) item.setAttribute('aria-current', isActive ? 'page' : 'false');
+    });
+
+    // Sheet links
+    document.querySelectorAll('.group-sheet a[data-route]').forEach(a => {
+      a.setAttribute('aria-current', a.dataset.route === page ? 'page' : 'false');
+    });
+
+    // Old drawer (fallback)
     document.querySelectorAll('#site-nav a[data-route]').forEach(a => {
       a.setAttribute('aria-current', a.dataset.route === page ? 'page' : 'false');
     });
-    // Bottom tab bar
-    document.querySelectorAll('#bottom-tabs .tab-item[data-route]').forEach(a => {
-      const isActive = a.dataset.route === page;
-      a.setAttribute('aria-current', isActive ? 'page' : 'false');
-      a.classList.toggle('active', isActive);
-    });
-    // More sheet links
-    document.querySelectorAll('#more-sheet a[data-route]').forEach(a => {
-      a.setAttribute('aria-current', a.dataset.route === page ? 'page' : 'false');
-    });
-    // Highlight "More" tab when a sheet-only page is active
-    const moreRoutes = ['projects','classes','opportunities','apps','dashboard','admin','login','logout'];
-    const moreBtn = document.getElementById('more-tab-btn');
-    if(moreBtn){
-      const isMoreActive = moreRoutes.includes(page);
-      moreBtn.classList.toggle('active', isMoreActive);
-    }
   }
 
   /* ===========================
@@ -1775,46 +1798,112 @@
     menuBtn.focus();
   }
 
-  /* ── Bottom tab "More" sheet ── */
+  /* ── Mobile bottom tabs + group sheets ── */
   function setupBottomTabs(){
-    const moreBtn = document.getElementById('more-tab-btn');
-    const moreSheet = document.getElementById('more-sheet');
-    if(!moreBtn || !moreSheet) return;
-
-    moreBtn.addEventListener('click', toggleMoreSheet);
-
-    // Backdrop tap closes sheet
-    moreSheet.querySelector('.more-sheet-backdrop')
-      ?.addEventListener('click', closeMoreSheet);
-
-    // Link click in sheet closes sheet
-    moreSheet.addEventListener('click', (e) => {
-      if(e.target.closest('a[data-route]')) closeMoreSheet();
+    // Group tab buttons open their respective sheets
+    document.querySelectorAll('#bottom-tabs .tab-group-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleGroupSheet(btn.dataset.group));
     });
 
-    // Escape key
+    // All group sheets: backdrop + link click dismiss
+    document.querySelectorAll('.group-sheet').forEach(sheet => {
+      sheet.querySelector('.group-sheet-backdrop')
+        ?.addEventListener('click', closeAllSheets);
+      sheet.addEventListener('click', (e) => {
+        if(e.target.closest('a[data-route]')) closeAllSheets();
+      });
+    });
+
+    // Escape key closes any open sheet
     document.addEventListener('keydown', (e) => {
-      if(e.key === 'Escape') closeMoreSheet();
+      if(e.key === 'Escape') closeAllSheets();
     });
   }
 
-  function toggleMoreSheet(){
-    const sheet = document.getElementById('more-sheet');
-    const btn = document.getElementById('more-tab-btn');
+  function toggleGroupSheet(name){
+    const sheet = document.getElementById(`group-sheet-${name}`);
     if(!sheet) return;
-    const opening = !sheet.classList.contains('open');
-    sheet.classList.toggle('open', opening);
-    sheet.setAttribute('aria-hidden', String(!opening));
-    btn?.setAttribute('aria-expanded', String(opening));
+    const isOpen = sheet.classList.contains('open');
+    closeAllSheets();
+    if(!isOpen){
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden', 'false');
+      const btn = document.querySelector(`#bottom-tabs .tab-group-btn[data-group="${name}"]`);
+      btn?.setAttribute('aria-expanded', 'true');
+    }
   }
 
-  function closeMoreSheet(){
-    const sheet = document.getElementById('more-sheet');
-    const btn = document.getElementById('more-tab-btn');
-    if(!sheet) return;
-    sheet.classList.remove('open');
-    sheet.setAttribute('aria-hidden', 'true');
-    btn?.setAttribute('aria-expanded', 'false');
+  function closeAllSheets(){
+    document.querySelectorAll('.group-sheet.open').forEach(sheet => {
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden', 'true');
+    });
+    document.querySelectorAll('#bottom-tabs [aria-expanded="true"]').forEach(btn => {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  /* ── Desktop dropdown groups ── */
+  const dropdownTimers = new WeakMap();
+  const clickLocked = new WeakSet();   // Click-opened = stays open until explicit dismiss
+
+  function setupDesktopDropdowns(){
+    const groups = document.querySelectorAll('#desktop-nav .nav-group');
+    groups.forEach(group => {
+      const btn = group.querySelector('.nav-group-btn');
+      if(!btn) return;
+
+      // Click to toggle — locks the dropdown open (hover won't close it)
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = group.classList.contains('open') && clickLocked.has(group);
+        closeAllDropdowns();
+        if(!isOpen){
+          openDropdown(group);
+          clickLocked.add(group);
+        }
+      });
+
+      // Hover: open immediately, close with delay (only if not click-locked)
+      group.addEventListener('mouseenter', () => {
+        clearTimeout(dropdownTimers.get(group));
+        if(!clickLocked.has(group)){
+          closeAllDropdowns();
+          openDropdown(group);
+        }
+      });
+      group.addEventListener('mouseleave', () => {
+        if(clickLocked.has(group)) return;  // Click-opened stays open
+        const timer = setTimeout(() => closeDropdown(group), 200);
+        dropdownTimers.set(group, timer);
+      });
+
+      // Close on link click (navigates away)
+      group.querySelectorAll('a[data-route]').forEach(a => {
+        a.addEventListener('click', closeAllDropdowns);
+      });
+    });
+
+    // Close on click outside
+    document.addEventListener('click', closeAllDropdowns);
+  }
+
+  function openDropdown(group){
+    group.classList.add('open');
+    group.querySelector('.nav-group-btn')?.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeDropdown(group){
+    clearTimeout(dropdownTimers.get(group));
+    clickLocked.delete(group);
+    group.classList.remove('open');
+    group.querySelector('.nav-group-btn')?.setAttribute('aria-expanded', 'false');
+  }
+
+  function closeAllDropdowns(){
+    document.querySelectorAll('#desktop-nav .nav-group').forEach(g => {
+      closeDropdown(g);
+    });
   }
 
   function enableReveal(){

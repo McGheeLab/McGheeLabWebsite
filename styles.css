@@ -244,9 +244,9 @@ svg{
 
 
 /* =========================================
-   03b) DESKTOP INLINE NAV
+   03b) DESKTOP INLINE NAV + DROPDOWNS
    - Horizontal nav in the top banner (≥768px only).
-   - Replaces hamburger + drawer on desktop.
+   - Groups use dropdown menus on hover/click.
    ========================================= */
 .desktop-nav{ display: none; }  /* Hidden by default (mobile-first) */
 
@@ -255,21 +255,22 @@ svg{
   .desktop-nav{
     display: flex;
     align-items: center;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
   }
-  .desktop-nav::-webkit-scrollbar{ display: none; }
 
-  .desktop-nav ul{
+  .desktop-nav > ul{
     list-style: none;
     margin: 0; padding: 0;
     display: flex;
     gap: 2px;
     align-items: center;
   }
-  .desktop-nav a{
-    display: inline-block;
+
+  /* Shared link + group button base style */
+  .desktop-nav a,
+  .nav-group-btn{
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 6px 10px;
     border-radius: 8px;
     white-space: nowrap;
@@ -277,14 +278,75 @@ svg{
     font-weight: 500;
     color: var(--text);
     text-decoration: none;
+    border: none;
+    background: none;
+    cursor: pointer;
     transition: background .15s;
+    font-family: inherit;
   }
-  .desktop-nav a:hover{
+  .desktop-nav a:hover,
+  .nav-group-btn:hover{
     background: rgba(255,255,255,.08);
     text-decoration: none;
   }
   .desktop-nav a[aria-current="page"]{
     background: rgba(91,209,185,.12);
+  }
+
+  /* Chevron icon inside group button */
+  .nav-group-btn .chevron{
+    width: 10px; height: 10px;
+    display: inline-block;
+    transition: transform .2s;
+    flex-shrink: 0;
+  }
+  .nav-group.open .nav-group-btn .chevron{
+    transform: rotate(180deg);
+  }
+
+  /* Group button active when child page is current */
+  .nav-group-btn.group-active{
+    background: rgba(91,209,185,.12);
+  }
+
+  /* Dropdown panel */
+  .nav-group{
+    position: relative;
+  }
+  .nav-dropdown{
+    display: none;
+    position: absolute;
+    top: 100%;              /* Flush with button bottom */
+    left: 0;
+    min-width: 160px;
+    padding-top: 8px;       /* Invisible hover bridge across the visual gap */
+    background: transparent; /* Bridge area is invisible */
+    z-index: 200;
+    list-style: none;
+    margin: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-bottom: 6px;
+  }
+  /* Visual background panel (sits behind the links) */
+  .nav-dropdown::after{
+    content: '';
+    position: absolute;
+    top: 8px; left: 0; right: 0; bottom: 0;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    z-index: -1;
+    pointer-events: none;
+  }
+  .nav-group.open .nav-dropdown{
+    display: block;
+  }
+  .nav-dropdown a{
+    display: block;
+    padding: 8px 12px;
+    border-radius: 6px;
   }
 
   /* Update banner grid: brand | nav (flex) | user btn */
@@ -300,12 +362,12 @@ svg{
 
 
 /* =========================================
-   03c) MOBILE BOTTOM TAB BAR
-   - Fixed bottom bar with 4 tabs + "More" button.
-   - Replaces hamburger on mobile (<768px).
+   03c) MOBILE BOTTOM TAB BAR + GROUP SHEETS
+   - Fixed bottom bar with group tabs.
+   - Each group tab opens a bottom sheet with sub-links.
    ========================================= */
 .bottom-tabs{ display: none; }
-.more-sheet{ display: none; }
+.group-sheet{ display: none; }
 
 @media (max-width: 767px){
   /* Hide hamburger + old drawer on mobile (bottom tabs replace them) */
@@ -317,20 +379,21 @@ svg{
     grid-template-columns: 1fr auto;
   }
 
-  /* Bottom tab bar */
+  /* Bottom tab bar — pinned to viewport bottom.
+     Uses solid background (not backdrop-filter) to avoid
+     mobile Safari fixed-positioning bugs during toolbar transitions. */
   .bottom-tabs{
     display: flex;
     position: fixed;
-    bottom: 0; left: 0; right: 0;
-    height: var(--tab-bar-height);
-    background: rgba(10,14,22,.94);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    left: 0; right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0));
+    background: #0a0e16;
     border-top: 1px solid rgba(255,255,255,.08);
     z-index: 100;
     justify-content: space-around;
     align-items: center;
-    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .tab-item{
@@ -367,10 +430,10 @@ svg{
   }
 
   /* Push page content above the tab bar */
-  .site-footer{ padding-bottom: calc(var(--tab-bar-height) + 16px); }
+  .site-footer{ padding-bottom: 80px; }
 
-  /* === "More" bottom sheet === */
-  .more-sheet{
+  /* === Group bottom sheets (shared pattern) === */
+  .group-sheet{
     display: block;
     position: fixed;
     inset: 0;
@@ -379,18 +442,18 @@ svg{
     opacity: 0;
     transition: opacity .2s;
   }
-  .more-sheet.open{
+  .group-sheet.open{
     pointer-events: auto;
     opacity: 1;
   }
-  .more-sheet-backdrop{
+  .group-sheet-backdrop{
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,.5);
   }
-  .more-sheet-content{
+  .group-sheet-content{
     position: absolute;
-    bottom: var(--tab-bar-height);
+    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0));
     left: 0; right: 0;
     background: var(--surface);
     border-radius: 16px 16px 0 0;
@@ -400,21 +463,21 @@ svg{
     max-height: 60vh;
     overflow-y: auto;
   }
-  .more-sheet.open .more-sheet-content{
+  .group-sheet.open .group-sheet-content{
     transform: translateY(0);
   }
-  .more-sheet-handle{
+  .group-sheet-handle{
     width: 36px; height: 4px;
     background: rgba(255,255,255,.2);
     border-radius: 2px;
     margin: 0 auto 16px;
   }
-  .more-sheet ul{
+  .group-sheet ul{
     list-style: none;
     padding: 0; margin: 0;
     display: grid; gap: 4px;
   }
-  .more-sheet a{
+  .group-sheet a{
     display: block;
     padding: 14px 12px;
     border-radius: 10px;
@@ -423,8 +486,8 @@ svg{
     text-decoration: none;
     transition: background .15s;
   }
-  .more-sheet a:hover,
-  .more-sheet a[aria-current="page"]{
+  .group-sheet a:hover,
+  .group-sheet a[aria-current="page"]{
     background: rgba(91,209,185,.12);
   }
 }
@@ -1249,8 +1312,8 @@ svg text.dot{
 @media (prefers-reduced-motion: reduce){
   .hero video{ display: none; }              /* Remove moving background */
   .reveal{ opacity: 1; transform: none; filter: none; } /* Disable reveal */
-  .more-sheet-content{ transition: none; }   /* No sheet animation */
-  .more-sheet{ transition: none; }
+  .group-sheet-content{ transition: none; }   /* No sheet animation */
+  .group-sheet{ transition: none; }
 }
 
 
@@ -1283,11 +1346,12 @@ svg text.dot{
    14) Z-INDEX SAFETY (LAYER ORDER)
    - Ensure the proper stacking of header, nav drawer, and subnav.
    ========================================= */
-.top-banner  { z-index: 100; }  /* Highest */
-.bottom-tabs { z-index: 100; }  /* Same level as banner */
-.more-sheet  { z-index: 110; }  /* Above tab bar */
-.nav-drawer  { z-index: 95;  top: var(--banner-height); } /* Under banner */
-.subnav      { z-index: 90;  top: var(--banner-height); } /* Under drawer */
+.top-banner   { z-index: 100; }  /* Highest */
+.bottom-tabs  { z-index: 100; }  /* Same level as banner */
+.group-sheet  { z-index: 110; }  /* Above tab bar */
+.nav-dropdown { z-index: 200; }  /* Desktop dropdown above everything */
+.nav-drawer   { z-index: 95;  top: var(--banner-height); } /* Under banner */
+.subnav       { z-index: 90;  top: var(--banner-height); } /* Under drawer */
 
 /* Ensure hero never slides under the fixed banner */
 .hero { margin-top: var(--banner-height); }

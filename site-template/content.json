@@ -1,0 +1,74 @@
+{
+  "site": {
+    "name": "My Website",
+    "tagline": "Your tagline goes here.",
+    "contact": {
+      "address": "123 Main St, City, State 12345",
+      "email": "hello@example.com",
+      "phone": "(555) 123-4567"
+    }
+  },
+
+  "home": [
+    {
+      "title": "Welcome",
+      "body": "This is the home section. Edit content.json to change this text.",
+      "points": [
+        "Feature one",
+        "Feature two",
+        "Feature three"
+      ],
+      "image": "Images/general/placeholder.png",
+      "imageAlt": "Placeholder image"
+    }
+  ],
+
+  "about": [
+    {
+      "title": "About Us",
+      "body": "Tell your story here. What makes you unique?",
+      "points": [
+        "Point one",
+        "Point two",
+        "Point three"
+      ],
+      "image": "",
+      "imageAlt": ""
+    }
+  ],
+
+  "projects": [
+    {
+      "title": "Project One",
+      "body": "Description of your first project.",
+      "image": "",
+      "imageAlt": ""
+    },
+    {
+      "title": "Project Two",
+      "body": "Description of your second project.",
+      "image": "",
+      "imageAlt": ""
+    }
+  ],
+
+  "team": [
+    {
+      "name": "Jane Doe",
+      "role": "Lead",
+      "photo": "",
+      "bio": "Short bio here."
+    },
+    {
+      "name": "John Smith",
+      "role": "Developer",
+      "photo": "",
+      "bio": "Short bio here."
+    }
+  ],
+
+  "contact": {
+    "heading": "Get in Touch",
+    "body": "We'd love to hear from you. Reach out via the details below."
+  }
+}

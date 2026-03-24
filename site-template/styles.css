@@ -1,0 +1,613 @@
+/* =======================================================================================
+   SPA Template — Global Styles
+   -----------------------------------------------------------------------
+   HOW THIS FILE IS ORGANIZED
+   01) Design Tokens & Resets
+   02) Base Elements & Utilities
+   03) Header (Fixed Top Banner + Nav Drawer)
+   04) Hero (Background + headline)
+   05) Page Layout, Cards, Grids, Content Blocks
+   06) Components (Team, Contact)
+   07) Footer
+   08) Mobile Bottom Tab Bar
+   09) Reveal Animation
+   10) Responsive Breakpoints
+   11) Reduced Motion
+
+   TIP: CSS variables (custom properties) live in :root and are reused throughout.
+   ======================================================================================= */
+
+
+/* =========================================
+   01) DESIGN TOKENS & RESETS
+   ========================================= */
+:root {
+  /* ---- Color system ---- */
+  --bg: #0b0d12;
+  --surface: #121620;
+  --surface-2: #1a2030;
+  --text: #eef2f7;
+  --muted: #a8b3c7;
+  --accent: #5baed1;
+  --link: #7cc4ff;
+
+  /* ---- Logo animation colors ---- */
+  --loader-text-color: #f6e9fe;
+  --loader-dot-color:  #ee0c0c;
+
+  /* ---- Radii / Shadows ---- */
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(0,0,0,.25);
+
+  /* ---- Layout constants ---- */
+  --banner-height: 64px;
+  --content-max: 1100px;
+  --tab-bar-height: 60px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+html { scrollbar-gutter: stable; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #0b0d12 0%, #0d111a 100%);
+  line-height: 1.6;
+  font-size: clamp(0.9375rem, 0.875rem + 0.25vw, 1.0625rem);
+}
+
+
+/* =========================================
+   02) BASE ELEMENTS & UTILITIES
+   ========================================= */
+
+.max-w {
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 32px);
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: auto;
+}
+.skip-link:focus {
+  left: 16px;
+  top: 12px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  z-index: 1000;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+
+/* =========================================
+   03) HEADER (FIXED TOP BANNER + NAV DRAWER)
+   ========================================= */
+
+.top-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  height: var(--banner-height);
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: .5rem;
+  align-items: center;
+  background: rgba(10,14,22,.75);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  padding-inline: clamp(12px, 3vw, 24px);
+}
+
+/* Brand / Logo */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.brand:hover { text-decoration: none; }
+
+.logo-animated {
+  height: 36px;
+  width: auto;
+  overflow: visible;
+}
+.logo-animated .text-body {
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 96px;
+  fill: var(--loader-text-color, var(--text));
+}
+.logo-animated .dot {
+  fill: var(--loader-dot-color, var(--accent));
+}
+
+/* Desktop nav */
+.desktop-nav {
+  display: none;
+}
+.desktop-nav ul {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+.desktop-nav a {
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 500;
+  padding: 6px 0;
+  transition: color .2s;
+}
+.desktop-nav a:hover,
+.desktop-nav a[aria-current="page"] {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Hamburger */
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform .3s, opacity .3s;
+}
+.hamburger[aria-expanded="true"] span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.hamburger[aria-expanded="true"] span:nth-child(2) {
+  opacity: 0;
+}
+.hamburger[aria-expanded="true"] span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Nav Drawer */
+.nav-drawer {
+  position: fixed;
+  top: var(--banner-height);
+  right: 0;
+  width: 280px;
+  max-height: calc(100vh - var(--banner-height));
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid rgba(255,255,255,.08);
+  transform: translateX(100%);
+  transition: transform .3s ease;
+  z-index: 99;
+}
+.nav-drawer.open {
+  transform: translateX(0);
+}
+.nav-drawer ul {
+  list-style: none;
+  margin: 0; padding: 1rem 0;
+}
+.nav-drawer a {
+  display: block;
+  padding: .75rem 1.5rem;
+  color: var(--muted);
+  font-size: .95rem;
+  transition: color .2s, background .2s;
+}
+.nav-drawer a:hover,
+.nav-drawer a[aria-current="page"] {
+  color: var(--text);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+
+/* =========================================
+   04) HERO
+   ========================================= */
+
+.site-header {
+  position: relative;
+}
+
+.hero {
+  position: relative;
+  min-height: 50vh;
+  display: flex;
+  align-items: flex-end;
+  padding: 3rem 0 2rem;
+  margin-top: var(--banner-height);
+  overflow: hidden;
+}
+
+.video-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.video-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: .2;
+}
+.hero-bg {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+}
+.video-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--bg) 0%, transparent 60%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+.eyebrow {
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--accent);
+  margin-bottom: .5rem;
+}
+.hero h1 {
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: 700px;
+}
+
+
+/* =========================================
+   05) PAGE LAYOUT, CARDS, GRIDS
+   ========================================= */
+
+.page {
+  min-height: 50vh;
+  padding-bottom: 4rem;
+}
+
+.page-section {
+  padding-top: 2rem;
+}
+
+.page-title {
+  font-size: clamp(1.3rem, 2.5vw, 2rem);
+  margin-bottom: 1.5rem;
+}
+
+/* Content block: text + optional image side-by-side */
+.content-block {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  align-items: center;
+}
+
+.content-block .text-col h2 {
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+  margin-bottom: .75rem;
+}
+.content-block .text-col p {
+  color: var(--muted);
+  margin-bottom: .5rem;
+}
+.content-block .text-col ul {
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+.content-block .text-col li {
+  margin-bottom: .25rem;
+}
+
+.content-block .img-col img {
+  width: 100%;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Card grid */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  transition: transform .2s, box-shadow .2s;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.35);
+}
+.card h3 {
+  font-size: 1.15rem;
+  margin: 0 0 .5rem;
+}
+.card p {
+  color: var(--muted);
+  margin: 0;
+  font-size: .9rem;
+}
+.card-img {
+  width: 100%;
+  border-radius: calc(var(--radius) - 4px);
+  margin-bottom: 1rem;
+}
+
+/* Info box (empty states, errors) */
+.info-box {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+
+/* =========================================
+   06) COMPONENTS (TEAM, CONTACT)
+   ========================================= */
+
+.team-card {
+  text-align: center;
+}
+.team-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 1rem;
+  display: block;
+}
+.team-photo-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  margin: 0 auto 1rem;
+}
+.role {
+  color: var(--accent);
+  font-size: .85rem;
+  font-weight: 600;
+}
+.bio {
+  font-size: .85rem;
+}
+
+address {
+  font-style: normal;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: .6rem 1.2rem;
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: .9rem;
+  transition: opacity .2s;
+}
+.btn:hover {
+  opacity: .85;
+  text-decoration: none;
+}
+
+
+/* =========================================
+   07) FOOTER
+   ========================================= */
+
+.site-footer {
+  background: var(--surface);
+  padding: 3rem 0 1.5rem;
+  margin-top: 4rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+.footer-heading {
+  font-size: 1rem;
+  margin-bottom: .75rem;
+}
+.footer-links {
+  list-style: none;
+  padding: 0; margin: 0;
+}
+.footer-links a {
+  display: block;
+  padding: .25rem 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.footer-links a:hover {
+  color: var(--text);
+}
+
+.legal {
+  text-align: center;
+  color: var(--muted);
+  font-size: .8rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+
+/* =========================================
+   08) MOBILE BOTTOM TAB BAR
+   ========================================= */
+
+.bottom-tabs {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 100;
+  height: var(--tab-bar-height);
+  background: rgba(10,14,22,.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255,255,255,.08);
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: .65rem;
+  font-weight: 500;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: color .2s;
+}
+.tab-item svg {
+  width: 22px;
+  height: 22px;
+}
+.tab-item.active,
+.tab-item:hover {
+  color: var(--text);
+}
+.tab-item.active svg {
+  stroke: var(--accent);
+}
+
+
+/* =========================================
+   09) REVEAL ANIMATION
+   ========================================= */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity .5s ease, transform .5s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Lazy images: start transparent, fade in */
+img.lazy {
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+img.lazy[src] {
+  opacity: 0;
+}
+img:not(.lazy) {
+  opacity: 1;
+}
+
+
+/* =========================================
+   10) RESPONSIVE BREAKPOINTS
+   ========================================= */
+
+/* Desktop: show inline nav, hide hamburger + drawer + tabs */
+@media (min-width: 768px) {
+  .desktop-nav {
+    display: block;
+  }
+  .hamburger,
+  .nav-drawer {
+    display: none !important;
+  }
+  .bottom-tabs {
+    display: none !important;
+  }
+  .content-block {
+    grid-template-columns: 1fr 1fr;
+  }
+  .content-block.reverse {
+    direction: rtl;
+  }
+  .content-block.reverse > * {
+    direction: ltr;
+  }
+}
+
+/* Mobile: show hamburger + tabs, hide desktop nav */
+@media (max-width: 767px) {
+  .bottom-tabs {
+    display: flex;
+  }
+  .hamburger {
+    display: flex;
+  }
+  .desktop-nav {
+    display: none;
+  }
+  /* Add bottom padding for tab bar */
+  .site-footer {
+    padding-bottom: calc(var(--tab-bar-height) + 1rem);
+  }
+}
+
+
+/* =========================================
+   11) REDUCED MOTION
+   ========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .card {
+    transition: none;
+  }
+  img.lazy {
+    transition: none;
+  }
+}

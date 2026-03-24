@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.15] - 2026-03-24
+
+### Changed
+- **Grouped navigation redesign** — replaced flat hamburger nav with grouped, platform-optimized navigation
+  - **Desktop (≥768px):** Horizontal nav with dropdown groups (hover/click to expand)
+    - "Research" dropdown → Research, Projects, News
+    - "People" dropdown → Team, Opportunities
+    - "Classes" → direct link
+    - Auth items (Lab Apps, Dashboard, Admin, Login) shown inline when applicable
+    - Chevron icon rotates on dropdown open; group button highlighted when child page is active
+  - **Mobile (<768px):** Fixed bottom tab bar with 4 tabs: Research, People, Classes, More
+    - Group tabs open bottom sheets with sub-links (Research sheet, People sheet, More sheet)
+    - Sheets dismiss on backdrop tap, link click, or Escape key
+    - Only one sheet open at a time
+  - **Mission removed from nav** — now a splash page accessed via logo click only
+  - `NAV_GROUPS` route-to-group map drives group-aware active state highlighting
+  - `setupDesktopDropdowns()`/`closeAllDropdowns()` for desktop hover/click dropdowns
+  - `toggleGroupSheet()`/`closeAllSheets()` for mobile bottom sheets
+  - Auth-gated items toggled across all nav surfaces via `updateNavigation()` in `user-system.js`
+
 ## [V3.14] - 2026-03-24
 
 ### Added
