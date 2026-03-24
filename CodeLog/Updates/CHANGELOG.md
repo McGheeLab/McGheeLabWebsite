@@ -7,6 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 ## [V3.15] - 2026-03-24
 
 ### Changed
+<<<<<<< Updated upstream
 - **Grouped navigation redesign** — replaced flat hamburger nav with grouped, platform-optimized navigation
   - **Desktop (≥768px):** Horizontal nav with dropdown groups (hover/click to expand)
     - "Research" dropdown → Research, Projects, News
@@ -23,6 +24,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
   - `setupDesktopDropdowns()`/`closeAllDropdowns()` for desktop hover/click dropdowns
   - `toggleGroupSheet()`/`closeAllSheets()` for mobile bottom sheets
   - Auth-gated items toggled across all nav surfaces via `updateNavigation()` in `user-system.js`
+=======
+- **Navigation redesign** — replaced hamburger-only nav with platform-optimized patterns
+  - **Desktop (≥768px):** Horizontal inline nav bar in `.top-banner` — all pages accessible in one click
+    - New `#desktop-nav` element with pill-style links, `aria-current="page"` active state
+    - Banner grid updated to `auto 1fr auto` (brand | nav | user button)
+    - Hamburger and drawer hidden via CSS
+  - **Mobile (<768px):** Fixed bottom tab bar (`#bottom-tabs`) with 4 primary tabs + "More" sheet
+    - Tabs: Home (Mission), Research, Team, News — inline SVG icons
+    - "More" button opens `#more-sheet` bottom sheet with Projects, Classes, Opportunities, auth items, Login
+    - Sheet dismisses via backdrop tap, link click, or Escape key
+    - `env(safe-area-inset-bottom)` for iPhone home indicator
+    - Footer padding added to prevent content occlusion
+  - **Auth-gated items** toggled across all 3 nav surfaces (drawer, desktop nav, more sheet) via `updateNavigation()` in `user-system.js`
+  - New CSS variable `--tab-bar-height: 60px`
+  - Z-index layers updated: `.bottom-tabs` at 100, `.more-sheet` at 110
+  - `prefers-reduced-motion: reduce` disables sheet animation
+
+### Added
+- `setupBottomTabs()`, `toggleMoreSheet()`, `closeMoreSheet()` functions in `app.js`
+- `setActiveTopNav()` now updates active state across desktop nav, drawer, bottom tabs, and more sheet
+>>>>>>> Stashed changes
 
 ## [V3.14] - 2026-03-24
 

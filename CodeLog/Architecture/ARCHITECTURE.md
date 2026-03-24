@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.14
+**Version:** V3.15
 
 ## System Overview
 
@@ -9,8 +9,8 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 ## Module Breakdown
 
 ### index.html
-- **Purpose:** HTML shell with persistent header, navigation drawer, hero, and footer
-- **Key elements:** `#app` container swapped by router, hamburger nav menu
+- **Purpose:** HTML shell with persistent header, navigation, hero, and footer
+- **Key elements:** `#app` container swapped by router; three nav surfaces: `#desktop-nav` (inline horizontal, ≥768px), `#bottom-tabs` + `#more-sheet` (mobile tab bar, <768px), `#site-nav` drawer (legacy, hidden)
 - **SEO:** Meta description, keywords, OpenGraph, and Twitter Card tags
 - **User system nav:** Dashboard, CV Builder, Admin, Login/Logout links (conditionally visible based on auth state)
 - **Script loading:** Firebase SDK (compat) → Chart.js CDN → firebase-config.js → user-system.js → cv-builder.js → scheduler.js → class-builder.js → lab-apps.js → app.js (all deferred, in order)
