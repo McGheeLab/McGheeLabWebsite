@@ -4,6 +4,101 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.14] - 2026-03-24
+
+### Added
+- **Lab Apps hub** — new private section (`#/apps`) for internal lab applications, accessible only to authenticated non-guest members
+  - `lab-apps.js` — hub renderer (card grid) + iframe embedder with postMessage auth bridge
+  - **App registry** (`LAB_APPS` array) with `path` field pointing to each app's standalone `index.html`
+  - Four standalone apps, each a self-contained mini-site under `apps/`:
+    - `apps/inventory/` — Inventory Tracker (supply and equipment tracking)
+    - `apps/equipment/` — Equipment Scheduler (Google Calendar integration)
+    - `apps/meetings/` — Lab Meeting (agenda and presentation scheduling)
+    - `apps/console/` — Admin Console (master control panel, admin-only)
+  - Each app has own `index.html`, `app.js`, `styles.css` — can run independently or embedded
+  - Grid layout with icon cards, descriptions, and "Coming Soon" status badges
+  - Admin Console card displays "Admin" badge and is only visible to admin-role users
+- **Standalone app architecture** (`apps/` directory)
+  - `apps/shared/auth-bridge.js` — dual-mode auth handshake: postMessage (embedded in iframe) or Firebase `onAuthStateChanged` (standalone)
+  - `apps/shared/app-base.css` — common dark-theme base styles, buttons, inputs, cards, auth wall
+  - Protocol: child sends `mcgheelab-app-ready` → parent responds with `mcgheelab-auth` (user + profile)
+  - Embedded mode: app header hidden, iframe sandboxed with `allow-same-origin allow-scripts allow-forms allow-popups`
+  - Standalone mode: full page with Firebase SDK, "Back to Lab Apps" header, direct `onAuthStateChanged`
+  - 5s auth timeout in embedded mode → shows sign-in wall fallback
+- **Auth-gated navigation** — "Lab Apps" nav item (`#nav-apps`) visible only to logged-in users with role !== 'guest'
+- **Routing** — `#/apps` hub and `#/apps/{appId}` sub-routes in `app.js` render switch and wire switch; auth re-render on state change
+- **Styles** — `.lab-apps-page`, `.lab-apps-grid`, `.lab-app-card`, `.lab-app-iframe-wrap` in `user-styles.css` with responsive mobile layout
+
+## [V3.13] - 2026-03-24
+
+### Changed
+- **Repeatable sections** (`class-builder.js`)
+  - Removed uniqueness constraint: any section type (Overview, Simulations, Files, etc.) can now be added multiple times to the same or different tabs
+  - `buildSectionDropdownItems()` no longer accepts `usedKeys` or disables already-used types
+  - `addSection(key)` prompts for a custom name on creation and no longer checks `getAllUsedSections()`
+- **Nameable sections** (`class-builder.js`)
+  - Each section instance stores a `name` field (user-chosen display name)
+  - Section chrome and readonly headers display the custom name; type badge shows the SECTION_REG label
+  - Double-click section label in admin mode to rename (`renameSection()`, `wireSectionRename()`)
+- **Collapsible sections** (`class-builder.js`, `user-styles.css`)
+  - Each section stores a `collapsed` boolean, persisted to Firestore
+  - Collapse toggle button (▶/▼) in both admin chrome and public header row
+  - `toggleSectionCollapse()` updates DOM in-place (no full re-render), toggling `.cb-collapsed` class
+  - `.cb-section-collapsible.cb-collapsed { display: none }` hides body+widgets
+  - `wireSectionCollapse()` wired for all views (admin, preview, public)
+- **Per-section content storage** (`class-builder.js`)
+  - Text-component sections now store content on `section.content` instead of `_classData[reg.field]`
+  - Each section instance has independent text content (two "Overview" sections have separate text)
+  - `gatherContentFromDOM()` writes to section objects via `.cb-section-text[data-section-id]`
+  - `persistAll()` simplified: text content saved within `tabs` array, no separate field copying
+- **Per-section file paths** (`class-builder.js`)
+  - File sections use `section.storagePath` for unique Firestore queries
+  - New sections get `storagePath = section.id`; migrated sections keep `reg.path || key`
+  - `_fileData` keyed by `section.id` instead of `section.key`
+  - `handleFileUpload()` and `handleFileDelete()` use `data-section-id` and `findSectionById()`
+- **Section type CSS hooks** (`user-styles.css`)
+  - All sections get `.cb-section-type-{key}` class (e.g., `.cb-section-type-simulations`)
+  - Default colored left borders per type: simulations (#4fc3f7), overview (#81c784), syllabus (#ce93d8), schedule (#ffb74d), speakers (#f06292), files (#90a4ae), lectures (#aed581), homeworks (#ffd54f), exams (#ef5350)
+- **Migration** (`class-builder.js`)
+  - `migrateLegacy()` populates `name`, `collapsed`, `content`, `storagePath` on all sections
+  - Existing text content migrated from `schedule[reg.field]` → `section.content`
+  - Speakers sections use dynamic container ID (`cb-speakers-{section.id}`)
+
+## [V3.12] - 2026-03-24
+
+### Added
+- **Simulation widget** (`class-builder.js`, `user-styles.css`)
+  - New `simulation` entry in `WIDGET_REG` — admins can add Simulation widgets to any section
+  - Admin editor: title input + monospace code textarea for HTML/JS simulation source, with live preview iframe
+  - Public/student view: sandboxed `<iframe srcdoc>` (`sandbox="allow-scripts"`) executes simulation safely
+  - **Student code editing:** "Edit Code" toggle reveals a local copy of the source; "Run" re-renders the iframe; "Reset" restores original admin code. Edits are ephemeral and never persist to Firestore
+  - **Fullscreen mode:** "Fullscreen" button uses Fullscreen API on the simulation container; toolbar auto-hides (hover to reveal), code panel anchors to bottom
+  - **Data export:** Simulations can call `SimExport.log(label, value)` to record data points; "Export Data" button flushes data via `postMessage` bridge and triggers CSV download (`timestamp, label, value` columns)
+  - `buildSimSrcdoc(code)` injects `SimExport` bridge preamble (with `postMessage`-based flush) before user HTML
+  - `wireSimulations()` wired from `wireCanvas()` for both admin and public views — handles toggle-code, run, reset, export, fullscreen, and `__WID__` placeholder patching
+  - `downloadSimCSV(widgetId)` converts logged data to CSV blob and triggers browser download
+  - `gatherContentFromDOM()` now collects `.cb-sim-code` and `.cb-sim-title` inputs
+  - CSS: `.cb-sim-container`, `.cb-sim-toolbar`, `.cb-sim-code-panel`, `.cb-sim-student-code`, `.cb-sim-iframe` with fullscreen overrides (`:fullscreen` / `:-webkit-full-screen`)
+
+### Changed
+- **Team card layout** (`styles.css`) — All team cards (PI and regular) now use a consistent `1fr 2fr` grid: photo takes 1/3 of card width, info takes 2/3, aligned top-left. Removed legacy `.person img { width: 25% }` rule that was cropping photos at ≤768px.
+- **PI card consistency** (`styles.css`) — PI cards now share same 1/3-photo layout as other team cards. Bio capped at 8 lines with scroll overflow. Learn More button and badges sit in a horizontal footer row at card bottom.
+- **Team grid min card width** (`styles.css`) — Bumped from 220px to 280px so grid collapses to single column on narrow screens before photos get too small.
+- **Expanded sections collapsed by default** (`app.js`, `styles.css`) — PI "Learn More" detail sections now all start collapsed. Added CSS triangle indicator (`::after` on `<summary> h4`) that rotates 180deg when open.
+
+### Added
+- **LinkedIn, ResearchGate, Google Scholar profile links** (`user-system.js`, `app.js`)
+  - Three new badge definitions in `BADGE_DEFS`: `linkedin`, `researchgate`, `googleScholar` with brand SVG icons
+  - Profile editor gains three new `<details>` sections with URL input + Save button for each service
+  - Save handlers write `linkedin`, `researchgate`, `googleScholar` fields to Firestore user doc
+  - `buildBadgesHTML()` renders clickable badge links for each populated field
+- **News cover image support** (`app.js`, `user-system.js`, `user-styles.css`)
+  - `buildNewsFeedCard()` now reads `p.coverImage.medium` / `p.coverImage.full` and renders a horizontal grid layout (`.news-cover-layout`): cover image on left (280px), text content on right; stacks vertically on mobile ≤ 600px
+  - Cards with a cover image get `.news-has-cover` class with zero padding and overflow hidden for clean edge-to-edge image display
+  - News editor (`renderNewsEditor`) gains a cover image upload zone (`#news-cover-zone`) with drag-and-drop support, using the existing `processImage()` + `uploadImageSet()` pipeline
+  - `wireNewsEditor()` adds `coverImageUrls` state, `handleCoverUpload()`, and loads existing cover on edit
+  - `collectData()` now includes `coverImage` field in saved data
+
 ## [V3.11] - 2026-03-23
 
 ### Added
@@ -36,7 +131,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 ## [V3.9] - 2026-03-23
 
 ### Added
-- **Tab system** (`class-scheduler.js`) — Admin can create, name, rename (double-click), and delete tabs as top-level navigation for class pages
+- **Tab system** (`class-builder.js`) — Admin can create, name, rename (double-click), and delete tabs as top-level navigation for class pages
   - `_tabs` array replaces flat `_layout` — each tab has `{ id, name, sections }` structure
   - `migrateLegacy()` automatically converts old `layout` or `sections` formats into a single "Home" tab
   - `genTabId()`, `getActiveTab()`, `switchTab()`, `addTab()`, `deleteTab()`, `renameTab()` tab management functions
@@ -54,7 +149,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
   - `buildWidgetBlockHTML()` renders widget chrome + body, nested inside parent section
 
 ### Changed
-- **class-scheduler.js** — Full rewrite from flat layout to tab-based architecture
+- **class-builder.js** — Full rewrite from flat layout to tab-based architecture
   - Data model: `tabs: [{ id, name, sections: [{ key, id, widgets: [...] }] }]`
   - Removed three-column palette layout; replaced with "Add Section" dropdown at top + "Add Widget" dropdowns inside sections
   - Section management: `addSection()`, `removeSection()`, `moveSection()`, `reorderSection()` operate on active tab
@@ -104,7 +199,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
   - **Simplified admin view:** Settings collapsed behind `<details>` by default; optimization button only appears when there are unassigned guests with availability
   - **View switcher labels:** Admin / Guest / Public
 - **user-system.js** — Updated `wireSchedulePage` config: `viewType: 'guest'` and `adminViewMode: 'guest'` (was `'speaker'`)
-- **class-scheduler.js** — Updated view type logic: default `'public'` (was `'student'`), speaker detection returns `'guest'` (was `'speaker'`), file upload permission checks use `'guest'`
+- **class-builder.js** — Updated view type logic: default `'public'` (was `'student'`), speaker detection returns `'guest'` (was `'speaker'`), file upload permission checks use `'guest'`
 
 ### Added
 - **Calendar CSS** — New `.sched-calendar`, `.sched-cal-grid`, `.sched-cal-day`, `.sched-cal-selected`, `.sched-cal-header`, `.sched-cal-prev/.sched-cal-next` styles in `user-styles.css`; responsive at 600px breakpoint
@@ -119,7 +214,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
   - Invite URLs point to `#/schedule/` (not `#/classes/`) — completely private
   - Reuses `McgheeLab.Scheduler` engine and `ScheduleDB` — no new scheduler code
   - New exports: `renderSchedulerEditor`, `wireSchedulerEditor`, `renderSchedulePage`, `wireSchedulePage`
-- **Drag-and-drop course builder** — Complete rewrite of `class-scheduler.js` from sidebar navigation to a canvas-based page builder
+- **Drag-and-drop course builder** — Complete rewrite of `class-builder.js` from sidebar navigation to a canvas-based page builder
   - **Three-column layout:** Left palette (sections) + center canvas (drop zone) + right palette (widgets)
   - **HTML5 Drag and Drop:** Drag from palettes into canvas; drag handle on blocks to reorder within canvas
   - **Section blocks** (9 types): overview, syllabus, schedule, speakers, files, simulations, lectures, homeworks, exams — each renders inline in canvas (text editor, file manager, or scheduler)
@@ -133,7 +228,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
   - Palette dims used sections with checkmark indicator
 
 ### Changed
-- **class-scheduler.js** — Full rewrite from sidebar+switchSection to canvas-based builder (all 5 phases: autosave, canvas layout, DnD, block renderers, persistence)
+- **class-builder.js** — Full rewrite from sidebar+switchSection to canvas-based builder (all 5 phases: autosave, canvas layout, DnD, block renderers, persistence)
 - **user-styles.css** — Replaced sidebar CSS with canvas builder CSS: `.cb-builder` grid, `.cb-palette`, `.cb-block` with chrome/body, `.cb-drop-indicator`, `.cb-autosave-status`, `.cb-modal-overlay`, responsive breakpoints at 1024px/768px
 
 ## [V3.5] - 2026-03-23
@@ -144,7 +239,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
   - Admin panel "Course Listings" form: title, description, level, when, detail page link, registration link, display order, published/draft status
   - `renderClasses()` shows loading placeholder, then populates from Firestore; empty state when no courses published
   - Firestore rules: `classes` collection — public read, admin write
-- **Standalone scheduler engine** (`scheduler.js`) — Reusable dual-mode scheduling module extracted from class-scheduler.js
+- **Standalone scheduler engine** (`scheduler.js`) — Reusable dual-mode scheduling module extracted from class-builder.js
   - **Freeform mode (when2meet-style):** Admin picks days + time window + increments (15/30/60 min); speakers click+drag to paint availability; admin sees aggregate green heatmap
   - **Sessions mode:** Admin defines named time blocks; speakers vote on preferred slots; greedy bipartite assignment optimizes 1-to-1 matching
   - **Three views:** Admin (setup + heatmap + speaker management + optimization), Speaker (availability + submission form), Student (read-only grid + confirmed speakers)
@@ -153,8 +248,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
   - **Embeddable anywhere** — not tied to class pages; can be used for events, conferences, lab scheduling, etc.
 
 ### Changed
-- **class-scheduler.js** — Stripped of all scheduler code (~600 lines removed); now a thin class builder that delegates speakers section to `McgheeLab.Scheduler.render()` / `.wire()` via `buildSchedulerConfig()` which constructs the config with ScheduleDB callbacks
-- **index.html** — Added `scheduler.js` script tag before `class-scheduler.js` in loading order
+- **class-builder.js** — Stripped of all scheduler code (~600 lines removed); now a thin class builder that delegates speakers section to `McgheeLab.Scheduler.render()` / `.wire()` via `buildSchedulerConfig()` which constructs the config with ScheduleDB callbacks
+- **index.html** — Added `scheduler.js` script tag before `class-builder.js` in loading order
 - **Admin panel: unified course creation** — "Add Course Listing" now auto-creates both a `classes` doc (public listing) and a `schedules` doc (course builder page) in one step
   - Schedule ID auto-generated from title (lowercase, hyphenated, max 40 chars)
   - Duplicate schedule ID check before creation
@@ -193,7 +288,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 
 ### Added
 - **Section-based class builder** — Complete rewrite of class system into a configurable class builder with sidebar navigation and three reusable component types
-  - `class-scheduler.js` — section registry pattern (`SECTION_REG`) maps 9 section keys to 3 component types (text editor, file manager, speakers scheduler)
+  - `class-builder.js` — section registry pattern (`SECTION_REG`) maps 9 section keys to 3 component types (text editor, file manager, speakers scheduler)
   - **Section registry:** overview, syllabus, schedule, speakers, files, simulations, lectures, homeworks, exams — each class picks which sections to enable
   - **Text component** — admin gets textarea editor with save + preview; students see read-only rendered content (auto-links URLs, paragraph formatting)
   - **File manager component** — upload files to Firebase Storage, metadata stored in `classFiles` Firestore collection; admin+speaker can upload, students download only; optional due date field for homeworks/exams; file size display
@@ -219,7 +314,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 ### Changed
 - **content.json** — Added BME 295C course entry with `detailPage: "bme295c"` field
 - **app.js** — Added `#/classes/<slug>` sub-route with query string stripping (render + wire delegation); `renderClasses()` now generates links for courses with `detailPage`; added `detailPage` to course normalizer
-- **index.html** — Added `class-scheduler.js` script tag
+- **index.html** — Added `class-builder.js` script tag
 - **user-system.js** — Added "Classes" tab in admin panel with section-aware create form (9 section checkboxes); `loadClassSchedules()` lists/deletes schedules
 - **user-styles.css** — Added scheduler grid styles + class builder layout (sidebar, section nav, file upload, text preview, settings, confirmed speaker cards, responsive breakpoints)
 - **firestore.rules** — Added `classFiles` collection rules

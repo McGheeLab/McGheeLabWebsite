@@ -33,8 +33,9 @@
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-    // Hamburger
+    // Navigation
     setupMenu();
+    setupBottomTabs();
 
     // Load + normalize content
     const raw = await safeFetchJSON('content.json');
@@ -70,7 +71,7 @@
         authResolved = true;
         const hash = window.location.hash || '';
         const page = hash.slice(2).split('/')[0]?.toLowerCase();
-        if (page === 'dashboard' || page === 'admin' || page === 'login' || page === 'cv') onRouteChange();
+        if (page === 'dashboard' || page === 'admin' || page === 'login' || page === 'cv' || page === 'apps') onRouteChange();
       });
     }
 
@@ -158,12 +159,35 @@
     const page = (parts[0] || 'mission').toLowerCase().split('?')[0];
     render(page, parts.slice(1));
     setActiveTopNav(page);
+    closeMoreSheet();
   }
 
   function setActiveTopNav(page){
+    // Desktop inline nav
+    document.querySelectorAll('#desktop-nav a[data-route]').forEach(a => {
+      a.setAttribute('aria-current', a.dataset.route === page ? 'page' : 'false');
+    });
+    // Old drawer (kept as fallback)
     document.querySelectorAll('#site-nav a[data-route]').forEach(a => {
       a.setAttribute('aria-current', a.dataset.route === page ? 'page' : 'false');
     });
+    // Bottom tab bar
+    document.querySelectorAll('#bottom-tabs .tab-item[data-route]').forEach(a => {
+      const isActive = a.dataset.route === page;
+      a.setAttribute('aria-current', isActive ? 'page' : 'false');
+      a.classList.toggle('active', isActive);
+    });
+    // More sheet links
+    document.querySelectorAll('#more-sheet a[data-route]').forEach(a => {
+      a.setAttribute('aria-current', a.dataset.route === page ? 'page' : 'false');
+    });
+    // Highlight "More" tab when a sheet-only page is active
+    const moreRoutes = ['projects','classes','opportunities','apps','dashboard','admin','login','logout'];
+    const moreBtn = document.getElementById('more-tab-btn');
+    if(moreBtn){
+      const isMoreActive = moreRoutes.includes(page);
+      moreBtn.classList.toggle('active', isMoreActive);
+    }
   }
 
   /* ===========================
@@ -235,6 +259,17 @@
           if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
           break;
         }
+        case 'apps': {
+          let html;
+          const appSlug = (subParts[0] || '').split('?')[0];
+          if (appSlug) {
+            html = window.McgheeLab?.renderLabApp?.(appSlug);
+          } else {
+            html = window.McgheeLab?.renderLabApps?.();
+          }
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
         case 'schedule': {
           const schedSlug = (subParts[0] || '').split('?')[0];
           if (schedSlug) {
@@ -300,6 +335,12 @@
         case 'opportunities': await window.McgheeLab?.wireOpportunities?.(); break;
         case 'cv':        await window.McgheeLab?.wireCV?.(); break;
         case 'admin':     await window.McgheeLab?.wireAdmin?.(); break;
+        case 'apps': {
+          const wireAppSlug = (subParts[0] || '').split('?')[0];
+          if (wireAppSlug) await window.McgheeLab?.wireLabApp?.(wireAppSlug);
+          else await window.McgheeLab?.wireLabApps?.();
+          break;
+        }
         case 'guide':     window.McgheeLab?.wireGuide?.(); break;
         case 'classes': {
           const wireSlug = (subParts[0] || '').split('?')[0];
@@ -488,6 +529,18 @@
             const ghDef = badges.find(b => b.key === 'github');
             if (ghDef) html += `<a href="${esc(user.github)}" target="_blank" class="team-badge team-badge-link" title="GitHub">${ghDef.svg}</a>`;
           }
+          if (user.linkedin) {
+            const liDef = badges.find(b => b.key === 'linkedin');
+            if (liDef) html += `<a href="${esc(user.linkedin)}" target="_blank" class="team-badge team-badge-link" title="LinkedIn">${liDef.svg}</a>`;
+          }
+          if (user.researchgate) {
+            const rgDef = badges.find(b => b.key === 'researchgate');
+            if (rgDef) html += `<a href="${esc(user.researchgate)}" target="_blank" class="team-badge team-badge-link" title="ResearchGate">${rgDef.svg}</a>`;
+          }
+          if (user.googleScholar) {
+            const gsDef = badges.find(b => b.key === 'googleScholar');
+            if (gsDef) html += `<a href="${esc(user.googleScholar)}" target="_blank" class="team-badge team-badge-link" title="Google Scholar">${gsDef.svg}</a>`;
+          }
           return html ? `<div class="team-badges">${html}</div>` : '';
         }
 
@@ -574,7 +627,7 @@
               return `<li>${link} ${yearTag}${citTag}${item.extra || ''}${metaTag}</li>`;
             };
 
-            html += `<details class="team-expanded-section pi-cv-detail-section" data-section="${s.key}" ${i === 0 ? 'open' : ''}>
+            html += `<details class="team-expanded-section pi-cv-detail-section" data-section="${s.key}">
               <summary><h4>${s.label} (${s.items.length})</h4></summary>
               <ul class="team-stories-list">${s.items.map(renderItem).join('')}</ul>
             </details>`;
@@ -693,8 +746,10 @@
                 <div><strong>${esc(user.name)}</strong></div>
                 <div class="role">PI</div>
                 ${user.bio ? `<div class="pi-bio"><p>${esc(user.bio)}</p></div>` : ''}
-                ${badgesHtml}
-                <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+                <div class="pi-footer">
+                  <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+                  ${badgesHtml}
+                </div>
               `;
             }
             const detailContent = card.querySelector('.team-detail-content');
@@ -836,8 +891,10 @@
                     <div><strong>${esc(u.name)}</strong></div>
                     <div class="role">PI</div>
                     ${u.bio ? `<div class="pi-bio"><p>${esc(u.bio)}</p></div>` : ''}
-                    ${badgesHtml}
-                    <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+                    <div class="pi-footer">
+                      <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+                      ${badgesHtml}
+                    </div>
                   </div>
                 </div>
                 <div class="expandable-details pi-details" hidden>
@@ -1141,6 +1198,7 @@
 
     const authorPhoto = p.authorPhoto?.thumb || p.authorPhoto?.medium || '';
     const catLabel = (window.McgheeLab?.NEWS_CATEGORIES || []).find(c => c.value === p.category)?.label || p.category || '';
+    const coverSrc = p.coverImage?.medium || p.coverImage?.full || '';
 
     const newsBlocks = (p.sections || []).map(sec => ({
       text: sec.text || '',
@@ -1150,7 +1208,7 @@
     }));
     const expandedContent = buildStoryHTML(newsBlocks);
 
-    card.innerHTML = `
+    const textContent = `
       <div class="story-feed-header">
         ${authorPhoto
           ? `<img src="${esc(authorPhoto)}" alt="" class="story-feed-avatar">`
@@ -1163,16 +1221,39 @@
       </div>
       <h3 class="story-feed-title">${esc(p.title || 'Untitled')}</h3>
       ${p.description ? `<p class="story-feed-desc">${esc(p.description)}</p>` : ''}
-      ${expandedContent ? `${expandableHTML()}<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
-      <div class="story-feed-actions">
-        <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
-        <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
-          <span class="comment-icon">\uD83D\uDCAC</span>
-          <span class="comment-count" data-comment-count="${esc(p.id)}">0</span>
-        </button>
-      </div>
-      <div class="comments-section" data-comments-for="${esc(p.id)}" hidden></div>
-    `;
+      ${expandedContent ? expandableHTML() : ''}`;
+
+    if (coverSrc) {
+      card.classList.add('news-has-cover');
+      card.innerHTML = `
+        <div class="news-cover-layout">
+          <div class="news-cover-image">
+            <img src="${esc(coverSrc)}" alt="${esc(p.title || '')}" loading="lazy">
+          </div>
+          <div class="news-cover-body">${textContent}</div>
+        </div>
+        ${expandedContent ? `<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
+        <div class="story-feed-actions">
+          <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
+          <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
+            <span class="comment-icon">\uD83D\uDCAC</span>
+            <span class="comment-count" data-comment-count="${esc(p.id)}">0</span>
+          </button>
+        </div>
+        <div class="comments-section" data-comments-for="${esc(p.id)}" hidden></div>`;
+    } else {
+      card.innerHTML = `
+        ${textContent}
+        ${expandedContent ? `<div class="expandable-details" hidden>${expandedContent}</div>` : ''}
+        <div class="story-feed-actions">
+          <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
+          <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
+            <span class="comment-icon">\uD83D\uDCAC</span>
+            <span class="comment-count" data-comment-count="${esc(p.id)}">0</span>
+          </button>
+        </div>
+        <div class="comments-section" data-comments-for="${esc(p.id)}" hidden></div>`;
+    }
 
     const btn = card.querySelector('.expand-toggle');
     if (btn) wireExpandable(btn, card.querySelector('.expandable-details'));
@@ -1243,7 +1324,9 @@
                 <div><strong>${esc(person.name || 'Name')}</strong></div>
                 ${person.role ? `<div class="role">${esc(person.role)}</div>` : ''}
                 ${person.bio ? `<div class="pi-bio"><p>${esc(person.bio)}</p></div>` : ''}
-                <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+                <div class="pi-footer">
+                  <button type="button" class="expand-toggle team-expand" aria-expanded="false">Learn More</button>
+                </div>
               </div>
             </div>
             <div class="expandable-details pi-details" hidden>
@@ -1690,6 +1773,48 @@
     navDrawer.setAttribute('aria-hidden', 'true');
     menuBtn.setAttribute('aria-expanded', 'false');
     menuBtn.focus();
+  }
+
+  /* ── Bottom tab "More" sheet ── */
+  function setupBottomTabs(){
+    const moreBtn = document.getElementById('more-tab-btn');
+    const moreSheet = document.getElementById('more-sheet');
+    if(!moreBtn || !moreSheet) return;
+
+    moreBtn.addEventListener('click', toggleMoreSheet);
+
+    // Backdrop tap closes sheet
+    moreSheet.querySelector('.more-sheet-backdrop')
+      ?.addEventListener('click', closeMoreSheet);
+
+    // Link click in sheet closes sheet
+    moreSheet.addEventListener('click', (e) => {
+      if(e.target.closest('a[data-route]')) closeMoreSheet();
+    });
+
+    // Escape key
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape') closeMoreSheet();
+    });
+  }
+
+  function toggleMoreSheet(){
+    const sheet = document.getElementById('more-sheet');
+    const btn = document.getElementById('more-tab-btn');
+    if(!sheet) return;
+    const opening = !sheet.classList.contains('open');
+    sheet.classList.toggle('open', opening);
+    sheet.setAttribute('aria-hidden', String(!opening));
+    btn?.setAttribute('aria-expanded', String(opening));
+  }
+
+  function closeMoreSheet(){
+    const sheet = document.getElementById('more-sheet');
+    const btn = document.getElementById('more-tab-btn');
+    if(!sheet) return;
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden', 'true');
+    btn?.setAttribute('aria-expanded', 'false');
   }
 
   function enableReveal(){

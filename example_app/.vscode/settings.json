@@ -1,0 +1,26 @@
+{
+  "files.associations": {
+    "*.js": "javascript",
+    "*.css": "css"
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": false,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "css.validate": true,
+  "html.autoClosingTags": true,
+  "emmet.includeLanguages": {
+    "javascript": "html"
+  },
+  "liveServer.settings.port": 8001,
+  "liveServer.settings.root": "/",
+  "files.exclude": {
+    "**/.DS_Store": true
+  },
+  "[javascript]": {
+    "editor.suggest.showWords": true,
+    "editor.quickSuggestions": {
+      "strings": true
+    }
+  }
+}

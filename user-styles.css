@@ -1940,6 +1940,51 @@ summary.assoc-header h4{
   margin: 0 0 .75rem;
 }
 
+/* ── News cover image: horizontal grid layout ── */
+.news-has-cover {
+  padding: 0;
+  overflow: hidden;
+}
+.news-cover-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 200px;
+}
+.news-cover-image {
+  overflow: hidden;
+}
+.news-cover-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.news-cover-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.news-has-cover .story-feed-actions {
+  margin: 0;
+  padding: .75rem 1.5rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.news-has-cover .comments-section {
+  padding: 0 1.5rem 1rem;
+}
+.news-has-cover .expandable-details {
+  padding: 0 1.5rem 1rem;
+}
+@media (max-width: 600px) {
+  .news-cover-layout {
+    grid-template-columns: 1fr;
+  }
+  .news-cover-image {
+    max-height: 200px;
+  }
+}
+
 .story-feed-actions {
   display: flex;
   align-items: center;
@@ -3510,6 +3555,95 @@ summary.assoc-header h4{
   color: var(--accent, #5baed1);
 }
 
+/* ─── Simulation widget ──────────────────────────────────── */
+.cb-sim-view-title {
+  margin: 0 0 .75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text, #eef2f7);
+}
+.cb-sim-container {
+  position: relative;
+  border-radius: 10px;
+  overflow: visible;
+  background: #111;
+}
+.cb-sim-container:fullscreen,
+.cb-sim-container:-webkit-full-screen {
+  background: #000;
+  padding: 0;
+}
+.cb-sim-container:fullscreen .cb-sim-iframe,
+.cb-sim-container:-webkit-full-screen .cb-sim-iframe {
+  height: 100vh !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+.cb-sim-container:fullscreen .cb-sim-toolbar,
+.cb-sim-container:-webkit-full-screen .cb-sim-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity .25s;
+}
+.cb-sim-container:fullscreen .cb-sim-toolbar:hover,
+.cb-sim-container:-webkit-full-screen .cb-sim-toolbar:hover {
+  opacity: 1;
+}
+.cb-sim-container:fullscreen .cb-sim-code-panel,
+.cb-sim-container:-webkit-full-screen .cb-sim-code-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 40vh;
+  overflow: auto;
+}
+.cb-sim-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,.55);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px 10px 0 0;
+}
+.cb-sim-toolbar .btn {
+  font-size: .78rem;
+  padding: 4px 10px;
+}
+.cb-sim-code-panel {
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+.cb-sim-student-code {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: .82rem;
+  line-height: 1.5;
+  tab-size: 2;
+  border-radius: 0;
+  border: none;
+  background: rgba(0,0,0,.4);
+  color: #c5e1a5;
+  resize: vertical;
+}
+.cb-sim-code {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: .82rem;
+  line-height: 1.5;
+  tab-size: 2;
+}
+.cb-sim-iframe {
+  display: block;
+  border: none;
+  resize: vertical;
+  overflow: auto;
+  min-height: 150px;
+}
+
 /* ─── Text editor & preview ───────────────────────────────── */
 .text-preview {
   line-height: 1.7;
@@ -3596,6 +3730,74 @@ summary.assoc-header h4{
   cursor: default;
 }
 
+/* ─── Section Collapse ───────────────────────────────────── */
+.cb-section-collapse-toggle {
+  background: none;
+  border: none;
+  color: var(--muted, #a8b3c7);
+  cursor: pointer;
+  font-size: .75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color .12s, background .12s;
+  flex-shrink: 0;
+}
+.cb-section-collapse-toggle:hover {
+  color: var(--text, #eef2f7);
+  background: rgba(255,255,255,.06);
+}
+.cb-section-collapsible {
+  transition: opacity .2s ease;
+}
+.cb-section-collapsible.cb-collapsed {
+  display: none;
+}
+
+/* ─── Section Header Row (readonly) ──────────────────────── */
+.cb-section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: .75rem 0 .25rem;
+  padding-bottom: .35rem;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.cb-section-header-row .cb-section-title-readonly {
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* ─── Section Type Styling Hooks ─────────────────────────── */
+.cb-section-type-simulations {
+  border-left: 3px solid #4fc3f7;
+}
+.cb-section-type-overview {
+  border-left: 3px solid #81c784;
+}
+.cb-section-type-syllabus {
+  border-left: 3px solid #ce93d8;
+}
+.cb-section-type-schedule {
+  border-left: 3px solid #ffb74d;
+}
+.cb-section-type-speakers {
+  border-left: 3px solid #f06292;
+}
+.cb-section-type-files {
+  border-left: 3px solid #90a4ae;
+}
+.cb-section-type-lectures {
+  border-left: 3px solid #aed581;
+}
+.cb-section-type-homeworks {
+  border-left: 3px solid #ffd54f;
+}
+.cb-section-type-exams {
+  border-left: 3px solid #ef5350;
+}
+
 /* ─── Settings modal ──────────────────────────────────────── */
 .cb-modal-overlay {
   position: fixed;
@@ -3654,5 +3856,165 @@ summary.assoc-header h4{
   .cb-tab {
     padding: .5rem .6rem;
     font-size: .8rem;
+  }
+}
+
+/* ================================================================
+   Lab Apps Hub
+   ================================================================ */
+
+.lab-apps-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.lab-apps-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.lab-apps-header h2 {
+  font-size: 2rem;
+  margin: 0 0 .4rem;
+  color: var(--text, #eef2f7);
+}
+.lab-apps-subtitle {
+  color: var(--muted, #8a94a6);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.lab-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.lab-app-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 1.5rem 1.5rem;
+  background: var(--surface, #121620);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text, #eef2f7);
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+  cursor: pointer;
+}
+.lab-app-card:hover {
+  border-color: var(--accent, #5baed1);
+  box-shadow: 0 4px 24px rgba(91,174,209,.12);
+  transform: translateY(-2px);
+}
+
+.lab-app-icon {
+  color: var(--accent, #5baed1);
+  margin-bottom: 1rem;
+}
+.lab-app-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+.lab-app-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 .5rem;
+}
+
+.lab-app-desc {
+  font-size: .85rem;
+  color: var(--muted, #8a94a6);
+  margin: 0 0 1rem;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.lab-app-status {
+  display: inline-block;
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .25rem .75rem;
+  border-radius: 999px;
+}
+.lab-app-status--coming-soon {
+  background: rgba(255,193,7,.12);
+  color: #ffc107;
+}
+.lab-app-status--active {
+  background: rgba(76,175,80,.12);
+  color: #4caf50;
+}
+
+.lab-app-badge-admin {
+  position: absolute;
+  top: .75rem;
+  right: .75rem;
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: .15rem .5rem;
+  border-radius: 4px;
+  background: rgba(233,30,99,.15);
+  color: #e91e63;
+}
+
+/* ── Embedded App (iframe) ─────────────────────────────────── */
+
+.lab-apps-page--embedded {
+  max-width: none;
+  padding: 1rem 1rem 0;
+}
+
+.lab-app-breadcrumb {
+  font-size: .85rem;
+  margin-bottom: 1rem;
+  color: var(--muted, #8a94a6);
+}
+.lab-app-breadcrumb a {
+  color: var(--accent, #5baed1);
+  text-decoration: none;
+}
+.lab-app-breadcrumb a:hover { text-decoration: underline; }
+.lab-app-breadcrumb-sep {
+  margin: 0 .5rem;
+  opacity: .5;
+}
+
+.lab-app-iframe-wrap {
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg, #0b0e14);
+}
+
+.lab-app-iframe {
+  display: block;
+  width: 100%;
+  min-height: 70vh;
+  border: none;
+  background: transparent;
+}
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .lab-apps-grid {
+    grid-template-columns: 1fr;
+  }
+  .lab-apps-header h2 {
+    font-size: 1.5rem;
+  }
+  .lab-apps-page--embedded {
+    padding: .5rem .5rem 0;
+  }
+  .lab-app-iframe-wrap {
+    border-radius: 8px;
   }
 }

@@ -1,5 +1,5 @@
 /* ================================================================
-   class-scheduler.js  —  Course Builder (V3.8)
+   class-builder.js  —  Course Builder (V3.13)
    Tab-based page builder with nested widgets, autosave, and preview.
    Tabs contain sections; sections contain widgets.
    Uses McgheeLab.Scheduler for the speakers scheduling component.
@@ -23,12 +23,13 @@ const SECTION_REG = {
 };
 
 const WIDGET_REG = {
-  text:    { label: 'Text Block' },
-  image:   { label: 'Image' },
-  video:   { label: 'Video' },
-  links:   { label: 'Link List' },
-  embed:   { label: 'Embed' },
-  divider: { label: 'Divider' }
+  text:       { label: 'Text Block' },
+  image:      { label: 'Image' },
+  video:      { label: 'Video' },
+  links:      { label: 'Link List' },
+  embed:      { label: 'Embed' },
+  simulation: { label: 'Simulation' },
+  divider:    { label: 'Divider' }
 };
 
 /* ─── Module State ───────────────────────────────────────────── */
@@ -75,6 +76,8 @@ const DEFAULT_SCHEDULES = {
    HELPERS
    ================================================================ */
 function esc(s) { const el = document.createElement('div'); el.textContent = s ?? ''; return el.innerHTML; }
+/** Escape for safe use inside HTML attribute values (escapes quotes too) */
+function escAttr(s) { return (s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 function generateKey() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -154,10 +157,38 @@ function findSectionForWidget(widgetId) {
   return null;
 }
 
+function findSectionById(sectionId) {
+  for (const tab of _tabs) {
+    const sec = (tab.sections || []).find(s => s.id === sectionId);
+    if (sec) return sec;
+  }
+  return null;
+}
+
 /* ─── Migration from legacy formats ─────────────────────────── */
 function migrateLegacy(schedule) {
+  // Ensure every section has name, collapsed, content, storagePath fields
+  function ensureSectionFields(sec, schedule) {
+    const reg = SECTION_REG[sec.key];
+    if (!sec.name) sec.name = reg?.label || sec.key;
+    if (sec.collapsed === undefined) sec.collapsed = false;
+    // Migrate text content from schedule-level fields to per-section
+    if (reg?.component === 'text' && sec.content === undefined) {
+      sec.content = schedule[reg.field] || '';
+    }
+    // Migrate file storage path
+    if (reg?.component === 'files' && !sec.storagePath) {
+      sec.storagePath = reg.path || sec.key;
+    }
+    return sec;
+  }
+
   if (schedule.tabs && schedule.tabs.length) {
-    return JSON.parse(JSON.stringify(schedule.tabs));
+    const tabs = JSON.parse(JSON.stringify(schedule.tabs));
+    tabs.forEach(tab => {
+      (tab.sections || []).forEach(sec => ensureSectionFields(sec, schedule));
+    });
+    return tabs;
   }
   // Migrate from flat layout or sections array
   const layout = schedule.layout
@@ -184,6 +215,7 @@ function migrateLegacy(schedule) {
   if (!sections.length) {
     sections.push({ key: 'overview', id: genBlockId(), widgets: [] });
   }
+  sections.forEach(sec => ensureSectionFields(sec, schedule));
   return [{ id: genTabId(), name: 'Home', sections }];
 }
 
@@ -363,8 +395,8 @@ async function wireClassPage(scheduleId) {
     });
   });
   await Promise.all(fileSections.map(async (sec) => {
-    const reg = SECTION_REG[sec.key];
-    try { _fileData[sec.key] = await ScheduleDB.getFiles(_scheduleId, reg.path || sec.key); } catch (e) { _fileData[sec.key] = []; }
+    const path = sec.storagePath || SECTION_REG[sec.key]?.path || sec.key;
+    try { _fileData[sec.id] = await ScheduleDB.getFiles(_scheduleId, path); } catch (e) { _fileData[sec.id] = []; }
   }));
 
   // Header actions
@@ -446,11 +478,10 @@ function buildCanvasHTML() {
 
   // Add Section dropdown (admin editing only)
   if (editing) {
-    const usedKeys = getAllUsedSections();
     html += `<div class="cb-add-section-bar">
       <div class="cb-mobile-dropdown">
         <button type="button" class="btn btn-small" id="cb-add-section-btn">+ Section</button>
-        <div class="cb-dropdown-menu" id="cb-section-dropdown">${buildSectionDropdownItems(usedKeys)}</div>
+        <div class="cb-dropdown-menu" id="cb-section-dropdown">${buildSectionDropdownItems()}</div>
       </div>
     </div>`;
   }
@@ -495,10 +526,9 @@ function buildTabBar() {
 }
 
 /* ─── Dropdown Builders ─────────────────────────────────────── */
-function buildSectionDropdownItems(usedKeys) {
+function buildSectionDropdownItems() {
   return Object.entries(SECTION_REG).map(([key, reg]) => {
-    const used = usedKeys?.has(key);
-    return `<button type="button" class="cb-dropdown-item${used ? ' cb-dropdown-used' : ''}" data-add-type="section" data-add-key="${key}" ${used ? 'disabled' : ''}>${esc(reg.label)}</button>`;
+    return `<button type="button" class="cb-dropdown-item" data-add-type="section" data-add-key="${key}">${esc(reg.label)}</button>`;
   }).join('');
 }
 
@@ -514,12 +544,18 @@ function buildWidgetDropdownItems() {
 function buildSectionBlockHTML(section) {
   const editing = isEditing();
   const reg = SECTION_REG[section.key];
-  const label = reg?.label || section.key;
+  const typeLabel = reg?.label || section.key;
+  const displayName = section.name || typeLabel;
+  const collapseIcon = section.collapsed ? '&#x25B6;' : '&#x25BC;';
 
   if (!editing) {
     // Public / preview: read-only section + widgets
-    let html = `<div class="cb-section cb-section-readonly" data-section-id="${section.id}">`;
-    html += `<h3 class="cb-section-title-readonly">${esc(label)}</h3>`;
+    let html = `<div class="cb-section cb-section-readonly cb-section-type-${esc(section.key)}" data-section-id="${section.id}">`;
+    html += `<div class="cb-section-header-row">
+      <button type="button" class="cb-section-collapse-toggle" data-section-id="${section.id}" title="Collapse/expand">${collapseIcon}</button>
+      <h3 class="cb-section-title-readonly">${esc(displayName)}</h3>
+    </div>`;
+    html += `<div class="cb-section-collapsible${section.collapsed ? ' cb-collapsed' : ''}" data-section-id="${section.id}">`;
     html += `<div class="cb-section-body">${renderSectionBody(section)}</div>`;
     (section.widgets || []).forEach(w => {
       const wBody = renderWidgetBody(w);
@@ -528,23 +564,27 @@ function buildSectionBlockHTML(section) {
         else { html += `<div class="cb-widget cb-widget-readonly"><div class="cb-widget-body">${wBody}</div></div>`; }
       }
     });
-    html += '</div>';
+    html += '</div>'; // close collapsible
+    html += '</div>'; // close section
     return html;
   }
 
   // Admin editing: section chrome + body + widgets + add-widget
-  let html = `<div class="cb-section" data-section-id="${section.id}" data-section-key="${section.key}">`;
+  let html = `<div class="cb-section cb-section-type-${esc(section.key)}" data-section-id="${section.id}" data-section-key="${section.key}">`;
   // Chrome bar
   html += `<div class="cb-section-chrome">
     <span class="cb-section-handle" title="Drag to reorder">&#x2801;&#x2801;</span>
-    <span class="cb-section-label">${esc(label)}</span>
-    <span class="cb-block-type-badge">Section</span>
+    <button type="button" class="cb-section-collapse-toggle" data-section-id="${section.id}" title="Collapse/expand">${collapseIcon}</button>
+    <span class="cb-section-label" title="Double-click to rename">${esc(displayName)}</span>
+    <span class="cb-block-type-badge">${esc(typeLabel)}</span>
     <div class="cb-block-actions">
       <button type="button" class="cb-section-move" data-dir="up" title="Move up">&uarr;</button>
       <button type="button" class="cb-section-move" data-dir="down" title="Move down">&darr;</button>
       <button type="button" class="cb-section-remove" title="Remove section">&times;</button>
     </div>
   </div>`;
+  // Collapsible body
+  html += `<div class="cb-section-collapsible${section.collapsed ? ' cb-collapsed' : ''}" data-section-id="${section.id}">`;
   // Section body
   html += `<div class="cb-section-body">${renderSectionBody(section)}</div>`;
   // Nested widgets (always render drop zone)
@@ -560,7 +600,8 @@ function buildSectionBlockHTML(section) {
       <div class="cb-dropdown-menu cb-widget-dropdown-menu">${buildWidgetDropdownItems()}</div>
     </div>
   </div>`;
-  html += '</div>';
+  html += '</div>'; // close collapsible
+  html += '</div>'; // close section
   return html;
 }
 
@@ -602,15 +643,15 @@ function renderSectionBody(section) {
 
   switch (reg.component) {
     case 'text': {
-      const content = _classData[reg.field] || '';
+      const content = section.content || '';
       if (editing) {
-        return `<textarea class="cb-textarea" data-field="${reg.field}" rows="6" placeholder="Enter ${reg.label.toLowerCase()} content...">${esc(content)}</textarea>
+        return `<textarea class="cb-textarea cb-section-text" data-section-id="${section.id}" rows="6" placeholder="Enter ${(section.name || reg.label).toLowerCase()} content...">${esc(content)}</textarea>
           <p class="muted-text" style="margin:4px 0 0;font-size:.75rem;">Plain text. URLs auto-link. Blank lines for paragraphs.</p>`;
       }
       return `<div class="text-preview">${renderText(content)}</div>`;
     }
     case 'files': {
-      const files = _fileData[section.key] || [];
+      const files = _fileData[section.id] || [];
       const canUpload = editing || (_viewType === 'guest' && section.key === 'files');
       let html = '';
       if (canUpload) {
@@ -618,23 +659,23 @@ function renderSectionBody(section) {
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
             <div class="form-group" style="flex:2;min-width:200px;">
               <label>Upload File</label>
-              <input type="file" class="cb-file-input" data-section-key="${section.key}" />
+              <input type="file" class="cb-file-input" data-section-id="${section.id}" />
             </div>
             <div class="form-group" style="flex:1;min-width:150px;">
               <label>Description</label>
               <input type="text" class="cb-file-desc" placeholder="Brief description" />
             </div>
             ${reg.hasDue ? '<div class="form-group" style="min-width:140px;"><label>Due</label><input type="date" class="cb-file-due" /></div>' : ''}
-            <button type="button" class="btn cb-file-upload-btn" data-section-key="${section.key}">Upload</button>
+            <button type="button" class="btn cb-file-upload-btn" data-section-id="${section.id}">Upload</button>
           </div>
           <div class="cb-file-status save-status"></div>
         </div>`;
       }
-      html += `<div class="cb-file-list" data-section-key="${section.key}">${buildFileListHTML(files, reg)}</div>`;
+      html += `<div class="cb-file-list" data-section-id="${section.id}">${buildFileListHTML(files, reg)}</div>`;
       return html;
     }
     case 'speakers':
-      return `<div id="cb-speakers-container">${McgheeLab.Scheduler?.render?.(buildSchedulerConfig()) || '<p class="muted-text">Scheduler not loaded.</p>'}</div>`;
+      return `<div id="cb-speakers-${section.id}">${McgheeLab.Scheduler?.render?.(buildSchedulerConfig()) || '<p class="muted-text">Scheduler not loaded.</p>'}</div>`;
     default:
       return '<p class="muted-text">Unknown component.</p>';
   }
@@ -745,6 +786,54 @@ function renderWidgetBody(widget) {
       }
       return raw ? `<div class="cb-embed-preview">${raw}</div>` : '';
     }
+    case 'simulation': {
+      const code = widget.code || '';
+      const title = widget.title || '';
+      const lang = widget.lang || 'html';
+      const srcdocFn = lang === 'python' ? buildPythonSrcdoc : buildSimSrcdoc;
+      if (editing) {
+        let html = `<input type="text" class="cb-sim-title" data-widget-id="${widget.id}" placeholder="Simulation title (optional)" value="${esc(title)}" style="width:100%;margin-bottom:8px;" />`;
+        html += `<div style="margin-bottom:8px;">
+          <label class="muted-text" style="font-size:.75rem;margin-right:6px;">Language:</label>
+          <select class="cb-sim-lang" data-widget-id="${widget.id}" style="font-size:.82rem;padding:3px 6px;border-radius:4px;background:rgba(255,255,255,.08);color:var(--text,#eef2f7);border:1px solid rgba(255,255,255,.12);">
+            <option value="html"${lang === 'html' ? ' selected' : ''}>HTML / JavaScript</option>
+            <option value="python"${lang === 'python' ? ' selected' : ''}>Python (Pyodide)</option>
+          </select>
+        </div>`;
+        const placeholder = lang === 'python'
+          ? 'Write Python code here...\n\nprint(), matplotlib, numpy, and scipy are supported.\nUse SimExport.log(label, value) to let students export data.'
+          : 'Paste HTML + JavaScript simulation code here...\n\nTip: Use SimExport.log(label, value) inside your code to let students export data.';
+        html += `<textarea class="cb-textarea cb-sim-code" data-widget-id="${widget.id}" rows="12" placeholder="${escAttr(placeholder)}">${esc(code)}</textarea>`;
+        html += `<p class="muted-text" style="margin:4px 0 0;font-size:.75rem;">${lang === 'python' ? 'Python code. Runs via Pyodide (WebAssembly CPython) in a sandboxed iframe.' : 'HTML + JS simulation code. Runs in a sandboxed iframe. Students can edit a local copy.'}</p>`;
+        if (code) {
+          html += `<div class="cb-sim-admin-preview" style="margin-top:12px;">
+            <p class="muted-text" style="font-size:.75rem;margin-bottom:4px;">Preview:</p>
+            <div class="cb-sim-container" data-widget-id="${widget.id}">
+              <iframe class="cb-sim-iframe" data-widget-id="${widget.id}" sandbox="allow-scripts" srcdoc="${escAttr(srcdocFn(code, widget.id))}" style="width:100%;height:400px;border:1px solid rgba(255,255,255,.15);border-radius:8px;background:#fff;"></iframe>
+            </div>
+          </div>`;
+        }
+        return html;
+      }
+      // Public / student view
+      if (!code) return '';
+      let html = '';
+      if (title) html += `<h4 class="cb-sim-view-title">${esc(title)}</h4>`;
+      html += `<div class="cb-sim-container" data-widget-id="${widget.id}" data-lang="${lang}">
+        <div class="cb-sim-toolbar">
+          <button type="button" class="btn btn-small cb-sim-toggle-code" data-widget-id="${widget.id}" title="Edit code locally">Edit Code</button>
+          <button type="button" class="btn btn-small cb-sim-run" data-widget-id="${widget.id}" title="Re-run simulation">Run</button>
+          <button type="button" class="btn btn-small cb-sim-reset" data-widget-id="${widget.id}" title="Reset to original code">Reset</button>
+          <button type="button" class="btn btn-small cb-sim-export" data-widget-id="${widget.id}" title="Export simulation data as CSV">Export Data</button>
+          <button type="button" class="btn btn-small cb-sim-fullscreen" data-widget-id="${widget.id}" title="Fullscreen">&#x26F6; Fullscreen</button>
+        </div>
+        <div class="cb-sim-code-panel" data-widget-id="${widget.id}" style="display:none;">
+          <textarea class="cb-textarea cb-sim-student-code" data-widget-id="${widget.id}" rows="10">${esc(code)}</textarea>
+        </div>
+        <iframe class="cb-sim-iframe" data-widget-id="${widget.id}" sandbox="allow-scripts" srcdoc="${escAttr(srcdocFn(code, widget.id))}" style="width:100%;height:500px;border:1px solid rgba(255,255,255,.15);border-radius:8px;background:#fff;"></iframe>
+      </div>`;
+      return html;
+    }
     case 'divider':
       return '<hr class="cb-divider" />';
     default:
@@ -761,6 +850,173 @@ function getVideoEmbedUrl(url) {
   return null;
 }
 
+/* ─── Simulation helpers ────────────────────────────────────── */
+
+/** Wrap user simulation code with the SimExport bridge preamble */
+function buildSimSrcdoc(code, widgetId) {
+  const wid = widgetId || '';
+  const preamble = `<script>
+window.SimExport = {
+  _data: [],
+  log: function(label, value) {
+    this._data.push({ label: String(label), value: value, t: Date.now() });
+  },
+  _flush: function() {
+    parent.postMessage({ type: 'sim-export', widgetId: '${wid}', data: JSON.parse(JSON.stringify(this._data)) }, '*');
+  }
+};
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'sim-flush') SimExport._flush();
+});
+<\/script>`;
+  // If the code contains <head>, inject preamble after <head>
+  if (/<head[^>]*>/i.test(code)) {
+    return code.replace(/<head[^>]*>/i, '$&' + preamble);
+  }
+  // Otherwise prepend
+  return preamble + code;
+}
+
+/** Build srcdoc for Python code using Pyodide (WebAssembly CPython) */
+function buildPythonSrcdoc(code, widgetId) {
+  const wid = widgetId || '';
+  // Encode the Python code as base64 to avoid any escaping issues
+  const codeB64 = btoa(unescape(encodeURIComponent(code)));
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'SF Mono','Fira Code','Consolas',monospace; font-size:14px; background:#1e1e2e; color:#cdd6f4; padding:12px; }
+  #status { color:#a6adc8; margin-bottom:8px; }
+  #output { white-space:pre-wrap; word-wrap:break-word; line-height:1.5; }
+  .err { color:#f38ba8; }
+  .plot-img { max-width:100%; border-radius:6px; margin:8px 0; background:#fff; }
+</style>
+</head><body>
+<div id="status">Loading Python runtime...</div>
+<div id="output"></div>
+<script>
+window.SimExport = {
+  _data: [],
+  log: function(label, value) {
+    this._data.push({ label: String(label), value: value, t: Date.now() });
+  },
+  _flush: function() {
+    parent.postMessage({ type: 'sim-export', widgetId: '${wid}', data: JSON.parse(JSON.stringify(this._data)) }, '*');
+  }
+};
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'sim-flush') SimExport._flush();
+});
+
+var _out = document.getElementById('output');
+var _status = document.getElementById('status');
+
+function appendOutput(text, cls) {
+  var span = document.createElement('span');
+  if (cls) span.className = cls;
+  span.textContent = text;
+  _out.appendChild(span);
+}
+
+async function runPython() {
+  _out.innerHTML = '';
+  _status.textContent = 'Loading Pyodide...';
+  try {
+    if (!window.loadPyodide) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js';
+      document.head.appendChild(s);
+      await new Promise(function(r,j){ s.onload=r; s.onerror=function(){j(new Error('Failed to load Pyodide'))}; });
+    }
+    _status.textContent = 'Initializing Python...';
+    var pyodide = await loadPyodide();
+    _status.textContent = 'Installing packages...';
+    await pyodide.loadPackage(['micropip']);
+    // Pre-load common scientific packages
+    var code = atob('${codeB64}');
+    var needsNumpy = /\\b(numpy|np)\\b/.test(code);
+    var needsMatplotlib = /\\b(matplotlib|plt)\\b/.test(code);
+    var needsScipy = /\\bscipy\\b/.test(code);
+    var pkgs = [];
+    if (needsNumpy) pkgs.push('numpy');
+    if (needsMatplotlib) pkgs.push('matplotlib');
+    if (needsScipy) pkgs.push('scipy');
+    if (pkgs.length) {
+      _status.textContent = 'Installing ' + pkgs.join(', ') + '...';
+      await pyodide.loadPackage(pkgs);
+    }
+    // Redirect stdout/stderr
+    pyodide.runPython(\`
+import sys, io
+class _Out:
+    def __init__(self, is_err=False):
+        self.is_err = is_err
+    def write(self, text):
+        if text:
+            from js import appendOutput
+            appendOutput(text, 'err' if self.is_err else '')
+    def flush(self): pass
+sys.stdout = _Out()
+sys.stderr = _Out(True)
+\`);
+    // Provide SimExport bridge to Python
+    pyodide.runPython(\`
+from js import window
+class SimExport:
+    @staticmethod
+    def log(label, value):
+        window.SimExport.log(str(label), float(value) if isinstance(value,(int,float)) else str(value))
+\`);
+    // If matplotlib is loaded, set up non-interactive backend + auto-show
+    if (needsMatplotlib) {
+      pyodide.runPython(\`
+import matplotlib
+matplotlib.use('AGG')
+import matplotlib.pyplot as plt
+_orig_show = plt.show
+def _patched_show(*a, **kw):
+    import io, base64
+    from js import document
+    for fig_num in plt.get_fignums():
+        fig = plt.figure(fig_num)
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+        buf.seek(0)
+        b64 = base64.b64encode(buf.read()).decode()
+        img = document.createElement('img')
+        img.src = 'data:image/png;base64,' + b64
+        img.className = 'plot-img'
+        document.getElementById('output').appendChild(img)
+    plt.close('all')
+plt.show = _patched_show
+\`);
+    }
+    _status.textContent = 'Running...';
+    await pyodide.runPythonAsync(code);
+    // Auto-show any remaining matplotlib figures
+    if (needsMatplotlib) {
+      await pyodide.runPythonAsync(\`
+import matplotlib.pyplot as plt
+if plt.get_fignums():
+    plt.show()
+\`);
+    }
+    _status.textContent = 'Done.';
+    setTimeout(function(){ _status.style.display='none'; }, 1500);
+  } catch(err) {
+    _status.textContent = 'Error';
+    appendOutput(err.message || String(err), 'err');
+  }
+}
+runPython();
+<\/script>
+</body></html>`;
+}
+
+/** Store per-widget export data from simulations */
+const _simExportData = {};
+
 /* ================================================================
    CANVAS WIRING
    ================================================================ */
@@ -773,11 +1029,16 @@ function wireCanvas() {
     wireAddDropdowns();
     initDragAndDrop();
   }
-  // Wire speakers section if present in active tab
+  // Wire collapse toggles and section rename (always, for both admin and readonly)
+  wireSectionCollapse();
+  if (isEditing()) wireSectionRename();
+  // Wire speakers sections if present in active tab
   const tab = getActiveTab();
-  if (tab?.sections?.some(s => s.key === 'speakers')) {
-    try { McgheeLab.Scheduler?.wire?.('cb-speakers-container', buildSchedulerConfig()); } catch (e) { console.warn('Scheduler wire error:', e); }
-  }
+  (tab?.sections || []).filter(s => s.key === 'speakers').forEach(sec => {
+    try { McgheeLab.Scheduler?.wire?.('cb-speakers-' + sec.id, buildSchedulerConfig()); } catch (e) { console.warn('Scheduler wire error:', e); }
+  });
+  // Wire simulation widgets (works in both admin preview and public view)
+  wireSimulations();
 }
 
 /* ─── Tab Bar Wiring ─────────────────────────────────────────── */
@@ -829,6 +1090,48 @@ function wireSectionActions() {
   });
 }
 
+/* ─── Section Collapse ───────────────────────────────────────── */
+function wireSectionCollapse() {
+  document.querySelectorAll('.cb-section-collapse-toggle').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const sectionId = btn.dataset.sectionId;
+      const sec = findSectionById(sectionId);
+      if (!sec) return;
+      sec.collapsed = !sec.collapsed;
+      // Find collapsible wrapper within the same parent section element
+      const sectionEl = btn.closest('.cb-section');
+      const collapsible = sectionEl?.querySelector('.cb-section-collapsible');
+      if (collapsible) collapsible.classList.toggle('cb-collapsed', sec.collapsed);
+      btn.innerHTML = sec.collapsed ? '&#x25B6;' : '&#x25BC;';
+      if (isEditing()) markDirty();
+    });
+  });
+}
+
+/* ─── Section Rename ─────────────────────────────────────────── */
+function wireSectionRename() {
+  document.querySelectorAll('.cb-section-label').forEach(span => {
+    span.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      const secId = span.closest('.cb-section')?.dataset.sectionId;
+      if (secId) renameSection(secId);
+    });
+  });
+}
+
+function renameSection(sectionId) {
+  const sec = findSectionById(sectionId);
+  if (!sec) return;
+  const newName = prompt('Section name:', sec.name);
+  if (newName && newName.trim() && newName.trim() !== sec.name) {
+    sec.name = newName.trim();
+    markDirty();
+    refreshCanvas();
+  }
+}
+
 /* ─── Widget Actions ─────────────────────────────────────────── */
 function wireWidgetActions() {
   document.querySelectorAll('.cb-widget-remove').forEach(btn => {
@@ -850,8 +1153,12 @@ function wireWidgetActions() {
 /* ─── Block Editors ──────────────────────────────────────────── */
 function wireBlockEditors() {
   // Mark dirty on any editor input
-  document.querySelectorAll('.cb-textarea, .cb-widget-text, .cb-video-url, .cb-video-caption, .cb-image-caption-input, .cb-embed-editor, .cb-link-label, .cb-link-url').forEach(el => {
+  document.querySelectorAll('.cb-textarea, .cb-widget-text, .cb-video-url, .cb-video-caption, .cb-image-caption-input, .cb-embed-editor, .cb-sim-code, .cb-sim-title, .cb-link-label, .cb-link-url').forEach(el => {
     el.addEventListener('input', () => markDirty());
+  });
+  // Language selector — gather + refresh so placeholder and preview update
+  document.querySelectorAll('.cb-sim-lang').forEach(sel => {
+    sel.addEventListener('change', () => { gatherContentFromDOM(); markDirty(); refreshCanvas(); });
   });
 
   // Link add
@@ -897,6 +1204,112 @@ function wireBlockEditors() {
   document.querySelectorAll('.cb-image-input').forEach(input => {
     input.addEventListener('change', () => handleImageUpload(input));
   });
+}
+
+/* ─── Simulation Wiring (public + admin) ────────────────────── */
+function wireSimulations() {
+  // Listen for export data from simulation iframes
+  if (!window._simMessageListenerAttached) {
+    window._simMessageListenerAttached = true;
+    window.addEventListener('message', (e) => {
+      if (e.data?.type === 'sim-export' && e.data.widgetId) {
+        _simExportData[e.data.widgetId] = e.data.data || [];
+        downloadSimCSV(e.data.widgetId);
+      }
+    });
+  }
+
+  // Toggle code editor panel
+  document.querySelectorAll('.cb-sim-toggle-code').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.widgetId;
+      const panel = btn.closest('.cb-sim-container')?.querySelector('.cb-sim-code-panel[data-widget-id="' + wid + '"]');
+      if (!panel) return;
+      const visible = panel.style.display !== 'none';
+      panel.style.display = visible ? 'none' : 'block';
+      btn.textContent = visible ? 'Edit Code' : 'Hide Code';
+    });
+  });
+
+  // Run button — re-render iframe with student's edited code
+  document.querySelectorAll('.cb-sim-run').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.widgetId;
+      const container = btn.closest('.cb-sim-container');
+      const ta = container?.querySelector('.cb-sim-student-code[data-widget-id="' + wid + '"]');
+      const iframe = container?.querySelector('.cb-sim-iframe[data-widget-id="' + wid + '"]');
+      if (!ta || !iframe) return;
+      const lang = container.dataset.lang || 'html';
+      const fn = lang === 'python' ? buildPythonSrcdoc : buildSimSrcdoc;
+      iframe.srcdoc = fn(ta.value, wid);
+      _simExportData[wid] = [];
+    });
+  });
+
+  // Reset button — restore original admin code
+  document.querySelectorAll('.cb-sim-reset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.widgetId;
+      const widget = findWidgetById(wid);
+      if (!widget) return;
+      const container = btn.closest('.cb-sim-container');
+      const ta = container?.querySelector('.cb-sim-student-code[data-widget-id="' + wid + '"]');
+      const iframe = container?.querySelector('.cb-sim-iframe[data-widget-id="' + wid + '"]');
+      if (ta) ta.value = widget.code || '';
+      if (iframe) {
+        const lang = container?.dataset.lang || widget.lang || 'html';
+        const fn = lang === 'python' ? buildPythonSrcdoc : buildSimSrcdoc;
+        iframe.srcdoc = fn(widget.code || '', wid);
+      }
+      _simExportData[wid] = [];
+    });
+  });
+
+  // Export data button — ask iframe to flush, then download
+  document.querySelectorAll('.cb-sim-export').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.dataset.widgetId;
+      const container = btn.closest('.cb-sim-container');
+      const iframe = container?.querySelector('.cb-sim-iframe[data-widget-id="' + wid + '"]');
+      if (!iframe?.contentWindow) { alert('Simulation not loaded.'); return; }
+      // Tell iframe to flush its data
+      iframe.contentWindow.postMessage({ type: 'sim-flush' }, '*');
+      // Data will arrive via the message listener above → triggers downloadSimCSV
+    });
+  });
+
+  // Fullscreen button
+  document.querySelectorAll('.cb-sim-fullscreen').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const container = btn.closest('.cb-sim-container');
+      if (!container) return;
+      if (container.requestFullscreen) container.requestFullscreen();
+      else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+    });
+  });
+
+  // srcdoc is now set inline via escAttr() in the HTML — no post-render patching needed.
+}
+
+/** Convert simulation export data to CSV and trigger download */
+function downloadSimCSV(widgetId) {
+  const data = _simExportData[widgetId];
+  if (!data || !data.length) { alert('No data exported from this simulation yet.\n\nUse SimExport.log(label, value) in your simulation code to log data.'); return; }
+  const headers = ['timestamp', 'label', 'value'];
+  let csv = headers.join(',') + '\n';
+  data.forEach(row => {
+    csv += [row.t, '"' + String(row.label).replace(/"/g, '""') + '"', row.value].join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const widget = findWidgetById(widgetId);
+  a.download = (widget?.title || 'simulation') + '_data.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /* ─── Add Section / Widget Dropdowns ─────────────────────────── */
@@ -950,17 +1363,19 @@ function closeAllDropdowns() {
    FILE / IMAGE HANDLERS
    ================================================================ */
 async function handleFileUpload(btn) {
-  const sectionKey = btn.dataset.sectionKey;
+  const sectionId = btn.dataset.sectionId;
+  const sec = findSectionById(sectionId);
   const sectionEl = btn.closest('.cb-section');
   const fileInput = sectionEl?.querySelector('.cb-file-input');
   const file = fileInput?.files?.[0];
   if (!file) { alert('Select a file first.'); return; }
   if (file.size > 50 * 1024 * 1024) { alert('File too large (50 MB max).'); return; }
 
+  const reg = sec ? SECTION_REG[sec.key] : null;
+  const filePath = sec?.storagePath || reg?.path || sec?.key || sectionId;
   const st = sectionEl.querySelector('.cb-file-status');
   if (st) st.textContent = 'Uploading...';
-  const reg = SECTION_REG[sectionKey];
-  const storagePath = `classes/${_scheduleId}/${reg?.path || sectionKey}/${Date.now()}_${file.name}`;
+  const storagePath = `classes/${_scheduleId}/${filePath}/${Date.now()}_${file.name}`;
 
   try {
     const ref = firebase.storage().ref(storagePath);
@@ -968,7 +1383,7 @@ async function handleFileUpload(btn) {
     const url = await ref.getDownloadURL();
     const Auth = McgheeLab.Auth;
     await ScheduleDB.addFile({
-      classId: _scheduleId, section: reg?.path || sectionKey,
+      classId: _scheduleId, section: filePath,
       fileName: file.name, fileUrl: url, storagePath, fileSize: file.size, contentType: file.type,
       description: sectionEl.querySelector('.cb-file-desc')?.value?.trim() || '',
       dueDate: sectionEl.querySelector('.cb-file-due')?.value || null,
@@ -981,10 +1396,10 @@ async function handleFileUpload(btn) {
     if (descInput) descInput.value = '';
     setTimeout(() => { if (st) st.textContent = ''; }, 2000);
     // Refresh file list
-    _fileData[sectionKey] = await ScheduleDB.getFiles(_scheduleId, reg?.path || sectionKey);
+    _fileData[sectionId] = await ScheduleDB.getFiles(_scheduleId, filePath);
     const listEl = sectionEl.querySelector('.cb-file-list');
     if (listEl) {
-      listEl.innerHTML = buildFileListHTML(_fileData[sectionKey], reg);
+      listEl.innerHTML = buildFileListHTML(_fileData[sectionId], reg);
       listEl.querySelectorAll('.cb-file-delete').forEach(b => b.addEventListener('click', () => handleFileDelete(b)));
     }
   } catch (e) { if (st) st.textContent = 'Upload failed.'; console.error(e); }
@@ -993,15 +1408,17 @@ async function handleFileUpload(btn) {
 async function handleFileDelete(btn) {
   if (!confirm('Delete this file?')) return;
   const sectionEl = btn.closest('.cb-section');
+  const sectionId = sectionEl?.dataset.sectionId;
+  const sec = sectionId ? findSectionById(sectionId) : null;
   const listEl = sectionEl?.querySelector('.cb-file-list');
-  const sectionKey = listEl?.dataset.sectionKey;
   try {
     await ScheduleDB.deleteFile(btn.dataset.fileId, btn.dataset.storagePath);
-    if (sectionKey) {
-      const reg = SECTION_REG[sectionKey];
-      _fileData[sectionKey] = await ScheduleDB.getFiles(_scheduleId, reg?.path || sectionKey);
+    if (sec) {
+      const reg = SECTION_REG[sec.key];
+      const filePath = sec.storagePath || reg?.path || sec.key;
+      _fileData[sectionId] = await ScheduleDB.getFiles(_scheduleId, filePath);
       if (listEl) {
-        listEl.innerHTML = buildFileListHTML(_fileData[sectionKey], reg);
+        listEl.innerHTML = buildFileListHTML(_fileData[sectionId], reg);
         listEl.querySelectorAll('.cb-file-delete').forEach(b => b.addEventListener('click', () => handleFileDelete(b)));
       }
     }
@@ -1266,11 +1683,15 @@ function switchTab(tabId) {
 function addSection(key) {
   const tab = getActiveTab();
   if (!tab) return;
-  // Check uniqueness across all tabs
-  if (getAllUsedSections().has(key)) return;
+  const reg = SECTION_REG[key];
+  const defaultName = reg?.label || key;
+  const name = prompt('Section name:', defaultName);
+  if (!name || !name.trim()) return;
   gatherContentFromDOM();
   tab.sections = tab.sections || [];
-  tab.sections.push({ key, id: genBlockId(), widgets: [] });
+  const sec = { key, id: genBlockId(), name: name.trim(), collapsed: false, widgets: [], content: '' };
+  if (reg?.component === 'files') sec.storagePath = sec.id;
+  tab.sections.push(sec);
   markDirty();
   refreshCanvas();
 }
@@ -1327,6 +1748,7 @@ function addWidget(sectionId, kind) {
   else if (kind === 'video') { widget.url = ''; widget.caption = ''; }
   else if (kind === 'links') widget.items = [{ label: '', url: '' }];
   else if (kind === 'embed') widget.html = '';
+  else if (kind === 'simulation') { widget.code = ''; widget.title = ''; widget.lang = 'html'; }
   sec.widgets.push(widget);
   markDirty();
   refreshCanvas();
@@ -1369,9 +1791,10 @@ function refreshCanvas() {
    CONTENT GATHERING (read DOM editors → module state)
    ================================================================ */
 function gatherContentFromDOM() {
-  // Text section fields (stored in _classData)
-  document.querySelectorAll('.cb-textarea[data-field]').forEach(ta => {
-    _classData[ta.dataset.field] = ta.value;
+  // Text section content (stored per-section on section object)
+  document.querySelectorAll('.cb-section-text[data-section-id]').forEach(ta => {
+    const sec = findSectionById(ta.dataset.sectionId);
+    if (sec) sec.content = ta.value;
   });
   // Widget text
   document.querySelectorAll('.cb-widget-text').forEach(ta => {
@@ -1396,6 +1819,19 @@ function gatherContentFromDOM() {
   document.querySelectorAll('.cb-embed-editor').forEach(ta => {
     const w = findWidgetById(ta.dataset.widgetId);
     if (w) w.html = ta.value;
+  });
+  // Widget simulation
+  document.querySelectorAll('.cb-sim-code').forEach(ta => {
+    const w = findWidgetById(ta.dataset.widgetId);
+    if (w) w.code = ta.value;
+  });
+  document.querySelectorAll('.cb-sim-title').forEach(inp => {
+    const w = findWidgetById(inp.dataset.widgetId);
+    if (w) w.title = inp.value;
+  });
+  document.querySelectorAll('.cb-sim-lang').forEach(sel => {
+    const w = findWidgetById(sel.dataset.widgetId);
+    if (w) w.lang = sel.value;
   });
   // Widget links
   document.querySelectorAll('.cb-links-editor').forEach(editor => {
@@ -1434,13 +1870,6 @@ async function persistAll() {
 
   try {
     const saveData = { id: _scheduleId, tabs: _tabs, sections: tabsToSections() };
-    // Include text section content fields from all tabs
-    _tabs.forEach(tab => {
-      (tab.sections || []).forEach(sec => {
-        const reg = SECTION_REG[sec.key];
-        if (reg?.field && _classData[reg.field] !== undefined) saveData[reg.field] = _classData[reg.field];
-      });
-    });
     await ScheduleDB.saveSchedule(saveData);
     _dirty = false;
     if (st) { st.textContent = 'Saved'; st.className = 'cb-autosave-status cb-status-saved'; }

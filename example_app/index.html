@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- TODO: Change the title to your app name -->
+  <title>My App — McGheeLab</title>
+
+  <!-- Shared base styles (dark theme, buttons, inputs, cards) -->
+  <link rel="stylesheet" href="shared/app-base.css" />
+  <!-- App-specific styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Firebase SDK (standalone mode needs these; embedded mode gets auth from parent) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+
+  <!--
+    Script load order matters:
+    1. Firebase SDK (above)
+    2. firebase-config.js → initializes McgheeLab.auth, .db, .storage
+    3. auth-bridge.js     → McgheeLab.AppBridge becomes available
+    4. app.js             → your app logic (waits for DOMContentLoaded)
+  -->
+  <script defer src="firebase-config.js"></script>
+  <script defer src="shared/auth-bridge.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <!--
+    This header is shown in STANDALONE mode only.
+    When embedded in an iframe on the main site, app-base.css hides it.
+    TODO: Change the <h1> to your app name.
+  -->
+  <header class="app-header">
+    <a href="../../#/apps" class="app-header-back">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Lab Apps
+    </a>
+    <!-- TODO: Change this to your app name -->
+    <h1>My App</h1>
+  </header>
+
+  <!--
+    Main app container. All your rendered content goes here.
+    In standalone mode: max-width 1000px, centered.
+    In embedded mode: full-width, less padding.
+  -->
+  <main id="app">
+    <div class="app-empty">
+      <p>Loading&hellip;</p>
+    </div>
+  </main>
+</body>
+</html>

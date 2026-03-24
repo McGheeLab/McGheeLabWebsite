@@ -1,0 +1,57 @@
+/* ================================================================
+   My App — App-specific styles
+   ================================================================
+
+   IMPORTANT:
+   - Prefix all classes with your app abbreviation (e.g., myapp-)
+     to avoid collisions with app-base.css classes.
+   - Use CSS variables from :root (defined in shared/app-base.css)
+     instead of hardcoding colors.
+   - Add @media (max-width: 600px) rules for mobile layouts.
+
+   Available variables:
+     --bg, --surface, --surface2, --border,
+     --text, --muted, --accent, --accent2,
+     --danger, --success, --warning,
+     --radius, --radius-lg
+   ================================================================ */
+
+/* ── Feature Grid ──────────────────────────────────────── */
+
+.myapp-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.myapp-feature {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.myapp-feature h3 {
+  font-size: .95rem;
+  margin: 0 0 .35rem;
+  color: var(--accent);
+}
+
+.myapp-feature p {
+  font-size: .83rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── TODO: Add your app-specific styles below ──────────── */
+
+
+
+/* ── Mobile ────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .myapp-features {
+    grid-template-columns: 1fr;
+  }
+}

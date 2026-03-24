@@ -68,7 +68,13 @@ const BADGE_DEFS = [
   { key: 'cv',            label: 'CV',
     svg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' },
   { key: 'github',        label: 'GitHub',
-    svg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.43 9.8 8.21 11.39.6.11.79-.26.79-.58v-2.23c-3.34.73-4.03-1.42-4.03-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.31-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.19.69.8.58C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>' }
+    svg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.43 9.8 8.21 11.39.6.11.79-.26.79-.58v-2.23c-3.34.73-4.03-1.42-4.03-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.31-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.19.69.8.58C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>' },
+  { key: 'linkedin',      label: 'LinkedIn',
+    svg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"/></svg>' },
+  { key: 'researchgate',  label: 'ResearchGate',
+    svg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19.59 18.75c-.48.96-1.33 1.62-2.26 1.95-.93.33-2.04.36-3.3-.03-.93-.29-1.83-.82-2.65-1.59-.83-.77-1.55-1.77-2.14-3.01l-.97-2.03c-.46-.95-.88-1.56-1.32-1.95-.44-.39-.94-.58-1.6-.58h-.35v2.79c0 .49.05.85.14 1.05.1.2.26.35.5.44.24.09.68.16 1.32.19v.53H2.5v-.53c.59-.03 1.01-.1 1.25-.19.24-.09.4-.24.5-.44.1-.2.14-.56.14-1.05V8.31c0-.49-.05-.85-.14-1.05-.1-.2-.26-.35-.5-.44C3.51 6.73 3.09 6.66 2.5 6.63v-.53h5.16c1.88 0 3.27.36 4.17 1.07.9.72 1.36 1.7 1.36 2.95 0 .86-.23 1.61-.69 2.25-.46.63-1.15 1.1-2.06 1.4.54.22 1.01.6 1.42 1.12.41.52.86 1.3 1.35 2.32l.76 1.57c.42.86.81 1.44 1.18 1.74.37.3.78.45 1.24.45.28 0 .53-.06.74-.17.22-.12.4-.29.55-.52l.41.47zm-9.33-7.16c.67 0 1.2-.27 1.58-.82.39-.55.58-1.34.58-2.37 0-1.06-.2-1.87-.6-2.42-.4-.55-.96-.83-1.69-.83-.47 0-.83.07-1.08.21-.25.14-.41.33-.5.56-.08.24-.12.62-.12 1.15v4.52h1.83z"/></svg>' },
+  { key: 'googleScholar', label: 'Google Scholar',
+    svg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M5.24 14.78A5.01 5.01 0 0 0 10 19a5 5 0 0 0 4.76-4.22H10v-2.56h8.76c.1.56.16 1.14.16 1.78 0 5.04-3.36 8.62-8.92 8.62A9.3 9.3 0 0 1 .7 13.32 9.3 9.3 0 0 1 10 4.02c2.48 0 4.56.88 6.18 2.34l-2.6 2.5C12.54 7.88 11.36 7.4 10 7.4a5.36 5.36 0 0 0-4.76 7.38z"/></svg>' }
 ];
 
 /* Project creation is admin-only (PI level) */
@@ -629,16 +635,30 @@ const Auth = {
   onChange(fn) { Auth._listeners.push(fn); },
 
   updateNavigation() {
-    const dashLi  = document.getElementById('nav-dashboard');
-    const adminLi = document.getElementById('nav-admin');
-    const loginA  = document.getElementById('nav-login');
-    if (dashLi)  dashLi.style.display  = Auth.currentUser ? '' : 'none';
-    if (adminLi) adminLi.style.display = Auth.currentProfile?.role === 'admin' ? '' : 'none';
-    if (loginA) {
-      loginA.textContent = Auth.currentUser ? 'Logout' : 'Login';
-      loginA.href = Auth.currentUser ? '#/logout' : '#/login';
-      loginA.setAttribute('data-route', Auth.currentUser ? 'logout' : 'login');
-    }
+    const isAuthed  = !!Auth.currentUser;
+    const role      = Auth.currentProfile?.role;
+    const isAdmin   = role === 'admin';
+    const isNotGuest = isAuthed && role !== 'guest';
+
+    // Toggle auth-gated items across all nav surfaces (drawer, desktop nav, more sheet)
+    const toggle = (ids, show) => {
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = show ? '' : 'none';
+      });
+    };
+    toggle(['nav-dashboard', 'dnav-dashboard', 'more-dashboard'], isAuthed);
+    toggle(['nav-admin',     'dnav-admin',     'more-admin'],     isAdmin);
+    toggle(['nav-apps',      'dnav-apps',      'more-apps'],      isNotGuest);
+
+    // Login/Logout text swap across all nav surfaces
+    ['nav-login', 'dnav-login', 'more-login'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = isAuthed ? 'Logout' : 'Login';
+      el.href = isAuthed ? '#/logout' : '#/login';
+      el.setAttribute('data-route', isAuthed ? 'logout' : 'login');
+    });
 
     // Header user button
     const userBtn = document.getElementById('header-user-btn');
@@ -1120,6 +1140,36 @@ function renderDashboard() {
             </div>
           </details>
 
+          <details class="assoc-section">
+            <summary class="assoc-header"><h4>LinkedIn ${p.linkedin ? '<span class="assoc-check">\u2713</span>' : ''}</h4></summary>
+            <div class="assoc-body">
+              <div style="display:flex;gap:.5rem;align-items:center">
+                <input type="url" id="linkedin-url-input" placeholder="https://linkedin.com/in/username" value="${escapeHTML(p.linkedin || '')}" style="flex:1">
+                <button type="button" class="btn btn-primary btn-small" id="save-linkedin-btn">Save</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="assoc-section">
+            <summary class="assoc-header"><h4>ResearchGate ${p.researchgate ? '<span class="assoc-check">\u2713</span>' : ''}</h4></summary>
+            <div class="assoc-body">
+              <div style="display:flex;gap:.5rem;align-items:center">
+                <input type="url" id="researchgate-url-input" placeholder="https://researchgate.net/profile/username" value="${escapeHTML(p.researchgate || '')}" style="flex:1">
+                <button type="button" class="btn btn-primary btn-small" id="save-researchgate-btn">Save</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="assoc-section">
+            <summary class="assoc-header"><h4>Google Scholar ${p.googleScholar ? '<span class="assoc-check">\u2713</span>' : ''}</h4></summary>
+            <div class="assoc-body">
+              <div style="display:flex;gap:.5rem;align-items:center">
+                <input type="url" id="google-scholar-url-input" placeholder="https://scholar.google.com/citations?user=..." value="${escapeHTML(p.googleScholar || '')}" style="flex:1">
+                <button type="button" class="btn btn-primary btn-small" id="save-google-scholar-btn">Save</button>
+              </div>
+            </div>
+          </details>
+
           ${p.category === 'alumni' ? `
           <details class="assoc-section">
             <summary class="assoc-header">
@@ -1516,6 +1566,42 @@ function wireAssociations() {
       Auth.currentProfile = await DB.getUser(Auth.currentUser.uid);
       const st = document.getElementById('assoc-status');
       st.textContent = 'GitHub saved!'; st.className = 'form-status success'; st.hidden = false;
+      setTimeout(() => { st.hidden = true; }, 2000);
+    } catch (e) { alert('Error: ' + e.message); }
+  });
+
+  // LinkedIn save
+  document.getElementById('save-linkedin-btn')?.addEventListener('click', async () => {
+    const url = document.getElementById('linkedin-url-input').value.trim();
+    try {
+      await DB.updateUser(Auth.currentUser.uid, { linkedin: url });
+      Auth.currentProfile = await DB.getUser(Auth.currentUser.uid);
+      const st = document.getElementById('assoc-status');
+      st.textContent = 'LinkedIn saved!'; st.className = 'form-status success'; st.hidden = false;
+      setTimeout(() => { st.hidden = true; }, 2000);
+    } catch (e) { alert('Error: ' + e.message); }
+  });
+
+  // ResearchGate save
+  document.getElementById('save-researchgate-btn')?.addEventListener('click', async () => {
+    const url = document.getElementById('researchgate-url-input').value.trim();
+    try {
+      await DB.updateUser(Auth.currentUser.uid, { researchgate: url });
+      Auth.currentProfile = await DB.getUser(Auth.currentUser.uid);
+      const st = document.getElementById('assoc-status');
+      st.textContent = 'ResearchGate saved!'; st.className = 'form-status success'; st.hidden = false;
+      setTimeout(() => { st.hidden = true; }, 2000);
+    } catch (e) { alert('Error: ' + e.message); }
+  });
+
+  // Google Scholar save
+  document.getElementById('save-google-scholar-btn')?.addEventListener('click', async () => {
+    const url = document.getElementById('google-scholar-url-input').value.trim();
+    try {
+      await DB.updateUser(Auth.currentUser.uid, { googleScholar: url });
+      Auth.currentProfile = await DB.getUser(Auth.currentUser.uid);
+      const st = document.getElementById('assoc-status');
+      st.textContent = 'Google Scholar saved!'; st.className = 'form-status success'; st.hidden = false;
       setTimeout(() => { st.hidden = true; }, 2000);
     } catch (e) { alert('Error: ' + e.message); }
   });
@@ -3172,6 +3258,16 @@ function renderNewsEditor(postId) {
           <textarea id="news-description" rows="2" placeholder="One-line summary"></textarea>
         </div>
 
+        <div class="form-group">
+          <label>Cover Image</label>
+          <p class="hint">Optional banner image shown on the news card.</p>
+          <div class="media-upload-zone" id="news-cover-zone">
+            <div id="news-cover-preview">Click or drag to upload a cover image</div>
+          </div>
+          <input type="file" accept="image/*" id="news-cover-input" hidden>
+          <div class="media-progress" id="news-cover-progress" hidden></div>
+        </div>
+
         <h3>Sections</h3>
         <p class="hint">Each section is a block of text with an optional image or video.</p>
         <div id="news-sections-container" class="sections-container"></div>
@@ -3210,6 +3306,7 @@ async function wireNewsEditor(postId) {
   let existing = null;
   const sectionImages = {};
   const sectionVideos = {};
+  let coverImageUrls = null;
 
   // Back button
   document.getElementById('news-editor-back-btn')?.addEventListener('click', () => {
@@ -3236,6 +3333,14 @@ async function wireNewsEditor(postId) {
         if (sec.image) sectionImages[i] = sec.image;
         if (sec.video) sectionVideos[i] = sec.video;
       });
+
+      if (existing.coverImage) {
+        coverImageUrls = existing.coverImage;
+        const preview = document.getElementById('news-cover-preview');
+        if (preview && existing.coverImage.medium) {
+          preview.innerHTML = `<img src="${escapeHTML(existing.coverImage.medium)}" alt="Cover preview">`;
+        }
+      }
     }
   }
 
@@ -3317,6 +3422,38 @@ async function wireNewsEditor(postId) {
 
   container.querySelectorAll('.section-block').forEach(wireSectionBlock);
 
+  // Cover image upload
+  const coverZone = document.getElementById('news-cover-zone');
+  const coverInput = document.getElementById('news-cover-input');
+  const coverProgress = document.getElementById('news-cover-progress');
+  const coverPreview = document.getElementById('news-cover-preview');
+
+  coverZone?.addEventListener('click', () => coverInput?.click());
+  coverZone?.addEventListener('dragover', e => { e.preventDefault(); coverZone.classList.add('drag-over'); });
+  coverZone?.addEventListener('dragleave', () => coverZone.classList.remove('drag-over'));
+  coverZone?.addEventListener('drop', e => {
+    e.preventDefault(); coverZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleCoverUpload(e.dataTransfer.files[0]);
+  });
+  coverInput?.addEventListener('change', e => {
+    if (e.target.files[0]) handleCoverUpload(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  async function handleCoverUpload(file) {
+    coverProgress.textContent = 'Processing image\u2026'; coverProgress.hidden = false;
+    try {
+      const blobs = await processImage(file);
+      const newsId = existing?.id || 'temp_' + Date.now();
+      const urls = await uploadImageSet(blobs, `news/${newsId}/cover`);
+      coverImageUrls = urls;
+      coverPreview.innerHTML = `<img src="${escapeHTML(urls.medium)}" alt="Cover preview">`;
+      coverProgress.hidden = true;
+    } catch (err) {
+      coverProgress.textContent = 'Upload failed: ' + err.message; coverProgress.hidden = false;
+    }
+  }
+
   // Add section
   document.getElementById('news-add-section-btn').addEventListener('click', () => {
     container.insertAdjacentHTML('beforeend', newsSectionBlockHTML());
@@ -3341,6 +3478,7 @@ async function wireNewsEditor(postId) {
       title: document.getElementById('news-title').value.trim(),
       category: document.getElementById('news-category').value,
       description: document.getElementById('news-description').value.trim(),
+      coverImage: coverImageUrls,
       sections,
       authorUid: Auth.currentUser.uid,
       authorName: Auth.currentProfile?.name || Auth.currentUser.email,

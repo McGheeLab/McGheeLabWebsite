@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.10
+**Version:** V3.14
 
 ## System Overview
 
@@ -13,7 +13,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 - **Key elements:** `#app` container swapped by router, hamburger nav menu
 - **SEO:** Meta description, keywords, OpenGraph, and Twitter Card tags
 - **User system nav:** Dashboard, CV Builder, Admin, Login/Logout links (conditionally visible based on auth state)
-- **Script loading:** Firebase SDK (compat) → Chart.js CDN → firebase-config.js → user-system.js → cv-builder.js → scheduler.js → class-scheduler.js → app.js (all deferred, in order)
+- **Script loading:** Firebase SDK (compat) → Chart.js CDN → firebase-config.js → user-system.js → cv-builder.js → scheduler.js → class-builder.js → lab-apps.js → app.js (all deferred, in order)
 
 ### app.js
 - **Purpose:** SPA router, page rendering, and UI interactions
@@ -74,32 +74,63 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - **Callback-based persistence:** Scheduler never touches Firestore directly; host provides `onSaveSpeaker`, `onSaveSchedule`, `onAddSpeaker`, `onDeleteSpeaker`, `onRefresh`, `onSwitchView` callbacks
 - **Public API:** `McgheeLab.Scheduler.render(config)` returns HTML; `McgheeLab.Scheduler.wire(containerId, config)` attaches listeners. Also exposes: `renderGrid`, `renderSetupForm`, `wireSetupForm`, `renderBuilder`, `wireBuilder`, `renderConfirmedSpeakers`, `expandSchedule`, `optimizeSchedule`, `heatColor`, `fmtTime`, `slotLabel`
 
-### class-scheduler.js
+### class-builder.js
 - **Purpose:** Tab-based course builder with nested sections and widgets, autosave, admin preview, and role-based views. Consumes `McgheeLab.Scheduler` for the speakers section.
 - **Key sections:**
   - **Section registry (`SECTION_REG`):** Maps 9 section keys to 3 component types — `text` (textarea editor), `files` (upload/download manager), `speakers` (delegates to Scheduler)
-  - **Widget registry (`WIDGET_REG`):** 6 widget types — text block, image (upload + caption), video (YouTube/Vimeo embed), link list, HTML embed, divider
+  - **Widget registry (`WIDGET_REG`):** 7 widget types — text block, image (upload + caption), video (YouTube/Vimeo embed), link list, HTML embed, simulation (sandboxed iframe), divider
   - **Module state:** `_tabs`, `_activeTabId`, `_previewMode`, `_viewType`, `_classData`, `_speakers`, `_currentSpeaker`, `_useKeyAuth`, `_scheduleId`, `_dirty`, `_autosaveTimer`, `_fileData`
-  - **Tab system:** `_tabs` array of `{ id, name, sections }` objects; tab bar UI with add/rename/delete; `switchTab()` gathers DOM content then swaps active tab; sections unique across all tabs
-  - **Data model:** `tabs: [{ id, name, sections: [{ key, id, widgets: [{ kind, id, ...content }] }] }]`; sections contain native content + nested widgets; widgets cannot exist outside sections
-  - **Migration:** `migrateLegacy()` converts old `layout` (flat array) or `sections` (key list) formats into a single "Home" tab with proper nesting
+  - **Tab system:** `_tabs` array of `{ id, name, sections }` objects; tab bar UI with add/rename/delete; `switchTab()` gathers DOM content then swaps active tab
+  - **Data model:** `tabs: [{ id, name, sections: [{ key, id, name, collapsed, content, storagePath, widgets: [{ kind, id, ...content }] }] }]`; sections are repeatable instances of a type; each stores its own content/name; widgets nested inside sections
+  - **Repeatable sections:** Any section type can be added multiple times; no uniqueness constraint; each instance has independent name/content/collapse state
+  - **Collapsible sections:** `collapsed` boolean on each section; toggle button (▶/▼) in chrome bar and readonly header; `toggleSectionCollapse()` updates DOM in-place; `.cb-collapsed` CSS class hides content
+  - **Section naming:** Each section has a custom `name` (prompted on creation); double-click label to rename in admin mode; type badge shows SECTION_REG label
+  - **Section type styling:** `.cb-section-type-{key}` CSS class on every section; default colored left borders per type (simulations=#4fc3f7, overview=#81c784, etc.)
+  - **Per-section content:** Text sections store content in `section.content` (not `_classData`); file sections use `section.storagePath` for unique Firestore paths; `_fileData` keyed by `section.id`
+  - **Migration:** `migrateLegacy()` converts old formats into tabs; `ensureSectionFields()` populates `name`, `collapsed`, `content`, `storagePath` from legacy data
   - **Preview toggle:** `_previewMode` flag; `isEditing()` helper used by all renderers; "Preview" button in header switches between editing and read-only views; preview banner shown
   - **Canvas layout:** `buildCanvasHTML()` renders tab bar + "Add Section" dropdown + sections with nested widgets; no side palettes
-  - **Section renderers:** `buildSectionBlockHTML(section)` renders chrome bar + `renderSectionBody()` + nested widgets + "Add Widget" dropdown
+  - **Section renderers:** `buildSectionBlockHTML(section)` renders chrome bar with collapse toggle + collapsible wrapper containing `renderSectionBody()` + nested widgets + "Add Widget" dropdown
   - **Widget renderers:** `buildWidgetBlockHTML(widget, sectionId)` renders mini chrome bar + `renderWidgetBody()` nested inside parent section
   - **Tab management:** `addTab()`, `deleteTab()`, `renameTab()`, `switchTab()` — cannot delete last tab; rename via double-click → prompt
-  - **Section management:** `addSection()`, `removeSection()`, `moveSection()`, `reorderSection()` — operate on active tab; DnD for reordering via handle
+  - **Section management:** `addSection()` (prompts for name), `removeSection()`, `moveSection()`, `reorderSection()`, `renameSection()`, `toggleSectionCollapse()` — operate on active tab; DnD for reordering via handle
   - **Widget management:** `addWidget(sectionId, kind)`, `removeWidget()`, `moveWidget()` — up/down arrow buttons for reordering within a section
   - **Drag and Drop:** HTML5 DnD API for section reordering within canvas; handle-based activation; drop indicator between sections
-  - **Autosave:** `markDirty()` sets flag + status indicator; `startAutosave()` runs 30s interval; `persistAll()` gathers content from DOM → saves `tabs` + derived `sections` + text fields to Firestore; `stopAutosave()` fires final save on leave; `beforeunload` warning
-  - **Content gathering:** `gatherContentFromDOM()` reads textareas/inputs from DOM; uses `findWidgetById()` to locate widgets in active tab's sections
-  - **Speakers component:** `buildSchedulerConfig()` constructs config object with ScheduleDB callbacks; delegates to `McgheeLab.Scheduler.render()` / `.wire()`
+  - **Autosave:** `markDirty()` sets flag + status indicator; `startAutosave()` runs 30s interval; `persistAll()` gathers content from DOM → saves `tabs` array (with all section content) to Firestore; `stopAutosave()` fires final save on leave; `beforeunload` warning
+  - **Content gathering:** `gatherContentFromDOM()` reads textareas/inputs from DOM; section text via `.cb-section-text[data-section-id]`; uses `findWidgetById()` and `findSectionById()` for lookups
+  - **Speakers component:** `buildSchedulerConfig()` constructs config object with ScheduleDB callbacks; delegates to `McgheeLab.Scheduler.render()` / `.wire()`; each speakers section gets unique container ID
   - **Settings modal:** Title, subtitle, semester, level, description, classDates, registrationLink fields
   - **ScheduleDB:** Firestore CRUD for `schedules`, `participants`, `classFiles` collections
   - **Default schedule seed:** BME 295C (sessions mode, Summer 2026, June 8–12, sections: overview + speakers + files)
-  - **Persistence:** `tabs` array in schedule doc; `sections` array derived for backwards compat; text content stored as top-level fields (`overviewContent`, etc.)
+  - **Persistence:** `tabs` array in schedule doc; `sections` array derived for backwards compat; text content stored per-section within tabs
 - **Render/wire pattern:** `renderClassPage(scheduleId)` returns HTML shell; `wireClassPage(scheduleId)` loads data, migrates legacy format, builds canvas with tabs, wires DnD + autosave
 - **Exports:** `McgheeLab.renderClassPage`, `McgheeLab.wireClassPage`, `McgheeLab.ScheduleDB`
+
+### lab-apps.js
+- **Purpose:** Lab Apps hub + iframe embedder — private section for authenticated lab members (non-guest)
+- **Key sections:**
+  - **App registry (`LAB_APPS`):** Array of app definitions with `id`, `name`, `description`, `path` (to standalone `index.html`), `icon` (SVG), `status`, and `adminOnly` flag
+  - **Hub renderer (`renderLabApps`):** Auth-gated grid of app cards; filters out `adminOnly` apps for non-admin users; redirects guests to dashboard and unauthenticated to login
+  - **Iframe embedder (`renderLabApp(appId)`):** Renders `<iframe>` loading the app's standalone `index.html`; breadcrumb nav above; `wireLabApp` sends auth via postMessage
+  - **Auth handshake (`wireLabApp`):** Listens for `mcgheelab-app-ready` from iframe → responds with `mcgheelab-auth` containing `user` and `profile` objects; also handles `mcgheelab-app-resize` for auto-sizing
+- **Apps:** Inventory Tracker, Equipment Scheduler, Lab Meeting, Admin Console (admin-only)
+- **Routing:** `#/apps` (hub) and `#/apps/{appId}` (iframe embed) handled in `app.js` render/wire switches
+- **Navigation:** `#nav-apps` `<li>` shown when `Auth.currentUser` exists and `role !== 'guest'`
+- **Exports:** `McgheeLab.renderLabApps`, `McgheeLab.wireLabApps`, `McgheeLab.renderLabApp`, `McgheeLab.wireLabApp`, `McgheeLab.LAB_APPS`
+
+### apps/ (standalone app directory)
+- **Purpose:** Self-contained mini-applications that run independently or embedded via iframe in the main site
+- **Structure:** Each app has `index.html` (standalone entry point), `app.js` (logic), `styles.css` (app-specific styles)
+- **Shared modules:**
+  - `apps/shared/auth-bridge.js` — `McgheeLab.AppBridge` singleton; dual-mode auth: embedded (postMessage from parent) or standalone (Firebase `onAuthStateChanged`); exposes `init()`, `onReady(fn)`, `isEmbedded()`, `getUser()`, `getProfile()`, `isAdmin()`; 5s timeout → auth wall fallback
+  - `apps/shared/app-base.css` — Dark theme variables (--bg, --surface, --accent, etc.), common components (.app-card, .app-btn, .app-input, .app-badge), auth wall, embedded/standalone body classes, responsive breakpoint at 600px
+- **App list:**
+  - `apps/inventory/` — Inventory Tracker: supplies, equipment catalog, orders
+  - `apps/equipment/` — Equipment Scheduler: calendar view, reservations, Google Calendar sync
+  - `apps/meetings/` — Lab Meeting: schedule, agendas & notes, action items
+  - `apps/console/` — Admin Console (admin-only): app management, user permissions, integrations, usage logs
+- **Execution modes:** Embedded (`.app-embedded` class, header hidden, auth via postMessage) vs Standalone (`.app-standalone` class, header visible, auth via Firebase direct)
+- **Script load order in standalone:** Firebase SDK (compat) → `../../firebase-config.js` → `../shared/auth-bridge.js` → `app.js`
 
 ### cv-styles.css
 - **Purpose:** Styling for CV builder page — dark theme with gold accent (`--cv-gold`)

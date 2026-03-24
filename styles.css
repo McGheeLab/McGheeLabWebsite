@@ -52,6 +52,7 @@
   /* ---- Layout constants ---- */
   --banner-height: 64px;   /* JS updates this at runtime for sticky offsets */
   --content-max: 1100px;   /* Comfortable reading width */
+  --tab-bar-height: 60px;  /* Mobile bottom tab bar */
 }
 
 /* Make width/height calculations include padding/border by default */
@@ -243,6 +244,193 @@ svg{
 
 
 /* =========================================
+   03b) DESKTOP INLINE NAV
+   - Horizontal nav in the top banner (≥768px only).
+   - Replaces hamburger + drawer on desktop.
+   ========================================= */
+.desktop-nav{ display: none; }  /* Hidden by default (mobile-first) */
+
+@media (min-width: 768px){
+  /* Show inline nav, hide hamburger + drawer */
+  .desktop-nav{
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .desktop-nav::-webkit-scrollbar{ display: none; }
+
+  .desktop-nav ul{
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+  .desktop-nav a{
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
+    text-decoration: none;
+    transition: background .15s;
+  }
+  .desktop-nav a:hover{
+    background: rgba(255,255,255,.08);
+    text-decoration: none;
+  }
+  .desktop-nav a[aria-current="page"]{
+    background: rgba(91,209,185,.12);
+  }
+
+  /* Update banner grid: brand | nav (flex) | user btn */
+  .top-banner{
+    grid-template-columns: auto 1fr auto;
+    gap: .75rem;
+  }
+
+  /* Hide hamburger + old drawer on desktop */
+  .hamburger{ display: none !important; }
+  .nav-drawer{ display: none !important; }
+}
+
+
+/* =========================================
+   03c) MOBILE BOTTOM TAB BAR
+   - Fixed bottom bar with 4 tabs + "More" button.
+   - Replaces hamburger on mobile (<768px).
+   ========================================= */
+.bottom-tabs{ display: none; }
+.more-sheet{ display: none; }
+
+@media (max-width: 767px){
+  /* Hide hamburger + old drawer on mobile (bottom tabs replace them) */
+  .hamburger{ display: none !important; }
+  .nav-drawer{ display: none !important; }
+
+  /* Update banner grid: just brand + user btn */
+  .top-banner{
+    grid-template-columns: 1fr auto;
+  }
+
+  /* Bottom tab bar */
+  .bottom-tabs{
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: var(--tab-bar-height);
+    background: rgba(10,14,22,.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,.08);
+    z-index: 100;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .tab-item{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 0;
+    border: none;
+    background: none;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: .02em;
+    cursor: pointer;
+    min-width: 52px;
+    transition: color .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab-item:hover{ text-decoration: none; }
+  .tab-item svg{
+    width: 22px; height: 22px;
+    display: block;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .tab-item.active,
+  .tab-item[aria-current="page"]{
+    color: var(--accent);
+  }
+
+  /* Push page content above the tab bar */
+  .site-footer{ padding-bottom: calc(var(--tab-bar-height) + 16px); }
+
+  /* === "More" bottom sheet === */
+  .more-sheet{
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .more-sheet.open{
+    pointer-events: auto;
+    opacity: 1;
+  }
+  .more-sheet-backdrop{
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+  }
+  .more-sheet-content{
+    position: absolute;
+    bottom: var(--tab-bar-height);
+    left: 0; right: 0;
+    background: var(--surface);
+    border-radius: 16px 16px 0 0;
+    padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0));
+    transform: translateY(100%);
+    transition: transform .25s ease;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .more-sheet.open .more-sheet-content{
+    transform: translateY(0);
+  }
+  .more-sheet-handle{
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,.2);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .more-sheet ul{
+    list-style: none;
+    padding: 0; margin: 0;
+    display: grid; gap: 4px;
+  }
+  .more-sheet a{
+    display: block;
+    padding: 14px 12px;
+    border-radius: 10px;
+    font-size: 1rem;
+    color: var(--text);
+    text-decoration: none;
+    transition: background .15s;
+  }
+  .more-sheet a:hover,
+  .more-sheet a[aria-current="page"]{
+    background: rgba(91,209,185,.12);
+  }
+}
+
+
+/* =========================================
    04) HERO (VIDEO BACKGROUND + HEADLINE)
    - Sits under banner; margin-top equals banner height.
    - Contains background video with a subtle overlay (scrim).
@@ -418,7 +606,7 @@ svg{
 .grid-fit-250{ grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
 
 /* Team grids use auto-fill so cards stay consistent size even with fewer items */
-.team-grid{ grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+.team-grid{ grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
 
 /* Two-column media layout: text + image/video */
 .media{
@@ -448,21 +636,28 @@ svg{
    - Small building blocks used across pages.
    ========================================= */
 
-/* Team member card — horizontal: photo left, info right */
+/* Team member card — horizontal: photo left (1/3), info right (2/3) */
 .person{
-  padding: 12px;
+  padding: .75rem;
+  overflow: hidden;
 }
 .person-layout{
   display: grid;
-  grid-template-columns: 80px 1fr;
+  grid-template-columns: 1fr 2fr;
   gap: .75rem;
   align-items: start;
 }
+.person-photo{
+  aspect-ratio: 1/1;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+}
 .person-photo img{
   width: 100%;
-  aspect-ratio: 1/1;
+  height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  display: block;
 }
 .person-info{
   display: flex;
@@ -473,25 +668,41 @@ svg{
   color: var(--muted);
   font-size: .85rem;
 }
-@media (max-width: 400px) {
-  .person-layout{ grid-template-columns: 60px 1fr; }
-}
 
-/* ── PI card: horizontal layout ── */
-.pi-card{ padding: 1.5rem; }
+/* ── PI card: same 1/3 photo layout as other team cards ── */
+.pi-card{ padding: .75rem; }
 .pi-layout{
   display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 1fr 2fr;
+  gap: .75rem;
   align-items: start;
+}
+.pi-photo{
+  aspect-ratio: 1/1;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
 }
 .pi-photo img{
   width: 100%;
-  aspect-ratio: 1/1;
+  height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  display: block;
+}
+.pi-info{
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 .pi-info strong{ font-size: 1.15rem; }
+.pi-footer{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: .5rem;
+}
 .pi-role{
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -499,6 +710,10 @@ svg{
   font-weight: 600;
   color: var(--accent, #60a5fa);
   margin-bottom: .5rem;
+}
+.pi-bio{
+  max-height: calc(8 * 1.6 * .9rem);
+  overflow-y: auto;
 }
 .pi-bio p{
   font-size: .9rem;
@@ -601,8 +816,7 @@ svg{
   border-bottom: none;
 }
 @media (max-width: 600px) {
-  .pi-layout{ grid-template-columns: 1fr; }
-  .pi-photo{ max-width: 180px; }
+  .pi-layout{ gap: .5rem; }
 }
 
 /* ── Team card badges ── */
@@ -658,6 +872,20 @@ svg{
   margin: 0;
   padding: .35rem 0;
   transition: color .15s;
+}
+.team-expanded-section summary h4::after{
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid currentColor;
+  margin-left: .25rem;
+  transition: transform .2s ease;
+}
+.team-expanded-section[open] summary h4::after{
+  transform: rotate(180deg);
 }
 .team-expanded-section summary:hover h4{ color: var(--text, #eef2f7); }
 .team-expanded-section summary h4 svg{
@@ -984,8 +1212,6 @@ svg text.dot{
   /* Skip hero video on mobile — saves bandwidth, barely visible at 20% opacity */
   .hero video{ display: none; }
 
-  /* Ensure person images don't dominate on small screens */
-  .person img{ width: 25%; }
 }
 
 /* Phone-sized adjustments */
@@ -1023,6 +1249,8 @@ svg text.dot{
 @media (prefers-reduced-motion: reduce){
   .hero video{ display: none; }              /* Remove moving background */
   .reveal{ opacity: 1; transform: none; filter: none; } /* Disable reveal */
+  .more-sheet-content{ transition: none; }   /* No sheet animation */
+  .more-sheet{ transition: none; }
 }
 
 
@@ -1055,9 +1283,11 @@ svg text.dot{
    14) Z-INDEX SAFETY (LAYER ORDER)
    - Ensure the proper stacking of header, nav drawer, and subnav.
    ========================================= */
-.top-banner { z-index: 100; }   /* Highest */
-.nav-drawer { z-index: 95;  top: var(--banner-height); } /* Under banner */
-.subnav     { z-index: 90;  top: var(--banner-height); } /* Under drawer */
+.top-banner  { z-index: 100; }  /* Highest */
+.bottom-tabs { z-index: 100; }  /* Same level as banner */
+.more-sheet  { z-index: 110; }  /* Above tab bar */
+.nav-drawer  { z-index: 95;  top: var(--banner-height); } /* Under banner */
+.subnav      { z-index: 90;  top: var(--banner-height); } /* Under drawer */
 
 /* Ensure hero never slides under the fixed banner */
 .hero { margin-top: var(--banner-height); }

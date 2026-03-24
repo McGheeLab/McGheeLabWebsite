@@ -1,0 +1,28 @@
+/* ================================================================
+   Equipment Scheduler — App-specific styles
+   ================================================================ */
+
+.equip-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.equip-feature {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.equip-feature h3 {
+  font-size: .95rem;
+  margin: 0 0 .35rem;
+  color: var(--accent);
+}
+.equip-feature p {
+  font-size: .83rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
