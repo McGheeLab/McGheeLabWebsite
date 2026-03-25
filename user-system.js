@@ -316,7 +316,10 @@ const DB = {
   },
   async updateStoryStatus(id, status) {
     const update = { status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
-    if (status === 'published') update.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
+    if (status === 'published') {
+      const doc = await McgheeLab.db.collection('stories').doc(id).get();
+      if (!doc.data()?.publishedAt) update.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
+    }
     await McgheeLab.db.collection('stories').doc(id).update(update);
   },
   async deleteStory(id) {
@@ -404,7 +407,10 @@ const DB = {
   },
   async updateNewsStatus(id, status) {
     const update = { status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
-    if (status === 'published') update.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
+    if (status === 'published') {
+      const doc = await McgheeLab.db.collection('newsPosts').doc(id).get();
+      if (!doc.data()?.publishedAt) update.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
+    }
     await McgheeLab.db.collection('newsPosts').doc(id).update(update);
   },
   async deleteNewsPost(id) {
@@ -2703,6 +2709,10 @@ function renderStoryEditor(storyId) {
           <label for="story-description">Brief Description</label>
           <textarea id="story-description" rows="2" placeholder="One-line summary"></textarea>
         </div>
+        <div class="form-group">
+          <label for="story-publish-date">Publish Date <span class="hint">(optional — defaults to now)</span></label>
+          <input type="date" id="story-publish-date">
+        </div>
 
         <h3>Team</h3>
         <p class="hint">Assign team members to this story. You are automatically listed as author.</p>
@@ -2936,6 +2946,10 @@ async function wireStoryEditor(storyId) {
         if (match) projectSelect.value = match.id;
       }
       document.getElementById('story-description').value = existing.description || '';
+      if (existing.publishedAt?.toDate) {
+        const d = existing.publishedAt.toDate();
+        document.getElementById('story-publish-date').value = d.toISOString().slice(0, 10);
+      }
 
       // Restore team
       if (existing.team) {
@@ -3127,7 +3141,12 @@ async function wireStoryEditor(storyId) {
     st.hidden = true;
     try {
       const data = collectData(status);
-      if (status === 'published') data.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
+      if (status === 'published') {
+        const customDate = document.getElementById('story-publish-date').value;
+        data.publishedAt = customDate
+          ? firebase.firestore.Timestamp.fromDate(new Date(customDate + 'T12:00:00'))
+          : firebase.firestore.FieldValue.serverTimestamp();
+      }
       const id = await DB.saveStory(data);
       st.textContent = status === 'draft' ? 'Draft saved!'
         : (Auth.canPublish() ? 'Published!' : 'Submitted for review!');
@@ -3257,6 +3276,10 @@ function renderNewsEditor(postId) {
           <label for="news-description">Brief Description</label>
           <textarea id="news-description" rows="2" placeholder="One-line summary"></textarea>
         </div>
+        <div class="form-group">
+          <label for="news-publish-date">Publish Date <span class="hint">(optional — defaults to now)</span></label>
+          <input type="date" id="news-publish-date">
+        </div>
 
         <div class="form-group">
           <label>Cover Image</label>
@@ -3322,6 +3345,10 @@ async function wireNewsEditor(postId) {
       document.getElementById('news-title').value = existing.title || '';
       document.getElementById('news-category').value = existing.category || 'other';
       document.getElementById('news-description').value = existing.description || '';
+      if (existing.publishedAt?.toDate) {
+        const d = existing.publishedAt.toDate();
+        document.getElementById('news-publish-date').value = d.toISOString().slice(0, 10);
+      }
 
       (existing.sections || []).forEach((sec, i) => {
         container.insertAdjacentHTML('beforeend', newsSectionBlockHTML({
@@ -3492,7 +3519,12 @@ async function wireNewsEditor(postId) {
     st.hidden = true;
     try {
       const data = collectData(status);
-      if (status === 'published') data.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
+      if (status === 'published') {
+        const customDate = document.getElementById('news-publish-date').value;
+        data.publishedAt = customDate
+          ? firebase.firestore.Timestamp.fromDate(new Date(customDate + 'T12:00:00'))
+          : firebase.firestore.FieldValue.serverTimestamp();
+      }
       const id = await DB.saveNewsPost(data);
       st.textContent = status === 'draft' ? 'Draft saved!'
         : (Auth.canPublish() ? 'Published!' : 'Submitted for review!');
