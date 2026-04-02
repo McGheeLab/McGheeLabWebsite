@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.15
+**Version:** V3.16
 
 ## System Overview
 
@@ -129,6 +129,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - `apps/equipment/` — Equipment Scheduler: calendar view, reservations, Google Calendar sync
   - `apps/meetings/` — Lab Meeting: schedule, agendas & notes, action items
   - `apps/console/` — Admin Console (admin-only): app management, user permissions, integrations, usage logs
+  - `apps/activity-tracker/` — Activity Tracker: daily activity logging with hierarchical categories, ML categorization (Naive Bayes), AI categorization (Anthropic API), milestone tracking, voice input, Chart.js analytics dashboard. Privacy: strictly owner-only Firestore rules. Data: `trackerData/{userId}` (settings, categories, ML model) + `trackerEntries/{userId}/entries/{entryId}` subcollection (task entries with date, categoryPath, duration, milestone, source)
 - **Execution modes:** Embedded (`.app-embedded` class, header hidden, auth via postMessage) vs Standalone (`.app-standalone` class, header visible, auth via Firebase direct)
 - **Script load order in standalone:** Firebase SDK (compat) → `../../firebase-config.js` → `../shared/auth-bridge.js` → `app.js`
 
@@ -155,7 +156,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 
 ### firestore.rules / storage.rules
 - **Purpose:** Firebase security rules for Firestore and Storage
-- **Access model:** Role-based (admin/editor/contributor); published stories and news posts readable by all; users write own profile; 10 MB image / 50 MB video upload limit; `newsPosts` collection follows same pattern as `stories`; `cvData` collection owner read/write + admin read; `cv/` storage path for BibTeX/PDF imports; `schedules` collection public read, owner/admin write (any authenticated user can create); `participants` collection public read, admin create/delete, self-update via auth UID or invite key; `classFiles` collection public read, auth create, admin update/delete; `classes/` storage path public read, auth write, 50 MB limit
+- **Access model:** Role-based (admin/editor/contributor); published stories and news posts readable by all; users write own profile; 10 MB image / 50 MB video upload limit; `newsPosts` collection follows same pattern as `stories`; `cvData` collection owner read/write + admin read; `cv/` storage path for BibTeX/PDF imports; `schedules` collection public read, owner/admin write (any authenticated user can create); `participants` collection public read, admin create/delete, self-update via auth UID or invite key; `classFiles` collection public read, auth create, admin update/delete; `classes/` storage path public read, auth write, 50 MB limit; `trackerData/{userId}` and `trackerEntries/{userId}/entries/{entryId}` strictly owner-only (no admin access) for activity tracker privacy
 
 ### poster/
 - **Purpose:** Standalone academic poster sub-site with its own Firebase integration
@@ -189,6 +190,16 @@ Admin generates invitation → shares link → student opens #/login?token=...
   → imports: BibTeX/NSF/ORCID parsed into entries → DOI auto-fill via CrossRef
   → exports: LaTeX/BibTeX/PDF generated client-side → AI assistant calls Anthropic API with user's key
   → versioning: snapshots save visibility state per section/entry → can restore/compare
+```
+
+### Activity tracker flow
+```
+#/apps/activity-tracker → AppBridge auth → load trackerData/{userId} + entries subcollection
+  → user adds tasks (text/voice) → duration auto-parsed → saved to entries subcollection
+  → manual category assignment → trains ML (Naive Bayes word weights) → saves mlModel to trackerData
+  → AI categorize (Anthropic API) → human approval → trains ML further
+  → analytics: Chart.js charts from entries date-range queries
+  → privacy: all Firestore rules strictly owner-only, no admin read
 ```
 
 ### Story creation flow

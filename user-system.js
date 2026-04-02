@@ -1209,6 +1209,21 @@ function renderDashboard() {
           <a href="#/cv" class="btn btn-primary" style="margin-top:.5rem">Open CV Builder</a>
         </div>
 
+        <!-- API Keys Card -->
+        <div class="dash-card">
+          <h3>API Keys</h3>
+          <p class="hint">Manage API keys used across lab apps (CV Builder AI, Activity Tracker, etc.).</p>
+          <div class="form-group" style="margin-top:.5rem">
+            <label for="dash-api-key">Anthropic API Key</label>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input type="password" id="dash-api-key" placeholder="${p.anthropicKey ? 'Key saved \u2713' : 'sk-ant-...'}" style="flex:1">
+              <button type="button" class="btn btn-primary btn-small" id="save-api-key-btn">Save</button>
+              ${p.anthropicKey ? '<button type="button" class="btn btn-secondary btn-small" id="clear-api-key-btn">Clear</button>' : ''}
+            </div>
+            <p class="hint" style="margin-top:.25rem">Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>. Stored securely in your profile. Powers AI features in CV Builder and Activity Tracker.</p>
+          </div>
+        </div>
+
         <!-- My Published Work Card -->
         <div class="dash-card">
           <h3>My Published Work</h3>
@@ -1313,6 +1328,37 @@ async function wireDashboard() {
 
   // Logout button
   document.getElementById('dash-logout-btn')?.addEventListener('click', () => Auth.logout());
+
+  // API Key management
+  document.getElementById('save-api-key-btn')?.addEventListener('click', async () => {
+    const input = document.getElementById('dash-api-key');
+    const btn = document.getElementById('save-api-key-btn');
+    const key = input?.value?.trim();
+    if (!key) return;
+    try {
+      btn.textContent = 'Saving\u2026'; btn.disabled = true;
+      await DB.updateUser(Auth.currentUser.uid, { anthropicKey: key });
+      Auth.currentProfile.anthropicKey = key;
+      input.value = '';
+      input.placeholder = 'Key saved \u2713';
+      btn.textContent = 'Saved!';
+      setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false; }, 1500);
+    } catch (e) {
+      btn.textContent = 'Failed'; btn.disabled = false;
+    }
+  });
+  document.getElementById('clear-api-key-btn')?.addEventListener('click', async () => {
+    if (!confirm('Remove your Anthropic API key?')) return;
+    try {
+      await DB.updateUser(Auth.currentUser.uid, { anthropicKey: firebase.firestore.FieldValue.delete() });
+      Auth.currentProfile.anthropicKey = null;
+      const input = document.getElementById('dash-api-key');
+      if (input) input.placeholder = 'sk-ant-...';
+      document.getElementById('clear-api-key-btn')?.remove();
+    } catch (e) {
+      console.warn('Failed to remove API key:', e);
+    }
+  });
 
   // New story button
   document.getElementById('new-story-btn')?.addEventListener('click', () => {

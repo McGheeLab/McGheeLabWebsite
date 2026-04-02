@@ -61,6 +61,22 @@ const LAB_APPS = [
     </svg>`,
     status: 'coming-soon',
     adminOnly: true
+  },
+  {
+    id: 'activity-tracker',
+    name: 'Activity Tracker',
+    description: 'Log daily activities, categorize tasks, track time, and view trends. ML and AI-powered categorization with milestone tracking for annual reviews.',
+    path: 'apps/activity-tracker/index.html',
+    icon: `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 20V10"/>
+      <path d="M18 20V4"/>
+      <path d="M6 20v-4"/>
+      <circle cx="12" cy="7" r="2"/>
+      <path d="M3 3l3 3"/>
+      <path d="M21 3l-3 3"/>
+    </svg>`,
+    status: 'active',
+    adminOnly: false
   }
 ];
 
@@ -156,20 +172,37 @@ function wireLabApp(appId) {
   const user = Auth?.currentUser;
   const profile = Auth?.currentProfile;
 
+  function buildAuthPayload() {
+    return {
+      type: 'mcgheelab-auth',
+      token: null,  // Custom token would require Cloud Functions; pass profile directly
+      user: user ? { uid: user.uid, email: user.email, displayName: user.displayName } : null,
+      profile: profile || null
+    };
+  }
+
+  function sendAuth() {
+    try {
+      iframe.contentWindow.postMessage(buildAuthPayload(), window.location.origin);
+    } catch (e) { /* iframe not ready yet */ }
+  }
+
   // Listen for the iframe app to signal it's ready, then send auth
   window.addEventListener('message', function onMsg(e) {
     if (e.origin !== window.location.origin) return;
     if (e.data?.type !== 'mcgheelab-app-ready') return;
-
-    // Send auth data to the embedded app
-    iframe.contentWindow.postMessage({
-      type: 'mcgheelab-auth',
-      token: null,  // Custom token would require Cloud Functions; pass profile directly
-      user: user ? { uid: user.uid, email: user.email, displayName: user.displayName } : null,
-      profile: profile ? { role: profile.role, name: profile.name, category: profile.category } : null
-    }, window.location.origin);
-
+    sendAuth();
     window.removeEventListener('message', onMsg);
+  });
+
+  // Also send auth proactively once the iframe finishes loading,
+  // and retry a few times to cover the gap where scripts are still executing
+  iframe.addEventListener('load', () => {
+    sendAuth();
+    // Retry at 200ms, 600ms, 1500ms in case iframe scripts haven't initialized yet
+    setTimeout(sendAuth, 200);
+    setTimeout(sendAuth, 600);
+    setTimeout(sendAuth, 1500);
   });
 
   // Auto-resize iframe to fit content

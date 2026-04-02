@@ -1,0 +1,793 @@
+/* ================================================================
+   Activity Tracker — App-specific styles
+   Prefix: .act-*
+   Dark theme, extends app-base.css
+   ================================================================ */
+
+/* ─── Layout: sidebar + main ─────────────────────────────── */
+.act-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.25rem;
+  min-height: calc(100vh - 120px);
+}
+
+/* ─── Sidebar ─────────────────────────────────────────────── */
+.act-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+}
+.act-sidebar-btn {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .85rem;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  text-align: left;
+}
+.act-sidebar-btn:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+.act-sidebar-btn.active {
+  background: var(--surface2);
+  color: var(--accent);
+  font-weight: 600;
+}
+.act-sidebar-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: .7;
+}
+.act-sidebar-btn.active .act-sidebar-icon { opacity: 1; }
+
+/* ─── Main content area ──────────────────────────────────── */
+.act-main {
+  min-width: 0;
+}
+
+/* ─── Date navigation ────────────────────────────────────── */
+.act-date-nav {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 1.25rem;
+}
+.act-date-nav h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+}
+.act-date-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background .15s;
+}
+.act-date-btn:hover { background: var(--surface2); }
+.act-date-today {
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .3rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+}
+.act-date-today:hover { background: var(--surface2); }
+
+/* ─── Task input area ────────────────────────────────────── */
+.act-input-area {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1.25rem;
+}
+.act-input-wrap {
+  flex: 1;
+  position: relative;
+}
+.act-input {
+  width: 100%;
+  padding: .6rem .75rem;
+  padding-right: 2.5rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: .9rem;
+  transition: border-color .15s;
+}
+.act-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(91,174,209,.15);
+}
+.act-input::placeholder { color: var(--muted); opacity: .6; }
+.act-mic-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s;
+}
+.act-mic-btn:hover { color: var(--accent); background: rgba(91,174,209,.1); }
+.act-mic-btn.recording { color: var(--danger); background: rgba(233,30,99,.1); }
+
+.act-add-btn {
+  padding: .5rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.act-add-btn:hover { background: var(--accent2); }
+
+.act-ai-btn {
+  padding: .5rem .75rem;
+  background: rgba(196,181,253,.1);
+  color: #c4b5fd;
+  border: 1px solid rgba(196,181,253,.2);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.act-ai-btn:hover { background: rgba(196,181,253,.18); }
+.act-ai-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.act-ml-btn {
+  padding: .5rem .75rem;
+  background: rgba(91,174,209,.1);
+  color: var(--accent);
+  border: 1px solid rgba(91,174,209,.2);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.act-ml-btn:hover { background: rgba(91,174,209,.18); }
+
+/* ─── Input mode toggle ──────────────────────────────────── */
+.act-input-mode {
+  display: flex;
+  gap: 2px;
+  margin-bottom: .75rem;
+}
+.act-mode-tab {
+  padding: .35rem .85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.act-mode-tab:hover { background: var(--surface2); color: var(--text); }
+.act-mode-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* ─── Bulk paste area ────────────────────────────────────── */
+.act-bulk-area {
+  margin-bottom: 1.25rem;
+}
+.act-bulk-input {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+  margin-bottom: .5rem;
+}
+.act-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+}
+.act-bulk-hint {
+  font-size: .72rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ─── Task list ──────────────────────────────────────────── */
+.act-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 1.25rem;
+}
+.act-task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: background .1s;
+}
+.act-task-row:hover { background: var(--surface2); }
+
+.act-task-text {
+  flex: 1;
+  min-width: 0;
+  font-size: .9rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.act-task-duration {
+  font-size: .75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: .15rem .5rem;
+  background: rgba(255,255,255,.04);
+  border-radius: 4px;
+}
+.act-task-duration-input {
+  width: 60px;
+  padding: .2rem .4rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: .75rem;
+  text-align: center;
+}
+.act-task-duration-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ─── Category badge ─────────────────────────────────────── */
+.act-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .7rem;
+  font-weight: 600;
+  padding: .15rem .5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.act-cat-unset {
+  background: rgba(255,255,255,.06);
+  color: var(--muted);
+  cursor: pointer;
+  border: 1px dashed rgba(255,255,255,.15);
+}
+.act-cat-unset:hover { background: rgba(255,255,255,.1); }
+
+/* ─── Category selector dropdown ─────────────────────────── */
+.act-cat-selector {
+  position: relative;
+  display: inline-block;
+}
+.act-cat-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  padding: .35rem 0;
+  margin-top: 4px;
+}
+.act-cat-dropdown[hidden] { display: none; }
+.act-cat-group-label {
+  padding: .35rem .75rem .15rem;
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.act-cat-option {
+  display: block;
+  width: 100%;
+  padding: .35rem .75rem .35rem 1.25rem;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: .82rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background .1s;
+}
+.act-cat-option:hover { background: var(--surface2); }
+.act-cat-option.depth-2 { padding-left: 2rem; }
+.act-cat-option .act-cat-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+/* ─── ML suggestion pills ────────────────────────────────── */
+.act-suggestions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-left: 4px;
+}
+.act-suggest-pill {
+  font-size: .68rem;
+  font-weight: 600;
+  padding: .1rem .45rem;
+  border-radius: 3px;
+  background: rgba(91,174,209,.12);
+  color: var(--accent);
+  cursor: pointer;
+  border: 1px solid rgba(91,174,209,.2);
+  transition: background .1s;
+}
+.act-suggest-pill:hover { background: rgba(91,174,209,.22); }
+
+/* ─── Milestone stars ────────────────────────────────────── */
+.act-stars {
+  display: flex;
+  gap: 1px;
+}
+.act-star {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: rgba(255,255,255,.15);
+  transition: color .1s;
+}
+.act-star:hover, .act-star.filled { color: #fbbf24; }
+.act-task-row:hover .act-stars { opacity: 1; }
+
+/* ─── Task actions (delete, etc.) ────────────────────────── */
+.act-task-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.act-task-row:hover .act-task-actions { opacity: 1; }
+.act-task-action-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .1s, color .1s;
+}
+.act-task-action-btn:hover { background: rgba(233,30,99,.1); color: var(--danger); }
+
+/* ─── Summary chips ──────────────────────────────────────── */
+.act-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding: .75rem 0;
+  border-top: 1px solid var(--border);
+}
+.act-summary-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .3rem .65rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.act-summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.act-summary-time {
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+/* ─── Empty state ────────────────────────────────────────── */
+.act-empty {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--muted);
+}
+.act-empty-icon {
+  font-size: 2rem;
+  margin-bottom: .5rem;
+  opacity: .4;
+}
+.act-empty p { margin: .25rem 0; font-size: .9rem; }
+
+/* ─── Toast notification ─────────────────────────────────── */
+.act-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: .5rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: .85rem;
+  font-weight: 600;
+  z-index: 9999;
+  transition: opacity .3s, transform .3s;
+  pointer-events: none;
+}
+.act-toast.ok { background: var(--success); color: #fff; }
+.act-toast.error { background: var(--danger); color: #fff; }
+.act-toast.hidden { opacity: 0; transform: translateX(-50%) translateY(10px); }
+
+/* ─── Analytics charts ───────────────────────────────────── */
+.act-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.act-chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+.act-chart-card h3 {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: 0 0 .75rem;
+}
+.act-chart-wrap {
+  position: relative;
+  height: 180px;
+}
+
+/* ─── Metrics row ────────────────────────────────────────── */
+.act-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: .75rem;
+  margin-bottom: 1.25rem;
+}
+.act-metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  text-align: center;
+}
+.act-metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.act-metric-label {
+  font-size: .72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-top: .15rem;
+}
+
+/* ─── Categories manager ─────────────────────────────────── */
+.act-cat-tree {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.act-cat-tree li { margin-bottom: 2px; }
+.act-cat-tree .act-cat-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .65rem;
+  border-radius: var(--radius);
+  transition: background .1s;
+}
+.act-cat-tree .act-cat-item:hover { background: var(--surface2); }
+.act-cat-children {
+  list-style: none;
+  padding-left: 1.25rem;
+  margin: 0;
+}
+.act-cat-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.act-cat-name {
+  flex: 1;
+  font-size: .88rem;
+}
+.act-add-cat-btn {
+  font-size: .75rem;
+  color: var(--accent);
+  background: none;
+  border: 1px dashed rgba(91,174,209,.3);
+  border-radius: var(--radius);
+  padding: .3rem .6rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.act-add-cat-btn:hover { background: rgba(91,174,209,.08); }
+
+/* ─── Settings ───────────────────────────────────────────── */
+.act-settings-group {
+  margin-bottom: 1.5rem;
+}
+.act-settings-group h3 {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: 0 0 .75rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--border);
+}
+.act-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem 0;
+}
+.act-settings-label {
+  font-size: .88rem;
+  color: var(--text);
+}
+.act-settings-hint {
+  font-size: .75rem;
+  color: var(--muted);
+  margin-top: .15rem;
+}
+
+/* ─── AI approval overlay ────────────────────────────────── */
+.act-ai-overlay {
+  background: var(--surface);
+  border: 1px solid rgba(196,181,253,.2);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.act-ai-overlay h3 {
+  font-size: .9rem;
+  color: #c4b5fd;
+  margin: 0 0 .75rem;
+}
+.act-ai-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.act-ai-row:last-child { border-bottom: none; }
+.act-ai-row-text { flex: 1; font-size: .85rem; }
+.act-ai-accept, .act-ai-reject {
+  border: none;
+  border-radius: 4px;
+  padding: .2rem .5rem;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.act-ai-accept { background: rgba(76,175,80,.15); color: var(--success); }
+.act-ai-accept:hover { background: rgba(76,175,80,.25); }
+.act-ai-reject { background: rgba(233,30,99,.1); color: var(--danger); }
+.act-ai-reject:hover { background: rgba(233,30,99,.2); }
+
+/* ─── Weekly view ────────────────────────────────────────── */
+.act-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: .5rem;
+  margin-bottom: 1.25rem;
+}
+.act-week-day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .6rem;
+  min-height: 120px;
+}
+.act-week-day-header {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .5rem;
+  letter-spacing: .04em;
+}
+.act-week-day.today { border-color: var(--accent); }
+.act-week-task {
+  font-size: .72rem;
+  color: var(--text);
+  padding: .15rem .35rem;
+  border-radius: 3px;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Edit modal ─────────────────────────────────────────── */
+.act-edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.act-edit-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.5);
+}
+.act-edit-btn { color: var(--muted); }
+.act-edit-btn:hover { background: rgba(91,174,209,.1); color: var(--accent); }
+
+/* ─── Weekly drag-drop ───────────────────────────────────── */
+.act-week-day.act-drop-over {
+  background: rgba(91,174,209,.08);
+  border-color: var(--accent);
+  border-style: dashed;
+}
+.act-week-task[draggable] {
+  cursor: grab;
+}
+.act-week-task[draggable]:active {
+  cursor: grabbing;
+}
+
+/* ─── Calendar provider cards ────────────────────────────── */
+.act-cal-providers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+.act-cal-provider-card {
+  padding: 1rem;
+}
+.act-cal-provider-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .25rem;
+}
+.act-cal-provider-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Calendar events ────────────────────────────────────── */
+.act-cal-event {
+  border-left: 3px solid var(--accent);
+}
+.act-cal-event.act-cal-logged {
+  opacity: .6;
+  border-left-color: var(--success);
+}
+.act-cal-event .act-add-btn {
+  padding: .3rem .65rem;
+  font-size: .78rem;
+}
+.act-cal-event .act-ml-btn {
+  padding: .3rem .65rem;
+  font-size: .78rem;
+}
+.act-cal-source-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .act-layout {
+    grid-template-columns: 1fr;
+  }
+  .act-sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+    position: static;
+    gap: 4px;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: .75rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .act-sidebar-btn {
+    padding: .4rem .65rem;
+    font-size: .78rem;
+    white-space: nowrap;
+  }
+  .act-input-area {
+    flex-wrap: wrap;
+  }
+  .act-input-wrap { flex-basis: 100%; }
+  .act-charts-grid { grid-template-columns: 1fr; }
+  .act-week-grid { grid-template-columns: repeat(2, 1fr); }
+}

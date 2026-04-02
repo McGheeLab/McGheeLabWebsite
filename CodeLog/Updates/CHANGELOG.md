@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.16] - 2026-03-31
+
+### Added
+- **Activity Tracker** — new standalone lab app at `apps/activity-tracker/` for daily activity logging
+  - **Hierarchical category taxonomy** — 5 top-level categories (Research, Coursework, Service, Professional Development, Administration) with 30+ subcategories; users can add custom categories at any level
+  - **Daily view** — date navigation, text input with duration auto-parsing ("90m", "1.5h"), task list with inline category assignment, daily summary chips by category
+  - **ML categorization** — Multinomial Naive Bayes text classifier (vanilla JS, no dependencies); trains incrementally on every manual categorization; suggests top-3 categories after ~20 training examples; "ML Categorize" button for batch assignment
+  - **AI categorization** — Anthropic API integration (per-user API key from profile); "AI Categorize" button sends uncategorized tasks to Claude; human approval UI (accept/reject per suggestion); approved results further train ML model
+  - **Voice input** — Web Speech API microphone button (Chrome/Edge); appends recognized text to input
+  - **Milestone stars** — 1-5 star rating per task for annual review aggregation (not importance); milestone timeline in analytics
+  - **Duration tracking** — auto-parsed from natural language in task text; manual inline input; summary totals per category
+  - **Weekly view** — 7-day grid with task previews, color-coded by top-level category, weekly totals
+  - **Analytics dashboard** — Chart.js charts: time distribution (doughnut), daily trend (line), category breakdown (horizontal bar), milestone list; metrics: total time, days logged, avg/day, total tasks, milestones, categories used
+  - **AI insights** — "Get AI Insights" button sends 30-day summary to Claude for efficiency suggestions
+  - **Category manager** — tree view UI for adding/removing subcategories; color-coded dots
+  - **Multi-provider calendar integration** — three calendar providers supported simultaneously:
+    - **Google Calendar** — OAuth2 via Google Identity Services; user provides their own OAuth Client ID
+    - **Outlook / Microsoft 365** — OAuth2 via MSAL (Microsoft Authentication Library); user provides Azure App (Client) ID; fetches events from Microsoft Graph API (`/me/calendarview`)
+    - **Apple Calendar (ICS)** — import `.ics` files directly or fetch from a public iCloud calendar URL (via CORS proxy); minimal VEVENT parser extracts SUMMARY, DTSTART, DTEND, UID
+    - Events from all providers are merged, sorted by start time, and shown with color-coded provider dots (blue=Google, blue=Outlook, gray=ICS)
+    - Import per event or "Import All Unlogged" batch; unlogged event prompts in daily view; auto-detects token expiry per provider
+  - **Settings** — API key status indicator, ML model training status/reset, working hours, Google Calendar client ID, JSON data export
+  - **Bulk paste mode** — toggle between "Single Task" and "Bulk Paste" input modes; textarea for pasting a full paragraph of the day's activities; three parse options:
+    - "Split & Add" — sentence splitter (period/newline/semicolon boundaries) with auto duration parsing, adds as uncategorized
+    - "Split & ML Categorize" — splits + runs Naive Bayes on each task for automatic categorization
+    - "AI Parse & Categorize" — sends entire paragraph to Claude which returns structured tasks with categories and durations; results shown in approval overlay for accept/reject per task
+  - **Privacy** — strictly owner-only Firestore rules (no admin read access); `trackerData/{userId}` for settings/categories/ML model; `trackerEntries/{userId}/entries/{entryId}` subcollection for entries
+  - Registered in `LAB_APPS` array in `lab-apps.js` with `status: 'active'`
+- **Dashboard API Keys card** — centralized Anthropic API key management on the main dashboard (`#/dashboard`)
+  - Save/Clear buttons with inline status feedback
+  - Key stored in user profile (`anthropicKey` field) — accessible to all apps (CV Builder, Activity Tracker, etc.)
+  - Hint linking to `console.anthropic.com` for key creation
+  - Previously only configurable through CV Builder settings
+
 ## [V3.15] - 2026-03-24
 
 ### Changed
