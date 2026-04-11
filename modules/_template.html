@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lesson Title — Course Name</title>
+
+  <!-- Module header styles (dark theme nav bar) -->
+  <link rel="stylesheet" href="../shared/module-header.css" />
+
+  <!-- Lesson-specific styles -->
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #eef2f7;
+      background: #0b0e14;
+      -webkit-font-smoothing: antialiased;
+    }
+    .lesson-content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    .lesson-content h2 {
+      color: #5baed1;
+      margin-top: 2rem;
+    }
+    .lesson-content h2:first-child {
+      margin-top: 0;
+    }
+    .lesson-content p {
+      margin: 1rem 0;
+    }
+    .lesson-content img {
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .lesson-content code {
+      background: rgba(255,255,255,.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: .9em;
+    }
+    .lesson-content pre {
+      background: #1a1f2e;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .lesson-content a {
+      color: #5baed1;
+    }
+    .lesson-content ul, .lesson-content ol {
+      padding-left: 1.5rem;
+    }
+    .lesson-content li {
+      margin: .5rem 0;
+    }
+  </style>
+
+  <!-- Firebase SDK (needed for header navigation) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="../../firebase-config.js"></script>
+  <script defer src="../shared/module-header.js"></script>
+</head>
+<body>
+  <!-- Module header (auto-populated from Firestore) -->
+  <header id="module-header"></header>
+
+  <!-- ═══ YOUR LESSON CONTENT BELOW ═══ -->
+  <main class="lesson-content">
+    <h2>Lesson Title</h2>
+    <p>Replace this with your lesson content.</p>
+  </main>
+</body>
+</html>

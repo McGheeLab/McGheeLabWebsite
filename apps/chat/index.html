@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0e14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../../icons/favicon-32.png" />
+  <title>Lab Chat — McGheeLab</title>
+
+  <!-- Shared base styles (dark theme, buttons, inputs, cards) -->
+  <link rel="stylesheet" href="../shared/app-base.css" />
+  <!-- App-specific styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Firebase SDK -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+
+  <script defer src="../../firebase-config.js"></script>
+  <script defer src="../shared/auth-bridge.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <a href="../../#/apps" class="app-header-back">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Lab Apps
+    </a>
+    <h1>Lab Chat</h1>
+  </header>
+
+  <main id="app">
+    <div class="app-empty">
+      <p>Loading&hellip;</p>
+    </div>
+  </main>
+</body>
+</html>

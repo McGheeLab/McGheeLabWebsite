@@ -53,6 +53,20 @@ McgheeLab.AppBridge = (() => {
     _ready = true;
     document.body.classList.add('app-auth-failed');
     const el = document.getElementById('app') || document.body;
+
+    // Offline-aware fallback
+    if (!navigator.onLine) {
+      el.innerHTML = `
+        <div class="app-auth-wall">
+          <h2>You're offline</h2>
+          <p>This app requires an internet connection for real-time data.</p>
+          <button onclick="location.reload()" class="app-auth-link" style="cursor:pointer">Retry</button>
+        </div>`;
+      // Auto-retry when connectivity returns
+      window.addEventListener('online', () => location.reload(), { once: true });
+      return;
+    }
+
     el.innerHTML = `
       <div class="app-auth-wall">
         <h2>Sign in required</h2>
@@ -87,44 +101,65 @@ McgheeLab.AppBridge = (() => {
       }
     });
 
-    // Tell parent we're ready to receive auth
+    // Tell parent we're ready to receive auth (with retries)
     window.parent.postMessage({ type: 'mcgheelab-app-ready' }, window.location.origin);
+    // Retry asking parent for auth in case the first message was too early
+    setTimeout(() => { if (!_ready) window.parent.postMessage({ type: 'mcgheelab-app-ready' }, window.location.origin); }, 1000);
+    setTimeout(() => { if (!_ready) window.parent.postMessage({ type: 'mcgheelab-app-ready' }, window.location.origin); }, 3000);
 
-    // Timeout: if parent doesn't respond in 5s, show auth wall
+    // Timeout: if parent doesn't respond in 8s, show auth wall
     setTimeout(() => {
       if (!_ready) _fireAuthFailed();
-    }, 5000);
+    }, 8000);
   }
 
   /* ─── Standalone mode: use Firebase directly ────────────── */
 
   function _initStandalone() {
-    if (!McgheeLab.auth) {
-      console.warn('[AppBridge] Firebase not available in standalone mode');
-      _fireAuthFailed();
-      return;
+    // Firebase SDK loads with defer — wait for it if not ready yet
+    function tryInit() {
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        if (!McgheeLab.auth) {
+          McgheeLab.auth = firebase.auth();
+          McgheeLab.db   = firebase.firestore();
+        }
+        firebase.auth().onAuthStateChanged(async (fbUser) => {
+          if (_ready && _user?.uid === fbUser?.uid) return; // same user, skip
+          if (fbUser) {
+            try {
+              const doc = await firebase.firestore().collection('users').doc(fbUser.uid).get();
+              const profile = doc.exists ? doc.data() : { role: 'guest' };
+              _fireReady(
+                { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
+                profile
+              );
+            } catch (err) {
+              console.warn('[AppBridge] Failed to load profile:', err);
+              _fireReady(
+                { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
+                { role: 'guest' }
+              );
+            }
+          } else {
+            _fireAuthFailed();
+          }
+        });
+        return true;
+      }
+      return false;
     }
 
-    McgheeLab.auth.onAuthStateChanged(async (fbUser) => {
-      if (fbUser) {
-        try {
-          const doc = await McgheeLab.db.collection('users').doc(fbUser.uid).get();
-          const profile = doc.exists ? doc.data() : { role: 'guest' };
-          _fireReady(
-            { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
-            profile
-          );
-        } catch (err) {
-          console.warn('[AppBridge] Failed to load profile:', err);
-          _fireReady(
-            { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
-            { role: 'guest' }
-          );
-        }
-      } else {
-        _fireAuthFailed();
+    if (tryInit()) return;
+
+    // Firebase not loaded yet — poll until available (max 8s)
+    let attempts = 0;
+    const poll = setInterval(() => {
+      attempts++;
+      if (tryInit() || attempts > 40) {
+        clearInterval(poll);
+        if (!_ready) _fireAuthFailed();
       }
-    });
+    }, 200);
   }
 
   /* ─── Init ──────────────────────────────────────────────── */

@@ -774,14 +774,16 @@
     overflow-x: auto;
     position: static;
     gap: 4px;
-    padding-bottom: .5rem;
+    padding: .6rem .5rem;
     border-bottom: 1px solid var(--border);
-    margin-bottom: .75rem;
+    margin-bottom: .5rem;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .act-sidebar::-webkit-scrollbar { display: none; }
   .act-sidebar-btn {
-    padding: .4rem .65rem;
-    font-size: .78rem;
+    padding: .55rem .85rem;
+    font-size: .8rem;
     white-space: nowrap;
   }
   .act-input-area {

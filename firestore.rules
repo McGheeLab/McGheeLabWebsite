@@ -12,6 +12,17 @@ service cloud.firestore {
     match /users/{userId} {
       allow read:  if true;
       allow write: if request.auth.uid == userId || isAdmin();
+
+      // Push notification tokens — owner only
+      match /pushTokens/{tokenId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // User settings (notification prefs, quiet hours) — owner read/write, admin read
+    match /userSettings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isAdmin();
     }
 
     // Stories — public reads for published, owner or admin for writes
@@ -150,6 +161,99 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Huddle plans — any authenticated member can read, owner or admin manages
+    match /huddlePlans/{planId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+    }
+
+    // Huddle check-ins — any member can read, own create/update
+    match /huddleCheckins/{checkinId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.uid;
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.uid || isAdmin());
+    }
+
+    // Huddle help requests — any member can read, own create/update, responses via update
+    match /huddleHelpRequests/{requestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+    }
+
+    // Huddle settings — per-user defaults, own read/write
+    match /huddleSettings/{userId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+
+    // Huddle protocols — shared protocol library
+    match /huddleProtocols/{protocolId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && (request.auth.uid == resource.data.authorUid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Huddle rundown tasks — weekly non-timeframe task list
+    // Any authenticated member reads; auth create/update (others add join requests);
+    // owner or admin delete
+    match /huddleRundown/{taskId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+    }
+
+    // Huddle config — lab-wide settings (categories, etc). Admin write, auth read
+    match /huddleConfig/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Huddle schedule templates — recurring weekly availability per user
+    // All auth members can read (for team availability view); owner writes own
+    match /huddleScheduleTemplates/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId;
+    }
+
+    // Huddle schedule overrides — per-week deviations from template
+    // Auth read; owner CRUD; admin delete
+    match /huddleScheduleOverrides/{overrideId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.ownerUid;
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+    }
+
+    // Lab Meetings — any authenticated member reads/creates/updates; admin-only delete
+    match /meetings/{meetingId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && isAdmin();
+    }
+
+    // Meeting config — admin manages rotation/schedule, members can read
+    match /meetingConfig/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Activity tracker data — strictly owner-only (no admin access)
     match /trackerData/{userId} {
       allow read, write: if request.auth != null
@@ -160,6 +264,79 @@ service cloud.firestore {
     match /trackerEntries/{userId}/entries/{entryId} {
       allow read, write: if request.auth != null
                          && request.auth.uid == userId;
+    }
+
+    // Equipment catalog — authenticated read, admin write
+    match /equipment/{equipmentId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Equipment bookings — authenticated read/create, authenticated update (for
+    // owner edits, manager approvals, displacement marking), admin delete
+    match /equipmentBookings/{bookingId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if isAdmin();
+    }
+
+    // Equipment training records — authenticated read, admin write
+    match /equipmentTraining/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Equipment settings — authenticated read, admin write
+    match /equipmentSettings/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // ── Lab Chat ──────────────────────────────────────────────
+
+    // Helper: check if user is a chat admin (site admin OR in chatAdmins list)
+    function isChatAdmin() {
+      return isAdmin() ||
+        (request.auth != null &&
+         request.auth.uid in get(/databases/$(database)/documents/chatConfig/settings).data.chatAdmins);
+    }
+
+    // Chat config — chat admin manages, authenticated read
+    match /chatConfig/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isChatAdmin();
+    }
+
+    // Chat channels — authenticated read/create, chat admin deletes
+    match /chatChannels/{channelId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if isChatAdmin();
+    }
+
+    // Chat messages — authenticated read/create, author edits own, author or site admin deletes
+    // Read-only users blocked at UI layer (Firestore can't distinguish chat roles without extra reads)
+    match /chatMessages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.authorUid == request.auth.uid;
+      allow update: if request.auth != null
+                    && (resource.data.authorUid == request.auth.uid || isAdmin());
+      allow delete: if request.auth != null
+                    && (resource.data.authorUid == request.auth.uid || isAdmin());
+    }
+
+    // Chat read state — authenticated read/write (doc id is uid_channelId)
+    match /chatReadState/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Chat user meta — own data only
+    match /chatUserMeta/{uid} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid;
     }
   }
 }

@@ -1,0 +1,3159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 12: Design of Experiments — Multiplexed Cytokine Assay</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.8rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 20px;border:none;background:none;font-size:.9rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* ── Cards ── */
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:20px;margin-bottom:16px}
+.card h2{font-size:1.15rem;margin-bottom:6px;color:#1e3a5f}
+
+/* ── Panel layout ── */
+.panel{display:grid;grid-template-columns:280px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;
+  border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:14px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.ctrl-group select{width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:.85rem;background:#f8fafc}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.btn{padding:7px 14px;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-secondary{background:#e2e8f0;color:#334155}.btn-secondary:hover{background:#cbd5e1}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Stats ── */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}.stat-row .value{font-weight:600;color:#1e293b}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px;position:relative}
+.canvas-wrap canvas{display:block;width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.canvas-row{display:flex;gap:12px;flex-wrap:wrap}
+.canvas-box{background:#fff;border-radius:8px;border:1px solid #e2e8f0;padding:10px;text-align:center;flex:1;min-width:280px}
+.canvas-box h4{font-size:.82rem;color:#334155;margin-bottom:6px}
+canvas{display:block;margin:0 auto;border-radius:4px}
+
+/* ── Multi-canvas row ── */
+.triple-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:900px){.triple-row{grid-template-columns:1fr}}
+
+/* ── Legend ── */
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0;justify-content:center}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:.75rem;color:#475569}
+.legend-swatch{width:10px;height:10px;border-radius:3px}
+.plate-container{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.background-section .equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0}
+.background-section .worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.background-section .worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;
+  font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+
+/* ── Key Takeaways box ── */
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px;position:relative}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d;line-height:1.5;margin-bottom:2px}
+
+/* ── Tables & Analysis Lists ── */
+.model-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:10px}
+.model-table th{background:#f1f5f9;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;text-align:left;font-size:.72rem}
+.model-table td{padding:8px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top;color:#475569}
+.model-table tr.winner{background:#eff6ff}
+.cap-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.cap-grid{grid-template-columns:1fr}}
+.plain-list{margin:0;padding-left:18px;text-align:left}
+.plain-list li{font-size:.82rem;color:#475569;line-height:1.55;margin-bottom:4px}
+.summary-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px}
+.summary-box p{font-size:.84rem;color:#1e3a8a;line-height:1.5}
+
+/* ── Student Task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:1rem 1.25rem;margin:1rem 0 1.25rem;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container[display="true"]{margin:.75rem 0 !important}
+mjx-container{display:inline-block !important}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Design of Experiments for Model Validation</h1>
+  <p class="subtitle">Multiplexed Cytokine Assay under Cell Stress — Engineering Cancer Course, Module 12</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="model">1. Stress &amp; Cytokine Model</button>
+  <button class="tab-btn" data-tab="factorial">2. Full Factorial</button>
+  <button class="tab-btn" data-tab="fractional">3. Fractional Factorial</button>
+  <button class="tab-btn" data-tab="lhs">4. Space-Filling (LHS)</button>
+  <button class="tab-btn" data-tab="rsm">5. Response Surface</button>
+  <button class="tab-btn" data-tab="ccd">6. Central Composite Design</button>
+  <button class="tab-btn" data-tab="comparison">7. Design Comparison</button>
+  <button class="tab-btn" data-tab="synthesis">8. DOE Synthesis</button>
+</div>
+
+<main>
+
+<!-- ════════════════ TAB 1: STRESS & CYTOKINE MODEL ════════════════ -->
+<section id="tab-model" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: Cell Stress, Cytokines, and Multiplexed ELISA</h2>
+
+    <h3>Tumor cells under stress secrete cytokines</h3>
+    <p>When tumor cells experience stress such as <strong>hypoxia</strong> (low oxygen) or <strong>ionizing radiation</strong>, they activate intracellular stress-response pathways (HIF-1&alpha;, NF-&kappa;B) that upregulate secretion of pro-inflammatory cytokines. Key cytokines include <strong>IL-6</strong>, TNF-&alpha;, IL-8, and VEGF. These secreted factors recruit immune cells to the tumor microenvironment and can promote or suppress anti-tumor immunity depending on concentration and context.</p>
+
+    <h3>Multiplexed ELISA for cytokine profiling</h3>
+    <p>Platforms such as Luminex (bead-based) and MSD (electrochemiluminescence) allow simultaneous measurement of 10&ndash;40+ cytokines from a single well of conditioned media. For this module, we focus on <strong>IL-6 concentration (pg/mL)</strong> as the primary readout because it is the dominant pro-inflammatory cytokine under combined stress.</p>
+
+    <h3>The DOE question</h3>
+    <p>We have a mathematical model predicting IL-6 secretion as a function of two stress factors: <strong>O&#8322; level (1&ndash;21%)</strong> and <strong>radiation dose (0&ndash;10 Gy)</strong>. Before running an expensive multiplexed assay, we need to decide: <em>which combinations of O&#8322; and radiation should we test to efficiently map the cytokine response landscape?</em></p>
+
+    <h3>Mathematical model: cytokine secretion under stress</h3>
+    <p>Each stress pathway is modeled as a Hill function. The combined response includes a <strong>synergy term</strong> &alpha; capturing cooperative signaling:</p>
+
+    <div class="equation-box">
+      <p><strong>Hypoxia stress signal:</strong></p>
+      $$S_H = S_{\max,H} \cdot \frac{(21 - O_2)^{n_H}}{(21 - EC_{50,H})^{n_H} + (21 - O_2)^{n_H}}$$
+      <p><strong>Radiation stress signal:</strong></p>
+      $$S_R = S_{\max,R} \cdot \frac{D^{n_R}}{EC_{50,R}^{n_R} + D^{n_R}}$$
+      <p><strong>Combined IL-6 secretion:</strong></p>
+      $$[\text{IL-6}] = \text{baseline} + (S_H + S_R + \alpha \cdot S_H \cdot S_R) \times \text{scale}$$
+    </div>
+
+    <div class="worked-example">
+      <p><strong>Sample calculation:</strong> At O&#8322; = 5% and radiation = 4 Gy with default parameters:</p>
+      <p>Hypoxia level = 21 - 5 = 16. Half-max hypoxia = 21 - 11 = 10.</p>
+      <p>\(S_H = 0.9 \times \frac{16^{1.5}}{10^{1.5} + 16^{1.5}} = 0.9 \times \frac{64}{31.6 + 64} = 0.9 \times 0.669 = 0.603\)</p>
+      <p>\(S_R = 0.85 \times \frac{4^{1.2}}{3^{1.2} + 4^{1.2}} = 0.85 \times \frac{5.28}{3.74 + 5.28} = 0.85 \times 0.585 = 0.497\)</p>
+      <p>Combined = 0.603 + 0.497 + 0.15 &times; 0.603 &times; 0.497 = 1.145</p>
+      <p>IL-6 = 50 + 1.145 &times; 500 = <strong>622.5 pg/mL</strong></p>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Model Parameters</h3>
+      <div class="ctrl-group"><label>EC<sub>50,H</sub> (O&#8322; %) <span id="v-ec50h">11</span></label>
+        <input type="range" id="s-ec50h" min="3" max="18" step="0.5" value="11"></div>
+      <div class="ctrl-group"><label>EC<sub>50,R</sub> (Gy) <span id="v-ec50r">3.0</span></label>
+        <input type="range" id="s-ec50r" min="0.5" max="8" step="0.1" value="3.0"></div>
+      <div class="ctrl-group"><label>n<sub>H</sub> <span id="v-nh">1.5</span></label>
+        <input type="range" id="s-nh" min="0.5" max="4" step="0.1" value="1.5"></div>
+      <div class="ctrl-group"><label>n<sub>R</sub> <span id="v-nr">1.2</span></label>
+        <input type="range" id="s-nr" min="0.5" max="4" step="0.1" value="1.2"></div>
+      <div class="ctrl-group"><label>S<sub>max,H</sub> <span id="v-smaxh">0.90</span></label>
+        <input type="range" id="s-smaxh" min="0.3" max="1.0" step="0.01" value="0.90"></div>
+      <div class="ctrl-group"><label>S<sub>max,R</sub> <span id="v-smaxr">0.85</span></label>
+        <input type="range" id="s-smaxr" min="0.3" max="1.0" step="0.01" value="0.85"></div>
+      <div class="ctrl-group"><label>Synergy &alpha; <span id="v-alpha">0.15</span></label>
+        <input type="range" id="s-alpha" min="-0.5" max="1.0" step="0.01" value="0.15"></div>
+      <div class="ctrl-group"><label>Baseline (pg/mL) <span id="v-baseline">50</span></label>
+        <input type="range" id="s-baseline" min="0" max="150" step="5" value="50"></div>
+      <div class="ctrl-group"><label>Scale (pg/mL) <span id="v-scale">500</span></label>
+        <input type="range" id="s-scale" min="100" max="1000" step="25" value="500"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-reset-model">Reset Defaults</button>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-row">
+        <div class="canvas-box" style="flex:1.2">
+          <h4>Cytokine Response Heatmap (IL-6 pg/mL)</h4>
+          <canvas id="c-mod-surface" width="480" height="400"></canvas>
+        </div>
+        <div class="canvas-box" style="flex:0.8;min-width:280px">
+          <h4>1D Slices: IL-6 vs O&#8322; at Fixed Radiation</h4>
+          <canvas id="c-mod-slices" width="360" height="400"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set &alpha; = 0 (no synergy). Note the shape of the response surface.</li>
+      <li>Increase &alpha; to 0.8 (strong synergy). Where does the surface change most?</li>
+      <li>Set &alpha; = -0.3 (antagonism). How does the 1D slice at Dose = 4 Gy compare to the &alpha; = 0 case?</li>
+      <li>Which region of the O&#8322;-radiation space would best distinguish synergy from independence?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 2: FULL FACTORIAL ════════════════ -->
+<section id="tab-factorial" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Full Factorial Designs</h2>
+
+    <h3>What is a full factorial?</h3>
+    <p>A <strong>full factorial design</strong> tests every combination of factor levels. It guarantees estimation of all main effects and all interactions. The cost is that runs grow as the product of all level counts:</p>
+
+    <div class="equation-box">
+      $$N = \prod_{i=1}^{k} L_i$$
+      <p>where \(k\) is the number of factors and \(L_i\) is the number of levels for factor \(i\).</p>
+      <p><strong>With replicates:</strong> \(N_{\text{total}} = r \cdot \prod L_i + n_{\text{controls}}\)</p>
+    </div>
+
+    <div class="worked-example">
+      <p><strong>Cytokine screening budget:</strong> You want to test 4 O&#8322; levels &times; 4 radiation doses with 3 replicates and 6 controls.</p>
+      <ul>
+        <li>Unique conditions: \(4 \times 4 = 16\)</li>
+        <li>Total wells: \(3 \times 16 + 6 = 54\) &mdash; fits on one 96-well plate.</li>
+        <li>But add a third factor (e.g., 3 exposure times): \(4 \times 4 \times 3 = 48\) conditions &rarr; \(3 \times 48 + 6 = 150\) wells. Two plates needed!</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Design Parameters</h3>
+      <div class="ctrl-group"><label>O&#8322; Levels <span id="v-fac-lo2">4</span></label>
+        <input type="range" id="s-fac-lo2" min="2" max="6" step="1" value="4"></div>
+      <div class="ctrl-group"><label>Radiation Levels <span id="v-fac-ld">4</span></label>
+        <input type="range" id="s-fac-ld" min="2" max="6" step="1" value="4"></div>
+      <div class="ctrl-group"><label>Replicates <span id="v-fac-rep">3</span></label>
+        <input type="range" id="s-fac-rep" min="1" max="5" step="1" value="3"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-gen-fac">Generate Design</button>
+      </div>
+      <div class="stats">
+        <h4>Design Statistics</h4>
+        <div class="stat-row"><span class="label">Unique Conditions</span><span class="value" id="st-fac-cond">--</span></div>
+        <div class="stat-row"><span class="label">Total Wells</span><span class="value" id="st-fac-wells">--</span></div>
+        <div class="stat-row"><span class="label">Fits on 96-well?</span><span class="value" id="st-fac-fits">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-row">
+        <div class="canvas-box" style="flex:1">
+          <h4>Factorial Design Points (O&#8322; vs Dose)</h4>
+          <canvas id="c-fac-scatter" width="440" height="380"></canvas>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>IL-6 Response at Design Points</h4>
+          <canvas id="c-fac-heatmap" width="440" height="380"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start with 2 O&#8322; levels &times; 2 radiation levels, 3 replicates. How many wells?</li>
+      <li>Increase to 6 &times; 6 with 3 replicates. Can this fit on one plate?</li>
+      <li>Find the maximum factorial design that fits on a single plate with 3 replicates and 6 controls (total &le; 96).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 3: FRACTIONAL FACTORIAL ════════════════ -->
+<section id="tab-fractional" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Fractional Factorial Designs</h2>
+
+    <h3>The curse of dimensionality in factorial designs</h3>
+    <p>A full factorial with \(k\) factors at 2 levels requires \(2^k\) runs. This grows fast: 3 factors = 8 runs, 5 factors = 32, 7 factors = 128. <strong>Fractional factorials</strong> strategically select a subset that preserves the most important information while cutting the run count by half, a quarter, or more.</p>
+
+    <h3>Notation and construction: \(2^{k-p}\)</h3>
+    <p>The superscript tells the story: \(k\) factors, each at 2 levels, with the design size cut \(p\) times in half. So \(2^{5-2} = 2^3 = 8\) runs test 5 factors in only 8 experiments instead of 32.</p>
+    <p>To construct the fraction, we choose <strong>generators</strong> that define later factors as products of earlier ones. For \(2^{3-1}\), we set \(C = AB\) &mdash; we only run conditions where the level of C equals the product of A and B.</p>
+
+    <div class="equation-box">
+      <p><strong>Generator:</strong> \(C = AB\)</p>
+      <p><strong>Defining relation:</strong> Multiply both sides by C: \(I = ABC\)</p>
+      <p>The defining relation tells us which effects are <strong>aliased</strong> (confounded). To find the alias of any effect, multiply it by the defining relation:</p>
+      <p>\(A \times ABC = A^2BC = BC\) &rarr; so \(A\) is aliased with \(BC\)</p>
+      <p>\(B \times ABC = AB^2C = AC\) &rarr; so \(B\) is aliased with \(AC\)</p>
+      <p>\(C \times ABC = ABC^2 = AB\) &rarr; so \(C\) is aliased with \(AB\)</p>
+    </div>
+
+    <h3>Resolution: how severe is the aliasing?</h3>
+    <p><strong>Resolution</strong> is the length of the shortest word in the defining relation. It determines which types of effects are confounded:</p>
+    <table class="model-table">
+      <thead><tr><th>Resolution</th><th>Shortest Word</th><th>Aliasing Pattern</th><th>What You Can Estimate</th></tr></thead>
+      <tbody>
+        <tr><td><strong>III</strong></td><td>3 letters (e.g., ABC)</td><td>Main effects aliased with 2-factor interactions</td><td>Main effects only (if interactions are negligible)</td></tr>
+        <tr><td><strong>IV</strong></td><td>4 letters (e.g., ABCD)</td><td>Main effects clear; 2FIs aliased with other 2FIs</td><td>All main effects cleanly; interactions with caution</td></tr>
+        <tr><td><strong>V</strong></td><td>5 letters (e.g., ABCDE)</td><td>Main effects and 2FIs all clear</td><td>All main effects and all 2-factor interactions</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Common fractional factorial designs</h3>
+    <table class="model-table">
+      <thead><tr><th>Design</th><th>Factors</th><th>Full Runs</th><th>Fraction Runs</th><th>Resolution</th><th>Generator(s)</th></tr></thead>
+      <tbody>
+        <tr><td>\(2^{3-1}\)</td><td>3</td><td>8</td><td>4</td><td>III</td><td>C = AB</td></tr>
+        <tr><td>\(2^{4-1}\)</td><td>4</td><td>16</td><td>8</td><td>IV</td><td>D = ABC</td></tr>
+        <tr><td>\(2^{5-1}\)</td><td>5</td><td>32</td><td>16</td><td>V</td><td>E = ABCD</td></tr>
+        <tr><td>\(2^{5-2}\)</td><td>5</td><td>32</td><td>8</td><td>III</td><td>D = AB, E = AC</td></tr>
+        <tr><td>\(2^{6-2}\)</td><td>6</td><td>64</td><td>16</td><td>IV</td><td>E = ABC, F = BCD</td></tr>
+      </tbody>
+    </table>
+
+    <h3>The sparsity-of-effects principle</h3>
+    <p>Fractional designs work because of an empirical regularity: in most systems, <strong>lower-order effects dominate</strong>. Main effects are usually larger than 2-factor interactions, which are larger than 3-factor interactions. If high-order interactions are negligible, confounding them with lower-order effects causes little harm. This is the <strong>sparsity-of-effects principle</strong> that justifies fractional designs for screening.</p>
+    <p>However, in cancer biology, synergistic drug interactions (2-factor) are often the key scientific question. Using a Resolution III design when you care about interactions is a common and costly mistake.</p>
+
+    <div class="worked-example">
+      <p><strong>Cytokine assay example:</strong> You want to screen 5 stress factors: O&#8322; level, radiation dose, heat shock, nutrient depletion, and acidic pH. A full \(2^5\) design requires 32 conditions. A \(2^{5-2}\) fractional factorial tests all 5 in just 8 conditions &mdash; but main effects are aliased with 2-factor interactions (Resolution III).</p>
+      <p>If you suspect O&#8322; &times; radiation interaction is important, this aliasing is problematic. You would need at least Resolution IV (\(2^{5-1}\) = 16 runs) to cleanly separate main effects from all 2-factor interactions.</p>
+    </div>
+
+    <h3>Why fractions still cover the experimental space well</h3>
+    <p>A key property: a well-chosen fraction <strong>projects onto every pair of factors with full coverage</strong>. In a \(2^{3-1}\) half-fraction, every 2D projection (A vs B, A vs C, B vs C) still contains all four corner combinations (+/+, +/&minus;, &minus;/+, &minus;/&minus;). The fraction is not random &mdash; it is a carefully chosen geometric subset that maintains balance across all factor pairs.</p>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Fractional Design Explorer</h3>
+      <div class="ctrl-group"><label>Design</label>
+        <select id="sel-frac-design">
+          <option value="3-1">2^(3-1) = 4 runs, Res III</option>
+          <option value="4-1">2^(4-1) = 8 runs, Res IV</option>
+          <option value="5-1">2^(5-1) = 16 runs, Res V</option>
+          <option value="5-2">2^(5-2) = 8 runs, Res III</option>
+          <option value="6-2">2^(6-2) = 16 runs, Res IV</option>
+        </select></div>
+      <div class="ctrl-group"><label>Replicates per Run <span id="v-frac-rep">3</span></label>
+        <input type="range" id="s-frac-rep" min="1" max="5" step="1" value="3"></div>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:10px 0">
+      <h3 style="font-size:.8rem">Aliasing Bias Demo</h3>
+      <p style="font-size:.75rem;color:#64748b;margin-bottom:8px">Inject a hidden A&times;B interaction to see how aliasing biases fractional estimates. Uses the selected design above.</p>
+      <div class="ctrl-group"><label>True Effect of Last Factor <span id="v-frac-c">30</span></label>
+        <input type="range" id="s-frac-c" min="-20" max="60" step="5" value="30"></div>
+      <div class="ctrl-group"><label>Hidden A&times;B Interaction <span id="v-frac-ab">0</span></label>
+        <input type="range" id="s-frac-ab" min="-60" max="60" step="5" value="0"></div>
+      <div class="ctrl-group"><label>Measurement Noise &sigma; <span id="v-frac-noise">12</span></label>
+        <input type="range" id="s-frac-noise" min="0" max="30" step="1" value="12"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-gen-frac">Generate &amp; Compare</button>
+      </div>
+      <div class="stats">
+        <h4>Design Summary</h4>
+        <div class="stat-row"><span class="label">Full Factorial Runs</span><span class="value" id="st-frac-fullruns">--</span></div>
+        <div class="stat-row"><span class="label">Fractional Runs</span><span class="value" id="st-frac-fracruns">--</span></div>
+        <div class="stat-row"><span class="label">Resolution</span><span class="value" id="st-frac-res">--</span></div>
+        <div class="stat-row"><span class="label">Generator(s)</span><span class="value" id="st-frac-gen">--</span></div>
+        <div class="stat-row"><span class="label">Defining Relation</span><span class="value" id="st-frac-defrel">--</span></div>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:6px 0">
+        <h4>Aliasing Bias (last factor)</h4>
+        <div class="stat-row"><span class="label">Full Wells (&times;reps)</span><span class="value" id="st-frac-full">--</span></div>
+        <div class="stat-row"><span class="label">Fractional Wells</span><span class="value" id="st-frac-half">--</span></div>
+        <div class="stat-row"><span class="label">Well Savings</span><span class="value" id="st-frac-save">--</span></div>
+        <div class="stat-row"><span class="label">Full Estimate of C</span><span class="value" id="st-frac-cfull">--</span></div>
+        <div class="stat-row"><span class="label">Fractional Estimate</span><span class="value" id="st-frac-chalf">--</span></div>
+        <div class="stat-row"><span class="label">Bias (= aliased interaction)</span><span class="value" id="st-frac-bias">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-row">
+        <div class="canvas-box" style="flex:1">
+          <h4>3D Design Cube: Full vs Fraction</h4>
+          <canvas id="c-frac-cube" width="400" height="380"></canvas>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#e2e8f0;border:1.5px solid #94a3b8;border-radius:50%"></div>Full factorial (excluded)</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed;border-radius:50%"></div>Retained in fraction</div>
+          </div>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>2D Projections: Factor-Pair Coverage</h4>
+          <canvas id="c-frac-proj" width="420" height="380"></canvas>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#e2e8f0;border:1px solid #cbd5e1;border-radius:50%"></div>Full design projection</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed;border-radius:50%"></div>Fraction projection</div>
+            <div class="legend-item" style="color:#059669;font-weight:600">Green = all 4 corners covered</div>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-row" style="margin-top:12px">
+        <div class="canvas-box" style="flex:1">
+          <h4>Alias Structure</h4>
+          <table class="model-table" id="frac-alias-table">
+            <thead><tr><th>Effect</th><th>Aliased With</th></tr></thead>
+            <tbody id="frac-alias-tbody"></tbody>
+          </table>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>Main-Effect Estimates Under Aliasing</h4>
+          <canvas id="c-frac-effects" width="420" height="280"></canvas>
+        </div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li><strong>Resolution III</strong> designs are cheap but risky: main effects absorb two-factor interactions, so they work best for initial screening when interactions are expected to be small.</li>
+          <li><strong>Resolution IV</strong> or higher designs separate main effects from 2-factor interactions, at the cost of more runs.</li>
+          <li>The 2D projections show that even a half-fraction covers every pair of factor levels &mdash; the fraction is carefully chosen, not random.</li>
+          <li>When the aliased interaction is active, the fractional estimate is biased by exactly that interaction&rsquo;s effect.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Select the \(2^{3-1}\) design. Look at the 3D cube: how many of the 8 corners are used? What geometric shape do the fraction points form?</li>
+      <li>Examine the 2D projections. Does the fraction cover all four corners of each factor pair? Why is this important for estimating main effects?</li>
+      <li>Set the hidden A&times;B interaction to 0. Does the fractional estimate of the last factor match the full-factorial estimate?</li>
+      <li>Increase the hidden interaction to +40. Which effect becomes biased? By how much? Can you predict the bias from the alias table?</li>
+      <li>Switch to the \(2^{4-1}\) design. What is the resolution? How does the alias structure change compared to the 3-factor design?</li>
+      <li>Switch to \(2^{5-2}\). This has the same run count as \(2^{4-1}\) but tests 5 factors. What is the tradeoff?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 4: LHS ════════════════ -->
+<section id="tab-lhs" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Space-Filling Designs (Latin Hypercube)</h2>
+
+    <h3>Why space-filling?</h3>
+    <p>When factors are continuous, we need designs that <em>fill the space</em> rather than placing points only on a grid. <strong>Latin Hypercube Sampling (LHS)</strong> divides each factor range into \(n\) equal strata and places exactly one point in each stratum per factor.</p>
+
+    <div class="equation-box">
+      <p><strong>LHS construction:</strong> For \(n\) samples in \(d\) dimensions, generate a random permutation \(\pi_j\) of \(\{1, \ldots, n\}\) for each dimension \(j\). Sample \(i\) is:</p>
+      $$x_{ij} = \frac{\pi_j(i) - U_{ij}}{n}, \quad U_{ij} \sim \text{Uniform}(0,1)$$
+      <p><strong>Min nearest-neighbor distance:</strong> \(d_{\min} = \min_{i \neq j} \|x_i - x_j\|\)</p>
+      <p><strong>Discrepancy:</strong> largest gap in any 1D marginal projection. Lower = more uniform.</p>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Sampling Parameters</h3>
+      <div class="ctrl-group"><label>Number of Samples <span id="v-lhs-n">15</span></label>
+        <input type="range" id="s-lhs-n" min="5" max="50" step="1" value="15"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-gen-lhs">Generate LHS</button>
+        <button class="btn btn-warning" id="btn-gen-rnd">Generate Random</button>
+        <button class="btn btn-secondary" id="btn-gen-both">Both</button>
+      </div>
+      <div class="stats">
+        <h4>Space-Filling Metrics</h4>
+        <div class="stat-row"><span class="label">LHS Min NN Dist</span><span class="value" id="st-lhs-minn">--</span></div>
+        <div class="stat-row"><span class="label">Random Min NN Dist</span><span class="value" id="st-rnd-minn">--</span></div>
+        <div class="stat-row"><span class="label">LHS Avg NN Dist</span><span class="value" id="st-lhs-avgn">--</span></div>
+        <div class="stat-row"><span class="label">Random Avg NN Dist</span><span class="value" id="st-rnd-avgn">--</span></div>
+        <div class="stat-row"><span class="label">LHS Discrepancy</span><span class="value" id="st-lhs-disc">--</span></div>
+        <div class="stat-row"><span class="label">Random Discrepancy</span><span class="value" id="st-rnd-disc">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-row">
+        <div class="canvas-box" style="flex:1">
+          <h4>Random Sampling</h4>
+          <canvas id="c-rnd-scatter" width="380" height="380"></canvas>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>Latin Hypercube Sampling</h4>
+          <canvas id="c-lhs-scatter" width="380" height="380"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Generate LHS with \(n=5\). Click "Generate LHS" several times. Does the min nearest-neighbor distance vary much?</li>
+      <li>Compare: generate Random with \(n=5\) several times. How often does random have a larger gap (worse discrepancy) than LHS?</li>
+      <li>At \(n=40\), is the difference between LHS and random still meaningful? Why or why not?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 5: RSM ════════════════ -->
+<section id="tab-rsm" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Response Surface Methodology (RSM)</h2>
+
+    <h3>What is RSM?</h3>
+    <p><strong>RSM</strong> fits a polynomial surrogate to experimental data, mapping the response landscape and identifying optimal conditions. For our cytokine assay, the "response" is IL-6 concentration and the "optimal" condition is the stress combination that produces peak secretion.</p>
+
+    <div class="equation-box">
+      <p><strong>Second-order response surface model (2 factors):</strong></p>
+      $$\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{11} x_1^2 + \beta_{22} x_2^2 + \beta_{12} x_1 x_2$$
+      <p>The \(\beta_{12}\) term captures the <strong>interaction</strong> between stressors &mdash; this corresponds to the synergy parameter in the mechanistic model.</p>
+      <p><strong>OLS fit:</strong> \(\hat{\boldsymbol{\beta}} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}\)</p>
+    </div>
+
+    <div class="worked-example">
+      <p><strong>Interpreting RSM coefficients:</strong> Suppose we fit: \(\hat{y} = 120 + 85 x_1 + 62 x_2 + 12 x_1^2 + 8 x_2^2 + 35 x_1 x_2\)</p>
+      <ul>
+        <li>\(\beta_0 = 120\): at center conditions, IL-6 is ~120 pg/mL (moderate secretion)</li>
+        <li>\(\beta_1 = 85\): hypoxia has a stronger effect than radiation (\(\beta_2 = 62\))</li>
+        <li>\(\beta_{12} = 35\): <strong>positive interaction</strong> &mdash; combined stress produces more IL-6 than expected from each stress alone (synergy)</li>
+        <li>Positive curvature terms (\(\beta_{11}, \beta_{22} > 0\)) indicate accelerating response at extremes</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>RSM Parameters</h3>
+      <div class="ctrl-group"><label>Design Points (n) <span id="v-rsm-n">25</span></label>
+        <input type="range" id="s-rsm-n" min="8" max="50" step="1" value="25"></div>
+      <div class="ctrl-group"><label>Noise &sigma; (pg/mL) <span id="v-rsm-noise">15</span></label>
+        <input type="range" id="s-rsm-noise" min="0" max="50" step="1" value="15"></div>
+      <div class="ctrl-group"><label>Design Type</label>
+        <select id="sel-rsm-type">
+          <option value="lhs">Latin Hypercube (LHS)</option>
+          <option value="ccd">Central Composite (CCD)</option>
+          <option value="factorial">Factorial Grid</option>
+          <option value="random">Random Sampling</option>
+        </select></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-gen-rsm">Generate &amp; Fit</button>
+      </div>
+      <div class="stats">
+        <h4>Fit Statistics</h4>
+        <div class="stat-row"><span class="label">R&sup2;</span><span class="value" id="st-rsm-r2">--</span></div>
+        <div class="stat-row"><span class="label">RMSE (pg/mL)</span><span class="value" id="st-rsm-rmse">--</span></div>
+        <div class="stat-row"><span class="label">&beta;<sub>0</sub> (intercept)</span><span class="value" id="st-rsm-b0">--</span></div>
+        <div class="stat-row"><span class="label">&beta;<sub>1</sub> (O&#8322;)</span><span class="value" id="st-rsm-b1">--</span></div>
+        <div class="stat-row"><span class="label">&beta;<sub>2</sub> (Dose)</span><span class="value" id="st-rsm-b2">--</span></div>
+        <div class="stat-row"><span class="label">&beta;<sub>11</sub> (O&#8322;&sup2;)</span><span class="value" id="st-rsm-b11">--</span></div>
+        <div class="stat-row"><span class="label">&beta;<sub>22</sub> (Dose&sup2;)</span><span class="value" id="st-rsm-b22">--</span></div>
+        <div class="stat-row"><span class="label">&beta;<sub>12</sub> (O&#8322;&times;Dose)</span><span class="value" id="st-rsm-b12">--</span></div>
+        <div class="stat-row"><span class="label">Optimal O&#8322;</span><span class="value" id="st-rsm-opto2">--</span></div>
+        <div class="stat-row"><span class="label">Optimal Dose</span><span class="value" id="st-rsm-optd">--</span></div>
+        <div class="stat-row"><span class="label">Max IL-6</span><span class="value" id="st-rsm-optv">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-row">
+        <div class="canvas-box" style="flex:1">
+          <h4>Fitted Response Surface</h4>
+          <canvas id="c-rsm-fitted" width="400" height="360"></canvas>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>True Response Surface</h4>
+          <canvas id="c-rsm-true" width="400" height="360"></canvas>
+        </div>
+        <div class="canvas-box" style="flex:0.6;min-width:240px">
+          <h4>Predicted vs Actual</h4>
+          <canvas id="c-rsm-pva" width="280" height="280"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set noise = 0, points = 25. Does the quadratic model perfectly match the true surface? (Hint: look at the predicted vs actual plot)</li>
+      <li>The true model is a Hill equation &mdash; the quadratic is an approximation. Where does the approximation break down?</li>
+      <li>Set noise = 40 pg/mL and try \(n = 10\) vs \(n = 40\). Compare R&sup2; values. What is the minimum sample size for R&sup2; &gt; 0.9?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 6: CENTRAL COMPOSITE DESIGN ════════════════ -->
+<section id="tab-ccd" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Central Composite Design (CCD)</h2>
+
+    <h3>Why CCDs are paired with quadratic models</h3>
+    <p>A <strong>central composite design</strong> is built specifically to estimate the same second-order model used in response surface methodology. It combines a <strong>factorial core</strong> for interaction estimation, <strong>axial (star) points</strong> for curvature, and repeated <strong>center points</strong> for pure-error estimation.</p>
+
+    <div class="equation-box">
+      <p><strong>CCD run count for \(k\) factors:</strong></p>
+      $$N = 2^k + 2k + n_c$$
+      <p>For two assay factors (\(k=2\)): \(N = 4 + 4 + n_c\). With \(n_c = 5\), this gives <strong>13 total runs</strong>.</p>
+      <p><strong>Quadratic model supported by CCD:</strong></p>
+      $$\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{11} x_1^2 + \beta_{22} x_2^2 + \beta_{12} x_1 x_2$$
+      <p><strong>Rotatable axial distance:</strong> \(\alpha = (2^k)^{1/4}\), so for \(k=2\), \(\alpha = \sqrt{2}\).</p>
+    </div>
+
+    <div class="worked-example">
+      <p><strong>Cytokine assay example:</strong> In coded units, the 2-factor CCD uses factorial points at \((\pm 1, \pm 1)\), axial points at \((\pm \sqrt{2}, 0)\) and \((0, \pm \sqrt{2})\), plus center replicates at \((0,0)\).</p>
+      <p>Mapped onto the assay space, the center is O&#8322; = 11% and dose = 5 Gy. The star points touch the assay boundaries, while the interior factorial square helps estimate interaction terms without spending every run at an extreme condition.</p>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>CCD Parameters</h3>
+      <div class="ctrl-group"><label>Axial Distance &alpha; <span id="v-ccd-alpha">1.41</span></label>
+        <input type="range" id="s-ccd-alpha" min="1.20" max="2.20" step="0.01" value="1.41"></div>
+      <div class="ctrl-group"><label>Center Replicates <span id="v-ccd-center">5</span></label>
+        <input type="range" id="s-ccd-center" min="1" max="7" step="1" value="5"></div>
+      <div class="ctrl-group"><label>Noise &sigma; (pg/mL) <span id="v-ccd-noise">15</span></label>
+        <input type="range" id="s-ccd-noise" min="0" max="40" step="1" value="15"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-gen-ccd">Generate &amp; Fit</button>
+      </div>
+      <div class="stats">
+        <h4>CCD Statistics</h4>
+        <div class="stat-row"><span class="label">Total Runs</span><span class="value" id="st-ccd-runs">--</span></div>
+        <div class="stat-row"><span class="label">Unique Locations</span><span class="value" id="st-ccd-unique">--</span></div>
+        <div class="stat-row"><span class="label">Center Replicates</span><span class="value" id="st-ccd-centers">--</span></div>
+        <div class="stat-row"><span class="label">R&sup2;</span><span class="value" id="st-ccd-r2">--</span></div>
+        <div class="stat-row"><span class="label">Test RMSE (pg/mL)</span><span class="value" id="st-ccd-rmse">--</span></div>
+        <div class="stat-row"><span class="label">&beta;<sub>12</sub> (interaction)</span><span class="value" id="st-ccd-b12">--</span></div>
+        <div class="stat-row"><span class="label">Optimal O&#8322;</span><span class="value" id="st-ccd-opto2">--</span></div>
+        <div class="stat-row"><span class="label">Optimal Dose</span><span class="value" id="st-ccd-optd">--</span></div>
+        <div class="stat-row"><span class="label">Peak IL-6</span><span class="value" id="st-ccd-optv">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-row">
+        <div class="canvas-box" style="flex:1">
+          <h4>CCD Layout in O&#8322;-Dose Space</h4>
+          <canvas id="c-ccd-layout" width="400" height="360"></canvas>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#2563eb"></div>Factorial core</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#d97706"></div>Axial points</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>Center runs</div>
+          </div>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>True IL-6 Surface with CCD Points</h4>
+          <canvas id="c-ccd-surface" width="400" height="360"></canvas>
+        </div>
+        <div class="canvas-box" style="flex:0.6;min-width:240px">
+          <h4>Predicted vs Actual</h4>
+          <canvas id="c-ccd-pva" width="280" height="280"></canvas>
+        </div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Factorial points are what identify interactions like O&#8322; &times; dose.</li>
+          <li>Axial points add the curvature information needed for quadratic terms.</li>
+          <li>Center replicates estimate noise and stabilize the fitted surface near the operating point.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start with \(\alpha = \sqrt{2}\), 5 center replicates, and noise = 15. Why do you have 13 runs but only 9 unique locations?</li>
+      <li>Decrease \(\alpha\) toward 1.20. How does the interior factorial square move relative to the assay boundaries?</li>
+      <li>Set noise = 30 pg/mL and compare 1 vs 7 center replicates. Which gives a more stable fitted optimum?</li>
+      <li>Compare this tab to the LHS and RSM tabs. When would CCD be a better choice than broad space-filling exploration?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 7: DESIGN COMPARISON ════════════════ -->
+<section id="tab-comparison" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Design Comparison &amp; Selection</h2>
+
+    <h3>No universally "best" design</h3>
+    <p>The right choice depends on your <strong>goal</strong>: screening broadly, fitting a specific model, or discriminating between competing models?</p>
+    <ul>
+      <li><strong>Full Factorial:</strong> Estimates ALL interactions. Expensive. Regular grid.</li>
+      <li><strong>Latin Hypercube:</strong> Broad exploration of continuous space. Space-filling.</li>
+      <li><strong>Central Composite:</strong> Optimal for fitting quadratic response surfaces. Efficient.</li>
+    </ul>
+
+    <div class="equation-box">
+      <p><strong>D-optimality:</strong> A design is D-optimal if it maximizes \(\det(\mathbf{X}^T\mathbf{X})\), minimizing the generalized variance of parameter estimates.</p>
+      <p><strong>Prediction variance:</strong> \(\text{Var}(\hat{y}(\mathbf{x}_0)) = \sigma^2 \, \mathbf{x}_0^T (\mathbf{X}^T\mathbf{X})^{-1} \mathbf{x}_0\)</p>
+    </div>
+
+  </div>
+
+  <div class="panel" style="grid-template-columns:1fr">
+    <div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-run-cmp">Run Comparison (~13 runs each)</button>
+      </div>
+      <div class="triple-row">
+        <div class="canvas-box">
+          <h4>Full Factorial (3&times;3 = 9 pts)</h4>
+          <canvas id="c-cmp-fac" width="300" height="300"></canvas>
+        </div>
+        <div class="canvas-box">
+          <h4>Latin Hypercube (13 pts)</h4>
+          <canvas id="c-cmp-lhs" width="300" height="300"></canvas>
+        </div>
+        <div class="canvas-box">
+          <h4>Central Composite (13 pts)</h4>
+          <canvas id="c-cmp-ccd" width="300" height="300"></canvas>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div class="canvas-box">
+          <h4>Model Fit Comparison</h4>
+          <canvas id="c-cmp-bar" width="460" height="280"></canvas>
+        </div>
+        <div class="stats">
+          <h4>Full Factorial (3&times;3)</h4>
+          <div class="stat-row"><span class="label">Runs</span><span class="value" id="st-cmp-fac-n">9</span></div>
+          <div class="stat-row"><span class="label">R&sup2;</span><span class="value" id="st-cmp-fac-r2">--</span></div>
+          <div class="stat-row"><span class="label">Test RMSE</span><span class="value" id="st-cmp-fac-rmse">--</span></div>
+          <h4 style="margin-top:8px">Latin Hypercube</h4>
+          <div class="stat-row"><span class="label">Runs</span><span class="value" id="st-cmp-lhs-n">13</span></div>
+          <div class="stat-row"><span class="label">R&sup2;</span><span class="value" id="st-cmp-lhs-r2">--</span></div>
+          <div class="stat-row"><span class="label">Test RMSE</span><span class="value" id="st-cmp-lhs-rmse">--</span></div>
+          <h4 style="margin-top:8px">Central Composite</h4>
+          <div class="stat-row"><span class="label">Runs</span><span class="value" id="st-cmp-ccd-n">13</span></div>
+          <div class="stat-row"><span class="label">R&sup2;</span><span class="value" id="st-cmp-ccd-r2">--</span></div>
+          <div class="stat-row"><span class="label">Test RMSE</span><span class="value" id="st-cmp-ccd-rmse">--</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Run the comparison 5 times. Record which design "wins" (lowest test RMSE) each time. Is there a consistent winner?</li>
+      <li>The factorial has only 9 points vs. 13 for the others. Is it fair to compare them directly?</li>
+      <li>Given the cytokine model with synergy, which design would you recommend and why?</li>
+    </ol>
+  </div>
+
+</section>
+
+<!-- ════════════════ TAB 8: SYNTHESIS ════════════════ -->
+<section id="tab-synthesis" class="tab-content">
+  <div class="background-section">
+    <h2>Synthesis: Choosing the Right DOE for a Cytokine Screening Study</h2>
+
+    <h3>From individual methods to a complete experimental plan</h3>
+    <p>You now know factorial, fractional factorial, LHS, CCD, and response surface designs individually. The final challenge is choosing the <strong>right design for your specific study</strong>, balancing biological goals, plate constraints, replicate needs, and the statistical analysis you intend to run. There is no universally best design &mdash; the answer depends on your question.</p>
+
+    <h3>The well-budget equation</h3>
+    <div class="equation-box">
+      $$N_{\text{total}} = n_{\text{design runs}} \times n_{\text{cytokines}} \times n_{\text{replicates}} + n_{\text{controls}}$$
+      <p>A 13-run CCD with 3 cytokines and 3 replicates already needs <strong>123 wells</strong> (plus controls) &mdash; more than one 96-well plate. The well equation forces hard tradeoffs between design complexity, number of analytes, and replication.</p>
+    </div>
+
+    <h3>Decision framework: matching design to goal</h3>
+    <table class="model-table">
+      <thead><tr><th>Your Primary Goal</th><th>Recommended Class</th><th>Why</th><th>Risk if Wrong Choice</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Screen broadly</strong><br>(which factors matter?)</td><td>LHS or Fractional Factorial</td><td>Maximizes coverage per well; explores the full space without assuming a model form</td><td>Cannot cleanly estimate interactions; miss synergy</td></tr>
+        <tr><td><strong>Estimate interactions</strong><br>(does O&#8322;&times;dose synergy exist?)</td><td>Full Factorial (3&times;3 or 4&times;4)</td><td>Balanced grid provides clean interaction contrasts without confounding</td><td>Expensive; may not fit on one plate with multiple cytokines</td></tr>
+        <tr><td><strong>Find an optimum</strong><br>(what stress maximizes IL-6?)</td><td>Central Composite Design</td><td>Purpose-built for quadratic response surfaces; axial points estimate curvature</td><td>Concentrated points may miss unexpected behavior far from center</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Tradeoff comparison (updates with your settings)</h3>
+    <table class="model-table">
+      <thead><tr><th>Design</th><th>Runs</th><th>Total Wells</th><th>Best Use</th><th>Main Limitation</th></tr></thead>
+      <tbody id="syn-table-body"></tbody>
+    </table>
+
+    <h3>What any single experiment can and cannot do</h3>
+    <ul>
+      <li><strong>You can:</strong> compare cytokine-specific response patterns across a shared O&#8322;&times;dose design, estimate the model class the DOE supports, and rank conditions for follow-up validation.</li>
+      <li><strong>You cannot:</strong> estimate within-well cytokine covariance if each cytokine is measured from a different well (multiplexed platforms like Luminex solve this), recover time-course dynamics without allocating wells to separate harvest times, or infer effects the design was never built to resolve (aliased interactions, curvature in a screening design, unmeasured factors).</li>
+    </ul>
+
+    <h3>A practical workflow for design selection</h3>
+    <ol style="font-size:.88rem;color:#475569;line-height:1.6">
+      <li><strong>Count your wells:</strong> How many plates can you run? Subtract controls. Divide by (cytokines &times; replicates). That&rsquo;s your maximum unique conditions.</li>
+      <li><strong>State your question:</strong> Screening, interaction, or optimization? This determines the minimum design resolution.</li>
+      <li><strong>Pick the richest feasible design:</strong> Use the planner below. If your ideal design doesn&rsquo;t fit, the tool shows what you must sacrifice (fewer replicates, fewer cytokines, or a simpler design).</li>
+      <li><strong>Validate with the radar chart:</strong> Compare your choice against alternatives on coverage, interaction estimation, curvature detection, cost, and noise robustness.</li>
+    </ol>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Study Planner</h3>
+      <div class="ctrl-group"><label>Primary Goal</label>
+        <select id="sel-syn-goal">
+          <option value="interaction">Estimate interactions</option>
+          <option value="screening">Screen broadly</option>
+          <option value="optimization">Fit an optimum</option>
+        </select>
+      </div>
+      <div class="ctrl-group"><label>Cytokines Measured <span id="v-syn-cyt">3</span></label>
+        <input type="range" id="s-syn-cyt" min="1" max="3" step="1" value="3"></div>
+      <div class="ctrl-group"><label>Replicates per Run <span id="v-syn-rep">3</span></label>
+        <input type="range" id="s-syn-rep" min="1" max="4" step="1" value="3"></div>
+      <div class="ctrl-group"><label>Control Wells <span id="v-syn-ctrl">6</span></label>
+        <input type="range" id="s-syn-ctrl" min="2" max="16" step="1" value="6"></div>
+      <div class="ctrl-group"><label>Total Well Budget <span id="v-syn-budget">96</span></label>
+        <input type="range" id="s-syn-budget" min="48" max="384" step="12" value="96"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-run-syn">Evaluate Study</button>
+      </div>
+      <div class="stats" style="margin-top:10px">
+        <h4>Recommendation</h4>
+        <div class="stat-row highlight"><span class="label">Best Feasible Design</span><span class="value" id="st-syn-rec">--</span></div>
+        <div class="stat-row"><span class="label">Ideal for Goal</span><span class="value" id="st-syn-ideal">--</span></div>
+        <div class="stat-row"><span class="label">Design Runs</span><span class="value" id="st-syn-runs">--</span></div>
+        <div class="stat-row"><span class="label">Total Wells</span><span class="value" id="st-syn-wells">--</span></div>
+        <div class="stat-row"><span class="label">Plates Needed</span><span class="value" id="st-syn-plates">--</span></div>
+        <div class="stat-row"><span class="label">Max Unique Conditions</span><span class="value" id="st-syn-maxcond">--</span></div>
+        <div class="stat-row"><span class="label">Extra Wells for Ideal</span><span class="value" id="st-syn-gap">--</span></div>
+        <div class="stat-row"><span class="label">Best-Supported Analysis</span><span class="value" id="st-syn-analysis">--</span></div>
+      </div>
+      <div class="summary-box" style="margin-top:10px">
+        <p id="syn-summary-text">Use the controls to balance biology, statistics, and well budget.</p>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-row">
+        <div class="canvas-box" style="flex:1">
+          <h4>Well Demand vs Budget</h4>
+          <canvas id="c-syn-budget" width="420" height="300"></canvas>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>Design Quality Comparison (Radar)</h4>
+          <canvas id="c-syn-radar" width="420" height="300"></canvas>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#2563eb"></div>Full 3&times;3</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>Full 4&times;4</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#d97706"></div>LHS-9</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div>CCD-13</div>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-row" style="margin-top:12px">
+        <div class="canvas-box" style="flex:1">
+          <h4>Recommended Design in O&#8322;-Dose Space</h4>
+          <canvas id="c-syn-design" width="420" height="300"></canvas>
+          <div class="legend">
+            <div class="legend-item">Point color = mean cytokine response across selected analytes</div>
+          </div>
+        </div>
+        <div class="canvas-box" style="flex:1">
+          <h4>96-Well Plate Layout</h4>
+          <canvas id="c-syn-plate" width="420" height="300"></canvas>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div>Treatment wells</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#059669"></div>Controls</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#f1f5f9;border:1px solid #cbd5e1"></div>Empty</div>
+          </div>
+        </div>
+      </div>
+      <div class="cap-grid" style="margin-top:12px">
+        <div class="canvas-box">
+          <h4>Analyses You Can Do</h4>
+          <ul id="syn-can-list" class="plain-list"></ul>
+        </div>
+        <div class="canvas-box">
+          <h4>What You Still Cannot Conclude</h4>
+          <ul id="syn-cannot-list" class="plain-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set the goal to &ldquo;Estimate interactions&rdquo; with 3 cytokines, 3 replicates, and a 96-well budget. Which design is recommended? Look at the radar chart &mdash; what does the recommended design sacrifice compared to larger designs?</li>
+      <li>Switch the goal to &ldquo;Fit an optimum.&rdquo; Does the recommendation change? How many extra wells would the ideal design need?</li>
+      <li>Reduce replicates from 3 to 2. Which designs become feasible? How does the plate layout change?</li>
+      <li>Increase the budget to 192 wells (two plates). What new designs become available? Examine the plate layout &mdash; how are wells distributed across plates?</li>
+      <li>Set 1 cytokine, 2 replicates, 96-well budget. Now all designs fit easily. Compare the radar charts &mdash; which design is best for each goal?</li>
+      <li>Why does measuring cytokines in separate wells limit what you can say about joint cytokine covariance? What experimental modification (hint: multiplexed ELISA) would solve this?</li>
+    </ol>
+  </div>
+
+</section>
+
+</main>
+
+<footer>Engineering Cancer Course &mdash; Module 12: Design of Experiments for Model Validation</footer>
+
+<script>
+// ========================================================================
+//  GLOBAL STATE & UTILITIES
+// ========================================================================
+const G = {
+    lhsPoints: null,
+    rndPoints: null,
+    synthesisCandidates: null,
+    synthesisRecommended: null
+};
+
+// Factor ranges (LINEAR)
+const O2_MIN = 1, O2_MAX = 21;
+const DOSE_MIN = 0, DOSE_MAX = 10;
+
+// --- Viridis-like color palette ---
+function viridis(t) {
+    t = Math.max(0, Math.min(1, t));
+    const c = [
+        [68,1,84],[72,35,116],[64,67,135],[52,94,141],[41,120,142],
+        [32,144,140],[34,167,132],[68,190,112],[121,209,81],[189,222,38],[253,231,37]
+    ];
+    const idx = t * (c.length - 1);
+    const lo = Math.floor(idx), hi = Math.min(lo + 1, c.length - 1);
+    const f = idx - lo;
+    return `rgb(${Math.round(c[lo][0]*(1-f)+c[hi][0]*f)},${Math.round(c[lo][1]*(1-f)+c[hi][1]*f)},${Math.round(c[lo][2]*(1-f)+c[hi][2]*f)})`;
+}
+
+// --- Cytokine response model (configurable) ---
+function cytokineResponseParam(O2, dose, p) {
+    const hypoxiaLevel = Math.max(0, 21 - O2);
+    const halfMaxHypoxia = Math.max(0.1, 21 - p.ec50H);
+    const SH = p.smaxH * Math.pow(hypoxiaLevel, p.nH) / (Math.pow(halfMaxHypoxia, p.nH) + Math.pow(hypoxiaLevel, p.nH));
+    const SR = p.smaxR * Math.pow(dose, p.nR) / (Math.pow(p.ec50R, p.nR) + Math.pow(dose, p.nR));
+    const combined = SH + SR + p.alpha * SH * SR;
+    return p.baseline + combined * p.scale;
+}
+
+// --- Default fixed model (used by all simulations except Model Explorer) ---
+const DEFAULT_PARAMS = {
+    baseline: 50, smaxH: 0.9, ec50H: 11, nH: 1.5,
+    smaxR: 0.85, ec50R: 3.0, nR: 1.2, alpha: 0.15, scale: 500
+};
+
+function cytokineResponse(O2, dose) {
+    return cytokineResponseParam(O2, dose, DEFAULT_PARAMS);
+}
+
+const CYTOKINE_LIBRARY = {
+    IL6: { baseline: 50, smaxH: 0.90, ec50H: 11, nH: 1.5, smaxR: 0.85, ec50R: 3.0, nR: 1.2, alpha: 0.15, scale: 500 },
+    IL8: { baseline: 35, smaxH: 1.00, ec50H: 9, nH: 1.9, smaxR: 0.70, ec50R: 4.5, nR: 1.0, alpha: 0.08, scale: 420 },
+    IL2: { baseline: 15, smaxH: 0.55, ec50H: 15, nH: 1.0, smaxR: 0.95, ec50R: 2.2, nR: 1.5, alpha: -0.10, scale: 180 }
+};
+
+const CYTOKINE_ORDER = ['IL6', 'IL8', 'IL2'];
+const CYTOKINE_LABELS = { IL6: 'IL-6', IL8: 'IL-8', IL2: 'IL-2' };
+
+function multiCytokineResponse(cytokine, O2, dose) {
+    return cytokineResponseParam(O2, dose, CYTOKINE_LIBRARY[cytokine]);
+}
+
+function selectedCytokines(n) {
+    return CYTOKINE_ORDER.slice(0, n);
+}
+
+function getModelParams() {
+    return {
+        ec50H: parseFloat(document.getElementById('s-ec50h')?.value || 11),
+        ec50R: parseFloat(document.getElementById('s-ec50r')?.value || 3.0),
+        nH: parseFloat(document.getElementById('s-nh')?.value || 1.5),
+        nR: parseFloat(document.getElementById('s-nr')?.value || 1.2),
+        smaxH: parseFloat(document.getElementById('s-smaxh')?.value || 0.90),
+        smaxR: parseFloat(document.getElementById('s-smaxr')?.value || 0.85),
+        alpha: parseFloat(document.getElementById('s-alpha')?.value || 0.15),
+        baseline: parseFloat(document.getElementById('s-baseline')?.value || 50),
+        scale: parseFloat(document.getElementById('s-scale')?.value || 500)
+    };
+}
+
+function linspace(a, b, n) {
+    const arr = [];
+    for (let i = 0; i < n; i++) arr.push(a + (b - a) * i / (n - 1));
+    return arr;
+}
+
+function clamp(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
+}
+
+function mean(arr) {
+    return arr.length ? arr.reduce((sum, v) => sum + v, 0) / arr.length : 0;
+}
+
+function signedText(v, digits) {
+    const fixed = v.toFixed(digits == null ? 1 : digits);
+    return (v > 0 ? '+' : '') + fixed;
+}
+
+function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function generateLHSNorm(n, d) {
+    const pts = [];
+    const perms = [];
+    for (let dim = 0; dim < d; dim++) {
+        const perm = [];
+        for (let i = 0; i < n; i++) perm.push(i);
+        perms.push(shuffle(perm));
+    }
+    for (let i = 0; i < n; i++) {
+        const pt = [];
+        for (let dim = 0; dim < d; dim++) {
+            pt.push((perms[dim][i] + Math.random()) / n);
+        }
+        pts.push(pt);
+    }
+    return pts;
+}
+
+function nnDistance(pts) {
+    const dists = [];
+    for (let i = 0; i < pts.length; i++) {
+        let minD = Infinity;
+        for (let j = 0; j < pts.length; j++) {
+            if (i === j) continue;
+            let d = 0;
+            for (let k = 0; k < pts[i].length; k++) d += (pts[i][k] - pts[j][k]) ** 2;
+            d = Math.sqrt(d);
+            if (d < minD) minD = d;
+        }
+        dists.push(minD);
+    }
+    return dists;
+}
+
+function discrepancy(pts) {
+    if (pts.length < 2) return 1;
+    let maxGap = 0;
+    for (let d = 0; d < pts[0].length; d++) {
+        const vals = pts.map(p => p[d]).sort((a, b) => a - b);
+        for (let i = 1; i < vals.length; i++) {
+            maxGap = Math.max(maxGap, vals[i] - vals[i - 1]);
+        }
+        maxGap = Math.max(maxGap, vals[0], 1 - vals[vals.length - 1]);
+    }
+    return maxGap;
+}
+
+function randn() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// ========================================================================
+//  CHART DRAWING UTILITIES
+// ========================================================================
+function clearCanvas(id) {
+    const c = document.getElementById(id);
+    if (!c) return null;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, c.width, c.height);
+    return ctx;
+}
+
+function makeLinearTicks(min, max, n) {
+    const ticks = [];
+    for (let i = 0; i < n; i++) {
+        const v = min + (max - min) * i / (n - 1);
+        ticks.push({ pos: i / (n - 1), label: v.toFixed(v >= 10 ? 0 : 1) });
+    }
+    return ticks;
+}
+
+function drawAxes(ctx, W, H, margin, xLabel, yLabel, xTicks, yTicks) {
+    const L = margin.left, R = W - margin.right, T = margin.top, B = H - margin.bottom;
+
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    if (xTicks) {
+        for (const tick of xTicks) {
+            const x = L + (tick.pos) * (R - L);
+            ctx.beginPath();
+            ctx.moveTo(x, T); ctx.lineTo(x, B);
+            ctx.stroke();
+            ctx.fillText(tick.label, x, B + 5);
+        }
+    }
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    if (yTicks) {
+        for (const tick of yTicks) {
+            const y = B - (tick.pos) * (B - T);
+            ctx.beginPath();
+            ctx.moveTo(L, y); ctx.lineTo(R, y);
+            ctx.stroke();
+            ctx.fillText(tick.label, L - 6, y);
+        }
+    }
+
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(L, T); ctx.lineTo(L, B); ctx.lineTo(R, B);
+    ctx.stroke();
+
+    ctx.fillStyle = '#334155';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(xLabel, (L + R) / 2, B + 22);
+
+    ctx.save();
+    ctx.translate(14, (T + B) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(yLabel, 0, 0);
+    ctx.restore();
+
+    return { L, R, T, B };
+}
+
+function mapX(val, min, max, L, R) { return L + (val - min) / (max - min) * (R - L); }
+function mapY(val, min, max, T, B) { return B - (val - min) / (max - min) * (B - T); }
+
+// ========================================================================
+//  MATRIX UTILITIES FOR RSM
+// ========================================================================
+function matTranspose(A) {
+    const m = A.length, n = A[0].length;
+    const AT = [];
+    for (let j = 0; j < n; j++) { AT.push([]); for (let i = 0; i < m; i++) AT[j].push(A[i][j]); }
+    return AT;
+}
+
+function matMul(A, B) {
+    const m = A.length, n = B[0].length, p = B.length;
+    const C = [];
+    for (let i = 0; i < m; i++) {
+        C.push(new Array(n).fill(0));
+        for (let j = 0; j < n; j++) for (let k = 0; k < p; k++) C[i][j] += A[i][k] * B[k][j];
+    }
+    return C;
+}
+
+function matVecMul(A, v) { return A.map(row => row.reduce((s, a, i) => s + a * v[i], 0)); }
+
+function matInverse(M) {
+    const n = M.length;
+    const aug = M.map((row, i) => { const r = row.slice(); for (let j = 0; j < n; j++) r.push(i === j ? 1 : 0); return r; });
+    for (let col = 0; col < n; col++) {
+        let maxRow = col;
+        for (let row = col + 1; row < n; row++) if (Math.abs(aug[row][col]) > Math.abs(aug[maxRow][col])) maxRow = row;
+        [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
+        const pivot = aug[col][col];
+        if (Math.abs(pivot) < 1e-12) return null;
+        for (let j = 0; j < 2 * n; j++) aug[col][j] /= pivot;
+        for (let row = 0; row < n; row++) {
+            if (row === col) continue;
+            const f = aug[row][col];
+            for (let j = 0; j < 2 * n; j++) aug[row][j] -= f * aug[col][j];
+        }
+    }
+    return aug.map(row => row.slice(n));
+}
+
+function fitQuadratic(pts, yVals) {
+    const X = pts.map(p => [1, p[0], p[1], p[0] * p[0], p[1] * p[1], p[0] * p[1]]);
+    const XT = matTranspose(X);
+    const XTX = matMul(XT, X);
+    const XTXinv = matInverse(XTX);
+    if (!XTXinv) return null;
+    const XTy = matVecMul(XT, yVals);
+    return matVecMul(XTXinv, XTy);
+}
+
+function evalQuadratic(beta, x1, x2) {
+    return beta[0] + beta[1] * x1 + beta[2] * x2 + beta[3] * x1 * x1 + beta[4] * x2 * x2 + beta[5] * x1 * x2;
+}
+
+// ========================================================================
+//  HEATMAP DRAWING HELPER
+// ========================================================================
+function drawHeatmap(canvasId, evalFunc, xMin, xMax, yMin, yMax, xLabel, yLabel, designPts, colorbarLabel) {
+    const ctx = clearCanvas(canvasId);
+    if (!ctx) return;
+    const c = document.getElementById(canvasId);
+    const W = c.width, H = c.height;
+    const margin = { left: 55, right: 55, top: 15, bottom: 45 };
+    const xTicks = makeLinearTicks(xMin, xMax, 5);
+    const yTicks = makeLinearTicks(yMin, yMax, 5);
+    const { L, R, T, B } = drawAxes(ctx, W, H, margin, xLabel, yLabel, xTicks, yTicks);
+
+    const nx = 60, ny = 60;
+    const cellW = (R - L) / nx, cellH = (B - T) / ny;
+
+    // Find global max/min for normalization
+    let globalMax = -Infinity, globalMin = Infinity;
+    const grid = [];
+    for (let i = 0; i < nx; i++) {
+        grid.push([]);
+        for (let j = 0; j < ny; j++) {
+            const x = xMin + (xMax - xMin) * (i + 0.5) / nx;
+            const y = yMin + (yMax - yMin) * (j + 0.5) / ny;
+            const val = evalFunc(x, y);
+            grid[i].push(val);
+            if (val > globalMax) globalMax = val;
+            if (val < globalMin) globalMin = val;
+        }
+    }
+    const range = globalMax - globalMin || 1;
+
+    for (let i = 0; i < nx; i++) {
+        for (let j = 0; j < ny; j++) {
+            const norm = (grid[i][j] - globalMin) / range;
+            ctx.fillStyle = viridis(norm);
+            ctx.fillRect(L + i * cellW, B - (j + 1) * cellH, cellW + 0.5, cellH + 0.5);
+        }
+    }
+
+    // Design points overlay
+    if (designPts) {
+        for (const p of designPts) {
+            const px = mapX(p[0], xMin, xMax, L, R);
+            const py = mapY(p[1], yMin, yMax, T, B);
+            ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 0.8; ctx.stroke();
+        }
+    }
+
+    // Colorbar
+    const cbX = R + 10, cbW = 12, cbHt = B - T;
+    for (let j = 0; j < cbHt; j++) {
+        ctx.fillStyle = viridis(j / cbHt);
+        ctx.fillRect(cbX, B - j, cbW, 1);
+    }
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+    ctx.strokeRect(cbX, T, cbW, cbHt);
+    ctx.fillStyle = '#475569'; ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(Math.round(globalMax) + '', cbX + cbW + 2, T + 4);
+    ctx.fillText(Math.round((globalMax + globalMin) / 2) + '', cbX + cbW + 2, (T + B) / 2);
+    ctx.fillText(Math.round(globalMin) + '', cbX + cbW + 2, B);
+    if (colorbarLabel) {
+        ctx.save();
+        ctx.translate(cbX + cbW + 30, (T + B) / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText(colorbarLabel, 0, 0);
+        ctx.restore();
+    }
+}
+
+// ========================================================================
+//  TAB 1: MODEL EXPLORER
+// ========================================================================
+function drawModelExplorer() {
+    const p = getModelParams();
+
+    // Heatmap
+    drawHeatmap('c-mod-surface',
+        (O2, dose) => cytokineResponseParam(O2, dose, p),
+        O2_MIN, O2_MAX, DOSE_MIN, DOSE_MAX,
+        'O\u2082 Level (%)', 'Radiation Dose (Gy)', null, 'pg/mL');
+
+    // 1D Slices
+    drawModelSlices(p);
+}
+
+function drawModelSlices(p) {
+    const ctx = clearCanvas('c-mod-slices');
+    if (!ctx) return;
+    const c = document.getElementById('c-mod-slices');
+    const W = c.width, H = c.height;
+    const margin = { left: 60, right: 15, top: 15, bottom: 45 };
+
+    // Determine y range
+    let yMax = 0;
+    const sliceDoses = [0, 2, 4, 6, 10];
+    for (const dose of sliceDoses) {
+        for (let o2 = O2_MIN; o2 <= O2_MAX; o2 += 0.5) {
+            const v = cytokineResponseParam(o2, dose, p);
+            if (v > yMax) yMax = v;
+        }
+    }
+    yMax = Math.ceil(yMax / 100) * 100;
+    if (yMax < 100) yMax = 100;
+
+    const xTicks = makeLinearTicks(O2_MIN, O2_MAX, 5);
+    const yTicks = makeLinearTicks(0, yMax, 6);
+    const { L, R, T, B } = drawAxes(ctx, W, H, margin, 'O\u2082 Level (%)', 'IL-6 (pg/mL)', xTicks, yTicks);
+
+    const colors = ['#94a3b8', '#2563eb', '#059669', '#d97706', '#dc2626'];
+    const labels = ['0 Gy', '2 Gy', '4 Gy', '6 Gy', '10 Gy'];
+
+    for (let s = 0; s < sliceDoses.length; s++) {
+        ctx.beginPath();
+        ctx.strokeStyle = colors[s];
+        ctx.lineWidth = 2;
+        for (let i = 0; i <= 100; i++) {
+            const o2 = O2_MIN + (O2_MAX - O2_MIN) * i / 100;
+            const v = cytokineResponseParam(o2, sliceDoses[s], p);
+            const px = mapX(o2, O2_MIN, O2_MAX, L, R);
+            const py = mapY(v, 0, yMax, T, B);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+    }
+
+    // Legend
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    for (let s = 0; s < sliceDoses.length; s++) {
+        const lx = R - 80, ly = T + 12 + s * 15;
+        ctx.fillStyle = colors[s];
+        ctx.fillRect(lx, ly - 4, 14, 3);
+        ctx.fillStyle = '#334155';
+        ctx.fillText(labels[s], lx + 18, ly);
+    }
+}
+
+function resetModelDefaults() {
+    const defs = { 's-ec50h': 11, 's-ec50r': 3.0, 's-nh': 1.5, 's-nr': 1.2,
+                   's-smaxh': 0.90, 's-smaxr': 0.85, 's-alpha': 0.15, 's-baseline': 50, 's-scale': 500 };
+    const displays = { 'v-ec50h': '11', 'v-ec50r': '3.0', 'v-nh': '1.5', 'v-nr': '1.2',
+                       'v-smaxh': '0.90', 'v-smaxr': '0.85', 'v-alpha': '0.15', 'v-baseline': '50', 'v-scale': '500' };
+    for (const [id, val] of Object.entries(defs)) document.getElementById(id).value = val;
+    for (const [id, val] of Object.entries(displays)) document.getElementById(id).textContent = val;
+    drawModelExplorer();
+}
+
+// ========================================================================
+//  TAB 2: FULL FACTORIAL
+// ========================================================================
+function generateFactorial() {
+    const nO2 = +document.getElementById('s-fac-lo2').value;
+    const nD = +document.getElementById('s-fac-ld').value;
+    const reps = +document.getElementById('s-fac-rep').value;
+    const N = nO2 * nD;
+    const totalWells = N * reps + 6;
+
+    const o2Levels = linspace(O2_MIN, O2_MAX, nO2);
+    const doseLevels = linspace(DOSE_MIN, DOSE_MAX, nD);
+
+    document.getElementById('st-fac-cond').textContent = N;
+    document.getElementById('st-fac-wells').textContent = totalWells;
+    const fitsEl = document.getElementById('st-fac-fits');
+    fitsEl.textContent = totalWells <= 96 ? 'Yes' : 'No (' + totalWells + ' > 96)';
+    fitsEl.style.color = totalWells <= 96 ? '#059669' : '#dc2626';
+
+    // Scatter plot
+    const ctx = clearCanvas('c-fac-scatter');
+    if (!ctx) return;
+    const cEl = document.getElementById('c-fac-scatter');
+    const W = cEl.width, H = cEl.height;
+    const margin = { left: 55, right: 20, top: 20, bottom: 45 };
+    const xTicks = makeLinearTicks(O2_MIN, O2_MAX, 5);
+    const yTicks = makeLinearTicks(DOSE_MIN, DOSE_MAX, 5);
+    const { L, R, T, B } = drawAxes(ctx, W, H, margin, 'O\u2082 Level (%)', 'Radiation Dose (Gy)', xTicks, yTicks);
+
+    for (const o2 of o2Levels) {
+        for (const dose of doseLevels) {
+            const px = mapX(o2, O2_MIN, O2_MAX, L, R);
+            const py = mapY(dose, DOSE_MIN, DOSE_MAX, T, B);
+            ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#2563eb99'; ctx.fill();
+            ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 1.5; ctx.stroke();
+        }
+    }
+
+    // Heatmap with design points
+    const pts = [];
+    for (const o2 of o2Levels) for (const dose of doseLevels) pts.push([o2, dose]);
+    drawHeatmap('c-fac-heatmap',
+        (o2, dose) => cytokineResponse(o2, dose),
+        O2_MIN, O2_MAX, DOSE_MIN, DOSE_MAX,
+        'O\u2082 Level (%)', 'Radiation Dose (Gy)', pts, 'pg/mL');
+}
+
+function buildFactorialGrid(nO2, nD) {
+    const pts = [];
+    const o2Levels = linspace(O2_MIN, O2_MAX, nO2);
+    const doseLevels = linspace(DOSE_MIN, DOSE_MAX, nD);
+    for (const o2 of o2Levels) for (const dose of doseLevels) pts.push([o2, dose]);
+    return pts;
+}
+
+// ========================================================================
+//  TAB 3: FRACTIONAL FACTORIAL
+// ========================================================================
+function getFracDesignInfo(key) {
+    const factorLabels = ['O\u2082','Dose','Time','Drug','Density','pH'];
+    const designs = {
+        '3-1': {
+            k: 3, p: 1, labels: ['A','B','C'], factorLabels: factorLabels.slice(0,3),
+            generators: ['C = AB'], defRel: 'I = ABC', resolution: 'III',
+            aliases: [['A','BC'],['B','AC'],['C','AB']],
+            trueEffects: [60, 45, 30],
+            filter: r => r[2] === r[0]*r[1]
+        },
+        '4-1': {
+            k: 4, p: 1, labels: ['A','B','C','D'], factorLabels: factorLabels.slice(0,4),
+            generators: ['D = ABC'], defRel: 'I = ABCD', resolution: 'IV',
+            aliases: [['A','BCD'],['B','ACD'],['C','ABD'],['D','ABC'],['AB','CD'],['AC','BD'],['AD','BC']],
+            trueEffects: [60, 45, 30, 20],
+            filter: r => r[3] === r[0]*r[1]*r[2]
+        },
+        '5-1': {
+            k: 5, p: 1, labels: ['A','B','C','D','E'], factorLabels: factorLabels.slice(0,5),
+            generators: ['E = ABCD'], defRel: 'I = ABCDE', resolution: 'V',
+            aliases: [['A','BCDE'],['B','ACDE'],['C','ABDE'],['D','ABCE'],['E','ABCD'],
+                      ['AB','CDE'],['AC','BDE'],['AD','BCE'],['AE','BCD'],['BC','ADE'],['BD','ACE'],['BE','ACD'],['CD','ABE'],['CE','ABD'],['DE','ABC']],
+            trueEffects: [60, 45, 30, 20, 15],
+            filter: r => r[4] === r[0]*r[1]*r[2]*r[3]
+        },
+        '5-2': {
+            k: 5, p: 2, labels: ['A','B','C','D','E'], factorLabels: factorLabels.slice(0,5),
+            generators: ['D = AB', 'E = AC'], defRel: 'I = ABD = ACE = BCDE', resolution: 'III',
+            aliases: [['A','BD, CE'],['B','AD, CDE'],['C','AE, BDE'],['D','AB, BCE'],['E','AC, BCD']],
+            trueEffects: [60, 45, 30, 20, 15],
+            filter: r => r[3]===r[0]*r[1] && r[4]===r[0]*r[2]
+        },
+        '6-2': {
+            k: 6, p: 2, labels: ['A','B','C','D','E','F'], factorLabels: factorLabels.slice(0,6),
+            generators: ['E = ABC', 'F = BCD'], defRel: 'I = ABCE = BCDF = ADEF', resolution: 'IV',
+            aliases: [['A','BCE, DEF'],['B','ACE, CDF'],['C','ABE, BDF'],['D','BCF, AEF'],['E','ABC, ADF'],['F','BCD, ADE'],
+                      ['AB','CE'],['AC','BE'],['AD','EF'],['AF','DE'],['BC','AE, DF'],['BD','CF'],['BF','CD']],
+            trueEffects: [60, 45, 30, 20, 15, 10],
+            filter: r => r[4]===r[0]*r[1]*r[2] && r[5]===r[1]*r[2]*r[3]
+        }
+    };
+    return designs[key];
+}
+
+function buildFullBinaryDesign(k) {
+    if (k == null) k = 3;
+    const design = [];
+    for (let i = 0; i < (1<<k); i++) {
+        const run = [];
+        for (let j = 0; j < k; j++) run.push((i>>j)&1 ? 1 : -1);
+        design.push(run);
+    }
+    return design;
+}
+
+function drawFracCube(full, frac, info) {
+    const ctx = clearCanvas('c-frac-cube');
+    if (!ctx) return;
+    const c = document.getElementById('c-frac-cube');
+    const W = c.width, H = c.height;
+    const k = full[0].length;
+
+    if (k !== 3) {
+        drawFracDesignMatrix(ctx, W, H, full, frac, info);
+        return;
+    }
+
+    // --- Improved isometric 3D cube for k=3 ---
+    const cx = W/2, cy = H/2 + 8, s = 82;
+    // Better isometric projection with clear depth
+    function proj(a,b,cc) {
+        const px = cx + s * (a * 0.866 - cc * 0.866);
+        const py = cy - s * (b * 0.72 - a * 0.35 - cc * 0.35);
+        return [px, py];
+    }
+    // Depth for sorting (higher = further back)
+    function depth(a,b,cc) { return -a*0.35 - cc*0.35 - b*0.72; }
+
+    // All 12 cube edges
+    const corners = [];
+    for (const a of [-1,1]) for (const b of [-1,1]) for (const cc of [-1,1]) corners.push([a,b,cc]);
+
+    // Draw back edges first (behind the cube)
+    const allEdges = [];
+    for (let i = 0; i < corners.length; i++) {
+        for (let j = i+1; j < corners.length; j++) {
+            let diff = 0;
+            for (let d = 0; d < 3; d++) if (corners[i][d] !== corners[j][d]) diff++;
+            if (diff === 1) {
+                const midDepth = (depth(...corners[i]) + depth(...corners[j])) / 2;
+                allEdges.push({ p1: corners[i], p2: corners[j], depth: midDepth });
+            }
+        }
+    }
+    allEdges.sort((a, b) => a.depth - b.depth); // back to front
+
+    // Draw edges with depth-based opacity
+    for (const edge of allEdges) {
+        const [x1,y1] = proj(...edge.p1), [x2,y2] = proj(...edge.p2);
+        const isBack = edge.depth < 0;
+        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+        ctx.strokeStyle = isBack ? '#d1d5db' : '#94a3b8';
+        ctx.lineWidth = isBack ? 0.8 : 1.5;
+        if (isBack) { ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]); }
+        else ctx.stroke();
+    }
+
+    // Connect fraction points with dashed lines (tetrahedron)
+    const fracSet = new Set(frac.map(r => r.join(',')));
+    ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 1.2; ctx.setLineDash([5,4]);
+    for (let i = 0; i < frac.length; i++) {
+        for (let j = i+1; j < frac.length; j++) {
+            const [x1,y1] = proj(...frac[i]), [x2,y2] = proj(...frac[j]);
+            ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+        }
+    }
+    ctx.setLineDash([]);
+
+    // Sort all vertices back-to-front for proper occlusion
+    const sortedCorners = corners.slice().sort((a,b) => depth(...a) - depth(...b));
+
+    // Draw vertices
+    for (const run of sortedCorners) {
+        const [px,py] = proj(...run);
+        const inFrac = fracSet.has(run.join(','));
+        const r = inFrac ? 10 : 6;
+
+        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2);
+        if (inFrac) {
+            ctx.fillStyle = '#7c3aeddd'; ctx.fill();
+            ctx.strokeStyle = '#5b21b6'; ctx.lineWidth = 2.5;
+        } else {
+            ctx.fillStyle = '#e2e8f0'; ctx.fill();
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.2;
+        }
+        ctx.stroke();
+
+        // Vertex label: show factor signs
+        const lbl = info.labels.map((l,i) => (run[i]>0?'+':'\u2212')).join('');
+        ctx.fillStyle = inFrac ? '#1e293b' : '#94a3b8';
+        ctx.font = (inFrac ? 'bold 10px' : '9px') + ' -apple-system, sans-serif';
+        // Position label to avoid overlaps
+        const labelOffset = 14;
+        const lx = px + (run[0] > 0 ? labelOffset : -labelOffset);
+        const ly = py + (run[1] > 0 ? -labelOffset : labelOffset);
+        ctx.textAlign = run[0] > 0 ? 'left' : 'right';
+        ctx.fillText(lbl, lx, ly);
+    }
+
+    // Axis labels with arrows
+    ctx.font = 'bold 12px -apple-system, sans-serif';
+    const axisColors = ['#dc2626', '#059669', '#2563eb'];
+    const axisEnds = [[1.5,0,0],[0,1.5,0],[0,0,1.5]];
+    const axisNames = info.factorLabels || ['A','B','C'];
+    for (let i = 0; i < 3; i++) {
+        const [ox,oy] = proj(0,0,0);
+        const [ex,ey] = proj(...axisEnds[i]);
+        // Arrow line
+        ctx.strokeStyle = axisColors[i]; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(ex,ey); ctx.stroke();
+        // Arrowhead
+        const angle = Math.atan2(ey-oy, ex-ox);
+        ctx.beginPath();
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - 8*Math.cos(angle-0.4), ey - 8*Math.sin(angle-0.4));
+        ctx.lineTo(ex - 8*Math.cos(angle+0.4), ey - 8*Math.sin(angle+0.4));
+        ctx.closePath(); ctx.fillStyle = axisColors[i]; ctx.fill();
+        // Label
+        ctx.fillStyle = axisColors[i]; ctx.textAlign = 'center';
+        ctx.fillText(info.labels[i] + ' (' + axisNames[i] + ')', ex + (i===2?-20:0), ey + (i===1?-12:16));
+    }
+}
+
+// Design matrix visualization for k > 3
+function drawFracDesignMatrix(ctx, W, H, full, frac, info) {
+    const k = info.k;
+    const fracSet = new Set(frac.map(r => r.join(',')));
+    const nFull = full.length;
+
+    // Layout
+    const margin = { left: 60, right: 20, top: 35, bottom: 30 };
+    const L = margin.left, R = W - margin.right, T = margin.top, B = H - margin.bottom;
+
+    // Calculate cell dimensions
+    const maxCellW = 36, maxCellH = 15;
+    const cellW = Math.min(maxCellW, (R - L - 30) / k);
+    const cellH = Math.min(maxCellH, (B - T) / nFull);
+    const matrixW = cellW * k;
+    const matrixH = cellH * nFull;
+    const matrixX = L + 30; // leave room for row indicators
+    const matrixY = T;
+
+    // Title
+    ctx.fillStyle = '#334155'; ctx.font = 'bold 11px -apple-system, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Design Matrix: ' + nFull + ' full runs, ' + frac.length + ' in fraction', W/2, T - 14);
+
+    // Column headers
+    ctx.font = 'bold 10px -apple-system, sans-serif'; ctx.textAlign = 'center';
+    for (let c = 0; c < k; c++) {
+        ctx.fillStyle = '#1e3a5f';
+        ctx.fillText(info.labels[c], matrixX + c * cellW + cellW/2, matrixY - 4);
+    }
+
+    // Sort runs: fraction first, then excluded, to make the pattern clearer
+    const sortedRuns = full.slice().sort((a,b) => {
+        const aIn = fracSet.has(a.join(',')) ? 0 : 1;
+        const bIn = fracSet.has(b.join(',')) ? 0 : 1;
+        return aIn - bIn;
+    });
+
+    // Draw rows
+    for (let r = 0; r < nFull; r++) {
+        const run = sortedRuns[r];
+        const inFrac = fracSet.has(run.join(','));
+        const y = matrixY + r * cellH;
+
+        // Row indicator
+        if (inFrac) {
+            ctx.fillStyle = '#7c3aed';
+            ctx.beginPath(); ctx.arc(matrixX - 10, y + cellH/2, 3.5, 0, Math.PI*2); ctx.fill();
+        }
+
+        // Row background
+        if (inFrac) {
+            ctx.fillStyle = '#ede9fe44';
+            ctx.fillRect(matrixX - 2, y, matrixW + 4, cellH);
+        }
+
+        // Cells
+        for (let c = 0; c < k; c++) {
+            const x = matrixX + c * cellW;
+            const val = run[c];
+            if (inFrac) {
+                ctx.fillStyle = val > 0 ? '#7c3aed' : '#f1f5f9';
+            } else {
+                ctx.fillStyle = val > 0 ? '#cbd5e1' : '#f8fafc';
+            }
+            ctx.fillRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
+
+            // Border
+            ctx.strokeStyle = inFrac ? '#c4b5fd' : '#e2e8f0';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
+
+            // + or - text
+            ctx.fillStyle = inFrac ? (val > 0 ? '#fff' : '#475569') : '#94a3b8';
+            ctx.font = (inFrac ? 'bold ' : '') + '10px monospace';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(val > 0 ? '+' : '\u2212', x + cellW/2, y + cellH/2);
+            ctx.textBaseline = 'alphabetic';
+        }
+    }
+
+    // Separator line between fraction and excluded
+    const sepY = matrixY + frac.length * cellH;
+    ctx.setLineDash([4,3]); ctx.strokeStyle = '#7c3aed88'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(matrixX - 15, sepY); ctx.lineTo(matrixX + matrixW + 5, sepY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Labels for sections
+    ctx.font = '9px -apple-system, sans-serif'; ctx.textAlign = 'right';
+    ctx.fillStyle = '#7c3aed';
+    ctx.fillText('In fraction', matrixX - 16, matrixY + frac.length * cellH / 2 + 3);
+    ctx.fillStyle = '#94a3b8';
+    if (nFull - frac.length > 0) {
+        ctx.fillText('Excluded', matrixX - 16, sepY + (nFull - frac.length) * cellH / 2 + 3);
+    }
+
+    // Summary stats to the right
+    const statsX = matrixX + matrixW + 20;
+    const statsY = matrixY + 10;
+    ctx.textAlign = 'left'; ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#334155';
+    ctx.fillText('Full: 2^' + k + ' = ' + nFull + ' runs', statsX, statsY);
+    ctx.fillStyle = '#7c3aed'; ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.fillText('Fraction: 2^(' + k + '-' + info.p + ') = ' + frac.length, statsX, statsY + 18);
+    ctx.fillStyle = '#059669'; ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillText('Savings: ' + (100*(1-frac.length/nFull)).toFixed(0) + '%', statsX, statsY + 36);
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Resolution ' + info.resolution, statsX, statsY + 56);
+}
+
+function drawFracProjections(full, frac, info) {
+    const ctx = clearCanvas('c-frac-proj');
+    if (!ctx) return;
+    const c = document.getElementById('c-frac-proj');
+    const W = c.width, H = c.height;
+    const k = info.k;
+
+    // Generate all factor pairs
+    const pairs = [];
+    for (let i = 0; i < k; i++) for (let j = i+1; j < k; j++) pairs.push([i,j]);
+    const nPairs = pairs.length;
+    let cols, rows;
+    if (nPairs <= 3) { cols = 3; rows = 1; }
+    else if (nPairs <= 6) { cols = 3; rows = 2; }
+    else { cols = 4; rows = 3; }
+
+    const cellW = (W - 10) / cols;
+    const cellH = (H - 10) / rows;
+    const pad = 25;
+    const fracSet = new Set(frac.map(r => r.join(',')));
+
+    for (let p = 0; p < nPairs; p++) {
+        const [fi, fj] = pairs[p];
+        const col = p % cols, row = Math.floor(p / cols);
+        const ox = 5 + col * cellW + pad;
+        const oy = 5 + row * cellH + pad + 8;
+        const pw = cellW - 2*pad;
+        const ph = cellH - 2*pad - 16;
+
+        // Title
+        ctx.fillStyle = '#334155'; ctx.font = 'bold 10px -apple-system, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(info.labels[fi] + ' vs ' + info.labels[fj], ox + pw/2, oy - 10);
+
+        // Box
+        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1; ctx.strokeRect(ox, oy, pw, ph);
+        ctx.fillStyle = '#f8fafc'; ctx.fillRect(ox, oy, pw, ph);
+
+        // Axis tick labels
+        ctx.fillStyle = '#94a3b8'; ctx.font = '9px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u2212', ox + pw*0.15, oy + ph + 12);
+        ctx.fillText('+', ox + pw*0.85, oy + ph + 12);
+        ctx.textAlign = 'right';
+        ctx.fillText('\u2212', ox - 4, oy + ph*0.85 + 3);
+        ctx.fillText('+', ox - 4, oy + ph*0.15 + 3);
+
+        // Count projections
+        const uniquePts = new Map();
+        for (const run of full) {
+            const key = run[fi] + ',' + run[fj];
+            if (!uniquePts.has(key)) uniquePts.set(key, { x: run[fi], y: run[fj], full: 0, frac: 0 });
+            uniquePts.get(key).full++;
+            if (fracSet.has(run.join(','))) uniquePts.get(key).frac++;
+        }
+
+        for (const pt of uniquePts.values()) {
+            const px = ox + (pt.x + 1) / 2 * pw * 0.7 + pw * 0.15;
+            const py = oy + ph - ((pt.y + 1) / 2 * ph * 0.7 + ph * 0.15);
+
+            // Full design: gray ring
+            ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI*2);
+            ctx.fillStyle = '#e2e8f0'; ctx.fill();
+            ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1; ctx.stroke();
+
+            // Fraction overlay
+            if (pt.frac > 0) {
+                ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2);
+                ctx.fillStyle = '#7c3aedcc'; ctx.fill();
+                ctx.strokeStyle = '#5b21b6'; ctx.lineWidth = 1.5; ctx.stroke();
+                if (pt.frac > 1) {
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 8px -apple-system, sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(pt.frac, px, py + 0.5);
+                    ctx.textBaseline = 'alphabetic';
+                }
+            }
+        }
+
+        // Coverage badge
+        const corners = new Set();
+        for (const run of frac) corners.add(run[fi] + ',' + run[fj]);
+        const covered = corners.size;
+        ctx.font = 'bold 9px -apple-system, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = covered === 4 ? '#059669' : '#d97706';
+        ctx.fillText(covered + '/4 corners', ox + pw/2, oy + ph + 22);
+    }
+}
+
+function updateFracAliasTable(info) {
+    const tbody = document.getElementById('frac-alias-tbody');
+    tbody.innerHTML = '';
+    for (const [effect, alias] of info.aliases) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td><strong>' + effect + '</strong></td><td>' + alias + '</td>';
+        tbody.appendChild(tr);
+    }
+}
+
+function drawFracEffectsChart(trueEffects, fullEffects, halfEffects, info) {
+    const ctx = clearCanvas('c-frac-effects');
+    if (!ctx) return;
+    const c = document.getElementById('c-frac-effects');
+    const W = c.width, H = c.height;
+    const margin = { left: 50, right: 20, top: 15, bottom: 48 };
+    const L = margin.left, R = W - margin.right, T = margin.top, B = H - margin.bottom;
+
+    const nFactors = trueEffects.length;
+    const groups = [];
+    for (let i = 0; i < nFactors; i++) {
+        const fl = (info && info.factorLabels) ? info.factorLabels[i] : '';
+        const letter = (info && info.labels) ? info.labels[i] : String.fromCharCode(65+i);
+        groups.push(fl ? letter + ' (' + fl + ')' : letter);
+    }
+    // Also add A×B interaction group
+    groups.push('A\u00D7B');
+
+    const data = [
+        trueEffects.concat([0]),     // true (AB interaction shown as 0 for reference)
+        fullEffects.concat([fullEffects.length > nFactors ? fullEffects[nFactors] : 0]),
+        halfEffects.concat([halfEffects.length > nFactors ? halfEffects[nFactors] : 0])
+    ];
+
+    const colors = ['#475569', '#2563eb', '#d97706'];
+    const legendLabels = ['True', 'Full 2^k', 'Fraction'];
+    const maxAbs = Math.max(20, ...data.flat().map(v => Math.abs(v))) * 1.25;
+
+    // Grid
+    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 0.5;
+    const nGrid = 6;
+    for (let i = -nGrid; i <= nGrid; i++) {
+        const y = mapY(i * maxAbs / nGrid, -maxAbs, maxAbs, T, B);
+        ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(R, y); ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(L, T); ctx.lineTo(L, B); ctx.lineTo(R, B); ctx.stroke();
+
+    const zeroY = mapY(0, -maxAbs, maxAbs, T, B);
+    ctx.strokeStyle = '#94a3b8'; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(L, zeroY); ctx.lineTo(R, zeroY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    const nGroups = groups.length;
+    const groupW = (R - L) / nGroups;
+    const barW = Math.min(groupW / 4.2, 18);
+    for (let g = 0; g < nGroups; g++) {
+        const startX = L + g * groupW + (groupW - barW * 3 * 1.15) / 2;
+        for (let s = 0; s < 3; s++) {
+            const val = data[s][g];
+            const x = startX + s * (barW * 1.15);
+            const y = mapY(Math.max(0, val), -maxAbs, maxAbs, T, B);
+            const y0 = mapY(Math.min(0, val), -maxAbs, maxAbs, T, B);
+            ctx.fillStyle = colors[s];
+            ctx.fillRect(x, Math.min(y, y0), barW, Math.max(1, Math.abs(y0 - y)));
+        }
+        ctx.fillStyle = g === nGroups - 1 ? '#94a3b8' : '#334155';
+        ctx.font = (nGroups > 5 ? '8px' : '10px') + ' -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        // Rotate labels if many groups
+        if (nGroups > 5) {
+            ctx.save();
+            ctx.translate(L + g * groupW + groupW / 2, B + 6);
+            ctx.rotate(-0.5);
+            ctx.textAlign = 'right';
+            ctx.fillText(groups[g], 0, 0);
+            ctx.restore();
+        } else {
+            ctx.fillText(groups[g], L + g * groupW + groupW / 2, B + 14);
+        }
+    }
+
+    // Y-axis tick labels
+    ctx.textAlign = 'right'; ctx.font = '9px -apple-system, sans-serif'; ctx.fillStyle = '#64748b';
+    for (let i = -nGrid; i <= nGrid; i += 2) {
+        const val = i * maxAbs / nGrid;
+        ctx.fillText(val.toFixed(0), L - 5, mapY(val, -maxAbs, maxAbs, T, B) + 3);
+    }
+
+    // Legend
+    const legY = T + 4;
+    for (let i = 0; i < legendLabels.length; i++) {
+        ctx.fillStyle = colors[i]; ctx.fillRect(R - 90, legY + i*14, 9, 9);
+        ctx.fillStyle = '#334155'; ctx.textAlign = 'left'; ctx.font = '9px -apple-system, sans-serif';
+        ctx.fillText(legendLabels[i], R - 78, legY + i*14 + 8);
+    }
+}
+
+function generateFractionalExplorer() {
+    const designKey = document.getElementById('sel-frac-design').value;
+    const info = getFracDesignInfo(designKey);
+    const reps = +document.getElementById('s-frac-rep').value;
+    const cEffect = +document.getElementById('s-frac-c').value;
+    const abEffect = +document.getElementById('s-frac-ab').value;
+    const noise = +document.getElementById('s-frac-noise').value;
+
+    const full = buildFullBinaryDesign(info.k);
+    const frac = full.filter(info.filter);
+
+    // Design summary stats
+    document.getElementById('st-frac-fullruns').textContent = full.length;
+    document.getElementById('st-frac-fracruns').textContent = frac.length;
+    document.getElementById('st-frac-res').textContent = info.resolution;
+    document.getElementById('st-frac-gen').textContent = info.generators.join(', ');
+    document.getElementById('st-frac-defrel').textContent = info.defRel;
+
+    // Draw cube/matrix and projections
+    drawFracCube(full, frac, info);
+    drawFracProjections(full, frac, info);
+    updateFracAliasTable(info);
+
+    // --- Effect estimation using the SELECTED design ---
+    const k = info.k;
+    const trueMainEffects = (info.trueEffects || [60,45,30,20,15,10].slice(0,k)).slice();
+    trueMainEffects[k - 1] = cEffect; // override last factor with slider value
+
+    // Simulate responses with true effects + hidden A×B interaction
+    function simResponse(run) {
+        let y = 300;
+        for (let i = 0; i < k; i++) y += trueMainEffects[i] * run[i];
+        y += abEffect * run[0] * run[1]; // hidden interaction
+        return y;
+    }
+    function meanResp(design) {
+        return design.map(run => {
+            let sum = 0;
+            for (let r = 0; r < reps; r++) sum += simResponse(run) + noise * randn();
+            return sum / reps;
+        });
+    }
+    function estEffects(design, responses) {
+        return Array.from({length: k}, (_, idx) => {
+            let hi = 0, lo = 0, nhi = 0, nlo = 0;
+            for (let i = 0; i < design.length; i++) {
+                if (design[i][idx] > 0) { hi += responses[i]; nhi++; }
+                else { lo += responses[i]; nlo++; }
+            }
+            return nhi && nlo ? hi/nhi - lo/nlo : 0;
+        });
+    }
+
+    const fullResp = meanResp(full);
+    const fracResp2 = meanResp(frac);
+    const fullEffects = estEffects(full, fullResp);
+    const fracEffects = estEffects(frac, fracResp2);
+
+    // Use the last factor for bias display (most likely to be aliased with AB)
+    const lastIdx = k - 1;
+    const wellsFull = full.length * reps;
+    const wellsFrac = frac.length * reps;
+    const savings = 100 * (1 - wellsFrac / wellsFull);
+    const bias = fracEffects[lastIdx] - fullEffects[lastIdx];
+
+    document.getElementById('st-frac-full').textContent = wellsFull;
+    document.getElementById('st-frac-half').textContent = wellsFrac;
+    document.getElementById('st-frac-save').textContent = savings.toFixed(0) + '%';
+    document.getElementById('st-frac-cfull').textContent = signedText(fullEffects[lastIdx], 1);
+    document.getElementById('st-frac-chalf').textContent = signedText(fracEffects[lastIdx], 1);
+    document.getElementById('st-frac-bias').textContent = signedText(bias, 1);
+
+    // Build info object for chart with 3-factor labels
+    const chartInfo = {
+        labels: info.labels,
+        factorLabels: info.factorLabels
+    };
+    drawFracEffectsChart(trueMainEffects, fullEffects, fracEffects, chartInfo);
+}
+
+// ========================================================================
+//  TAB 4: LHS vs RANDOM
+// ========================================================================
+function drawScatterWithMarginals(canvasId, pts, color) {
+    const ctx = clearCanvas(canvasId);
+    if (!ctx) return;
+    const W = 380, H = 380;
+    const margin = { left: 55, right: 40, top: 40, bottom: 45 };
+    const margH = 30;
+    const xTicks = makeLinearTicks(O2_MIN, O2_MAX, 5);
+    const yTicks = makeLinearTicks(DOSE_MIN, DOSE_MAX, 5);
+    const { L, R, T: Ttop, B } = drawAxes(ctx, W, H, margin, 'O\u2082 Level (%)', 'Radiation Dose (Gy)', xTicks, yTicks);
+
+    for (const p of pts) {
+        const px = mapX(p[0], O2_MIN, O2_MAX, L, R);
+        const py = mapY(p[1], DOSE_MIN, DOSE_MAX, Ttop, B);
+        ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fillStyle = color + 'cc'; ctx.fill();
+        ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+
+    // Marginal histograms
+    const nBins = Math.max(5, Math.min(20, pts.length));
+    const xBins = new Array(nBins).fill(0);
+    const yBins = new Array(nBins).fill(0);
+    for (const p of pts) {
+        const bx = Math.min(nBins - 1, Math.floor(((p[0] - O2_MIN) / (O2_MAX - O2_MIN)) * nBins));
+        const by = Math.min(nBins - 1, Math.floor(((p[1] - DOSE_MIN) / (DOSE_MAX - DOSE_MIN)) * nBins));
+        xBins[bx]++;
+        yBins[by]++;
+    }
+    const maxBin = Math.max(...xBins, ...yBins, 1);
+    const binW = (R - L) / nBins;
+
+    for (let i = 0; i < nBins; i++) {
+        const h = (xBins[i] / maxBin) * margH;
+        ctx.fillStyle = color + '55';
+        ctx.fillRect(L + i * binW, Ttop - h - 2, binW - 1, h);
+    }
+
+    const binH = (B - Ttop) / nBins;
+    for (let i = 0; i < nBins; i++) {
+        const w = (yBins[i] / maxBin) * margH;
+        ctx.fillStyle = color + '55';
+        ctx.fillRect(R + 2, B - (i + 1) * binH, w, binH - 1);
+    }
+}
+
+function generateLHS() {
+    const n = +document.getElementById('s-lhs-n').value;
+    const norm = generateLHSNorm(n, 2);
+    G.lhsPoints = norm.map(p => [
+        O2_MIN + p[0] * (O2_MAX - O2_MIN),
+        DOSE_MIN + p[1] * (DOSE_MAX - DOSE_MIN)
+    ]);
+    drawScatterWithMarginals('c-lhs-scatter', G.lhsPoints, '#2563eb');
+    updateLHSStats();
+}
+
+function generateRandom() {
+    const n = +document.getElementById('s-lhs-n').value;
+    G.rndPoints = [];
+    for (let i = 0; i < n; i++) {
+        G.rndPoints.push([
+            O2_MIN + Math.random() * (O2_MAX - O2_MIN),
+            DOSE_MIN + Math.random() * (DOSE_MAX - DOSE_MIN)
+        ]);
+    }
+    drawScatterWithMarginals('c-rnd-scatter', G.rndPoints, '#d97706');
+    updateLHSStats();
+}
+
+function updateLHSStats() {
+    function normalize(pts) {
+        return pts.map(p => [
+            (p[0] - O2_MIN) / (O2_MAX - O2_MIN),
+            (p[1] - DOSE_MIN) / (DOSE_MAX - DOSE_MIN)
+        ]);
+    }
+    if (G.lhsPoints) {
+        const np = normalize(G.lhsPoints);
+        const nn = nnDistance(np);
+        document.getElementById('st-lhs-minn').textContent = Math.min(...nn).toFixed(4);
+        document.getElementById('st-lhs-avgn').textContent = (nn.reduce((a, b) => a + b, 0) / nn.length).toFixed(4);
+        document.getElementById('st-lhs-disc').textContent = discrepancy(np).toFixed(4);
+    }
+    if (G.rndPoints) {
+        const np = normalize(G.rndPoints);
+        const nn = nnDistance(np);
+        document.getElementById('st-rnd-minn').textContent = Math.min(...nn).toFixed(4);
+        document.getElementById('st-rnd-avgn').textContent = (nn.reduce((a, b) => a + b, 0) / nn.length).toFixed(4);
+        document.getElementById('st-rnd-disc').textContent = discrepancy(np).toFixed(4);
+    }
+}
+
+// ========================================================================
+//  TAB 4: RSM EXPLORER
+// ========================================================================
+function generateRSMDesignPoints(type, n) {
+    const midO2 = (O2_MIN + O2_MAX) / 2, rngO2 = (O2_MAX - O2_MIN) / 2;
+    const midD = (DOSE_MIN + DOSE_MAX) / 2, rngD = (DOSE_MAX - DOSE_MIN) / 2;
+    switch (type) {
+        case 'ccd': {
+            const nCenter = Math.max(1, Math.min(n - 8, 7));
+            const alpha = Math.SQRT2;
+            const coded = generateCCD(alpha, nCenter);
+            return coded.map(p => [
+                codedToRealCCD(p[0], midO2, rngO2, alpha),
+                codedToRealCCD(p[1], midD, rngD, alpha)
+            ]);
+        }
+        case 'factorial': {
+            const lvl = Math.max(2, Math.round(Math.sqrt(n)));
+            return buildFactorialGrid(lvl, lvl);
+        }
+        case 'random': {
+            const pts = [];
+            for (let i = 0; i < n; i++) pts.push([
+                O2_MIN + Math.random() * (O2_MAX - O2_MIN),
+                DOSE_MIN + Math.random() * (DOSE_MAX - DOSE_MIN)
+            ]);
+            return pts;
+        }
+        default: {
+            const norm = generateLHSNorm(n, 2);
+            return norm.map(p => [
+                O2_MIN + p[0] * (O2_MAX - O2_MIN),
+                DOSE_MIN + p[1] * (DOSE_MAX - DOSE_MIN)
+            ]);
+        }
+    }
+}
+
+function generateRSM() {
+    const n = +document.getElementById('s-rsm-n').value;
+    const noise = +document.getElementById('s-rsm-noise').value;
+    const designType = document.getElementById('sel-rsm-type').value;
+
+    const pts = generateRSMDesignPoints(designType, n);
+
+    const actualN = pts.length;
+    const yTrue = pts.map(p => cytokineResponse(p[0], p[1]));
+    const yNoisy = yTrue.map(v => Math.max(0, v + noise * randn()));
+
+    const beta = fitQuadratic(pts, yNoisy);
+    if (!beta) return;
+
+    const yPred = pts.map(p => evalQuadratic(beta, p[0], p[1]));
+    const yMean = yNoisy.reduce((a, b) => a + b, 0) / actualN;
+    const ssTot = yNoisy.reduce((s, v) => s + (v - yMean) ** 2, 0);
+    const ssRes = yNoisy.reduce((s, v, i) => s + (v - yPred[i]) ** 2, 0);
+    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+    const rmse = Math.sqrt(ssRes / actualN);
+
+    // Find optimal (max IL-6)
+    let bestV = -Infinity, bestO2 = 0, bestD = 0;
+    for (let i = 0; i <= 50; i++) {
+        for (let j = 0; j <= 50; j++) {
+            const o2 = O2_MIN + (O2_MAX - O2_MIN) * i / 50;
+            const dose = DOSE_MIN + (DOSE_MAX - DOSE_MIN) * j / 50;
+            const v = evalQuadratic(beta, o2, dose);
+            if (v > bestV) { bestV = v; bestO2 = o2; bestD = dose; }
+        }
+    }
+
+    document.getElementById('st-rsm-r2').textContent = r2.toFixed(4);
+    document.getElementById('st-rsm-rmse').textContent = rmse.toFixed(1) + ' pg/mL';
+    document.getElementById('st-rsm-b0').textContent = beta[0].toFixed(2);
+    document.getElementById('st-rsm-b1').textContent = beta[1].toFixed(2);
+    document.getElementById('st-rsm-b2').textContent = beta[2].toFixed(2);
+    document.getElementById('st-rsm-b11').textContent = beta[3].toFixed(4);
+    document.getElementById('st-rsm-b22').textContent = beta[4].toFixed(4);
+    document.getElementById('st-rsm-b12').textContent = beta[5].toFixed(4);
+    document.getElementById('st-rsm-opto2').textContent = bestO2.toFixed(1) + '%';
+    document.getElementById('st-rsm-optd').textContent = bestD.toFixed(1) + ' Gy';
+    document.getElementById('st-rsm-optv').textContent = Math.max(0, bestV).toFixed(0) + ' pg/mL';
+
+    // Fitted surface
+    const designPtsArr = pts.map(p => [p[0], p[1]]);
+    drawHeatmap('c-rsm-fitted',
+        (o2, dose) => Math.max(0, evalQuadratic(beta, o2, dose)),
+        O2_MIN, O2_MAX, DOSE_MIN, DOSE_MAX,
+        'O\u2082 Level (%)', 'Radiation Dose (Gy)', designPtsArr, 'pg/mL');
+
+    // True surface
+    drawHeatmap('c-rsm-true',
+        (o2, dose) => cytokineResponse(o2, dose),
+        O2_MIN, O2_MAX, DOSE_MIN, DOSE_MAX,
+        'O\u2082 Level (%)', 'Radiation Dose (Gy)', null, 'pg/mL');
+
+    // Predicted vs Actual
+    const rctx = clearCanvas('c-rsm-pva');
+    if (!rctx) return;
+    const rc = document.getElementById('c-rsm-pva');
+    const rW = rc.width, rH = rc.height;
+    const allVals = yTrue.concat(yPred);
+    const vMin = 0;
+    const vMax = Math.ceil(Math.max(...allVals) / 100) * 100;
+    const rMargin = { left: 55, right: 15, top: 15, bottom: 45 };
+    const rTicks = makeLinearTicks(vMin, vMax, 5);
+    const { L: rL, R: rR, T: rT, B: rB } = drawAxes(rctx, rW, rH, rMargin, 'Actual (pg/mL)', 'Predicted (pg/mL)', rTicks, rTicks);
+
+    rctx.setLineDash([4, 4]); rctx.strokeStyle = '#94a3b8'; rctx.lineWidth = 1;
+    rctx.beginPath(); rctx.moveTo(rL, rB); rctx.lineTo(rR, rT); rctx.stroke();
+    rctx.setLineDash([]);
+
+    for (let i = 0; i < yTrue.length; i++) {
+        const px = mapX(yTrue[i], vMin, vMax, rL, rR);
+        const py = mapY(yPred[i], vMin, vMax, rT, rB);
+        rctx.beginPath(); rctx.arc(px, py, 4, 0, Math.PI * 2);
+        rctx.fillStyle = '#7c3aed99'; rctx.fill();
+        rctx.strokeStyle = '#7c3aed'; rctx.lineWidth = 1; rctx.stroke();
+    }
+}
+
+// ========================================================================
+//  TAB 5: CENTRAL COMPOSITE DESIGN (CCD)
+// ========================================================================
+function generateCCD(alpha, centerReps) {
+    alpha = alpha || Math.SQRT2;
+    const nCenter = centerReps == null ? 5 : centerReps;
+    const pts = [];
+    for (const a of [-1, 1]) for (const b of [-1, 1]) pts.push([a, b]);
+    pts.push([-alpha, 0], [alpha, 0], [0, -alpha], [0, alpha]);
+    for (let i = 0; i < nCenter; i++) pts.push([0, 0]);
+    return pts;
+}
+
+function codedToRealCCD(coded, mid, rng, alpha) {
+    return mid + coded / alpha * rng;
+}
+
+function buildCCDDesign(alpha, centerReps) {
+    const midO2 = (O2_MIN + O2_MAX) / 2, rngO2 = (O2_MAX - O2_MIN) / 2;
+    const midD = (DOSE_MIN + DOSE_MAX) / 2, rngD = (DOSE_MAX - DOSE_MIN) / 2;
+    const codedPts = generateCCD(alpha, centerReps);
+    return codedPts.map((p, idx) => ({
+        coded: p,
+        real: [
+            codedToRealCCD(p[0], midO2, rngO2, alpha),
+            codedToRealCCD(p[1], midD, rngD, alpha)
+        ],
+        kind: idx < 4 ? 'factorial' : idx < 8 ? 'axial' : 'center'
+    }));
+}
+
+function summarizeCCDDesign(design) {
+    const summary = new Map();
+    for (const pt of design) {
+        const key = pt.real[0].toFixed(4) + '_' + pt.real[1].toFixed(4);
+        if (!summary.has(key)) summary.set(key, { x: pt.real[0], y: pt.real[1], kind: pt.kind, count: 0 });
+        summary.get(key).count++;
+    }
+    return Array.from(summary.values());
+}
+
+function drawCCDLayout(design) {
+    const ctx = clearCanvas('c-ccd-layout');
+    if (!ctx) return;
+    const c = document.getElementById('c-ccd-layout');
+    const W = c.width, H = c.height;
+    const margin = { left: 55, right: 15, top: 15, bottom: 45 };
+    const xTicks = makeLinearTicks(O2_MIN, O2_MAX, 5);
+    const yTicks = makeLinearTicks(DOSE_MIN, DOSE_MAX, 5);
+    const { L, R, T, B } = drawAxes(ctx, W, H, margin, 'O\u2082 Level (%)', 'Radiation Dose (Gy)', xTicks, yTicks);
+
+    const colorMap = { factorial: '#2563eb', axial: '#d97706', center: '#059669' };
+    const factorialOrder = [
+        [-1, -1], [1, -1], [1, 1], [-1, 1]
+    ].map(([x1, x2]) => design.find(pt => pt.kind === 'factorial' && pt.coded[0] === x1 && pt.coded[1] === x2));
+
+    if (factorialOrder.every(Boolean)) {
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = '#93c5fd';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        factorialOrder.forEach((pt, idx) => {
+            const px = mapX(pt.real[0], O2_MIN, O2_MAX, L, R);
+            const py = mapY(pt.real[1], DOSE_MIN, DOSE_MAX, T, B);
+            if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.closePath();
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    const center = design.find(pt => pt.kind === 'center');
+    if (center) {
+        const cx = mapX(center.real[0], O2_MIN, O2_MAX, L, R);
+        const cy = mapY(center.real[1], DOSE_MIN, DOSE_MAX, T, B);
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(L, cy); ctx.lineTo(R, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, T); ctx.lineTo(cx, B); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    const summary = summarizeCCDDesign(design);
+    ctx.textBaseline = 'middle';
+    for (const pt of summary) {
+        const px = mapX(pt.x, O2_MIN, O2_MAX, L, R);
+        const py = mapY(pt.y, DOSE_MIN, DOSE_MAX, T, B);
+        const radius = pt.kind === 'center' ? 7 : 6;
+        ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fillStyle = colorMap[pt.kind] + 'cc'; ctx.fill();
+        ctx.strokeStyle = colorMap[pt.kind]; ctx.lineWidth = 1.8; ctx.stroke();
+        if (pt.count > 1) {
+            ctx.fillStyle = '#334155';
+            ctx.font = 'bold 10px -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('x' + pt.count, px + 10, py);
+        }
+    }
+}
+
+function drawCCDOverlay(canvasId, design) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const margin = { left: 55, right: 55, top: 15, bottom: 45 };
+    const L = margin.left, R = W - margin.right, T = margin.top, B = H - margin.bottom;
+    const colorMap = { factorial: '#2563eb', axial: '#d97706', center: '#059669' };
+    const summary = summarizeCCDDesign(design);
+
+    ctx.textBaseline = 'middle';
+    for (const pt of summary) {
+        const px = mapX(pt.x, O2_MIN, O2_MAX, L, R);
+        const py = mapY(pt.y, DOSE_MIN, DOSE_MAX, T, B);
+        const radius = pt.kind === 'center' ? 6 : 5;
+        ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fillStyle = colorMap[pt.kind] + 'dd'; ctx.fill();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4; ctx.stroke();
+        ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = colorMap[pt.kind]; ctx.lineWidth = 1; ctx.stroke();
+        if (pt.count > 1) {
+            ctx.fillStyle = '#334155';
+            ctx.font = 'bold 10px -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('x' + pt.count, px + 9, py);
+        }
+    }
+}
+
+function drawPredictedVsActualPlot(canvasId, actualVals, predictedVals, color) {
+    const ctx = clearCanvas(canvasId);
+    if (!ctx) return;
+    const c = document.getElementById(canvasId);
+    const W = c.width, H = c.height;
+    const margin = { left: 55, right: 15, top: 15, bottom: 45 };
+    const allVals = actualVals.concat(predictedVals);
+    const vMin = 0;
+    const vMax = Math.max(100, Math.ceil(Math.max(...allVals) / 100) * 100);
+    const ticks = makeLinearTicks(vMin, vMax, 5);
+    const { L, R, T, B } = drawAxes(ctx, W, H, margin, 'Actual (pg/mL)', 'Predicted (pg/mL)', ticks, ticks);
+
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(L, B); ctx.lineTo(R, T); ctx.stroke();
+    ctx.setLineDash([]);
+
+    for (let i = 0; i < actualVals.length; i++) {
+        const px = mapX(actualVals[i], vMin, vMax, L, R);
+        const py = mapY(predictedVals[i], vMin, vMax, T, B);
+        ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fillStyle = color + '99'; ctx.fill();
+        ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+    }
+}
+
+function generateCCDExplorer() {
+    const alpha = +document.getElementById('s-ccd-alpha').value;
+    const centerReps = +document.getElementById('s-ccd-center').value;
+    const noise = +document.getElementById('s-ccd-noise').value;
+    const design = buildCCDDesign(alpha, centerReps);
+    const pts = design.map(pt => pt.real);
+    const uniquePts = summarizeCCDDesign(design);
+    const yTrue = pts.map(p => cytokineResponse(p[0], p[1]));
+    const yNoisy = yTrue.map(v => Math.max(0, v + noise * randn()));
+
+    const beta = fitQuadratic(pts, yNoisy);
+    if (!beta) return;
+
+    const yPred = pts.map(p => evalQuadratic(beta, p[0], p[1]));
+    const yMean = yNoisy.reduce((a, b) => a + b, 0) / yNoisy.length;
+    const ssTot = yNoisy.reduce((s, v) => s + (v - yMean) ** 2, 0);
+    const ssRes = yNoisy.reduce((s, v, i) => s + (v - yPred[i]) ** 2, 0);
+    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+
+    const testPts = generateLHSNorm(25, 2).map(p => [
+        O2_MIN + p[0] * (O2_MAX - O2_MIN),
+        DOSE_MIN + p[1] * (DOSE_MAX - DOSE_MIN)
+    ]);
+    const testTrue = testPts.map(p => cytokineResponse(p[0], p[1]));
+    const testPred = testPts.map(p => evalQuadratic(beta, p[0], p[1]));
+    const testRMSE = Math.sqrt(testTrue.reduce((s, v, i) => s + (v - testPred[i]) ** 2, 0) / testPts.length);
+
+    let bestV = -Infinity, bestO2 = 0, bestD = 0;
+    for (let i = 0; i <= 50; i++) {
+        for (let j = 0; j <= 50; j++) {
+            const o2 = O2_MIN + (O2_MAX - O2_MIN) * i / 50;
+            const dose = DOSE_MIN + (DOSE_MAX - DOSE_MIN) * j / 50;
+            const v = evalQuadratic(beta, o2, dose);
+            if (v > bestV) { bestV = v; bestO2 = o2; bestD = dose; }
+        }
+    }
+
+    document.getElementById('st-ccd-runs').textContent = design.length;
+    document.getElementById('st-ccd-unique').textContent = uniquePts.length;
+    document.getElementById('st-ccd-centers').textContent = centerReps;
+    document.getElementById('st-ccd-r2').textContent = r2.toFixed(4);
+    document.getElementById('st-ccd-rmse').textContent = testRMSE.toFixed(1);
+    document.getElementById('st-ccd-b12').textContent = beta[5].toFixed(4);
+    document.getElementById('st-ccd-opto2').textContent = bestO2.toFixed(1) + '%';
+    document.getElementById('st-ccd-optd').textContent = bestD.toFixed(1) + ' Gy';
+    document.getElementById('st-ccd-optv').textContent = Math.max(0, bestV).toFixed(0) + ' pg/mL';
+
+    drawCCDLayout(design);
+    drawHeatmap('c-ccd-surface',
+        (o2, dose) => cytokineResponse(o2, dose),
+        O2_MIN, O2_MAX, DOSE_MIN, DOSE_MAX,
+        'O\u2082 Level (%)', 'Radiation Dose (Gy)', null, 'pg/mL');
+    drawCCDOverlay('c-ccd-surface', design);
+    drawPredictedVsActualPlot('c-ccd-pva', yTrue, yPred, '#d97706');
+}
+
+// ========================================================================
+//  TAB 6: DESIGN COMPARISON
+// ========================================================================
+function runComparison() {
+    const midO2 = (O2_MIN + O2_MAX) / 2, rngO2 = (O2_MAX - O2_MIN) / 2;
+    const midD = (DOSE_MIN + DOSE_MAX) / 2, rngD = (DOSE_MAX - DOSE_MIN) / 2;
+    const alpha = Math.SQRT2;
+
+    // Factorial 3x3
+    const facPts = [];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+        facPts.push([O2_MIN + i / 2 * (O2_MAX - O2_MIN), DOSE_MIN + j / 2 * (DOSE_MAX - DOSE_MIN)]);
+
+    // LHS 13
+    const lhsNorm = generateLHSNorm(13, 2);
+    const lhsPts = lhsNorm.map(p => [
+        O2_MIN + p[0] * (O2_MAX - O2_MIN),
+        DOSE_MIN + p[1] * (DOSE_MAX - DOSE_MIN)
+    ]);
+
+    // CCD
+    const ccdCoded = generateCCD(alpha);
+    const ccdPts = ccdCoded.map(p => [codedToRealCCD(p[0], midO2, rngO2, alpha), codedToRealCCD(p[1], midD, rngD, alpha)]);
+
+    function drawPts(canvasId, pts, color) {
+        const ctx = clearCanvas(canvasId);
+        if (!ctx) return;
+        const c = document.getElementById(canvasId);
+        const W = c.width, H = c.height;
+        const margin = { left: 50, right: 15, top: 15, bottom: 45 };
+        const xTicks = makeLinearTicks(O2_MIN, O2_MAX, 5);
+        const yTicks = makeLinearTicks(DOSE_MIN, DOSE_MAX, 5);
+        const { L, R, T, B } = drawAxes(ctx, W, H, margin, 'O\u2082 (%)', 'Dose (Gy)', xTicks, yTicks);
+
+        for (const p of pts) {
+            const px = mapX(p[0], O2_MIN, O2_MAX, L, R);
+            const py = mapY(p[1], DOSE_MIN, DOSE_MAX, T, B);
+            ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2);
+            ctx.fillStyle = color + 'bb'; ctx.fill();
+            ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+        }
+    }
+
+    drawPts('c-cmp-fac', facPts, '#2563eb');
+    drawPts('c-cmp-lhs', lhsPts, '#059669');
+    drawPts('c-cmp-ccd', ccdPts, '#7c3aed');
+
+    function fitAndScore(pts) {
+        const yTrue = pts.map(p => cytokineResponse(p[0], p[1]));
+        const noiseLevel = 15;
+        const yNoisy = yTrue.map(v => Math.max(0, v + noiseLevel * randn()));
+        const beta = fitQuadratic(pts, yNoisy);
+        if (!beta) return { r2: 0, rmse: 9999 };
+
+        const yPred = pts.map(p => evalQuadratic(beta, p[0], p[1]));
+        const yMean = yNoisy.reduce((a, b) => a + b, 0) / pts.length;
+        const ssTot = yNoisy.reduce((s, v) => s + (v - yMean) ** 2, 0);
+        const ssRes = yNoisy.reduce((s, v, i) => s + (v - yPred[i]) ** 2, 0);
+        const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+
+        // Test points
+        const testPts = [];
+        for (let i = 0; i < 20; i++) testPts.push([
+            O2_MIN + Math.random() * (O2_MAX - O2_MIN),
+            DOSE_MIN + Math.random() * (DOSE_MAX - DOSE_MIN)
+        ]);
+        const testTrue = testPts.map(p => cytokineResponse(p[0], p[1]));
+        const testPred = testPts.map(p => evalQuadratic(beta, p[0], p[1]));
+        const testRMSE = Math.sqrt(testTrue.reduce((s, v, i) => s + (v - testPred[i]) ** 2, 0) / 20);
+
+        return { r2, rmse: testRMSE };
+    }
+
+    const facRes = fitAndScore(facPts);
+    const lhsRes = fitAndScore(lhsPts);
+    const ccdRes = fitAndScore(ccdPts);
+
+    document.getElementById('st-cmp-fac-r2').textContent = facRes.r2.toFixed(4);
+    document.getElementById('st-cmp-fac-rmse').textContent = facRes.rmse.toFixed(1);
+    document.getElementById('st-cmp-lhs-r2').textContent = lhsRes.r2.toFixed(4);
+    document.getElementById('st-cmp-lhs-rmse').textContent = lhsRes.rmse.toFixed(1);
+    document.getElementById('st-cmp-ccd-r2').textContent = ccdRes.r2.toFixed(4);
+    document.getElementById('st-cmp-ccd-rmse').textContent = ccdRes.rmse.toFixed(1);
+
+    // Bar chart
+    const ctx = clearCanvas('c-cmp-bar');
+    if (!ctx) return;
+    const bCanvas = document.getElementById('c-cmp-bar');
+    const W = bCanvas.width, H = bCanvas.height;
+    const margin = { left: 55, right: 20, top: 20, bottom: 50 };
+    const L = margin.left, R = W - margin.right, T = margin.top, B = H - margin.bottom;
+
+    const groups = [
+        { label: 'R\u00B2 (Training)', vals: [facRes.r2, lhsRes.r2, ccdRes.r2] },
+        { label: 'Test RMSE (pg/mL)', vals: [facRes.rmse, lhsRes.rmse, ccdRes.rmse] }
+    ];
+    const colors = ['#2563eb', '#059669', '#7c3aed'];
+    const labels = ['Factorial', 'LHS', 'CCD'];
+    const nGroups = groups.length, nBars = 3;
+    const groupW = (R - L) / nGroups;
+    const barW = groupW / (nBars + 1.5);
+    const maxVal = Math.max(...groups.flatMap(g => g.vals)) * 1.15;
+
+    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 5; i++) {
+        const y = B - (i / 5) * (B - T);
+        ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(R, y); ctx.stroke();
+        ctx.fillStyle = '#94a3b8'; ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'right'; ctx.fillText((maxVal * i / 5).toFixed(1), L - 6, y + 3);
+    }
+
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(L, T); ctx.lineTo(L, B); ctx.lineTo(R, B); ctx.stroke();
+
+    for (let g = 0; g < nGroups; g++) {
+        const gx = L + g * groupW + barW * 0.75;
+        for (let b = 0; b < nBars; b++) {
+            const bx = gx + b * barW;
+            const h = (groups[g].vals[b] / maxVal) * (B - T);
+            ctx.fillStyle = colors[b];
+            ctx.fillRect(bx, B - h, barW * 0.85, h);
+            ctx.fillStyle = '#334155'; ctx.font = '10px -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            const dispVal = groups[g].vals[b];
+            ctx.fillText(dispVal < 2 ? dispVal.toFixed(3) : dispVal.toFixed(1), bx + barW * 0.42, B - h - 5);
+        }
+        ctx.fillStyle = '#334155'; ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(groups[g].label, gx + nBars * barW / 2, B + 18);
+    }
+
+    const legY = T + 5;
+    for (let i = 0; i < 3; i++) {
+        const lx = R - 120;
+        ctx.fillStyle = colors[i]; ctx.fillRect(lx, legY + i * 16, 10, 10);
+        ctx.fillStyle = '#334155'; ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'left'; ctx.fillText(labels[i], lx + 14, legY + i * 16 + 9);
+    }
+}
+
+// ========================================================================
+//  TAB 8: DOE SYNTHESIS
+// ========================================================================
+function summarizePointArray(points, kind) {
+    const summary = new Map();
+    for (const p of points) {
+        const key = p[0].toFixed(4) + '_' + p[1].toFixed(4);
+        if (!summary.has(key)) summary.set(key, { x: p[0], y: p[1], count: 0, kind: kind || 'design' });
+        summary.get(key).count++;
+    }
+    return Array.from(summary.values());
+}
+
+function meanCytokineResponseAtPoint(point, nCytokines) {
+    const cyts = selectedCytokines(nCytokines);
+    return mean(cyts.map(cyt => multiCytokineResponse(cyt, point[0], point[1])));
+}
+
+function buildSynthesisCandidates(nCytokines, reps, controls) {
+    const fac33 = buildFactorialGrid(3, 3);
+    const fac44 = buildFactorialGrid(4, 4);
+    const lhs9 = generateLHSNorm(9, 2).map(p => [
+        O2_MIN + p[0] * (O2_MAX - O2_MIN),
+        DOSE_MIN + p[1] * (DOSE_MAX - DOSE_MIN)
+    ]);
+    const ccdDesign = buildCCDDesign(Math.SQRT2, 5);
+    const ccdPoints = ccdDesign.map(pt => pt.real);
+
+    const candidates = [
+        {
+            key: 'fac33',
+            label: 'Full Factorial 3x3',
+            shortLabel: 'Full 3x3',
+            runs: 9,
+            points: fac33,
+            displayPoints: summarizePointArray(fac33, 'factorial'),
+            bestUse: 'Balanced interaction mapping under a tight budget',
+            limitation: 'Curvature is only coarsely resolved',
+            analysis: 'Effect contrasts on a balanced grid',
+            qualities: { coverage: 0.72, interaction: 0.92, curvature: 0.55, robustness: 0.80 },
+            can: [
+                'Estimate main effects and the O2 x dose interaction on a regular grid.',
+                'Compare IL-6, IL-8, and IL-2 on exactly the same stress conditions.',
+                'Support straightforward ANOVA-style summaries and effect plots.'
+            ],
+            cannot: [
+                'Pin down a local optimum as efficiently as a purpose-built response-surface design.',
+                'Add many extra factors or harvest times without quickly running out of wells.'
+            ]
+        },
+        {
+            key: 'fac44',
+            label: 'Full Factorial 4x4',
+            shortLabel: 'Full 4x4',
+            runs: 16,
+            points: fac44,
+            displayPoints: summarizePointArray(fac44, 'factorial'),
+            bestUse: 'Dense mapping when you can afford a larger plate budget',
+            limitation: 'Well usage grows quickly once cytokines and replicates are added',
+            analysis: 'Dense interaction mapping',
+            qualities: { coverage: 0.86, interaction: 1.00, curvature: 0.68, robustness: 0.95 },
+            can: [
+                'Map the response surface densely enough to see nonlinearity developing.',
+                'Benchmark all cytokines on a highly interpretable regular grid.',
+                'Support richer regression or ANOVA models than a smaller factorial.'
+            ],
+            cannot: [
+                'Scale gracefully if you also need extra factors, time points, or many controls.',
+                'Match CCD efficiency when the main goal is a quadratic optimum.'
+            ]
+        },
+        {
+            key: 'lhs9',
+            label: 'Latin Hypercube 9-run',
+            shortLabel: 'LHS-9',
+            runs: 9,
+            points: lhs9,
+            displayPoints: summarizePointArray(lhs9, 'lhs'),
+            bestUse: 'Broad screening of continuous space with a fixed well budget',
+            limitation: 'Interaction estimates rely on regression instead of balanced contrasts',
+            analysis: 'Exploratory regression and screening',
+            qualities: { coverage: 0.96, interaction: 0.48, curvature: 0.38, robustness: 0.45 },
+            can: [
+                'Cover the interior of the O2 x dose space more evenly than a coarse grid.',
+                'Compare which cytokines respond in similar or different regions of the space.',
+                'Support exploratory regression when no single mechanistic model is assumed.'
+            ],
+            cannot: [
+                'Deliver the clean factorial effect decomposition that a balanced grid provides.',
+                'Estimate a quadratic optimum as efficiently as CCD.'
+            ]
+        },
+        {
+            key: 'ccd13',
+            label: 'Central Composite 13-run',
+            shortLabel: 'CCD-13',
+            runs: 13,
+            points: ccdPoints,
+            displayPoints: summarizeCCDDesign(ccdDesign),
+            bestUse: 'Fitting quadratic response surfaces and locating an optimum',
+            limitation: 'It spends runs on center points and star points rather than broad coverage',
+            analysis: 'Quadratic response-surface fitting',
+            qualities: { coverage: 0.60, interaction: 0.86, curvature: 1.00, robustness: 0.90 },
+            can: [
+                'Fit separate quadratic surfaces for each cytokine.',
+                'Estimate curvature and identify a local optimum efficiently.',
+                'Use center replicates to stabilize noise estimates near the operating point.'
+            ],
+            cannot: [
+                'Screen the whole space as broadly as a space-filling design.',
+                'Stay economical if the real goal is simply coarse screening.'
+            ]
+        }
+    ];
+
+    candidates.forEach(candidate => {
+        candidate.totalWells = candidate.runs * nCytokines * reps + controls;
+        candidate.recommendable = true;
+    });
+
+    const fractionalRow = {
+        key: 'frac31',
+        label: 'Fractional 2^(3-1)',
+        shortLabel: 'Frac 2^(3-1)',
+        runs: 4,
+        totalWells: 4 * nCytokines * reps + controls,
+        bestUse: 'Only if you must add a third factor, such as harvest time, to the study',
+        limitation: 'Aliasing makes it a poor match for a pure two-factor O2 x dose map',
+        recommendable: false
+    };
+
+    return { candidates, fractionalRow };
+}
+
+function goalWeights(goal) {
+    return {
+        screening: { coverage: 0.50, interaction: 0.15, curvature: 0.05, cost: 0.30 },
+        interaction: { coverage: 0.20, interaction: 0.50, curvature: 0.10, cost: 0.20 },
+        optimization: { coverage: 0.10, interaction: 0.25, curvature: 0.50, cost: 0.15 }
+    }[goal];
+}
+
+function drawSynthesisRadar(candidates, budget, recommendedKey) {
+    const ctx = clearCanvas('c-syn-radar');
+    if (!ctx) return;
+    const c = document.getElementById('c-syn-radar');
+    const W = c.width, H = c.height;
+    const cx = W / 2, cy = H / 2 + 8;
+    const radius = Math.min(W, H) / 2 - 48;
+    const axes = ['Coverage', 'Interaction', 'Curvature', 'Cost Eff.', 'Robustness'];
+    const nAxes = axes.length;
+    const angleStep = (2 * Math.PI) / nAxes;
+    const startAngle = -Math.PI / 2;
+
+    // Draw grid rings
+    for (let ring = 1; ring <= 4; ring++) {
+        const r = radius * ring / 4;
+        ctx.beginPath();
+        for (let i = 0; i <= nAxes; i++) {
+            const angle = startAngle + i * angleStep;
+            ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+        }
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = ring === 4 ? 1.5 : 0.5;
+        ctx.stroke();
+    }
+
+    // Draw axis lines and labels
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 9px -apple-system, sans-serif';
+    for (let i = 0; i < nAxes; i++) {
+        const angle = startAngle + i * angleStep;
+        const x = cx + radius * Math.cos(angle);
+        const y = cy + radius * Math.sin(angle);
+        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke();
+        const lx = cx + (radius + 16) * Math.cos(angle);
+        const ly = cy + (radius + 16) * Math.sin(angle);
+        ctx.textAlign = Math.abs(Math.cos(angle)) < 0.15 ? 'center' : Math.cos(angle) > 0 ? 'left' : 'right';
+        ctx.textBaseline = Math.abs(Math.sin(angle)) < 0.15 ? 'middle' : Math.sin(angle) > 0 ? 'top' : 'bottom';
+        ctx.fillText(axes[i], lx, ly);
+    }
+
+    // Draw each candidate polygon
+    const colors = ['#2563eb', '#059669', '#d97706', '#7c3aed'];
+    candidates.forEach((cand, idx) => {
+        const costScore = clamp(1 - cand.totalWells / (budget * 1.5), 0, 1);
+        const robustness = cand.qualities.robustness || 0.5;
+        const values = [cand.qualities.coverage, cand.qualities.interaction, cand.qualities.curvature, costScore, robustness];
+        const isRec = cand.key === recommendedKey;
+
+        ctx.beginPath();
+        for (let i = 0; i <= nAxes; i++) {
+            const ai = i % nAxes;
+            const angle = startAngle + ai * angleStep;
+            const r = radius * values[ai];
+            ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+        }
+        ctx.closePath();
+        ctx.fillStyle = colors[idx] + (isRec ? '33' : '11');
+        ctx.fill();
+        ctx.strokeStyle = colors[idx];
+        ctx.lineWidth = isRec ? 3 : 1.5;
+        ctx.stroke();
+
+        // Dots at vertices
+        for (let i = 0; i < nAxes; i++) {
+            const angle = startAngle + i * angleStep;
+            const r = radius * values[i];
+            ctx.beginPath(); ctx.arc(cx + r * Math.cos(angle), cy + r * Math.sin(angle), isRec ? 4 : 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = colors[idx]; ctx.fill();
+        }
+    });
+}
+
+// 96-well plate layout visualization
+function drawPlateLayout(totalWells, designRuns, nCytokines, reps, controls, budget) {
+    const ctx = clearCanvas('c-syn-plate');
+    if (!ctx) return;
+    const c = document.getElementById('c-syn-plate');
+    const W = c.width, H = c.height;
+
+    const nPlates = Math.ceil(totalWells / 96);
+    const plateRows = 8, plateCols = 12;
+
+    // Draw one plate (or first plate if multiple)
+    const plateW = Math.min(340, W - 40);
+    const plateH = Math.min(220, H - 60);
+    const ox = (W - plateW) / 2;
+    const oy = 30;
+    const wellW = plateW / plateCols;
+    const wellH = plateH / plateRows;
+    const wellR = Math.min(wellW, wellH) * 0.38;
+
+    // Title
+    ctx.fillStyle = '#334155'; ctx.font = 'bold 10px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(nPlates > 1 ? 'Plate 1 of ' + nPlates : '96-Well Plate Layout', W/2, 14);
+
+    // Row labels (A-H)
+    ctx.fillStyle = '#64748b'; ctx.font = '9px -apple-system, sans-serif'; ctx.textAlign = 'right';
+    for (let r = 0; r < plateRows; r++) {
+        ctx.fillText(String.fromCharCode(65 + r), ox - 4, oy + r * wellH + wellH/2 + 3);
+    }
+    // Col labels (1-12)
+    ctx.textAlign = 'center';
+    for (let c2 = 0; c2 < plateCols; c2++) {
+        ctx.fillText(c2 + 1, ox + c2 * wellW + wellW/2, oy - 4);
+    }
+
+    // Calculate well assignments
+    const treatmentWells = designRuns * nCytokines * reps;
+    const wellsOnPlate = Math.min(96, totalWells);
+
+    // Draw wells
+    let wellIdx = 0;
+    for (let r = 0; r < plateRows; r++) {
+        for (let c2 = 0; c2 < plateCols; c2++) {
+            const cx2 = ox + c2 * wellW + wellW/2;
+            const cy2 = oy + r * wellH + wellH/2;
+
+            ctx.beginPath(); ctx.arc(cx2, cy2, wellR, 0, Math.PI * 2);
+
+            if (wellIdx < treatmentWells) {
+                // Treatment well - color by cytokine
+                const cytIdx = Math.floor((wellIdx % (nCytokines * reps)) / reps);
+                const cytColors = ['#7c3aed', '#2563eb', '#d97706'];
+                ctx.fillStyle = cytColors[cytIdx] || '#7c3aed';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.5; ctx.stroke();
+            } else if (wellIdx < treatmentWells + controls) {
+                // Control well
+                ctx.fillStyle = '#059669cc'; ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.5; ctx.stroke();
+            } else {
+                // Empty well
+                ctx.fillStyle = '#f1f5f9'; ctx.fill();
+                ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 0.5; ctx.stroke();
+            }
+            wellIdx++;
+        }
+    }
+
+    // Summary below plate
+    const sumY = oy + plateH + 16;
+    ctx.font = '9px -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#475569';
+    const emptyWells = Math.max(0, 96 - wellsOnPlate);
+    let summaryParts = [];
+    if (nCytokines > 1) {
+        const cytNames = ['IL-6', 'IL-8', 'IL-2'];
+        for (let i = 0; i < nCytokines; i++) {
+            summaryParts.push(cytNames[i] + ': ' + (designRuns * reps) + ' wells');
+        }
+    } else {
+        summaryParts.push('Treatment: ' + treatmentWells + ' wells');
+    }
+    summaryParts.push('Controls: ' + controls);
+    summaryParts.push('Empty: ' + emptyWells);
+    ctx.fillText(summaryParts.join(' | '), W/2, sumY);
+    if (nPlates > 1) {
+        ctx.fillStyle = '#dc2626'; ctx.font = 'bold 9px -apple-system, sans-serif';
+        ctx.fillText('Requires ' + nPlates + ' plates (' + totalWells + ' total wells)', W/2, sumY + 14);
+    }
+}
+
+function drawSynthesisBudgetChart(candidates, budget, recommendedKey) {
+    const ctx = clearCanvas('c-syn-budget');
+    if (!ctx) return;
+    const c = document.getElementById('c-syn-budget');
+    const W = c.width, H = c.height;
+    const margin = { left: 55, right: 20, top: 20, bottom: 55 };
+    const L = margin.left, R = W - margin.right, T = margin.top, B = H - margin.bottom;
+    const maxVal = Math.max(budget, ...candidates.map(cand => cand.totalWells)) * 1.15;
+    const barW = (R - L) / (candidates.length * 1.6);
+
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 5; i++) {
+        const y = B - (i / 5) * (B - T);
+        ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(R, y); ctx.stroke();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText((maxVal * i / 5).toFixed(0), L - 6, y + 3);
+    }
+
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(L, T); ctx.lineTo(L, B); ctx.lineTo(R, B); ctx.stroke();
+
+    candidates.forEach((cand, idx) => {
+        const x = L + idx * ((R - L) / candidates.length) + barW * 0.45;
+        const h = (cand.totalWells / maxVal) * (B - T);
+        const color = cand.key === recommendedKey ? '#2563eb' : cand.totalWells <= budget ? '#7c3aed' : '#cbd5e1';
+        ctx.fillStyle = color;
+        ctx.fillRect(x, B - h, barW, h);
+        ctx.fillStyle = '#334155';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(cand.totalWells.toFixed(0), x + barW / 2, B - h - 5);
+        ctx.fillText(cand.shortLabel, x + barW / 2, B + 18);
+    });
+
+    const budgetY = B - (budget / maxVal) * (B - T);
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = '#dc2626';
+    ctx.beginPath(); ctx.moveTo(L, budgetY); ctx.lineTo(R, budgetY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#dc2626';
+    ctx.textAlign = 'left';
+    ctx.fillText('Budget', R - 42, budgetY - 6);
+}
+
+function drawSynthesisDesign(candidate, nCytokines) {
+    const ctx = clearCanvas('c-syn-design');
+    if (!ctx || !candidate) return;
+    const c = document.getElementById('c-syn-design');
+    const W = c.width, H = c.height;
+    const margin = { left: 55, right: 18, top: 20, bottom: 45 };
+    const xTicks = makeLinearTicks(O2_MIN, O2_MAX, 5);
+    const yTicks = makeLinearTicks(DOSE_MIN, DOSE_MAX, 5);
+    const { L, R, T, B } = drawAxes(ctx, W, H, margin, 'O\u2082 Level (%)', 'Radiation Dose (Gy)', xTicks, yTicks);
+
+    const values = candidate.displayPoints.map(pt => meanCytokineResponseAtPoint([pt.x, pt.y], nCytokines));
+    const vMin = Math.min(...values);
+    const vMax = Math.max(...values);
+    const range = Math.max(1, vMax - vMin);
+
+    ctx.fillStyle = '#334155';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(candidate.label, L, T - 2);
+
+    candidate.displayPoints.forEach((pt, idx) => {
+        const px = mapX(pt.x, O2_MIN, O2_MAX, L, R);
+        const py = mapY(pt.y, DOSE_MIN, DOSE_MAX, T, B);
+        const norm = (values[idx] - vMin) / range;
+        const radius = pt.count > 1 ? 7 : 5;
+        ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fillStyle = viridis(norm); ctx.fill();
+        ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1; ctx.stroke();
+        if (pt.count > 1) {
+            ctx.fillStyle = '#334155';
+            ctx.font = 'bold 10px -apple-system, sans-serif';
+            ctx.fillText('x' + pt.count, px + 9, py + 3);
+        }
+    });
+}
+
+function updateSynthesisLists(candidate) {
+    const canList = document.getElementById('syn-can-list');
+    const cannotList = document.getElementById('syn-cannot-list');
+    const sharedCan = [
+        'Compare cytokine-specific response patterns across the same O2 x dose design.',
+        'Rank conditions for follow-up validation or mechanistic experiments.'
+    ];
+    const sharedCannot = [
+        'Infer within-well cytokine covariance because each cytokine came from a different well.',
+        'Recover time-course dynamics without allocating a new design for each harvest time.'
+    ];
+
+    canList.innerHTML = '';
+    cannotList.innerHTML = '';
+    candidate.can.concat(sharedCan).forEach(text => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        canList.appendChild(li);
+    });
+    candidate.cannot.concat(sharedCannot).forEach(text => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        cannotList.appendChild(li);
+    });
+}
+
+function updateSynthesisTable(candidates, fractionalRow, budget, recommendedKey) {
+    const tbody = document.getElementById('syn-table-body');
+    tbody.innerHTML = '';
+
+    const rows = candidates.concat([fractionalRow]);
+    rows.forEach(row => {
+        const tr = document.createElement('tr');
+        if (row.key === recommendedKey) tr.classList.add('winner');
+        const wellsText = row.totalWells <= budget
+            ? row.totalWells.toFixed(0)
+            : row.totalWells.toFixed(0) + ' (+' + (row.totalWells - budget).toFixed(0) + ')';
+        tr.innerHTML = `
+          <td>${row.label}</td>
+          <td>${row.runs}</td>
+          <td>${wellsText}</td>
+          <td>${row.bestUse}</td>
+          <td>${row.limitation}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function generateSynthesisTab() {
+    const goal = document.getElementById('sel-syn-goal').value;
+    const nCytokines = +document.getElementById('s-syn-cyt').value;
+    const reps = +document.getElementById('s-syn-rep').value;
+    const controls = +document.getElementById('s-syn-ctrl').value;
+    const budget = +document.getElementById('s-syn-budget').value;
+    const weights = goalWeights(goal);
+    const { candidates, fractionalRow } = buildSynthesisCandidates(nCytokines, reps, controls);
+
+    candidates.forEach(candidate => {
+        const costScore = clamp(1 - candidate.totalWells / (budget * 1.25), 0, 1);
+        candidate.feasible = candidate.totalWells <= budget;
+        candidate.shortfall = Math.max(0, candidate.totalWells - budget);
+        candidate.goalScore =
+            weights.coverage * candidate.qualities.coverage +
+            weights.interaction * candidate.qualities.interaction +
+            weights.curvature * candidate.qualities.curvature +
+            weights.cost * costScore;
+        candidate.idealScore =
+            weights.coverage * candidate.qualities.coverage +
+            weights.interaction * candidate.qualities.interaction +
+            weights.curvature * candidate.qualities.curvature +
+            0.05 * costScore;
+    });
+
+    const feasible = candidates.filter(candidate => candidate.feasible);
+    const bestFeasible = feasible.length
+        ? feasible.sort((a, b) => b.goalScore - a.goalScore)[0]
+        : candidates.slice().sort((a, b) => a.shortfall - b.shortfall || b.idealScore - a.idealScore)[0];
+    const ideal = candidates.slice().sort((a, b) => b.idealScore - a.idealScore)[0];
+
+    G.synthesisCandidates = candidates;
+    G.synthesisRecommended = bestFeasible;
+
+    const maxConditions = Math.floor((budget - controls) / (nCytokines * reps));
+
+    document.getElementById('st-syn-rec').textContent = bestFeasible.label;
+    document.getElementById('st-syn-ideal').textContent = ideal.label;
+    document.getElementById('st-syn-runs').textContent = bestFeasible.runs;
+    document.getElementById('st-syn-wells').textContent = bestFeasible.totalWells.toFixed(0);
+    document.getElementById('st-syn-plates').textContent = Math.ceil(bestFeasible.totalWells / 96);
+    const maxCondEl = document.getElementById('st-syn-maxcond');
+    if (maxCondEl) maxCondEl.textContent = maxConditions;
+    document.getElementById('st-syn-gap').textContent = Math.max(0, ideal.totalWells - budget).toFixed(0);
+    document.getElementById('st-syn-analysis').textContent = bestFeasible.analysis;
+
+    const goalLabel = { screening: 'broad screening', interaction: 'interaction estimation', optimization: 'optimization' }[goal];
+    const nPlates = Math.ceil(bestFeasible.totalWells / 96);
+    let summary;
+    if (ideal.key === bestFeasible.key) {
+        summary = `With ${budget} wells, ${nCytokines} cytokine${nCytokines > 1 ? 's' : ''}, and ${reps} replicate${reps > 1 ? 's' : ''}, ${bestFeasible.label} is both feasible and the best match for ${goalLabel}. It uses ${bestFeasible.totalWells} wells across ${nPlates} plate${nPlates > 1 ? 's' : ''}, leaving ${Math.max(0, 96 * nPlates - bestFeasible.totalWells)} wells unused.`;
+    } else {
+        const idealPlates = Math.ceil(ideal.totalWells / 96);
+        summary = `Within ${budget} wells, ${bestFeasible.label} is the best feasible design for ${goalLabel} (${nPlates} plate${nPlates > 1 ? 's' : ''}). The ideal design is ${ideal.label} (${idealPlates} plate${idealPlates > 1 ? 's' : ''}, ${ideal.totalWells} wells). To unlock it, increase budget by ${Math.max(0, ideal.totalWells - budget)} wells, or reduce to ${Math.max(1, nCytokines - 1)} cytokine${nCytokines > 2 ? 's' : ''} or ${Math.max(1, reps - 1)} replicate${reps > 2 ? 's' : ''}.`;
+    }
+    document.getElementById('syn-summary-text').textContent = summary;
+
+    drawSynthesisBudgetChart(candidates, budget, bestFeasible.key);
+    drawSynthesisRadar(candidates, budget, bestFeasible.key);
+    drawSynthesisDesign(bestFeasible, nCytokines);
+    drawPlateLayout(bestFeasible.totalWells, bestFeasible.runs, nCytokines, reps, controls, budget);
+    updateSynthesisLists(bestFeasible);
+    updateSynthesisTable(candidates, fractionalRow, budget, bestFeasible.key);
+}
+
+// ========================================================================
+//  EVENT BINDING & INITIALIZATION
+// ========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Tab 1: Model Explorer slider bindings
+    const modelSliders = [
+        { slider: 's-ec50h', display: 'v-ec50h', fmt: v => parseFloat(v).toFixed(v % 1 === 0 ? 0 : 1) },
+        { slider: 's-ec50r', display: 'v-ec50r', fmt: v => parseFloat(v).toFixed(1) },
+        { slider: 's-nh', display: 'v-nh', fmt: v => parseFloat(v).toFixed(1) },
+        { slider: 's-nr', display: 'v-nr', fmt: v => parseFloat(v).toFixed(1) },
+        { slider: 's-smaxh', display: 'v-smaxh', fmt: v => parseFloat(v).toFixed(2) },
+        { slider: 's-smaxr', display: 'v-smaxr', fmt: v => parseFloat(v).toFixed(2) },
+        { slider: 's-alpha', display: 'v-alpha', fmt: v => parseFloat(v).toFixed(2) },
+        { slider: 's-baseline', display: 'v-baseline', fmt: v => parseFloat(v).toFixed(0) },
+        { slider: 's-scale', display: 'v-scale', fmt: v => parseFloat(v).toFixed(0) }
+    ];
+    modelSliders.forEach(s => {
+        const el = document.getElementById(s.slider);
+        if (el) el.addEventListener('input', function() {
+            document.getElementById(s.display).textContent = s.fmt(this.value);
+            drawModelExplorer();
+        });
+    });
+    document.getElementById('btn-reset-model').addEventListener('click', resetModelDefaults);
+
+    // Tab 2: Factorial
+    ['s-fac-lo2', 's-fac-ld', 's-fac-rep'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', function() {
+            const dispId = 'v-' + id.slice(2);
+            const dispEl = document.getElementById(dispId);
+            if (dispEl) dispEl.textContent = this.value;
+        });
+    });
+    document.getElementById('btn-gen-fac').addEventListener('click', generateFactorial);
+
+    // Tab 3: Fractional factorial
+    ['s-frac-rep', 's-frac-c', 's-frac-ab', 's-frac-noise'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', function() {
+            const displayMap = {
+                's-frac-rep': ['v-frac-rep', this.value],
+                's-frac-c': ['v-frac-c', this.value],
+                's-frac-ab': ['v-frac-ab', this.value],
+                's-frac-noise': ['v-frac-noise', this.value]
+            };
+            const [dispId, value] = displayMap[id];
+            document.getElementById(dispId).textContent = value;
+        });
+    });
+    document.getElementById('sel-frac-design').addEventListener('change', generateFractionalExplorer);
+    document.getElementById('btn-gen-frac').addEventListener('click', generateFractionalExplorer);
+
+    // Tab 4: LHS
+    document.getElementById('s-lhs-n').addEventListener('input', function() {
+        document.getElementById('v-lhs-n').textContent = this.value;
+    });
+    document.getElementById('btn-gen-lhs').addEventListener('click', generateLHS);
+    document.getElementById('btn-gen-rnd').addEventListener('click', generateRandom);
+    document.getElementById('btn-gen-both').addEventListener('click', function() { generateLHS(); generateRandom(); });
+
+    // Tab 5: RSM
+    document.getElementById('s-rsm-n').addEventListener('input', function() {
+        document.getElementById('v-rsm-n').textContent = this.value;
+    });
+    document.getElementById('s-rsm-noise').addEventListener('input', function() {
+        document.getElementById('v-rsm-noise').textContent = this.value;
+    });
+    document.getElementById('btn-gen-rsm').addEventListener('click', generateRSM);
+    document.getElementById('sel-rsm-type').addEventListener('change', generateRSM);
+
+    // Tab 6: CCD
+    document.getElementById('s-ccd-alpha').addEventListener('input', function() {
+        document.getElementById('v-ccd-alpha').textContent = parseFloat(this.value).toFixed(2);
+    });
+    document.getElementById('s-ccd-center').addEventListener('input', function() {
+        document.getElementById('v-ccd-center').textContent = this.value;
+    });
+    document.getElementById('s-ccd-noise').addEventListener('input', function() {
+        document.getElementById('v-ccd-noise').textContent = this.value;
+    });
+    document.getElementById('btn-gen-ccd').addEventListener('click', generateCCDExplorer);
+
+    // Tab 7: Comparison
+    document.getElementById('btn-run-cmp').addEventListener('click', runComparison);
+
+    // Tab 8: Synthesis
+    ['s-syn-cyt', 's-syn-rep', 's-syn-ctrl', 's-syn-budget'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', function() {
+            const displayMap = {
+                's-syn-cyt': 'v-syn-cyt',
+                's-syn-rep': 'v-syn-rep',
+                's-syn-ctrl': 'v-syn-ctrl',
+                's-syn-budget': 'v-syn-budget'
+            };
+            document.getElementById(displayMap[id]).textContent = this.value;
+        });
+    });
+    document.getElementById('sel-syn-goal').addEventListener('change', generateSynthesisTab);
+    document.getElementById('btn-run-syn').addEventListener('click', generateSynthesisTab);
+
+    // Initialize all visualizations
+    drawModelExplorer();
+    generateFactorial();
+    generateFractionalExplorer();
+    generateLHS();
+    generateRandom();
+    generateRSM();
+    generateCCDExplorer();
+    runComparison();
+    generateSynthesisTab();
+});
+</script>
+</body>
+</html>

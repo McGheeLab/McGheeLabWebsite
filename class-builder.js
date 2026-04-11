@@ -19,7 +19,8 @@ const SECTION_REG = {
   simulations: { label: 'Simulations',    component: 'text',    field: 'simulationsContent' },
   lectures:    { label: 'Lecture Notes',  component: 'files',   path: 'lectures' },
   homeworks:   { label: 'Assignments',    component: 'files',   path: 'homeworks', hasDue: true },
-  exams:       { label: 'Exams',          component: 'files',   path: 'exams',     hasDue: true }
+  exams:       { label: 'Exams',          component: 'files',   path: 'exams',     hasDue: true },
+  modules:     { label: 'Learning Modules', component: 'modules' }
 };
 
 const WIDGET_REG = {
@@ -49,6 +50,7 @@ let _dirty = false;
 let _autosaveTimer = null;
 let _hashChangeHandler = null;
 let _beforeUnloadHandler = null;
+let _moduleManifest = null;  // Cached manifest.json for file picker
 
 /* ─── Default Schedule Seed ──────────────────────────────────── */
 const DEFAULT_SCHEDULES = {
@@ -676,9 +678,398 @@ function renderSectionBody(section) {
     }
     case 'speakers':
       return `<div id="cb-speakers-${section.id}">${McgheeLab.Scheduler?.render?.(buildSchedulerConfig()) || '<p class="muted-text">Scheduler not loaded.</p>'}</div>`;
+    case 'modules':
+      return renderModulesBody(editing);
     default:
       return '<p class="muted-text">Unknown component.</p>';
   }
+}
+
+/* ─── Learning Modules Section Body ────────────────────────── */
+function renderModulesBody(editing) {
+  const modules = (_classData.modules || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  if (editing) {
+    let html = '<div class="cb-modules-manager">';
+
+    if (modules.length) {
+      modules.forEach((mod, i) => {
+        const hwLabel = getHomeworkLabel(mod.homeworkFileId);
+        html += `<div class="cb-mod-card" data-mod-id="${esc(mod.id)}">
+          <div class="cb-mod-card-handle">
+            <button type="button" class="btn btn-small btn-ghost cb-mod-move" data-dir="up" data-mod-id="${esc(mod.id)}" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+            <button type="button" class="btn btn-small btn-ghost cb-mod-move" data-dir="down" data-mod-id="${esc(mod.id)}" ${i === modules.length - 1 ? 'disabled' : ''}>&darr;</button>
+          </div>
+          <div class="cb-mod-card-body">
+            <div class="cb-mod-card-top">
+              <span class="cb-mod-card-num">${i + 1}</span>
+              <strong class="cb-mod-card-title">${esc(mod.title || 'Untitled')}</strong>
+              <span class="cb-mod-card-file muted-text">${esc(mod.folder ? mod.folder + '/' : '')}${esc(mod.htmlFile || '—')}</span>
+              <label class="cb-mod-card-pub" title="Published">
+                <input type="checkbox" class="cb-mod-published" data-mod-id="${esc(mod.id)}" ${mod.published ? 'checked' : ''} /> Visible
+              </label>
+            </div>
+            <div class="cb-mod-card-bottom">
+              <button type="button" class="btn btn-small btn-ghost cb-mod-edit-hw" data-mod-id="${esc(mod.id)}">Homework: ${hwLabel ? esc(hwLabel) : '<em>None</em>'}</button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-danger btn-small cb-mod-delete" data-mod-id="${esc(mod.id)}" title="Remove">&times;</button>
+        </div>`;
+      });
+    } else {
+      html += '<p class="muted-text" style="margin:0 0 12px;">No modules configured yet.</p>';
+    }
+
+    html += '<button type="button" class="btn btn-small cb-mod-add" style="margin-top:10px;">+ Add Module</button>';
+    html += `<p class="muted-text" style="margin:8px 0 0;font-size:.75rem;">Run <code>python3 scripts/scan_modules.py</code> after adding new HTML files.</p>`;
+    html += '</div>';
+    return html;
+  }
+
+  // Public view: clickable module list
+  const published = modules.filter(m => m.published);
+  if (!published.length) return '<p class="muted-text">No modules available yet.</p>';
+
+  let html = '<div class="cb-modules-list" style="display:flex;flex-direction:column;gap:6px;">';
+  published.forEach((mod, i) => {
+    const href = `#/classes/${encodeURIComponent(_scheduleId)}/modules/${encodeURIComponent(mod.htmlFile)}`;
+    html += `<a href="${href}" class="cb-module-link" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;text-decoration:none;color:var(--text,#eef2f7);transition:background .2s,border-color .2s;">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(91,174,209,.15);color:#5baed1;font-size:.8rem;font-weight:600;flex-shrink:0;">${i + 1}</span>
+      <span style="font-weight:500;">${esc(mod.title || mod.htmlFile)}</span>
+    </a>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+/** Get a display label for a homework file ID */
+function getHomeworkLabel(fileId) {
+  if (!fileId) return null;
+  for (const tab of _tabs) {
+    for (const sec of (tab.sections || [])) {
+      const reg = SECTION_REG[sec.key];
+      if (reg?.component === 'files' && reg.hasDue) {
+        const files = _fileData[sec.id] || [];
+        const f = files.find(x => x.id === fileId);
+        if (f) return f.fileName || f.description || fileId;
+      }
+    }
+  }
+  return fileId;
+}
+
+/** Fetch and cache the module manifest */
+async function loadManifest() {
+  if (_moduleManifest) return _moduleManifest;
+  try {
+    const resp = await fetch('modules/manifest.json?_=' + Date.now());
+    if (resp.ok) _moduleManifest = await resp.json();
+  } catch (e) {
+    console.warn('[ClassBuilder] Could not load modules/manifest.json:', e);
+  }
+  return _moduleManifest || { folders: {} };
+}
+
+/** Build a flat list of all module files from the manifest for searching/browsing */
+function flattenManifest(manifest) {
+  const items = [];
+  for (const [folder, data] of Object.entries(manifest.folders || {})) {
+    for (const file of (data.files || [])) {
+      items.push({ folder, folderLabel: data.label || folder, name: file.name, title: file.title });
+    }
+  }
+  return items;
+}
+
+/** Build a flat list of all homework files from classFiles for searching/browsing */
+function flattenHomeworkFiles() {
+  const items = [];
+  for (const tab of _tabs) {
+    for (const sec of (tab.sections || [])) {
+      const reg = SECTION_REG[sec.key];
+      if (reg?.component === 'files' && reg.hasDue) {
+        const files = _fileData[sec.id] || [];
+        for (const f of files) {
+          items.push({
+            id: f.id,
+            label: (sec.name || reg.label) + ': ' + (f.fileName || f.description || f.id),
+            fileName: f.fileName || '',
+            section: sec.name || reg.label
+          });
+        }
+      }
+    }
+  }
+  return items;
+}
+
+/* ─── FILE PICKER MODAL ────────────────────────────────────── */
+/**
+ * Open a generic file picker modal. Works for both module files and homework files.
+ * @param {Object} opts
+ * @param {string} opts.title       - Modal heading
+ * @param {Array}  opts.items       - Array of pickable items
+ * @param {Function} opts.renderItem  - (item) => { html, searchText }
+ * @param {Function} opts.onSelect    - (item) => void
+ * @param {string} [opts.groupKey]  - Optional property to group items by (e.g. 'folder')
+ * @param {string} [opts.groupLabel] - Optional property for group display name
+ */
+function openFilePicker(opts) {
+  let modal = document.getElementById('cb-filepicker-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'cb-filepicker-modal';
+  modal.className = 'cb-modal-overlay';
+
+  const items = opts.items || [];
+  const grouped = {};
+  if (opts.groupKey) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const g = item[opts.groupKey] || 'Other';
+      if (!grouped[g]) grouped[g] = { label: item[opts.groupLabel] || g, entries: [] };
+      grouped[g].entries.push({ item, idx: i });
+    }
+  }
+
+  let listHtml = '';
+  if (opts.groupKey && Object.keys(grouped).length > 0) {
+    for (const [gKey, gData] of Object.entries(grouped)) {
+      listHtml += `<div class="cb-fp-group" data-group="${escAttr(gKey)}">
+        <div class="cb-fp-group-label">${esc(gData.label)}</div>`;
+      for (const entry of gData.entries) {
+        const r = opts.renderItem(entry.item);
+        listHtml += `<div class="cb-fp-item" data-fp-idx="${entry.idx}" data-search="${escAttr(r.searchText.toLowerCase())}">${r.html}</div>`;
+      }
+      listHtml += '</div>';
+    }
+  } else {
+    for (let i = 0; i < items.length; i++) {
+      const r = opts.renderItem(items[i]);
+      listHtml += `<div class="cb-fp-item" data-fp-idx="${i}" data-search="${escAttr(r.searchText.toLowerCase())}">${r.html}</div>`;
+    }
+  }
+
+  if (!items.length) {
+    listHtml = '<p class="muted-text" style="padding:1rem;text-align:center;">No files found. Run <code>python3 scripts/scan_modules.py</code> to refresh.</p>';
+  }
+
+  modal.innerHTML = `
+    <div class="cb-modal cb-fp-modal">
+      <div class="cb-modal-header">
+        <h3>${esc(opts.title || 'Select File')}</h3>
+        <button type="button" class="cb-modal-close">&times;</button>
+      </div>
+      <div class="cb-fp-search-wrap">
+        <input type="text" id="cb-fp-search" class="cb-fp-search" placeholder="Search files..." autofocus />
+      </div>
+      <div class="cb-fp-list" id="cb-fp-list">
+        ${listHtml}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Close handlers
+  modal.querySelector('.cb-modal-close').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+  // Search filtering
+  const searchInput = modal.querySelector('#cb-fp-search');
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase().trim();
+    modal.querySelectorAll('.cb-fp-item').forEach(el => {
+      const match = !q || el.dataset.search.includes(q);
+      el.style.display = match ? '' : 'none';
+    });
+    // Hide empty groups
+    modal.querySelectorAll('.cb-fp-group').forEach(g => {
+      const visible = g.querySelectorAll('.cb-fp-item[style=""], .cb-fp-item:not([style])');
+      // Check if any child items are visible
+      let anyVisible = false;
+      g.querySelectorAll('.cb-fp-item').forEach(item => {
+        if (item.style.display !== 'none') anyVisible = true;
+      });
+      g.style.display = anyVisible ? '' : 'none';
+    });
+  });
+
+  // Item click
+  modal.querySelectorAll('.cb-fp-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.fpIdx);
+      if (!isNaN(idx)) { opts.onSelect(items[idx]); modal.remove(); }
+    });
+  });
+
+  // Focus search
+  setTimeout(() => searchInput.focus(), 50);
+}
+
+/* ─── ADD MODULE MODAL ─────────────────────────────────────── */
+async function openAddModuleModal() {
+  const manifest = await loadManifest();
+  const allFiles = flattenManifest(manifest);
+
+  let modal = document.getElementById('cb-addmod-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'cb-addmod-modal';
+  modal.className = 'cb-modal-overlay';
+
+  // Build folder-organized dropdown options
+  let optionsHtml = '<option value="">— Select a file —</option>';
+  for (const [folder, data] of Object.entries(manifest.folders || {})) {
+    optionsHtml += `<optgroup label="${esc(data.label || folder)}">`;
+    for (const file of (data.files || [])) {
+      optionsHtml += `<option value="${escAttr(folder + '/' + file.name)}" data-title="${escAttr(file.title)}">${esc(file.name)}</option>`;
+    }
+    optionsHtml += '</optgroup>';
+  }
+
+  modal.innerHTML = `
+    <div class="cb-modal cb-addmod-modal">
+      <div class="cb-modal-header">
+        <h3>Add Learning Module</h3>
+        <button type="button" class="cb-modal-close">&times;</button>
+      </div>
+      <div class="cb-modal-body">
+        <div class="form-group">
+          <label>Lesson Title</label>
+          <input type="text" id="cb-addmod-title" placeholder="e.g. Introduction to Microfluidics" />
+        </div>
+        <div class="form-group">
+          <label>Module File</label>
+          <select id="cb-addmod-dropdown">${optionsHtml}</select>
+        </div>
+        <div class="form-group">
+          <label style="margin-bottom:4px;">Or search all files</label>
+          <input type="text" id="cb-addmod-search" placeholder="Type to search..." />
+          <div class="cb-addmod-results" id="cb-addmod-results"></div>
+        </div>
+        <div class="cb-addmod-selected" id="cb-addmod-selected" style="display:none;">
+          <span class="muted-text">Selected:</span> <strong id="cb-addmod-sel-label"></strong>
+        </div>
+      </div>
+      <div class="cb-modal-footer">
+        <button type="button" class="btn btn-secondary cb-modal-close">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cb-addmod-confirm">Add Module</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  let selectedFile = null; // { folder, name, title }
+
+  const titleInput = modal.querySelector('#cb-addmod-title');
+  const dropdown = modal.querySelector('#cb-addmod-dropdown');
+  const searchInput = modal.querySelector('#cb-addmod-search');
+  const resultsDiv = modal.querySelector('#cb-addmod-results');
+  const selectedDiv = modal.querySelector('#cb-addmod-selected');
+  const selLabel = modal.querySelector('#cb-addmod-sel-label');
+
+  function selectFile(folder, name, title) {
+    selectedFile = { folder, name, title };
+    selLabel.textContent = folder + '/' + name;
+    selectedDiv.style.display = '';
+    if (!titleInput.value.trim()) titleInput.value = title || '';
+    // Reset search
+    searchInput.value = '';
+    resultsDiv.innerHTML = '';
+  }
+
+  // Dropdown change
+  dropdown.addEventListener('change', () => {
+    const val = dropdown.value;
+    if (!val) return;
+    const [folder, ...rest] = val.split('/');
+    const name = rest.join('/');
+    const opt = dropdown.selectedOptions[0];
+    selectFile(folder, name, opt?.dataset.title || '');
+  });
+
+  // Search
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase().trim();
+    if (!q) { resultsDiv.innerHTML = ''; return; }
+    const matches = allFiles.filter(f =>
+      f.name.toLowerCase().includes(q) ||
+      f.title.toLowerCase().includes(q) ||
+      f.folder.toLowerCase().includes(q) ||
+      f.folderLabel.toLowerCase().includes(q)
+    ).slice(0, 20);
+
+    if (!matches.length) {
+      resultsDiv.innerHTML = '<div class="cb-addmod-noresult muted-text">No matches</div>';
+      return;
+    }
+
+    resultsDiv.innerHTML = matches.map(f =>
+      `<div class="cb-fp-item cb-addmod-result-item" data-folder="${escAttr(f.folder)}" data-name="${escAttr(f.name)}" data-title="${escAttr(f.title)}">
+        <span class="cb-fp-item-folder">${esc(f.folderLabel)}</span>
+        <span class="cb-fp-item-name">${esc(f.name)}</span>
+        <span class="cb-fp-item-title muted-text">${esc(f.title)}</span>
+      </div>`
+    ).join('');
+
+    resultsDiv.querySelectorAll('.cb-addmod-result-item').forEach(el => {
+      el.addEventListener('click', () => selectFile(el.dataset.folder, el.dataset.name, el.dataset.title));
+    });
+  });
+
+  // Close
+  modal.querySelectorAll('.cb-modal-close').forEach(el => el.addEventListener('click', () => modal.remove()));
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+  // Confirm
+  modal.querySelector('#cb-addmod-confirm').addEventListener('click', () => {
+    if (!selectedFile) { alert('Please select a module file.'); return; }
+    const title = titleInput.value.trim() || selectedFile.title || selectedFile.name;
+    gatherContentFromDOM();
+    if (!_classData.modules) _classData.modules = [];
+    const maxOrder = _classData.modules.reduce((mx, m) => Math.max(mx, m.order ?? 0), -1);
+    _classData.modules.push({
+      id: 'mod_' + generateKey().slice(0, 8),
+      title,
+      htmlFile: selectedFile.name,
+      folder: selectedFile.folder,
+      order: maxOrder + 1,
+      homeworkFileId: null,
+      published: true
+    });
+    markDirty();
+    modal.remove();
+    refreshCanvas();
+  });
+
+  setTimeout(() => titleInput.focus(), 50);
+}
+
+/* ─── HOMEWORK PICKER MODAL ────────────────────────────────── */
+function openHomeworkPicker(modId) {
+  const hwFiles = flattenHomeworkFiles();
+  const mod = (_classData.modules || []).find(m => m.id === modId);
+  if (!mod) return;
+
+  openFilePicker({
+    title: 'Link Homework',
+    items: hwFiles,
+    groupKey: 'section',
+    groupLabel: 'section',
+    renderItem: (item) => ({
+      html: `<span class="cb-fp-item-name">${esc(item.fileName)}</span>
+             <span class="cb-fp-item-title muted-text">${esc(item.section)}</span>`,
+      searchText: item.label + ' ' + item.fileName
+    }),
+    onSelect: (item) => {
+      gatherContentFromDOM();
+      mod.homeworkFileId = item.id;
+      markDirty();
+      refreshCanvas();
+    }
+  });
 }
 
 function buildFileListHTML(files, reg) {
@@ -1204,6 +1595,61 @@ function wireBlockEditors() {
   document.querySelectorAll('.cb-image-input').forEach(input => {
     input.addEventListener('change', () => handleImageUpload(input));
   });
+
+  // Module editors
+  wireModuleEditors();
+}
+
+/* ─── Module Editor Wiring ────────────────────────────────────── */
+function wireModuleEditors() {
+  // Published checkbox
+  document.querySelectorAll('.cb-mod-published').forEach(el => {
+    el.addEventListener('change', () => markDirty());
+  });
+
+  // Add module — open modal
+  document.querySelectorAll('.cb-mod-add').forEach(btn => {
+    btn.addEventListener('click', () => openAddModuleModal());
+  });
+
+  // Edit homework — open picker
+  document.querySelectorAll('.cb-mod-edit-hw').forEach(btn => {
+    btn.addEventListener('click', () => openHomeworkPicker(btn.dataset.modId));
+  });
+
+  // Delete module
+  document.querySelectorAll('.cb-mod-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modId = btn.dataset.modId;
+      if (!confirm('Remove this module?')) return;
+      gatherContentFromDOM();
+      _classData.modules = (_classData.modules || []).filter(m => m.id !== modId);
+      markDirty();
+      refreshCanvas();
+    });
+  });
+
+  // Move module up/down
+  document.querySelectorAll('.cb-mod-move').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modId = btn.dataset.modId;
+      const dir = btn.dataset.dir;
+      gatherContentFromDOM();
+      const modules = (_classData.modules || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const idx = modules.findIndex(m => m.id === modId);
+      if (idx < 0) return;
+      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= modules.length) return;
+      const tmpOrder = modules[idx].order;
+      modules[idx].order = modules[swapIdx].order;
+      modules[swapIdx].order = tmpOrder;
+      markDirty();
+      refreshCanvas();
+    });
+  });
+
+  // Pre-load manifest in background for fast modal open
+  loadManifest();
 }
 
 /* ─── Simulation Wiring (public + admin) ────────────────────── */
@@ -1842,6 +2288,11 @@ function gatherContentFromDOM() {
       url: row.querySelector('.cb-link-url')?.value || ''
     }));
   });
+  // Learning modules — only published checkbox is editable inline
+  document.querySelectorAll('.cb-mod-published[data-mod-id]').forEach(cb => {
+    const mod = (_classData.modules || []).find(m => m.id === cb.dataset.modId);
+    if (mod) mod.published = cb.checked;
+  });
 }
 
 /* ================================================================
@@ -1869,7 +2320,7 @@ async function persistAll() {
   gatherContentFromDOM();
 
   try {
-    const saveData = { id: _scheduleId, tabs: _tabs, sections: tabsToSections() };
+    const saveData = { id: _scheduleId, tabs: _tabs, sections: tabsToSections(), modules: _classData.modules || [] };
     await ScheduleDB.saveSchedule(saveData);
     _dirty = false;
     if (st) { st.textContent = 'Saved'; st.className = 'cb-autosave-status cb-status-saved'; }
@@ -2043,10 +2494,118 @@ function buildSchedulerConfig() {
 }
 
 /* ================================================================
+   MODULE VIEWER — iframe wrapper for standalone lesson HTML files
+   Route: #/classes/{classId}/modules/{filename}
+   ================================================================ */
+function renderModuleViewer(classId, moduleFile) {
+  // iframe src is set by wireModuleViewer after looking up the folder from Firestore
+  return `
+    <div class="cb-module-viewer-page">
+      <div class="cb-module-nav-bar" id="cb-module-nav-bar">
+        <a href="#/classes/${esc(classId)}" class="cb-module-back">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          <span id="cb-module-class-title">Back to Class</span>
+        </a>
+        <div class="cb-module-center">
+          <span class="cb-module-progress" id="cb-module-progress"></span>
+          <span class="cb-module-title" id="cb-module-title"></span>
+        </div>
+        <div class="cb-module-nav" id="cb-module-nav"></div>
+      </div>
+      <div class="cb-module-iframe-wrap">
+        <iframe
+          id="cb-module-iframe"
+          class="cb-module-iframe"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        ></iframe>
+      </div>
+    </div>
+  `;
+}
+
+async function wireModuleViewer(classId, moduleFile) {
+  const db = McgheeLab.db;
+  if (!db) return;
+
+  try {
+    const doc = await db.collection('schedules').doc(classId).get();
+    if (!doc.exists) return;
+
+    const schedule = doc.data();
+    const modules = (schedule.modules || [])
+      .filter(m => m.published)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const currentIdx = modules.findIndex(m => m.htmlFile === moduleFile);
+    const current = currentIdx >= 0 ? modules[currentIdx] : null;
+    const prev = currentIdx > 0 ? modules[currentIdx - 1] : null;
+    const next = (currentIdx >= 0 && currentIdx < modules.length - 1) ? modules[currentIdx + 1] : null;
+
+    // Set iframe src using the folder from the module data
+    const iframe = document.getElementById('cb-module-iframe');
+    if (iframe) {
+      const folder = current?.folder || classId;
+      iframe.src = `modules/${encodeURIComponent(folder)}/${encodeURIComponent(moduleFile)}`;
+      iframe.addEventListener('load', () => {
+        try {
+          const h = iframe.contentDocument?.documentElement?.scrollHeight;
+          if (h) iframe.style.height = h + 'px';
+        } catch (e) {
+          iframe.style.height = 'calc(100vh - 60px)';
+        }
+      });
+    }
+
+    // Class title
+    const titleEl = document.getElementById('cb-module-class-title');
+    if (titleEl) titleEl.textContent = schedule.title || classId;
+
+    // Module title + progress
+    const modTitle = document.getElementById('cb-module-title');
+    const modProgress = document.getElementById('cb-module-progress');
+    if (modTitle) modTitle.textContent = current?.title || moduleFile;
+    if (modProgress && currentIdx >= 0) modProgress.textContent = `Lesson ${currentIdx + 1} of ${modules.length}`;
+
+    // Prev / Next / Homework nav buttons
+    const navEl = document.getElementById('cb-module-nav');
+    if (navEl) {
+      let navHtml = '';
+
+      if (prev) {
+        navHtml += `<a href="#/classes/${esc(classId)}/modules/${encodeURIComponent(prev.htmlFile)}" class="cb-module-nav-btn" title="${esc(prev.title)}">&larr; Prev</a>`;
+      } else {
+        navHtml += '<span class="cb-module-nav-btn cb-module-nav-disabled">&larr; Prev</span>';
+      }
+
+      if (current?.homeworkFileId) {
+        try {
+          const fDoc = await db.collection('classFiles').doc(current.homeworkFileId).get();
+          if (fDoc.exists && fDoc.data().fileUrl) {
+            navHtml += `<a href="${esc(fDoc.data().fileUrl)}" target="_blank" rel="noopener" class="cb-module-nav-btn cb-module-nav-hw">Homework</a>`;
+          }
+        } catch (e) { /* skip */ }
+      }
+
+      if (next) {
+        navHtml += `<a href="#/classes/${esc(classId)}/modules/${encodeURIComponent(next.htmlFile)}" class="cb-module-nav-btn" title="${esc(next.title)}">Next &rarr;</a>`;
+      } else {
+        navHtml += '<span class="cb-module-nav-btn cb-module-nav-disabled">Next &rarr;</span>';
+      }
+
+      navEl.innerHTML = navHtml;
+    }
+  } catch (err) {
+    console.warn('[ModuleViewer] Failed to load class data:', err);
+  }
+}
+
+/* ================================================================
    EXPORTS
    ================================================================ */
-McgheeLab.renderClassPage = renderClassPage;
-McgheeLab.wireClassPage   = wireClassPage;
-McgheeLab.ScheduleDB      = ScheduleDB;
+McgheeLab.renderClassPage    = renderClassPage;
+McgheeLab.wireClassPage      = wireClassPage;
+McgheeLab.renderModuleViewer = renderModuleViewer;
+McgheeLab.wireModuleViewer   = wireModuleViewer;
+McgheeLab.ScheduleDB         = ScheduleDB;
 
 })();

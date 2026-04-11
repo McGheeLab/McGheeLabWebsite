@@ -31,6 +31,8 @@
   let _msalLoaded = false;   // Microsoft MSAL loaded
   let _calendarToken = null; // Google OAuth2 access token (session-lived)
   let _msalToken = null;     // Microsoft Graph access token (session-lived)
+  let _huddlePlans = [];     // Huddle plans for current day (own + signed up)
+  let _skippedHuddleIds = new Set(); // Huddle plans skipped this session
 
   /* ─── Default Categories ─────────────────────────────────── */
   const DEFAULT_CATEGORIES = [
@@ -139,10 +141,20 @@
         initDefaults();
       }
       render();
+
+      // Enable tab swipe on mobile
+      if (McgheeLab.MobileShell?.enableTabSwipe) {
+        McgheeLab.MobileShell.enableTabSwipe(
+          [{ id: 'daily' }, { id: 'weekly' }, { id: 'analytics' }, { id: 'calendar' }, { id: 'categories' }, { id: 'settings' }],
+          () => _currentSection,
+          (id) => { _currentSection = id; render(); }
+        );
+      }
     }
 
     // Path 1: AppBridge (handles both embedded postMessage and standalone Firebase)
     McgheeLab.AppBridge.init();
+    if (McgheeLab.MobileShell) McgheeLab.MobileShell.configure({ appId: 'activity-tracker', title: 'Activity Tracker' });
     McgheeLab.AppBridge.onReady((user, profile) => {
       if (user) boot(user, profile);
     });
@@ -207,8 +219,9 @@
       };
       await saveTrackerData();
     }
-    // Load entries for current date
+    // Load entries for current date + Huddle plans
     await loadEntries(_currentDate, _currentDate);
+    await loadHuddlePlans(_currentDate);
   }
 
   async function loadEntries(startDate, endDate) {
@@ -237,6 +250,40 @@
 
   async function loadEntriesForRange(startDate, endDate) {
     await loadEntries(startDate, endDate);
+  }
+
+  /* ─── Huddle Integration — load plans for the current day ─── */
+  async function loadHuddlePlans(dateStr) {
+    try {
+      // Get the ISO week ID for the target date
+      const d = new Date(dateStr + 'T12:00:00');
+      const tmp = new Date(d.getTime());
+      tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
+      const jan4 = new Date(tmp.getFullYear(), 0, 4);
+      const weekNum = 1 + Math.round(((tmp - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+      const weekId = tmp.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
+
+      const snap = await db().collection('huddlePlans')
+        .where('weekId', '==', weekId)
+        .where('plannedDay', '==', dateStr)
+        .get();
+
+      const uid = _user.uid;
+      _huddlePlans = snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(p => {
+          if (p.status !== 'planned') return false;
+          // Include if user owns the plan
+          if (p.ownerUid === uid) return true;
+          // Include if user signed up (watcher or joiner)
+          if ((p.watchers || []).some(w => w.uid === uid)) return true;
+          if ((p.joiners || []).some(j => j.uid === uid)) return true;
+          return false;
+        });
+    } catch (err) {
+      // Huddle collection may not exist yet — fail silently
+      _huddlePlans = [];
+    }
   }
 
   async function saveTrackerData() {
@@ -589,9 +636,10 @@ Split every distinct activity into its own task. Respond with the JSON array onl
      ═══════════════════════════════════════════════════════════ */
   function render() {
     try {
+      if (McgheeLab.MobileShell?.saveTabScroll) McgheeLab.MobileShell.saveTabScroll('act-tabs');
       appEl.innerHTML = `
         <div class="act-layout">
-          <nav class="act-sidebar">
+          <nav class="act-sidebar" id="act-tabs">
             ${sidebarHTML()}
           </nav>
           <div class="act-main" id="act-main">
@@ -602,6 +650,10 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       `;
       wireSidebar();
       wireSection();
+      // Center active tab in scrollable nav
+      if (McgheeLab.MobileShell?.centerActiveTab) {
+        McgheeLab.MobileShell.centerActiveTab(document.getElementById('act-tabs'), '.active');
+      }
     } catch (err) {
       console.error('[ActivityTracker] render failed:', err);
       appEl.innerHTML = `<div class="app-card" style="margin:2rem;text-align:center">
@@ -716,6 +768,39 @@ Split every distinct activity into its own task. Respond with the JSON array onl
         ${uncategorizedCount > 0 && hasML ? `<button class="act-ml-btn" id="act-ml-btn">ML Categorize (${uncategorizedCount})</button>` : ''}
         ${uncategorizedCount > 0 && hasAI ? `<button class="act-ai-btn" id="act-ai-btn">AI Categorize (${uncategorizedCount})</button>` : ''}
       </div>`;
+
+    // Huddle plans suggestion panel
+    if (_huddlePlans.length) {
+      const loggedHuddleIds = new Set(entries.filter(e => e.source === 'huddle' && e.huddlePlanId).map(e => e.huddlePlanId));
+      const unloggedHuddle = _huddlePlans.filter(hp =>
+        !loggedHuddleIds.has(hp.id) && !_skippedHuddleIds.has(hp.id)
+      );
+      if (unloggedHuddle.length) {
+        html += `<div class="app-card" style="margin-top:.75rem;border-color:var(--accent)">
+          <p style="margin:0 0 .5rem;font-size:.88rem;color:var(--accent)">
+            <strong>${unloggedHuddle.length}</strong> Huddle plan${unloggedHuddle.length > 1 ? 's' : ''} scheduled today:
+          </p>`;
+        for (const hp of unloggedHuddle) {
+          const isOwner = hp.ownerUid === _user.uid;
+          const role = isOwner ? 'Your plan' : 'Signed up';
+          const dur = hp.startTime && hp.endTime ? (() => {
+            const [sh, sm] = hp.startTime.split(':').map(Number);
+            const [eh, em] = hp.endTime.split(':').map(Number);
+            return (eh * 60 + em) - (sh * 60 + sm);
+          })() : null;
+          const timeLabel = hp.startTime ? hp.startTime + (hp.endTime ? '\u2013' + hp.endTime : '') : '';
+          html += `<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border)">
+            <span style="flex:1;font-size:.85rem">${esc(hp.text)}
+              <span style="color:var(--muted);font-size:.75rem">${timeLabel}${dur ? ' (' + formatMinutes(dur) + ')' : ''}</span>
+              <span style="color:var(--accent);font-size:.68rem;margin-left:.25rem">${esc(role)}</span>
+            </span>
+            <button class="act-add-btn act-huddle-import" data-huddle-id="${hp.id}" data-title="${esc(hp.text)}" data-duration="${dur || ''}" style="padding:.25rem .5rem;font-size:.75rem">Log it</button>
+            <button class="act-ml-btn act-huddle-skip" data-huddle-id="${hp.id}" style="padding:.25rem .5rem;font-size:.75rem">Skip</button>
+          </div>`;
+        }
+        html += '</div>';
+      }
+    }
 
     // AI approval overlay
     if (_aiPending) {
@@ -887,16 +972,19 @@ Split every distinct activity into its own task. Respond with the JSON array onl
     document.getElementById('act-prev')?.addEventListener('click', async () => {
       _currentDate = offsetDate(_currentDate, -1);
       await loadEntries(_currentDate, _currentDate);
+      await loadHuddlePlans(_currentDate);
       refreshMain();
     });
     document.getElementById('act-next')?.addEventListener('click', async () => {
       _currentDate = offsetDate(_currentDate, 1);
       await loadEntries(_currentDate, _currentDate);
+      await loadHuddlePlans(_currentDate);
       refreshMain();
     });
     document.getElementById('act-today')?.addEventListener('click', async () => {
       _currentDate = todayStr();
       await loadEntries(_currentDate, _currentDate);
+      await loadHuddlePlans(_currentDate);
       refreshMain();
     });
 
@@ -1085,6 +1173,37 @@ Split every distinct activity into its own task. Respond with the JSON array onl
     appEl.querySelectorAll('.act-daily-cal-skip').forEach(btn => {
       btn.addEventListener('click', () => {
         _skippedEventIds.add(btn.dataset.eventId);
+        refreshMain();
+      });
+    });
+
+    // Huddle "Log it" buttons
+    appEl.querySelectorAll('.act-huddle-import').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const title = btn.dataset.title;
+        const duration = parseInt(btn.dataset.duration) || null;
+        const huddleId = btn.dataset.huddleId;
+        const entry = {
+          date: _currentDate,
+          text: title,
+          categoryPath: [],
+          duration,
+          milestone: 0,
+          source: 'huddle',
+          huddlePlanId: huddleId
+        };
+        const id = await saveEntry(entry);
+        entry.id = id;
+        _entries.unshift(entry);
+        refreshMain();
+        showToast('Logged from Huddle: ' + title);
+      });
+    });
+
+    // Huddle skip buttons
+    appEl.querySelectorAll('.act-huddle-skip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _skippedHuddleIds.add(btn.dataset.huddleId);
         refreshMain();
       });
     });

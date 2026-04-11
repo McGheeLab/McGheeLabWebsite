@@ -167,6 +167,18 @@ function heatColor(count, max) {
   return `hsl(${220 - t * 160},${55 + t * 25}%,${18 + t * 22}%)`;
 }
 
+function defaultGuestInstructions(guestFields, mode) {
+  let text = mode === 'freeform'
+    ? 'Click and drag on the schedule below to mark the times you are available.'
+    : 'Check all time slots you are available for on the schedule below.';
+  const gf = guestFields || [];
+  if (gf.includes('talkSummary')) text += '\n\nPlease provide a brief summary of your talk or presentation topic.';
+  if (gf.includes('questions')) text += '\n\nSubmit three discussion questions for the audience.';
+  if (gf.includes('presentationLink')) text += '\n\nShare a link to your presentation materials when ready.';
+  if (!gf.length) text += '\n\nOnce you have saved your availability, you are all set.';
+  return text;
+}
+
 function daysLabel(days) {
   if (!days.length) return '';
   if (days.length === 1) return days[0].label;
@@ -548,10 +560,10 @@ function sessionsGridHTML(expanded, speakers, isAdmin) {
 
   const assignments = {};
   speakers.forEach(sp => { if (sp.assignedSlot) assignments[sp.assignedSlot] = sp; });
-  const heatmap = {};
-  allSlots.forEach(s => { heatmap[s.id] = 0; });
-  speakers.forEach(sp => (sp.availability || []).forEach(sid => { if (heatmap[sid] !== undefined) heatmap[sid]++; }));
-  const maxHeat = Math.max(...Object.values(heatmap), 1);
+  const availMap = {};
+  allSlots.forEach(s => { availMap[s.id] = []; });
+  speakers.forEach(sp => (sp.availability || []).forEach(sid => { if (availMap[sid]) availMap[sid].push(sp); }));
+  const maxHeat = Math.max(...Object.values(availMap).map(a => a.length), 1);
 
   let html = `<div class="schedule-grid" style="grid-template-columns:140px repeat(${days.length},1fr);">`;
   html += '<div class="schedule-cell schedule-corner"></div>';
@@ -561,17 +573,20 @@ function sessionsGridHTML(expanded, speakers, isAdmin) {
     days.forEach(d => {
       const sid = `${d.key}-${s.key}`;
       const sp = assignments[sid];
-      const count = heatmap[sid] || 0;
-      // Check if this day+slot is a valid combo (for sessionBlocks)
+      const avails = availMap[sid] || [];
+      const count = avails.length;
       const isValid = allSlots.some(as => as.id === sid);
       if (!isValid) {
         html += '<div class="schedule-cell schedule-slot schedule-slot-disabled"></div>';
       } else if (sp) {
         html += `<div class="schedule-cell schedule-slot schedule-slot-filled"><span class="schedule-speaker-name">${esc(sp.speakerName)}</span></div>`;
+      } else if (isAdmin && count > 0) {
+        const names = avails.map(a => esc(a.speakerName.split(' ')[0]));
+        const shown = names.slice(0, 3).join(', ') + (count > 3 ? ` <span class="schedule-avail-more">+${count - 3}</span>` : '');
+        const tip = avails.map(a => a.speakerName).join(', ');
+        html += `<div class="schedule-cell schedule-slot schedule-slot-avail" style="background:${heatColor(count, maxHeat)};" data-slot="${sid}" title="${esc(tip)}"><span class="schedule-avail-names">${shown}</span></div>`;
       } else {
-        const bg = isAdmin ? heatColor(count, maxHeat) : 'transparent';
-        const label = isAdmin && count > 0 ? `<span class="schedule-avail-count">${count}</span>` : '<span class="schedule-empty">Open</span>';
-        html += `<div class="schedule-cell schedule-slot" style="background:${bg};" data-slot="${sid}">${label}</div>`;
+        html += `<div class="schedule-cell schedule-slot" data-slot="${sid}"><span class="schedule-empty">Open</span></div>`;
       }
     });
   });
@@ -589,10 +604,10 @@ function freeformGridHTML(expanded, speakers, isAdmin) {
   const { days, blocks } = expanded;
   if (!days.length || !blocks.length) return '<p class="muted-text">No schedule configured yet.</p>';
 
-  const heatmap = {};
-  days.forEach(d => blocks.forEach(b => { heatmap[`${d.date}-${b.time}`] = 0; }));
-  speakers.forEach(sp => (sp.availability || []).forEach(bid => { if (heatmap[bid] !== undefined) heatmap[bid]++; }));
-  const maxHeat = Math.max(...Object.values(heatmap), 1);
+  const availMap = {};
+  days.forEach(d => blocks.forEach(b => { availMap[`${d.date}-${b.time}`] = []; }));
+  speakers.forEach(sp => (sp.availability || []).forEach(bid => { if (availMap[bid]) availMap[bid].push(sp); }));
+  const maxHeat = Math.max(...Object.values(availMap).map(a => a.length), 1);
 
   let html = `<div class="freeform-grid" style="grid-template-columns:68px repeat(${days.length},1fr);">`;
   html += '<div class="ff-cell ff-corner"></div>';
@@ -601,10 +616,12 @@ function freeformGridHTML(expanded, speakers, isAdmin) {
     html += `<div class="ff-cell ff-time-label">${esc(b.label)}</div>`;
     days.forEach(d => {
       const bid = `${d.date}-${b.time}`;
-      const count = heatmap[bid] || 0;
+      const avails = availMap[bid] || [];
+      const count = avails.length;
       const bg = isAdmin ? heatColor(count, maxHeat) : (count > 0 ? heatColor(count, maxHeat) : 'rgba(255,255,255,0.03)');
       const cl = isAdmin && count > 0 ? `<span class="ff-count">${count}</span>` : '';
-      html += `<div class="ff-cell ff-block" data-block="${bid}" style="background:${bg};">${cl}</div>`;
+      const tip = isAdmin && count > 0 ? ` title="${esc(avails.map(a => a.speakerName).join(', '))}"` : '';
+      html += `<div class="ff-cell ff-block" data-block="${bid}" style="background:${bg};"${tip}>${cl}</div>`;
     });
   });
   html += '</div>';
@@ -759,7 +776,8 @@ function guestViewHTML(config) {
 
   const hasAvail = avail.length > 0, hasSummary = !!speaker.talkSummary;
   const hasQs = (speaker.questions || []).some(q => q), hasLink = !!speaker.presentationLink;
-  const dot = (ok) => ok ? '<span style="color:#5bd9b9;">&#10003;</span>' : '<span style="color:var(--muted,#a8b3c7);">&#9675;</span>';
+  const pill = (ok, label) => `<span class="progress-pill ${ok ? 'progress-pill--done' : 'progress-pill--pending'}">${ok ? '&#10003;' : '&#9675;'} ${label}</span>`;
+  const instructions = schedule.guestInstructions || defaultGuestInstructions(gf, mode);
 
   let availHTML = '';
   if (mode === 'sessions') {
@@ -789,8 +807,11 @@ function guestViewHTML(config) {
   return `
     <div class="card" style="padding:1.25rem;margin-bottom:16px;">
       <h3>Welcome, ${esc(speaker.speakerName)}</h3>
-      ${assignedLabel ? `<p style="margin:.25rem 0 .75rem;"><span class="badge" style="background:var(--accent,#5baed1);color:#031a16;padding:4px 10px;border-radius:6px;font-weight:600;font-size:.8rem;">${esc(assignedLabel)}</span> <span class="muted-text">— Your assigned slot</span></p>` : '<p class="muted-text" style="margin:.25rem 0 .75rem;">Not yet assigned a slot.</p>'}
-      <div class="speaker-progress"><span>${dot(hasAvail)} Availability</span>${showSummary ? `<span>${dot(hasSummary)} Summary</span>` : ''}${showQuestions ? `<span>${dot(hasQs)} Questions</span>` : ''}${showLink ? `<span>${dot(hasLink)} Materials</span>` : ''}</div>
+      ${assignedLabel
+        ? `<div class="guest-assignment guest-assignment--assigned"><span class="badge" style="background:var(--accent,#5baed1);color:#031a16;padding:4px 10px;border-radius:6px;font-weight:600;font-size:.8rem;">${esc(assignedLabel)}</span> <span class="muted-text">&mdash; Your assigned slot</span></div>`
+        : '<div class="guest-assignment guest-assignment--pending">Not yet assigned a slot.</div>'}
+      <div class="guest-instructions"><p>${esc(instructions).replace(/\n/g, '<br>')}</p></div>
+      <div class="speaker-progress">${pill(hasAvail, 'Availability')}${showSummary ? pill(hasSummary, 'Summary') : ''}${showQuestions ? pill(hasQs, 'Questions') : ''}${showLink ? pill(hasLink, 'Materials') : ''}</div>
     </div>
 
     <div class="card" style="padding:1.25rem;margin-bottom:16px;">
@@ -884,6 +905,13 @@ function setupFormHTML(schedule) {
 
   return `
     <div class="speaker-form">
+      <div class="form-group"><label>Title</label>
+        <input type="text" id="setup-sched-title" value="${esc(schedule.title || '')}" placeholder="Scheduler title" />
+      </div>
+      <div class="form-group"><label>Description</label>
+        <textarea id="setup-sched-desc" rows="2" placeholder="Brief description (optional)">${esc(schedule.description || '')}</textarea>
+      </div>
+
       <div class="form-group"><label>Mode</label>
         <div class="mode-toggle">
           <button type="button" class="mode-btn ${mode === 'sessions' ? 'mode-active' : ''}" data-mode="sessions">Sessions</button>
@@ -900,6 +928,13 @@ function setupFormHTML(schedule) {
         <label class="sched-toggle"><input type="checkbox" id="gf-talkSummary" ${(schedule.guestFields || []).includes('talkSummary') ? 'checked' : ''} /> Talk Summary</label>
         <label class="sched-toggle"><input type="checkbox" id="gf-questions" ${(schedule.guestFields || []).includes('questions') ? 'checked' : ''} /> Discussion Questions</label>
         <label class="sched-toggle"><input type="checkbox" id="gf-presentationLink" ${(schedule.guestFields || []).includes('presentationLink') ? 'checked' : ''} /> Presentation Materials Link</label>
+      </div>
+
+      <div class="form-group" style="margin-top:12px;">
+        <label style="font-weight:600;">Guest Instructions</label>
+        <p class="muted-text" style="font-size:.8rem;margin:0 0 8px;">Custom instructions shown to guests in the welcome block. Leave blank for auto-generated defaults.</p>
+        <textarea id="setup-guest-instructions" rows="4" placeholder="Instructions for your guests...">${esc(schedule.guestInstructions || '')}</textarea>
+        <button type="button" id="reset-instructions-btn" class="btn btn-small btn-secondary" style="margin-top:6px;">Reset to Default</button>
       </div>
 
       <button type="button" id="save-schedule-setup-btn" class="btn" style="margin-top:12px;">Save Settings</button>
@@ -1163,6 +1198,16 @@ function wireSetupForm(config) {
     });
   });
 
+  // Reset guest instructions to auto-generated default
+  document.getElementById('reset-instructions-btn')?.addEventListener('click', () => {
+    const gf = [];
+    if (document.getElementById('gf-talkSummary')?.checked) gf.push('talkSummary');
+    if (document.getElementById('gf-questions')?.checked) gf.push('questions');
+    if (document.getElementById('gf-presentationLink')?.checked) gf.push('presentationLink');
+    const ta = document.getElementById('setup-guest-instructions');
+    if (ta) ta.value = defaultGuestInstructions(gf, currentMode);
+  });
+
   // Save
   document.getElementById('save-schedule-setup-btn')?.addEventListener('click', async () => {
     const st = document.getElementById('setup-save-status');
@@ -1203,6 +1248,9 @@ function wireSetupForm(config) {
 
     const data = {
       id: config.scheduleId,
+      title: document.getElementById('setup-sched-title')?.value.trim() || '',
+      description: document.getElementById('setup-sched-desc')?.value.trim() || '',
+      guestInstructions: document.getElementById('setup-guest-instructions')?.value.trim() || '',
       mode: activeMode,
       sessionBlocks,
       freeformCells,

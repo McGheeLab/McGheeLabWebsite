@@ -4,6 +4,322 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.29] - 2026-04-10
+
+### Added
+- **Huddle: The Rundown** — new weekly task list where users post what they plan to do this week
+  - Tasks have admin-configurable categories (cell culture, device design, microfluidics, etc.) and optional project association (GELS, ME3B, etc.)
+  - Other lab members browse the Rundown feed and request to join tasks (shadow, help) with skill level indicator
+  - Task owner sees pending join requests on "My Tasks" tab, can accept/decline
+  - Accepting a join request opens a scheduling modal that creates a `huddlePlan` and auto-adds the requester as a joiner
+  - New Firestore collections: `huddleRundown`, `huddleConfig/settings`
+- **Huddle: Lab Schedule / Availability** — users define their weekly lab schedule
+  - Recurring weekly template with per-week overrides for one-off changes
+  - Blocks are categorized as Available or Unavailable (with reasons: Class, Study, Analysis, Writing, etc.)
+  - Unavailable blocks marked as Rigid (cannot move) or Flexible (could potentially reschedule)
+  - Visual encoding: rigid blocks have hatched pattern + lock icon, flexible have dashed border
+  - New Firestore collections: `huddleScheduleTemplates/{userId}`, `huddleScheduleOverrides`
+- **Huddle: Team Availability** — Gantt-style day view showing all team members' schedules
+  - Horizontal time bars per member with color-coded availability/unavailability segments
+  - Click a member's row to see schedule overlap toast with free windows
+- **Huddle: Availability Overlap Detection** — when scheduling a Rundown task, the modal shows overlapping free windows between owner and requester
+  - `resolveScheduleForUser()` merges template + overrides; `resolveAvailabilityOverlap()` computes intersections
+- **Huddle: Admin Category Management** — admins can add/edit/remove rundown categories (label + color) from the Settings tab
+  - Categories persist lab-wide in `huddleConfig/settings`
+
+### Changed
+- **Huddle sidebar** — 5 new tabs: Rundown, Team Availability, Add Task, My Tasks, My Schedule
+- **Huddle boot** — subscribes to `huddleRundown`, `huddleConfig`, `huddleScheduleTemplates`, `huddleScheduleOverrides` on startup
+- **Huddle week navigation** — re-subscribes rundown and schedule overrides when changing weeks
+- **Firestore rules** — 4 new collection rule blocks for rundown, config, templates, overrides
+
+## [V3.28] - 2026-04-10
+
+### Added
+- **Settings App** (`apps/settings/`) — unified settings hub in the lab apps bottom nav
+  - Profile editing (name, bio), notification preferences (per-app toggles), quiet hours (Do Not Disturb with time range), per-app admin sections, global admin links, sign out
+  - New Firestore collection `userSettings/{uid}` for notification prefs and quiet hours
+
+### Changed
+- **Lab apps bottom nav** — icon-only on mobile (<=700px), Settings gear icon added to LAB_APPS registry
+- **Push service worker** — quiet hours check suppresses notifications during silent periods (badge still increments)
+- **Firestore rules** — added `userSettings/{userId}` (owner read/write, admin read)
+- **SW precache** — added settings app files
+
+## [V3.27] - 2026-04-10
+
+### Bug Fixes
+- **Equipment: Month view day click** — clicking a day in month view now navigates to the correct week (offset calculated from current Monday, not from today)
+- **Equipment: Booking refresh** — calendar explicitly re-subscribes and re-renders after booking creation, fixing stale display
+- **Equipment: Conflict confirmation** — `checkConflicts()` is now awaited at submit time to prevent race conditions where conflicts weren't detected
+- **Chat: Read receipt eyeball** — eyeball icon now only appears on the most recent own message, not all own messages
+- **Chat: Notification self-count** — unread badge returns 0 when the last message in a channel is from the current user
+- **Chat: Auto-scroll** — added `_isRendering` guard to prevent scroll events during innerHTML replacement from falsely resetting `_autoScroll`
+- **Chat: Input box position** — `.chat-main` now uses `overflow: hidden; min-height: 0` and `.chat-feed` uses `min-height: 0` to keep input area fixed at bottom
+- **Chat: Thread panel scroll** — added `min-height: 0; overflow: hidden` to `.chat-thread` and `min-height: 0` to `.chat-thread-feed` for proper flex containment
+- **Chat: Long history / flashing** — fallback message subscription now caps to `MSG_PAGE_SIZE` most recent messages instead of loading all, reducing DOM thrashing
+- **Mobile: Apps oversized** — apps with internal scroll (chat, equipment, huddle) now set `#app` to `overflow: hidden` via `:has()` selector, with child layouts managing their own scroll and bottom-bar padding
+
+### Added
+- **Chat: Draft persistence** — unsent message text is saved per-channel to localStorage on typing (debounced 500ms), restored on channel switch, cleared on send
+- **Chat: Auto-select recent channel** — on load, auto-selects the most recently active channel instead of defaulting to "general"
+- **Chat: Action bar floating** — action bar now floats above the selected message as a positioned overlay (rounded, shadowed) instead of being a static bar above the input area
+- **Chat: Pinned messages inline panel** — pinned messages now appear as a collapsible inline panel between the header and feed, replacing the modal overlay
+- **Chat: Bold edited channels** — sidebar channels with unread edits (`lastMessage.editedAt > lastReadAt`) are displayed in bold italic
+- **Equipment: Multi-day drag scheduling** — drag-to-select on the week calendar now supports dragging across multiple day columns
+- **Huddle: Drag-to-create** — pointer-based drag on empty time grid cells creates a time selection and opens the add plan form pre-filled with the selected day and time range
+
+## [V3.26] - 2026-04-10
+
+### Added
+- **Multi-day equipment bookings** — bookings can now span multiple days with independent start/end dates and times
+  - **Booking modal** restructured with "Start Date / Start Time" and "End Date / End Time" rows; end date auto-advances when start date moves past it
+  - **Week view segments** — multi-day bookings render a block per visible day (first day: startTime→end of day, middle days: all day, last day: start of day→endTime)
+  - **Month view** — multi-day bookings show dots on every day they span, not just the start date
+  - **Booking detail popup** — shows start and end date/time on separate lines with a "multi-day" badge when dates differ; duration displayed in days+hours format
+  - **My Bookings** — date range shown for multi-day bookings; upcoming filter uses end date so active multi-day bookings stay visible
+  - **Conflict checking** updated to detect overlaps across the full date range of both new and existing bookings
+  - **Google Calendar sync** — events use correct start date/time and end date/time for proper multi-day display
+  - **Subscription query** widened by 30 days to catch multi-day bookings that started before the current view window
+  - **Data model**: new `endDate` field on bookings; backward compatible — legacy single-day bookings default `endDate` to `date`
+- **Calendar freeze-pane layout** — toolbar, legend, and day headers stay fixed while the time grid scrolls independently
+  - **Flex layout** — `.eq-layout` fills available viewport height; `#eq-content` flexes to fill remaining space; `eq-cal-header` (toolbar + legend) is flex-shrink: 0; `eq-cal-body` fills the rest with `overflow: hidden`
+  - **Sticky day headers** — corner cell + day name cells use `position: sticky; top: 0; z-index: 3` inside `.eq-week-wrap` scroll container, so they stay visible while scrolling through time slots
+  - **Scroll wrapper** — `.eq-week-wrap` is the sole vertical scroll container; `height: 100%` fills the body; native scrollbar hidden
+  - **Auto-scroll to 8 AM** on first render so the most-used working hours are immediately visible
+  - **Scroll position preserved** across re-renders (zoom, booking updates) with proportional scaling when zoom level changes
+- **Custom time slider** — replaces native scrollbar and mobile-shell time-scroll handle
+  - **Positioned alongside the grid** — sits to the right of `.eq-week-wrap` inside `.eq-cal-scroll-area` flex row; spans only the time-based part of the calendar, not the toolbar or day headers
+  - **Proportional thumb** — thumb height = `(clientHeight / scrollHeight) * trackHeight`; scales with zoom level (larger when zoomed out, smaller when zoomed in); auto-hides when all content fits on screen
+  - **Interactive** — drag thumb or click track to scroll; supports both touch and mouse; styled with accent color, rounded corners, hover/active opacity
+  - **Replaces mobile-shell slider** — `disableTimeScroll()` called on render; custom slider works identically on desktop and mobile
+- **Calendar time-scale zoom** — adjust time slot density to see the full day or zoom into specific hours
+  - **Zoom buttons** (+/−) positioned in the legend row, right-aligned above the Sunday column; 9 zoom levels from 4px to 76px per half-hour slot
+  - **Full-day fit** — at minimum zoom (4px/slot), the entire 24-hour day is ~192px tall, fitting on any screen without scrolling
+  - **Pinch-to-zoom** on touch devices via two-finger gesture on the week grid; ratio thresholds at 0.5/0.7/1.3/1.7 for ±1 or ±2 level jumps
+  - **Zoom-aware rendering** — `grid-template-rows` uses `${slotH}px` instead of `1fr`, giving precise control over row height
+- **Huddle calendar parity** — the Huddle time grid now has all the same calendar features as the Equipment Scheduler
+  - **Freeze-pane layout** — `.hud-cal-layout` flex column with `.hud-cal-header` (nav, filters, zoom) pinned at top; `.hud-cal-body` fills remaining space; day headers sticky within `.hud-grid-wrap` scroll container
+  - **Custom time slider** — `.hud-time-slider` alongside the grid with proportional thumb; auto-hides when fully zoomed out; replaces mobile-shell time-scroll
+  - **Time-scale zoom** — +/− buttons in legend row; 9 zoom levels (4px–76px per slot); pinch-to-zoom on touch; full-day fit at minimum zoom
+  - **Phone-width scaling** — grid `min-width` removed on mobile; columns use `36px repeat(7, 1fr)` to fill phone width without horizontal scroll; font sizes scaled down for day headers, time labels, and plan blocks
+  - Applied to Plan Feed (weekly), My Plans daily, and My Plans weekly views; monthly view unchanged
+  - View toggle included in cal-header for day/week views so it stays fixed with the toolbar
+
+## [V3.25] - 2026-04-10
+
+### Added
+- **Desktop split-view** — two lab apps can be open side-by-side with a draggable divider
+  - **Split button** in bottom nav bar toggles split mode; first non-active app auto-fills second pane
+  - **Draggable divider** — vertical bar between panes; drag to resize from 20% to 80%; double-click to reset 50/50; grip indicator highlights on hover in accent blue
+  - **Bottom nav interaction** — clicking an inactive app while in split opens it in second pane; clicking the split-highlighted app makes it primary; split-pane app shown in green highlight
+  - **Close split** — X button on right pane (appears on hover), split toggle, or clicking the active primary app
+  - **Auth bridging** — both iframes receive auth credentials independently on load
+  - **Mobile excluded** — split view hidden at ≤700px; always single-pane on phones
+- **Full-viewport app layout** — embedded apps fill from banner to bottom nav via flex pane container; `#app` uses `overflow: auto` so app layouts scroll naturally at full width
+- **Hand preference setting** — left/right hand toggle stored in localStorage (`mcgheelab-hand-preference`); accessible in hamburger menu on all apps; sets `data-hand` attribute on body for CSS to respond; affects sidebar direction in chat, time-scroll handle position, and edge tab position
+- **Calendar time-scale scroll handle** — vertical draggable strip on screen edge (hand-aware side) for scrolling calendar grids without scrolling the page; thumb syncs with grid scroll position; supports touch and mouse; activated via `MobileShell.enableTimeScroll(element)`; integrated with equipment scheduler week grid
+- **Chat mobile sidebar edge tab** — small pull-out handle on the screen edge (hand-aware side) visible in conversation view; tapping opens the full channel/DM sidebar; sidebar slides in from left (right-handed) or right (left-handed)
+- **Bottom nav content overlap fix** — `--bottom-bar-h` CSS variable in `:root` = `calc(48px + env(safe-area-inset-bottom))`; `#app` gets `padding-bottom: var(--bottom-bar-h)` on mobile; chat layout uses same variable; prevents buttons and content from hiding behind fixed bottom navigation
+- **Mobile swipe navigation** — swipe left/right on any lab app navigates to the next/previous app in the tab order (Chat → Meetings → Equipment → Activity → Huddle, wraps around); requires quick horizontal gesture (>80px, <300ms); implemented in both `mobile-shell.js` and chat's own gesture handler
+- **Pull-to-refresh prevention** — `overscroll-behavior: none` on html and body in `app-base.css` and set via JS; `overflow-x: hidden` prevents horizontal page bounce; top and bottom navigation bars are fixed and don't respond to swipe gestures
+- **Standalone auth reliability** — `auth-bridge.js` `_initStandalone()` now polls for Firebase SDK availability (200ms intervals, max 8s) instead of failing immediately when SDK hasn't loaded; uses `firebase.auth()` directly rather than depending on `McgheeLab.auth` being pre-initialized; prevents false auth-wall when navigating between standalone apps
+- **Mobile-first lab app redesign** — all lab apps now have a phone-optimized layout
+  - **Shared mobile shell** (`apps/shared/mobile-shell.js`) — reusable top bar (title + user icon + hamburger menu) and bottom bar (lab app quick-nav icons + back arrow) injected on screens ≤700px; hamburger opens slide-in menu with links to all lab apps; bottom bar provides one-tap switching between Chat, Meetings, Equipment, Activity, and Huddle
+  - **`app-base.css` mobile shell styles** — `.mobile-top-bar` with filter/title/user layout, `.mobile-bottom-bar` with app nav icons and floating back button, `.mobile-hamburger-menu` slide-in overlay, `.mobile-filter-btn` and `.mobile-filter-dropdown` for sort controls, `.mobile-user-btn` avatar circle, `.mobile-back-btn` accent-colored FAB; all hidden on desktop via `@media (max-width: 700px)` gate; desktop `.app-header` hidden on mobile
+  - **Chat conversation list view** — mobile landing page shows all subscribed channels and DMs as a flat scrollable list with channel icon, name, last message preview, timestamp, and unread/mention badges; replaces desktop sidebar on phone screens
+  - **Chat conversation filter** — top-left dropdown with 4 sort modes: Newest, Most Active, Unread First, A–Z; persists during session
+  - **Chat mobile stats bar** — centered bar between header and feed showing reader count (eyeball icon), search shortcut, and file count with tap-to-open actions
+  - **Chat files-in-conversation view** — full-screen file browser showing all attachments in the current channel grouped by type (Images, Documents, Other) with file name, author, timestamp, and size; accessible via stats bar file icon
+  - **Chat mobile view state machine** — `_mobileView` state ('list' | 'conversation' | 'files') with CSS class toggles (`chat-layout--mobile-list`, `chat-layout--mobile-conv`, `chat-layout--mobile-files`) controlling visibility of sidebar, conversation list, main feed, and files view
+  - **Chat mobile hamburger menu** — slide-in from right with Browse Channels, New DM, Manage Contacts, Search Messages, Settings (admin), and All Lab Apps links
+  - **Mobile back-arrow navigation** — accent-colored floating button at bottom-right on all sub-pages (conversation, files, threads); tapping navigates back through view stack (files → conversation → list)
+  - **Bottom bar app quick-nav** — horizontal scrollable row of 5 app icons (Chat, Meetings, Equipment, Activity, Huddle) with labels; active app highlighted; links navigate to sibling app `index.html`
+
+### Changed
+- **No double navigation on mobile** — parent page's top banner, bottom tabs, and desktop bottom nav all hidden on phone screens (≤700px) when inside an embedded lab app; iframe's own mobile-shell handles all navigation; `body.apps-env` hides bottom-tabs on hub page; `body.apps-embedded` hides top-banner on mobile; `.lab-app-bottom-nav` hidden at ≤700px via CSS
+- **Install banner redesigned** — compact single-row layout (28px icon, smaller text/buttons); device-specific install instructions: iPhone/iPad in non-Safari browsers told to open Safari first; iOS Safari users see share icon + "Add to Home Screen"; Samsung Browser users see menu instructions; Android Chrome/Edge get native Install button; desktop Safari shows File → Add to Dock; other desktop browsers get Install button
+- `app.js` — `getInstallBannerHTML()` rewritten with full device detection (iPhone, iPad, Android, Samsung Browser, Firefox, Safari desktop, Chrome/Edge); generates device-appropriate instruction text with inline SVG icons; `body.apps-env` and `body.apps-embedded` classes toggled on route change for CSS hooks
+- `styles.css` — `.pwa-install-banner` reduced from 14px/16px padding to 8px/10px; icon shrunk from 44px to 28px; `.pwa-install-content` wrapper removed (flat flex layout); `.pwa-install-text` replaces nested `<div><strong>...<p>` structure; `.pwa-install-btn` padding reduced; added `body.apps-env .bottom-tabs` and `body.apps-embedded .top-banner` mobile hide rules
+- `user-styles.css` — added `@media (max-width: 700px)` rule hiding `.lab-app-bottom-nav` and setting `.lab-apps-page--embedded { top: 0 }` to fill full viewport when top banner hidden
+- `apps/shared/app-base.css` — removed `body { padding-bottom: 56px }` and `#app { padding: 1rem .75rem }` mobile overrides (app layouts handle their own spacing internally)
+- `app.js` — lab apps environment (`#/apps` and `#/apps/{appId}`) now hides both hero and site footer on all platforms; `isAppsEnv` flag added alongside existing `hideHero` logic; footer restored when navigating to any non-apps page
+- `lab-apps.js` — `renderLabApp()` replaced breadcrumb navigation with bottom nav bar; bottom bar shows all active apps as horizontal scrollable links with icons + labels; active app highlighted; iframe no longer auto-resized via postMessage (CSS flex layout handles sizing)
+- `user-styles.css` — `.lab-apps-page--embedded` now uses `position: fixed` filling from banner bottom to viewport bottom; removed breadcrumb styles; added `.lab-app-bottom-nav` with horizontal scrollable app links, blur backdrop, accent highlight for active app; `.lab-app-iframe-wrap` and `.lab-app-iframe` fill parent via flex; mobile breakpoint stacks bottom nav items vertically
+- `apps/shared/app-base.css` — both `body.app-embedded` and `body.app-standalone` now use `height: 100vh; overflow: hidden; display: flex; flex-direction: column` for viewport-filling layouts; `#app` becomes flex child filling remaining space; `#app > *` gets `flex: 1; min-height: 0` so app layouts stretch to fill; added mobile shell component styles (top bar, bottom bar, hamburger menu, filter dropdown, user button, back button); desktop app-header hidden at ≤700px breakpoint
+- `apps/chat/styles.css` — embedded layout height changed from fixed 700px to 100vh
+- `apps/chat/styles.css` — added `.chat-conv-list`, `.chat-conv-item`, `.chat-conv-icon`, `.chat-conv-badge`, `.chat-mobile-stats`, `.chat-stat-item`, `.chat-files-view`, `.chat-files-group`, `.chat-files-item` component styles; added mobile view state classes (`chat-layout--mobile-list/conv/files`) in 700px media query
+- `apps/chat/app.js` — added mobile state variables (`_mobileView`, `_conversationFilter`, `_mobileFilterOpen`, `_mobileHamburgerOpen`, `_mobileNavStack`); added `isMobile()`, `getMobileViewClass()`, `getFilteredConversations()`, `renderMobileConversationListHTML()`, `renderMobileTopBarHTML()`, `renderMobileStatsBarHTML()`, `renderMobileFilesViewHTML()`, `renderMobileBottomBarHTML()`, `renderMobileHamburgerMenuHTML()`, `mobileGoBack()`, `wireMobile()` functions; added `svgFilter()`, `svgBackArrow()`, `svgChat()`, `svgPeople()`, `svgCalendar()`, `svgChart()`, `svgHuddle()` SVG icons; `render()` now includes mobile top bar, conversation list, stats bar, files view, bottom bar, and hamburger menu; `selectChannel()` switches to conversation view on mobile; `wireAll()` calls `wireMobile()`
+- `apps/activity-tracker/app.js` — added `MobileShell.configure()` call with appId and title
+- `apps/meetings/app.js` — added `MobileShell.configure()` call with appId and title
+- `apps/equipment/app.js` — added `MobileShell.configure()` call with appId and title
+- `apps/huddle/app.js` — added `MobileShell.configure()` call with appId and title
+- `apps/scheduler/app.js` — added `MobileShell.configure()` call with appId and title
+- `apps/activity-tracker/index.html`, `apps/meetings/index.html`, `apps/equipment/index.html`, `apps/huddle/index.html`, `apps/scheduler/index.html` — added `<script defer src="../shared/mobile-shell.js">` before app.js
+
+## [V3.25] - 2026-04-10
+
+### Changed
+- **Push Notification Enhancements** — upgraded push system for full native-like experience
+  - **Vibration** — `vibrate: [200, 100, 200]` pattern on background notifications (Android)
+  - **Desktop persistence** — `requireInteraction: true` keeps notifications in system tray until dismissed (desktop Chrome/Edge)
+  - **Notification tagging** — `tag` field for grouping; unique by default (notifications stack), server can set `tag: 'chat-{channelId}'` to group/replace
+  - **App icon badge counts** — Badging API increments count on background push, clears when user opens app or clicks notification; IndexedDB-backed counter shared between service worker and main thread (Android Chrome PWA + desktop Chrome/Edge; not supported on iOS)
+  - **Proactive permission prompt** — native browser permission dialog fires automatically on first standalone PWA launch after auth resolves (1.5s delay); `localStorage` flag prevents re-prompting; non-standalone visitors still see passive banner on apps hub
+  - **Badge clearing** — `visibilitychange` and `focus` listeners clear app badge when user returns to app; also clears on `notificationclick` in service worker
+  - **Badge management API** — `McgheePush.setBadge(count)`, `McgheePush.clearBadge()`, `McgheePush.isBadgingSupported()` added to push-notifications.js
+
+## [V3.24] - 2026-04-10
+
+### Added
+- **Progressive Web App (PWA)** — site is now installable on iPhone and Android as a standalone app
+  - **Web App Manifest** (`manifest.json`) — app name, icons, shortcuts to Activity Tracker, Lab Chat, Equipment Scheduler, and The Huddle; `start_url: /#/apps`; `display: standalone`
+  - **Service Worker** (`sw.js`) — precaches shell (index.html, app.js, styles, all core JS) and all 8 lab app files; stale-while-revalidate for shell, cache-first for images, network-first for CDN (Firebase SDK), network-only for Firebase API calls; versioned caches for clean updates
+  - **App Icons** (`icons/`) — 13 icon sizes generated from Mlab.png: 72, 96, 128, 144, 152, 192, 384, 512px standard + 512px maskable + 180px apple-touch-icon + 32/16px favicons + favicon.ico
+  - **iOS PWA Support** — `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`, `apple-mobile-web-app-title`, `apple-touch-icon`
+  - **Install Prompt UI** — on apps hub page: Android/Chrome shows "Install" button via `beforeinstallprompt`; iOS shows "Add to Home Screen" instructions with Share icon
+  - **SW Update Notification** — toast banner when new version available with "Refresh" action
+  - **Standalone Mode CSS** — `@media (display-mode: standalone)` rules for safe-area padding on banner and hero; toast positioned above safe area in standalone
+- **Push Notifications** (Firebase Cloud Messaging)
+  - **FCM Service Worker** (`firebase-messaging-sw.js`) — handles background push notifications; shows system notification with app icon; click navigates to relevant page
+  - **Client Module** (`push-notifications.js`) — `McgheePush.init()`, `requestPermission(userId)`, `removeToken(userId)`, `onForegroundMessage(callback)`, `isSupported()`, `getPermissionState()`
+  - **Permission Prompt** — shown on lab apps hub, contextual (not on page load); "Turn on" button calls `McgheePush.requestPermission()`
+  - **Foreground Toast** — in-app toast for push messages received while app is open
+  - **FCM Token Storage** — tokens saved to Firestore `users/{userId}/pushTokens/{token}` with platform detection (ios/android/desktop)
+  - **FCM SDK** — `firebase-messaging-compat.js` added to index.html script tags
+  - **Firestore Rules** — `pushTokens` subcollection: owner read/write only
+- **Offline Fallback** — auth-bridge.js detects `navigator.onLine`; shows "You're offline" wall with retry button and auto-reload on reconnection
+- **PWA Meta Tags** on all 8 app `index.html` files — `theme-color`, `apple-mobile-web-app-capable`, `apple-touch-icon`, `favicon`
+
+### Changed
+- `index.html` — added manifest link, theme-color, iOS PWA meta, Microsoft Tile meta, favicon links, FCM SDK script, push-notifications.js script, service worker registration script
+- `app.js` — added `setupPWA()` in bootstrap; `getInstallBannerHTML()`, `getNotificationPromptHTML()`, `showToast()`, `showUpdateToast()`, `showPushToast()` functions; `mcgheeInstallPWA()` and `mcgheeRequestPush()` globals
+- `lab-apps.js` — `renderLabApps()` now includes install banner and notification prompt HTML above the app grid
+- `styles.css` — added section 15: PWA install banner, notification prompt, toast, standalone mode, animations
+- `apps/shared/auth-bridge.js` — `_fireAuthFailed()` now checks `navigator.onLine` before showing auth wall; auto-retries on reconnect
+- `firestore.rules` — added `pushTokens` subcollection match under `users/{userId}`
+
+## [V3.23] - 2026-04-09
+
+### Added
+- **Lab Chat App** — real-time messaging app at `apps/chat/` integrated into the lab apps ecosystem
+  - **Channel system** — topic-based channels with admin-defined categories (General, Projects, Courses, Lab Operations, Social); anyone can create channels; each channel assigned to a category
+  - **Subscription model** — all channels visible/browseable; users subscribe to channels they want notifications for; channel directory modal grouped by category with subscribe/unsubscribe buttons
+  - **Custom sidebar organization** — users create named groups and drag channels between them; group names are editable; subscribed channels shown in user-defined layout
+  - **Real-time messaging** — Firestore `onSnapshot` listeners for live message updates; limit 50 per channel; message pagination on scroll (load older via `.get()`)
+  - **Threaded replies** — "Reply in thread" slide-out panel with dedicated input; thread indicator on parent messages showing reply count and last reply time
+  - **Direct messages** — 1:1 conversations via user picker modal; DMs listed in dedicated sidebar section
+  - **Reactions** — 20 fixed emoji set (thumbs up, heart, fire, check, etc.); emoji picker on hover; toggle on/off; reaction counts
+  - **@mentions** — `@user` and `@channel` with autocomplete popup; keyboard navigation (arrow keys + Enter/Tab); mention highlighting in rendered messages; mention badge counts in sidebar
+  - **Read receipts** — per-message `readBy` array updated via `arrayUnion` batch; small avatar row (max 5 + overflow) under messages; click for "Seen by" modal
+  - **Message edit/delete** — authors edit own messages (inline textarea); soft delete shows "message deleted" placeholder; admins can delete any message; "(edited)" indicator
+  - **Pinned messages** — pin/unpin action; pinned badge on messages; "View Pinned" modal from channel header
+  - **Google Drive file sharing** — OAuth via Google Identity Services (same pattern as Equipment Scheduler); uploads to shared lab Drive folder with auto-created channel subfolders; "anyone with link" permission; inline image thumbnails for images; file cards for non-images
+  - **Drag-and-drop & clipboard paste** — drag files onto feed or input area; paste images from clipboard
+  - **Simple markdown** — `*bold*`, `_italic_`, backtick code, triple-backtick code blocks, auto-linked URLs
+  - **Client-side search** — search overlay filtering loaded messages by text content, author name, or file name
+  - **Browser notifications** — permission request on load; notifications for @mentions and DMs when tab is unfocused
+  - **Auto-scroll** — scrolls to bottom on new messages only if user is near bottom; "New messages" floating button when scrolled up
+  - **Mobile responsive** — hamburger sidebar drawer, fullscreen thread overlay, touch-friendly action buttons
+  - **Admin settings** — manage channel categories; configure Google Drive OAuth Client ID and shared folder ID
+  - **Default channels** — #general, #announcements (admin-post-only), #random auto-created on first boot
+  - **Firestore collections:** `chatConfig/settings` (categories, Drive config), `chatChannels/{channelId}` (channel metadata with denormalized lastMessage), `chatMessages/{messageId}` (messages with reactions map, readBy array, thread fields), `chatReadState/{uid_channelId}` (per-user-channel read tracking), `chatUserMeta/{uid}` (subscriptions, sidebar layout, notification prefs)
+  - **Security rules:** authenticated read on all chat collections; author-only message create with uid check; authenticated update on messages (for reactions/read receipts); admin-only delete on channels; owner-only chatUserMeta
+  - Registered in `LAB_APPS` with `status: 'active'`; follows standard app patterns: `auth-bridge.js`, `app-base.css`, `chat-` CSS prefix, three-panel layout, real-time Firestore listeners
+
+## [V3.22] - 2026-04-09
+
+### Added
+- **Equipment Scheduler Lab App** — full equipment booking system at `apps/equipment/` for scheduling shared lab instruments
+  - **Weekly calendar view** — CSS Grid layout with 30-min time slots (7am–9pm), booking blocks positioned by grid-row/column with priority-colored left borders and tinted backgrounds; click empty cells to create bookings; click blocks for detail popups
+  - **Monthly calendar view** — 7-column grid with colored booking dots per day; click any day to jump to that week's view
+  - **Per-device filtering** — dropdown selector to view all equipment or a single device's calendar; real-time Firestore `onSnapshot()` listener re-queries on filter change
+  - **Priority color coding** — four levels (normal/blue, high/yellow, urgent/red, maintenance/gray) with customizable colors in admin settings; legend bar below toolbar
+  - **Booking flow** — modal form with equipment selector, date/time pickers, priority, notes; real-time conflict detection queries existing bookings for overlaps; duration min/max and advance-day constraints enforced from device config
+  - **Training & permission system** — admin defines certification types in settings; assigns certifications per user via checkbox table; each device can require specific certifications; `canUserBook()` checks category restrictions, certifications, and co-operator requirements
+  - **Co-operator requirement** — devices can require undergrads (or users below a configurable category threshold) to select a grad+ co-operator from the users list; co-operator name stored on booking and included in Google Calendar events
+  - **Admin: Manage Equipment** — CRUD for device catalog with name, shortName, location, category, status, booking constraints (min/max duration, advance days, available hours), training/access config, and Google Calendar ID
+  - **Admin: Training Management** — table of all lab members with checkbox columns per certification; grant/revoke updates Firestore `equipmentTraining/{uid}` docs
+  - **Admin: Settings** — Google Calendar OAuth Client ID, connect/disconnect, per-device calendar ID, certification definitions (add/edit/remove), priority color customization, "Sync All" bulk sync button
+  - **Google Calendar sync** — admin-driven push via Google Identity Services OAuth (`calendar.events` scope); creates/updates/deletes Google Calendar events when bookings change; per-device `gcalCalendarId` for separate calendars per instrument; session-lived token in `sessionStorage`
+  - **My Bookings tab** — user's own bookings list (upcoming + past/cancelled) with status badges and click-to-detail
+  - **Firestore collections:** `equipment/{equipmentId}` (device catalog), `equipmentBookings/{bookingId}` (reservations with denormalized names), `equipmentTraining/{uid}` (per-user certifications), `equipmentSettings/config` (global config singleton)
+  - **Security rules:** authenticated read on all 4 collections; admin-only write on equipment/training/settings; booking create for any auth user, update/delete for owner or admin
+  - Registered in `LAB_APPS` with `status: 'active'`; follows standard app patterns: `auth-bridge.js`, `app-base.css`, `eq-` CSS prefix, tab layout, real-time Firestore listeners
+
+## [V3.21] - 2026-04-09
+
+### Added
+- **Lab Meeting App** — fully functional lab app at `apps/meetings/` for managing weekly lab meetings
+  - **Next Meeting view** — default landing showing upcoming meeting with presenter, agenda, notes, carry-over action items, and post-presentation reaction chips
+  - **Manual presenter assignment** — admin assigns 1 or 2 presenters per meeting via dropdown (in Schedule view or Next Meeting view); meetings generate with TBD presenters; supports `presenters[]` array
+  - **Collaborative agenda builder** — any authenticated member can add business/announcement/discussion items to the next meeting; admin can reorder and remove; presentation slot auto-populated from rotation
+  - **Action item tracking** — assign tasks with deadlines to any lab member during meetings; open items from previous meeting surface on Upcoming view; toggle done/open; "My Items" personal view with overdue highlighting
+  - **Meeting notes archive** — shared notes field per meeting; completed meetings searchable by presenter, title, or notes content; expandable archive cards with full details
+  - **Cross-pollination signals** — after presentations, members can leave reaction chips: "Interesting", "I have questions", "Want to collaborate", "Relevant to my work"; presenter sees summary; reactions persist in archive
+  - **Presentation materials** — presenter (or admin) can attach labeled links (slides, papers, datasets) that persist in the archive
+  - **Postpone meetings** — admin can postpone an upcoming meeting to a new date via calendar picker modal (alongside Complete and Cancel actions)
+  - **Skip weeks** — skip entire weeks instead of individual dates; pick any date in a week to skip; stored as week-start (Monday) dates
+  - **Calendar date pickers** — semester start/end and skip-week inputs use custom mini-calendar popout with month navigation, today highlight, and selected-date highlight
+  - **Settings view** — admin configures meeting day/time/duration/location, semester dates, and skip weeks; non-admin sees read-only summary
+  - **Firestore collections:** `meetings/{meetingId}` (embedded presenters[], agendaItems[], actionItems[], feedback[] arrays), `meetingConfig/settings` (semester config, skip weeks)
+  - **Security rules:** authenticated read/create/update on meetings; admin-only delete; admin-only write on meetingConfig
+  - Registered in `LAB_APPS` with `status: 'active'`; follows standard app patterns: `auth-bridge.js`, `app-base.css`, `mtg-` CSS prefix, sidebar+main layout, real-time Firestore listeners
+
+## [V3.20] - 2026-04-09
+
+### Added
+- **Guest Instructions & Progress** — guests see admin-written (or auto-generated) instructions in the welcome block; progress pills show green (done) / grey (pending) status for each required task (Availability, Summary, Questions, Materials)
+- **Admin Custom Instructions** — new `guestInstructions` textarea in Schedule Settings; defaults auto-generated per enabled guest fields and mode; "Reset to Default" button regenerates from current settings
+- **Admin Edit Title/Description** — title and description fields added to Schedule Settings form; saved alongside schedule config via `onSaveSchedule` callback
+- **Guest Names on Admin Grid** — sessions grid shows first names of available guests in each unassigned slot (up to 3 + overflow count); freeform grid shows full name list as hover tooltip; replaces bare availability counts
+
+## [V3.19] - 2026-04-09
+
+### Added
+- **Scheduler Lab App** — moved scheduler from dashboard into standalone lab app at `apps/scheduler/`
+  - **List view** — shows all user-owned schedulers with manage/delete actions; create form for new schedulers with title, description, and mode selection
+  - **Editor view** — full admin scheduler editor using `McgheeLab.Scheduler` engine; view switcher (Admin/Guest/Public), guest management, session builder, freeform availability, auto-assign optimization
+  - **Self-contained ScheduleDB** — Firestore CRUD for `schedules` and `participants` collections inline in app.js; no dependency on `class-builder.js`
+  - **Invite URL generation** — builds invite links pointing to main site's `#/schedule/{id}?key={key}` route
+  - Loads `scheduler.js` engine via `<script>` tag for full calendar, time grid, and builder functionality
+  - Registered in `LAB_APPS` array in `lab-apps.js` with `status: 'active'`
+  - Follows standard lab app patterns: `auth-bridge.js` for dual-mode auth, `app-base.css` for theming, embedded resize notifications
+
+## [V3.18] - 2026-04-09
+
+### Added
+- **Learning Modules** — standalone HTML lesson pages viewable within the SPA with auto-navigating class headers; any HTML file from any folder can be added to any class
+  - **SPA iframe viewer** — `#/classes/{classId}/modules/{filename}` route renders nav header + iframe; `renderModuleViewer()` / `wireModuleViewer()` in `class-builder.js`; iframe `src` resolved from module's `folder` field; routing added to `app.js`; standalone HTML files require zero modifications
+  - **Module nav bar** — back-to-class link, lesson progress ("Lesson 2 of 8"), module title, prev/next navigation, homework download; Firestore-driven from `schedules/{classId}.modules[]`
+  - **Module manifest** (`modules/manifest.json`) — auto-generated index of all HTML files in `modules/` organized by folder; `scripts/scan_modules.py` walks directories, extracts `<title>` tags, writes JSON
+  - **"Learning Modules" section type** in class builder — `SECTION_REG` entry with `component: 'modules'`; admin card list with reorder/publish/delete; public numbered link list
+  - **Add Module modal** — `openAddModuleModal()` fetches manifest; folder-organized dropdown + live search across all module files; auto-fills lesson title from HTML `<title>` tag; modules from any folder can be added to any class
+  - **File picker component** — reusable `openFilePicker()` with grouped list, search filtering, data-attribute indexing; used by both module and homework pickers
+  - **Homework picker modal** — `openHomeworkPicker()` uses same file picker pattern to search/browse uploaded assignment files (from `classFiles` with `hasDue` sections)
+  - **Module data model** — `modules[]` array on `schedules/{classId}` doc; each entry: `{ id, title, htmlFile, folder, order, homeworkFileId, published }`
+  - **Standalone fallback header** (`modules/shared/module-header.js` + `module-header.css`) — for direct file access; auto-skips when inside iframe
+  - **Module template** (`modules/_template.html`) — starter HTML file with dark-theme lesson content styles
+
+## [V3.17] - 2026-04-09
+
+### Added
+- **The Huddle** — new lab app at `apps/huddle/` for community-driven weekly planning
+  - **Weekly Plan Board** — week-at-a-glance feed showing all lab members' planned tasks, grouped by day (Mon-Fri) with real-time updates via Firestore `onSnapshot`
+  - **Watch/Join sign-ups** — any lab member can click "Watch" (observe) or "Join" (participate) on another member's task; uses Firestore `arrayUnion`/`arrayRemove` for concurrent sign-ups; participants shown as pills on plan cards
+  - **Protocol Linking** — attach a protocol (title + URL) to any plan; renders as clickable chip for watchers to pre-read
+  - **Weekly Check-in Prompt** — guided prompt on empty weeks: "What protocols are you running?", "Anything blocking you?", "Need help with anything?"; auto-parses comma/newline-separated plans into individual plan docs
+  - **My Plans view** — personal plan management with add/edit/delete, mark as completed/skipped
+  - **Status management** — plans can be marked cancelled (with strikethrough + reason), delayed (auto-copies to target week), or skipped; visual indicators (border colors, opacity, badges) communicate status to watchers
+  - **Delete confirmation modal** — prevents accidental plan deletion
+  - **Status update modal** — cancel/delay/skip with optional reason; delayed plans auto-create a copy in the selected future week
+  - **Week navigation** — prev/next/today buttons with dynamic week labels
+  - **Sidebar navigation** — Lab Feed and My Plans sections
+  - **Real-time collaboration** — `onSnapshot` listener on `huddlePlans` collection, filtered by ISO week ID; all changes from any lab member appear instantly
+  - Firestore collections: `huddlePlans` (plans with embedded watchers/joiners arrays), `huddleCheckins` (weekly check-in responses), `huddleProtocols` (shared protocol library, Phase 2)
+  - Security rules added to `firestore.rules` for all three collections
+  - Registered in `LAB_APPS` array in `lab-apps.js` with `status: 'active'`
+
 ## [V3.16] - 2026-03-31
 
 ### Added

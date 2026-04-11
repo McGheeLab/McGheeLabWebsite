@@ -4319,10 +4319,11 @@ async function loadUsers() {
     if (!users.length) { el.innerHTML = '<p class="empty-state">No registered users.</p>'; return; }
     el.innerHTML = `
       <table class="admin-table">
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Category</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Category</th><th>Chat</th><th></th></tr></thead>
         <tbody>
           ${users.map(u => {
             const guest = u.role === 'guest';
+            const chatEnabled = guest ? (u.chatAccess === true) : true;
             return `
             <tr class="${guest ? 'admin-guest-row' : ''}">
               <td>${escapeHTML(u.name || '\u2014')}${guest ? ' <span class="admin-guest-badge">Guest</span>' : ''}</td>
@@ -4340,13 +4341,19 @@ async function loadUsers() {
                 </select>
               </td>
               <td>
+                ${guest
+                  ? `<label class="admin-chat-toggle"><input type="checkbox" data-chat-uid="${u.id}" ${chatEnabled ? 'checked' : ''} /> <span class="admin-chat-label">${chatEnabled ? 'On' : 'Off'}</span></label>`
+                  : '<span class="hint">Auto</span>'
+                }
+              </td>
+              <td>
                 <button class="btn btn-secondary btn-small" data-edit-user="${u.id}">Edit</button>
                 <button class="btn btn-secondary btn-small" data-save-user="${u.id}">Save</button>
                 <button class="btn btn-danger btn-small" data-delete-user="${u.id}">Delete</button>
               </td>
             </tr>
             <tr class="admin-edit-row" data-edit-row="${u.id}" hidden>
-              <td colspan="5">
+              <td colspan="6">
                 <div class="admin-edit-panel" data-panel-uid="${u.id}">
                   <div class="admin-edit-section">
                     <label>Photo</label>
@@ -4425,10 +4432,12 @@ async function loadUsers() {
         const bioEl = el.querySelector(`textarea[data-bio-uid="${uid}"]`);
         const nameEl = el.querySelector(`input[data-name-uid="${uid}"]`);
         const githubEl = el.querySelector(`input[data-github-uid="${uid}"]`);
+        const chatToggle = el.querySelector(`input[data-chat-uid="${uid}"]`);
         const updates = { role: roleSel.value, category: catSel.value };
         if (bioEl) updates.bio = bioEl.value;
         if (nameEl) updates.name = nameEl.value;
         if (githubEl) updates.github = githubEl.value;
+        if (chatToggle) updates.chatAccess = chatToggle.checked;
         // Store prior category when moving to alumni
         const user = users.find(u => u.id === uid);
         if (catSel.value === 'alumni' && user && user.category !== 'alumni') {
@@ -4437,6 +4446,16 @@ async function loadUsers() {
         await DB.updateUser(uid, updates);
         btn.textContent = 'Saved!';
         setTimeout(() => { btn.textContent = 'Save'; loadUsers(); }, 1500);
+      });
+    });
+
+    // Chat access toggle for guests — immediate save
+    el.querySelectorAll('input[data-chat-uid]').forEach(toggle => {
+      toggle.addEventListener('change', async () => {
+        const uid = toggle.dataset.chatUid;
+        const label = toggle.parentElement.querySelector('.admin-chat-label');
+        if (label) label.textContent = toggle.checked ? 'On' : 'Off';
+        await DB.updateUser(uid, { chatAccess: toggle.checked });
       });
     });
 

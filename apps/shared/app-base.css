@@ -17,26 +17,50 @@
   --warning: #ffc107;
   --radius:  8px;
   --radius-lg: 12px;
+  --bottom-bar-h: calc(48px + env(safe-area-inset-bottom, 0px));
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;   /* disable double-tap zoom globally */
+}
+
 body {
   margin: 0;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overscroll-behavior: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 15px;
   line-height: 1.6;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;  /* prevent iOS text inflation */
 }
 
-/* ─── Embedded mode: no body padding, fill parent ──────── */
+/* ─── Embedded mode: fill parent iframe completely ─────── */
 body.app-embedded {
   background: transparent;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ─── Standalone mode: centered with header ────────────── */
+/* ─── Standalone mode: fill viewport with header ─────── */
+body.app-standalone {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 body.app-standalone .app-header {
   display: flex;
   align-items: center;
@@ -44,6 +68,7 @@ body.app-standalone .app-header {
   padding: 1rem 1.5rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 body.app-embedded .app-header {
   display: none;
@@ -63,15 +88,16 @@ body.app-embedded .app-header {
   margin: 0;
 }
 
-/* ─── App container ────────────────────────────────────── */
+/* ─── App container — always fills available space ─────── */
 #app {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-body.app-embedded #app {
-  max-width: none;
-  padding: 1rem;
+  max-width: 100vw;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ─── Auth wall ────────────────────────────────────────── */
@@ -189,8 +215,392 @@ body.app-embedded #app {
 .app-badge--active { background: rgba(76,175,80,.12);  color: var(--success); }
 .app-badge--soon   { background: rgba(255,193,7,.12);  color: var(--warning); }
 
-/* ─── Responsive ───────────────────────────────────────── */
+/* ─── Mobile Shell (phone layout for all lab apps) ────── */
+
+/* Top bar: title (center) | hamburger + user (right) */
+.mobile-top-bar {
+  display: none;
+  align-items: center;
+  gap: .5rem;
+  padding: calc(.5rem + env(safe-area-inset-top, 0px))
+           calc(.75rem + env(safe-area-inset-right, 0px))
+           .5rem
+           calc(.75rem + env(safe-area-inset-left, 0px));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 80;
+  min-height: calc(48px + env(safe-area-inset-top, 0px));
+}
+.mobile-top-left {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.mobile-top-center {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: .95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mobile-top-right {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-shrink: 0;
+}
+
+/* Filter dropdown trigger */
+.mobile-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: .3rem .6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mobile-filter-btn:hover,
+.mobile-filter-btn:active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Filter dropdown */
+.mobile-filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: .75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  z-index: 90;
+  min-width: 160px;
+  padding: .25rem 0;
+  display: none;
+}
+.mobile-filter-dropdown--open {
+  display: block;
+}
+.mobile-filter-option {
+  display: block;
+  width: 100%;
+  padding: .5rem .75rem;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: .8rem;
+  text-align: left;
+  cursor: pointer;
+}
+.mobile-filter-option:hover {
+  background: var(--surface2);
+}
+.mobile-filter-option--active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* User icon button */
+.mobile-user-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface2);
+  color: var(--accent);
+  font-size: .65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.mobile-user-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Hamburger menu button */
+.mobile-hamburger-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: .25rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Hamburger overlay menu */
+.mobile-hamburger-menu {
+  position: fixed;
+  top: 0;
+  right: -280px;
+  bottom: 0;
+  width: 280px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  z-index: 200;
+  transition: right .25s ease;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mobile-hamburger-menu--open {
+  right: 0;
+}
+.mobile-hamburger-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 199;
+}
+.mobile-hamburger-overlay--open {
+  display: block;
+}
+.mobile-hamburger-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.mobile-hamburger-menu-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: .85rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.mobile-hamburger-menu-item:hover {
+  background: var(--surface2);
+}
+.mobile-hamburger-menu-item svg {
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* Bottom bar: app nav icons (left) | back arrow (right) */
+.mobile-bottom-bar {
+  display: none;
+  align-items: center;
+  padding: .4rem
+           calc(.75rem + env(safe-area-inset-right, 0px))
+           calc(.4rem + env(safe-area-inset-bottom, 0px))
+           calc(.75rem + env(safe-area-inset-left, 0px));
+  border-top: 1px solid var(--border);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  min-height: calc(48px + env(safe-area-inset-bottom, 0px));
+  gap: .25rem;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  background: rgba(18,22,32,.92);
+}
+.mobile-bottom-apps {
+  display: flex;
+  align-items: center;
+  gap: .15rem;
+  flex: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mobile-bottom-apps::-webkit-scrollbar { display: none; }
+
+.mobile-bottom-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: .25rem .45rem;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: .6rem;
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+  min-width: 48px;
+  text-decoration: none;
+}
+.mobile-bottom-app:hover,
+.mobile-bottom-app:active {
+  background: var(--surface2);
+  color: var(--text);
+}
+.mobile-bottom-app--active {
+  color: var(--accent);
+}
+.mobile-bottom-app svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.mobile-back-btn:active {
+  background: var(--accent2);
+}
+.mobile-back-btn--hidden {
+  visibility: hidden;
+}
+
+/* ─── Time-scale scroll handle for calendar views ─────── */
+.mshell-time-scroll {
+  display: none;
+  position: fixed;
+  top: calc(48px + env(safe-area-inset-top, 0px) + 48px); /* below top bar + tab bar */
+  bottom: var(--bottom-bar-h);
+  width: 28px;
+  z-index: 70;
+  touch-action: none;
+}
+body[data-hand="right"] .mshell-time-scroll,
+.mshell-time-scroll { right: 0; }
+body[data-hand="left"] .mshell-time-scroll { right: auto; left: 0; }
+
+.mshell-time-scroll-track {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  width: 3px;
+  margin-left: -1.5px;
+  background: rgba(255,255,255,.1);
+  border-radius: 2px;
+}
+.mshell-time-scroll-thumb {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 44px;
+  background: var(--accent);
+  border-radius: 4px;
+  opacity: .7;
+  transition: opacity .15s;
+  cursor: grab;
+}
+.mshell-time-scroll-thumb:active {
+  opacity: 1;
+  cursor: grabbing;
+}
+.mshell-time-scroll-labels {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  font-size: .5rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.mshell-time-scroll:active .mshell-time-scroll-labels,
+.mshell-time-scroll-labels--show {
+  opacity: 1;
+}
+
+/* ─── Responsive — app-like fixed shell on mobile ─────── */
+@media (max-width: 700px) {
+  /* Body becomes fixed full-screen container */
+  body {
+    height: 100vh;
+    height: -webkit-fill-available;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    touch-action: manipulation; /* disable double-tap zoom */
+  }
+
+  /* Show mobile shell elements */
+  .mobile-top-bar { display: flex; }
+  .mobile-bottom-bar { display: flex; }
+
+  /* Hide desktop header — mobile shell replaces it */
+  body.app-standalone .app-header { display: none; }
+
+  /* #app fills between top bar and bottom bar, scrolls internally */
+  #app {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--bottom-bar-h);
+  }
+
+  /* When embedded in parent iframe, no bottom bar inside iframe */
+  body.app-embedded #app {
+    padding-bottom: 0;
+  }
+
+  /* Any tab bar inside #app stays pinned at top of scroll */
+  .chat-tab-bar,
+  .act-sidebar,
+  .mtg-sidebar,
+  .hud-sidebar,
+  .eq-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  /* Show time scroll handle when active */
+  .mshell-time-scroll--active { display: block; }
+
+  /* Apps with their own internal scroll manage layout via their own CSS */
+}
+
 @media (max-width: 600px) {
-  #app { padding: 1rem .75rem; }
   .app-header { padding: .75rem 1rem; }
 }

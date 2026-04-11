@@ -1,0 +1,3143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Model Calibration & Parameter Estimation — Interactive Explorer</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.8rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto}
+.tab-btn{padding:12px 20px;border:none;background:none;font-size:.9rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* ── Cards ── */
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:20px;margin-bottom:16px}
+.card h2{font-size:1.15rem;margin-bottom:6px;color:#1e3a5f}
+.card .lead{font-size:.9rem;color:#475569;margin-bottom:0}
+.concept-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.concept-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px}
+.concept-box h3{font-size:.82rem;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin-bottom:6px}
+.concept-box p,.concept-box li{font-size:.84rem;color:#475569}
+.concept-box ul{padding-left:18px}
+@media(max-width:900px){.concept-grid{grid-template-columns:1fr}}
+.viz-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.viz-grid-2{grid-template-columns:1fr}}
+.viz-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:1100px){.viz-grid-3{grid-template-columns:1fr}}
+.player-row{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px}
+.player-btn{padding:6px 10px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;font-size:.78rem;font-weight:600;color:#334155;cursor:pointer}
+.player-btn:hover{background:#eff6ff;border-color:#93c5fd}
+.hint{font-size:.78rem;color:#64748b;margin-top:8px}
+.teaching-strip{margin-bottom:16px}
+.mini-lead{font-size:.82rem;color:#64748b;margin:2px 0 10px}
+
+/* ── Panel layout ── */
+.panel{display:grid;grid-template-columns:280px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;
+  border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:14px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.ctrl-group select,.ctrl-group input[type=number]{width:100%;padding:5px 8px;border:1px solid #cbd5e1;
+  border-radius:6px;font-size:.85rem;background:#f8fafc}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.btn{padding:7px 14px;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-secondary{background:#e2e8f0;color:#334155}.btn-secondary:hover{background:#cbd5e1}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Stats ── */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}.stat-row .value{font-weight:600;color:#1e293b}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px;position:relative}
+.canvas-wrap canvas{display:block;width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+
+/* ── Multi-canvas row ── */
+.triple-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:900px){.triple-row{grid-template-columns:1fr}}
+
+/* ── Toggle group ── */
+.toggle-group{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.toggle-btn{padding:6px 14px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:.82rem;
+  font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.toggle-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+
+/* ── Model comparison table ── */
+.model-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
+.model-table th{background:#f1f5f9;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.3px;
+  padding:6px 10px;text-align:left;font-size:.75rem}
+.model-table td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
+.model-table tr.winner{background:#eff6ff}
+.model-table tr.winner td{color:#2563eb;font-weight:600}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.background-section .equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0}
+.background-section .worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.background-section .worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;
+  font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+
+/* ── Key Takeaways box ── */
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px;position:relative}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d;line-height:1.5;margin-bottom:2px}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Model Calibration & Parameter Estimation</h1>
+  <p class="subtitle">Interactive Explorer — Engineering Cancer Course, Module 11</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="data">1. Data & Noise</button>
+  <button class="tab-btn" data-tab="fitting">2. Curve Fitting</button>
+  <button class="tab-btn" data-tab="residuals">3. Residual Analysis</button>
+  <button class="tab-btn" data-tab="r2pitfalls">4. R&sup2; Pitfalls</button>
+  <button class="tab-btn" data-tab="comparison">5. Model Comparison</button>
+  <button class="tab-btn" data-tab="identifiability">6. Identifiability</button>
+  <button class="tab-btn" data-tab="synthesis">7. Synthesis</button>
+</div>
+
+<main>
+
+<!-- ════════════════ TAB 1: DATA & NOISE ════════════════ -->
+<section id="tab-data" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: Experimental Data and Measurement Noise</h2>
+    <h3>What is experimental data?</h3>
+    <p>In any experiment, we measure a <strong>state variable</strong> (the quantity we observe, such as volume, fluorescence intensity, or cell count) at a set of conditions or time points. The true relationship between the state variable and the conditions is governed by <strong>parameters</strong> — quantities like growth rates, diffusion coefficients, or binding affinities that we cannot measure directly but want to infer.</p>
+
+    <h3>Forward problem vs. inverse problem</h3>
+    <p>The <strong>forward problem</strong> is easy: given known parameter values, compute what the data should look like. For example, if a cell population doubles every 24 hours starting from 1000 cells, the population at time \(t\) is \(N(t)=1000\cdot 2^{t/24}\). Plug in parameters, get predictions.</p>
+    <p>The <strong>inverse problem</strong> is hard: given noisy measurements, recover the unknown parameters. This is the subject of the entire module. We observe scattered data points and ask: "Which parameter values would produce a model curve closest to these measurements?"</p>
+
+    <h3>Types of measurement noise</h3>
+    <ul>
+      <li><strong>Additive noise:</strong> \(y_{\text{obs}} = y_{\text{true}} + \varepsilon\), where \(\varepsilon\sim\mathcal{N}(0,\sigma^2)\). The error magnitude is constant regardless of the signal size.</li>
+      <li><strong>Multiplicative noise:</strong> \(y_{\text{obs}} = y_{\text{true}}\cdot(1+\varepsilon)\). Error grows proportionally with the signal — common in biological measurements where larger volumes have larger absolute errors.</li>
+      <li><strong>Heteroscedastic noise:</strong> the noise variance changes across the measurement range. For tumor spheroids, volume is estimated from diameter via \(V=\frac{\pi}{6}d^3\); small errors in \(d\) get cubed, so large spheroids have much larger volume uncertainty.</li>
+    </ul>
+
+    <div class="worked-example">
+      <p>Suppose the true value at some time point is \(y_{\text{true}}=10.0\) and the noise level is \(\sigma=0.08\) (8% multiplicative).</p>
+      <p>An observed value might be \(y_{\text{obs}} = 10.0\times(1 + 0.08\times z)\) where \(z\sim\mathcal{N}(0,1)\).</p>
+      <p>If \(z=1.2\), then \(y_{\text{obs}} = 10.0\times 1.096 = 10.96\). If \(z=-0.7\), then \(y_{\text{obs}}=10.0\times 0.944=9.44\).</p>
+      <p>With 5 replicates, you might get: \(10.96,\; 9.44,\; 10.32,\; 9.87,\; 10.61\). The scatter around the true value is the noise we must account for during fitting.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>True Model: y = a + b&middot;x</h3>
+      <div class="ctrl-group"><label>Intercept (a) <span id="v-t1-a">2.00</span></label>
+        <input type="range" id="s-t1-a" min="0.0" max="5.0" step="0.1" value="2.00"></div>
+      <div class="ctrl-group"><label>Slope (b) <span id="v-t1-b">1.50</span></label>
+        <input type="range" id="s-t1-b" min="0.2" max="3.0" step="0.05" value="1.50"></div>
+
+      <h3>Noise & Sampling</h3>
+      <div class="ctrl-group"><label>Noise type</label>
+        <select id="sel-t1-noisetype">
+          <option value="additive">Additive: y + &sigma;&middot;&epsilon;</option>
+          <option value="multiplicative">Multiplicative: y&middot;(1 + &sigma;&middot;&epsilon;)</option>
+        </select>
+      </div>
+      <div class="ctrl-group"><label>Noise level (&sigma;) <span id="v-t1-noise">0.80</span></label>
+        <input type="range" id="s-t1-noise" min="0.0" max="3.0" step="0.1" value="0.80"></div>
+      <div class="ctrl-group"><label>Replicates per x <span id="v-t1-reps">3</span></label>
+        <input type="range" id="s-t1-reps" min="1" max="10" step="1" value="3"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-t1-generate">Generate Data</button>
+      </div>
+
+      <div class="stats" id="stats-t1">
+        <h4>Data Summary</h4>
+        <div class="stat-row"><span class="label">Total points (N)</span><span class="value" id="st-t1-n">--</span></div>
+        <div class="stat-row"><span class="label">x range</span><span class="value" id="st-t1-xrange">--</span></div>
+        <div class="stat-row"><span class="label">y range</span><span class="value" id="st-t1-yrange">--</span></div>
+        <div class="stat-row"><span class="label">Noise level</span><span class="value" id="st-t1-noiselvl">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title" id="title-t1-scatter">Data: y = a + b&middot;x + noise</div>
+        <canvas id="c-t1-scatter" width="800" height="420"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 2: CURVE FITTING ════════════════ -->
+<section id="tab-fitting" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Least Squares Curve Fitting</h2>
+    <h3>What is least squares?</h3>
+    <p>Each data point \(i\) has a <strong>residual</strong> — the vertical gap between the observed value \(y_i\) and the model prediction \(\hat{y}_i = f(x_i,\boldsymbol{\theta})\):</p>
+    <div class="equation-box">\[ r_i = y_i - f(x_i,\,\boldsymbol{\theta}) \]</div>
+    <div class="worked-example">
+      <p><strong>For \(y = mx + b\) with data \((1, 3.1),\; (2, 4.8),\; (3, 7.2)\) and current guess \(m=2, b=1\):</strong></p>
+      <p>Predictions: \(\hat{y}_1 = 2(1)+1 = 3\), \(\hat{y}_2 = 2(2)+1 = 5\), \(\hat{y}_3 = 2(3)+1 = 7\)</p>
+      <p>Residuals: \(r_1 = 3.1 - 3 = 0.1\), \(r_2 = 4.8 - 5 = -0.2\), \(r_3 = 7.2 - 7 = 0.2\)</p>
+    </div>
+    <p>Positive means the model underpredicts; negative means it overpredicts. We collect all \(n\) gaps into a <strong>residual vector</strong> \(\mathbf{r}=[r_1,r_2,\ldots,r_n]^T\).</p>
+
+    <h3>The residual sum of squares (RSS)</h3>
+    <p>We square each gap (so positive and negative errors do not cancel) and add them all up:</p>
+    <div class="equation-box">\[ \text{RSS}(\boldsymbol{\theta}) = \sum_{i=1}^{n}r_i^2 = \mathbf{r}^T\mathbf{r} \]</div>
+    <div class="worked-example">
+      <p><strong>Continuing:</strong> RSS \(= 0.1^2 + (-0.2)^2 + 0.2^2 = 0.01 + 0.04 + 0.04 = 0.09\)</p>
+      <p>This is a small RSS, suggesting \(m=2, b=1\) is close to the best fit.</p>
+    </div>
+    <p>The expression \(\mathbf{r}^T\mathbf{r}\) is the dot product of the residual vector with itself — the squared length of the vector. <strong>Fitting = minimizing this length.</strong></p>
+
+    <h3>The Jacobian — sensitivity of predictions to parameters</h3>
+    <p>Before the optimizer can decide which parameter to change, it needs to know: "If I nudge parameter \(\theta_j\) by a tiny amount, how much does each prediction move?" That table of sensitivities is the <strong>Jacobian matrix</strong> \(J\):</p>
+    <div class="equation-box">\[ J_{ij} = \frac{\partial f(x_i,\,\boldsymbol{\theta})}{\partial \theta_j} \]</div>
+    <div class="worked-example">
+      <p><strong>For \(f(x) = mx + b\):</strong> \(\frac{\partial f}{\partial m} = x\) and \(\frac{\partial f}{\partial b} = 1\)</p>
+      <p>At our 3 data points: \(J = \begin{bmatrix} 1 & 1 \\ 2 & 1 \\ 3 & 1 \end{bmatrix}\)</p>
+      <p>Interpretation: changing \(b\) shifts all predictions by the same amount (column 2 = all 1s). Changing \(m\) affects later points more (column 1 = 1, 2, 3).</p>
+    </div>
+    <p>Row \(i\) = data point. Column \(j\) = parameter. Entry = "how sensitive is prediction \(i\) to parameter \(j\)?"</p>
+
+    <h3>Gauss-Newton parameter update</h3>
+    <p>Given the current residuals \(\mathbf{r}\) and the sensitivity table \(J\), the best local correction is:</p>
+    <div class="equation-box">\[ \Delta\boldsymbol{\theta} = \underbrace{(J^TJ)^{-1}}_{\text{scaling}} \underbrace{J^T\mathbf{r}}_{\text{direction}} \]</div>
+    <div class="worked-example">
+      <p><strong>Computing the update:</strong></p>
+      <p>\(J^T J = \begin{bmatrix}1&2&3\\1&1&1\end{bmatrix}\begin{bmatrix}1&1\\2&1\\3&1\end{bmatrix} = \begin{bmatrix}14&6\\6&3\end{bmatrix}\)</p>
+      <p>\(J^T \mathbf{r} = \begin{bmatrix}1&2&3\\1&1&1\end{bmatrix}\begin{bmatrix}0.1\\-0.2\\0.2\end{bmatrix} = \begin{bmatrix}0.3\\0.1\end{bmatrix}\)</p>
+      <p>\((J^TJ)^{-1} = \frac{1}{14\cdot3-36}\begin{bmatrix}3&-6\\-6&14\end{bmatrix} = \frac{1}{6}\begin{bmatrix}3&-6\\-6&14\end{bmatrix}\)</p>
+      <p>\(\Delta\theta = \frac{1}{6}\begin{bmatrix}3&-6\\-6&14\end{bmatrix}\begin{bmatrix}0.3\\0.1\end{bmatrix} = \frac{1}{6}\begin{bmatrix}0.3\\0.2\end{bmatrix} = \begin{bmatrix}0.05\\0.033\end{bmatrix}\)</p>
+      <p>Update: \(m_{\text{new}} = 2 + 0.05 = 2.05\), \(b_{\text{new}} = 1 + 0.033 = 1.033\)</p>
+    </div>
+    <p>\(J^T\mathbf{r}\) asks "which parameter direction would most reduce the current gaps?" and \((J^TJ)^{-1}\) scales that direction so we do not overshoot.</p>
+
+    <h3>Standard errors from the fit</h3>
+    <p>At convergence, the same \(J^TJ\) tells us parameter uncertainty:</p>
+    <div class="equation-box">\[ \text{Cov}(\hat{\boldsymbol{\theta}}) \approx s^2(J^TJ)^{-1}, \quad s^2 = \frac{\text{RSS}}{n-p} \]</div>
+    <div class="worked-example">
+      <p><strong>Standard errors:</strong> With RSS = 0.09, \(n=3\), \(p=2\): \(s^2 = 0.09/(3-2) = 0.09\)</p>
+      <p>\(\text{Cov} = 0.09 \times \frac{1}{6}\begin{bmatrix}3&-6\\-6&14\end{bmatrix} = \begin{bmatrix}0.045&-0.09\\-0.09&0.21\end{bmatrix}\)</p>
+      <p>SE(\(m\)) = \(\sqrt{0.045} = 0.212\), SE(\(b\)) = \(\sqrt{0.21} = 0.458\)</p>
+      <p>So \(m = 2.05 \pm 0.21\) and \(b = 1.03 \pm 0.46\). The intercept is less precisely determined than the slope.</p>
+    </div>
+    <p>where \(n\) = data points and \(p\) = number of parameters. Standard errors are the square roots of the diagonal: \(\text{SE}(\hat{\theta}_j) = \sqrt{\text{Cov}_{jj}}\).</p>
+
+    <div class="worked-example">
+      <p><strong>1-parameter fit:</strong> Fit \(y=a\cdot x\) to \((1,2.1),\;(2,3.9),\;(3,6.2)\).</p>
+      <p>RSS = \((2.1-a)^2+(3.9-2a)^2+(6.2-3a)^2\). Setting \(\frac{d\text{RSS}}{da}=0\):</p>
+      <p>\(\hat{a}=\frac{\sum x_i y_i}{\sum x_i^2}=\frac{2.1+7.8+18.6}{1+4+9}=\frac{28.5}{14}\approx 2.036\)</p>
+    </div>
+  </div>
+
+  <div class="teaching-strip">
+    <div class="card">
+      <h2>Example 1 — One Parameter: y = a&middot;x</h2>
+      <p class="mini-lead">A single slope controls the fit. The RSS bowl is a simple parabola with one clear minimum. Drag the slope slider to see how residuals, RSS bowl, and Jacobian sensitivity are all linked.</p>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Residuals Become RSS</div>
+          <canvas id="c-t2-teach-rss" width="360" height="240"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">1-Parameter RSS Bowl</div>
+          <canvas id="c-t2-teach-bowl" width="360" height="240"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Jacobian As Sensitivity</div>
+          <canvas id="c-t2-teach-jac" width="360" height="240"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <label style="font-size:.82rem;font-weight:600;color:#1e293b">True slope (a) <span id="v-teach2-atrue" style="color:#059669">1.80</span></label>
+        <input type="range" id="s-teach2-atrue" min="0.5" max="3.0" step="0.05" value="1.80" style="width:160px;accent-color:#059669">
+        <label style="font-size:.82rem;font-weight:600;color:#334155">Fit slope (&acirc;) <span id="v-teach2-afit" style="color:#2563eb">1.50</span></label>
+        <input type="range" id="s-teach2-afit" min="0.5" max="3.0" step="0.05" value="1.50" style="width:160px;accent-color:#2563eb">
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Each parameter guess produces a set of residuals (gaps). RSS is the total squared gap.</li>
+          <li>The RSS bowl has exactly one minimum — that is the best-fit parameter value.</li>
+          <li>Moving the true slope changes where the data sit. Moving the fit slope changes where you are on the bowl.</li>
+        </ul>
+      </div>
+
+      <h2 style="margin-top:20px">Example 2 — Two Parameters: y = &theta;<sub>1</sub> + &theta;<sub>2</sub>&middot;x</h2>
+      <p class="mini-lead">Now intercept \(\theta_1\) and slope \(\theta_2\) must be found together. The 1D bowl becomes a 2D landscape. Drag the sliders and watch your position move on the map.</p>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Data + Current Fit</div>
+          <canvas id="c-t2-teach-2p-fit" width="360" height="260"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">2D RSS Landscape</div>
+          <canvas id="c-t2-teach-2p-map" width="360" height="260" style="cursor:crosshair"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">RSS Cross-Sections</div>
+          <canvas id="c-t2-teach-2p-slices" width="360" height="260"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <label style="font-size:.82rem;font-weight:600;color:#334155">&theta;<sub>1</sub> <span id="v-teach2-th1">1.00</span></label>
+        <input type="range" id="s-teach2-th1" min="0" max="4" step="0.1" value="1.0" style="width:140px;accent-color:#2563eb">
+        <label style="font-size:.82rem;font-weight:600;color:#334155">&theta;<sub>2</sub> <span id="v-teach2-th2">1.50</span></label>
+        <input type="range" id="s-teach2-th2" min="0.3" max="2.5" step="0.05" value="1.50" style="width:140px;accent-color:#059669">
+        <span style="font-size:.78rem;color:#64748b">Data: (1, 2.1), (2, 3.9), (3, 6.2), (4, 7.8), (5, 10.1)</span>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>With two parameters, the RSS "bowl" becomes a 2D landscape with a valley.</li>
+          <li>Click on the heatmap to jump to any (θ₁, θ₂) — the cross-sections show 1D slices through your position.</li>
+          <li>The Jacobian tells you: θ₁ shifts all predictions equally, θ₂ tilts the curve (bigger effect at larger x).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 3: RESIDUAL ANALYSIS ════════════════ -->
+<section id="tab-residuals" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Residual Analysis</h2>
+    <h3>What are residuals?</h3>
+    <p>After fitting, each data point has a residual: \(e_i = y_i - \hat{y}_i\). These residuals are the "leftover" variation that the model did not capture. If the model is correct and the noise is well-behaved, residuals should look like random scatter around zero.</p>
+
+    <h3>Three diagnostic patterns</h3>
+    <ul>
+      <li><strong>Random scatter (good):</strong> No systematic pattern. Points bounce above and below zero with no trend. This means the model captures the data structure adequately.</li>
+      <li><strong>U-shape or curvature (bad):</strong> Residuals are negative at the edges and positive in the middle (or vice versa). This means the model shape is wrong — it is missing curvature that the data contains.</li>
+      <li><strong>Fan / trumpet shape (heteroscedastic):</strong> Residuals spread out as the predicted value increases. This means the noise variance is not constant — larger predictions have larger errors. Weighted least squares or a log-transform may help.</li>
+    </ul>
+
+    <h3>Goodness-of-fit statistics</h3>
+    <p><strong>Step 1 — Residual sum of squares:</strong></p>
+    <div class="equation-box">\[ SS_{\text{res}} = \sum_{i=1}^{n}(y_i - \hat{y}_i)^2 \]</div>
+    <p><strong>Step 2 — Total sum of squares</strong> (how much total variation exists before any model):</p>
+    <div class="equation-box">\[ SS_{\text{tot}} = \sum_{i=1}^{n}(y_i - \bar{y})^2, \quad \bar{y}=\frac{1}{n}\sum y_i \]</div>
+    <p><strong>Step 3 — Coefficient of determination:</strong></p>
+    <div class="equation-box">\[ R^2 = 1 - \frac{SS_{\text{res}}}{SS_{\text{tot}}} \]</div>
+    <p>\(R^2=0.95\) means the model captures 95% of the data's spread. If the model is no better than predicting the mean, \(R^2=0\). For very bad models, \(R^2\) can be negative.</p>
+    <p><strong>RMSE</strong> — average residual magnitude in original units:</p>
+    <div class="equation-box">\[ \text{RMSE} = \sqrt{\frac{SS_{\text{res}}}{n}} \]</div>
+    <p><strong>Key distinction:</strong> \(R^2\) is relative (fraction of variance), RMSE is absolute (units of the data). A model can have \(R^2=0.99\) and still be systematically wrong if residuals show patterns.</p>
+
+    <div class="worked-example">
+      <p>Observed \(y=[2,\;4,\;7]\), predicted \(\hat{y}=[1.8,\;4.1,\;6.5]\).</p>
+      <p>Residuals: \(e=[0.2,\;-0.1,\;0.5]\). RSS = \(0.04+0.01+0.25=0.30\).</p>
+      <p>Mean \(\bar{y}=4.33\). \(SS_{\text{tot}}=5.44+0.11+7.11=12.66\).</p>
+      <p>\(R^2=1-0.30/12.66=0.976\). RMSE = \(\sqrt{0.30/3}\approx 0.316\).</p>
+    </div>
+  </div>
+
+  <div class="teaching-strip">
+    <div class="card">
+      <h2>Interactive: Residual Pattern Explorer</h2>
+      <p class="mini-lead">True data follows \(y=1+1.8x\) plus noise. Your model is \(y=\text{slope}\cdot x + \text{curv}\cdot x^2\). When the model is wrong, residuals reveal it. All three plots share the same data and update together.</p>
+      <div style="display:flex;gap:8px;align-items:center;margin:8px 0 12px;flex-wrap:wrap">
+        <span style="font-size:.78rem;font-weight:600;color:#64748b">Quick presets:</span>
+        <button class="btn btn-secondary" id="btn-t3p-good" style="font-size:.75rem;padding:4px 10px">Good fit</button>
+        <button class="btn btn-secondary" id="btn-t3p-wrongcurv" style="font-size:.75rem;padding:4px 10px">Wrong curvature</button>
+        <button class="btn btn-secondary" id="btn-t3p-wrongslope" style="font-size:.75rem;padding:4px 10px">Wrong slope</button>
+        <button class="btn btn-secondary" id="btn-t3p-noisy" style="font-size:.75rem;padding:4px 10px">Very noisy</button>
+      </div>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Data + Model Fit</div>
+          <canvas id="c-t3-teach-gap" width="360" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Residuals vs Predicted</div>
+          <canvas id="c-t3-teach-resid" width="360" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Fit Statistics Dashboard</div>
+          <canvas id="c-t3-teach-stats" width="360" height="280"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <label style="font-size:.82rem;font-weight:600;color:#334155">Model slope <span id="v-teach3-slope">1.80</span></label>
+        <input type="range" id="s-teach3-slope" min="0.3" max="3.0" step="0.05" value="1.80" style="width:160px;accent-color:#2563eb">
+        <label style="font-size:.82rem;font-weight:600;color:#334155">Model curvature <span id="v-teach3-curv">0.00</span></label>
+        <input type="range" id="s-teach3-curv" min="-0.3" max="0.3" step="0.01" value="0" style="width:160px;accent-color:#d97706">
+        <label style="font-size:.82rem;font-weight:600;color:#334155">Noise <span id="v-teach3-noise">0.40</span></label>
+        <input type="range" id="s-teach3-noise" min="0" max="1.5" step="0.05" value="0.40" style="width:120px;accent-color:#dc2626">
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Random residuals = model is adequate. Patterned residuals = model is wrong, even if R² is high.</li>
+          <li>R² measures variance explained; RMSE measures average error in original units. Neither alone is sufficient.</li>
+          <li>A model can have R² = 0.95 and still be systematically wrong — the residual plot catches what numbers hide.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 4: R2 PITFALLS & TRANSFORMS ════════════════ -->
+<section id="tab-r2pitfalls" class="tab-content">
+  <div class="background-section">
+    <h2>Background: R&sup2; Pitfalls and Linearizing Transforms</h2>
+    <h3>Why R&sup2; can mislead</h3>
+    <p>\(R^2\) measures the fraction of variance explained by a linear fit. But a high \(R^2\) from a linear fit does <strong>not</strong> mean the linear model is correct — it just means the data has a trend. Consider Anscombe's quartet: four wildly different datasets that all yield the same \(R^2\approx 0.67\) and the same linear regression line. The residual plot distinguishes them; the number alone does not.</p>
+    <p>For nonlinear models, \(R^2\) defined as \(1-SS_{\text{res}}/SS_{\text{tot}}\) can exceed 1 or be negative, and it no longer has the clean "fraction of variance explained" interpretation. Always check residuals alongside any summary statistic.</p>
+
+    <h3>Linearizing transforms</h3>
+    <p>When the true relationship is nonlinear, a <strong>variable transformation</strong> can convert it into a form where linear regression (and \(R^2\)) is valid:</p>
+    <ul>
+      <li><strong>Log-linear</strong> for exponentials: \(y=ae^{bx}\) becomes \(\ln y = \ln a + bx\) — linear in \(\ln y\) vs \(x\).</li>
+      <li><strong>Log-log</strong> for power laws: \(y=ax^b\) becomes \(\ln y = \ln a + b\ln x\) — linear in \(\ln y\) vs \(\ln x\).</li>
+      <li><strong>Reciprocal</strong> for Michaelis-Menten: \(y=V_{\max}x/(K_m+x)\) becomes \(1/y = (K_m/V_{\max})(1/x)+1/V_{\max}\) — the Lineweaver-Burk plot.</li>
+    </ul>
+
+    <div class="worked-example">
+      <p>Data: \(x=[1,2,3,4,5]\), \(y=[2.7,\;7.4,\;20.1,\;54.6,\;148.4]\). These follow \(y=e^x\).</p>
+      <p>Linear fit gives \(R^2=0.82\). But \(\ln y=[0.99,\;2.00,\;3.00,\;4.00,\;5.00]\) gives a perfect linear fit with \(R^2=1.00\). The log-linear transform reveals the true structure.</p>
+    </div>
+  </div>
+
+  <div class="teaching-strip">
+    <div class="card">
+      <h2>Anscombe's Quartet</h2>
+      <p class="mini-lead">Four datasets with nearly the <strong>same R&sup2; (~0.67)</strong> but wildly different patterns. Select a dataset to inspect its residuals.</p>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Four Datasets, Same R&sup2;</div>
+          <canvas id="c-r2-teach-quartet" width="360" height="300"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Residual Pattern</div>
+          <canvas id="c-r2-teach-resid" width="360" height="300"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">After Linearization (Dataset B)</div>
+          <canvas id="c-r2-teach-linear" width="360" height="300"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <span style="font-size:.78rem;font-weight:600;color:#64748b">Dataset:</span>
+        <span class="toggle-group" id="r2-teach-dataset-group" style="margin:0">
+          <button class="toggle-btn active" data-r2ds="A" style="padding:4px 10px;font-size:.78rem">A (Linear)</button>
+          <button class="toggle-btn" data-r2ds="B" style="padding:4px 10px;font-size:.78rem">B (Quadratic)</button>
+          <button class="toggle-btn" data-r2ds="C" style="padding:4px 10px;font-size:.78rem">C (Outlier)</button>
+          <button class="toggle-btn" data-r2ds="D" style="padding:4px 10px;font-size:.78rem">D (Cluster)</button>
+        </span>
+        <label style="font-size:.82rem;font-weight:600;color:#334155"><input type="checkbox" id="chk-r2-linearize" style="margin-right:4px">Linearize Dataset B</label>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Four datasets can have the same R² but wildly different relationships — never trust R² alone.</li>
+          <li>Residuals reveal what R² hides: curvature, outlier influence, and lack of structure.</li>
+          <li>Linearizing transforms (y vs x²) convert a curved relationship into a line, making R² meaningful again.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><h2>Linearization Explorer</h2>
+    <p class="mini-lead">Select a nonlinear model type, generate data, and compare raw R&sup2; vs. transformed R&sup2;.</p>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>True Model</h3>
+      <div class="ctrl-group">
+        <label>Model type</label>
+        <select id="sel-r2-model">
+          <option value="exponential">Exponential: y = a&middot;exp(b&middot;x)</option>
+          <option value="power">Power law: y = a&middot;x^b</option>
+          <option value="saturating">Saturating: y = Vmax&middot;x/(Km+x)</option>
+        </select>
+      </div>
+      <div class="ctrl-group"><label>Parameter a <span id="v-r2-a">2.00</span></label>
+        <input type="range" id="s-r2-a" min="0.5" max="5.0" step="0.1" value="2.0"></div>
+      <div class="ctrl-group"><label>Parameter b <span id="v-r2-b">0.30</span></label>
+        <input type="range" id="s-r2-b" min="0.05" max="2.0" step="0.05" value="0.30"></div>
+      <div class="ctrl-group"><label>Noise level <span id="v-r2-noise">0.50</span></label>
+        <input type="range" id="s-r2-noise" min="0.1" max="2.0" step="0.05" value="0.50"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-r2-generate">Generate Data</button>
+      </div>
+      <h3>Transform</h3>
+      <div class="ctrl-group">
+        <label>Transform</label>
+        <select id="sel-r2-transform">
+          <option value="none">None (raw)</option>
+          <option value="logy_x">log(y) vs x</option>
+          <option value="logy_logx">log(y) vs log(x)</option>
+          <option value="invy_invx">1/y vs 1/x</option>
+        </select>
+      </div>
+      <div class="stats">
+        <h4>R&sup2; Comparison</h4>
+        <div class="stat-row"><span class="label">R&sup2; (raw linear)</span><span class="value" id="st-r2-raw">--</span></div>
+        <div class="stat-row highlight"><span class="label">R&sup2; (transformed)</span><span class="value" id="st-r2-transformed">--</span></div>
+        <div class="stat-row"><span class="label">Best transform</span><span class="value" id="st-r2-best">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Raw Data + Linear Fit</div>
+        <canvas id="c-r2-raw" width="800" height="340"></canvas>
+      </div>
+      <div class="viz-grid-2">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Transformed Data + Linear Fit</div>
+          <canvas id="c-r2-transformed" width="400" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Residuals: Raw vs Transformed</div>
+          <canvas id="c-r2-residcomp" width="400" height="280"></canvas>
+        </div>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Exponential data → use log(y) vs x. Power law → log(y) vs log(x). Michaelis-Menten → 1/y vs 1/x.</li>
+          <li>After the correct transform, the data becomes linear and R² is meaningful.</li>
+          <li>Compare residuals before and after: the transform that makes residuals random is the right one.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 5: MODEL COMPARISON ════════════════ -->
+<section id="tab-comparison" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Model Comparison with AIC and BIC</h2>
+    <h3>Why better fit does not mean better model</h3>
+    <p>A model with more parameters will always fit the data at least as well as a simpler one. But extra parameters can <strong>overfit</strong> — they memorize noise rather than capturing the real pattern. On new data, the overfit model predicts poorly. We need a principled way to balance <em>goodness of fit</em> against <em>model complexity</em>.</p>
+
+    <h3>Information criteria — Occam's razor made quantitative</h3>
+    <p>Define the ingredients:</p>
+    <ul>
+      <li>\(n\) = number of data points</li>
+      <li>\(k\) = number of estimated parameters</li>
+      <li>\(\text{RSS}\) = residual sum of squares from fitting</li>
+    </ul>
+
+    <p><strong>Akaike Information Criterion (AIC):</strong></p>
+    <div class="equation-box">\[ \text{AIC} = \underbrace{n\ln\!\left(\frac{\text{RSS}}{n}\right)}_{\text{fit quality (lower = better)}} + \underbrace{2k}_{\text{complexity penalty}} \]</div>
+    <p>The first term rewards good fit. The second penalizes each additional parameter by exactly 2 units.</p>
+
+    <p><strong>Bayesian Information Criterion (BIC):</strong></p>
+    <div class="equation-box">\[ \text{BIC} = \underbrace{n\ln\!\left(\frac{\text{RSS}}{n}\right)}_{\text{same fit term}} + \underbrace{k\ln(n)}_{\text{stronger penalty}} \]</div>
+    <p>Since \(\ln(n)>2\) whenever \(n>8\), BIC penalizes extra parameters more harshly than AIC.</p>
+
+    <h3>&Delta;AIC interpretation</h3>
+    <ul>
+      <li>\(\Delta\text{AIC}=0\text{-}2\): Models are essentially indistinguishable</li>
+      <li>\(\Delta\text{AIC}=2\text{-}7\): Some evidence favoring the lower-AIC model</li>
+      <li>\(\Delta\text{AIC}>10\): Strong evidence against the higher-AIC model</li>
+    </ul>
+
+    <div class="worked-example">
+      <p>Model A: RSS=50, \(k=2\), \(n=60\). Model B: RSS=45, \(k=4\), \(n=60\).</p>
+      <p>AIC\(_A=60\ln(50/60)+4=60(-0.182)+4=-6.95\)</p>
+      <p>AIC\(_B=60\ln(45/60)+8=60(-0.288)+8=-9.25\)</p>
+      <p>\(\Delta\text{AIC}=2.30\). Model B is slightly preferred, but the evidence is modest.</p>
+    </div>
+  </div>
+
+  <div class="teaching-strip">
+    <div class="card">
+      <h2>Teaching Demo: Polynomial Fits to Quadratic Data</h2>
+      <p class="mini-lead">True data is quadratic. Three polynomial models (Linear, Quadratic, Cubic) are fit by least squares. Toggle the selected model to see its residual pattern; adjust noise to watch AIC/BIC preferences shift.</p>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Data + All Fits</div>
+          <canvas id="c-t5-teach-fits" width="360" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">RSS, AIC, BIC Comparison</div>
+          <canvas id="c-t5-teach-bars" width="360" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Residuals of Selected Model</div>
+          <canvas id="c-t5-teach-resid" width="360" height="280"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:.82rem;font-weight:600;color:#334155">
+        <label>Noise <span id="v-teach5-noise">0.50</span></label>
+        <input type="range" id="s-teach5-noise" min="0.1" max="2.0" step="0.05" value="0.50" style="width:160px;accent-color:#2563eb">
+        <span style="margin-left:8px;font-size:.78rem;color:#64748b">Selected model:</span>
+        <span class="toggle-group" id="t5-teach-model-group" style="margin:0">
+          <button class="toggle-btn active" data-t5model="linear" style="padding:4px 10px;font-size:.78rem">Linear</button>
+          <button class="toggle-btn" data-t5model="quadratic" style="padding:4px 10px;font-size:.78rem">Quadratic</button>
+          <button class="toggle-btn" data-t5model="cubic" style="padding:4px 10px;font-size:.78rem">Cubic</button>
+        </span>
+        <button class="btn btn-secondary" id="btn-t5-teach-regen" style="font-size:.78rem;padding:4px 10px">Regenerate Data</button>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>The model with the lowest RSS is not always the best — it may be overfitting noise.</li>
+          <li>AIC and BIC add a penalty for each extra parameter: a complex model must earn its extra flexibility.</li>
+          <li>Residuals of the wrong model show patterns; residuals of the right model look random.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>How AIC Actually Works: Dissecting the Formula</h2>
+    <p class="mini-lead">AIC has two competing terms: a <strong>fit term</strong> that rewards low RSS, and a <strong>penalty term</strong> that punishes extra parameters. The model with the best <em>balance</em> wins. Drag the sliders to see each term in action and understand when AIC correctly picks the true model vs. when it fails.</p>
+    <div class="viz-grid-3">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Data + All Three Fits</div>
+        <canvas id="c-t5-teach2-fits" width="360" height="260"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">AIC Decomposition: Fit vs Penalty</div>
+        <canvas id="c-t5-teach2-sweep" width="360" height="260"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Why More Data Helps</div>
+        <canvas id="c-t5-teach2-range" width="360" height="260"></canvas>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:.82rem;font-weight:600;color:#334155">
+      <label>N points <span id="v-teach5b-n">8</span></label>
+      <input type="range" id="s-teach5b-n" min="4" max="30" step="1" value="8" style="width:120px;accent-color:#2563eb">
+      <label>Data range <span id="v-teach5b-range">8.0</span></label>
+      <input type="range" id="s-teach5b-range" min="2" max="15" step="0.5" value="8.0" style="width:120px;accent-color:#059669">
+      <label>Noise <span id="v-teach5b-noise">0.50</span></label>
+      <input type="range" id="s-teach5b-noise" min="0.1" max="3.0" step="0.1" value="0.50" style="width:100px;accent-color:#dc2626">
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>AIC = fit quality term + complexity penalty. The fit term drops with more parameters; the penalty rises.</li>
+        <li>With few data points, AIC prefers simple models (not enough signal to justify complexity).</li>
+        <li>With more data, AIC can detect subtle curvature and correctly picks the true model.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card"><h2>AIC Calculator</h2>
+    <p class="mini-lead">Adjust RSS and k for two models and see which one wins by AIC and BIC.</p>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Model A</h3>
+      <div class="ctrl-group"><label>RSS_A <span id="v-aic-rssA">50</span></label>
+        <input type="range" id="s-aic-rssA" min="1" max="200" step="1" value="50"></div>
+      <div class="ctrl-group"><label>k_A <span id="v-aic-kA">2</span></label>
+        <input type="range" id="s-aic-kA" min="1" max="10" step="1" value="2"></div>
+      <h3>Model B</h3>
+      <div class="ctrl-group"><label>RSS_B <span id="v-aic-rssB">45</span></label>
+        <input type="range" id="s-aic-rssB" min="1" max="200" step="1" value="45"></div>
+      <div class="ctrl-group"><label>k_B <span id="v-aic-kB">4</span></label>
+        <input type="range" id="s-aic-kB" min="1" max="10" step="1" value="4"></div>
+      <h3>Sample Size</h3>
+      <div class="ctrl-group"><label>n <span id="v-aic-n">60</span></label>
+        <input type="range" id="s-aic-n" min="10" max="200" step="5" value="60"></div>
+      <div class="stats">
+        <h4>Results</h4>
+        <div class="stat-row"><span class="label">AIC_A</span><span class="value" id="st-aic-aicA">--</span></div>
+        <div class="stat-row"><span class="label">AIC_B</span><span class="value" id="st-aic-aicB">--</span></div>
+        <div class="stat-row highlight"><span class="label">AIC Winner</span><span class="value" id="st-aic-winner">--</span></div>
+        <div class="stat-row"><span class="label">BIC Winner</span><span class="value" id="st-aic-bicwinner">--</span></div>
+        <div class="stat-row"><span class="label">&Delta;AIC</span><span class="value" id="st-aic-daic">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">AIC & BIC Comparison</div>
+        <canvas id="c-aic-bars" width="800" height="400"></canvas>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>A 10% RSS improvement does not justify 2 extra parameters — the AIC penalty makes this quantitative.</li>
+          <li>BIC penalizes more heavily than AIC for large datasets (ln(n) > 2 when n > 8).</li>
+          <li>ΔAIC < 2: models are indistinguishable. ΔAIC > 10: strong preference. Report both when they disagree.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 6: IDENTIFIABILITY ════════════════ -->
+<section id="tab-identifiability" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Parameter Identifiability</h2>
+    <h3>Structural vs. practical identifiability</h3>
+    <ul>
+      <li><strong>Structural identifiability:</strong> Can we EVER identify these parameters, even with perfect (noise-free, infinite) data? This is a property of the model equations themselves.</li>
+      <li><strong>Practical identifiability:</strong> Can we identify them with THIS data (finite, noisy, limited range)? This depends on the experimental design.</li>
+    </ul>
+
+    <h3>From covariance to standard error (SE)</h3>
+    <p>Recall from Tab 2 that after fitting, we obtain the <strong>parameter covariance matrix</strong> \(\text{Cov}(\hat{\boldsymbol{\theta}}) \approx s^2(J^TJ)^{-1}\). This is a matrix where:</p>
+    <ul>
+      <li><strong>Diagonal entries</strong> \(\text{Cov}_{jj}\) are the <em>variances</em> of individual parameter estimates — they measure how much each parameter would scatter if we repeated the experiment many times.</li>
+      <li><strong>Off-diagonal entries</strong> \(\text{Cov}_{jk}\) (where \(j \neq k\)) are <em>covariances</em> between pairs — they measure whether parameters tend to move together.</li>
+    </ul>
+    <p>The <strong>Standard Error (SE)</strong> of a parameter is the square root of its variance — it converts the abstract variance back into the same units as the parameter itself:</p>
+    <div class="equation-box">\[ \text{SE}(\hat{\theta}_j) = \sqrt{\text{Cov}(\hat{\boldsymbol{\theta}})_{jj}} \]</div>
+    <p>For example, if \(\text{Cov}_{11} = 0.010\), then \(\text{SE}(\hat{\theta}_1) = \sqrt{0.010} = 0.100\). This means the parameter estimate is uncertain by about ±0.1. A 95% confidence interval is approximately \(\hat{\theta}_j \pm 1.96 \cdot \text{SE}(\hat{\theta}_j)\).</p>
+    <p><strong>Small SE = well-determined parameter. Large SE = uncertain parameter.</strong> If SE is comparable to the parameter value itself, the estimate is essentially meaningless.</p>
+
+    <h3>The correlation matrix — detecting parameter tradeoffs</h3>
+    <p>Covariance values depend on the scale of each parameter, making them hard to compare directly. To get a <strong>unitless</strong> measure of how strongly two parameters are linked, we normalize each covariance by the standard errors of both parameters:</p>
+    <div class="equation-box">\[ r_{jk} = \frac{\text{Cov}_{jk}}{\text{SE}_j \cdot \text{SE}_k} = \frac{\text{Cov}_{jk}}{\sqrt{\text{Cov}_{jj} \cdot \text{Cov}_{kk}}} \]</div>
+    <p>This gives the <strong>correlation coefficient</strong> \(r_{jk}\in[-1,+1]\):</p>
+    <ul>
+      <li>\(r_{jk}=0\): parameters are uncorrelated — good</li>
+      <li>\(|r_{jk}|\) near 1: parameters trade off strongly — one can compensate for the other</li>
+      <li><strong>Danger threshold:</strong> \(|r_{jk}|>0.9\) usually indicates practical non-identifiability</li>
+    </ul>
+
+    <h3>Profile likelihood — a global identifiability test</h3>
+    <p>The 5-step algorithm:</p>
+    <ol>
+      <li><strong>Fix</strong> parameter \(\theta_j\) at a specific value (away from the best fit)</li>
+      <li><strong>Re-optimize</strong> all other parameters to get the best possible fit given that \(\theta_j\) is locked</li>
+      <li><strong>Record</strong> the resulting RSS</li>
+      <li><strong>Repeat</strong> for a grid of \(\theta_j\) values</li>
+      <li><strong>Plot</strong> RSS vs. \(\theta_j\). Sharp parabola = identifiable. Flat curve = not identifiable</li>
+    </ol>
+
+    <div class="worked-example">
+      <p><strong>Given:</strong> \(\text{Cov}=\begin{bmatrix}0.010&0.018\\0.018&0.040\end{bmatrix}\) for parameters \((\alpha,\beta)\).</p>
+      <p><strong>Step 1 — Standard errors</strong> (square roots of diagonal entries):</p>
+      <p>SE(\(\alpha\)) = \(\sqrt{\text{Cov}_{11}} = \sqrt{0.010} = 0.100\) &nbsp; &nbsp; SE(\(\beta\)) = \(\sqrt{\text{Cov}_{22}} = \sqrt{0.040} = 0.200\)</p>
+      <p>Interpretation: \(\alpha\) is known to ±0.10, \(\beta\) to ±0.20 (roughly).</p>
+      <p><strong>Step 2 — Correlation</strong> (off-diagonal normalized by both SEs):</p>
+      <p>\(r_{\alpha\beta} = \frac{\text{Cov}_{12}}{\text{SE}(\alpha) \cdot \text{SE}(\beta)} = \frac{0.018}{0.100 \times 0.200} = \frac{0.018}{0.020} = 0.90\)</p>
+      <p><strong>Verdict:</strong> At \(r = 0.90\), the parameters strongly trade off — increasing \(\alpha\) can be compensated by increasing \(\beta\). The confidence region is a long tilted ellipse, not a compact blob. This is a warning sign for identifiability.</p>
+    </div>
+  </div>
+
+  <div class="teaching-strip">
+    <div class="card">
+      <h2>How to Read Identifiability Plots</h2>
+      <p class="mini-lead">Before exploring the interactive example, learn what "good" and "bad" identifiability looks like in each plot type.</p>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Good vs Bad: Confidence Bands</div>
+          <canvas id="c-t6-read-bands" width="360" height="260"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Good vs Bad: Bootstrap Cloud</div>
+          <canvas id="c-t6-read-cloud" width="360" height="260"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Good vs Bad: Profile Likelihood</div>
+          <canvas id="c-t6-read-profile" width="360" height="260"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:.82rem;font-weight:600;color:#334155">
+        <label>Identifiability level <span id="v-t6-read-level">0.80</span></label>
+        <input type="range" id="s-t6-read-level" min="0" max="1" step="0.05" value="0.80" style="width:200px;accent-color:#2563eb">
+        <span style="font-size:.78rem;color:#64748b">(1 = well-identified, 0 = non-identifiable)</span>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Narrow confidence band = parameter is well-constrained. Wide band = high uncertainty.</li>
+          <li>Round bootstrap cloud = independent parameters. Elongated cloud = correlated, trading off.</li>
+          <li>Sharp profile likelihood = identifiable. Flat profile = data cannot constrain the parameter.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Understanding the Covariance Matrix — Step by Step</h2>
+      <p class="mini-lead">The covariance matrix is a 2&times;2 table (for 2 parameters) that encodes <em>everything</em> about parameter uncertainty. This section builds up what each entry means, then shows how the matrix creates the confidence ellipse. Drag the sliders to see each concept in action.</p>
+      <div style="font-size:.86rem;color:#475569;line-height:1.6;margin-bottom:12px">
+        <p style="margin-bottom:8px"><strong>What the matrix looks like</strong> for two parameters &alpha; and &beta;:</p>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin:8px 0;font-family:monospace;text-align:center">
+          Cov = [ Var(&alpha;) &nbsp;&nbsp; Cov(&alpha;,&beta;) ]<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ Cov(&alpha;,&beta;) &nbsp; Var(&beta;) &nbsp;&nbsp;&nbsp;&nbsp;]
+        </div>
+        <p style="margin-bottom:4px"><strong>Reading the diagonal</strong> (top-left and bottom-right):</p>
+        <ul style="margin:4px 0 8px 20px">
+          <li><strong>Var(&alpha;) = SE(&alpha;)&sup2;</strong> — the variance of &alpha;. Larger variance = more uncertainty in &alpha;. The standard error SE is just &radic;Var.</li>
+          <li><strong>Var(&beta;) = SE(&beta;)&sup2;</strong> — same for &beta;.</li>
+        </ul>
+        <p style="margin-bottom:4px"><strong>Reading the off-diagonal</strong> (top-right and bottom-left, always equal):</p>
+        <ul style="margin:4px 0 8px 20px">
+          <li><strong>Cov(&alpha;,&beta;) = r &middot; SE(&alpha;) &middot; SE(&beta;)</strong> — the covariance. It tells you whether the two parameters move together (positive) or in opposite directions (negative).</li>
+          <li>Normalizing: <strong>r = Cov(&alpha;,&beta;) / (SE(&alpha;) &middot; SE(&beta;))</strong> gives the correlation coefficient r &isin; [-1, +1].</li>
+        </ul>
+        <p><strong>What the matrix tells you at a glance:</strong> Large diagonal = uncertain parameters. Large off-diagonal relative to diagonal = parameters that trade off against each other. If |r| &gt; 0.9, the parameters are practically non-identifiable as a pair.</p>
+      </div>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">The Matrix (drag sliders to change)</div>
+          <canvas id="c-t6-cov-matrix" width="360" height="300"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">What It Means: Confidence Ellipse</div>
+          <canvas id="c-t6-cov-ellipse" width="360" height="300"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">How Correlation Changes the Shape</div>
+          <canvas id="c-t6-cov-morph" width="360" height="300"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:.82rem;font-weight:600;color:#334155">
+        <label>SE(&alpha;) <span id="v-t6-cov-sea">0.05</span></label>
+        <input type="range" id="s-t6-cov-sea" min="0.01" max="0.20" step="0.005" value="0.05" style="width:120px;accent-color:#2563eb">
+        <label>SE(&beta;) <span id="v-t6-cov-seb">0.008</span></label>
+        <input type="range" id="s-t6-cov-seb" min="0.002" max="0.030" step="0.001" value="0.008" style="width:120px;accent-color:#059669">
+        <label>Correlation (r) <span id="v-t6-cov-r">-0.80</span></label>
+        <input type="range" id="s-t6-cov-r" min="-0.99" max="0.99" step="0.01" value="-0.80" style="width:160px;accent-color:#dc2626">
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Diagonal entries = individual parameter variances (SE² each). Off-diagonal = covariance between them.</li>
+          <li>Correlation r = covariance normalized by both SEs. |r| > 0.9 is a danger sign.</li>
+          <li>The ellipse shape comes directly from the matrix: round = independent, tilted = tradeoff.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Interactive: Gompertz Identifiability</h2>
+      <p class="mini-lead">A Gompertz model is fit to 6 time points. Switch data coverage and watch the confidence band widen, the bootstrap ellipse elongate, and the profile likelihood flatten — all from the same cause (insufficient data coverage).</p>
+      <div class="viz-grid-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Data + Fit + Confidence Band</div>
+          <canvas id="c-t6-teach-fit" width="360" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Bootstrap Cloud (&alpha; vs &beta;)</div>
+          <canvas id="c-t6-teach-cloud" width="360" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Profile Likelihood for &alpha;</div>
+          <canvas id="c-t6-teach-profile" width="360" height="280"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:.82rem;font-weight:600;color:#334155">
+        <span style="font-size:.78rem;color:#64748b">Data coverage:</span>
+        <span class="toggle-group" id="t6-teach-coverage-group" style="margin:0">
+          <button class="toggle-btn active" data-t6cov="full" style="padding:4px 10px;font-size:.78rem">Full (0-40)</button>
+          <button class="toggle-btn" data-t6cov="early" style="padding:4px 10px;font-size:.78rem">Early (0-15)</button>
+          <button class="toggle-btn" data-t6cov="late" style="padding:4px 10px;font-size:.78rem">Late (15-40)</button>
+        </span>
+        <label>Noise <span id="v-teach6-noise">0.08</span></label>
+        <input type="range" id="s-teach6-noise" min="0.05" max="0.20" step="0.005" value="0.08" style="width:140px;accent-color:#dc2626">
+        <button class="btn btn-secondary" id="btn-t6-teach-recompute" style="font-size:.78rem;padding:4px 10px">Recompute</button>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Switching from full to early-only data makes everything worse: wider bands, elongated cloud, flat profile.</li>
+          <li>α and β trade off because the model depends on the ratio α/β for carrying capacity.</li>
+          <li>The fix is always better data: more time points past the inflection, or different experimental conditions.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TAB 7: SYNTHESIS — GOMPERTZ CALIBRATION ════════════════ -->
+<section id="tab-synthesis" class="tab-content">
+  <div class="card">
+    <h2>Synthesis: Gompertz Tumor Spheroid Calibration</h2>
+    <p class="lead">Apply everything from Tabs 1-6 to calibrate a Gompertz tumor spheroid growth model:
+    \(V(t)=V_0\exp\!\bigl(\frac{\alpha}{\beta}(1-e^{-\beta t})\bigr)\).
+    Work through each step of the calibration pipeline using the controls below.</p>
+  </div>
+
+  <div class="toggle-group" id="syn-step-group">
+    <button class="toggle-btn active" data-synstep="1">1. Generate Data</button>
+    <button class="toggle-btn" data-synstep="2">2. Fit Model</button>
+    <button class="toggle-btn" data-synstep="3">3. Residuals</button>
+    <button class="toggle-btn" data-synstep="4">4. R&sup2; & Transform</button>
+    <button class="toggle-btn" data-synstep="5">5. Compare Models</button>
+    <button class="toggle-btn" data-synstep="6">6. Identifiability</button>
+    <button class="toggle-btn" data-synstep="7">7. Report</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl" id="syn-ctrl">
+      <!-- Step 1 controls (default) -->
+      <div id="syn-ctrl-1">
+        <h3>True Gompertz Parameters</h3>
+        <div class="ctrl-group"><label>V<sub>0</sub> (mm&sup3;) <span id="v-syn-V0">0.50</span></label>
+          <input type="range" id="s-syn-V0" min="0.1" max="2.0" step="0.01" value="0.50"></div>
+        <div class="ctrl-group"><label>&alpha; (/day) <span id="v-syn-alpha">0.20</span></label>
+          <input type="range" id="s-syn-alpha" min="0.05" max="0.50" step="0.01" value="0.20"></div>
+        <div class="ctrl-group"><label>&beta; (/day) <span id="v-syn-beta">0.020</span></label>
+          <input type="range" id="s-syn-beta" min="0.005" max="0.050" step="0.001" value="0.020"></div>
+        <div class="ctrl-group"><label>Noise <span id="v-syn-noise">0.08</span></label>
+          <input type="range" id="s-syn-noise" min="0.02" max="0.20" step="0.01" value="0.08"></div>
+        <div class="ctrl-group"><label>Replicates <span id="v-syn-reps">5</span></label>
+          <input type="range" id="s-syn-reps" min="3" max="10" step="1" value="5"></div>
+        <div class="btn-row"><button class="btn btn-primary" id="btn-syn-generate">Generate</button></div>
+      </div>
+      <!-- Step 2 controls -->
+      <div id="syn-ctrl-2" style="display:none">
+        <h3>Manual Fit</h3>
+        <div class="ctrl-group"><label>V<sub>0</sub> <span id="v-syn-fV0">0.80</span></label>
+          <input type="range" id="s-syn-fV0" min="0.05" max="3.0" step="0.01" value="0.80"></div>
+        <div class="ctrl-group"><label>&alpha; <span id="v-syn-falpha">0.30</span></label>
+          <input type="range" id="s-syn-falpha" min="0.01" max="0.60" step="0.005" value="0.30"></div>
+        <div class="ctrl-group"><label>&beta; <span id="v-syn-fbeta">0.030</span></label>
+          <input type="range" id="s-syn-fbeta" min="0.001" max="0.080" step="0.001" value="0.030"></div>
+        <div class="btn-row">
+          <button class="btn btn-success" id="btn-syn-autofit">Auto-Fit</button>
+          <button class="btn btn-secondary" id="btn-syn-reset-fit">Reset</button>
+        </div>
+      </div>
+      <!-- Step 3 controls -->
+      <div id="syn-ctrl-3" style="display:none">
+        <h3>Residual Mode</h3>
+        <div class="toggle-group" id="syn-resid-toggle">
+          <button class="toggle-btn active" data-synresid="gompertz">Gompertz (good)</button>
+          <button class="toggle-btn" data-synresid="exponential">Exponential (bad)</button>
+        </div>
+      </div>
+      <!-- Step 4 controls -->
+      <div id="syn-ctrl-4" style="display:none">
+        <h3>Log Transform</h3>
+        <p style="font-size:.82rem;color:#475569">Compare raw residuals vs log-transformed.</p>
+      </div>
+      <!-- Step 5 controls -->
+      <div id="syn-ctrl-5" style="display:none">
+        <h3>Models</h3>
+        <div class="card" style="padding:8px;margin-bottom:6px;font-size:.78rem"><strong style="color:#d97706">Exponential</strong> (k=2): \(V=V_0 e^{rt}\)</div>
+        <div class="card" style="padding:8px;margin-bottom:6px;font-size:.78rem"><strong style="color:#059669">Logistic</strong> (k=3): \(V=K/(1+(K/V_0-1)e^{-rt})\)</div>
+        <div class="card" style="padding:8px;margin-bottom:6px;font-size:.78rem"><strong style="color:#2563eb">Gompertz</strong> (k=3): \(V=V_0 e^{(\alpha/\beta)(1-e^{-\beta t})}\)</div>
+        <div class="btn-row"><button class="btn btn-primary" id="btn-syn-compare">Fit All Models</button></div>
+      </div>
+      <!-- Step 6 controls -->
+      <div id="syn-ctrl-6" style="display:none">
+        <h3>Data Schedule</h3>
+        <div class="toggle-group" id="syn-schedule-toggles">
+          <button class="toggle-btn active" data-synschedule="full">Full (0-42d)</button>
+          <button class="toggle-btn" data-synschedule="early">Early (0-14d)</button>
+          <button class="toggle-btn" data-synschedule="late">Late (21-42d)</button>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary" id="btn-syn-bootstrap">Run Bootstrap</button></div>
+      </div>
+      <!-- Step 7 controls -->
+      <div id="syn-ctrl-7" style="display:none">
+        <h3>Report</h3>
+        <p style="font-size:.82rem;color:#475569">Summary of the full calibration pipeline.</p>
+      </div>
+
+      <div class="stats" id="stats-syn" style="margin-top:12px">
+        <h4>Current Step</h4>
+        <div class="stat-row"><span class="label">Step</span><span class="value" id="st-syn-step">1. Generate Data</span></div>
+        <div class="stat-row"><span class="label">Status</span><span class="value" id="st-syn-status">Ready</span></div>
+        <div class="stat-row"><span class="label">Key metric</span><span class="value" id="st-syn-metric">--</span></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title" id="syn-canvas-title">Step 1: Generate Spheroid Data</div>
+        <canvas id="c-syn-main" width="800" height="500"></canvas>
+      </div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Calibration is a pipeline: Generate → Fit → Check Residuals → Check R² → Compare Models → Check Identifiability → Report.</li>
+          <li>Every step can send you back to a previous step — fitting is iterative, not linear.</li>
+          <li>Always report parameter estimates with uncertainty (±SE or 95% CI). A number without error bars is meaningless.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>Engineering Cancer Course — Module 11: Model Calibration & Parameter Estimation</footer>
+
+<script>
+"use strict";
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                    SEEDED RNG & UTILITIES                        ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+function seededRng(seed) {
+  let s = seed >>> 0 || 1;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+function seededNormal(rng) {
+  const u1 = rng(), u2 = rng();
+  return Math.sqrt(-2 * Math.log(Math.max(u1, 1e-10))) * Math.cos(2 * Math.PI * u2);
+}
+
+/* Unseeded randn for bootstrap etc */
+function randn() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/* ── Growth models ── */
+function gompertz(t, V0, alpha, beta) {
+  if (beta === 0 || !isFinite(V0) || !isFinite(alpha) || !isFinite(beta)) return V0 || 0;
+  const val = V0 * Math.exp((alpha / beta) * (1 - Math.exp(-beta * t)));
+  return isFinite(val) ? Math.max(val, 0) : 1e12;
+}
+function expModel(t, V0, r) {
+  const val = V0 * Math.exp(r * t);
+  return isFinite(val) ? val : 1e12;
+}
+function logisticModel(t, V0, K, r) {
+  if (V0 <= 0 || K <= V0) return V0 || 0;
+  const val = K / (1 + ((K - V0) / V0) * Math.exp(-r * t));
+  return isFinite(val) ? val : K;
+}
+
+/* ── RSS and R2 ── */
+function calcRSS(xs, ys, fn, params) {
+  let s = 0;
+  for (let i = 0; i < xs.length; i++) { s += (ys[i] - fn(xs[i], ...params)) ** 2; }
+  return s;
+}
+function calcR2(xs, ys, fn, params) {
+  const mean = ys.reduce((a, b) => a + b, 0) / ys.length;
+  let ssTot = 0, ssRes = 0;
+  for (let i = 0; i < xs.length; i++) {
+    ssTot += (ys[i] - mean) ** 2;
+    ssRes += (ys[i] - fn(xs[i], ...params)) ** 2;
+  }
+  return ssTot === 0 ? 0 : 1 - ssRes / ssTot;
+}
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                     CANVAS CHART HELPERS                         ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+const MARGIN = { t: 30, r: 24, b: 45, l: 58 };
+
+function getCanvasCtx(id) {
+  const c = document.getElementById(id);
+  if (!c) return { ctx: null, w: 0, h: 0 };
+  const dpr = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+  const rw = rect.width || c.width || 800;
+  const rh = rect.height || c.height || 420;
+  c.width = rw * dpr;
+  c.height = rh * dpr;
+  const ctx = c.getContext("2d");
+  ctx.scale(dpr, dpr);
+  return { ctx, w: rw, h: rh };
+}
+
+function niceRange(min, max, ticks) {
+  if (!isFinite(min)) min = 0;
+  if (!isFinite(max)) max = 1;
+  if (min === max) { min -= 1; max += 1; }
+  const range = max - min;
+  const rawStep = range / (ticks - 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  let step;
+  if (norm <= 1.5) step = mag;
+  else if (norm <= 3) step = 2 * mag;
+  else if (norm <= 7) step = 5 * mag;
+  else step = 10 * mag;
+  const niceMin = Math.floor(min / step) * step;
+  const niceMax = Math.ceil(max / step) * step;
+  const vals = [];
+  for (let v = niceMin; v <= niceMax + step * 0.5; v += step) vals.push(+v.toPrecision(10));
+  return { min: niceMin, max: niceMax, ticks: vals };
+}
+
+function formatTick(v) {
+  if (Math.abs(v) >= 10000) return v.toExponential(1);
+  if (Math.abs(v) < 0.001 && v !== 0) return v.toExponential(1);
+  return String(+parseFloat(v.toPrecision(4)));
+}
+
+function drawAxes(ctx, w, h, xR, yR, xLabel, yLabel) {
+  const px = x => MARGIN.l + (x - xR.min) / (xR.max - xR.min) * (w - MARGIN.l - MARGIN.r);
+  const py = y => MARGIN.t + (1 - (y - yR.min) / (yR.max - yR.min)) * (h - MARGIN.t - MARGIN.b);
+  ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 0.5;
+  for (const v of xR.ticks) { ctx.beginPath(); ctx.moveTo(px(v), MARGIN.t); ctx.lineTo(px(v), h - MARGIN.b); ctx.stroke(); }
+  for (const v of yR.ticks) { ctx.beginPath(); ctx.moveTo(MARGIN.l, py(v)); ctx.lineTo(w - MARGIN.r, py(v)); ctx.stroke(); }
+  ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(MARGIN.l, MARGIN.t); ctx.lineTo(MARGIN.l, h - MARGIN.b); ctx.lineTo(w - MARGIN.r, h - MARGIN.b); ctx.stroke();
+  ctx.fillStyle = "#64748b"; ctx.font = "11px -apple-system,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (const v of xR.ticks) ctx.fillText(formatTick(v), px(v), h - MARGIN.b + 6);
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (const v of yR.ticks) ctx.fillText(formatTick(v), MARGIN.l - 6, py(v));
+  ctx.fillStyle = "#334155"; ctx.font = "12px -apple-system,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.fillText(xLabel, (MARGIN.l + w - MARGIN.r) / 2, h - 10);
+  ctx.save(); ctx.translate(14, (MARGIN.t + h - MARGIN.b) / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = "middle"; ctx.fillText(yLabel, 0, 0); ctx.restore();
+  return { px, py };
+}
+
+function drawScatter(ctx, px, py, xs, ys, color, radius) {
+  ctx.fillStyle = color;
+  for (let i = 0; i < xs.length; i++) {
+    if (!isFinite(px(xs[i])) || !isFinite(py(ys[i]))) continue;
+    ctx.beginPath(); ctx.arc(px(xs[i]), py(ys[i]), radius || 3.5, 0, 2 * Math.PI); ctx.fill();
+  }
+}
+
+function drawLine(ctx, px, py, xs, ys, color, width) {
+  ctx.strokeStyle = color; ctx.lineWidth = width || 2;
+  ctx.beginPath();
+  let started = false;
+  for (let i = 0; i < xs.length; i++) {
+    const x = px(xs[i]), y = py(ys[i]);
+    if (!isFinite(x) || !isFinite(y)) continue;
+    if (!started) { ctx.moveTo(x, y); started = true; }
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function drawLegend(ctx, w, items) {
+  const x0 = MARGIN.l + 12, y0 = MARGIN.t + 8;
+  ctx.font = "11px -apple-system,sans-serif";
+  items.forEach((item, i) => {
+    const y = y0 + i * 18;
+    if (item.type === "line") {
+      ctx.strokeStyle = item.color; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(x0, y + 4); ctx.lineTo(x0 + 20, y + 4); ctx.stroke();
+    } else {
+      ctx.fillStyle = item.color;
+      ctx.beginPath(); ctx.arc(x0 + 10, y + 4, 4, 0, 2 * Math.PI); ctx.fill();
+    }
+    ctx.fillStyle = "#334155"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(item.label, x0 + 26, y + 5);
+  });
+}
+
+function positiveLogRange(values) {
+  const safe = values.map(v => Math.max(v, 1e-12));
+  const minVal = Math.min(...safe);
+  const maxVal = Math.max(...safe);
+  const minPow = Math.floor(Math.log10(minVal));
+  const maxPow = Math.ceil(Math.log10(maxVal));
+  const vals = [];
+  for (let p = minPow; p <= maxPow; p++) vals.push(10 ** p);
+  return { min: 10 ** minPow, max: 10 ** maxPow, ticks: vals };
+}
+
+function drawAxesLogY(ctx, w, h, xR, yVals, xLabel, yLabel) {
+  const yR = positiveLogRange(yVals);
+  const px = x => MARGIN.l + (x - xR.min) / (xR.max - xR.min) * (w - MARGIN.l - MARGIN.r);
+  const py = y => {
+    const safeY = Math.max(y, 1e-12);
+    const logMin = Math.log10(yR.min);
+    const logMax = Math.log10(yR.max);
+    if (logMax === logMin) return MARGIN.t + (h - MARGIN.t - MARGIN.b) / 2;
+    return MARGIN.t + (1 - (Math.log10(safeY) - logMin) / (logMax - logMin)) * (h - MARGIN.t - MARGIN.b);
+  };
+  ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 0.5;
+  for (const v of xR.ticks) { ctx.beginPath(); ctx.moveTo(px(v), MARGIN.t); ctx.lineTo(px(v), h - MARGIN.b); ctx.stroke(); }
+  for (const v of yR.ticks) { ctx.beginPath(); ctx.moveTo(MARGIN.l, py(v)); ctx.lineTo(w - MARGIN.r, py(v)); ctx.stroke(); }
+  ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(MARGIN.l, MARGIN.t); ctx.lineTo(MARGIN.l, h - MARGIN.b); ctx.lineTo(w - MARGIN.r, h - MARGIN.b); ctx.stroke();
+  ctx.fillStyle = "#64748b"; ctx.font = "11px -apple-system,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (const v of xR.ticks) ctx.fillText(formatTick(v), px(v), h - MARGIN.b + 6);
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (const v of yR.ticks) ctx.fillText("10^" + Math.round(Math.log10(v)), MARGIN.l - 6, py(v));
+  ctx.fillStyle = "#334155"; ctx.font = "12px -apple-system,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.fillText(xLabel, (MARGIN.l + w - MARGIN.r) / 2, h - 10);
+  ctx.save(); ctx.translate(14, (MARGIN.t + h - MARGIN.b) / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = "middle"; ctx.fillText(yLabel, 0, 0); ctx.restore();
+  return { px, py, yR };
+}
+
+/* ── OLS helper ── */
+function linearFitOLS(xs, ys) {
+  const n = xs.length;
+  let sx=0,sy=0,sxy=0,sx2=0;
+  for (let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxy+=xs[i]*ys[i];sx2+=xs[i]*xs[i];}
+  const d=n*sx2-sx*sx;
+  if(Math.abs(d)<1e-12)return{slope:0,intercept:sy/n};
+  const slope=(n*sxy-sx*sy)/d;
+  const intercept=(sy-slope*sx)/n;
+  return{slope,intercept};
+}
+function computeR2OLS(xs,ys,slope,intercept){
+  const n=xs.length; const mean=ys.reduce((a,b)=>a+b,0)/n;
+  let ssTot=0,ssRes=0;
+  for(let i=0;i<n;i++){ssTot+=(ys[i]-mean)**2;ssRes+=(ys[i]-(intercept+slope*xs[i]))**2;}
+  return ssTot>0?1-ssRes/ssTot:0;
+}
+
+/* ── Polynomial OLS ── */
+function olsFit(xs,ys,degree){
+  const n=xs.length,nc=degree+1;
+  const XtX=Array.from({length:nc},()=>new Array(nc).fill(0));
+  const Xty=new Array(nc).fill(0);
+  for(let i=0;i<n;i++){
+    const row=[];for(let d=0;d<=degree;d++)row.push(Math.pow(xs[i],d));
+    for(let a=0;a<nc;a++){Xty[a]+=row[a]*ys[i];for(let b=0;b<nc;b++)XtX[a][b]+=row[a]*row[b];}
+  }
+  const aug=XtX.map((row,i)=>[...row,Xty[i]]);
+  for(let col=0;col<nc;col++){
+    let mr=col;for(let r=col+1;r<nc;r++)if(Math.abs(aug[r][col])>Math.abs(aug[mr][col]))mr=r;
+    [aug[col],aug[mr]]=[aug[mr],aug[col]];
+    const piv=aug[col][col];if(Math.abs(piv)<1e-15)continue;
+    for(let c=col;c<=nc;c++)aug[col][c]/=piv;
+    for(let r=0;r<nc;r++){if(r===col)continue;const f=aug[r][col];for(let c=col;c<=nc;c++)aug[r][c]-=f*aug[col][c];}
+  }
+  return aug.map(row=>row[nc]);
+}
+function polyEval(coeffs,x){let y=0;for(let d=0;d<coeffs.length;d++)y+=coeffs[d]*Math.pow(x,d);return y;}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║             NELDER-MEAD OPTIMIZER (constrained > 0)              ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+function nelderMead(costFn, start, maxIter, tol) {
+  const n = start.length;
+  const safeCost = p => { const c = costFn(p); return isFinite(c) ? c : 1e20; };
+  let simplex = [{ x: start.slice(), c: safeCost(start) }];
+  for (let i = 0; i < n; i++) {
+    const pt = start.slice();
+    pt[i] = pt[i] !== 0 ? pt[i] * 1.25 : 0.05;
+    simplex.push({ x: pt, c: safeCost(pt) });
+  }
+  const history = [{ params: start.slice(), cost: simplex[0].c, action: "Start", note: "Initial guess" }];
+  const clamp = arr => arr.map(v => Math.max(1e-8, v));
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    simplex.sort((a, b) => a.c - b.c);
+    if (simplex[n].c - simplex[0].c < tol) break;
+    const cen = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) cen[j] += simplex[i].x[j];
+    for (let j = 0; j < n; j++) cen[j] /= n;
+    const worst = simplex[n], best = simplex[0];
+    const xr = clamp(cen.map((c, j) => c + (c - worst.x[j])));
+    const fr = safeCost(xr);
+    let action = "Reflection";
+    if (fr < simplex[n-1].c && fr >= best.c) {
+      simplex[n] = { x: xr, c: fr };
+    } else if (fr < best.c) {
+      const xe = clamp(cen.map((c, j) => c + 2 * (xr[j] - c)));
+      const fe = safeCost(xe);
+      action = fe < fr ? "Expansion" : "Reflection";
+      simplex[n] = fe < fr ? { x: xe, c: fe } : { x: xr, c: fr };
+    } else {
+      const xc = clamp(cen.map((c, j) => c + 0.5 * (worst.x[j] - c)));
+      const fc = safeCost(xc);
+      if (fc < worst.c) {
+        action = "Contraction";
+        simplex[n] = { x: xc, c: fc };
+      } else {
+        action = "Shrink";
+        for (let i = 1; i <= n; i++) {
+          simplex[i].x = clamp(best.x.map((bj, j) => bj + 0.5 * (simplex[i].x[j] - bj)));
+          simplex[i].c = safeCost(simplex[i].x);
+        }
+      }
+    }
+    simplex.sort((a, b) => a.c - b.c);
+    history.push({ params: simplex[0].x.slice(), cost: simplex[0].c, action, note: "" });
+  }
+  simplex.sort((a, b) => a.c - b.c);
+  return { best: simplex[0].x, cost: simplex[0].c, history };
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                    TAB 1: DATA & NOISE                           ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+const T1 = { data: { x: [], y: [] }, generated: false, seed: 42 };
+
+function generateTab1() {
+  const a = +document.getElementById("s-t1-a").value;
+  const b = +document.getElementById("s-t1-b").value;
+  const noise = +document.getElementById("s-t1-noise").value;
+  const reps = +document.getElementById("s-t1-reps").value;
+  T1.seed = Math.floor(Math.random() * 1000000) || 42;
+  const rng = seededRng(T1.seed);
+  const xPoints = [1, 2, 3, 4, 5, 6, 7, 8];
+  const xs = [], ys = [];
+  for (const xp of xPoints) {
+    for (let r = 0; r < reps; r++) {
+      const trueY = a + b * xp;
+      const noiseType = document.getElementById("sel-t1-noisetype").value;
+      const noisyY = noiseType === "multiplicative" ? trueY * (1 + noise * seededNormal(rng)) : trueY + noise * seededNormal(rng);
+      xs.push(xp); ys.push(noisyY);
+    }
+  }
+  T1.data = { x: xs, y: ys };
+  T1.trueA = a; T1.trueB = b; T1.generated = true;
+  document.getElementById("st-t1-n").textContent = xs.length;
+  document.getElementById("st-t1-xrange").textContent = "1 - 8";
+  document.getElementById("st-t1-yrange").textContent = Math.min(...ys).toFixed(2) + " - " + Math.max(...ys).toFixed(2);
+  document.getElementById("st-t1-noiselvl").textContent = noise.toFixed(2);
+  drawTab1();
+}
+
+function drawTab1() {
+  if (!T1.generated) return;
+  const noiseType = document.getElementById("sel-t1-noisetype").value;
+  document.getElementById("title-t1-scatter").innerHTML = noiseType === "multiplicative"
+    ? "Data: y = (a + b&middot;x)&middot;(1 + &sigma;&middot;&epsilon;)"
+    : "Data: y = a + b&middot;x + &sigma;&middot;&epsilon;";
+  const { ctx, w, h } = getCanvasCtx("c-t1-scatter");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, w, h);
+  const { x, y } = T1.data;
+  const xR = niceRange(0, 9, 6);
+  const yR = niceRange(Math.min(0, Math.min(...y) - 0.5), Math.max(...y) * 1.15, 6);
+  const { px, py } = drawAxes(ctx, w, h, xR, yR, "x", "y");
+  /* true line */
+  drawLine(ctx, px, py, [0, 9], [T1.trueA, T1.trueA + T1.trueB * 9], "#dc2626", 2.5);
+  /* scatter */
+  drawScatter(ctx, px, py, x, y, "rgba(30,58,91,0.55)", 4);
+  drawLegend(ctx, w, [
+    { type: "line", color: "#dc2626", label: "True: y = " + T1.trueA.toFixed(1) + " + " + T1.trueB.toFixed(2) + "x" },
+    { type: "dot", color: "#1e293b", label: "Noisy data (N=" + x.length + ")" }
+  ]);
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                    TAB 2: CURVE FITTING                          ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+function drawTeachingTab2() {
+  const aTrue = +document.getElementById("s-teach2-atrue").value;
+  const aFit = +document.getElementById("s-teach2-afit").value;
+  const th1 = +document.getElementById("s-teach2-th1").value;
+  const th2 = +document.getElementById("s-teach2-th2").value;
+  document.getElementById("v-teach2-atrue").textContent = aTrue.toFixed(2);
+  document.getElementById("v-teach2-afit").textContent = aFit.toFixed(2);
+  document.getElementById("v-teach2-th1").textContent = th1.toFixed(1);
+  document.getElementById("v-teach2-th2").textContent = th2.toFixed(2);
+
+  /* Generate data from true slope with fixed noise offsets */
+  const dataXs = [1,2,3,4,5];
+  const noiseOffsets = [-0.20, -0.10, 0.10, 0.20, -0.05];
+  const dataYs = dataXs.map((x,i) => aTrue * x + noiseOffsets[i]);
+
+  /* ── Plot 1: Residuals Become RSS ── */
+  {
+    const { ctx, w, h } = getCanvasCtx("c-t2-teach-rss");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+    const yMax = Math.max(...dataYs, aFit * 5) * 1.15;
+    const xR = niceRange(0, 6, 6), yR = niceRange(0, Math.max(yMax, 2), 6);
+    const { px, py } = drawAxes(ctx, w, h, xR, yR, "x", "y");
+    drawLine(ctx, px, py, [0, 6], [0, aFit * 6], "#2563eb", 2);
+    drawScatter(ctx, px, py, dataXs, dataYs, "#1e293b", 4.5);
+    let rss = 0;
+    ctx.strokeStyle = "#dc2626"; ctx.lineWidth = 2;
+    for (let i = 0; i < dataXs.length; i++) {
+      const pred = aFit * dataXs[i];
+      rss += (dataYs[i] - pred) ** 2;
+      ctx.beginPath(); ctx.moveTo(px(dataXs[i]), py(dataYs[i])); ctx.lineTo(px(dataXs[i]), py(pred)); ctx.stroke();
+    }
+    drawLegend(ctx, w, [{ type: "dot", color: "#1e293b", label: "Data (a=" + aTrue.toFixed(2) + ")" }, { type: "line", color: "#2563eb", label: "Fit: \u00E2=" + aFit.toFixed(2) }]);
+    ctx.fillStyle = "#334155"; ctx.font = "11px -apple-system,sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("RSS = " + rss.toFixed(2), MARGIN.l + 4, h - 18);
+  }
+
+  /* ── Plot 2: 1-Parameter RSS Bowl ── */
+  {
+    const { ctx, w, h } = getCanvasCtx("c-t2-teach-bowl");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+    const curveX = [], curveY = [];
+    let minRSS = Infinity, bestA = aTrue;
+    for (let aa = 0.5; aa <= 3.0; aa += 0.02) {
+      let r = 0;
+      for (let i = 0; i < dataXs.length; i++) r += (dataYs[i] - aa * dataXs[i]) ** 2;
+      curveX.push(aa); curveY.push(r);
+      if (r < minRSS) { minRSS = r; bestA = aa; }
+    }
+    const xR = niceRange(0.5, 3.0, 6), yR = niceRange(0, Math.max(...curveY) * 1.05, 6);
+    const { px, py } = drawAxes(ctx, w, h, xR, yR, "Slope guess (\u00E2)", "RSS");
+    drawLine(ctx, px, py, curveX, curveY, "#2563eb", 2.5);
+    ctx.strokeStyle = "#059669"; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(px(bestA), py(yR.min)); ctx.lineTo(px(bestA), py(minRSS)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#059669"; ctx.font = "10px -apple-system,sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("min @ " + bestA.toFixed(2), px(bestA), py(yR.min) + 12);
+    let curRSS = 0;
+    for (let i = 0; i < dataXs.length; i++) curRSS += (dataYs[i] - aFit * dataXs[i]) ** 2;
+    ctx.fillStyle = "#dc2626";
+    ctx.beginPath(); ctx.arc(px(aFit), py(curRSS), 6, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = "#334155"; ctx.font = "11px -apple-system,sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("RSS = " + curRSS.toFixed(2), px(aFit) + 10, py(curRSS) - 4);
+  }
+
+  /* ── Plot 3: Jacobian As Sensitivity ── */
+  {
+    const { ctx, w, h } = getCanvasCtx("c-t2-teach-jac");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+    const delta = 0.5;
+    const tVals = [0,1,2,3,4,5];
+    const base = tVals.map(t => th1 + th2 * t);
+    const shifted = tVals.map(t => (th1 + delta) + th2 * t);
+    const tilted = tVals.map(t => th1 + (th2 + delta) * t);
+    const allY = [...base, ...shifted, ...tilted];
+    const yMax = Math.max(...allY, 1) * 1.1, yMin = Math.min(...allY, 0) - 0.5;
+    const xR = niceRange(0, 5.5, 6), yR = niceRange(yMin, yMax, 6);
+    const { px, py } = drawAxes(ctx, w, h, xR, yR, "x", "y");
+    drawLine(ctx, px, py, tVals, base, "#1e293b", 2.5);
+    drawLine(ctx, px, py, tVals, shifted, "#2563eb", 2);
+    drawLine(ctx, px, py, tVals, tilted, "#059669", 2);
+    drawLegend(ctx, w, [
+      { type: "line", color: "#1e293b", label: "Base" },
+      { type: "line", color: "#2563eb", label: "\u03B8\u2081+\u0394" },
+      { type: "line", color: "#059669", label: "\u03B8\u2082+\u0394" }
+    ]);
+  }
+
+  /* 2-parameter map */
+  drawTeachingTab2_2p();
+}
+
+function drawTeachingTab2_2p() {
+  const th1 = +document.getElementById("s-teach2-th1").value;
+  const th2 = +document.getElementById("s-teach2-th2").value;
+  const dataXs = [1,2,3,4,5], dataYs = [2.1,3.9,6.2,7.8,10.1];
+  const th1Lo=0,th1Hi=4,th2Lo=0.3,th2Hi=2.5;
+  const gridN=80;
+  const rssGrid=[];
+  let rssMin=Infinity,rssBest1=0,rssBest2=0;
+  for(let j=0;j<gridN;j++){
+    rssGrid[j]=[];
+    const b=th2Lo+(th2Hi-th2Lo)*j/(gridN-1);
+    for(let i=0;i<gridN;i++){
+      const a=th1Lo+(th1Hi-th1Lo)*i/(gridN-1);
+      let rss=0;for(let k=0;k<dataXs.length;k++)rss+=(dataYs[k]-(a+b*dataXs[k]))**2;
+      rssGrid[j][i]=rss;if(rss<rssMin){rssMin=rss;rssBest1=a;rssBest2=b;}
+    }
+  }
+  const rssMax=Math.min(200,Math.max(...rssGrid.flat()));
+  let curRSS=0;for(let k=0;k<dataXs.length;k++)curRSS+=(dataYs[k]-(th1+th2*dataXs[k]))**2;
+
+  /* Plot A: Data + fit */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t2-teach-2p-fit");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const xR=niceRange(0,6,6);const yMax=Math.max(...dataYs,th1+th2*5)*1.15;
+    const yR=niceRange(0,Math.max(yMax,2),6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"x","y");
+    drawLine(ctx,px,py,[0,6],[th1,th1+th2*6],"#2563eb",2.5);
+    drawScatter(ctx,px,py,dataXs,dataYs,"#1e293b",4.5);
+    ctx.strokeStyle="#dc2626";ctx.lineWidth=1.8;
+    for(let i=0;i<dataXs.length;i++){
+      const pred=th1+th2*dataXs[i];
+      ctx.beginPath();ctx.moveTo(px(dataXs[i]),py(dataYs[i]));ctx.lineTo(px(dataXs[i]),py(pred));ctx.stroke();
+    }
+    ctx.fillStyle="#334155";ctx.font="bold 12px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("RSS = "+curRSS.toFixed(2),MARGIN.l+4,h-14);
+  }
+
+  /* Plot B: 2D heatmap */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t2-teach-2p-map");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const pL=MARGIN.l,pR=w-MARGIN.r,pT=MARGIN.t,pB=h-MARGIN.b;
+    const pW=pR-pL,pH=pB-pT;
+    const cW=pW/gridN,cH=pH/gridN;
+    for(let j=0;j<gridN;j++){for(let i=0;i<gridN;i++){
+      const t=Math.min(1,(rssGrid[j][i]-rssMin)/(rssMax-rssMin));
+      let r,g,b;
+      if(t<0.5){const s=t*2;r=Math.round(10+240*s);g=Math.round(40+200*s);b=Math.round(200-160*s);}
+      else{const s=(t-0.5)*2;r=Math.round(250-30*s);g=Math.round(240-200*s);b=40;}
+      ctx.fillStyle="rgb("+r+","+g+","+b+")";
+      ctx.fillRect(pL+i*cW,pB-(j+1)*cH,cW+0.5,cH+0.5);
+    }}
+    /* Contour lines at selected levels */
+    const cellW=cW,cellH=cH;
+    const levels = [rssMin * 1.5, rssMin * 2, rssMin * 4, rssMin * 8, rssMin * 16];
+    ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
+    for (const lvl of levels) {
+      if (lvl > rssMax * 0.9) continue;
+      ctx.beginPath();
+      for (let j = 0; j < gridN - 1; j++) {
+        for (let i = 0; i < gridN - 1; i++) {
+          const v00 = rssGrid[j][i], v10 = rssGrid[j][i+1], v01 = rssGrid[j+1][i];
+          if ((v00 < lvl) !== (v10 < lvl)) {
+            const frac = (lvl - v00) / (v10 - v00);
+            const cx2 = pL + (i + frac) * cellW;
+            const cy2 = pB - (j + 0.5) * cellH;
+            ctx.moveTo(cx2, cy2); ctx.lineTo(cx2 + 0.5, cy2 + 0.5);
+          }
+          if ((v00 < lvl) !== (v01 < lvl)) {
+            const frac = (lvl - v00) / (v01 - v00);
+            const cx2 = pL + (i + 0.5) * cellW;
+            const cy2 = pB - (j + frac) * cellH;
+            ctx.moveTo(cx2, cy2); ctx.lineTo(cx2 + 0.5, cy2 + 0.5);
+          }
+        }
+      }
+      ctx.stroke();
+    }
+    ctx.strokeStyle="#334155";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pL,pT);ctx.lineTo(pL,pB);ctx.lineTo(pR,pB);ctx.stroke();
+    ctx.fillStyle="#334155";ctx.font="11px -apple-system,sans-serif";
+    ctx.textAlign="center";ctx.textBaseline="top";
+    [0,1,2,3,4].forEach(v=>{ctx.fillText(v,pL+((v-th1Lo)/(th1Hi-th1Lo))*pW,pB+4);});
+    ctx.textAlign="right";ctx.textBaseline="middle";
+    [0.5,1.0,1.5,2.0,2.5].forEach(v=>{ctx.fillText(v.toFixed(1),pL-4,pB-((v-th2Lo)/(th2Hi-th2Lo))*pH);});
+    ctx.fillStyle="#334155";ctx.font="12px -apple-system,sans-serif";ctx.textAlign="center";ctx.textBaseline="top";
+    ctx.fillText("\u03B8\u2081",(pL+pR)/2,h-8);
+    ctx.save();ctx.translate(12,(pT+pB)/2);ctx.rotate(-Math.PI/2);ctx.textBaseline="middle";ctx.fillText("\u03B8\u2082",0,0);ctx.restore();
+    /* crosshair */
+    const cx=pL+((th1-th1Lo)/(th1Hi-th1Lo))*pW;
+    const cy=pB-((th2-th2Lo)/(th2Hi-th2Lo))*pH;
+    ctx.strokeStyle="#fff";ctx.lineWidth=1;ctx.setLineDash([3,2]);
+    ctx.beginPath();ctx.moveTo(cx,pT);ctx.lineTo(cx,pB);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(pL,cy);ctx.lineTo(pR,cy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#fff";ctx.strokeStyle="#1e293b";ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx,cy,6,0,2*Math.PI);ctx.fill();ctx.stroke();
+    /* optimum */
+    const ox=pL+((rssBest1-th1Lo)/(th1Hi-th1Lo))*pW;
+    const oy=pB-((rssBest2-th2Lo)/(th2Hi-th2Lo))*pH;
+    ctx.strokeStyle="#fff";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(ox-5,oy-5);ctx.lineTo(ox+5,oy+5);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ox+5,oy-5);ctx.lineTo(ox-5,oy+5);ctx.stroke();
+  }
+
+  /* Plot C: cross-sections */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t2-teach-2p-slices");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const pL=MARGIN.l,pR=w-MARGIN.r,pT=MARGIN.t,pB=h-MARGIN.b;
+    const halfH=(pB-pT-20)/2;
+    const drawSlice=(xs,ys,yMax,cur,lbl,color,ox,oy,sw,sh)=>{
+      const xMin=xs[0],xMax=xs[xs.length-1];
+      const lpx=x=>ox+((x-xMin)/(xMax-xMin))*sw;
+      const lpy=y=>oy+(1-y/yMax)*sh;
+      ctx.strokeStyle="#e2e8f0";ctx.lineWidth=0.5;
+      ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox,oy+sh);ctx.lineTo(ox+sw,oy+sh);ctx.stroke();
+      ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+      for(let i=0;i<xs.length;i++){if(i===0)ctx.moveTo(lpx(xs[i]),lpy(ys[i]));else ctx.lineTo(lpx(xs[i]),lpy(ys[i]));}
+      ctx.stroke();
+      let cv=0;for(let k=0;k<dataXs.length;k++){
+        const pred=lbl==="\u03B8\u2081"?(cur+th2*dataXs[k]):(th1+cur*dataXs[k]);cv+=(dataYs[k]-pred)**2;}
+      ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(lpx(cur),lpy(cv),5,0,2*Math.PI);ctx.fill();
+      ctx.fillStyle="#334155";ctx.font="11px -apple-system,sans-serif";ctx.textAlign="center";ctx.textBaseline="top";
+      ctx.fillText(lbl,ox+sw/2,oy+sh+3);ctx.textAlign="left";ctx.textBaseline="bottom";
+      ctx.fillText("RSS vs "+lbl,ox+2,oy-2);
+    };
+    const s1X=[],s1Y=[];for(let a=th1Lo;a<=th1Hi;a+=0.04){let r=0;for(let k=0;k<dataXs.length;k++)r+=(dataYs[k]-(a+th2*dataXs[k]))**2;s1X.push(a);s1Y.push(r);}
+    const s2X=[],s2Y=[];for(let b=th2Lo;b<=th2Hi;b+=0.02){let r=0;for(let k=0;k<dataXs.length;k++)r+=(dataYs[k]-(th1+b*dataXs[k]))**2;s2X.push(b);s2Y.push(r);}
+    drawSlice(s1X,s1Y,Math.max(...s1Y)*1.05,th1,"\u03B8\u2081","#2563eb",pL,pT,pR-pL,halfH);
+    drawSlice(s2X,s2Y,Math.max(...s2Y)*1.05,th2,"\u03B8\u2082","#059669",pL,pT+halfH+20,pR-pL,halfH);
+  }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                   TAB 3: RESIDUAL ANALYSIS                       ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+function drawTeachingTab3() {
+  const slope = +document.getElementById("s-teach3-slope").value;
+  const curv = +document.getElementById("s-teach3-curv").value;
+  const noise = +document.getElementById("s-teach3-noise").value;
+  document.getElementById("v-teach3-slope").textContent = slope.toFixed(2);
+  document.getElementById("v-teach3-curv").textContent = curv.toFixed(2);
+  document.getElementById("v-teach3-noise").textContent = noise.toFixed(2);
+
+  const rng = seededRng(42);
+  const dataXs = [1,2,3,4,5,6,7,8];
+  const trueI = 1.0, trueS = 1.8;
+  const trueYs = dataXs.map(x => trueI + trueS * x);
+  const dataYs = trueYs.map(y => y + noise * seededNormal(rng));
+  const preds = dataXs.map(x => slope * x + curv * x * x);
+  const residuals = dataYs.map((y, i) => y - preds[i]);
+  const n = dataXs.length;
+  const meanY = dataYs.reduce((a, b) => a + b, 0) / n;
+  const ssTot = dataYs.reduce((s, y) => s + (y - meanY) ** 2, 0);
+  const ssRes = residuals.reduce((s, r) => s + r * r, 0);
+  const r2 = ssTot > 0 ? Math.max(-0.5, 1 - ssRes / ssTot) : 0;
+  const rmse = Math.sqrt(ssRes / n);
+  const meanRes = residuals.reduce((a, b) => a + b, 0) / n;
+  const stdRes = Math.sqrt(residuals.reduce((s, r) => s + (r - meanRes) ** 2, 0) / n);
+  const skewness = stdRes > 0 ? residuals.reduce((s, r) => s + ((r - meanRes) / stdRes) ** 3, 0) / n : 0;
+  const patternBad = Math.abs(curv) > 0.04 || Math.abs(slope - trueS) > 0.8;
+  const dotColor = patternBad ? "#dc2626" : "#2563eb";
+
+  /* Plot 1: Data + fit */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t3-teach-gap");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const crvX=[],crvY=[];for(let x=0;x<=9;x+=0.1){crvX.push(x);crvY.push(slope*x+curv*x*x);}
+    const allY=[...dataYs,...preds,...crvY];
+    const yMax=Math.max(...allY,1)*1.1,yMin=Math.min(...allY,0)-0.5;
+    const xR=niceRange(0,9,6),yR=niceRange(Math.min(yMin,0),yMax,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"x","y");
+    ctx.strokeStyle="#94a3b8";ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+    ctx.beginPath();ctx.moveTo(px(0),py(trueI));ctx.lineTo(px(9),py(trueI+trueS*9));ctx.stroke();ctx.setLineDash([]);
+    drawLine(ctx,px,py,crvX,crvY,"#2563eb",2.5);
+    ctx.strokeStyle="#dc2626";ctx.lineWidth=1.8;
+    for(let i=0;i<n;i++){ctx.beginPath();ctx.moveTo(px(dataXs[i]),py(dataYs[i]));ctx.lineTo(px(dataXs[i]),py(preds[i]));ctx.stroke();}
+    drawScatter(ctx,px,py,dataXs,dataYs,"#1e293b",4.5);
+    drawLegend(ctx,w,[{type:"dot",color:"#1e293b",label:"Data"},{type:"line",color:"#2563eb",label:"Model"},{type:"line",color:"#94a3b8",label:"True"}]);
+    ctx.fillStyle="#334155";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("RSS = "+ssRes.toFixed(2),MARGIN.l+4,h-8);
+  }
+
+  /* Plot 2: Residuals vs predicted */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t3-teach-resid");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const rMax=Math.max(...residuals.map(Math.abs),0.5)*1.5;
+    const pMin=Math.min(...preds)*0.9,pMax=Math.max(...preds)*1.1;
+    const xR=niceRange(Math.max(0,pMin),Math.max(pMax,1),5),yR=niceRange(-rMax,rMax,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"Predicted","Residual");
+    ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(px(xR.min),py(0));ctx.lineTo(px(xR.max),py(0));ctx.stroke();ctx.setLineDash([]);
+    drawScatter(ctx,px,py,preds,residuals,dotColor,5);
+    ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="left";
+    if(patternBad){ctx.fillStyle="#dc2626";ctx.fillText("Pattern detected",MARGIN.l+4,MARGIN.t+14);}
+    else{ctx.fillStyle="#059669";ctx.fillText("Random scatter (good)",MARGIN.l+4,MARGIN.t+14);}
+  }
+
+  /* Plot 3: Stats dashboard */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t3-teach-stats");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const pL=MARGIN.l,pR=w-MARGIN.r,pT=MARGIN.t,pB=h-MARGIN.b;
+    const cw=pR-pL;
+    /* variance bar */
+    const barX=pL+10,barW=cw-20,barH=20,barY=pT+24;
+    ctx.fillStyle="#334155";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("Variance decomposition:",pL+10,pT+10);
+    ctx.fillStyle="#e2e8f0";ctx.fillRect(barX,barY,barW,barH);
+    const explFrac=Math.max(0,Math.min(1,r2));
+    ctx.fillStyle="#2563eb";ctx.fillRect(barX,barY,barW*explFrac,barH);
+    ctx.fillStyle="#dc262644";ctx.fillRect(barX+barW*explFrac,barY,barW*(1-explFrac),barH);
+    /* R2 */
+    let r2Color=r2>0.95?"#059669":r2>0.8?"#2563eb":r2>0.5?"#d97706":"#dc2626";
+    const row1=barY+barH+22;
+    ctx.fillStyle=r2Color;ctx.font="bold 22px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("R\u00B2 = "+r2.toFixed(3),pL+10,row1);
+    ctx.fillStyle="#64748b";ctx.font="11px -apple-system,sans-serif";
+    ctx.fillText(r2>0.95?"Excellent":r2>0.8?"Good":r2>0.5?"Mediocre":"Poor",pL+10,row1+18);
+    /* RMSE */
+    ctx.fillStyle="#1e293b";ctx.font="bold 16px -apple-system,sans-serif";
+    ctx.fillText("RMSE = "+rmse.toFixed(3),pL+10,row1+44);
+    /* SS */
+    ctx.fillStyle="#475569";ctx.font="11px -apple-system,sans-serif";
+    ctx.fillText("SS_tot = "+ssTot.toFixed(2)+"  SS_res = "+ssRes.toFixed(2),pL+10,row1+66);
+    ctx.fillText("|skew| = "+Math.abs(skewness).toFixed(2)+(Math.abs(skewness)<0.5?" (OK)":" (suspect)"),pL+10,row1+82);
+    /* warning */
+    if(r2>0.8&&patternBad){
+      const wY=pB-34;
+      ctx.fillStyle="#fef3c7";ctx.beginPath();ctx.roundRect(pL+6,wY,cw-12,30,4);ctx.fill();
+      ctx.strokeStyle="#f59e0b";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(pL+6,wY,cw-12,30,4);ctx.stroke();
+      ctx.fillStyle="#92400e";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="center";
+      ctx.fillText("\u26A0 R\u00B2 OK but residuals show a pattern!",pL+cw/2,wY+19);
+    }
+  }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                TAB 4: R² PITFALLS & TRANSFORMS                   ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+const anscombeData={
+  A:{x:[4,5,6,7,8,9,10,11,12,13,14],y:[4.26,5.68,7.24,4.82,6.95,8.81,8.04,8.33,10.84,7.58,9.96]},
+  B:{x:[2,3,4,5,6,7,8,9,10,11,12],y:[1.2,2.7,4.8,7.5,10.8,14.7,19.2,24.3,30.0,36.3,43.2]},
+  C:{x:[4,5,6,7,8,9,10,11,12,13,14],y:[5.39,5.73,6.08,6.42,6.77,7.11,7.46,7.81,8.15,12.74,8.84]},
+  D:{x:[8,8,8,8,8,8,8,8,8,8,19],y:[6.58,5.76,7.71,8.84,8.47,7.04,5.25,5.56,7.91,6.89,12.50]}
+};
+var r2TeachState={selected:"A",linearize:false};
+
+function drawTeachingR2(){
+  const sel=r2TeachState.selected;const doLin=r2TeachState.linearize;
+  /* Plot 1: 2x2 quartet */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-r2-teach-quartet");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const ds=["A","B","C","D"],titles=["A: Linear","B: Power-like","C: Outlier","D: Cluster"];
+    const hw=(w-16)/2,hh=(h-16)/2;
+    const pos=[[4,4],[hw+12,4],[4,hh+12],[hw+12,hh+12]];
+    for(let d=0;d<4;d++){
+      const dat=anscombeData[ds[d]];const ox=pos[d][0],oy=pos[d][1];const pw=hw-4,ph=hh-4;
+      const isSel=ds[d]===sel;
+      if(isSel){ctx.fillStyle="rgba(37,99,235,0.06)";ctx.fillRect(ox,oy,pw,ph);ctx.strokeStyle="#2563eb";ctx.lineWidth=2;ctx.strokeRect(ox,oy,pw,ph);}
+      const fit=linearFitOLS(dat.x,dat.y);const r2=computeR2OLS(dat.x,dat.y,fit.slope,fit.intercept);
+      const xMin=Math.min(...dat.x)-1,xMax=Math.max(...dat.x)+1,yMin=Math.min(...dat.y)-1,yMax=Math.max(...dat.y)+1;
+      const lpx=x=>ox+28+(x-xMin)/(xMax-xMin)*(pw-36);const lpy=y=>oy+14+(1-(y-yMin)/(yMax-yMin))*(ph-30);
+      ctx.strokeStyle="#dc2626";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(lpx(xMin),lpy(fit.intercept+fit.slope*xMin));ctx.lineTo(lpx(xMax),lpy(fit.intercept+fit.slope*xMax));ctx.stroke();
+      ctx.fillStyle=isSel?"#2563eb":"#1e293b";
+      for(let i=0;i<dat.x.length;i++){ctx.beginPath();ctx.arc(lpx(dat.x[i]),lpy(dat.y[i]),3,0,2*Math.PI);ctx.fill();}
+      ctx.fillStyle="#334155";ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="left";ctx.fillText(titles[d],ox+4,oy+12);
+      ctx.fillStyle="#dc2626";ctx.font="10px -apple-system,sans-serif";ctx.fillText("R\u00B2="+r2.toFixed(2),ox+pw-50,oy+12);
+    }
+  }
+  /* Plot 2: residuals for selected */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-r2-teach-resid");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const ds=anscombeData[sel];const fit=linearFitOLS(ds.x,ds.y);
+    const preds=ds.x.map(x=>fit.intercept+fit.slope*x);const resids=ds.y.map((y,i)=>y-preds[i]);
+    const xR=niceRange(Math.min(...preds)-0.5,Math.max(...preds)+0.5,5);
+    const rMax=Math.max(...resids.map(Math.abs),0.5)*1.3;const yR=niceRange(-rMax,rMax,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"Predicted","Residual");
+    ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(px(xR.min),py(0));ctx.lineTo(px(xR.max),py(0));ctx.stroke();ctx.setLineDash([]);
+    const colors={A:"#059669",B:"#dc2626",C:"#d97706",D:"#7c3aed"};
+    drawScatter(ctx,px,py,preds,resids,colors[sel]||"#2563eb",5);
+    const labels={A:"Random (good)",B:"Curvature (bad)",C:"Outlier dominates",D:"No structure"};
+    ctx.fillStyle=colors[sel];ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("Dataset "+sel+": "+labels[sel],MARGIN.l+6,MARGIN.t+14);
+  }
+  /* Plot 3: linearization */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-r2-teach-linear");if(!ctx)return;
+    ctx.clearRect(0,0,w,h);
+    const ds=anscombeData.B;
+    if(doLin){
+      const x2=ds.x.map(x=>x*x);const fit=linearFitOLS(x2,ds.y);const r2=computeR2OLS(x2,ds.y,fit.slope,fit.intercept);
+      const x2Min=Math.min(...x2),x2Max=Math.max(...x2),x2Pad=(x2Max-x2Min)*0.1;
+      const yMin=Math.min(...ds.y),yMax=Math.max(...ds.y),yPad=(yMax-yMin)*0.15;
+      const xR=niceRange(x2Min-x2Pad,x2Max+x2Pad,5);const yR=niceRange(yMin-yPad,yMax+yPad,5);
+      const{px,py}=drawAxes(ctx,w,h,xR,yR,"x\u00B2","y");
+      drawLine(ctx,px,py,[x2Min,x2Max],[fit.intercept+fit.slope*x2Min,fit.intercept+fit.slope*x2Max],"#059669",2);
+      drawScatter(ctx,px,py,x2,ds.y,"#1e293b",4.5);
+      ctx.fillStyle="#059669";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="left";
+      ctx.fillText("After: R\u00B2 = "+r2.toFixed(3),MARGIN.l+6,MARGIN.t+14);
+    }else{
+      const fit=linearFitOLS(ds.x,ds.y);const r2=computeR2OLS(ds.x,ds.y,fit.slope,fit.intercept);
+      const xMin=Math.min(...ds.x),xMax=Math.max(...ds.x),xPad=(xMax-xMin)*0.1;
+      const yMin=Math.min(...ds.y),yMax=Math.max(...ds.y),yPad=(yMax-yMin)*0.15;
+      const xR=niceRange(xMin-xPad,xMax+xPad,5);const yR=niceRange(yMin-yPad,yMax+yPad,5);
+      const{px,py}=drawAxes(ctx,w,h,xR,yR,"x","y");
+      drawLine(ctx,px,py,[xMin,xMax],[fit.intercept+fit.slope*xMin,fit.intercept+fit.slope*xMax],"#dc2626",2);
+      drawScatter(ctx,px,py,ds.x,ds.y,"#1e293b",4.5);
+      ctx.fillStyle="#dc2626";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="left";
+      ctx.fillText("Before: R\u00B2 = "+r2.toFixed(3),MARGIN.l+6,MARGIN.t+14);
+    }
+  }
+}
+
+/* R2 main interactive */
+var r2State={data:{x:[],y:[]},model:"exponential",generated:false,seed:77777};
+
+function r2ModelFn(type,a,b,x){
+  if(type==="exponential")return a*Math.exp(b*x);
+  if(type==="power")return a*Math.pow(Math.max(x,0.01),b);
+  if(type==="saturating")return a*x/(b+x);
+  return a+b*x;
+}
+
+function r2ApplyTransform(xs,ys,tf){
+  const tx=[],ty=[];
+  for(let i=0;i<xs.length;i++){
+    let xi=xs[i],yi=ys[i];
+    if(tf==="logy_x"){if(yi<=0)continue;tx.push(xi);ty.push(Math.log(yi));}
+    else if(tf==="logy_logx"){if(yi<=0||xi<=0)continue;tx.push(Math.log(xi));ty.push(Math.log(yi));}
+    else if(tf==="invy_invx"){if(yi===0||xi===0)continue;tx.push(1/xi);ty.push(1/yi);}
+    else{tx.push(xi);ty.push(yi);}
+  }
+  return{x:tx,y:ty};
+}
+
+function generateR2Data(){
+  const model=document.getElementById("sel-r2-model").value;
+  const a=+document.getElementById("s-r2-a").value;
+  const b=+document.getElementById("s-r2-b").value;
+  const noise=+document.getElementById("s-r2-noise").value;
+  r2State.model=model;r2State.seed=Math.floor(Math.random()*1000000)||77777;
+  const rng=seededRng(r2State.seed);
+  const xs=[],ys=[];
+  for(let i=0;i<30;i++){
+    const x=0.5+9.5*i/29;const trueY=r2ModelFn(model,a,b,x);
+    ys.push(Math.max(trueY+noise*seededNormal(rng),0.01));xs.push(x);
+  }
+  r2State.data={x:xs,y:ys};r2State.generated=true;
+  drawR2Pitfalls();
+}
+
+function drawR2Pitfalls(){
+  if(!r2State.generated)return;
+  const{x,y}=r2State.data;const tf=document.getElementById("sel-r2-transform").value;
+  const rawFit=linearFitOLS(x,y);const rawR2=computeR2OLS(x,y,rawFit.slope,rawFit.intercept);
+  const td=r2ApplyTransform(x,y,tf);
+  const tFit=td.x.length>2?linearFitOLS(td.x,td.y):{slope:0,intercept:0};
+  const tR2=td.x.length>2?computeR2OLS(td.x,td.y,tFit.slope,tFit.intercept):0;
+  /* best transform */
+  const transforms=["none","logy_x","logy_logx","invy_invx"];
+  const tfLabels={none:"None",logy_x:"log(y) vs x",logy_logx:"log-log",invy_invx:"1/y vs 1/x"};
+  let bestTf="none",bestR2=rawR2;
+  for(const t of transforms){const d=r2ApplyTransform(x,y,t);if(d.x.length<3)continue;const f=linearFitOLS(d.x,d.y);const r=computeR2OLS(d.x,d.y,f.slope,f.intercept);if(r>bestR2){bestR2=r;bestTf=t;}}
+  document.getElementById("st-r2-raw").textContent=rawR2.toFixed(4);
+  document.getElementById("st-r2-transformed").textContent=tf==="none"?"--":tR2.toFixed(4);
+  document.getElementById("st-r2-best").textContent=tfLabels[bestTf]||bestTf;
+
+  /* Canvas 1: raw */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-r2-raw");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const xR=niceRange(Math.min(...x)-0.5,Math.max(...x)+0.5,6);
+    const yR=niceRange(Math.min(...y)*0.9-0.1,Math.max(...y)*1.1,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"x","y");
+    drawLine(ctx,px,py,[xR.min,xR.max],[rawFit.intercept+rawFit.slope*xR.min,rawFit.intercept+rawFit.slope*xR.max],"#dc2626",2);
+    drawScatter(ctx,px,py,x,y,"rgba(30,58,91,0.55)",4);
+    {
+      const r2Text = "R\u00B2 = " + rawR2.toFixed(3);
+      const cx = (MARGIN.l + w - MARGIN.r) / 2;
+      const cy = (MARGIN.t + h - MARGIN.b) / 2;
+      ctx.font = "bold 18px -apple-system,sans-serif";
+      const tw = ctx.measureText(r2Text).width;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillRect(cx - tw/2 - 8, cy - 14, tw + 16, 28);
+      ctx.fillStyle = rawR2 > 0.9 ? "#059669" : rawR2 > 0.7 ? "#d97706" : "#dc2626";
+      ctx.textAlign = "center";
+      ctx.fillText(r2Text, cx, cy + 6);
+    }
+    drawLegend(ctx,w,[{type:"dot",color:"#1e293b",label:"Data"},{type:"line",color:"#dc2626",label:"Linear fit"}]);
+  }
+  /* Canvas 2: transformed */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-r2-transformed");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    if(tf==="none"||td.x.length<3){ctx.fillStyle="#64748b";ctx.font="13px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText("Select a transform",w/2,h/2);return;}
+    const xR=niceRange(Math.min(...td.x)-0.1,Math.max(...td.x)+0.1,5);
+    const yR=niceRange(Math.min(...td.y)-0.1,Math.max(...td.y)+0.1,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"x'","y'");
+    drawLine(ctx,px,py,[xR.min,xR.max],[tFit.intercept+tFit.slope*xR.min,tFit.intercept+tFit.slope*xR.max],"#059669",2);
+    drawScatter(ctx,px,py,td.x,td.y,"rgba(5,150,105,0.55)",4);
+    {
+      const r2Text = "R\u00B2 = " + tR2.toFixed(3);
+      const cx = (MARGIN.l + w - MARGIN.r) / 2;
+      const cy = (MARGIN.t + h - MARGIN.b) / 2;
+      ctx.font = "bold 18px -apple-system,sans-serif";
+      const tw = ctx.measureText(r2Text).width;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillRect(cx - tw/2 - 8, cy - 14, tw + 16, 28);
+      ctx.fillStyle = tR2 > 0.9 ? "#059669" : tR2 > 0.7 ? "#d97706" : "#dc2626";
+      ctx.textAlign = "center";
+      ctx.fillText(r2Text, cx, cy + 6);
+    }
+  }
+  /* Canvas 3: residual comparison */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-r2-residcomp");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const pL=MARGIN.l,pR=w-MARGIN.r,pT=MARGIN.t,pB=h-MARGIN.b;const halfW=(pR-pL-16)/2;
+    const rawPreds=x.map(xi=>rawFit.intercept+rawFit.slope*xi);const rawResids=y.map((yi,i)=>yi-rawPreds[i]);
+    let tResids=[];if(tf!=="none"&&td.x.length>2){tResids=td.y.map((yi,i)=>yi-(tFit.intercept+tFit.slope*td.x[i]));}
+    const drawRP=(resids,predVals,ox,ow,color,label,r2val)=>{
+      const localRMax=Math.max(...resids.map(Math.abs),1e-6)*1.3;
+      const pMin=Math.min(...predVals),pMax=Math.max(...predVals);
+      const lpx=p=>ox+(p-pMin)/(pMax-pMin+1e-6)*ow;const lpy=r=>pT+(1-(r+localRMax)/(2*localRMax))*(pB-pT);
+      ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.moveTo(ox,lpy(0));ctx.lineTo(ox+ow,lpy(0));ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=color;for(let i=0;i<resids.length;i++){ctx.beginPath();ctx.arc(lpx(predVals[i]),lpy(resids[i]),3,0,2*Math.PI);ctx.fill();}
+      ctx.fillStyle="#334155";ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText(label,ox+ow/2,pT+12);
+      /* y-axis tick labels for this panel */
+      ctx.fillStyle="#64748b";ctx.font="9px -apple-system,sans-serif";ctx.textAlign="right";
+      const nTicks=5;for(let i=0;i<=nTicks;i++){const rv=-localRMax+2*localRMax*i/nTicks;const ty=lpy(rv);ctx.fillText(rv.toPrecision(2),ox-3,ty+3);}
+      /* R2 label */
+      if(r2val!==undefined){ctx.fillStyle=color;ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText("R\u00B2="+r2val.toFixed(3),ox+ow/2,pB-4);}
+    };
+    drawRP(rawResids,rawPreds,pL,halfW,"#dc2626","Raw residuals",rawR2);
+    if(tResids.length>0){const tPreds=td.x.map(xi=>tFit.intercept+tFit.slope*xi);drawRP(tResids,tPreds,pL+halfW+16,halfW,"#059669","Transformed",tR2);}
+    else{ctx.fillStyle="#94a3b8";ctx.font="11px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText("Select transform",pL+halfW+16+halfW/2,(pT+pB)/2);}
+  }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                  TAB 5: MODEL COMPARISON                         ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+var teach5State={selectedModel:"linear",noiseSeed:12345,noise:0.5};
+
+function drawTeachingTab5(){
+  const noise=+document.getElementById("s-teach5-noise").value;
+  document.getElementById("v-teach5-noise").textContent=noise.toFixed(2);
+  teach5State.noise=noise;
+  const selModel=teach5State.selectedModel;
+  const rng=seededRng(teach5State.noiseSeed);
+  const dataXs=[0.5,1.0,2.0,3.0,4.0,5.0,6.5,8.0];
+  const dataYs=dataXs.map(x=>2+0.3*x+0.25*x*x+noise*seededNormal(rng));
+  const n=dataXs.length;
+  const linC=olsFit(dataXs,dataYs,1),quadC=olsFit(dataXs,dataYs,2),cubC=olsFit(dataXs,dataYs,3);
+  const models=[
+    {name:"Linear",coeffs:linC,k:2,color:"#d97706",key:"linear"},
+    {name:"Quadratic",coeffs:quadC,k:3,color:"#059669",key:"quadratic"},
+    {name:"Cubic",coeffs:cubC,k:4,color:"#7c3aed",key:"cubic"}
+  ];
+  for(const m of models){m.rss=0;m.preds=[];m.resids=[];
+    for(let i=0;i<n;i++){const pred=polyEval(m.coeffs,dataXs[i]);m.preds.push(pred);const r=dataYs[i]-pred;m.resids.push(r);m.rss+=r*r;}
+    m.aic=n*Math.log(m.rss/n)+2*m.k;m.bic=n*Math.log(m.rss/n)+m.k*Math.log(n);
+  }
+  const selIdx=models.findIndex(m=>m.key===selModel);const sel=models[selIdx>=0?selIdx:0];
+
+  /* Plot 1: fits */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t5-teach-fits");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const allY=[...dataYs];for(const m of models)for(let x=0;x<=8;x+=0.5)allY.push(polyEval(m.coeffs,x));
+    const xR=niceRange(0,8,6),yR=niceRange(Math.min(...allY)-0.5,Math.max(...allY)+0.5,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"x","y");
+    for(const m of models){
+      const cxs=[],cys=[];for(let x=0;x<=8;x+=0.1){cxs.push(x);cys.push(polyEval(m.coeffs,x));}
+      ctx.globalAlpha=m.key===selModel?1:0.35;drawLine(ctx,px,py,cxs,cys,m.color,m.key===selModel?2.5:1.8);ctx.globalAlpha=1;
+    }
+    drawScatter(ctx,px,py,dataXs,dataYs,"#1e293b",4.5);
+    drawLegend(ctx,w,[{type:"dot",color:"#1e293b",label:"Data"},{type:"line",color:"#d97706",label:"Linear"},{type:"line",color:"#059669",label:"Quadratic"},{type:"line",color:"#7c3aed",label:"Cubic"}]);
+  }
+  /* Plot 2: bars */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t5-teach-bars");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const pL=MARGIN.l,pR=w-MARGIN.r,pT=MARGIN.t,pB=h-MARGIN.b;
+    const metrics=[{label:"RSS",vals:models.map(m=>m.rss)},{label:"AIC",vals:models.map(m=>m.aic)},{label:"BIC",vals:models.map(m=>m.bic)}];
+    const winners=metrics.map(met=>{let mi=0;for(let i=1;i<met.vals.length;i++)if(met.vals[i]<met.vals[mi])mi=i;return mi;});
+    const groupGap=24,barW=Math.max(12,Math.min(24,(pR-pL-2*groupGap)/9-3)),innerGap=3;
+    const groupW=3*barW+2*innerGap,totalW=3*groupW+2*groupGap;
+    const startX=(pL+pR)/2-totalW/2;
+    for(let g=0;g<3;g++){
+      const met=metrics[g],gx=startX+g*(groupW+groupGap),vals=met.vals;
+      const vMin=Math.min(...vals),vMax=Math.max(...vals),pad=Math.max((vMax-vMin)*0.2,0.5);
+      const yLo=Math.min(vMin-pad,0),yHi=vMax+pad;
+      const lpy=v=>pT+(1-(v-yLo)/(yHi-yLo))*(pB-pT);const zeroY=lpy(Math.max(0,yLo));
+      for(let i=0;i<3;i++){
+        const bx=gx+i*(barW+innerGap),by=lpy(vals[i]),isW=i===winners[g];
+        ctx.fillStyle=models[i].color+(isW?"dd":"55");ctx.fillRect(bx,Math.min(by,zeroY),barW,Math.abs(zeroY-by));
+        if(isW){ctx.strokeStyle=models[i].color;ctx.lineWidth=2;ctx.strokeRect(bx,Math.min(by,zeroY),barW,Math.abs(zeroY-by));}
+        ctx.fillStyle="#1e293b";ctx.font="9px -apple-system,sans-serif";ctx.textAlign="center";
+        ctx.fillText(vals[i].toFixed(1),bx+barW/2,Math.min(by,zeroY)-4);
+      }
+      ctx.fillStyle="#334155";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText(met.label,gx+groupW/2,pB+14);
+    }
+    /* Winner labels at top */
+    const winNames=["RSS","AIC","BIC"];const winColors=["#d97706","#059669","#7c3aed"];
+    let labelY=pT-2;
+    for(let g=0;g<3;g++){
+      const wModel=models[winners[g]].name;
+      const disagreesWithRSS=g>0&&winners[g]!==winners[0];
+      ctx.fillStyle=disagreesWithRSS?"#dc2626":models[winners[g]].color;
+      ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="center";
+      const gx=startX+g*(groupW+groupGap);
+      ctx.fillText(winNames[g]+": "+wModel+(disagreesWithRSS?" *":""),gx+groupW/2,labelY);
+    }
+  }
+  /* Plot 3: residuals */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t5-teach-resid");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const rMax=Math.max(...sel.resids.map(Math.abs),0.1)*1.3;
+    const xR=niceRange(Math.min(...sel.preds)-0.3,Math.max(...sel.preds)+0.3,5),yR=niceRange(-rMax,rMax,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"Predicted ("+sel.name+")","Residual");
+    ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(px(xR.min),py(0));ctx.lineTo(px(xR.max),py(0));ctx.stroke();ctx.setLineDash([]);
+    drawScatter(ctx,px,py,sel.preds,sel.resids,sel.color,5);
+    ctx.fillStyle="#334155";ctx.font="11px -apple-system,sans-serif";ctx.textAlign="left";ctx.fillText("RSS = "+sel.rss.toFixed(2),MARGIN.l+6,MARGIN.t+14);
+  }
+}
+
+/* ── Tab 5b: Model selection breakdown ── */
+function drawTeachingTab5b(){
+  const nPts=+document.getElementById("s-teach5b-n").value;
+  const dataRange=+document.getElementById("s-teach5b-range").value;
+  const noise5b=+document.getElementById("s-teach5b-noise").value;
+  document.getElementById("v-teach5b-n").textContent=nPts;
+  document.getElementById("v-teach5b-range").textContent=dataRange.toFixed(1);
+  document.getElementById("v-teach5b-noise").textContent=noise5b.toFixed(2);
+
+  const trueFn=x=>2+0.3*x+0.25*x*x;
+  const modelColors=["#d97706","#059669","#7c3aed"];
+  const modelNames=["Linear","Quadratic","Cubic"];
+  const modelK=[2,3,4];
+
+  function genData(n,range,noiseLevel,seed){
+    const rng=seededRng(seed);const xs=[],ys=[];
+    for(let i=0;i<n;i++){const x=0.5+range*i/(n-1);xs.push(x);ys.push(trueFn(x)+noiseLevel*seededNormal(rng));}
+    return{xs,ys};
+  }
+
+  /* Generate current dataset */
+  const d=genData(nPts,dataRange,noise5b,42);
+  const n=d.xs.length;
+  const fits=[olsFit(d.xs,d.ys,1),olsFit(d.xs,d.ys,2),olsFit(d.xs,d.ys,3)];
+
+  /* Compute RSS, AIC components for each model */
+  const modelStats=fits.map((f,m)=>{
+    let rss=0;for(let i=0;i<n;i++){const r=d.ys[i]-polyEval(f,d.xs[i]);rss+=r*r;}
+    const fitTerm=n*Math.log(Math.max(rss/n,1e-15));
+    const penaltyAIC=2*modelK[m];
+    const penaltyBIC=modelK[m]*Math.log(n);
+    return{rss,fitTerm,penaltyAIC,penaltyBIC,aic:fitTerm+penaltyAIC,bic:fitTerm+penaltyBIC,k:modelK[m]};
+  });
+  const bestAICIdx=modelStats.reduce((bi,s,i)=>s.aic<modelStats[bi].aic?i:bi,0);
+  const bestRSSIdx=modelStats.reduce((bi,s,i)=>s.rss<modelStats[bi].rss?i:bi,0);
+
+  /* ── Plot 1: Data + all three fits ── */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t5-teach2-fits");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const allY=[...d.ys];for(const f of fits)for(let x=0;x<=dataRange+1;x+=0.5)allY.push(polyEval(f,x));
+    const xR=niceRange(0,dataRange+1,6),yR=niceRange(Math.min(...allY)-1,Math.max(...allY)+1,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"x","y");
+    /* true curve dashed */
+    const txs=[],tys=[];for(let x=0;x<=dataRange+0.5;x+=0.1){txs.push(x);tys.push(trueFn(x));}
+    ctx.setLineDash([5,3]);drawLine(ctx,px,py,txs,tys,"#94a3b8",1.5);ctx.setLineDash([]);
+    /* model curves */
+    for(let m=0;m<3;m++){
+      const cxs=[],cys=[];for(let x=0;x<=dataRange+0.5;x+=0.1){cxs.push(x);cys.push(polyEval(fits[m],x));}
+      drawLine(ctx,px,py,cxs,cys,modelColors[m],m===bestAICIdx?3:1.5);
+    }
+    drawScatter(ctx,px,py,d.xs,d.ys,"#1e293b",4);
+    drawLegend(ctx,w,[
+      {type:"line",color:"#94a3b8",label:"True (quadratic)"},
+      {type:"line",color:"#d97706",label:"Linear (k=2)"},
+      {type:"line",color:"#059669",label:"Quadratic (k=3)"},
+      {type:"line",color:"#7c3aed",label:"Cubic (k=4)"}
+    ]);
+    ctx.fillStyle=modelColors[bestAICIdx];ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="right";
+    ctx.fillText("\u2605 AIC winner: "+modelNames[bestAICIdx],w-MARGIN.r-6,MARGIN.t+14);
+  }
+
+  /* ── Plot 2: AIC decomposition — show fit term + penalty for each model ── */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t5-teach2-sweep");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const pL=MARGIN.l,pR=w-MARGIN.r,pT=MARGIN.t+4,pB=h-MARGIN.b;
+
+    /* Show stacked bars: fit term (bottom) + penalty (top) = AIC total */
+    const allVals=modelStats.flatMap(s=>[s.fitTerm,s.fitTerm+s.penaltyAIC]);
+    const vMin=Math.min(...allVals)-2,vMax=Math.max(...allVals)+2;
+    const barGroupW=60,gap=30,totalW=3*barGroupW+2*gap;
+    const startX=(pL+pR)/2-totalW/2;
+    const py=v=>pT+(1-(v-vMin)/(vMax-vMin))*(pB-pT);
+
+    /* Y-axis grid */
+    const yTicks=niceRange(vMin,vMax,5).ticks;
+    ctx.fillStyle="#64748b";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="right";ctx.textBaseline="middle";
+    for(const v of yTicks){
+      ctx.strokeStyle="#e2e8f0";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(pL,py(v));ctx.lineTo(pR,py(v));ctx.stroke();
+      ctx.fillText(v.toFixed(0),pL-4,py(v));
+    }
+    ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pL,pT);ctx.lineTo(pL,pB);ctx.lineTo(pR,pB);ctx.stroke();
+    ctx.fillStyle="#334155";ctx.font="11px -apple-system,sans-serif";ctx.textAlign="center";
+    ctx.save();ctx.translate(12,(pT+pB)/2);ctx.rotate(-Math.PI/2);ctx.fillText("AIC value",0,0);ctx.restore();
+
+    for(let m=0;m<3;m++){
+      const s=modelStats[m];
+      const gx=startX+m*(barGroupW+gap);
+      const baseY=py(vMin);
+      /* fit term bar (bottom part) */
+      const fitY=py(s.fitTerm);
+      ctx.fillStyle=modelColors[m]+"88";
+      ctx.fillRect(gx,fitY,barGroupW,baseY-fitY);
+      /* penalty bar (stacked on top) */
+      const aicY=py(s.aic);
+      ctx.fillStyle=modelColors[m]+"cc";
+      ctx.fillRect(gx,aicY,barGroupW,fitY-aicY);
+      /* separator line */
+      ctx.strokeStyle="#fff";ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(gx,fitY);ctx.lineTo(gx+barGroupW,fitY);ctx.stroke();
+
+      /* labels */
+      ctx.fillStyle="#1e293b";ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="center";
+      ctx.fillText(modelNames[m],gx+barGroupW/2,pB+14);
+      /* AIC total on top */
+      ctx.fillText(s.aic.toFixed(1),gx+barGroupW/2,aicY-6);
+      /* fit vs penalty labels inside bars */
+      ctx.fillStyle="#fff";ctx.font="9px -apple-system,sans-serif";
+      if(baseY-fitY>18)ctx.fillText("fit: "+s.fitTerm.toFixed(1),gx+barGroupW/2,(fitY+baseY)/2);
+      if(fitY-aicY>18)ctx.fillText("+"+s.penaltyAIC.toFixed(0)+" penalty",gx+barGroupW/2,(aicY+fitY)/2);
+
+      /* winner star */
+      if(m===bestAICIdx){
+        ctx.fillStyle=modelColors[m];ctx.font="bold 12px -apple-system,sans-serif";
+        ctx.fillText("\u2605",gx+barGroupW/2,aicY-18);
+      }
+    }
+
+    /* Key insight annotation */
+    ctx.fillStyle="#475569";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("Bottom = n\u00B7ln(RSS/n)  |  Top stripe = 2k penalty",pL+4,pT+10);
+    if(bestAICIdx!==bestRSSIdx){
+      ctx.fillStyle="#dc2626";ctx.fillText("Note: RSS prefers "+modelNames[bestRSSIdx]+", but AIC prefers "+modelNames[bestAICIdx]+"!",pL+4,pT+22);
+    }
+  }
+
+  /* ── Plot 3: Why more data helps — show AIC components vs N ── */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t5-teach2-range");if(!ctx)return;ctx.clearRect(0,0,w,h);
+
+    /* For each N from 4 to 30, compute the AIC gap between linear and quadratic */
+    const nValues=[];for(let nn=4;nn<=30;nn++)nValues.push(nn);
+    const linAIC=[],quadAIC=[],cubAIC=[];
+    for(const nn of nValues){
+      const dd=genData(nn,dataRange,noise5b,42);
+      const fts=[olsFit(dd.xs,dd.ys,1),olsFit(dd.xs,dd.ys,2),olsFit(dd.xs,dd.ys,3)];
+      for(let m=0;m<3;m++){
+        let rss=0;for(let i=0;i<nn;i++){const r=dd.ys[i]-polyEval(fts[m],dd.xs[i]);rss+=r*r;}
+        const aic=nn*Math.log(Math.max(rss/nn,1e-15))+2*modelK[m];
+        [linAIC,quadAIC,cubAIC][m].push(aic);
+      }
+    }
+
+    const allAIC=[...linAIC,...quadAIC,...cubAIC].filter(isFinite);
+    const aMin=Math.min(...allAIC)-2,aMax=Math.max(...allAIC)+2;
+    const xR=niceRange(4,30,6),yR=niceRange(aMin,aMax,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"N (data points)","AIC");
+
+    /* Draw AIC curves for each model */
+    drawLine(ctx,px,py,nValues,linAIC,"#d97706",2);
+    drawLine(ctx,px,py,nValues,quadAIC,"#059669",2.5);
+    drawLine(ctx,px,py,nValues,cubAIC,"#7c3aed",2);
+
+    /* Mark current N */
+    ctx.strokeStyle="#dc2626";ctx.lineWidth=2;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(px(nPts),py(yR.min));ctx.lineTo(px(nPts),py(yR.max));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#dc2626";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="center";
+    ctx.fillText("N="+nPts,px(nPts),py(yR.max)-6);
+
+    /* Find where quadratic first beats linear */
+    let crossN=null;
+    for(let i=0;i<nValues.length;i++){if(quadAIC[i]<linAIC[i]){crossN=nValues[i];break;}}
+
+    drawLegend(ctx,w,[
+      {type:"line",color:"#d97706",label:"Linear AIC"},
+      {type:"line",color:"#059669",label:"Quadratic AIC"},
+      {type:"line",color:"#7c3aed",label:"Cubic AIC"}
+    ]);
+    ctx.fillStyle="#475569";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="left";
+    if(crossN)ctx.fillText("Quadratic wins at N \u2265 "+crossN,MARGIN.l+6,h-8);
+    else ctx.fillText("Linear wins at all N (signal too weak)",MARGIN.l+6,h-8);
+  }
+}
+
+/* AIC calculator */
+function updateAICCalc(){
+  const rssA=+document.getElementById("s-aic-rssA").value;
+  const kA=+document.getElementById("s-aic-kA").value;
+  const rssB=+document.getElementById("s-aic-rssB").value;
+  const kB=+document.getElementById("s-aic-kB").value;
+  const n=+document.getElementById("s-aic-n").value;
+  document.getElementById("v-aic-rssA").textContent=rssA;document.getElementById("v-aic-kA").textContent=kA;
+  document.getElementById("v-aic-rssB").textContent=rssB;document.getElementById("v-aic-kB").textContent=kB;
+  document.getElementById("v-aic-n").textContent=n;
+  const aicA=n*Math.log(rssA/n)+2*kA,aicB=n*Math.log(rssB/n)+2*kB;
+  const bicA=n*Math.log(rssA/n)+kA*Math.log(n),bicB=n*Math.log(rssB/n)+kB*Math.log(n);
+  document.getElementById("st-aic-aicA").textContent=aicA.toFixed(2);
+  document.getElementById("st-aic-aicB").textContent=aicB.toFixed(2);
+  document.getElementById("st-aic-winner").textContent=aicA<aicB?"Model A":"Model B";
+  document.getElementById("st-aic-bicwinner").textContent=bicA<bicB?"Model A":"Model B";
+  document.getElementById("st-aic-daic").textContent=Math.abs(aicA-aicB).toFixed(2);
+  /* Draw bars */
+  const{ctx,w,h}=getCanvasCtx("c-aic-bars");if(!ctx)return;ctx.clearRect(0,0,w,h);
+  const vals=[aicA,aicB,bicA,bicB];
+  const vMin=Math.min(...vals),vMax=Math.max(...vals),pad=(vMax-vMin)*0.15||5;
+  const yR=niceRange(vMin-pad,vMax+pad,5);
+  const pL=MARGIN.l+30,pR=w-MARGIN.r-30,pT=MARGIN.t+20,pB=h-MARGIN.b-20;
+  const py=v=>pT+(1-(v-yR.min)/(yR.max-yR.min))*(pB-pT);
+  /* grid */
+  ctx.strokeStyle="#e2e8f0";ctx.lineWidth=0.5;ctx.fillStyle="#64748b";ctx.font="11px -apple-system,sans-serif";
+  ctx.textAlign="right";ctx.textBaseline="middle";
+  for(const v of yR.ticks){ctx.beginPath();ctx.moveTo(pL,py(v));ctx.lineTo(pR,py(v));ctx.stroke();ctx.fillText(formatTick(v),pL-6,py(v));}
+  ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pL,pT);ctx.lineTo(pL,pB);ctx.lineTo(pR,pB);ctx.stroke();
+  /* bars */
+  const barW=60,groupGap=80;
+  const items=[{label:"AIC_A",val:aicA,color:"#2563eb"},{label:"AIC_B",val:aicB,color:"#d97706"},
+    {label:"BIC_A",val:bicA,color:"#2563eb77"},{label:"BIC_B",val:bicB,color:"#d9770677"}];
+  const totalW=items.length*barW+(items.length-1)*16;const sx=(pL+pR)/2-totalW/2;
+  const baseY=py(yR.min);
+  for(let i=0;i<items.length;i++){
+    const bx=sx+i*(barW+16),by=py(items[i].val);
+    ctx.fillStyle=items[i].color;ctx.fillRect(bx,by,barW,baseY-by);
+    ctx.fillStyle="#1e293b";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="center";
+    ctx.fillText(items[i].val.toFixed(1),bx+barW/2,by-6);
+    ctx.fillStyle="#334155";ctx.font="10px -apple-system,sans-serif";ctx.fillText(items[i].label,bx+barW/2,pB+14);
+  }
+  /* winner highlight */
+  const aicWin=aicA<aicB?"A":"B";
+  ctx.fillStyle="#059669";ctx.font="bold 14px -apple-system,sans-serif";ctx.textAlign="center";
+  ctx.fillText("AIC Winner: Model "+aicWin+"  |  \u0394AIC = "+Math.abs(aicA-aicB).toFixed(1),(pL+pR)/2,pT+10);
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                   TAB 6: IDENTIFIABILITY                         ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+var teach6State={coverage:"full",noiseSeed:54321,noise:0.08,computed:false,
+  trueV0:1,trueAlpha:0.3,trueBeta:0.02,allTimePoints:[0,5,10,15,25,40]};
+
+function computeTeach6(){
+  const noise=+document.getElementById("s-teach6-noise").value;
+  teach6State.noise=noise;document.getElementById("v-teach6-noise").textContent=noise.toFixed(3);
+  const{trueV0,trueAlpha,trueBeta,allTimePoints,coverage}=teach6State;
+  const rng=seededRng(teach6State.noiseSeed);
+  const allT=[],allV=[];
+  for(const t of allTimePoints){allV.push(gompertz(t,trueV0,trueAlpha,trueBeta)*(1+noise*seededNormal(rng)));allT.push(t);}
+  const incT=[],incV=[],excT=[],excV=[];
+  for(let i=0;i<allT.length;i++){
+    let inc=false;
+    if(coverage==="full")inc=true;else if(coverage==="early"&&allT[i]<=15)inc=true;else if(coverage==="late"&&allT[i]>=15)inc=true;
+    if(inc){incT.push(allT[i]);incV.push(allV[i]);}else{excT.push(allT[i]);excV.push(allV[i]);}
+  }
+  teach6State.incData={t:incT,v:incV};teach6State.excData={t:excT,v:excV};
+  /* Fit */
+  const costFn=p=>{if(p.some(v=>!isFinite(v)||v<=0))return 1e20;return calcRSS(incT,incV,gompertz,p);};
+  const res=nelderMead(costFn,[trueV0*1.1,trueAlpha*1.2,trueBeta*1.3],300,1e-12);
+  teach6State.bestFit=res.best;teach6State.bestRSS=res.cost;
+  /* Bootstrap */
+  const nBoot=30,bootFits=[];const bRng=seededRng(teach6State.noiseSeed+999);
+  for(let b=0;b<nBoot;b++){
+    const bT=[],bV=[];for(let i=0;i<incT.length;i++){const idx=Math.floor(bRng()*incT.length);bT.push(incT[idx]);bV.push(incV[idx]);}
+    const bCost=p=>{if(p.some(v=>!isFinite(v)||v<=0))return 1e20;return calcRSS(bT,bV,gompertz,p);};
+    const bRes=nelderMead(bCost,[res.best[0]*(0.8+0.4*bRng()),res.best[1]*(0.8+0.4*bRng()),res.best[2]*(0.8+0.4*bRng())],200,1e-10);
+    if(bRes.best[0]>0&&bRes.best[0]<20&&bRes.best[1]>0&&bRes.best[1]<3&&bRes.best[2]>0&&bRes.best[2]<1)bootFits.push(bRes.best);
+  }
+  teach6State.bootstrapFits=bootFits;
+  /* Profile likelihood for alpha */
+  const bestAlpha=res.best[1];const profLo=Math.max(0.01,bestAlpha*0.25),profHi=bestAlpha*2.5;const nProf=20;
+  const profA=[],profR=[];
+  for(let s=0;s<=nProf;s++){
+    const fixedA=profLo+(profHi-profLo)*s/nProf;
+    const iCost=p2=>{if(p2.some(v=>!isFinite(v)||v<=0))return 1e20;return calcRSS(incT,incV,gompertz,[p2[0],fixedA,p2[1]]);};
+    const iRes=nelderMead(iCost,[res.best[0],res.best[2]],150,1e-10);profA.push(fixedA);profR.push(iRes.cost);
+  }
+  teach6State.profileAlpha=profA;teach6State.profileRSS=profR;teach6State.computed=true;
+}
+
+/* ── Tab 6: How to Read Identifiability Plots ── */
+function drawTab6ReadPlots(){
+  const level=+document.getElementById("s-t6-read-level").value;
+  document.getElementById("v-t6-read-level").textContent=level.toFixed(2);
+  const bandWidth=0.05+(1-level)*2.0; /* low level => wide band */
+  const cloudSpread=0.02+(1-level)*0.25;
+  const profileCurve=0.5+level*30; /* high level => sharp parabola */
+
+  /* Plot 1: Confidence bands */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-read-bands");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const xs=[];for(let x=0;x<=10;x+=0.2)xs.push(x);
+    const curve=xs.map(x=>2*Math.exp(0.3*x));
+    const lo=curve.map(v=>v*(1-bandWidth));const hi=curve.map(v=>v*(1+bandWidth));
+    const allV=[...hi,0];
+    const xR=niceRange(0,10,6),yR=niceRange(0,Math.max(...allV)*1.1,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"Time","Volume");
+    /* band */
+    ctx.fillStyle="rgba(37,99,235,0.15)";ctx.beginPath();
+    for(let i=0;i<xs.length;i++){if(i===0)ctx.moveTo(px(xs[i]),py(hi[i]));else ctx.lineTo(px(xs[i]),py(hi[i]));}
+    for(let i=xs.length-1;i>=0;i--)ctx.lineTo(px(xs[i]),py(lo[i]));ctx.closePath();ctx.fill();
+    drawLine(ctx,px,py,xs,curve,"#2563eb",2.5);
+    /* labels */
+    const qual=level>=0.6?"GOOD":"BAD";const qualC=level>=0.6?"#059669":"#dc2626";
+    ctx.fillStyle=qualC;ctx.font="bold 14px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText(qual,MARGIN.l+6,MARGIN.t+16);
+    ctx.fillStyle="#64748b";ctx.font="10px -apple-system,sans-serif";
+    ctx.fillText(level>=0.6?"Narrow band = precise":"Wide band = uncertain",MARGIN.l+6,MARGIN.t+30);
+  }
+
+  /* Plot 2: Bootstrap cloud */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-read-cloud");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const cAlpha=0.3,cBeta=0.02;const nPts=80;
+    const sA=cloudSpread,sB=cloudSpread*0.15;
+    const corrVal=-(1-level)*0.95; /* more negative at low identifiability */
+    const alphas=[],betas=[];const rng=seededRng(12345);
+    for(let i=0;i<nPts;i++){
+      const z1=seededNormal(rng),z2=seededNormal(rng);
+      const za=z1,zb=corrVal*z1+Math.sqrt(1-corrVal*corrVal)*z2;
+      alphas.push(cAlpha+sA*za);betas.push(cBeta+sB*zb);
+    }
+    const padA=Math.max(...alphas.map(a=>Math.abs(a-cAlpha)))*1.3,padB=Math.max(...betas.map(b=>Math.abs(b-cBeta)))*1.3;
+    const xR=niceRange(cAlpha-padA,cAlpha+padA,5),yR=niceRange(cBeta-padB,cBeta+padB,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"\u03B1","\u03B2");
+    drawScatter(ctx,px,py,alphas,betas,"rgba(37,99,235,0.4)",3);
+    ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(px(cAlpha),py(cBeta),4,0,2*Math.PI);ctx.fill();
+    const qual=level>=0.6?"GOOD":"BAD";const qualC=level>=0.6?"#059669":"#dc2626";
+    ctx.fillStyle=qualC;ctx.font="bold 14px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText(qual,MARGIN.l+6,MARGIN.t+16);
+    ctx.fillStyle="#334155";ctx.font="bold 11px -apple-system,sans-serif";
+    ctx.fillText("r = "+corrVal.toFixed(2),MARGIN.l+6,MARGIN.t+30);
+    ctx.fillStyle="#64748b";ctx.font="10px -apple-system,sans-serif";
+    ctx.fillText(level>=0.6?"Compact cloud = identifiable":"Elongated = tradeoff",MARGIN.l+6,MARGIN.t+42);
+  }
+
+  /* Plot 3: Profile likelihood */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-read-profile");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const cAlpha=0.3,aLo=0.1,aHi=0.5;const xs=[];for(let a=aLo;a<=aHi;a+=0.005)xs.push(a);
+    const ys=xs.map(a=>10+profileCurve*(a-cAlpha)*(a-cAlpha));
+    const xR=niceRange(aLo,aHi,5),yR=niceRange(Math.min(...ys)*0.95,Math.max(...ys)*1.05,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"\u03B1 (fixed)","Profile RSS");
+    drawLine(ctx,px,py,xs,ys,"#2563eb",2.5);
+    /* threshold line */
+    const threshold=10+3.84*10/20;
+    if(threshold<=yR.max){
+      ctx.strokeStyle="#dc2626";ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+      ctx.beginPath();ctx.moveTo(px(xR.min),py(threshold));ctx.lineTo(px(xR.max),py(threshold));ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle="#dc2626";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="right";ctx.fillText("95% CI",px(xR.max)-4,py(threshold)-6);
+      /* CI width */
+      const ciHalf=Math.sqrt((threshold-10)/profileCurve);
+      if(isFinite(ciHalf)&&ciHalf<0.2){
+        ctx.fillStyle="#64748b";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="center";
+        ctx.fillText("CI width: "+((2*ciHalf).toFixed(3)),px(cAlpha),py(yR.max)+14);
+      }
+    }
+    ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(px(cAlpha),py(10),5,0,2*Math.PI);ctx.fill();
+    const qual=level>=0.6?"GOOD":"BAD";const qualC=level>=0.6?"#059669":"#dc2626";
+    ctx.fillStyle=qualC;ctx.font="bold 14px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText(qual,MARGIN.l+6,MARGIN.t+16);
+    ctx.fillStyle="#64748b";ctx.font="10px -apple-system,sans-serif";
+    ctx.fillText(level>=0.6?"Sharp parabola = identifiable":"Flat = non-identifiable",MARGIN.l+6,MARGIN.t+30);
+  }
+}
+
+/* ── Tab 6: Covariance matrix visualization ── */
+function drawTab6CovMatrix(){
+  const seA=+document.getElementById("s-t6-cov-sea").value;
+  const seB=+document.getElementById("s-t6-cov-seb").value;
+  const r=+document.getElementById("s-t6-cov-r").value;
+  document.getElementById("v-t6-cov-sea").textContent=seA.toFixed(3);
+  document.getElementById("v-t6-cov-seb").textContent=seB.toFixed(3);
+  document.getElementById("v-t6-cov-r").textContent=r.toFixed(2);
+
+  const varA=seA*seA,varB=seB*seB,covAB=r*seA*seB;
+  const a0=0.3,b0=0.02; /* nominal parameter values */
+
+  /* helper: draw an ellipse from covariance at given center */
+  function drawCovEllipse(ctx,px,py,cx,cy,vA,vB,cov,color,lineW){
+    const tr=vA+vB,det=vA*vB-cov*cov,disc=Math.sqrt(Math.max(tr*tr/4-det,0));
+    const l1=tr/2+disc,l2=Math.max(tr/2-disc,1e-15);
+    const sA=Math.sqrt(l1)*2.45,sB=Math.sqrt(l2)*2.45;
+    const th=Math.atan2(2*cov,vA-vB)/2;
+    ctx.strokeStyle=color;ctx.lineWidth=lineW;ctx.beginPath();
+    for(let t=0;t<=2*Math.PI+0.05;t+=0.04){
+      const ex=sA*Math.cos(t),ey=sB*Math.sin(t);
+      const rx=cx+ex*Math.cos(th)-ey*Math.sin(th),ry=cy+ex*Math.sin(th)+ey*Math.cos(th);
+      if(t<0.05)ctx.moveTo(px(rx),py(ry));else ctx.lineTo(px(rx),py(ry));
+    }ctx.stroke();
+  }
+
+  /* ── Plot 1: Annotated matrix ── */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-cov-matrix");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const cellW=Math.min(110,(w-80)/2),cellH=55;
+    const matX=(w-2*cellW)/2,matY=36;
+    const vals=[[varA,covAB],[covAB,varB]];
+    const labels=["\u03B1","\u03B2"];
+    const maxVal=Math.max(varA,varB,Math.abs(covAB),1e-10);
+
+    /* title */
+    ctx.fillStyle="#1e3a5f";ctx.font="bold 12px -apple-system,sans-serif";ctx.textAlign="center";
+    ctx.fillText("Cov(\u03B8) =",matX-24,matY+cellH);
+
+    /* cells */
+    for(let i=0;i<2;i++)for(let j=0;j<2;j++){
+      const cx=matX+j*cellW,cy=matY+i*cellH;const v=vals[i][j];
+      if(i===j){const intensity=Math.min(v/maxVal,1);ctx.fillStyle="rgba(37,99,235,"+(0.12+0.5*intensity)+")";}
+      else{const intensity=Math.min(Math.abs(v)/maxVal,1);ctx.fillStyle=v>=0?"rgba(220,38,38,"+(0.12+0.45*intensity)+")":"rgba(37,99,235,"+(0.12+0.45*intensity)+")";}
+      ctx.beginPath();ctx.roundRect(cx+1,cy+1,cellW-2,cellH-2,4);ctx.fill();
+      ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(cx+1,cy+1,cellW-2,cellH-2,4);ctx.stroke();
+      /* value */
+      ctx.fillStyle="#1e293b";ctx.font="bold 11px monospace";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText(v.toExponential(2),cx+cellW/2,cy+cellH/2-7);
+      /* label what each cell IS */
+      ctx.fillStyle="#64748b";ctx.font="9px -apple-system,sans-serif";
+      if(i===j)ctx.fillText("= SE(\u03B8)² = variance",cx+cellW/2,cy+cellH/2+10);
+      else ctx.fillText("= r·SE\u03B1·SE\u03B2",cx+cellW/2,cy+cellH/2+10);
+    }
+    /* row/col headers */
+    ctx.fillStyle="#334155";ctx.font="bold 12px -apple-system,sans-serif";ctx.textAlign="center";ctx.textBaseline="bottom";
+    for(let j=0;j<2;j++)ctx.fillText(labels[j],matX+j*cellW+cellW/2,matY-4);
+    ctx.textBaseline="middle";ctx.textAlign="right";
+    for(let i=0;i<2;i++)ctx.fillText(labels[i],matX-6,matY+i*cellH+cellH/2);
+
+    /* Decoded summary below the matrix */
+    const sumY=matY+2*cellH+16;
+    ctx.textAlign="left";ctx.textBaseline="alphabetic";
+    ctx.fillStyle="#2563eb";ctx.font="bold 11px -apple-system,sans-serif";
+    ctx.fillText("SE(\u03B1) = \u221A"+varA.toExponential(2)+" = "+seA.toFixed(4),matX-20,sumY);
+    ctx.fillStyle="#059669";
+    ctx.fillText("SE(\u03B2) = \u221A"+varB.toExponential(2)+" = "+seB.toFixed(4),matX-20,sumY+18);
+    ctx.fillStyle=covAB>=0?"#dc2626":"#2563eb";
+    ctx.fillText("Cov = "+covAB.toExponential(2)+(covAB>=0?" (move together)":" (move opposite)"),matX-20,sumY+36);
+    ctx.fillStyle="#1e293b";ctx.font="bold 12px -apple-system,sans-serif";
+    ctx.fillText("r = "+r.toFixed(2),matX-20,sumY+56);
+    /* interpretation */
+    ctx.fillStyle="#64748b";ctx.font="10px -apple-system,sans-serif";
+    const rInterp=Math.abs(r)>0.9?"\u26A0 Danger: nearly non-identifiable":Math.abs(r)>0.7?"Moderate tradeoff":Math.abs(r)>0.3?"Weak correlation":"Nearly independent";
+    ctx.fillText(rInterp,matX+60,sumY+56);
+    if(Math.abs(r)>0.9){ctx.fillStyle="#dc2626";ctx.font="bold 11px -apple-system,sans-serif";ctx.fillText("\u26A0 |r| > 0.9",w-MARGIN.r-10,sumY+56);}
+  }
+
+  /* ── Plot 2: Confidence ellipse with annotations ── */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-cov-ellipse");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const padA=Math.max(seA*4,0.01),padB=Math.max(seB*4,0.001);
+    const xR=niceRange(a0-padA,a0+padA,5),yR=niceRange(b0-padB,b0+padB,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"\u03B1","\u03B2");
+
+    /* 95% confidence ellipse */
+    drawCovEllipse(ctx,px,py,a0,b0,varA,varB,covAB,"#2563eb",2.5);
+
+    /* CI projection bars — these are the marginal CIs */
+    ctx.strokeStyle="#d97706";ctx.lineWidth=2.5;
+    /* α CI (horizontal) */
+    ctx.beginPath();ctx.moveTo(px(a0-2*seA),py(b0));ctx.lineTo(px(a0+2*seA),py(b0));ctx.stroke();
+    /* β CI (vertical) */
+    ctx.beginPath();ctx.moveTo(px(a0),py(b0-2*seB));ctx.lineTo(px(a0),py(b0+2*seB));ctx.stroke();
+    /* bracket labels */
+    ctx.fillStyle="#d97706";ctx.font="9px -apple-system,sans-serif";ctx.textAlign="center";
+    ctx.fillText("\u03B1 \u00B1 2SE",px(a0),py(b0)+14);
+    ctx.save();ctx.translate(px(a0)-12,(py(b0-2*seB)+py(b0+2*seB))/2);ctx.rotate(-Math.PI/2);
+    ctx.fillText("\u03B2 \u00B1 2SE",0,0);ctx.restore();
+
+    /* Center point */
+    ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(px(a0),py(b0),5,0,2*Math.PI);ctx.fill();
+    ctx.fillStyle="#dc2626";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("Best fit",px(a0)+8,py(b0)-4);
+
+    /* Annotation at bottom */
+    ctx.fillStyle="#334155";ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="left";
+    const desc=Math.abs(r)>0.9?"Tilted = \u03B1 and \u03B2 trade off. Hard to identify individually.":
+               Math.abs(r)>0.5?"Moderate tilt = some tradeoff between parameters.":
+               "Round blob = parameters are independent. Both well-identified.";
+    ctx.fillText(desc,MARGIN.l+4,h-6);
+  }
+
+  /* ── Plot 3: Morphing ellipse — show how correlation changes shape ── */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-cov-morph");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const padA=Math.max(seA*4,0.01),padB=Math.max(seB*4,0.001);
+    const xR=niceRange(a0-padA,a0+padA,5),yR=niceRange(b0-padB,b0+padB,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"\u03B1","\u03B2");
+
+    /* Draw ellipses at r = -0.95, -0.5, 0, 0.5, 0.95 in light gray */
+    const rSamples=[-0.95,-0.5,0,0.5,0.95];
+    for(const rr of rSamples){
+      const cov_rr=rr*seA*seB;
+      const isClose=Math.abs(rr-r)<0.1;
+      drawCovEllipse(ctx,px,py,a0,b0,varA,varB,cov_rr,isClose?"#2563eb":"#cbd5e1",isClose?2.5:1);
+      /* label */
+      const tr=varA+varB,det=varA*varB-cov_rr*cov_rr,disc=Math.sqrt(Math.max(tr*tr/4-det,0));
+      const l1=tr/2+disc;const sA=Math.sqrt(l1)*2.45;
+      const th=Math.atan2(2*cov_rr,varA-varB)/2;
+      const lx=a0+sA*Math.cos(th)*1.05,ly=b0+sA*Math.sin(th)*1.05;
+      ctx.fillStyle=isClose?"#2563eb":"#94a3b8";ctx.font=(isClose?"bold ":"")+"9px -apple-system,sans-serif";ctx.textAlign="center";
+      ctx.fillText("r="+rr.toFixed(1),px(lx),py(ly)-4);
+    }
+
+    /* Draw the CURRENT ellipse bold */
+    drawCovEllipse(ctx,px,py,a0,b0,varA,varB,covAB,"#2563eb",2.5);
+    ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(px(a0),py(b0),4,0,2*Math.PI);ctx.fill();
+
+    /* Caption */
+    ctx.fillStyle="#334155";ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("Current r = "+r.toFixed(2)+" (bold blue). Gray = other r values.",MARGIN.l+4,h-6);
+  }
+}
+
+function drawTeachingTab6(){
+  drawTab6ReadPlots();
+  drawTab6CovMatrix();
+  if(!teach6State.computed)computeTeach6();
+  const{bestFit,bootstrapFits,incData,excData,profileAlpha,profileRSS,bestRSS}=teach6State;
+  if(!bestFit)return;
+  /* Plot 1: Data + fit + band */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-teach-fit");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    const cT=[],cV=[],bLo=[],bHi=[];
+    for(let t=0;t<=42;t+=0.5){cT.push(t);cV.push(gompertz(t,bestFit[0],bestFit[1],bestFit[2]));
+      let lo=Infinity,hi=-Infinity;for(const bf of bootstrapFits){const v=gompertz(t,bf[0],bf[1],bf[2]);if(v<lo)lo=v;if(v>hi)hi=v;}
+      bLo.push(lo===Infinity?cV[cV.length-1]:lo);bHi.push(hi===-Infinity?cV[cV.length-1]:hi);
+    }
+    const allV=[...incData.v,...excData.v,...bHi];
+    const xR=niceRange(0,42,6),yR=niceRange(0,Math.max(...allV)*1.15,6);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"Time","Volume");
+    if(bootstrapFits.length>2){ctx.fillStyle="rgba(37,99,235,0.12)";ctx.beginPath();
+      for(let i=0;i<cT.length;i++){if(i===0)ctx.moveTo(px(cT[i]),py(bHi[i]));else ctx.lineTo(px(cT[i]),py(bHi[i]));}
+      for(let i=cT.length-1;i>=0;i--)ctx.lineTo(px(cT[i]),py(bLo[i]));ctx.closePath();ctx.fill();}
+    drawLine(ctx,px,py,cT,cV,"#2563eb",2.5);
+    if(excData.t.length)drawScatter(ctx,px,py,excData.t,excData.v,"rgba(180,180,180,0.5)",4);
+    drawScatter(ctx,px,py,incData.t,incData.v,"#1e293b",5);
+    drawLegend(ctx,w,[{type:"dot",color:"#1e293b",label:"Included"},{type:"dot",color:"#b4b4b4",label:"Excluded"},{type:"line",color:"#2563eb",label:"Fit"}]);
+  }
+  /* Plot 2: bootstrap cloud */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-teach-cloud");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    if(bootstrapFits.length<3){ctx.fillStyle="#64748b";ctx.font="12px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText("Not enough fits",w/2,h/2);return;}
+    const alphas=bootstrapFits.map(f=>f[1]),betas=bootstrapFits.map(f=>f[2]);
+    const mA=alphas.reduce((a,b)=>a+b,0)/alphas.length,mB=betas.reduce((a,b)=>a+b,0)/betas.length;
+    let covAA=0,covBB=0,covAB=0;
+    for(let i=0;i<alphas.length;i++){covAA+=(alphas[i]-mA)**2;covBB+=(betas[i]-mB)**2;covAB+=(alphas[i]-mA)*(betas[i]-mB);}
+    const nf=alphas.length-1;covAA/=nf;covBB/=nf;covAB/=nf;
+    const sA=Math.sqrt(covAA),sB=Math.sqrt(covBB);const rCorr=(sA>0&&sB>0)?covAB/(sA*sB):0;
+    const padA=Math.max(sA*3,0.02)*1.3,padB=Math.max(sB*3,0.002)*1.3;
+    const xR=niceRange(mA-padA,mA+padA,5),yR=niceRange(mB-padB,mB+padB,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"\u03B1","\u03B2");
+    /* ellipse */
+    const tr=covAA+covBB,det=covAA*covBB-covAB*covAB,disc=Math.sqrt(Math.max(tr*tr/4-det,0));
+    const l1=tr/2+disc,l2=Math.max(tr/2-disc,1e-10);
+    const semiA=Math.sqrt(l1)*2.45,semiB=Math.sqrt(l2)*2.45;const theta=Math.atan2(2*covAB,covAA-covBB)/2;
+    ctx.strokeStyle="#2563eb";ctx.lineWidth=2;ctx.beginPath();
+    for(let t=0;t<=2*Math.PI+0.05;t+=0.04){
+      const ex=semiA*Math.cos(t),ey=semiB*Math.sin(t);
+      const rx=mA+ex*Math.cos(theta)-ey*Math.sin(theta),ry=mB+ex*Math.sin(theta)+ey*Math.cos(theta);
+      if(t<0.05)ctx.moveTo(px(rx),py(ry));else ctx.lineTo(px(rx),py(ry));
+    }ctx.stroke();
+    drawScatter(ctx,px,py,alphas,betas,"rgba(37,99,235,0.45)",3.5);
+    ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(px(mA),py(mB),4,0,2*Math.PI);ctx.fill();
+    ctx.fillStyle="#334155";ctx.font="bold 13px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText("r = "+rCorr.toFixed(2),MARGIN.l+6,MARGIN.t+14);
+    if(Math.abs(rCorr)>0.9){ctx.fillStyle="#dc2626";ctx.font="bold 11px -apple-system,sans-serif";ctx.fillText("Strong tradeoff!",MARGIN.l+6,MARGIN.t+28);}
+  }
+  /* Plot 3: profile likelihood */
+  {
+    const{ctx,w,h}=getCanvasCtx("c-t6-teach-profile");if(!ctx)return;ctx.clearRect(0,0,w,h);
+    if(!profileAlpha.length)return;
+    const xR=niceRange(Math.min(...profileAlpha),Math.max(...profileAlpha),5);
+    const yMax=Math.max(...profileRSS)*1.1,yMin=Math.min(...profileRSS)*0.9;
+    const yR=niceRange(Math.max(0,yMin),yMax,5);
+    const{px,py}=drawAxes(ctx,w,h,xR,yR,"\u03B1 (fixed)","Profile RSS");
+    drawLine(ctx,px,py,profileAlpha,profileRSS,"#2563eb",2.5);
+    const n=incData.t.length;const threshold=bestRSS+3.84*bestRSS/Math.max(n,1);
+    if(threshold<=yR.max&&threshold>=yR.min){
+      ctx.strokeStyle="#dc2626";ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+      ctx.beginPath();ctx.moveTo(px(xR.min),py(threshold));ctx.lineTo(px(xR.max),py(threshold));ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle="#dc2626";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="right";ctx.fillText("95% CI",px(xR.max)-4,py(threshold)-6);
+    }
+    ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(px(bestFit[1]),py(bestRSS),5,0,2*Math.PI);ctx.fill();
+    const rssRange=Math.max(...profileRSS)-Math.min(...profileRSS);
+    const sharp=rssRange>bestRSS*0.5?"Well identified":"Poorly identified (flat)";
+    const sharpC=rssRange>bestRSS*0.5?"#059669":"#dc2626";
+    ctx.fillStyle=sharpC;ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="left";ctx.fillText(sharp,MARGIN.l+6,MARGIN.t+14);
+  }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║            TAB 7: SYNTHESIS — GOMPERTZ PIPELINE                  ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+const SYN = {
+  data: { t: [], v: [] }, trueParams: {}, generated: false, step: 1,
+  fitParams: { V0: 0.8, alpha: 0.3, beta: 0.03 },
+  fitResult: null, compResult: null, bootResult: null, residMode: "gompertz", schedule: "full"
+};
+
+function synGenerate() {
+  const V0 = +document.getElementById("s-syn-V0").value;
+  const alpha = +document.getElementById("s-syn-alpha").value;
+  const beta = +document.getElementById("s-syn-beta").value;
+  const noise = +document.getElementById("s-syn-noise").value;
+  const reps = +document.getElementById("s-syn-reps").value;
+  SYN.trueParams = { V0, alpha, beta };
+  const timePoints = [0,3,7,10,14,21,28,35,42];
+  const tAll = [], vAll = [];
+  for (const tp of timePoints) {
+    const trueV = gompertz(tp, V0, alpha, beta);
+    for (let r = 0; r < reps; r++) {
+      const nv = trueV * (1 + noise * randn());
+      tAll.push(tp); vAll.push(Math.max(0.01, nv));
+    }
+  }
+  SYN.data = { t: tAll, v: vAll }; SYN.generated = true;
+  SYN.fitResult = null; SYN.compResult = null; SYN.bootResult = null;
+  SYN.fitParams = { V0: V0 * 1.5, alpha: alpha * 1.4, beta: beta * 1.5 };
+  document.getElementById("s-syn-fV0").value = SYN.fitParams.V0;
+  document.getElementById("s-syn-falpha").value = SYN.fitParams.alpha;
+  document.getElementById("s-syn-fbeta").value = SYN.fitParams.beta;
+  drawSynthesis();
+}
+
+function synAutoFit() {
+  if (!SYN.generated) return;
+  const { t, v } = SYN.data;
+  const costFn = p => { if (p.some(v => !isFinite(v) || v <= 0)) return 1e20; return calcRSS(t, v, gompertz, p); };
+  const res = nelderMead(costFn, [SYN.fitParams.V0, SYN.fitParams.alpha, SYN.fitParams.beta], 400, 1e-12);
+  SYN.fitParams = { V0: res.best[0], alpha: res.best[1], beta: res.best[2] };
+  SYN.fitResult = { best: res.best, rss: res.cost, r2: calcR2(t, v, gompertz, res.best), history: res.history };
+  document.getElementById("s-syn-fV0").value = res.best[0];
+  document.getElementById("s-syn-falpha").value = res.best[1];
+  document.getElementById("s-syn-fbeta").value = res.best[2];
+  drawSynthesis();
+}
+
+function synCompare() {
+  if (!SYN.generated) return;
+  const { t, v } = SYN.data; const n = t.length;
+  const expCost = p => { if (p.some(v => !isFinite(v) || v <= 0)) return 1e20; return calcRSS(t, v, expModel, p); };
+  const expRes = nelderMead(expCost, [SYN.trueParams.V0, 0.05], 250, 1e-12);
+  const maxV = Math.max(...v);
+  const logCost = p => { if (p.some(v => !isFinite(v) || v <= 0) || p[2] <= p[0]) return 1e20; return calcRSS(t, v, logisticModel, [p[0], p[2], p[1]]); };
+  const logRes = nelderMead(logCost, [SYN.trueParams.V0, 0.1, maxV * 1.5], 350, 1e-12);
+  const gmpCost = p => { if (p.some(v => !isFinite(v) || v <= 0)) return 1e20; return calcRSS(t, v, gompertz, p); };
+  const gmpRes = nelderMead(gmpCost, [SYN.trueParams.V0, SYN.trueParams.alpha, SYN.trueParams.beta], 350, 1e-12);
+  const models = [
+    { name: "Exponential", k: 2, rss: expRes.cost, color: "#d97706", fn: tt => expModel(tt, expRes.best[0], expRes.best[1]) },
+    { name: "Logistic", k: 3, rss: logRes.cost, color: "#059669", fn: tt => logisticModel(tt, logRes.best[0], logRes.best[2], logRes.best[1]) },
+    { name: "Gompertz", k: 3, rss: gmpRes.cost, color: "#2563eb", fn: tt => gompertz(tt, gmpRes.best[0], gmpRes.best[1], gmpRes.best[2]) }
+  ];
+  for (const m of models) { m.aic = n * Math.log(m.rss / n) + 2 * m.k; m.bic = n * Math.log(m.rss / n) + m.k * Math.log(n); }
+  const minAIC = Math.min(...models.map(m => m.aic));
+  for (const m of models) m.daic = m.aic - minAIC;
+  SYN.compResult = models;
+  drawSynthesis();
+}
+
+function synBootstrap() {
+  if (!SYN.generated) return;
+  const { t, v } = SYN.data;
+  /* filter by schedule */
+  const ft = [], fv = [];
+  for (let i = 0; i < t.length; i++) {
+    if (SYN.schedule === "full") { ft.push(t[i]); fv.push(v[i]); }
+    else if (SYN.schedule === "early" && t[i] <= 14) { ft.push(t[i]); fv.push(v[i]); }
+    else if (SYN.schedule === "late" && t[i] >= 21) { ft.push(t[i]); fv.push(v[i]); }
+  }
+  if (ft.length < 6) return;
+  const fits = [];
+  for (let b = 0; b < 80; b++) {
+    const bT = [], bV = [];
+    for (let i = 0; i < ft.length; i++) { const idx = Math.floor(Math.random() * ft.length); bT.push(ft[idx]); bV.push(fv[idx]); }
+    const costFn = p => calcRSS(bT, bV, gompertz, p);
+    const res = nelderMead(costFn, [
+      SYN.trueParams.V0 * (0.7 + Math.random() * 0.6),
+      SYN.trueParams.alpha * (0.7 + Math.random() * 0.6),
+      SYN.trueParams.beta * (0.7 + Math.random() * 0.6)
+    ], 200, 1e-10);
+    if (res.best[0] > 0 && res.best[0] < 20 && res.best[1] > 0 && res.best[1] < 3 && res.best[2] > 0 && res.best[2] < 1)
+      fits.push(res.best);
+  }
+  /* correlation */
+  const means = [0, 0, 0]; for (const f of fits) { means[0] += f[0]; means[1] += f[1]; means[2] += f[2]; }
+  means[0] /= fits.length; means[1] /= fits.length; means[2] /= fits.length;
+  const cov = [[0,0,0],[0,0,0],[0,0,0]];
+  for (const f of fits) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) cov[i][j] += (f[i] - means[i]) * (f[j] - means[j]);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) cov[i][j] /= (fits.length - 1);
+  const corr = [[1,0,0],[0,1,0],[0,0,1]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const d = Math.sqrt(cov[i][i] * cov[j][j]); corr[i][j] = d > 0 ? cov[i][j] / d : (i === j ? 1 : 0); }
+  const stds = [Math.sqrt(cov[0][0]), Math.sqrt(cov[1][1]), Math.sqrt(cov[2][2])];
+  SYN.bootResult = { fits, means, stds, corr };
+  drawSynthesis();
+}
+
+function drawSynthesis() {
+  if (!SYN.generated && SYN.step > 1) return;
+  const step = SYN.step;
+  const { ctx, w, h } = getCanvasCtx("c-syn-main");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, w, h);
+  const { t, v } = SYN.data;
+
+  const stepNames = ["1. Generate Data","2. Fit Model","3. Residuals","4. R\u00B2 & Transform","5. Compare Models","6. Identifiability","7. Report"];
+  document.getElementById("st-syn-step").textContent = stepNames[step - 1] || "--";
+
+  /* Show/hide ctrl panels */
+  for (let i = 1; i <= 7; i++) {
+    const el = document.getElementById("syn-ctrl-" + i);
+    if (el) el.style.display = (i === step) ? "" : "none";
+  }
+
+  if (step === 1) {
+    document.getElementById("syn-canvas-title").textContent = "Step 1: Spheroid Volume vs. Time";
+    if (!SYN.generated) {
+      ctx.fillStyle = "#64748b"; ctx.font = "14px -apple-system,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("Click 'Generate' to create synthetic data", w / 2, h / 2);
+      document.getElementById("st-syn-status").textContent = "Ready";
+      document.getElementById("st-syn-metric").textContent = "--";
+      return;
+    }
+    document.getElementById("st-syn-status").textContent = "Data loaded";
+    document.getElementById("st-syn-metric").textContent = t.length + " points";
+    const xR = niceRange(0, 45, 6), yR = niceRange(0, Math.max(...v) * 1.15, 6);
+    const { px, py } = drawAxes(ctx, w, h, xR, yR, "Time (days)", "Volume (mm\u00B3)");
+    /* true curve */
+    const cT = [], cV = [];
+    for (let tt = 0; tt <= 42; tt += 0.5) { cT.push(tt); cV.push(gompertz(tt, SYN.trueParams.V0, SYN.trueParams.alpha, SYN.trueParams.beta)); }
+    drawLine(ctx, px, py, cT, cV, "#dc2626", 2.5);
+    drawScatter(ctx, px, py, t, v, "rgba(30,58,91,0.55)", 4);
+    drawLegend(ctx, w, [{ type: "line", color: "#dc2626", label: "True Gompertz" }, { type: "dot", color: "#1e293b", label: "Noisy data" }]);
+  }
+
+  if (step === 2) {
+    if (!SYN.generated) return;
+    document.getElementById("syn-canvas-title").textContent = "Step 2: Gompertz Fit";
+    const { V0, alpha, beta } = SYN.fitParams;
+    document.getElementById("v-syn-fV0").textContent = V0.toFixed(2);
+    document.getElementById("v-syn-falpha").textContent = alpha.toFixed(3);
+    document.getElementById("v-syn-fbeta").textContent = beta.toFixed(3);
+    const rss = calcRSS(t, v, gompertz, [V0, alpha, beta]);
+    const r2 = calcR2(t, v, gompertz, [V0, alpha, beta]);
+    document.getElementById("st-syn-status").textContent = SYN.fitResult ? "Fitted" : "Manual";
+    document.getElementById("st-syn-metric").textContent = "RSS = " + rss.toFixed(4);
+    const xR = niceRange(0, 45, 6), yR = niceRange(0, Math.max(...v, gompertz(42, V0, alpha, beta)) * 1.15, 6);
+    const { px, py } = drawAxes(ctx, w, h, xR, yR, "Time (days)", "Volume (mm\u00B3)");
+    drawScatter(ctx, px, py, t, v, "rgba(30,58,91,0.5)", 4);
+    const cT = [], cV = [];
+    for (let tt = 0; tt <= 42; tt += 0.5) { cT.push(tt); cV.push(gompertz(tt, V0, alpha, beta)); }
+    drawLine(ctx, px, py, cT, cV, "#2563eb", 2.5);
+    drawLegend(ctx, w, [{ type: "dot", color: "#1e293b", label: "Data" }, { type: "line", color: "#2563eb", label: "Gompertz fit" }]);
+    ctx.fillStyle = "#334155"; ctx.font = "bold 12px -apple-system,sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("V0=" + V0.toFixed(3) + "  \u03B1=" + alpha.toFixed(4) + "  \u03B2=" + beta.toFixed(4) + "  RSS=" + rss.toFixed(3) + "  R\u00B2=" + r2.toFixed(4), MARGIN.l + 10, h - 12);
+  }
+
+  if (step === 3) {
+    if (!SYN.generated) return;
+    document.getElementById("syn-canvas-title").textContent = "Step 3: Residual Diagnostics";
+    let predicted;
+    if (SYN.residMode === "gompertz") {
+      const { V0, alpha, beta } = SYN.fitParams;
+      predicted = t.map(ti => gompertz(ti, V0, alpha, beta));
+    } else {
+      /* exponential LS fit */
+      const logV = v.map(v => Math.log(Math.max(v, 1e-10)));
+      const n = t.length; let st=0,slv=0,st2=0,stlv=0;
+      for(let i=0;i<n;i++){st+=t[i];slv+=logV[i];st2+=t[i]**2;stlv+=t[i]*logV[i];}
+      const r=(n*stlv-st*slv)/(n*st2-st*st);const lV0=(slv-r*st)/n;
+      predicted = t.map(ti => Math.exp(lV0) * Math.exp(r * ti));
+    }
+    const residuals = v.map((vi, i) => vi - predicted[i]);
+    const rMax = Math.max(...residuals.map(Math.abs), 0.1) * 1.3;
+    const dotColor = SYN.residMode === "gompertz" ? "#2563eb" : "#dc2626";
+    document.getElementById("st-syn-status").textContent = "Checking";
+    const meanR = residuals.reduce((a, b) => a + b, 0) / residuals.length;
+    document.getElementById("st-syn-metric").textContent = "Mean resid = " + meanR.toFixed(4);
+    /* 3 sub panels */
+    const pw = (w - MARGIN.l - MARGIN.r - 24) / 3, ph = h - MARGIN.t - MARGIN.b;
+    const drawMini = (xs, resids, ox, xlabel) => {
+      const xMin=Math.min(...xs),xMax=Math.max(...xs);
+      const lpx=x=>ox+(x-xMin)/(xMax-xMin+1e-6)*pw;const lpy=rr=>MARGIN.t+(1-(rr+rMax)/(2*rMax))*ph;
+      ctx.strokeStyle="#94a3b8";ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(ox,lpy(0));ctx.lineTo(ox+pw,lpy(0));ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=dotColor;for(let i=0;i<resids.length;i++){ctx.beginPath();ctx.arc(lpx(xs[i]),lpy(resids[i]),3,0,2*Math.PI);ctx.fill();}
+      ctx.fillStyle="#334155";ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText(xlabel,ox+pw/2,h-6);
+    };
+    drawMini(t, residuals, MARGIN.l, "vs Time");
+    drawMini(predicted, residuals, MARGIN.l + pw + 12, "vs Predicted");
+    /* histogram */
+    const hox=MARGIN.l+2*(pw+12);const nbins=10;
+    const rMin=Math.min(...residuals),rMax2=Math.max(...residuals);const bw=(rMax2-rMin)/nbins||0.1;
+    const bins=new Array(nbins).fill(0);for(const rr of residuals){let idx=Math.floor((rr-rMin)/bw);if(idx>=nbins)idx=nbins-1;if(idx<0)idx=0;bins[idx]++;}
+    const maxBin=Math.max(...bins,1);ctx.fillStyle=dotColor+"88";ctx.strokeStyle=dotColor;ctx.lineWidth=1;
+    for(let i=0;i<nbins;i++){const bx=hox+i*(pw/nbins);const bh=bins[i]/maxBin*ph*0.85;ctx.fillRect(bx,MARGIN.t+ph-bh,pw/nbins-1,bh);ctx.strokeRect(bx,MARGIN.t+ph-bh,pw/nbins-1,bh);}
+    ctx.fillStyle="#334155";ctx.font="bold 10px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText("Histogram",hox+pw/2,h-6);
+  }
+
+  if (step === 4) {
+    if (!SYN.generated) return;
+    document.getElementById("syn-canvas-title").textContent = "Step 4: R\u00B2 & Log Transform Check";
+    document.getElementById("st-syn-status").textContent = "Checking";
+    const { V0, alpha, beta } = SYN.fitParams;
+    /* raw R2 */
+    const r2Raw = calcR2(t, v, gompertz, [V0, alpha, beta]);
+    /* log-transformed R2 */
+    const logV = v.map(vv => Math.log(Math.max(vv, 1e-10)));
+    const logPred = t.map(ti => Math.log(Math.max(gompertz(ti, V0, alpha, beta), 1e-10)));
+    const meanLogV = logV.reduce((a, b) => a + b, 0) / logV.length;
+    let ssTotLog = 0, ssResLog = 0;
+    for (let i = 0; i < logV.length; i++) { ssTotLog += (logV[i] - meanLogV) ** 2; ssResLog += (logV[i] - logPred[i]) ** 2; }
+    const r2Log = ssTotLog > 0 ? 1 - ssResLog / ssTotLog : 0;
+    document.getElementById("st-syn-metric").textContent = "R\u00B2 raw=" + r2Raw.toFixed(4) + " log=" + r2Log.toFixed(4);
+    /* Two panels: raw residuals vs log residuals */
+    const halfW = (w - MARGIN.l - MARGIN.r - 20) / 2;
+    const pH = h - MARGIN.t - MARGIN.b;
+    /* raw */
+    const rawResids = v.map((vi, i) => vi - gompertz(t[i], V0, alpha, beta));
+    const logResids = logV.map((lv, i) => lv - logPred[i]);
+    const drawPanel = (resids, xs, ox, ow, color, title, r2val) => {
+      const rMax = Math.max(...resids.map(Math.abs), 0.01) * 1.3;
+      const xMin = Math.min(...xs), xMax = Math.max(...xs);
+      const lpx = x => ox + (x - xMin) / (xMax - xMin + 1e-6) * ow;
+      const lpy = r => MARGIN.t + (1 - (r + rMax) / (2 * rMax)) * pH;
+      ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(ox, lpy(0)); ctx.lineTo(ox + ow, lpy(0)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      for (let i = 0; i < resids.length; i++) { ctx.beginPath(); ctx.arc(lpx(xs[i]), lpy(resids[i]), 3, 0, 2 * Math.PI); ctx.fill(); }
+      ctx.fillStyle = "#334155"; ctx.font = "bold 11px -apple-system,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(title, ox + ow / 2, MARGIN.t + 12);
+      ctx.fillText("R\u00B2 = " + r2val.toFixed(4), ox + ow / 2, MARGIN.t + 26);
+    };
+    drawPanel(rawResids, t, MARGIN.l, halfW, "#2563eb", "Raw Residuals vs Time", r2Raw);
+    drawPanel(logResids, t, MARGIN.l + halfW + 20, halfW, "#059669", "Log Residuals vs Time", r2Log);
+  }
+
+  if (step === 5) {
+    document.getElementById("syn-canvas-title").textContent = "Step 5: Model Comparison (AIC/BIC)";
+    if (!SYN.compResult) {
+      ctx.fillStyle = "#64748b"; ctx.font = "14px -apple-system,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("Click 'Fit All Models' to compare", w / 2, h / 2);
+      document.getElementById("st-syn-status").textContent = "Ready";
+      return;
+    }
+    document.getElementById("st-syn-status").textContent = "Compared";
+    const models = SYN.compResult;
+    const winner = models.reduce((a, b) => a.aic < b.aic ? a : b);
+    document.getElementById("st-syn-metric").textContent = "Best: " + winner.name;
+    /* Overlay + bars */
+    const xR = niceRange(0, 45, 6);
+    let yMax = Math.max(...v);
+    for (const m of models) for (let tt = 0; tt <= 42; tt += 3) yMax = Math.max(yMax, m.fn(tt));
+    const yR = niceRange(0, yMax * 1.15, 6);
+    const pH = h * 0.55;
+    /* Top: overlay */
+    const tpx = x => MARGIN.l + (x - xR.min) / (xR.max - xR.min) * (w - MARGIN.l - MARGIN.r);
+    const tpy = y => 30 + (1 - (y - yR.min) / (yR.max - yR.min)) * (pH - 60);
+    /* simplified axes */
+    ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(MARGIN.l, 30); ctx.lineTo(MARGIN.l, pH - 20); ctx.lineTo(w - MARGIN.r, pH - 20); ctx.stroke();
+    drawScatter(ctx, tpx, tpy, t, v, "rgba(30,58,91,0.35)", 3.5);
+    for (const m of models) {
+      const cT = [], cV = [];
+      for (let tt = 0; tt <= 42; tt += 0.5) { cT.push(tt); cV.push(m.fn(tt)); }
+      drawLine(ctx, tpx, tpy, cT, cV, m.color, 2.5);
+    }
+    /* Bottom: AIC/BIC bars */
+    const allVals = models.flatMap(m => [m.aic, m.bic]);
+    const vMin = Math.min(...allVals), vMax2 = Math.max(...allVals), pad = (vMax2 - vMin) * 0.15 || 5;
+    const barTop = pH + 10, barBot = h - 30;
+    const bpy = val => barTop + (1 - (val - (vMin - pad)) / (vMax2 - vMin + 2 * pad)) * (barBot - barTop);
+    const barW = 36, groupW = 2 * barW + 10, groupGap = 30;
+    const totalW = models.length * groupW + (models.length - 1) * groupGap;
+    const startX = (MARGIN.l + w - MARGIN.r) / 2 - totalW / 2;
+    const baseY = bpy(vMin - pad);
+    for (let i = 0; i < models.length; i++) {
+      const m = models[i], gx = startX + i * (groupW + groupGap);
+      ctx.fillStyle = m.color + "cc"; ctx.fillRect(gx, bpy(m.aic), barW, baseY - bpy(m.aic));
+      ctx.fillStyle = m.color + "77"; ctx.fillRect(gx + barW + 6, bpy(m.bic), barW, baseY - bpy(m.bic));
+      ctx.fillStyle = "#1e293b"; ctx.font = "10px -apple-system,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(m.aic.toFixed(1), gx + barW / 2, bpy(m.aic) - 4);
+      ctx.fillText(m.bic.toFixed(1), gx + barW + 6 + barW / 2, bpy(m.bic) - 4);
+      ctx.fillStyle = "#334155"; ctx.font = "11px -apple-system,sans-serif";
+      ctx.fillText(m.name, gx + groupW / 2, barBot + 14);
+      if (m === winner) { ctx.fillStyle = "#059669"; ctx.font = "bold 10px -apple-system,sans-serif"; ctx.fillText("\u2605", gx + groupW / 2, bpy(m.aic) - 16); }
+    }
+  }
+
+  if (step === 6) {
+    document.getElementById("syn-canvas-title").textContent = "Step 6: Parameter Identifiability";
+    if (!SYN.bootResult) {
+      ctx.fillStyle = "#64748b"; ctx.font = "14px -apple-system,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("Click 'Run Bootstrap' to assess identifiability", w / 2, h / 2);
+      document.getElementById("st-syn-status").textContent = "Ready";
+      return;
+    }
+    document.getElementById("st-syn-status").textContent = "Assessed";
+    const { fits, means, stds, corr } = SYN.bootResult;
+    document.getElementById("st-syn-metric").textContent = "r(\u03B1,\u03B2)=" + corr[1][2].toFixed(2);
+    /* Left: bootstrap cloud. Right: heatmap */
+    const halfW = (w - MARGIN.l - MARGIN.r - 20) / 2;
+    /* Cloud */
+    if (fits.length > 2) {
+      const alphas = fits.map(f => f[1]), betas = fits.map(f => f[2]);
+      const mA = means[1], mB = means[2], sA = stds[1], sB = stds[2];
+      const padA = Math.max(sA * 3, 0.02) * 1.3, padB = Math.max(sB * 3, 0.002) * 1.3;
+      const xR = niceRange(mA - padA, mA + padA, 5), yR = niceRange(mB - padB, mB + padB, 5);
+      /* local axes in left half */
+      const lpx = x => MARGIN.l + (x - xR.min) / (xR.max - xR.min) * halfW;
+      const lpy = y => MARGIN.t + (1 - (y - yR.min) / (yR.max - yR.min)) * (h - MARGIN.t - MARGIN.b);
+      ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(MARGIN.l, MARGIN.t); ctx.lineTo(MARGIN.l, h - MARGIN.b); ctx.lineTo(MARGIN.l + halfW, h - MARGIN.b); ctx.stroke();
+      ctx.fillStyle = "rgba(37,99,235,0.45)";
+      for (let i = 0; i < fits.length; i++) { ctx.beginPath(); ctx.arc(lpx(alphas[i]), lpy(betas[i]), 3, 0, 2 * Math.PI); ctx.fill(); }
+      ctx.fillStyle = "#334155"; ctx.font = "bold 11px -apple-system,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("\u03B1 vs \u03B2 Bootstrap", MARGIN.l + halfW / 2, MARGIN.t + 14);
+      ctx.fillText("r = " + corr[1][2].toFixed(2), MARGIN.l + halfW / 2, MARGIN.t + 28);
+    }
+    /* Heatmap */
+    const labels = ["V\u2080", "\u03B1", "\u03B2"];
+    const cellSize = Math.min(halfW / 4, (h - 100) / 4);
+    const ox = MARGIN.l + halfW + 40, oy = MARGIN.t + 40;
+    function corrColor(val) {
+      const vv = Math.max(-1, Math.min(1, val));
+      if (vv >= 0) return "rgb(220," + Math.round(220 - 180 * vv) + "," + Math.round(220 - 180 * vv) + ")";
+      return "rgb(" + Math.round(220 + 180 * vv) + "," + Math.round(220 + 180 * vv) + ",220)";
+    }
+    ctx.fillStyle = "#334155"; ctx.font = "bold 12px -apple-system,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    for (let j = 0; j < 3; j++) ctx.fillText(labels[j], ox + (j + 0.5) * cellSize, oy - 6);
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let i = 0; i < 3; i++) ctx.fillText(labels[i], ox - 8, oy + (i + 0.5) * cellSize);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      const x = ox + j * cellSize, y = oy + i * cellSize;
+      ctx.fillStyle = corrColor(corr[i][j]);
+      ctx.beginPath(); ctx.roundRect(x + 2, y + 2, cellSize - 4, cellSize - 4, 4); ctx.fill();
+      ctx.fillStyle = Math.abs(corr[i][j]) > 0.55 ? "#fff" : "#1e293b";
+      ctx.font = "bold 14px -apple-system,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(corr[i][j].toFixed(2), x + cellSize / 2, y + cellSize / 2);
+    }
+    ctx.fillStyle = "#334155"; ctx.font = "bold 12px -apple-system,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillText("Correlation Matrix", ox + 1.5 * cellSize, oy + 3 * cellSize + 10);
+    /* SE info */
+    ctx.fillStyle = "#475569"; ctx.font = "11px -apple-system,sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+    const infoY = oy + 3 * cellSize + 32;
+    ctx.fillText("V\u2080 = " + means[0].toFixed(4) + " \u00B1 " + stds[0].toFixed(4) + " (CV=" + (means[0] > 0 ? (100 * stds[0] / means[0]).toFixed(1) : "--") + "%)", ox, infoY);
+    ctx.fillText("\u03B1 = " + means[1].toFixed(4) + " \u00B1 " + stds[1].toFixed(4) + " (CV=" + (means[1] > 0 ? (100 * stds[1] / means[1]).toFixed(1) : "--") + "%)", ox, infoY + 16);
+    ctx.fillText("\u03B2 = " + means[2].toFixed(5) + " \u00B1 " + stds[2].toFixed(5) + " (CV=" + (means[2] > 0 ? (100 * stds[2] / means[2]).toFixed(1) : "--") + "%)", ox, infoY + 32);
+  }
+
+  if (step === 7) {
+    document.getElementById("syn-canvas-title").textContent = "Step 7: Calibration Report";
+    document.getElementById("st-syn-status").textContent = "Complete";
+    document.getElementById("st-syn-metric").textContent = "Pipeline done";
+    const lx = MARGIN.l + 20, ly = MARGIN.t + 20, lineH = 22;
+    ctx.fillStyle = "#f8fafc"; ctx.beginPath(); ctx.roundRect(lx - 10, ly - 10, w - 2 * lx + 20, h - 2 * ly + 20, 10); ctx.fill();
+    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(lx - 10, ly - 10, w - 2 * lx + 20, h - 2 * ly + 20, 10); ctx.stroke();
+    ctx.fillStyle = "#1e3a5f"; ctx.font = "bold 18px -apple-system,sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("Gompertz Calibration Report", lx, ly + 16);
+    let row = ly + 50;
+    const { V0, alpha, beta } = SYN.fitParams;
+    const rss = SYN.generated ? calcRSS(t, v, gompertz, [V0, alpha, beta]) : 0;
+    const r2 = SYN.generated ? calcR2(t, v, gompertz, [V0, alpha, beta]) : 0;
+    const lines = [
+      "Data: " + (SYN.generated ? t.length + " points, t = 0-42 days" : "Not generated"),
+      "",
+      "Gompertz Fit:",
+      "  V\u2080 = " + V0.toFixed(4) + (SYN.bootResult ? " \u00B1 " + SYN.bootResult.stds[0].toFixed(4) : ""),
+      "  \u03B1  = " + alpha.toFixed(4) + (SYN.bootResult ? " \u00B1 " + SYN.bootResult.stds[1].toFixed(4) : ""),
+      "  \u03B2  = " + beta.toFixed(5) + (SYN.bootResult ? " \u00B1 " + SYN.bootResult.stds[2].toFixed(5) : ""),
+      "",
+      "RSS = " + rss.toFixed(4) + "    R\u00B2 = " + r2.toFixed(4),
+      "",
+      "Model Selection:" + (SYN.compResult ? " Best = " + SYN.compResult.reduce((a, b) => a.aic < b.aic ? a : b).name : " (not run)"),
+      "",
+      "Identifiability:" + (SYN.bootResult ? " r(\u03B1,\u03B2) = " + SYN.bootResult.corr[1][2].toFixed(2) + (Math.abs(SYN.bootResult.corr[1][2]) > 0.9 ? " \u26A0 Strong correlation" : " \u2713 OK") : " (not run)"),
+      "",
+      "Verdict: " + (r2 > 0.95 ? "Excellent calibration" : r2 > 0.85 ? "Good calibration" : "Needs improvement")
+    ];
+    for (const line of lines) {
+      if (line === "") { row += 6; continue; }
+      if (line.startsWith("Verdict")) { ctx.font = "bold 14px -apple-system,sans-serif"; ctx.fillStyle = r2 > 0.95 ? "#059669" : r2 > 0.85 ? "#2563eb" : "#d97706"; }
+      else if (line.startsWith("Gompertz") || line.startsWith("Model") || line.startsWith("Identif")) { ctx.font = "bold 13px -apple-system,sans-serif"; ctx.fillStyle = "#1e3a5f"; }
+      else { ctx.font = "13px -apple-system,sans-serif"; ctx.fillStyle = "#334155"; }
+      ctx.fillText(line, lx, row); row += lineH;
+    }
+  }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                        EVENT WIRING                              ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+/* ── Tab switching ── */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    const tab = btn.dataset.tab;
+    requestAnimationFrame(() => {
+      if (tab === "data") drawTab1();
+      else if (tab === "fitting") drawTeachingTab2();
+      else if (tab === "residuals") drawTeachingTab3();
+      else if (tab === "r2pitfalls") { drawTeachingR2(); if (r2State.generated) drawR2Pitfalls(); }
+      else if (tab === "comparison") { drawTeachingTab5(); drawTeachingTab5b(); updateAICCalc(); }
+      else if (tab === "identifiability") drawTeachingTab6();
+      else if (tab === "synthesis") drawSynthesis();
+    });
+  });
+});
+
+/* ── Tab 1 ── */
+["a", "b", "noise", "reps"].forEach(p => {
+  const sl = document.getElementById("s-t1-" + p);
+  const vl = document.getElementById("v-t1-" + p);
+  sl.addEventListener("input", () => { vl.textContent = p === "reps" ? sl.value : (+sl.value).toFixed(2); });
+});
+document.getElementById("btn-t1-generate").addEventListener("click", generateTab1);
+
+/* ── Tab 2 teaching ── */
+document.getElementById("s-teach2-atrue").addEventListener("input", drawTeachingTab2);
+document.getElementById("s-teach2-afit").addEventListener("input", drawTeachingTab2);
+document.getElementById("s-teach2-th1").addEventListener("input", drawTeachingTab2);
+document.getElementById("s-teach2-th2").addEventListener("input", drawTeachingTab2);
+document.getElementById("c-t2-teach-2p-map").addEventListener("click", function(e) {
+  const rect = this.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const plotL = MARGIN.l, plotR = rect.width - MARGIN.r;
+  const plotT = MARGIN.t, plotB = rect.height - MARGIN.b;
+  if (x < plotL || x > plotR || y < plotT || y > plotB) return;
+  const th1Lo = 0, th1Hi = 4, th2Lo = 0.3, th2Hi = 2.5;
+  const th1 = th1Lo + (x - plotL) / (plotR - plotL) * (th1Hi - th1Lo);
+  const th2 = th2Hi - (y - plotT) / (plotB - plotT) * (th2Hi - th2Lo);
+  document.getElementById("s-teach2-th1").value = Math.max(th1Lo, Math.min(th1Hi, th1));
+  document.getElementById("s-teach2-th2").value = Math.max(th2Lo, Math.min(th2Hi, th2));
+  drawTeachingTab2();
+});
+
+/* ── Tab 3 teaching ── */
+document.getElementById("s-teach3-slope").addEventListener("input", drawTeachingTab3);
+document.getElementById("s-teach3-curv").addEventListener("input", drawTeachingTab3);
+document.getElementById("s-teach3-noise").addEventListener("input", drawTeachingTab3);
+function setTeach3Preset(slope, curv, noise) {
+  document.getElementById("s-teach3-slope").value = slope;
+  document.getElementById("s-teach3-curv").value = curv;
+  document.getElementById("s-teach3-noise").value = noise;
+  drawTeachingTab3();
+}
+document.getElementById("btn-t3p-good").addEventListener("click", () => setTeach3Preset(1.80, 0, 0.40));
+document.getElementById("btn-t3p-wrongcurv").addEventListener("click", () => setTeach3Preset(1.80, -0.20, 0.30));
+document.getElementById("btn-t3p-wrongslope").addEventListener("click", () => setTeach3Preset(1.10, 0, 0.30));
+document.getElementById("btn-t3p-noisy").addEventListener("click", () => setTeach3Preset(1.80, 0, 1.20));
+
+/* ── Tab 4 R2 teaching ── */
+document.querySelectorAll("#r2-teach-dataset-group .toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#r2-teach-dataset-group .toggle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); r2TeachState.selected = btn.dataset.r2ds; drawTeachingR2();
+  });
+});
+document.getElementById("chk-r2-linearize").addEventListener("change", e => { r2TeachState.linearize = e.target.checked; drawTeachingR2(); });
+/* R2 main */
+["a", "b", "noise"].forEach(p => {
+  const sl = document.getElementById("s-r2-" + p);
+  const vl = document.getElementById("v-r2-" + p);
+  sl.addEventListener("input", () => { vl.textContent = (+sl.value).toFixed(2); });
+});
+document.getElementById("btn-r2-generate").addEventListener("click", generateR2Data);
+document.getElementById("sel-r2-model").addEventListener("change", () => { if (r2State.generated) generateR2Data(); });
+document.getElementById("sel-r2-transform").addEventListener("change", () => { if (r2State.generated) drawR2Pitfalls(); });
+
+/* ── Tab 5 teaching ── */
+document.getElementById("s-teach5-noise").addEventListener("input", drawTeachingTab5);
+document.querySelectorAll("#t5-teach-model-group .toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#t5-teach-model-group .toggle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); teach5State.selectedModel = btn.dataset.t5model; drawTeachingTab5();
+  });
+});
+document.getElementById("btn-t5-teach-regen").addEventListener("click", () => { teach5State.noiseSeed = Math.floor(Math.random() * 1000000); drawTeachingTab5(); });
+/* Tab 5b sliders */
+["s-teach5b-n","s-teach5b-range","s-teach5b-noise"].forEach(id=>{document.getElementById(id).addEventListener("input",drawTeachingTab5b);});
+/* AIC calc */
+["rssA", "kA", "rssB", "kB", "n"].forEach(p => { document.getElementById("s-aic-" + p).addEventListener("input", updateAICCalc); });
+
+/* ── Tab 6 teaching: read plots & cov matrix ── */
+document.getElementById("s-t6-read-level").addEventListener("input", drawTab6ReadPlots);
+["s-t6-cov-sea","s-t6-cov-seb","s-t6-cov-r"].forEach(id=>{document.getElementById(id).addEventListener("input",drawTab6CovMatrix);});
+/* ── Tab 6 teaching: Gompertz interactive ── */
+document.getElementById("s-teach6-noise").addEventListener("input", () => { teach6State.computed = false; computeTeach6(); drawTeachingTab6(); });
+document.querySelectorAll("#t6-teach-coverage-group .toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#t6-teach-coverage-group .toggle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); teach6State.coverage = btn.dataset.t6cov; teach6State.computed = false; computeTeach6(); drawTeachingTab6();
+  });
+});
+document.getElementById("btn-t6-teach-recompute").addEventListener("click", () => { teach6State.noiseSeed = Math.floor(Math.random() * 1000000); teach6State.computed = false; computeTeach6(); drawTeachingTab6(); });
+
+/* ── Tab 7 Synthesis ── */
+document.querySelectorAll("#syn-step-group .toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#syn-step-group .toggle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); SYN.step = +btn.dataset.synstep; drawSynthesis();
+  });
+});
+/* Syn slider readouts */
+["V0", "alpha", "beta", "noise", "reps"].forEach(p => {
+  const sl = document.getElementById("s-syn-" + p);
+  const vl = document.getElementById("v-syn-" + p);
+  if (sl && vl) sl.addEventListener("input", () => {
+    if (p === "beta") vl.textContent = (+sl.value).toFixed(3);
+    else if (p === "reps") vl.textContent = sl.value;
+    else vl.textContent = (+sl.value).toFixed(2);
+  });
+});
+document.getElementById("btn-syn-generate").addEventListener("click", synGenerate);
+/* step 2 sliders */
+["fV0", "falpha", "fbeta"].forEach(p => {
+  const sl = document.getElementById("s-syn-" + p);
+  if (sl) sl.addEventListener("input", () => {
+    SYN.fitParams.V0 = +document.getElementById("s-syn-fV0").value;
+    SYN.fitParams.alpha = +document.getElementById("s-syn-falpha").value;
+    SYN.fitParams.beta = +document.getElementById("s-syn-fbeta").value;
+    drawSynthesis();
+  });
+});
+document.getElementById("btn-syn-autofit").addEventListener("click", synAutoFit);
+document.getElementById("btn-syn-reset-fit").addEventListener("click", () => {
+  SYN.fitParams = { V0: SYN.trueParams.V0 * 1.5, alpha: SYN.trueParams.alpha * 1.4, beta: SYN.trueParams.beta * 1.5 };
+  SYN.fitResult = null;
+  document.getElementById("s-syn-fV0").value = SYN.fitParams.V0;
+  document.getElementById("s-syn-falpha").value = SYN.fitParams.alpha;
+  document.getElementById("s-syn-fbeta").value = SYN.fitParams.beta;
+  drawSynthesis();
+});
+/* step 3 residual toggle */
+document.querySelectorAll("#syn-resid-toggle .toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#syn-resid-toggle .toggle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); SYN.residMode = btn.dataset.synresid; drawSynthesis();
+  });
+});
+/* step 5 */
+document.getElementById("btn-syn-compare").addEventListener("click", synCompare);
+/* step 6 */
+document.querySelectorAll("#syn-schedule-toggles .toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#syn-schedule-toggles .toggle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); SYN.schedule = btn.dataset.synschedule;
+  });
+});
+document.getElementById("btn-syn-bootstrap").addEventListener("click", synBootstrap);
+
+/* ── Responsive resize ── */
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const active = document.querySelector(".tab-btn.active");
+    if (!active) return;
+    const tab = active.dataset.tab;
+    requestAnimationFrame(() => {
+      if (tab === "data") drawTab1();
+      else if (tab === "fitting") drawTeachingTab2();
+      else if (tab === "residuals") drawTeachingTab3();
+      else if (tab === "r2pitfalls") { drawTeachingR2(); if (r2State.generated) drawR2Pitfalls(); }
+      else if (tab === "comparison") { drawTeachingTab5(); drawTeachingTab5b(); updateAICCalc(); }
+      else if (tab === "identifiability") drawTeachingTab6();
+      else if (tab === "synthesis") drawSynthesis();
+    });
+  }, 200);
+});
+
+/* ── Initialize on load ── */
+window.addEventListener("DOMContentLoaded", () => {
+  generateTab1();
+});
+</script>
+</body>
+</html>

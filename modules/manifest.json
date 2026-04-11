@@ -1,0 +1,27 @@
+{
+  "folders": {
+    "bme295c": {
+      "label": "BME295C",
+      "files": [
+        {
+          "name": "lesson-01.html",
+          "title": "Lesson 1: Welcome \u2014 BME 295C"
+        }
+      ]
+    },
+    "bme576": {
+      "label": "BME576",
+      "files": [
+        {
+          "name": "01_experimental_design.html",
+          "title": "Module 12: Design of Experiments \u2014 Multiplexed Cytokine Assay"
+        },
+        {
+          "name": "01_parameter_estimation.html",
+          "title": "Model Calibration & Parameter Estimation \u2014 Interactive Explorer"
+        }
+      ]
+    }
+  },
+  "generated": "2026-04-09T13:23:30"
+}

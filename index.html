@@ -21,6 +21,26 @@
   <meta name="twitter:description" content="We build in vitro models to study the mechanisms driving metastasis." />
   <meta name="twitter:image" content="https://mcgheelab.github.io/Images/mission/Mlab.png" />
 
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0b0d12" />
+
+  <!-- PWA capable -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="McGheeLab" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+  <link rel="shortcut icon" href="favicon.ico" />
+
+  <!-- Microsoft Tile -->
+  <meta name="msapplication-TileImage" content="icons/icon-144.png" />
+  <meta name="msapplication-TileColor" content="#0b0d12" />
+
   <!-- Preload JSON so content is snappy -->
   <link rel="preload" href="content.json" as="fetch" crossorigin="anonymous" />
   <link rel="stylesheet" href="styles.css" />
@@ -32,6 +52,7 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-messaging-compat.js"></script>
 
   <!-- Chart.js for CV analytics -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -43,7 +64,19 @@
   <script defer src="scheduler.js"></script>
   <script defer src="class-builder.js"></script>
   <script defer src="lab-apps.js"></script>
+  <script defer src="push-notifications.js"></script>
   <script defer src="app.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(reg => console.log('[SW] Registered:', reg.scope))
+          .catch(err => console.warn('[SW] Registration failed:', err));
+      });
+    }
+  </script>
 </head>
 <body>
   <a href="#app" class="skip-link">Skip to content</a>

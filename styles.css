@@ -1355,3 +1355,175 @@ svg text.dot{
 
 /* Ensure hero never slides under the fixed banner */
 .hero { margin-top: var(--banner-height); }
+
+
+/* =========================================
+   15) PWA — Install Banner, Notification Prompt, Toast, Standalone
+   ========================================= */
+
+/* --- Standalone mode (installed PWA, no browser chrome) --- */
+@media (display-mode: standalone) {
+  .top-banner {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  .hero {
+    margin-top: calc(var(--banner-height) + env(safe-area-inset-top, 0));
+  }
+}
+
+/* --- Apps environment: hide site chrome on mobile ----------- */
+/* Hub page (#/apps): hide bottom tabs so app grid gets full space */
+body.apps-env .bottom-tabs { display: none !important; }
+body.apps-env .group-sheet { display: none !important; }
+
+/* Embedded app (#/apps/{id}): on mobile hide top banner —
+   parent bottom nav and iframe handle everything */
+@media (max-width: 700px) {
+  body.apps-embedded .top-banner { display: none !important; }
+}
+
+/* --- Install banner (compact, single-row) --- */
+.pwa-install-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2, #1a2030);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  font-size: .8rem;
+}
+.pwa-install-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.pwa-install-text {
+  flex: 1;
+  color: var(--muted, #a8b3c7);
+  line-height: 1.35;
+  min-width: 0;
+}
+.pwa-install-text strong {
+  color: var(--text, #eef2f7);
+}
+.pwa-install-btn {
+  padding: 5px 12px;
+  background: var(--accent, #5baed1);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pwa-install-btn:hover { opacity: 0.9; }
+.pwa-install-dismiss {
+  background: none;
+  border: none;
+  color: var(--muted, #a8b3c7);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.pwa-install-dismiss:hover { color: var(--text, #eef2f7); }
+
+/* --- Notification permission prompt --- */
+.pwa-notif-prompt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-2, #1a2030);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius, 12px);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.pwa-notif-content {
+  flex: 1;
+}
+.pwa-notif-content p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted, #a8b3c7);
+}
+.pwa-notif-btn {
+  padding: 8px 18px;
+  background: var(--accent, #5baed1);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pwa-notif-btn:hover { opacity: 0.9; }
+
+/* --- Toast (update notification, push foreground) --- */
+.pwa-toast {
+  position: fixed;
+  bottom: calc(var(--tab-bar-height, 60px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface, #121620);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius, 12px);
+  padding: 12px 16px;
+  box-shadow: var(--shadow, 0 10px 30px rgba(0,0,0,0.4));
+  z-index: 9999;
+  max-width: 420px;
+  width: calc(100% - 32px);
+  animation: pwa-toast-in 0.3s ease-out;
+}
+.pwa-toast-body {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text, #eef2f7);
+}
+.pwa-toast-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.pwa-toast-action {
+  padding: 6px 14px;
+  background: var(--accent, #5baed1);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pwa-toast-action:hover { opacity: 0.9; }
+.pwa-toast-close {
+  background: none;
+  border: none;
+  color: var(--muted, #a8b3c7);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.pwa-toast-close:hover { color: var(--text, #eef2f7); }
+
+@keyframes pwa-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* In standalone mode, adjust toast for no tab bar */
+@media (display-mode: standalone) {
+  .pwa-toast {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  }
+}

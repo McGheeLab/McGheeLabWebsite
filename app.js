@@ -64,15 +64,21 @@
     window.addEventListener('hashchange', onRouteChange);
     onRouteChange();
 
-    // Re-render current page when auth state resolves (fixes dashboard on refresh)
-    let authResolved = false;
+    // Re-render current page when auth state resolves or changes
+    let lastAuthUid = null;
     if (window.McgheeLab?.Auth?.onChange) {
-      window.McgheeLab.Auth.onChange(() => {
-        if (authResolved) return;
-        authResolved = true;
+      window.McgheeLab.Auth.onChange((user) => {
+        const uid = user?.uid || null;
         const hash = window.location.hash || '';
         const page = hash.slice(2).split('/')[0]?.toLowerCase();
-        if (page === 'dashboard' || page === 'admin' || page === 'login' || page === 'cv' || page === 'apps') onRouteChange();
+        // Always re-render apps page on auth change (even same uid) to resolve loading states
+        if (page === 'apps') { lastAuthUid = uid; onRouteChange(); return; }
+        if (uid === lastAuthUid) return; // same user, skip
+        lastAuthUid = uid;
+        if (page === 'dashboard' || page === 'admin' || page === 'login' || page === 'cv') onRouteChange();
+
+        // Proactive push prompt for installed PWA on first launch
+        if (user) maybePromptPushPermission(user);
       });
     }
 
@@ -81,6 +87,9 @@
       const v = document.getElementById('heroVideo');
       if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
     }
+
+    // PWA setup
+    setupPWA();
   });
 
   /* ===========================
@@ -232,7 +241,12 @@
         case 'team':     view = renderTeam();     break;
         case 'classes': {
           const classSlug = (subParts[0] || '').split('?')[0];
-          if (classSlug) {
+          if (classSlug && subParts[1] === 'modules' && subParts[2]) {
+            // Module viewer: #/classes/{classId}/modules/{filename}
+            const moduleFile = decodeURIComponent(subParts[2].split('?')[0]);
+            const html = window.McgheeLab?.renderModuleViewer?.(classSlug, moduleFile);
+            if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          } else if (classSlug) {
             const html = window.McgheeLab?.renderClassPage?.(classSlug);
             if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
           } else {
@@ -320,15 +334,25 @@
     appEl.appendChild(view);
     appEl.focus({ preventScroll: true });
 
-    // CV builder uses its own full layout — hide hero
+    // CV builder, module viewer, and lab apps use their own full layout — hide hero
     const heroEl = document.querySelector('.hero');
-    if (heroEl) heroEl.style.display = page === 'cv' ? 'none' : '';
+    const footerEl = document.querySelector('.site-footer');
+    const isModuleViewer = page === 'classes' && subParts[1] === 'modules' && subParts[2];
+    const isAppsEnv = page === 'apps';
+    const isAppEmbedded = isAppsEnv && !!(subParts[0] || '').split('?')[0];
+    const hideHero = page === 'cv' || isModuleViewer || isAppsEnv;
+    const hideFooter = isAppsEnv;
+    if (heroEl) heroEl.style.display = hideHero ? 'none' : '';
+    if (footerEl) footerEl.style.display = hideFooter ? 'none' : '';
+    // Body classes for CSS to hide parent chrome in apps environment
+    document.body.classList.toggle('apps-env', isAppsEnv);
+    document.body.classList.toggle('apps-embedded', isAppEmbedded);
 
     // Wire subnav (desktop clicks + touch/pen swipe)
     wireUpSubnav(view);
 
     // Start the body just under hero on route change
-    if (page === 'cv') {
+    if (hideHero) {
       window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
       window.scrollTo({ top: headerBottom(), behavior: 'smooth' });
@@ -367,7 +391,12 @@
         case 'guide':     window.McgheeLab?.wireGuide?.(); break;
         case 'classes': {
           const wireSlug = (subParts[0] || '').split('?')[0];
-          if (wireSlug) await window.McgheeLab?.wireClassPage?.(wireSlug);
+          if (wireSlug && subParts[1] === 'modules' && subParts[2]) {
+            const wireModFile = decodeURIComponent(subParts[2].split('?')[0]);
+            await window.McgheeLab?.wireModuleViewer?.(wireSlug, wireModFile);
+          } else if (wireSlug) {
+            await window.McgheeLab?.wireClassPage?.(wireSlug);
+          }
           break;
         }
         case 'schedule': {
@@ -2121,4 +2150,235 @@
     return `<address>${lines}</address>`;
   }
   function debounce(fn, ms=150){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
+
+  /* ===========================
+     PWA — Install Prompt, Update Notification, Push Init
+     =========================== */
+
+  let deferredInstallPrompt = null;
+
+  function setupPWA() {
+    // Detect standalone mode (installed PWA)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                      || window.navigator.standalone === true;
+    document.body.classList.toggle('pwa-standalone', isStandalone);
+
+    // Capture install prompt (Chrome/Edge on Android + desktop)
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      showInstallButton();
+    });
+
+    // Listen for successful install
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      hideInstallButton();
+      console.log('[PWA] App installed.');
+    });
+
+    // Service worker update notification
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (!reg) return;
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+              showUpdateToast();
+            }
+          });
+        });
+      });
+    }
+
+    // Initialize push notifications
+    if (window.McgheePush) {
+      McgheePush.init();
+      McgheePush.onForegroundMessage((payload) => {
+        const data = payload.notification || payload.data || {};
+        showPushToast(data.title || 'McGheeLab', data.body || '');
+      });
+    }
+
+    // Clear app icon badge when user returns to the app
+    function clearBadgeOnFocus() {
+      if (window.McgheePush?.clearBadge) McgheePush.clearBadge();
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) clearBadgeOnFocus();
+    });
+    window.addEventListener('focus', clearBadgeOnFocus);
+    clearBadgeOnFocus(); // clear on initial load
+  }
+
+  /* --- Install button (shown on lab apps hub page) --- */
+
+  function showInstallButton() {
+    const existing = document.getElementById('pwa-install-banner');
+    if (existing) existing.style.display = '';
+  }
+
+  function hideInstallButton() {
+    const existing = document.getElementById('pwa-install-banner');
+    if (existing) existing.style.display = 'none';
+  }
+
+  // Called by the install button's onclick
+  window.mcgheeInstallPWA = async function() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const result = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    if (result.outcome === 'accepted') hideInstallButton();
+  };
+
+  // Renders the install banner HTML (used in lab apps hub)
+  function getInstallBannerHTML() {
+    const ua = navigator.userAgent;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                      || window.navigator.standalone === true;
+    if (isStandalone) return '';
+
+    // Device detection
+    const isIPhone = /iPhone/.test(ua) && !window.navigator.standalone;
+    const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isIOS = isIPhone || isIPad;
+    const isAndroid = /Android/.test(ua);
+    const isSamsung = /SamsungBrowser/.test(ua);
+    const isChrome = /Chrome/.test(ua) && !/Edge|Edg|OPR/.test(ua);
+    const isFirefox = /Firefox/.test(ua);
+    const isSafariDesktop = /Safari/.test(ua) && /Macintosh/.test(ua) && !/Chrome/.test(ua);
+
+    // Build device-specific instruction text
+    let instruction = '';
+    let actionBtn = '';
+    const shareIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+    const menuIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>';
+
+    if (isIOS) {
+      const browser = /CriOS/.test(ua) ? 'Chrome' : /FxiOS/.test(ua) ? 'Firefox' : '';
+      if (browser) {
+        instruction = `Open in <strong>Safari</strong>, tap ${shareIcon} then <strong>Add to Home Screen</strong>`;
+      } else {
+        instruction = `Tap ${shareIcon} below, then <strong>Add to Home Screen</strong>`;
+      }
+    } else if (isAndroid) {
+      if (isSamsung) {
+        instruction = `Tap ${menuIcon} then <strong>Add page to</strong> &rarr; <strong>Home screen</strong>`;
+      } else if (isFirefox) {
+        instruction = `Tap ${menuIcon} then <strong>Install</strong>`;
+      } else {
+        instruction = 'Add to your home screen for quick access';
+        actionBtn = `<button class="pwa-install-btn" onclick="mcgheeInstallPWA()">Install</button>`;
+      }
+    } else if (isSafariDesktop) {
+      instruction = 'File &rarr; Add to Dock for quick access';
+    } else {
+      // Desktop Chrome, Edge, etc.
+      instruction = 'Install for quick access from your desktop';
+      actionBtn = `<button class="pwa-install-btn" onclick="mcgheeInstallPWA()">Install</button>`;
+    }
+
+    // For platforms that need beforeinstallprompt, hide until it fires
+    const needsPrompt = !isIOS && !isSafariDesktop && !isSamsung && !isFirefox;
+    const display = needsPrompt && !deferredInstallPrompt ? ' style="display:none"' : '';
+
+    return `<div class="pwa-install-banner" id="pwa-install-banner"${display}>
+      <img src="icons/icon-96.png" alt="" class="pwa-install-icon" />
+      <span class="pwa-install-text">${instruction}</span>
+      ${actionBtn}
+      <button class="pwa-install-dismiss" onclick="this.parentElement.style.display='none'" aria-label="Dismiss">&times;</button>
+    </div>`;
+  }
+
+  // Expose for use in lab-apps.js
+  window.mcgheeGetInstallBanner = getInstallBannerHTML;
+
+  /* --- Proactive push prompt (standalone PWA first launch) --- */
+
+  function maybePromptPushPermission(user) {
+    if (!user || !window.McgheePush) return;
+    if (!McgheePush.isSupported()) return;
+    if (McgheePush.getPermissionState() !== 'default') return;
+
+    // Only prompt proactively in standalone (installed) mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                      || window.navigator.standalone === true;
+    if (!isStandalone) return;
+
+    // Only prompt once per device
+    if (localStorage.getItem('mcgheelab-push-prompted')) return;
+    localStorage.setItem('mcgheelab-push-prompted', '1');
+
+    // Small delay so the app has time to render first
+    setTimeout(async () => {
+      const token = await McgheePush.requestPermission(user.uid);
+      if (token) {
+        showPushToast('Notifications enabled', 'You\'ll receive alerts for lab activity.');
+      }
+    }, 1500);
+  }
+
+  /* --- Notification permission prompt --- */
+
+  window.mcgheeRequestPush = async function() {
+    const user = McgheeLab?.Auth?.getUser?.();
+    if (!user || !window.McgheePush) return;
+    const token = await McgheePush.requestPermission(user.uid);
+    if (token) {
+      showPushToast('Notifications enabled', 'You\'ll receive alerts for lab activity.');
+    }
+  };
+
+  function getNotificationPromptHTML() {
+    if (!window.McgheePush || !McgheePush.isSupported()) return '';
+    if (McgheePush.getPermissionState() !== 'default') return '';
+    return `<div class="pwa-notif-prompt" id="pwa-notif-prompt">
+      <div class="pwa-notif-content">
+        <strong>Enable notifications?</strong>
+        <p>Get alerts for new messages, meetings, and bookings</p>
+      </div>
+      <button class="pwa-notif-btn" onclick="mcgheeRequestPush(); this.parentElement.style.display='none'">Turn on</button>
+      <button class="pwa-install-dismiss" onclick="this.parentElement.style.display='none'" aria-label="Dismiss">&times;</button>
+    </div>`;
+  }
+
+  window.mcgheeGetNotificationPrompt = getNotificationPromptHTML;
+
+  /* --- Toast notifications --- */
+
+  function showUpdateToast() {
+    showToast('A new version is available.', 'Refresh', () => location.reload());
+  }
+
+  function showPushToast(title, body) {
+    showToast(`<strong>${esc(title)}</strong> ${esc(body)}`);
+  }
+
+  function showToast(html, actionLabel, actionFn) {
+    // Remove existing toast
+    const old = document.querySelector('.pwa-toast');
+    if (old) old.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'pwa-toast';
+    toast.innerHTML = `
+      <div class="pwa-toast-body">${html}</div>
+      <div class="pwa-toast-actions">
+        ${actionLabel ? `<button class="pwa-toast-action">${esc(actionLabel)}</button>` : ''}
+        <button class="pwa-toast-close" aria-label="Dismiss">&times;</button>
+      </div>
+    `;
+
+    if (actionFn) {
+      toast.querySelector('.pwa-toast-action')?.addEventListener('click', actionFn);
+    }
+    toast.querySelector('.pwa-toast-close').addEventListener('click', () => toast.remove());
+
+    document.body.appendChild(toast);
+    // Auto-dismiss after 8 seconds
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 8000);
+  }
 })();

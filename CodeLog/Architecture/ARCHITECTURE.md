@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.16
+**Version:** V3.25
 
 ## System Overview
 
@@ -13,7 +13,8 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 - **Key elements:** `#app` container swapped by router; three nav surfaces: `#desktop-nav` (inline horizontal, ≥768px), `#bottom-tabs` + `#more-sheet` (mobile tab bar, <768px), `#site-nav` drawer (legacy, hidden)
 - **SEO:** Meta description, keywords, OpenGraph, and Twitter Card tags
 - **User system nav:** Dashboard, CV Builder, Admin, Login/Logout links (conditionally visible based on auth state)
-- **Script loading:** Firebase SDK (compat) → Chart.js CDN → firebase-config.js → user-system.js → cv-builder.js → scheduler.js → class-builder.js → lab-apps.js → app.js (all deferred, in order)
+- **Script loading:** Firebase SDK (compat, including messaging) → Chart.js CDN → firebase-config.js → user-system.js → cv-builder.js → scheduler.js → class-builder.js → lab-apps.js → push-notifications.js → app.js (all deferred, in order); SW registration inline script at end of head
+- **PWA:** Manifest link, theme-color, iOS PWA meta tags, favicon links, Microsoft Tile meta
 
 ### app.js
 - **Purpose:** SPA router, page rendering, and UI interactions
@@ -77,7 +78,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 ### class-builder.js
 - **Purpose:** Tab-based course builder with nested sections and widgets, autosave, admin preview, and role-based views. Consumes `McgheeLab.Scheduler` for the speakers section.
 - **Key sections:**
-  - **Section registry (`SECTION_REG`):** Maps 9 section keys to 3 component types — `text` (textarea editor), `files` (upload/download manager), `speakers` (delegates to Scheduler)
+  - **Section registry (`SECTION_REG`):** Maps 10 section keys to 4 component types — `text` (textarea editor), `files` (upload/download manager), `speakers` (delegates to Scheduler), `modules` (learning module manager)
   - **Widget registry (`WIDGET_REG`):** 7 widget types — text block, image (upload + caption), video (YouTube/Vimeo embed), link list, HTML embed, simulation (sandboxed iframe), divider
   - **Module state:** `_tabs`, `_activeTabId`, `_previewMode`, `_viewType`, `_classData`, `_speakers`, `_currentSpeaker`, `_useKeyAuth`, `_scheduleId`, `_dirty`, `_autosaveTimer`, `_fileData`
   - **Tab system:** `_tabs` array of `{ id, name, sections }` objects; tab bar UI with add/rename/delete; `switchTab()` gathers DOM content then swaps active tab
@@ -102,7 +103,8 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - **Settings modal:** Title, subtitle, semester, level, description, classDates, registrationLink fields
   - **ScheduleDB:** Firestore CRUD for `schedules`, `participants`, `classFiles` collections
   - **Default schedule seed:** BME 295C (sessions mode, Summer 2026, June 8–12, sections: overview + speakers + files)
-  - **Persistence:** `tabs` array in schedule doc; `sections` array derived for backwards compat; text content stored per-section within tabs
+  - **Persistence:** `tabs` array in schedule doc; `sections` array derived for backwards compat; text content stored per-section within tabs; `modules` array saved alongside tabs
+  - **Learning modules:** `renderModulesBody()` admin view (reorder/title/file/homework/published table) and public view (numbered card links to `modules/{classId}/{htmlFile}?class={classId}`); `wireModuleEditors()` handles add/delete/reorder; `buildHomeworkDropdown()` populates from `hasDue` file sections; `gatherContentFromDOM()` reads module fields; `persistAll()` includes `modules[]`
 - **Render/wire pattern:** `renderClassPage(scheduleId)` returns HTML shell; `wireClassPage(scheduleId)` loads data, migrates legacy format, builds canvas with tabs, wires DnD + autosave
 - **Exports:** `McgheeLab.renderClassPage`, `McgheeLab.wireClassPage`, `McgheeLab.ScheduleDB`
 
@@ -113,7 +115,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - **Hub renderer (`renderLabApps`):** Auth-gated grid of app cards; filters out `adminOnly` apps for non-admin users; redirects guests to dashboard and unauthenticated to login
   - **Iframe embedder (`renderLabApp(appId)`):** Renders `<iframe>` loading the app's standalone `index.html`; breadcrumb nav above; `wireLabApp` sends auth via postMessage
   - **Auth handshake (`wireLabApp`):** Listens for `mcgheelab-app-ready` from iframe → responds with `mcgheelab-auth` containing `user` and `profile` objects; also handles `mcgheelab-app-resize` for auto-sizing
-- **Apps:** Inventory Tracker, Equipment Scheduler, Lab Meeting, Admin Console (admin-only)
+- **Apps:** Inventory Tracker, Equipment Scheduler, Lab Meeting, Admin Console (admin-only), Activity Tracker, The Huddle, Scheduler
 - **Routing:** `#/apps` (hub) and `#/apps/{appId}` (iframe embed) handled in `app.js` render/wire switches
 - **Navigation:** `#nav-apps` `<li>` shown when `Auth.currentUser` exists and `role !== 'guest'`
 - **Exports:** `McgheeLab.renderLabApps`, `McgheeLab.wireLabApps`, `McgheeLab.renderLabApp`, `McgheeLab.wireLabApp`, `McgheeLab.LAB_APPS`
@@ -123,15 +125,29 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 - **Structure:** Each app has `index.html` (standalone entry point), `app.js` (logic), `styles.css` (app-specific styles)
 - **Shared modules:**
   - `apps/shared/auth-bridge.js` — `McgheeLab.AppBridge` singleton; dual-mode auth: embedded (postMessage from parent) or standalone (Firebase `onAuthStateChanged`); exposes `init()`, `onReady(fn)`, `isEmbedded()`, `getUser()`, `getProfile()`, `isAdmin()`; 5s timeout → auth wall fallback
-  - `apps/shared/app-base.css` — Dark theme variables (--bg, --surface, --accent, etc.), common components (.app-card, .app-btn, .app-input, .app-badge), auth wall, embedded/standalone body classes, responsive breakpoint at 600px
+  - `apps/shared/app-base.css` — Dark theme variables (--bg, --surface, --accent, etc.), common components (.app-card, .app-btn, .app-input, .app-badge), auth wall, embedded/standalone body classes, responsive breakpoint at 600px; mobile shell styles (top bar, bottom bar, hamburger menu, filter dropdown, back button) active at ≤700px
+  - `apps/shared/mobile-shell.js` — `McgheeLab.MobileShell` singleton; injects consistent phone navigation on all lab apps (except chat which handles its own); `configure({ appId, title })` to activate; creates sticky top bar (title + user avatar + hamburger), fixed bottom bar (5 app quick-nav icons + back arrow FAB); hamburger opens slide-in menu with all app links; auto-injects/removes on window resize; `setBackVisible(bool)` API for sub-page navigation
 - **App list:**
   - `apps/inventory/` — Inventory Tracker: supplies, equipment catalog, orders
-  - `apps/equipment/` — Equipment Scheduler: calendar view, reservations, Google Calendar sync
-  - `apps/meetings/` — Lab Meeting: schedule, agendas & notes, action items
+  - `apps/equipment/` — Equipment Scheduler: full booking system for shared lab instruments. Tab layout (Calendar, My Bookings, Admin). Weekly CSS Grid calendar (7am-9pm, 30-min slots, 7 days) and monthly dot-grid view with per-device filtering dropdown. Priority color coding (normal/high/urgent/maintenance) with customizable colors. Booking modal with conflict detection, duration constraints, and advance-day limits. Training/permission system: admin defines certification types, assigns per user, devices require specific certs; co-operator requirement forces lower-category users (undergrads) to select a grad+ co-operator. Admin panels: device CRUD, training checkbox table, settings. Google Calendar push-sync via Google Identity Services OAuth (admin-driven, per-device calendar IDs). Real-time via Firestore `onSnapshot`. Data: `equipment/{equipmentId}` (catalog), `equipmentBookings/{bookingId}` (reservations), `equipmentTraining/{uid}` (certs), `equipmentSettings/config` (singleton)
+  - `apps/meetings/` — Lab Meeting: weekly meeting management with fixed-rotation presentation scheduling, collaborative agenda builder (any member adds items), shared notes, action item tracking with cross-meeting carry-over, and post-presentation cross-pollination signals (reaction chips: interesting/questions/collaborate/relevant). Sidebar+main layout with 5 sections: Next Meeting, Schedule, Archive, My Items, Settings. Admin generates semester meetings from config (day/time/skip dates/rotation order). Data: `meetings/{meetingId}` (embedded agendaItems[], actionItems[], feedback[] arrays), `meetingConfig/settings` (rotation, semester config). Real-time via Firestore `onSnapshot`
   - `apps/console/` — Admin Console (admin-only): app management, user permissions, integrations, usage logs
   - `apps/activity-tracker/` — Activity Tracker: daily activity logging with hierarchical categories, ML categorization (Naive Bayes), AI categorization (Anthropic API), milestone tracking, voice input, Chart.js analytics dashboard. Privacy: strictly owner-only Firestore rules. Data: `trackerData/{userId}` (settings, categories, ML model) + `trackerEntries/{userId}/entries/{entryId}` subcollection (task entries with date, categoryPath, duration, milestone, source)
+  - `apps/huddle/` — The Huddle: community-driven weekly planning board. Lab members post planned protocols/tasks for the week, others sign up to watch or join. Real-time feed via Firestore `onSnapshot`, week navigation, check-in prompts, protocol linking, status management (completed/cancelled/delayed/skipped). **The Rundown:** non-timeframe task list per week with admin-configurable categories and project associations; join-request workflow where others request to shadow/help, owner accepts and schedules onto the huddle calendar with availability overlap detection. **Lab Schedule:** recurring weekly availability template with per-week overrides; blocks typed as available/unavailable with reasons and rigid/flexible rigidity; Team Availability Gantt view shows all members' schedules per day. Data: `huddlePlans`, `huddleCheckins`, `huddleProtocols`, `huddleRundown` (weekly tasks with joinRequests array), `huddleConfig/settings` (admin-managed categories), `huddleScheduleTemplates/{userId}` (recurring weekly blocks), `huddleScheduleOverrides` (per-week deviations)
+  - `apps/scheduler/` — Scheduler: standalone scheduling app moved from dashboard. List view with create/manage/delete; editor view using `McgheeLab.Scheduler` engine with admin/guest/public view switching, guest management, session builder, freeform availability. Self-contained ScheduleDB for Firestore CRUD. Loads `scheduler.js` via script tag. Data: reuses existing `schedules` and `participants` Firestore collections
+  - `apps/chat/` — Lab Chat: real-time messaging with channels, DMs, threads, reactions, @mentions, read receipts, and Google Drive file sharing. Desktop: three-panel layout (sidebar + message feed + optional thread panel). Mobile (≤700px): conversation-list-first design with view state machine (`_mobileView`: list/conversation/files); conversation list shows all subscribed channels + DMs with preview/badges; filter dropdown (newest/active/unread/alpha); conversation view replaces sidebar with stats bar (readers/search/files); files view groups channel attachments by type; bottom bar with 5 app quick-nav icons + back arrow FAB; hamburger menu for browse/DM/contacts/search/settings. Subscription-based notifications: all channels visible, users subscribe for alerts. Admin-defined channel categories with channel directory browser. User-organized sidebar with draggable custom groups. Google Drive integration via Google Identity Services OAuth for file uploads to shared lab folder. Browser notifications for @mentions and DMs. Data: `chatConfig/settings` (categories, Drive config), `chatChannels/{channelId}` (metadata + denormalized lastMessage), `chatMessages/{messageId}` (messages with reactions map, readBy array, thread fields), `chatReadState/{uid_channelId}` (per-user read tracking), `chatUserMeta/{uid}` (subscriptions, sidebar layout, prefs)
 - **Execution modes:** Embedded (`.app-embedded` class, header hidden, auth via postMessage) vs Standalone (`.app-standalone` class, header visible, auth via Firebase direct)
-- **Script load order in standalone:** Firebase SDK (compat) → `../../firebase-config.js` → `../shared/auth-bridge.js` → `app.js`
+- **Script load order in standalone:** Firebase SDK (compat) → `../../firebase-config.js` → `../shared/auth-bridge.js` → `../shared/mobile-shell.js` → `app.js` (chat app omits mobile-shell.js as it handles its own mobile navigation)
+
+### modules/ (learning module pages)
+- **Purpose:** Standalone full-page HTML lesson files with auto-navigating class-specific headers. Each module is a self-contained page that loads outside the SPA.
+- **Structure:** `modules/{classId}/` directories contain lesson HTML files; `modules/shared/` contains the header component; `modules/_template.html` is the starter template
+- **Shared modules:**
+  - `modules/shared/module-header.js` — `McgheeLab.ModuleHeader` singleton; reads `?class={scheduleId}` URL param; fetches `schedules/{classId}` from Firestore; finds current module by filename match; builds header with back link, progress indicator, title, prev/next nav, homework button; graceful degradation on error
+  - `modules/shared/module-header.css` — Sticky header bar with dark theme variables matching `app-base.css`; three-zone layout (back link | center title + progress | nav buttons); responsive stacking at 600px
+- **Script load order:** Firebase SDK (app + firestore compat only) → `../../firebase-config.js` → `../shared/module-header.js`
+- **Data model:** Modules registered as `modules[]` array on `schedules/{classId}` Firestore doc: `{ id, title, htmlFile, order, homeworkFileId, published }`
+- **Navigation:** Links from class page carry `?class=` param; prev/next links are sibling files in same directory with `?class=` preserved
 
 ### cv-styles.css
 - **Purpose:** Styling for CV builder page — dark theme with gold accent (`--cv-gold`)
@@ -156,7 +172,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 
 ### firestore.rules / storage.rules
 - **Purpose:** Firebase security rules for Firestore and Storage
-- **Access model:** Role-based (admin/editor/contributor); published stories and news posts readable by all; users write own profile; 10 MB image / 50 MB video upload limit; `newsPosts` collection follows same pattern as `stories`; `cvData` collection owner read/write + admin read; `cv/` storage path for BibTeX/PDF imports; `schedules` collection public read, owner/admin write (any authenticated user can create); `participants` collection public read, admin create/delete, self-update via auth UID or invite key; `classFiles` collection public read, auth create, admin update/delete; `classes/` storage path public read, auth write, 50 MB limit; `trackerData/{userId}` and `trackerEntries/{userId}/entries/{entryId}` strictly owner-only (no admin access) for activity tracker privacy
+- **Access model:** Role-based (admin/editor/contributor); published stories and news posts readable by all; users write own profile; 10 MB image / 50 MB video upload limit; `newsPosts` collection follows same pattern as `stories`; `cvData` collection owner read/write + admin read; `cv/` storage path for BibTeX/PDF imports; `schedules` collection public read, owner/admin write (any authenticated user can create); `participants` collection public read, admin create/delete, self-update via auth UID or invite key; `classFiles` collection public read, auth create, admin update/delete; `classes/` storage path public read, auth write, 50 MB limit; `trackerData/{userId}` and `trackerEntries/{userId}/entries/{entryId}` strictly owner-only (no admin access) for activity tracker privacy; `meetings` collection authenticated read/create/update, admin-only delete; `meetingConfig` collection authenticated read, admin-only write; `equipment` collection authenticated read, admin-only write; `equipmentBookings` collection authenticated read/create, owner or admin update/delete; `equipmentTraining` collection authenticated read, admin-only write; `equipmentSettings` collection authenticated read, admin-only write; `chatConfig` collection authenticated read, admin-only write; `chatChannels` collection authenticated read/create/update, admin-only delete; `chatMessages` collection authenticated read/create, authenticated update (for reactions/read receipts), admin-only delete; `chatReadState` collection authenticated read/write; `chatUserMeta/{uid}` strictly owner-only
 
 ### poster/
 - **Purpose:** Standalone academic poster sub-site with its own Firebase integration
@@ -223,3 +239,49 @@ Dashboard → New Story → add sections (text + images/videos) → Save Draft /
 - **Role-based publishing:** Admin sets user role → determines if stories auto-publish or need review
 - **Graceful degradation:** Site works without Firebase configured; user system features simply hidden
 - **Global namespace (`McgheeLab`):** User system modules communicate via `window.McgheeLab` to avoid ES module refactoring of the existing IIFE-based app.js
+
+## PWA Architecture
+
+### Service Workers
+Two separate service workers coexist:
+- **`sw.js`** — Caching service worker. Precaches shell (core HTML/CSS/JS) and all 8 lab app files on install. Runtime strategies: stale-while-revalidate (shell), cache-first (images/videos), network-first (CDN), network-only (Firebase API). Versioned caches enable clean updates.
+- **`firebase-messaging-sw.js`** — FCM push notification handler. Receives background push messages, shows system notifications with vibration and desktop persistence, manages app icon badge counts via IndexedDB, handles notification clicks to navigate to relevant pages.
+
+### Push Notification Flow
+```
+User grants permission → McgheePush.requestPermission(userId)
+  → browser requests FCM token from Google → token returned
+  → token stored in Firestore: users/{uid}/pushTokens/{token}
+  → backend (Cloud Functions or admin) sends push via FCM Admin SDK
+  → if app in foreground: onMessage callback → in-app toast
+  → if app in background: firebase-messaging-sw.js → system notification
+      → vibrate: [200, 100, 200] (Android)
+      → requireInteraction: true (desktop — persists in tray)
+      → tag: server-set or unique per message
+      → badge count incremented via IndexedDB + Badging API
+  → on notification click: clear badge, navigate to target URL
+  → on app focus/visibility: clear badge via McgheePush.clearBadge()
+```
+
+### Push Permission Strategy
+- **Standalone (installed PWA):** Native browser permission dialog fires proactively 1.5s after first auth resolve. `localStorage` flag `mcgheelab-push-prompted` prevents re-prompting.
+- **Non-standalone (browser):** Passive "Enable notifications?" banner shown on Lab Apps hub page (`#/apps`). User must explicitly tap "Turn on".
+
+### Badge Count Architecture
+- **IndexedDB store:** `mcgheelab-badge` → key `count` — shared between service worker and main thread
+- **Increment:** Service worker increments on each background push via `navigator.setAppBadge(count)`
+- **Clear:** Main thread clears on `visibilitychange`/`focus` events and on initial load; service worker clears on `notificationclick`
+- **Platform support:** Android Chrome PWA + desktop Chrome/Edge. Not supported on iOS.
+
+### Installability
+- **Android Chrome:** `beforeinstallprompt` event captured → custom "Install" button on apps hub
+- **iOS Safari:** Detected via user agent → instructional banner ("Tap Share → Add to Home Screen")
+- **Standalone mode:** `display-mode: standalone` CSS media query adjusts safe-area padding
+
+### New Files
+- `manifest.json` — Web app manifest (name, icons, shortcuts, display mode)
+- `sw.js` — Caching service worker
+- `firebase-messaging-sw.js` — Push notification service worker
+- `push-notifications.js` — Client-side push permission/token management (`McgheePush` global)
+- `icons/` — 13 icon PNGs at various sizes + maskable variant
+- `favicon.ico` — Root favicon
