@@ -3,6 +3,13 @@
    Prefix: chat-
    ================================================================ */
 
+/* ─── App container override — chat needs flex layout so panels scroll independently ── */
+#app {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ─── Layout ──────────────────────────────────────────────── */
 .chat-layout {
   display: flex;
@@ -11,11 +18,6 @@
   position: relative;
   min-height: 0;
 }
-body.app-standalone #app {
-  max-width: none;
-  padding: 0;
-}
-
 /* ─── Tab bar (desktop + mobile) ─────────────────────────── */
 .chat-tab-bar {
   display: flex;
@@ -776,6 +778,7 @@ body.app-standalone #app {
   padding: .5rem 1rem;
   border-top: 1px solid var(--border);
   background: var(--surface);
+  flex-shrink: 0;
 }
 .chat-input-area--locked {
   justify-content: center;
@@ -1132,6 +1135,53 @@ body.app-standalone #app {
   background: var(--surface2);
   border-radius: 6px;
   font-size: .85rem;
+}
+
+/* ─── Pinned Page (full view) ─────────────────────────────── */
+.chat-pinned-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.chat-pinned-page-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .75rem;
+  color: var(--text);
+}
+.chat-pinned-page-title {
+  flex: 1;
+}
+.chat-pinned-page-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem 1rem;
+}
+.chat-pinned-page-empty p {
+  margin: .25rem 0;
+}
+.chat-pinned-page-list .chat-msg {
+  margin-bottom: .5rem;
+  padding: .6rem .75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.chat-pinned-page-list .chat-msg:hover {
+  background: var(--surface2);
 }
 
 /* Search results */
@@ -1762,27 +1812,9 @@ body.app-standalone #app {
 
 /* ─── Mobile tweaks ──────────────────────────────────────── */
 @media (max-width: 700px) {
-  /* Make #app a flex column so top bar + tabs stay fixed, content scrolls */
-  #app {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;     /* #app itself doesn't scroll */
-    padding-bottom: 0;   /* override shared rule, chat handles its own */
-  }
-
-  /* Tab bar and top bar are fixed headers */
-  .mobile-top-bar,
-  .chat-tab-bar {
-    flex-shrink: 0;
-  }
-
-  /* Chat layout is the scrollable content area */
+  /* Let content flow naturally — #app scrolls via shared app-base.css */
   .chat-layout {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
   }
 
   /* Thread as full-screen overlay */
@@ -1821,8 +1853,6 @@ body.app-standalone #app {
     padding: .5rem .75rem;
   }
 
-  /* Pad bottom for fixed bottom bar */
-  .chat-layout { padding-bottom: var(--bottom-bar-h, 56px); }
   .chat-input-area { margin-bottom: 0; }
 }
 

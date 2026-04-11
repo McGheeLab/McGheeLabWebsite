@@ -24,13 +24,7 @@
   let _recognition = null;   // SpeechRecognition instance
   let _aiPending = null;     // AI suggestions awaiting approval
   let _bulkMode = false;     // toggle between single task input and bulk paste
-  let _calendarEvents = [];  // calendar events for current day (all providers merged)
-  let _allICSEvents = [];    // ALL parsed ICS events (not filtered by date)
-  let _skippedEventIds = new Set(); // events skipped this session
-  let _gapiLoaded = false;   // Google Identity Services loaded
-  let _msalLoaded = false;   // Microsoft MSAL loaded
-  let _calendarToken = null; // Google OAuth2 access token (session-lived)
-  let _msalToken = null;     // Microsoft Graph access token (session-lived)
+  let _skippedEventIds = new Set(); // calendar events skipped this session
   let _huddlePlans = [];     // Huddle plans for current day (own + signed up)
   let _skippedHuddleIds = new Set(); // Huddle plans skipped this session
 
@@ -145,7 +139,7 @@
       // Enable tab swipe on mobile
       if (McgheeLab.MobileShell?.enableTabSwipe) {
         McgheeLab.MobileShell.enableTabSwipe(
-          [{ id: 'daily' }, { id: 'weekly' }, { id: 'analytics' }, { id: 'calendar' }, { id: 'categories' }, { id: 'settings' }],
+          [{ id: 'daily' }, { id: 'weekly' }, { id: 'analytics' }, { id: 'categories' }, { id: 'settings' }],
           () => _currentSection,
           (id) => { _currentSection = id; render(); }
         );
@@ -670,7 +664,6 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       { id: 'daily', icon: calendarIcon(), label: 'Daily' },
       { id: 'weekly', icon: weekIcon(), label: 'Weekly' },
       { id: 'analytics', icon: chartIcon(), label: 'Analytics' },
-      { id: 'calendar', icon: calSyncIcon(), label: 'Calendar' },
       { id: 'categories', icon: tagIcon(), label: 'Categories' },
       { id: 'settings', icon: gearIcon(), label: 'Settings' }
     ];
@@ -703,7 +696,6 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       case 'daily': return renderDaily();
       case 'weekly': return renderWeekly();
       case 'analytics': return renderAnalytics();
-      case 'calendar': return renderCalendar();
       case 'categories': return renderCategoriesManager();
       case 'settings': return renderSettings();
       default: return renderDaily();
@@ -715,7 +707,6 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       case 'daily': wireDaily(); break;
       case 'weekly': wireWeekly(); break;
       case 'analytics': wireAnalytics(); break;
-      case 'calendar': wireCalendar(); break;
       case 'categories': wireCategoriesManager(); break;
       case 'settings': wireSettings(); break;
     }
@@ -754,8 +745,11 @@ Split every distinct activity into its own task. Respond with the JSON array onl
         <button class="act-add-btn" id="act-add-btn">Add</button>
       </div>` : `
       <div class="act-bulk-area">
-        <textarea class="act-input act-bulk-input" id="act-bulk-input" rows="5"
-          placeholder="Paste everything you did today. Each sentence becomes a task.&#10;&#10;e.g.: Ran PCR for MEBP samples 90m. Reviewed Smith manuscript for Nature 45m. Had lab meeting to discuss results 1h. Graded homework assignments 2h."></textarea>
+        <div class="act-bulk-textarea-wrap">
+          <textarea class="act-input act-bulk-input" id="act-bulk-input" rows="5"
+            placeholder="Paste everything you did today. Each sentence becomes a task.&#10;&#10;e.g.: Ran PCR for MEBP samples 90m. Reviewed Smith manuscript for Nature 45m. Had lab meeting to discuss results 1h. Graded homework assignments 2h."></textarea>
+          ${hasMic ? `<button class="act-mic-btn act-bulk-mic" id="act-bulk-mic" title="Dictate (continuous)">${micIcon()}</button>` : ''}
+        </div>
         <div class="act-bulk-actions">
           <button class="act-add-btn" id="act-bulk-parse">Split &amp; Add</button>
           ${hasML ? `<button class="act-ml-btn" id="act-bulk-ml">Split &amp; ML Categorize</button>` : ''}
@@ -823,8 +817,9 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       html += renderSummary(entries);
     }
 
-    // Unlogged calendar events prompt
-    if (hasAnyCalendar() && _calendarEvents.length) {
+    // Unlogged calendar events prompt (via shared CalendarService)
+    const _calendarEvents = McgheeLab.CalendarService?.getEventsForDate(_currentDate) || [];
+    if (_calendarEvents.length) {
       const loggedEventIds = new Set(entries.filter(e => e.calendarEventId).map(e => e.calendarEventId));
       const unlogged = _calendarEvents.filter(ev =>
         !loggedEventIds.has(ev.id) && !_skippedEventIds.has(ev.id)
@@ -1015,6 +1010,7 @@ Split every distinct activity into its own task. Respond with the JSON array onl
 
     // Voice input
     wireVoiceInput(input);
+    wireBulkVoiceInput();
 
     // Mode toggle (single / bulk)
     document.getElementById('act-mode-single')?.addEventListener('click', () => {
@@ -1208,11 +1204,18 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       });
     });
 
-    // Auto-fetch calendar events for the day if connected
-    if (hasAnyCalendar() && !_calendarEvents.length) {
-      fetchAllCalendarEvents().then(() => {
-        if (_calendarEvents.length) refreshMain();
-      });
+    // Auto-fetch calendar events for the day via shared service
+    if (McgheeLab.CalendarService) {
+      const cal = McgheeLab.CalendarService;
+      const conn = cal.isConnected();
+      if (conn.google || conn.outlook || conn.ics || conn.outlookIcs) {
+        const existing = cal.getEventsForDate(_currentDate);
+        if (!existing.length) {
+          cal.fetchAll(_currentDate).then(() => {
+            if (cal.getEventsForDate(_currentDate).length) refreshMain();
+          });
+        }
+      }
     }
   }
 
@@ -1237,6 +1240,41 @@ Split every distinct activity into its own task. Respond with the JSON array onl
         const text = ev.results[0]?.[0]?.transcript || '';
         input.value = (input.value ? input.value + ' ' : '') + text;
         input.focus();
+      };
+      _recognition.onend = () => { _recognition = null; mic.classList.remove('recording'); };
+      _recognition.onerror = () => { _recognition = null; mic.classList.remove('recording'); };
+      _recognition.start();
+      mic.classList.add('recording');
+    });
+  }
+
+  function wireBulkVoiceInput() {
+    const mic = document.getElementById('act-bulk-mic');
+    const ta = document.getElementById('act-bulk-input');
+    if (!mic || !ta) return;
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    mic.addEventListener('click', () => {
+      if (_recognition) {
+        _recognition.stop();
+        _recognition = null;
+        mic.classList.remove('recording');
+        return;
+      }
+      _recognition = new SpeechRec();
+      _recognition.continuous = true;
+      _recognition.interimResults = false;
+      _recognition.lang = 'en-US';
+      _recognition.onresult = (ev) => {
+        let transcript = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          if (ev.results[i].isFinal) transcript += ev.results[i][0].transcript;
+        }
+        if (transcript) {
+          ta.value = (ta.value ? ta.value + ' ' : '') + transcript;
+          ta.focus();
+        }
       };
       _recognition.onend = () => { _recognition = null; mic.classList.remove('recording'); };
       _recognition.onerror = () => { _recognition = null; mic.classList.remove('recording'); };
@@ -1961,638 +1999,13 @@ Split every distinct activity into its own task. Respond with the JSON array onl
     });
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     CALENDAR VIEW — Multi-provider: Google, Outlook, Apple (ICS)
-     ═══════════════════════════════════════════════════════════ */
-  const GCAL_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
-  const MSAL_SCOPES = ['Calendars.Read'];
+  /* Calendar integration is now handled by the shared CalendarService
+     (apps/shared/calendar-service.js) and configured via Settings. */
 
-  function hasAnyCalendar() {
-    const s = _trackerData?.settings || {};
-    return !!_calendarToken || !!_msalToken || !!s.outlookIcsUrl || !!s.icsUrl || _allICSEvents.length > 0;
-  }
 
-  function renderCalendar() {
-    const s = _trackerData.settings || {};
-    const gcalConnected = !!_calendarToken;
-    const outlookConnected = !!_msalToken;
-    const anyConnected = gcalConnected || outlookConnected;
-
-    let html = `<h2 style="margin:0 0 1rem">Calendar Integration</h2>
-      <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem">Connect your calendars to import events as tasks. Multiple providers can be active at once.</p>`;
-
-    // ── Provider cards ─────────────────────────────────────
-    html += '<div class="act-cal-providers">';
-
-    // Google Calendar
-    html += `<div class="app-card act-cal-provider-card">
-      <div class="act-cal-provider-header">
-        <span class="act-cal-provider-icon">${googleIcon()}</span>
-        <strong>Google Calendar</strong>
-        <span class="app-badge ${gcalConnected ? 'app-badge--active' : 'app-badge--soon'}" style="margin-left:auto">${gcalConnected ? 'Connected' : 'Not connected'}</span>
-      </div>
-      ${gcalConnected
-        ? `<button class="app-btn app-btn--danger" id="act-gcal-disconnect" style="margin-top:.5rem">Disconnect</button>`
-        : `<div style="margin-top:.5rem">
-            <label class="app-label">OAuth Client ID</label>
-            <input type="text" class="app-input" id="act-gcal-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${esc(s.gcalClientId || '')}" style="margin-bottom:.35rem" />
-            <div class="act-settings-hint">console.cloud.google.com &gt; APIs &gt; Credentials &gt; OAuth 2.0 Client ID</div>
-            <button class="app-btn app-btn--primary" id="act-gcal-connect" style="margin-top:.5rem">Connect</button>
-          </div>`
-      }
-    </div>`;
-
-    // Outlook / Microsoft 365
-    const hasOutlookICS = _allICSEvents.some(e => e.provider === 'outlook_ics');
-    html += `<div class="app-card act-cal-provider-card">
-      <div class="act-cal-provider-header">
-        <span class="act-cal-provider-icon">${outlookIcon()}</span>
-        <strong>Outlook / Microsoft 365</strong>
-        <span class="app-badge ${outlookConnected ? 'app-badge--active' : hasOutlookICS ? 'app-badge--active' : 'app-badge--soon'}" style="margin-left:auto">${outlookConnected ? 'Connected (API)' : hasOutlookICS ? 'Imported' : 'Not connected'}</span>
-      </div>
-      <div style="margin-top:.5rem">
-        <p class="act-settings-hint" style="margin-bottom:.75rem">
-          <strong>Step 1:</strong> Go to Outlook Web &gt; Settings &gt; Calendar &gt; Shared calendars &gt; Publish a calendar &gt; copy the <strong>ICS</strong> link.<br>
-          <strong>Step 2:</strong> Open the link in a new tab — your browser will download a <code>.ics</code> file.<br>
-          <strong>Step 3:</strong> Import that file below.
-        </p>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-          <label class="app-btn app-btn--primary" style="cursor:pointer">
-            Import Outlook .ics File
-            <input type="file" id="act-outlook-ics-file" accept=".ics,.ical" hidden />
-          </label>
-          ${hasOutlookICS ? `<span style="color:var(--success);font-size:.82rem">${_allICSEvents.filter(e => e.provider === 'outlook_ics').length} events loaded</span>
-            <button class="app-btn app-btn--danger" id="act-outlook-ics-clear" style="margin-left:auto">Clear</button>` : ''}
-        </div>
-        <details style="margin-top:.75rem">
-          <summary style="color:var(--muted);font-size:.8rem;cursor:pointer">Alternative: Auto-fetch via URL (may not work with all Outlook servers)</summary>
-          <div style="margin-top:.5rem">
-            <div style="display:flex;gap:.35rem;margin-bottom:.5rem">
-              <input type="text" class="app-input" id="act-outlook-ics-url" placeholder="Paste ICS URL here" value="${esc(s.outlookIcsUrl || '')}" style="flex:1" />
-              <button class="app-btn app-btn--secondary" id="act-outlook-ics-fetch">Try Fetch</button>
-            </div>
-          </div>
-        </details>
-        <details style="margin-top:.35rem">
-          <summary style="color:var(--muted);font-size:.8rem;cursor:pointer">Advanced: OAuth API connection</summary>
-          <div style="margin-top:.5rem">
-            ${outlookConnected
-              ? `<button class="app-btn app-btn--danger" id="act-msal-disconnect">Disconnect API</button>`
-              : `<label class="app-label">Azure App (Client) ID</label>
-                <input type="text" class="app-input" id="act-msal-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="${esc(s.msalClientId || '')}" style="margin-bottom:.35rem" />
-                <div class="act-settings-hint">portal.azure.com &gt; App registrations &gt; New &gt; SPA redirect</div>
-                <button class="app-btn app-btn--secondary" id="act-msal-connect" style="margin-top:.5rem">Connect via OAuth</button>`
-            }
-          </div>
-        </details>
-      </div>
-    </div>`;
-
-    // Apple Calendar (ICS import)
-    html += `<div class="app-card act-cal-provider-card">
-      <div class="act-cal-provider-header">
-        <span class="act-cal-provider-icon">${appleIcon()}</span>
-        <strong>Apple Calendar</strong>
-        <span class="app-badge ${s.icsUrl ? 'app-badge--active' : 'app-badge--soon'}" style="margin-left:auto">${s.icsUrl ? 'Connected (ICS)' : 'File / URL'}</span>
-      </div>
-      <div style="margin-top:.5rem">
-        <p class="act-settings-hint" style="margin-bottom:.5rem">Export from Calendar app (File &gt; Export) or publish via iCloud (Share &gt; Public Calendar &gt; copy URL).</p>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
-          <label class="app-btn app-btn--primary" style="cursor:pointer">
-            Import .ics File
-            <input type="file" id="act-ics-file" accept=".ics,.ical" hidden />
-          </label>
-        </div>
-        <div style="display:flex;gap:.35rem">
-          <input type="text" class="app-input" id="act-ics-url" placeholder="https://p##-caldav.icloud.com/... (public .ics URL)" value="${esc(s.icsUrl || '')}" style="flex:1" />
-          <button class="app-btn app-btn--secondary" id="act-ics-fetch">Fetch</button>
-          ${s.icsUrl ? '<button class="app-btn app-btn--danger" id="act-ics-clear">Clear</button>' : ''}
-        </div>
-      </div>
-    </div>`;
-
-    html += '</div>'; // end providers
-
-    // ── Events for the day ─────────────────────────────────
-    if (anyConnected || _calendarEvents.length) {
-      html += `
-        <div class="act-date-nav" style="margin-top:1.25rem">
-          <button class="act-date-btn" id="act-cal-prev">${chevronLeft()}</button>
-          <h2>${formatDate(_currentDate)}</h2>
-          ${_currentDate !== todayStr() ? '<button class="act-date-today" id="act-cal-today">Today</button>' : ''}
-          <button class="act-date-btn" id="act-cal-next">${chevronRight()}</button>
-          <button class="app-btn app-btn--secondary" id="act-cal-refresh" style="margin-left:auto">Refresh</button>
-        </div>`;
-
-      html += renderCalendarEventList();
-    }
-
-    return html;
-  }
-
-  function renderCalendarEventList() {
-    if (!_calendarEvents.length) {
-      return `<div class="act-empty"><div class="act-empty-icon">&#128197;</div><p>No calendar events for this day.</p></div>`;
-    }
-
-    const dayEntries = _entries.filter(e => e.date === _currentDate);
-    const loggedEventIds = new Set(dayEntries.filter(e => e.calendarEventId).map(e => e.calendarEventId));
-    // Filter out logged and skipped events for the unlogged count
-    const visibleEvents = _calendarEvents.filter(ev =>
-      !_skippedEventIds.has(ev.id) && !loggedEventIds.has(ev.id)
-    );
-
-    let html = '<div class="act-task-list">';
-    for (const ev of _calendarEvents) {
-      if (_skippedEventIds.has(ev.id)) continue; // hide skipped
-      const isLogged = loggedEventIds.has(ev.id);
-      const startTime = ev.startTime || '';
-      const endTime = ev.endTime || '';
-      const duration = ev.duration || null;
-
-      html += `
-        <div class="act-task-row act-cal-event${isLogged ? ' act-cal-logged' : ''}" data-event-id="${esc(ev.id)}">
-          <span class="act-cal-source-dot" style="background:${ev.provider === 'google' ? '#4285f4' : ev.provider === 'outlook' ? '#0078d4' : '#a3aaae'}" title="${esc(ev.provider || 'ics')}"></span>
-          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-            <div class="act-task-text">${esc(ev.title)}</div>
-            <div style="font-size:.75rem;color:var(--muted)">${startTime}${endTime ? ' \u2013 ' + endTime : ''}${duration ? ' (' + formatMinutes(duration) + ')' : ''}</div>
-          </div>
-          ${isLogged
-            ? '<span class="app-badge app-badge--active">Logged</span>'
-            : `<button class="act-add-btn act-cal-import-btn" data-event-id="${esc(ev.id)}" data-title="${esc(ev.title)}" data-duration="${duration || ''}">Import</button>
-               <button class="act-ml-btn act-cal-skip-btn" data-event-id="${esc(ev.id)}">Skip</button>`
-          }
-        </div>`;
-    }
-    html += '</div>';
-
-    if (visibleEvents.length > 0) {
-      html += `<div class="app-card" style="margin-top:.75rem;border-color:var(--warning)">
-        <p style="margin:0;font-size:.88rem;color:var(--warning)">${visibleEvents.length} calendar event${visibleEvents.length > 1 ? 's' : ''} not yet logged.</p>
-        <button class="act-add-btn" id="act-cal-import-all" style="margin-top:.5rem">Import All Unlogged</button>
-      </div>`;
-    }
-    return html;
-  }
-
-  // Normalize events from any provider into a common shape
-  function normalizeEvent(raw, provider) {
-    if (provider === 'google') {
-      const start = raw.start?.dateTime || raw.start?.date || '';
-      const end = raw.end?.dateTime || raw.end?.date || '';
-      return {
-        id: 'g_' + raw.id,
-        title: raw.summary || 'Untitled',
-        startTime: start ? new Date(start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
-        endTime: end ? new Date(end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
-        duration: (start && end) ? Math.round((new Date(end) - new Date(start)) / 60000) : null,
-        provider: 'google'
-      };
-    }
-    if (provider === 'outlook') {
-      const start = raw.start?.dateTime ? raw.start.dateTime + 'Z' : '';
-      const end = raw.end?.dateTime ? raw.end.dateTime + 'Z' : '';
-      return {
-        id: 'o_' + raw.id,
-        title: raw.subject || 'Untitled',
-        startTime: start ? new Date(start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
-        endTime: end ? new Date(end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
-        duration: (start && end) ? Math.round((new Date(end) - new Date(start)) / 60000) : null,
-        provider: 'outlook'
-      };
-    }
-    // ICS event (already parsed)
-    return { ...raw, provider: raw.provider || 'ics' };
-  }
-
-  function wireCalendar() {
-    // ── Google Calendar ────────────────────────────────────
-    document.getElementById('act-gcal-connect')?.addEventListener('click', async () => {
-      const clientId = document.getElementById('act-gcal-client-id')?.value?.trim();
-      if (!clientId) { showToast('Enter your OAuth Client ID', 'error'); return; }
-      if (!_trackerData.settings) _trackerData.settings = {};
-      _trackerData.settings.gcalClientId = clientId;
-      await saveTrackerData();
-      await loadGoogleIdentityServices();
-      try {
-        const tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: GCAL_SCOPES,
-          callback: async (response) => {
-            if (response.access_token) {
-              _calendarToken = response.access_token;
-              sessionStorage.setItem('act_gcal_token', response.access_token);
-              showToast('Google Calendar connected');
-              await fetchAllCalendarEvents();
-              refreshMain();
-            }
-          }
-        });
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-      } catch (err) {
-        showToast('Google OAuth error: ' + err.message, 'error');
-      }
-    });
-    document.getElementById('act-gcal-disconnect')?.addEventListener('click', () => {
-      _calendarToken = null;
-      sessionStorage.removeItem('act_gcal_token');
-      fetchAllCalendarEvents().then(() => refreshMain());
-      showToast('Google Calendar disconnected');
-    });
-
-    // ── Outlook / Microsoft 365 ───────────────────────────
-    document.getElementById('act-msal-connect')?.addEventListener('click', async () => {
-      const clientId = document.getElementById('act-msal-client-id')?.value?.trim();
-      if (!clientId) { showToast('Enter your Azure App ID', 'error'); return; }
-      if (!_trackerData.settings) _trackerData.settings = {};
-      _trackerData.settings.msalClientId = clientId;
-      await saveTrackerData();
-      await loadMSAL();
-      try {
-        const msalApp = new msal.PublicClientApplication({
-          auth: { clientId, redirectUri: window.location.origin + window.location.pathname }
-        });
-        await msalApp.initialize();
-        const loginResp = await msalApp.loginPopup({ scopes: MSAL_SCOPES });
-        const tokenResp = await msalApp.acquireTokenSilent({
-          scopes: MSAL_SCOPES, account: loginResp.account
-        });
-        _msalToken = tokenResp.accessToken;
-        sessionStorage.setItem('act_msal_token', _msalToken);
-        showToast('Outlook connected');
-        await fetchAllCalendarEvents();
-        refreshMain();
-      } catch (err) {
-        showToast('Outlook auth error: ' + (err.message || err), 'error');
-      }
-    });
-    document.getElementById('act-msal-disconnect')?.addEventListener('click', () => {
-      _msalToken = null;
-      sessionStorage.removeItem('act_msal_token');
-      fetchAllCalendarEvents().then(() => refreshMain());
-      showToast('Outlook disconnected');
-    });
-
-    // ── Outlook ICS file import (primary method) ──────────────
-    document.getElementById('act-outlook-ics-file')?.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        if (!text.includes('BEGIN:VCALENDAR')) throw new Error('Not a valid .ics file');
-        const events = parseICS(text);
-        mergeICSEvents(events, 'outlook_ics');
-        await fetchAllCalendarEvents();
-        showToast(`Imported ${events.length} Outlook event${events.length !== 1 ? 's' : ''}`);
-        refreshMain();
-      } catch (err) {
-        showToast('Failed to parse file: ' + err.message, 'error');
-      }
-    });
-
-    // ── Outlook ICS URL fetch (alternative) ────────────────────
-    document.getElementById('act-outlook-ics-fetch')?.addEventListener('click', async () => {
-      const url = document.getElementById('act-outlook-ics-url')?.value?.trim();
-      if (!url) { showToast('Paste your Outlook ICS link', 'error'); return; }
-      if (!_trackerData.settings) _trackerData.settings = {};
-      _trackerData.settings.outlookIcsUrl = url;
-      await saveTrackerData();
-      await fetchICSFromUrl(url, 'outlook');
-      refreshMain();
-    });
-    document.getElementById('act-outlook-ics-clear')?.addEventListener('click', async () => {
-      if (!_trackerData.settings) _trackerData.settings = {};
-      delete _trackerData.settings.outlookIcsUrl;
-      await saveTrackerData();
-      _allICSEvents = _allICSEvents.filter(e => e.provider !== 'outlook_ics');
-      await fetchAllCalendarEvents();
-      refreshMain();
-      showToast('Outlook ICS cleared');
-    });
-
-    // ── Apple Calendar (ICS) ──────────────────────────────
-    document.getElementById('act-ics-file')?.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const events = parseICS(text);
-        mergeICSEvents(events, 'ics');
-        await fetchAllCalendarEvents();
-        showToast(`Imported ${events.length} event${events.length !== 1 ? 's' : ''} from file`);
-        refreshMain();
-      } catch (err) {
-        showToast('Failed to parse .ics file: ' + err.message, 'error');
-      }
-    });
-    document.getElementById('act-ics-fetch')?.addEventListener('click', async () => {
-      const url = document.getElementById('act-ics-url')?.value?.trim();
-      if (!url) { showToast('Enter an ICS URL', 'error'); return; }
-      if (!_trackerData.settings) _trackerData.settings = {};
-      _trackerData.settings.icsUrl = url;
-      await saveTrackerData();
-      await fetchICSFromUrl(url, 'ics');
-      refreshMain();
-    });
-    document.getElementById('act-ics-clear')?.addEventListener('click', async () => {
-      if (!_trackerData.settings) _trackerData.settings = {};
-      delete _trackerData.settings.icsUrl;
-      await saveTrackerData();
-      _allICSEvents = _allICSEvents.filter(e => e.provider !== 'ics');
-      await fetchAllCalendarEvents();
-      refreshMain();
-      showToast('Apple ICS cleared');
-    });
-
-    // ── Date navigation ───────────────────────────────────
-    document.getElementById('act-cal-prev')?.addEventListener('click', async () => {
-      _currentDate = offsetDate(_currentDate, -1);
-      await loadEntries(_currentDate, _currentDate);
-      await fetchAllCalendarEvents();
-      refreshMain();
-    });
-    document.getElementById('act-cal-next')?.addEventListener('click', async () => {
-      _currentDate = offsetDate(_currentDate, 1);
-      await loadEntries(_currentDate, _currentDate);
-      await fetchAllCalendarEvents();
-      refreshMain();
-    });
-    document.getElementById('act-cal-today')?.addEventListener('click', async () => {
-      _currentDate = todayStr();
-      await loadEntries(_currentDate, _currentDate);
-      await fetchAllCalendarEvents();
-      refreshMain();
-    });
-    document.getElementById('act-cal-refresh')?.addEventListener('click', async () => {
-      await fetchAllCalendarEvents();
-      refreshMain();
-      showToast('Events refreshed');
-    });
-
-    // ── Import / skip ─────────────────────────────────────
-    appEl.querySelectorAll('.act-cal-import-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const entry = {
-          date: _currentDate,
-          text: btn.dataset.title,
-          categoryPath: [],
-          duration: parseInt(btn.dataset.duration) || null,
-          milestone: 0,
-          source: 'calendar',
-          calendarEventId: btn.dataset.eventId
-        };
-        const id = await saveEntry(entry);
-        entry.id = id;
-        _entries.unshift(entry);
-        refreshMain();
-        showToast('Imported: ' + btn.dataset.title);
-      });
-    });
-    appEl.querySelectorAll('.act-cal-skip-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        _skippedEventIds.add(btn.dataset.eventId);
-        refreshMain();
-      });
-    });
-    document.getElementById('act-cal-import-all')?.addEventListener('click', async () => {
-      const dayEntries = _entries.filter(e => e.date === _currentDate);
-      const loggedIds = new Set(dayEntries.filter(e => e.calendarEventId).map(e => e.calendarEventId));
-      let count = 0;
-      for (const ev of _calendarEvents) {
-        if (loggedIds.has(ev.id)) continue;
-        const entry = {
-          date: _currentDate, text: ev.title, categoryPath: [],
-          duration: ev.duration, milestone: 0, source: 'calendar', calendarEventId: ev.id
-        };
-        const id = await saveEntry(entry);
-        entry.id = id;
-        _entries.unshift(entry);
-        count++;
-      }
-      if (count) { showToast(`Imported ${count} event${count > 1 ? 's' : ''}`); refreshMain(); }
-    });
-
-    // ── Restore tokens from session ───────────────────────
-    restoreCalendarSessions();
-  }
-
-  function restoreCalendarSessions() {
-    let needsRefresh = false;
-    if (!_calendarToken) {
-      const saved = sessionStorage.getItem('act_gcal_token');
-      if (saved) { _calendarToken = saved; needsRefresh = true; }
-    }
-    if (!_msalToken) {
-      const saved = sessionStorage.getItem('act_msal_token');
-      if (saved) { _msalToken = saved; needsRefresh = true; }
-    }
-    // ICS file imports are in-memory only — user re-imports per session.
-    // We do NOT auto-fetch saved ICS URLs (CORS proxies are unreliable).
-    if (needsRefresh) {
-      fetchAllCalendarEvents().then(() => refreshMain());
-    }
-  }
-
-  /* ── Provider: Google Calendar ───────────────────────────── */
-  async function loadGoogleIdentityServices() {
-    if (_gapiLoaded) return;
-    return new Promise((resolve, reject) => {
-      if (window.google?.accounts?.oauth2) { _gapiLoaded = true; resolve(); return; }
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.onload = () => { _gapiLoaded = true; resolve(); };
-      script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
-      document.head.appendChild(script);
-    });
-  }
-
-  async function fetchGoogleEvents() {
-    if (!_calendarToken) return [];
-    const timeMin = new Date(_currentDate + 'T00:00:00').toISOString();
-    const timeMax = new Date(_currentDate + 'T23:59:59').toISOString();
-    try {
-      const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=50`,
-        { headers: { Authorization: 'Bearer ' + _calendarToken } }
-      );
-      if (res.status === 401) {
-        _calendarToken = null;
-        sessionStorage.removeItem('act_gcal_token');
-        showToast('Google Calendar session expired — reconnect.', 'error');
-        return [];
-      }
-      const data = await res.json();
-      return (data.items || []).filter(ev => ev.status !== 'cancelled').map(ev => normalizeEvent(ev, 'google'));
-    } catch (err) {
-      console.warn('Google Calendar fetch error:', err);
-      return [];
-    }
-  }
-
-  /* ── Provider: Outlook / Microsoft Graph ─────────────────── */
-  async function loadMSAL() {
-    if (_msalLoaded) return;
-    return new Promise((resolve, reject) => {
-      if (window.msal?.PublicClientApplication) { _msalLoaded = true; resolve(); return; }
-      const script = document.createElement('script');
-      script.src = 'https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js';
-      script.onload = () => { _msalLoaded = true; resolve(); };
-      script.onerror = () => reject(new Error('Failed to load MSAL'));
-      document.head.appendChild(script);
-    });
-  }
-
-  async function fetchOutlookEvents() {
-    if (!_msalToken) return [];
-    const startDate = _currentDate + 'T00:00:00';
-    const endDate = _currentDate + 'T23:59:59';
-    try {
-      const res = await fetch(
-        `https://graph.microsoft.com/v1.0/me/calendarview?startDateTime=${encodeURIComponent(startDate)}&endDateTime=${encodeURIComponent(endDate)}&$top=50&$select=id,subject,start,end,isCancelled&$orderby=start/dateTime`,
-        { headers: { Authorization: 'Bearer ' + _msalToken } }
-      );
-      if (res.status === 401) {
-        _msalToken = null;
-        sessionStorage.removeItem('act_msal_token');
-        showToast('Outlook session expired — reconnect.', 'error');
-        return [];
-      }
-      const data = await res.json();
-      return (data.value || []).filter(ev => !ev.isCancelled).map(ev => normalizeEvent(ev, 'outlook'));
-    } catch (err) {
-      console.warn('Outlook fetch error:', err);
-      return [];
-    }
-  }
-
-  /* ── Provider: Apple / ICS ───────────────────────────────── */
-
-  // Parse ALL events from an ICS file — stores date on each event for later filtering
-  function parseICS(text) {
-    const events = [];
-    const blocks = text.split('BEGIN:VEVENT');
-    for (let i = 1; i < blocks.length; i++) {
-      const block = blocks[i].split('END:VEVENT')[0];
-      const get = (key) => {
-        // Match KEY, KEY;params, KEY;TZID=..., etc.
-        const rx = new RegExp('^' + key + '(?:;[^:]*)?:(.+)$', 'mi');
-        const m = block.match(rx);
-        return m ? m[1].trim() : '';
-      };
-      const uid = get('UID') || ('ics_' + i + '_' + Date.now());
-      const summary = get('SUMMARY') || 'Untitled';
-      const dtstart = parseICSDate(get('DTSTART'));
-      const dtend = parseICSDate(get('DTEND'));
-      if (!dtstart) continue;
-      // Use LOCAL date (not UTC) so timezone doesn't shift the day
-      const startDate = localDateStr(dtstart);
-      const duration = (dtstart && dtend) ? Math.round((dtend - dtstart) / 60000) : null;
-      events.push({
-        id: 'ics_' + uid.replace(/[^a-zA-Z0-9_-]/g, '_'),
-        title: summary.replace(/\\,/g, ',').replace(/\\n/g, ' ').replace(/\\;/g, ';'),
-        date: startDate,
-        startTime: dtstart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-        endTime: dtend ? dtend.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
-        duration,
-        provider: 'ics'
-      });
-    }
-    return events;
-  }
-
-  function parseICSDate(str) {
-    if (!str) return null;
-    // Extract digits only: 20260331T140000Z -> 20260331140000
-    const digits = str.replace(/[^0-9]/g, '');
-    if (digits.length >= 14) {
-      // Full datetime: YYYYMMDDHHMMSS
-      const y = digits.slice(0,4), mo = digits.slice(4,6), d = digits.slice(6,8);
-      const h = digits.slice(8,10), mi = digits.slice(10,12), s = digits.slice(12,14);
-      if (str.endsWith('Z')) {
-        // UTC time — convert to local
-        return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
-      }
-      // Local time (TZID or floating) — treat as local
-      return new Date(+y, +mo - 1, +d, +h, +mi, +s);
-    }
-    if (digits.length >= 8) {
-      // Date only: YYYYMMDD (all-day event)
-      const y = digits.slice(0,4), mo = digits.slice(4,6), d = digits.slice(6,8);
-      return new Date(+y, +mo - 1, +d, 0, 0, 0);
-    }
-    return null;
-  }
-
-  // Get local YYYY-MM-DD string from a Date object (avoids UTC shift)
-  function localDateStr(d) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-
-  function mergeICSEvents(icsEvents, provider) {
-    // Remove old events from this provider, add new ones
-    provider = provider || 'ics';
-    _allICSEvents = _allICSEvents.filter(e => e.provider !== provider);
-    // Tag each event with the provider
-    icsEvents.forEach(e => { e.provider = provider; });
-    _allICSEvents.push(...icsEvents);
-  }
-
-  // Get ICS events for a specific date (all ICS providers)
-  function getICSEventsForDate(dateStr) {
-    return _allICSEvents.filter(e => e.date === dateStr);
-  }
-
-  // Fetch and parse an ICS URL via CORS proxy
-  async function fetchICSFromUrl(url, provider) {
-    provider = provider || 'ics';
-    const strategies = [
-      // 1. Direct fetch (works if server sends CORS headers)
-      () => fetch(url),
-      // 2. corsproxy.io — fast, reliable
-      () => fetch('https://corsproxy.io/?' + encodeURIComponent(url)),
-      // 3. allorigins — fallback
-      () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
-      // 4. cors-anywhere demo (rate-limited but works)
-      () => fetch('https://cors-anywhere.herokuapp.com/' + url)
-    ];
-    let lastErr = null;
-    for (let i = 0; i < strategies.length; i++) {
-      try {
-        const res = await strategies[i]();
-        if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
-        const text = await res.text();
-        // Sanity check — ICS files start with BEGIN:VCALENDAR
-        if (!text.includes('BEGIN:VCALENDAR')) { lastErr = new Error('Not a valid ICS file'); continue; }
-        const events = parseICS(text);
-        mergeICSEvents(events, provider);
-        showToast(`Fetched ${events.length} event${events.length !== 1 ? 's' : ''}`);
-        await fetchAllCalendarEvents();
-        return;
-      } catch (err) {
-        lastErr = err;
-        // CORS or network error — try next strategy
-      }
-    }
-    showToast('Failed to fetch ICS: ' + (lastErr?.message || 'all proxies failed'), 'error');
-  }
-
-  /* ── Fetch from all connected providers ──────────────────── */
-  async function fetchAllCalendarEvents() {
-    const results = await Promise.all([
-      fetchGoogleEvents(),
-      fetchOutlookEvents()
-    ]);
-    // Get ICS events for the current date from the full stored set
-    const icsForDay = getICSEventsForDate(_currentDate);
-    _calendarEvents = [...results[0], ...results[1], ...icsForDay];
-    _calendarEvents.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-  }
-
-  // Backward compat — old code references this
-  async function fetchCalendarEvents() { return fetchAllCalendarEvents(); }
+  /* All calendar functions (renderCalendar, wireCalendar, OAuth, ICS parsing, etc.)
+     have been moved to apps/shared/calendar-service.js.
+     Calendar UI configuration now lives in the Settings app. */
 
   /* ═══════════════════════════════════════════════════════════
      UTILITIES

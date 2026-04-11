@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.31] - 2026-04-10
+
+### Added
+- **Huddle: Schedule Modes** — color-coded mode selector for "My Schedule" grid
+  - **Green (Recurring):** Blocks saved to weekly template, repeat every week on the same day
+  - **Blue (Special Date):** One-time availability blocks saved as overrides for a specific date
+  - **Red (Blackout):** Non-recurring unavailable time blocks that change week to week
+  - Mode selector: three pill-shaped toggle buttons above the schedule grid; active mode changes drag highlight color
+  - `showNewScheduleBlockModal()` adapts per mode: green shows full type/reason/rigidity, blue pre-fills available, red pre-fills unavailable
+  - Block rendering uses `MODE_COLORS` map (`recurring: #22c55e`, `special: #3b82f6`, `blackout: #ef4444`)
+  - New `mode` field on block data model; backward-compatible inference for existing blocks without `mode`
+- **Shared Calendar Service** (`apps/shared/calendar-service.js`) — centralized multi-provider calendar integration
+  - Exposes `McgheeLab.CalendarService` with `init()`, `getEventsForDate()`, `connectGoogle()`, `connectOutlook()`, `importICSFile()`, `fetchAll()`, `onChange()`
+  - Config persisted in Firestore `userSettings/{uid}.calendar`; OAuth tokens session-lived via shared `sessionStorage` keys
+  - ICS URL auto-fetch on load; configurable auto-refresh interval (`setInterval`)
+  - Loaded via `<script defer>` in huddle, settings, and activity tracker HTML
+- **Settings: Calendar Integration** — new section between Notifications and App Administration
+  - Provider cards: Google Calendar (OAuth), Outlook/Microsoft 365 (ICS file + OAuth), Apple Calendar (ICS file/URL)
+  - Auto-refresh interval dropdown (15m / 30m / 1h / 2h / 4h / disabled)
+  - "Sync to Huddle" toggle: auto-block calendar events as blackout times in Huddle schedule
+- **Huddle: Calendar → Availability** — `resolveScheduleForUser()` injects calendar events as read-only blackout blocks
+  - `parseCalTimeToHHMM()` converts "2:30 PM" → "14:30" for grid positioning
+  - Calendar blocks show calendar icon, are non-editable (click shows toast)
+  - Only injected for the current user (calendar data is private)
+
+### Changed
+- **Activity Tracker** — removed ~620 lines of calendar code; "Calendar" sidebar tab removed
+  - Daily view "unlogged events" prompt now sources from `McgheeLab.CalendarService.getEventsForDate()`
+  - Calendar configuration moved to Settings page
+
+## [V3.30] - 2026-04-10
+
+### Added
+- **Firebase Cloud Functions** (`functions/`) — server-side push notification pipeline completing the existing client-side infrastructure
+  - `onChatMessageCreate` — notifies channel subscribers on new chat messages; respects muted channels, mentions-only prefs, and DM routing
+  - `onHuddlePlanUpdate` — notifies plan owner when someone joins/watches; notifies joiners+watchers on status change
+  - `onHelpRequestCreate` — notifies all lab members when a new help request is posted
+  - `onHelpRequestUpdate` — notifies request owner when a new response is added
+  - `onEquipmentBookingCreate` — notifies equipment managers when a booking needs approval
+  - `onEquipmentBookingUpdate` — notifies booker when booking is confirmed or displaced
+  - Core helper `helpers/notify.js`: reads `userSettings/{uid}` for per-app notification toggles, fetches FCM tokens from `users/{uid}/pushTokens`, sends via `messaging.sendEach()`, auto-cleans stale tokens
+  - `helpers/users.js`: `sendToAllMembers()` for lab-wide broadcast notifications
+- **`firebase.json`** — Firebase deployment config for functions and Firestore rules
+
 ## [V3.29] - 2026-04-10
 
 ### Added

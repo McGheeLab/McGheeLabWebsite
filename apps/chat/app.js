@@ -168,6 +168,10 @@
     }
 
     McgheeLab.AppBridge.init();
+    if (McgheeLab.MobileShell) McgheeLab.MobileShell.configure({
+      appId: 'chat',
+      title: 'Lab Chat'
+    });
     McgheeLab.AppBridge.onReady((user, profile) => {
       if (!user) return;
       _bridgeUser = user;
@@ -976,6 +980,7 @@
               </div>
               ${renderInputAreaHTML()}
             ` : ''}
+            ${_desktopView === 'pinned' ? renderPinnedPageHTML() : ''}
             ${_desktopView === 'files' ? renderFilesTabHTML() : ''}
           </section>
           ${_threadParentId ? renderThreadHTML() : ''}
@@ -1000,8 +1005,10 @@
   }
 
   function renderDesktopViewTabs() {
+    const pinnedCount = _messages.filter(m => m.pinned).length;
     const tabs = [
       { id: 'chat', label: 'Messages' },
+      { id: 'pinned', label: `Pinned${pinnedCount > 0 ? ' (' + pinnedCount + ')' : ''}` },
       { id: 'files', label: 'Files' }
     ];
     return `<div class="chat-view-tabs" id="chat-view-tabs">
@@ -1020,14 +1027,15 @@
         return `
           <section class="chat-main" style="display:flex;flex:1;flex-direction:column">
             ${renderHeaderHTML(channel)}
-            ${_showPinned ? renderPinnedHTML() : ''}
-            <div class="chat-feed" id="chat-feed">
-              ${_messages.length === 0 ? '<div class="chat-empty">No messages yet. Start the conversation!</div>' : ''}
-              ${_hasMoreMessages ? '<button class="chat-load-more" id="chat-load-more">Load older messages</button>' : ''}
-              ${_loadingOlder ? '<div class="chat-loading">Loading...</div>' : ''}
-              ${renderMessagesHTML()}
-            </div>
-            ${renderInputAreaHTML()}
+            ${_showPinned ? renderPinnedPageHTML() : `
+              <div class="chat-feed" id="chat-feed">
+                ${_messages.length === 0 ? '<div class="chat-empty">No messages yet. Start the conversation!</div>' : ''}
+                ${_hasMoreMessages ? '<button class="chat-load-more" id="chat-load-more">Load older messages</button>' : ''}
+                ${_loadingOlder ? '<div class="chat-loading">Loading...</div>' : ''}
+                ${renderMessagesHTML()}
+              </div>
+              ${renderInputAreaHTML()}
+            `}
           </section>
           ${_threadParentId ? renderThreadHTML() : ''}`;
       case 'files':
@@ -1608,17 +1616,17 @@
     </div>`;
   }
 
-  function renderPinnedHTML() {
+  function renderPinnedPageHTML() {
     const pinned = _messages.filter(m => m.pinned);
-    return `<div class="chat-pinned-panel">
-      <div class="chat-pinned-panel-header">
-        <span class="chat-pinned-panel-title">${svgPin()} Pinned Messages <span class="chat-pin-count">${pinned.length}</span></span>
-        <button class="chat-icon-btn" data-close-modal="pinned">${svgX()}</button>
+    return `<div class="chat-pinned-page" id="chat-pinned-page">
+      <div class="chat-pinned-page-header">
+        ${svgPin()} <span class="chat-pinned-page-title">Pinned Messages</span>
+        <span class="chat-pin-count">${pinned.length}</span>
       </div>
-      <div class="chat-pinned-panel-body">
-        ${pinned.length === 0 ? '<p class="chat-muted" style="padding:.5rem 1rem;font-size:.8rem">No pinned messages in this channel.</p>' : ''}
-        ${pinned.map(m => renderMessageHTML(m, true)).join('')}
-      </div>
+      ${pinned.length === 0
+        ? '<div class="chat-pinned-page-empty"><p>No pinned messages in this channel yet.</p><p class="chat-muted">Pin important messages for quick reference.</p></div>'
+        : `<div class="chat-pinned-page-list">${pinned.map(m => renderMessageHTML(m, true)).join('')}</div>`
+      }
     </div>`;
   }
 
@@ -2369,7 +2377,14 @@
     }
 
     const pinnedBtn = document.getElementById('chat-pinned-btn');
-    if (pinnedBtn) pinnedBtn.addEventListener('click', () => { _showPinned = true; render(); });
+    if (pinnedBtn) pinnedBtn.addEventListener('click', () => {
+      if (isMobile()) {
+        _showPinned = !_showPinned;
+      } else {
+        _desktopView = _desktopView === 'pinned' ? 'chat' : 'pinned';
+      }
+      render();
+    });
 
     const headerSearch = document.getElementById('chat-header-search');
     if (headerSearch) headerSearch.addEventListener('click', () => { _showSearch = true; _searchQuery = ''; render(); });
@@ -2429,8 +2444,21 @@
       el.addEventListener('click', () => {
         const msgId = el.dataset.threadStart || el.dataset.thread;
         _threadParentId = msgId;
+        // Save feed scroll position before full re-render
+        const feed = document.getElementById('chat-feed');
+        const savedScroll = feed ? feed.scrollTop : null;
+        const savedAutoScroll = _autoScroll;
+        _autoScroll = false; // Prevent scrollToBottom during re-render
         subscribeThread(msgId);
         render();
+        // Restore feed scroll position after re-render
+        if (savedScroll !== null) {
+          requestAnimationFrame(() => {
+            const newFeed = document.getElementById('chat-feed');
+            if (newFeed) newFeed.scrollTop = savedScroll;
+            _autoScroll = savedAutoScroll;
+          });
+        }
       });
     });
 
@@ -2518,8 +2546,19 @@
       el.addEventListener('click', () => {
         _threadParentId = el.dataset.threadStart;
         _selectedMsgId = null;
+        const feed = document.getElementById('chat-feed');
+        const savedScroll = feed ? feed.scrollTop : null;
+        const savedAutoScroll = _autoScroll;
+        _autoScroll = false;
         subscribeThread(el.dataset.threadStart);
         render();
+        if (savedScroll !== null) {
+          requestAnimationFrame(() => {
+            const newFeed = document.getElementById('chat-feed');
+            if (newFeed) newFeed.scrollTop = savedScroll;
+            _autoScroll = savedAutoScroll;
+          });
+        }
       });
     });
     bar.querySelectorAll('[data-pin]').forEach(el => {
@@ -3459,8 +3498,10 @@
   }
 
   function scrollToBottom() {
-    const feed = document.getElementById('chat-feed');
-    if (feed) feed.scrollTop = feed.scrollHeight;
+    requestAnimationFrame(() => {
+      const feed = document.getElementById('chat-feed');
+      if (feed) feed.scrollTop = feed.scrollHeight;
+    });
   }
 
   function showNewMessagesButton() {

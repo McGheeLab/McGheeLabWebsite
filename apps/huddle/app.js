@@ -68,6 +68,11 @@
     'Personal': '#6b7280', 'Other': '#78716c'
   };
 
+  // Schedule modes (color-coded)
+  const MODE_COLORS = { recurring: '#22c55e', special: '#3b82f6', blackout: '#ef4444' };
+  const MODE_LABELS = { recurring: 'Recurring', special: 'Special Date', blackout: 'Blackout' };
+  let _schedMode = 'recurring'; // 'recurring' | 'special' | 'blackout'
+
   const DEFAULT_RUNDOWN_CATEGORIES = [
     { id: 'cell_culture', label: 'Cell Culture', color: '#5baed1' },
     { id: 'device_design', label: 'Device Design', color: '#86efac' },
@@ -83,7 +88,8 @@
 
   // Zoom state for time grid
   const ZOOM_LEVELS = [4, 6, 9, 14, 20, 28, 40, 56, 76]; // px per half-hour slot
-  let _zoomIdx = 5; // default 28px (matches original)
+  let _zoomIdx = 4; // default 20px (matches equipment scheduler)
+  let _lastScrollTop = null; // scroll preservation across re-renders
 
   // Per-user colors
   const USER_COLORS = [
@@ -239,20 +245,8 @@
      TIME GRID HELPERS
      ═══════════════════════════════════════════════════════════ */
   function getGridBounds(plans) {
-    let earliest = 6, latest = 18; // 6am-6pm default
-    plans.forEach(p => {
-      if (p.startTime) {
-        const h = parseInt(p.startTime.split(':')[0]);
-        if (h < earliest) earliest = h;
-      }
-      if (p.endTime) {
-        const h = parseInt(p.endTime.split(':')[0]);
-        const m = parseInt(p.endTime.split(':')[1] || 0);
-        const end = m > 0 ? h + 1 : h;
-        if (end > latest) latest = end;
-      }
-    });
-    return { startHour: earliest, endHour: latest };
+    // Full 24-hour range to match equipment scheduler
+    return { startHour: 0, endHour: 24 };
   }
 
   function timeToSlot(timeStr, startHour) {
@@ -559,6 +553,19 @@
     return 'b_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
 
+  /** Convert calendar time strings ("2:30 PM", "14:30") to "HH:MM" format */
+  function parseCalTimeToHHMM(timeStr) {
+    if (!timeStr) return null;
+    if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+    const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!m) return null;
+    let h = parseInt(m[1]);
+    const min = m[2];
+    if (m[3].toUpperCase() === 'PM' && h < 12) h += 12;
+    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return String(h).padStart(2, '0') + ':' + min;
+  }
+
   /** Resolve a user's effective schedule for a specific date */
   function resolveScheduleForUser(uid, dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -581,6 +588,41 @@
         effective.push({ id: ov.id, ...ov.block, source: 'override' });
       }
     }
+
+    // Tag mode on each block (backward compat for blocks without mode)
+    effective.forEach(b => {
+      if (!b.mode) {
+        b.mode = b.source === 'template' ? 'recurring'
+          : b.type === 'available' ? 'special' : 'blackout';
+      }
+    });
+
+    // Inject calendar events as blackout blocks (current user only, if enabled)
+    if (uid === _user?.uid && McgheeLab.CalendarService) {
+      try {
+        const calCfg = McgheeLab.CalendarService.getConfig();
+        if (calCfg?.huddle?.autoBlock) {
+          const calEvents = McgheeLab.CalendarService.getEventsForDate(dateStr) || [];
+          for (const ev of calEvents) {
+            const st = parseCalTimeToHHMM(ev.startTime);
+            const et = parseCalTimeToHHMM(ev.endTime);
+            if (st && et && st < et) {
+              effective.push({
+                id: 'cal_' + ev.id,
+                startTime: st,
+                endTime: et,
+                type: 'unavailable',
+                reason: ev.title || 'Calendar',
+                rigidity: 'rigid',
+                mode: 'blackout',
+                source: 'calendar'
+              });
+            }
+          }
+        }
+      } catch (e) { /* CalendarService not ready */ }
+    }
+
     return effective;
   }
 
@@ -950,11 +992,12 @@
       byDay[key].push(p);
     });
 
-    // Day headers — row 1 (sticky)
+    // Day headers — row 1 (sticky, matches equipment scheduler style)
     let headerCells = `<div class="hud-grid-corner hud-sticky-head" style="grid-column:1; grid-row:1;"></div>`;
     days.forEach((d, ci) => {
       const isToday = d.date === today;
-      headerCells += `<div class="hud-grid-day-header hud-sticky-head ${isToday ? 'hud-today' : ''}" style="grid-column:${ci + 2}; grid-row:1;">${d.dayShort}<br><span class="hud-grid-date">${d.monthDay}</span></div>`;
+      const dayNum = d.date ? parseInt(d.date.split('-')[2], 10) : d.monthDay;
+      headerCells += `<div class="hud-grid-day-header hud-sticky-head ${isToday ? 'hud-today' : ''}" style="grid-column:${ci + 2}; grid-row:1;">${d.dayShort}<span class="hud-grid-daynum">${dayNum}</span></div>`;
     });
 
     // All-day row — row 2
@@ -966,12 +1009,17 @@
       </div>`;
     });
 
-    // Time rows — rows 3+
+    // Time rows — rows 3+ (half-hour distinction matches equipment scheduler)
     let rows = '';
     for (let i = 0; i < totalSlots; i++) {
       const sl = slots[i];
       const gridRow = i + 3;
-      rows += `<div class="hud-grid-time-label" style="grid-column:1; grid-row:${gridRow};">${sl.label}</div>`;
+      const isHalf = sl.time.endsWith(':30');
+      if (isHalf) {
+        rows += `<div class="hud-grid-time-label--half" style="grid-column:1; grid-row:${gridRow};"></div>`;
+      } else {
+        rows += `<div class="hud-grid-time-label" style="grid-column:1; grid-row:${gridRow};">${sl.label}</div>`;
+      }
       days.forEach((d, ci) => {
         const isToday = d.date === today;
         rows += `<div class="hud-grid-cell ${isToday ? 'hud-today-col' : ''}" style="grid-column:${ci + 2}; grid-row:${gridRow};" data-drop-date="${d.date}" data-drop-time="${sl.time}" data-slot="${i}"></div>`;
@@ -990,11 +1038,12 @@
         // CSS grid positioning (1-indexed; col 1 is time labels)
         const gridCol = colIdx + 2;
         const gridRow = startSlot + 3; // +1 for header, +1 for all-day, +1 for 1-index
-        overlayBlocks += `<div class="hud-grid-block" style="grid-column:${gridCol}; grid-row:${gridRow}/span ${spanSlots}; background:${getUserColor(p.ownerUid)}22; border-left:3px solid ${getUserColor(p.ownerUid)};"
+        const timeLabel = `${fmtTime(p.startTime)}${p.endTime ? '\u2013' + fmtTime(p.endTime) : ''}`;
+        overlayBlocks += `<div class="hud-grid-block" style="grid-column:${gridCol}; grid-row:${gridRow}/span ${spanSlots}; border-left-color:${getUserColor(p.ownerUid)}; background:${getUserColor(p.ownerUid)}22;"
           data-plan-id="${p.id}" ${draggable ? 'draggable="true"' : ''}>
-          <div class="hud-block-text">${escHTML(p.text)}</div>
-          <div class="hud-block-owner">${escHTML(p.ownerName || '')}</div>
-          ${p.startTime ? `<div class="hud-block-time">${fmtTime(p.startTime)}${p.endTime ? ' \u2013 ' + fmtTime(p.endTime) : ''}</div>` : ''}
+          <span class="hud-block-text">${escHTML(p.text)}</span>
+          <span class="hud-block-owner">${escHTML(p.ownerName || '')}</span>
+          <span class="hud-block-time">${timeLabel}</span>
         </div>`;
       });
     });
@@ -1037,13 +1086,18 @@
     // Disable mobile-shell's built-in time scroll
     if (McgheeLab.MobileShell?.disableTimeScroll) McgheeLab.MobileShell.disableTimeScroll();
 
-    // Auto-scroll to ~8 AM on first render
+    // Scroll preservation across re-renders (matches equipment scheduler)
     const slotH = ZOOM_LEVELS[_zoomIdx];
-    if (!wrap.dataset.scrolled) {
-      // bounds may start at 6am, so row 4 = 08:00 at 2 slots/hr offset
-      wrap.scrollTop = slotH * 4;
-      wrap.dataset.scrolled = '1';
+    const prevSlotH = parseFloat(wrap.dataset.slotH || '0');
+    if (prevSlotH > 0 && _lastScrollTop !== null) {
+      // Scale scroll position proportionally when zoom changes
+      wrap.scrollTop = _lastScrollTop * (slotH / prevSlotH);
+    } else {
+      // First render: auto-scroll to ~8 AM (row 16 = 08:00 in 48-slot grid)
+      wrap.scrollTop = slotH * 16;
     }
+    wrap.dataset.slotH = slotH;
+    wrap.addEventListener('scroll', () => { _lastScrollTop = wrap.scrollTop; }, { passive: true });
   }
 
   function wireZoom() {
@@ -1311,27 +1365,36 @@
       <button id="hud-month-next">&rarr;</button>
     </div>`;
 
-    // Build calendar grid
+    // Build calendar grid (matches equipment scheduler — shows out-of-month days)
     const startDow = (firstDay.getDay() + 6) % 7; // Mon=0
+    const gridStart = new Date(firstDay);
+    gridStart.setDate(gridStart.getDate() - startDow);
+    const totalDays = startDow + lastDay.getDate();
+    const weeks = Math.ceil(totalDays / 7);
+
     let cells = '';
     ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(d => {
       cells += `<div class="hud-month-header">${d}</div>`;
     });
 
     const today = todayStr();
-    for (let i = 0; i < startDow; i++) cells += '<div class="hud-month-cell hud-month-empty"></div>';
-
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      const dateStr = localDateStr(new Date(year, month, day));
-      const dayPlans = myPlans.filter(p => p.plannedDay === dateStr);
-      const isToday = dateStr === today;
-      cells += `<div class="hud-month-cell ${isToday ? 'hud-today' : ''}" data-month-date="${dateStr}">
-        <div class="hud-month-day-num">${day}</div>
-        <div class="hud-month-dots">
-          ${dayPlans.slice(0, 4).map(p => `<div class="hud-month-dot" style="background:${getUserColor(p.ownerUid)}" title="${escHTML(p.text)}"></div>`).join('')}
-          ${dayPlans.length > 4 ? `<span class="hud-month-more">+${dayPlans.length - 4}</span>` : ''}
-        </div>
-      </div>`;
+    for (let w = 0; w < weeks; w++) {
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(gridStart);
+        date.setDate(gridStart.getDate() + w * 7 + d);
+        const dateStr = localDateStr(date);
+        const isToday = dateStr === today;
+        const inMonth = date.getMonth() === month;
+        const dayPlans = myPlans.filter(p => p.plannedDay === dateStr);
+        const dots = dayPlans.slice(0, 4).map(p =>
+          `<span class="hud-month-dot" style="background:${getUserColor(p.ownerUid)}" title="${escHTML(p.text)}"></span>`
+        ).join('');
+        const more = dayPlans.length > 4 ? `<span class="hud-month-more">+${dayPlans.length - 4}</span>` : '';
+        cells += `<div class="hud-month-cell ${isToday ? 'hud-today' : ''} ${!inMonth ? 'hud-month-empty' : ''}" data-month-date="${dateStr}">
+          <span class="hud-month-day-num">${date.getDate()}</span>
+          <div class="hud-month-dots">${dots}${more}</div>
+        </div>`;
+      }
     }
 
     return `${nav}<div class="hud-month-grid">${cells}</div>`;
@@ -1465,7 +1528,7 @@
         const col = parseInt(cell.style.gridColumn);
         const row = parseInt(cell.style.gridRow);
         _gridDrag = { col, startRow: row, endRow: row, date: cell.dataset.dropDate, startTime: cell.dataset.dropTime };
-        cell.classList.add('hud-drop-over');
+        cell.classList.add('hud-grid-cell--selected');
         grid.setPointerCapture(e.pointerId);
       });
     });
@@ -1478,19 +1541,19 @@
       if (col !== _gridDrag.col) return; // same day only
       _gridDrag.endRow = parseInt(el.style.gridRow);
       // Highlight range
-      timeCells.forEach(c => c.classList.remove('hud-drop-over'));
+      timeCells.forEach(c => c.classList.remove('hud-grid-cell--selected'));
       const minR = Math.min(_gridDrag.startRow, _gridDrag.endRow);
       const maxR = Math.max(_gridDrag.startRow, _gridDrag.endRow);
       timeCells.forEach(c => {
         const cCol = parseInt(c.style.gridColumn);
         const cRow = parseInt(c.style.gridRow);
-        if (cCol === _gridDrag.col && cRow >= minR && cRow <= maxR) c.classList.add('hud-drop-over');
+        if (cCol === _gridDrag.col && cRow >= minR && cRow <= maxR) c.classList.add('hud-grid-cell--selected');
       });
     });
 
     grid.addEventListener('pointerup', (e) => {
       if (!_gridDrag) return;
-      timeCells.forEach(c => c.classList.remove('hud-drop-over'));
+      timeCells.forEach(c => c.classList.remove('hud-grid-cell--selected'));
       const minRow = Math.min(_gridDrag.startRow, _gridDrag.endRow);
       const maxRow = Math.max(_gridDrag.startRow, _gridDrag.endRow);
       // Calculate times from grid rows (row 3 = first time slot)
@@ -1508,7 +1571,7 @@
 
     grid.addEventListener('pointercancel', () => {
       _gridDrag = null;
-      timeCells.forEach(c => c.classList.remove('hud-drop-over'));
+      timeCells.forEach(c => c.classList.remove('hud-grid-cell--selected'));
     });
   }
 
@@ -2566,19 +2629,24 @@
 
   function renderMySchedule() {
     const days = getWeekDays(_currentWeekOffset);
-    const bounds = { startHour: _huddleSettings?.gridStartHour || 6, endHour: _huddleSettings?.gridEndHour || 18 };
+    const bounds = { startHour: 0, endHour: 24 };
     const slots = timeLabels(bounds.startHour, bounds.endHour);
     const slotH = ZOOM_LEVELS[_schedZoomIdx];
     const totalRows = slots.length;
+    const today = todayStr();
 
-    // Build grid
-    const dayHeaders = days.map((d, i) =>
-      `<div class="hud-grid-hdr" style="grid-column:${i + 2}; grid-row:1;">${d.dayShort}<br><small>${d.monthDay}</small></div>`
-    ).join('');
+    // Build grid — day headers match equipment scheduler style
+    const dayHeaders = days.map((d, i) => {
+      const isToday = d.date === today;
+      const dayNum = parseInt(d.date.split('-')[2], 10);
+      return `<div class="hud-grid-day-header hud-sticky-head ${isToday ? 'hud-today' : ''}" style="grid-column:${i + 2}; grid-row:1;">${d.dayShort}<span class="hud-grid-daynum">${dayNum}</span></div>`;
+    }).join('');
 
-    const timeSlots = slots.map((s, si) =>
-      `<div class="hud-grid-time" style="grid-row:${si + 2};">${s.label}</div>`
-    ).join('');
+    const timeSlots = slots.map((s, si) => {
+      const isHalf = s.time.endsWith(':30');
+      if (isHalf) return `<div class="hud-grid-time-label--half" style="grid-column:1; grid-row:${si + 2};"></div>`;
+      return `<div class="hud-grid-time-label" style="grid-column:1; grid-row:${si + 2};">${s.label}</div>`;
+    }).join('');
 
     // Empty cells for each day×slot (for drag targets)
     let cellsHTML = '';
@@ -2588,7 +2656,7 @@
       }
     }
 
-    // Render existing blocks
+    // Render existing blocks (color by mode)
     let blocksHTML = '';
     for (let di = 0; di < days.length; di++) {
       const dateStr = days[di].date;
@@ -2599,12 +2667,16 @@
         if (startSlot < 0 || endSlot <= startSlot) continue;
         const span = endSlot - startSlot;
         const isUnavail = block.type === 'unavailable';
-        const color = isUnavail ? (REASON_COLORS[block.reason] || '#6b7280') : getUserColor(_user.uid);
+        const color = MODE_COLORS[block.mode] || (isUnavail ? '#ef4444' : '#22c55e');
         const rigidClass = isUnavail && block.rigidity === 'rigid' ? ' hud-sched-block--rigid' : '';
         const flexClass = isUnavail && block.rigidity === 'flexible' ? ' hud-sched-block--flexible' : '';
+        const modeTag = MODE_LABELS[block.mode] || '';
         const label = isUnavail ? (block.reason || 'Busy') : 'Available';
-        blocksHTML += `<div class="hud-sched-block${rigidClass}${flexClass}" data-block-id="${block.id}" data-date="${dateStr}" style="grid-column:${di + 2}; grid-row:${startSlot + 2}/span ${span}; background:${color}33; border-left:3px solid ${color}; color:${color};">
-          <span class="hud-sched-block-label">${isUnavail && block.rigidity === 'rigid' ? lockIcon() + ' ' : ''}${escHTML(label)}</span>
+        const calIcon = block.source === 'calendar' ? '&#128197; ' : '';
+        const readOnly = block.source === 'calendar' ? ' hud-sched-block--readonly' : '';
+        blocksHTML += `<div class="hud-sched-block${rigidClass}${flexClass}${readOnly}" data-block-id="${block.id}" data-date="${dateStr}" data-source="${block.source || ''}" style="grid-column:${di + 2}; grid-row:${startSlot + 2}/span ${span}; border-left-color:${color}; background:${color}22; color:${color};">
+          <span class="hud-sched-block-label">${calIcon}${isUnavail && block.rigidity === 'rigid' ? lockIcon() + ' ' : ''}${escHTML(label)}</span>
+          <span class="hud-sched-block-mode" style="font-size:.6rem;opacity:.7">${modeTag}</span>
         </div>`;
       }
     }
@@ -2615,27 +2687,72 @@
       <button class="hud-zoom-btn" id="hud-sched-zoom-in">&plus;</button>
     </div>`;
 
-    return `
-      ${weekNavHTML()}
-      <div class="hud-sched-toolbar">
-        <button class="app-btn app-btn--secondary" id="hud-sched-copy-mon" style="font-size:.72rem; padding:.2rem .5rem;">Copy Mon → Weekdays</button>
-        <button class="app-btn app-btn--secondary" id="hud-sched-clear" style="font-size:.72rem; padding:.2rem .5rem;">Clear All</button>
-        ${zoomHTML}
+    const cornerCell = `<div class="hud-grid-corner hud-sticky-head" style="grid-column:1; grid-row:1;"></div>`;
+
+    // Mode selector
+    const modeSelector = `<div class="hud-sched-mode-selector">
+      <button class="hud-mode-btn${_schedMode === 'recurring' ? ' active' : ''}" data-mode="recurring" style="--mode-color:#22c55e">
+        <span class="hud-mode-dot" style="background:#22c55e"></span> Recurring
+      </button>
+      <button class="hud-mode-btn${_schedMode === 'special' ? ' active' : ''}" data-mode="special" style="--mode-color:#3b82f6">
+        <span class="hud-mode-dot" style="background:#3b82f6"></span> Special Date
+      </button>
+      <button class="hud-mode-btn${_schedMode === 'blackout' ? ' active' : ''}" data-mode="blackout" style="--mode-color:#ef4444">
+        <span class="hud-mode-dot" style="background:#ef4444"></span> Blackout
+      </button>
+    </div>`;
+
+    return `<div class="hud-cal-layout">
+      <div class="hud-cal-header">
+        ${weekNavHTML()}
+        ${modeSelector}
+        <div class="hud-sched-toolbar">
+          <button class="app-btn app-btn--secondary" id="hud-sched-copy-mon" style="font-size:.72rem; padding:.2rem .5rem;">Copy Mon &rarr; Weekdays</button>
+          <button class="app-btn app-btn--secondary" id="hud-sched-clear" style="font-size:.72rem; padding:.2rem .5rem;">Clear All</button>
+          ${zoomHTML}
+        </div>
+        <p style="color:var(--muted); font-size:.75rem; margin:.25rem 0 0;">Select a mode, then drag to create blocks. Click blocks to edit.</p>
       </div>
-      <p style="color:var(--muted); font-size:.75rem; margin:.25rem 0 .5rem;">Drag to add availability or unavailability blocks. Click blocks to edit.</p>
-      <div class="hud-cal-layout"><div class="hud-cal-body">
-        <div class="hud-grid-wrap" id="hud-sched-grid-wrap">
-          <div class="hud-time-grid hud-sched-grid" style="grid-template-columns:60px repeat(${days.length}, 1fr); grid-template-rows:auto repeat(${totalRows}, ${slotH}px);">
-            ${dayHeaders}${timeSlots}${cellsHTML}${blocksHTML}
+      <div class="hud-cal-body">
+        <div class="hud-cal-scroll-area">
+          <div class="hud-grid-wrap" id="hud-sched-grid-wrap" data-slot-h="${slotH}">
+            <div class="hud-time-grid hud-sched-grid" data-mode="${_schedMode}" style="grid-template-columns:60px repeat(${days.length}, 1fr); grid-template-rows:auto repeat(${totalRows}, ${slotH}px);">
+              ${cornerCell}${dayHeaders}${timeSlots}${cellsHTML}${blocksHTML}
+            </div>
+          </div>
+          <div class="hud-time-slider" id="hud-time-slider">
+            <div class="hud-time-slider-track"></div>
+            <div class="hud-time-slider-thumb" id="hud-time-slider-thumb"></div>
           </div>
         </div>
-      </div></div>`;
+      </div>
+    </div>`;
   }
 
   function wireMySchedule() {
     wireWeekNav();
     const days = getWeekDays(_currentWeekOffset);
-    const bounds = { startHour: _huddleSettings?.gridStartHour || 6, endHour: _huddleSettings?.gridEndHour || 18 };
+    const bounds = { startHour: 0, endHour: 24 };
+
+    // Mode selector
+    appEl.querySelectorAll('.hud-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _schedMode = btn.dataset.mode;
+        appEl.querySelectorAll('.hud-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === _schedMode));
+        const grid = appEl.querySelector('.hud-sched-grid');
+        if (grid) grid.dataset.mode = _schedMode;
+      });
+    });
+
+    // Time slider and scroll
+    const wrap = document.getElementById('hud-sched-grid-wrap');
+    if (wrap) {
+      wireTimeSlider(wrap);
+      wirePinchZoom(wrap);
+      // Auto-scroll to 8 AM
+      const slotH = ZOOM_LEVELS[_schedZoomIdx];
+      wrap.scrollTop = slotH * 16;
+    }
 
     // Zoom controls
     const zoomIn = document.getElementById('hud-sched-zoom-in');
@@ -2669,17 +2786,21 @@
       toast('Schedule cleared');
     });
 
-    // Click block to edit
+    // Click block to edit (skip calendar-sourced read-only blocks)
     appEl.querySelectorAll('.hud-sched-block').forEach(block => {
       block.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (block.dataset.source === 'calendar') {
+          toast('This block is from your calendar and cannot be edited here.');
+          return;
+        }
         const blockId = block.dataset.blockId;
         const dateStr = block.dataset.date;
         showScheduleBlockEditor(blockId, dateStr);
       });
     });
 
-    // Drag to create on empty cells
+    // Drag to create on empty cells — mode determines block type
     let dragStart = null;
     appEl.querySelectorAll('.hud-sched-cell').forEach(cell => {
       cell.addEventListener('pointerdown', (e) => {
@@ -2696,43 +2817,56 @@
         const startTime = slotToTime(startSlot, bounds.startHour);
         const endTime = slotToTime(endSlotFinal, bounds.startHour);
         dragStart = null;
-        showNewScheduleBlockModal(cell.dataset.date, startTime, endTime);
+        showNewScheduleBlockModal(cell.dataset.date, startTime, endTime, _schedMode);
       });
     });
   }
 
-  function showNewScheduleBlockModal(dateStr, startTime, endTime) {
+  function showNewScheduleBlockModal(dateStr, startTime, endTime, mode) {
+    mode = mode || _schedMode;
     const d = new Date(dateStr + 'T00:00:00');
     const dow = d.getDay();
     const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const modeColor = MODE_COLORS[mode] || '#22c55e';
+    const modeLabel = MODE_LABELS[mode] || 'Block';
 
     const reasonOptions = UNAVAIL_REASONS.map(r => `<option value="${r}">${r}</option>`).join('');
+
+    // Mode determines which fields to show
+    const isRecurring = mode === 'recurring';
+    const isSpecial = mode === 'special';
+    const isBlackout = mode === 'blackout';
 
     const overlay = document.createElement('div');
     overlay.className = 'hud-modal-overlay';
     overlay.innerHTML = `<div class="hud-modal">
-      <h3>Add Schedule Block</h3>
+      <h3 style="display:flex;align-items:center;gap:.5rem">
+        <span class="hud-mode-dot" style="background:${modeColor};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
+        Add ${modeLabel} Block
+      </h3>
       <p style="color:var(--muted); font-size:.82rem;">${dayLabel}, ${fmtTime(startTime)} – ${fmtTime(endTime)}</p>
-      <div style="margin:.75rem 0;">
-        <label class="app-label">Type</label>
-        <select id="hud-sb-type" class="app-input">
-          <option value="available">Available (in lab)</option>
-          <option value="unavailable">Unavailable</option>
-        </select>
-      </div>
-      <div id="hud-sb-unavail-fields" style="display:none;">
+      ${isRecurring ? `
         <div style="margin:.75rem 0;">
-          <label class="app-label">Reason</label>
-          <select id="hud-sb-reason" class="app-input">${reasonOptions}</select>
-        </div>
-        <div style="margin:.75rem 0;">
-          <label class="app-label">Flexibility</label>
-          <div class="hud-view-toggle">
-            <button class="hud-view-btn active" data-rig="rigid">Rigid</button>
-            <button class="hud-view-btn" data-rig="flexible">Flexible</button>
+          <label class="app-label">Type</label>
+          <select id="hud-sb-type" class="app-input">
+            <option value="available">Available (in lab)</option>
+            <option value="unavailable">Unavailable</option>
+          </select>
+        </div>` : ''}
+      ${isRecurring || isBlackout ? `
+        <div id="hud-sb-unavail-fields" style="${isBlackout ? '' : 'display:none;'}">
+          <div style="margin:.75rem 0;">
+            <label class="app-label">Reason</label>
+            <select id="hud-sb-reason" class="app-input">${reasonOptions}</select>
           </div>
-        </div>
-      </div>
+          <div style="margin:.75rem 0;">
+            <label class="app-label">Flexibility</label>
+            <div class="hud-view-toggle">
+              <button class="hud-view-btn active" data-rig="rigid">Rigid</button>
+              <button class="hud-view-btn" data-rig="flexible">Flexible</button>
+            </div>
+          </div>
+        </div>` : ''}
       <div class="hud-form-row" style="margin:.75rem 0;">
         <div class="hud-form-field" style="flex:1;">
           <label class="app-label">Start</label>
@@ -2743,11 +2877,9 @@
           <input id="hud-sb-end" class="app-input" type="time" value="${endTime}" />
         </div>
       </div>
-      <div style="margin:.75rem 0;">
-        <label style="font-size:.78rem; color:var(--muted); display:flex; align-items:center; gap:.35rem;">
-          <input type="checkbox" id="hud-sb-template" checked /> Save to weekly template
-        </label>
-      </div>
+      ${isRecurring ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">Recurring blocks repeat every week on ${d.toLocaleDateString('en-US', { weekday: 'long' })}.</p>` : ''}
+      ${isSpecial ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">This one-time availability applies only to ${dayLabel}.</p>` : ''}
+      ${isBlackout ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">This blackout applies only to ${dayLabel} and can change week to week.</p>` : ''}
       <div class="hud-modal-actions">
         <button class="app-btn app-btn--secondary" id="hud-sb-cancel">Cancel</button>
         <button class="app-btn app-btn--primary" id="hud-sb-save">Save</button>
@@ -2755,12 +2887,16 @@
     </div>`;
     document.body.appendChild(overlay);
 
-    // Toggle unavailability fields
-    const typeSelect = overlay.querySelector('#hud-sb-type');
-    const unavailFields = overlay.querySelector('#hud-sb-unavail-fields');
-    typeSelect.addEventListener('change', () => {
-      unavailFields.style.display = typeSelect.value === 'unavailable' ? '' : 'none';
-    });
+    // Toggle unavailability fields (only for recurring mode)
+    if (isRecurring) {
+      const typeSelect = overlay.querySelector('#hud-sb-type');
+      const unavailFields = overlay.querySelector('#hud-sb-unavail-fields');
+      if (typeSelect && unavailFields) {
+        typeSelect.addEventListener('change', () => {
+          unavailFields.style.display = typeSelect.value === 'unavailable' ? '' : 'none';
+        });
+      }
+    }
 
     // Rigidity toggle
     let rigidity = 'rigid';
@@ -2774,23 +2910,41 @@
     overlay.querySelector('#hud-sb-cancel').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     overlay.querySelector('#hud-sb-save').addEventListener('click', async () => {
-      const type = typeSelect.value;
-      const reason = type === 'unavailable' ? overlay.querySelector('#hud-sb-reason').value : null;
+      // Determine type based on mode
+      let type, reason;
+      if (isRecurring) {
+        type = overlay.querySelector('#hud-sb-type')?.value || 'available';
+        reason = type === 'unavailable' ? overlay.querySelector('#hud-sb-reason')?.value : null;
+      } else if (isSpecial) {
+        type = 'available';
+        reason = null;
+      } else { // blackout
+        type = 'unavailable';
+        reason = overlay.querySelector('#hud-sb-reason')?.value || 'Other';
+      }
+
       const st = overlay.querySelector('#hud-sb-start').value;
       const et = overlay.querySelector('#hud-sb-end').value;
-      const toTemplate = overlay.querySelector('#hud-sb-template').checked;
 
       if (!st || !et || st >= et) { toast('Invalid time range'); return; }
 
+      const blockData = {
+        startTime: st, endTime: et, type, reason,
+        rigidity: type === 'unavailable' ? rigidity : 'flexible',
+        mode
+      };
+
       try {
-        if (toTemplate) {
+        if (isRecurring) {
+          // Save to weekly template
           const blocks = _scheduleTemplate ? [..._scheduleTemplate.blocks] : [];
-          blocks.push({ id: genBlockId(), dayOfWeek: dow, startTime: st, endTime: et, type, reason, rigidity: type === 'unavailable' ? rigidity : 'flexible' });
+          blocks.push({ ...blockData, id: genBlockId(), dayOfWeek: dow });
           await saveScheduleTemplate(blocks);
         } else {
+          // Save as override (special date or blackout)
           await addScheduleOverride({
             date: dateStr, action: 'add', blockId: null,
-            block: { startTime: st, endTime: et, type, reason, rigidity: type === 'unavailable' ? rigidity : 'flexible' }
+            block: blockData
           });
         }
         toast('Block saved');
@@ -2810,32 +2964,44 @@
     if (!block) return;
 
     const isTemplate = !!tmplBlock;
+    const blockMode = block.mode || (isTemplate ? 'recurring' : (block.type === 'available' ? 'special' : 'blackout'));
+    const modeColor = MODE_COLORS[blockMode] || '#22c55e';
+    const modeLabel = MODE_LABELS[blockMode] || 'Block';
+    const isBlackout = blockMode === 'blackout';
+    const isSpecial = blockMode === 'special';
+    const isRecurring = blockMode === 'recurring';
+
     const reasonOptions = UNAVAIL_REASONS.map(r => `<option value="${r}" ${block.reason === r ? 'selected' : ''}>${r}</option>`).join('');
 
     const overlay = document.createElement('div');
     overlay.className = 'hud-modal-overlay';
     overlay.innerHTML = `<div class="hud-modal">
-      <h3>Edit Schedule Block</h3>
-      <div style="margin:.75rem 0;">
-        <label class="app-label">Type</label>
-        <select id="hud-sbe-type" class="app-input">
-          <option value="available" ${block.type === 'available' ? 'selected' : ''}>Available (in lab)</option>
-          <option value="unavailable" ${block.type === 'unavailable' ? 'selected' : ''}>Unavailable</option>
-        </select>
-      </div>
-      <div id="hud-sbe-unavail-fields" style="${block.type === 'unavailable' ? '' : 'display:none;'}">
+      <h3 style="display:flex;align-items:center;gap:.5rem">
+        <span class="hud-mode-dot" style="background:${modeColor};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
+        Edit ${modeLabel} Block
+      </h3>
+      ${isRecurring ? `
         <div style="margin:.75rem 0;">
-          <label class="app-label">Reason</label>
-          <select id="hud-sbe-reason" class="app-input">${reasonOptions}</select>
-        </div>
-        <div style="margin:.75rem 0;">
-          <label class="app-label">Flexibility</label>
-          <div class="hud-view-toggle">
-            <button class="hud-view-btn ${block.rigidity === 'rigid' ? 'active' : ''}" data-rig="rigid">Rigid</button>
-            <button class="hud-view-btn ${block.rigidity === 'flexible' ? 'active' : ''}" data-rig="flexible">Flexible</button>
+          <label class="app-label">Type</label>
+          <select id="hud-sbe-type" class="app-input">
+            <option value="available" ${block.type === 'available' ? 'selected' : ''}>Available (in lab)</option>
+            <option value="unavailable" ${block.type === 'unavailable' ? 'selected' : ''}>Unavailable</option>
+          </select>
+        </div>` : ''}
+      ${(isRecurring || isBlackout) ? `
+        <div id="hud-sbe-unavail-fields" style="${(isBlackout || block.type === 'unavailable') ? '' : 'display:none;'}">
+          <div style="margin:.75rem 0;">
+            <label class="app-label">Reason</label>
+            <select id="hud-sbe-reason" class="app-input">${reasonOptions}</select>
           </div>
-        </div>
-      </div>
+          <div style="margin:.75rem 0;">
+            <label class="app-label">Flexibility</label>
+            <div class="hud-view-toggle">
+              <button class="hud-view-btn ${block.rigidity === 'rigid' ? 'active' : ''}" data-rig="rigid">Rigid</button>
+              <button class="hud-view-btn ${block.rigidity === 'flexible' ? 'active' : ''}" data-rig="flexible">Flexible</button>
+            </div>
+          </div>
+        </div>` : ''}
       <div class="hud-form-row" style="margin:.75rem 0;">
         <div class="hud-form-field" style="flex:1;">
           <label class="app-label">Start</label>
@@ -2855,10 +3021,15 @@
     </div>`;
     document.body.appendChild(overlay);
 
-    const typeSelect = overlay.querySelector('#hud-sbe-type');
-    typeSelect.addEventListener('change', () => {
-      overlay.querySelector('#hud-sbe-unavail-fields').style.display = typeSelect.value === 'unavailable' ? '' : 'none';
-    });
+    if (isRecurring) {
+      const typeSelect = overlay.querySelector('#hud-sbe-type');
+      if (typeSelect) {
+        typeSelect.addEventListener('change', () => {
+          const unavailFields = overlay.querySelector('#hud-sbe-unavail-fields');
+          if (unavailFields) unavailFields.style.display = typeSelect.value === 'unavailable' ? '' : 'none';
+        });
+      }
+    }
 
     let rigidity = block.rigidity || 'rigid';
     overlay.querySelectorAll('[data-rig]').forEach(btn => {
@@ -2885,23 +3056,39 @@
     });
 
     overlay.querySelector('#hud-sbe-save').addEventListener('click', async () => {
-      const type = typeSelect.value;
-      const reason = type === 'unavailable' ? overlay.querySelector('#hud-sbe-reason').value : null;
+      let type, reason;
+      if (isRecurring) {
+        type = overlay.querySelector('#hud-sbe-type')?.value || block.type;
+        reason = type === 'unavailable' ? overlay.querySelector('#hud-sbe-reason')?.value : null;
+      } else if (isSpecial) {
+        type = 'available';
+        reason = null;
+      } else {
+        type = 'unavailable';
+        reason = overlay.querySelector('#hud-sbe-reason')?.value || block.reason;
+      }
+
       const st = overlay.querySelector('#hud-sbe-start').value;
       const et = overlay.querySelector('#hud-sbe-end').value;
       if (!st || !et || st >= et) { toast('Invalid time range'); return; }
 
+      const updatedBlock = {
+        startTime: st, endTime: et, type, reason,
+        rigidity: type === 'unavailable' ? rigidity : 'flexible',
+        mode: blockMode
+      };
+
       try {
         if (isTemplate) {
           const blocks = (_scheduleTemplate?.blocks || []).map(b =>
-            b.id === blockId ? { ...b, startTime: st, endTime: et, type, reason, rigidity: type === 'unavailable' ? rigidity : 'flexible' } : b
+            b.id === blockId ? { ...b, ...updatedBlock } : b
           );
           await saveScheduleTemplate(blocks);
         } else {
           await deleteScheduleOverride(blockId);
           await addScheduleOverride({
             date: dateStr, action: 'add', blockId: null,
-            block: { startTime: st, endTime: et, type, reason, rigidity: type === 'unavailable' ? rigidity : 'flexible' }
+            block: updatedBlock
           });
         }
         toast('Block updated');

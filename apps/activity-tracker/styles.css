@@ -221,11 +221,20 @@
 .act-bulk-area {
   margin-bottom: 1.25rem;
 }
+.act-bulk-textarea-wrap {
+  position: relative;
+}
+.act-bulk-textarea-wrap .act-bulk-mic {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
 .act-bulk-input {
   resize: vertical;
   min-height: 100px;
   line-height: 1.6;
   margin-bottom: .5rem;
+  padding-right: 40px;
 }
 .act-bulk-actions {
   display: flex;

@@ -61,8 +61,10 @@
 /* Allow percentage-based children (e.g., full-height sections) */
 html,body{ height:100%; }
 
-/* Reserve scrollbar space so expanding content doesn't shift layout */
-html{ scrollbar-gutter: stable; }
+/* Reserve scrollbar space so expanding content doesn't shift layout (desktop only) */
+@media (min-width: 701px) {
+  html{ scrollbar-gutter: stable; }
+}
 
 /* Global body defaults */
 body{
@@ -1376,10 +1378,16 @@ svg text.dot{
 body.apps-env .bottom-tabs { display: none !important; }
 body.apps-env .group-sheet { display: none !important; }
 
-/* Embedded app (#/apps/{id}): on mobile hide top banner —
+/* Embedded app (#/apps/{id}): on mobile hide top banner and lock body —
    parent bottom nav and iframe handle everything */
 @media (max-width: 700px) {
   body.apps-embedded .top-banner { display: none !important; }
+  body.apps-embedded {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
 }
 
 /* --- Install banner (compact, single-row) --- */

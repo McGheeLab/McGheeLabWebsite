@@ -256,6 +256,42 @@
   background: rgba(244,67,54,.1);
 }
 
+/* --- Calendar provider cards --- */
+.settings-cal-providers {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+.settings-cal-card {
+  background: var(--bg, #0b0e14);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px;
+  padding: .75rem 1rem;
+}
+.settings-cal-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .9rem;
+}
+.settings-cal-icon {
+  display: flex;
+  align-items: center;
+}
+.settings-cal-badge {
+  margin-left: auto;
+  font-size: .7rem;
+  padding: .15rem .5rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,.06);
+  color: var(--muted);
+}
+.settings-cal-badge--on {
+  background: rgba(76, 175, 80, .15);
+  color: #4caf50;
+}
+
 /* --- Logout --- */
 .settings-logout-btn {
   width: 100%;

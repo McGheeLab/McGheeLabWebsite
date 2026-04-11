@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.25
+**Version:** V3.31
 
 ## System Overview
 
@@ -127,6 +127,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - `apps/shared/auth-bridge.js` — `McgheeLab.AppBridge` singleton; dual-mode auth: embedded (postMessage from parent) or standalone (Firebase `onAuthStateChanged`); exposes `init()`, `onReady(fn)`, `isEmbedded()`, `getUser()`, `getProfile()`, `isAdmin()`; 5s timeout → auth wall fallback
   - `apps/shared/app-base.css` — Dark theme variables (--bg, --surface, --accent, etc.), common components (.app-card, .app-btn, .app-input, .app-badge), auth wall, embedded/standalone body classes, responsive breakpoint at 600px; mobile shell styles (top bar, bottom bar, hamburger menu, filter dropdown, back button) active at ≤700px
   - `apps/shared/mobile-shell.js` — `McgheeLab.MobileShell` singleton; injects consistent phone navigation on all lab apps (except chat which handles its own); `configure({ appId, title })` to activate; creates sticky top bar (title + user avatar + hamburger), fixed bottom bar (5 app quick-nav icons + back arrow FAB); hamburger opens slide-in menu with all app links; auto-injects/removes on window resize; `setBackVisible(bool)` API for sub-page navigation
+  - `apps/shared/calendar-service.js` — `McgheeLab.CalendarService` singleton; centralized multi-provider calendar integration (Google OAuth, Microsoft MSAL, Apple/ICS). Config persisted in `userSettings/{uid}.calendar`; OAuth tokens session-lived via shared `sessionStorage` keys. Exposes `init()`, `getEventsForDate()`, `connectGoogle()`, `disconnectGoogle()`, `connectOutlook()`, `disconnectOutlook()`, `importICSFile()`, `fetchAll()`, `onChange()`, `isConnected()`, `saveConfig()`. ICS parsing, CORS proxy fallback chain, configurable auto-refresh interval. Loaded by settings, activity tracker, and huddle apps
 - **App list:**
   - `apps/inventory/` — Inventory Tracker: supplies, equipment catalog, orders
   - `apps/equipment/` — Equipment Scheduler: full booking system for shared lab instruments. Tab layout (Calendar, My Bookings, Admin). Weekly CSS Grid calendar (7am-9pm, 30-min slots, 7 days) and monthly dot-grid view with per-device filtering dropdown. Priority color coding (normal/high/urgent/maintenance) with customizable colors. Booking modal with conflict detection, duration constraints, and advance-day limits. Training/permission system: admin defines certification types, assigns per user, devices require specific certs; co-operator requirement forces lower-category users (undergrads) to select a grad+ co-operator. Admin panels: device CRUD, training checkbox table, settings. Google Calendar push-sync via Google Identity Services OAuth (admin-driven, per-device calendar IDs). Real-time via Firestore `onSnapshot`. Data: `equipment/{equipmentId}` (catalog), `equipmentBookings/{bookingId}` (reservations), `equipmentTraining/{uid}` (certs), `equipmentSettings/config` (singleton)
@@ -137,7 +138,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - `apps/scheduler/` — Scheduler: standalone scheduling app moved from dashboard. List view with create/manage/delete; editor view using `McgheeLab.Scheduler` engine with admin/guest/public view switching, guest management, session builder, freeform availability. Self-contained ScheduleDB for Firestore CRUD. Loads `scheduler.js` via script tag. Data: reuses existing `schedules` and `participants` Firestore collections
   - `apps/chat/` — Lab Chat: real-time messaging with channels, DMs, threads, reactions, @mentions, read receipts, and Google Drive file sharing. Desktop: three-panel layout (sidebar + message feed + optional thread panel). Mobile (≤700px): conversation-list-first design with view state machine (`_mobileView`: list/conversation/files); conversation list shows all subscribed channels + DMs with preview/badges; filter dropdown (newest/active/unread/alpha); conversation view replaces sidebar with stats bar (readers/search/files); files view groups channel attachments by type; bottom bar with 5 app quick-nav icons + back arrow FAB; hamburger menu for browse/DM/contacts/search/settings. Subscription-based notifications: all channels visible, users subscribe for alerts. Admin-defined channel categories with channel directory browser. User-organized sidebar with draggable custom groups. Google Drive integration via Google Identity Services OAuth for file uploads to shared lab folder. Browser notifications for @mentions and DMs. Data: `chatConfig/settings` (categories, Drive config), `chatChannels/{channelId}` (metadata + denormalized lastMessage), `chatMessages/{messageId}` (messages with reactions map, readBy array, thread fields), `chatReadState/{uid_channelId}` (per-user read tracking), `chatUserMeta/{uid}` (subscriptions, sidebar layout, prefs)
 - **Execution modes:** Embedded (`.app-embedded` class, header hidden, auth via postMessage) vs Standalone (`.app-standalone` class, header visible, auth via Firebase direct)
-- **Script load order in standalone:** Firebase SDK (compat) → `../../firebase-config.js` → `../shared/auth-bridge.js` → `../shared/mobile-shell.js` → `app.js` (chat app omits mobile-shell.js as it handles its own mobile navigation)
+- **Script load order in standalone:** Firebase SDK (compat) → `../../firebase-config.js` → `../shared/auth-bridge.js` → `../shared/mobile-shell.js` → `../shared/calendar-service.js` → `app.js` (chat app omits mobile-shell.js and calendar-service.js)
 
 ### modules/ (learning module pages)
 - **Purpose:** Standalone full-page HTML lesson files with auto-navigating class-specific headers. Each module is a self-contained page that loads outside the SPA.
@@ -148,6 +149,20 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 - **Script load order:** Firebase SDK (app + firestore compat only) → `../../firebase-config.js` → `../shared/module-header.js`
 - **Data model:** Modules registered as `modules[]` array on `schedules/{classId}` Firestore doc: `{ id, title, htmlFile, order, homeworkFileId, published }`
 - **Navigation:** Links from class page carry `?class=` param; prev/next links are sibling files in same directory with `?class=` preserved
+
+### functions/ (Firebase Cloud Functions)
+- **Purpose:** Server-side push notification pipeline — Firestore-triggered Cloud Functions that send FCM messages to lab members when events occur
+- **Runtime:** Node.js 20, Firebase Cloud Functions v2 (2nd gen)
+- **Entry point:** `functions/index.js` — initializes Firebase Admin SDK, exports 6 Cloud Functions
+- **Helpers:**
+  - `functions/helpers/notify.js` — `sendToUsers(db, messaging, userIds, notif, appKey)`: checks `userSettings/{uid}` for master + per-app notification toggles, fetches tokens from `users/{uid}/pushTokens`, sends via `messaging.sendEach()`, auto-deletes stale tokens on send failure
+  - `functions/helpers/users.js` — `sendToAllMembers(db, messaging, notif, appKey, excludeUids)`: queries all `users` docs, filters excludes, delegates to `sendToUsers`
+- **Functions:**
+  - `chat.js` → `onChatMessageCreate`: Firestore trigger on `chatMessages` create; reads channel info, queries `chatUserMeta` for subscribers; respects muted channels and mentionsOnly prefs; routes DMs via `dmChannelIds`
+  - `huddle.js` → `onHuddlePlanUpdate`: detects new joiners/watchers (notifies owner) and status changes (notifies participants); `onHelpRequestCreate`: broadcasts to all members; `onHelpRequestUpdate`: notifies owner on new response
+  - `equipment.js` → `onEquipmentBookingCreate`: notifies equipment managers on pending-approval bookings; `onEquipmentBookingUpdate`: notifies booker on confirmed/displaced status changes
+- **Deployment:** `firebase deploy --only functions` (config in `firebase.json`)
+- **Notification payload:** `{ notification: { title, body }, data: { title, body, url, tag }, webpush: { fcmOptions: { link } } }` — consumed by `firebase-messaging-sw.js`
 
 ### cv-styles.css
 - **Purpose:** Styling for CV builder page — dark theme with gold accent (`--cv-gold`)

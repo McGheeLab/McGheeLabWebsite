@@ -1226,10 +1226,11 @@
         }).join(', ');
         conflictsEl.innerHTML = `
           <div class="eq-conflict-warning">
-            <strong>Overlaps with:</strong> ${names}
+            <strong>⚠ This will displace existing booking${_conflictDocs.length > 1 ? 's' : ''}:</strong> ${names}
+            <div style="margin-top:.3rem;font-size:.75rem">Their booking${_conflictDocs.length > 1 ? 's' : ''} will be moved to <strong>"needs rebooking"</strong> status and they will need to find a new time.</div>
             <label class="eq-checkbox-label" style="margin-top:.4rem">
               <input type="checkbox" id="eq-bk-displace-confirm" />
-              I have asked the above and they agreed to rebook
+              I have permission from the above user${_conflictDocs.length > 1 ? 's' : ''} to move their booking${_conflictDocs.length > 1 ? 's' : ''}
             </label>
           </div>`;
       } else {
@@ -1256,8 +1257,24 @@
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
     overlay.querySelector('#eq-bk-submit').addEventListener('click', async () => {
+      const errorEl = overlay.querySelector('#eq-bk-error');
       // Re-check conflicts before submitting to avoid race conditions
-      await checkConflicts();
+      // Save checkbox state so a re-check with the same conflicts doesn't reset it
+      const prevConfirmCb = overlay.querySelector('#eq-bk-displace-confirm');
+      const prevChecked = prevConfirmCb ? prevConfirmCb.checked : false;
+      const prevConflictIds = new Set(_conflictDocs.map(c => c.id));
+      try {
+        await checkConflicts();
+      } catch (err) {
+        errorEl.textContent = 'Error checking conflicts: ' + err.message;
+        return;
+      }
+      // Restore checkbox if the set of conflicting bookings hasn't changed
+      const newConflictIds = new Set(_conflictDocs.map(c => c.id));
+      if (prevChecked && newConflictIds.size === prevConflictIds.size && [...newConflictIds].every(id => prevConflictIds.has(id))) {
+        const cb = overlay.querySelector('#eq-bk-displace-confirm');
+        if (cb) cb.checked = true;
+      }
 
       const eqId = overlay.querySelector('#eq-bk-equip').value;
       const date = overlay.querySelector('#eq-bk-date').value;
@@ -1267,7 +1284,6 @@
       const priority = overlay.querySelector('#eq-bk-priority').value;
       const notes = overlay.querySelector('#eq-bk-notes').value.trim();
       const coopUid = overlay.querySelector('#eq-bk-coop') ? overlay.querySelector('#eq-bk-coop').value : '';
-      const errorEl = overlay.querySelector('#eq-bk-error');
       const isMultiDay = endDate > date;
 
       // Validation
