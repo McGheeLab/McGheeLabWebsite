@@ -108,6 +108,27 @@ def update_claude_md_version(major: int, minor: int, dry_run: bool = False):
         print(f"  Updated CLAUDE.md version → V{major}.{minor}")
 
 
+def bump_sw_cache_version(dry_run: bool = False):
+    """Bump CACHE_VERSION in sw.js so the service worker invalidates old caches on deploy."""
+    sw_file = Path("sw.js")
+    if not sw_file.exists():
+        return
+    content = sw_file.read_text()
+    match = re.search(r"const CACHE_VERSION\s*=\s*(\d+);", content)
+    if not match:
+        print("  WARNING: Could not find CACHE_VERSION in sw.js")
+        return
+    old_ver = int(match.group(1))
+    new_ver = old_ver + 1
+    new_content = content.replace(
+        f"const CACHE_VERSION = {old_ver};",
+        f"const CACHE_VERSION = {new_ver};",
+    )
+    if not dry_run:
+        sw_file.write_text(new_content)
+    print(f"  Bumped sw.js CACHE_VERSION: {old_ver} → {new_ver}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Auto-version push: commit, push, create next branch"
@@ -173,7 +194,11 @@ def main():
     full_message = f"V{major}.{minor}: {message}"
     print(f"\nCommit message: {full_message}")
 
-    # 5. Stage and commit
+    # 5. Bump SW cache version so PWA users get the new code
+    print("--- Bumping service worker cache version ---")
+    bump_sw_cache_version(dry)
+
+    # 6. Stage and commit
     print("\n--- Staging and committing ---")
     run("git add -A", dry_run=dry)
     # Use a temp file for the commit message to avoid shell escaping issues

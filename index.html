@@ -72,8 +72,30 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
-          .then(reg => console.log('[SW] Registered:', reg.scope))
+          .then(reg => {
+            console.log('[SW] Registered:', reg.scope);
+            // Store registration for update checks
+            window.__swReg = reg;
+            // Check for updates every 30 minutes
+            setInterval(() => reg.update(), 30 * 60 * 1000);
+          })
           .catch(err => console.warn('[SW] Registration failed:', err));
+      });
+
+      // Check for updates when user returns to the tab/app (covers PWA resume)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && window.__swReg) {
+          window.__swReg.update();
+        }
+      });
+
+      // When a new SW takes control (via skipWaiting + clients.claim), reload to get new code.
+      // This fires after the new SW is fully activated and controlling this page.
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        location.reload();
       });
     }
   </script>

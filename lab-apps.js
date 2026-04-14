@@ -146,6 +146,8 @@ let _splitAppId = null;   // second pane app id, null = single view
 let _splitRatio = 0.5;    // fraction of width for left pane (0.2–0.8)
 let _authEverResolved = false; // true once Auth.currentUser has been non-null
 let _authRedirectTimer = null; // delayed redirect to login (prevents race condition)
+let _authChangeHandler = null; // current Auth.onChange listener for iframe forwarding
+let _messageHandler = null;    // current window message listener for iframe auth
 
 /* ─── Hub Page ──────────────────────────────────────────────── */
 
@@ -324,7 +326,9 @@ function wireLabApp(appId) {
       type: 'mcgheelab-auth',
       token: null,
       user: user ? { uid: user.uid, email: user.email, displayName: user.displayName } : null,
-      profile: profile || null
+      // Always send a profile when user is present — even if Firestore hasn't loaded yet.
+      // Apps need at minimum { role } to function. Parent re-sends via Auth.onChange when real profile loads.
+      profile: user ? (profile || { role: 'member' }) : null
     };
   }
 
@@ -334,7 +338,23 @@ function wireLabApp(appId) {
     catch (e) { /* not ready */ }
   }
 
-  // Auth for primary frame
+  // Clean up listeners from any previous wireLabApp call
+  if (_messageHandler) window.removeEventListener('message', _messageHandler);
+  if (_authChangeHandler && window.McgheeLab?.Auth?.offChange) {
+    window.McgheeLab.Auth.offChange(_authChangeHandler);
+  }
+
+  // Respond to iframe auth requests (persists across retries from any iframe)
+  _messageHandler = function(e) {
+    if (e.origin !== window.location.origin) return;
+    if (e.data?.type !== 'mcgheelab-app-ready') return;
+    // Send auth to whichever iframes are active right now
+    sendAuthToFrame(document.getElementById('lab-app-frame'));
+    sendAuthToFrame(document.getElementById('lab-app-frame-2'));
+  };
+  window.addEventListener('message', _messageHandler);
+
+  // Auth for primary frame — initial retries on load
   const iframe = document.getElementById('lab-app-frame');
   if (iframe) {
     const doSend = () => {
@@ -344,14 +364,9 @@ function wireLabApp(appId) {
       setTimeout(() => sendAuthToFrame(iframe), 1500);
     };
     iframe.addEventListener('load', doSend);
-    window.addEventListener('message', function onMsg(e) {
-      if (e.origin !== window.location.origin) return;
-      if (e.data?.type !== 'mcgheelab-app-ready') return;
-      sendAuthToFrame(iframe);
-    });
   }
 
-  // Auth for split frame
+  // Auth for split frame — initial retries on load
   const iframe2 = document.getElementById('lab-app-frame-2');
   if (iframe2) {
     const doSend2 = () => {
@@ -361,11 +376,16 @@ function wireLabApp(appId) {
       setTimeout(() => sendAuthToFrame(iframe2), 1500);
     };
     iframe2.addEventListener('load', doSend2);
-    window.addEventListener('message', function onMsg2(e) {
-      if (e.origin !== window.location.origin) return;
-      if (e.data?.type !== 'mcgheelab-app-ready') return;
-      sendAuthToFrame(iframe2);
-    });
+  }
+
+  // Event-driven: re-send auth to iframes whenever the parent's auth state changes.
+  // This fixes the race condition where all initial retries fire before auth resolves.
+  if (window.McgheeLab?.Auth?.onChange) {
+    _authChangeHandler = () => {
+      sendAuthToFrame(document.getElementById('lab-app-frame'));
+      sendAuthToFrame(document.getElementById('lab-app-frame-2'));
+    };
+    window.McgheeLab.Auth.onChange(_authChangeHandler);
   }
 
   // Draggable divider

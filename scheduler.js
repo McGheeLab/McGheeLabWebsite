@@ -167,7 +167,7 @@ function heatColor(count, max) {
   return `hsl(${220 - t * 160},${55 + t * 25}%,${18 + t * 22}%)`;
 }
 
-function defaultGuestInstructions(guestFields, mode) {
+function defaultGuestInstructions(guestFields, mode, hasBoolQuestions) {
   let text = mode === 'freeform'
     ? 'Click and drag on the schedule below to mark the times you are available.'
     : 'Check all time slots you are available for on the schedule below.';
@@ -175,8 +175,26 @@ function defaultGuestInstructions(guestFields, mode) {
   if (gf.includes('talkSummary')) text += '\n\nPlease provide a brief summary of your talk or presentation topic.';
   if (gf.includes('questions')) text += '\n\nSubmit three discussion questions for the audience.';
   if (gf.includes('presentationLink')) text += '\n\nShare a link to your presentation materials when ready.';
-  if (!gf.length) text += '\n\nOnce you have saved your availability, you are all set.';
+  if (hasBoolQuestions) text += '\n\nAnswer the yes/no questions in the Details section.';
+  if (!gf.length && !hasBoolQuestions) text += '\n\nOnce you have saved your availability, you are all set.';
   return text;
+}
+
+function newQuestionId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return 'q_' + crypto.randomUUID().slice(0, 8);
+  return 'q_' + Math.random().toString(36).slice(2, 10);
+}
+
+function booleanQuestionsEditorHTML(questions) {
+  if (!questions.length) return '<p class="muted-text" style="font-size:.8rem;margin:0;" id="bool-questions-empty">No questions yet.</p>';
+  return questions.map(q => booleanQuestionRowHTML(q)).join('');
+}
+
+function booleanQuestionRowHTML(q) {
+  return `<div class="bool-question-row" data-qid="${esc(q.id)}" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+    <input type="text" class="bool-question-text" data-qid="${esc(q.id)}" value="${esc(q.text || '')}" placeholder="e.g., Are you available for a lab tour?" style="flex:1;" />
+    <button type="button" class="btn btn-small btn-danger bool-question-remove" data-qid="${esc(q.id)}">Remove</button>
+  </div>`;
 }
 
 function daysLabel(days) {
@@ -688,10 +706,11 @@ function wireFreeformDrag(containerId, selected, onSave) {
 /* ================================================================
    CONFIRMED SPEAKERS
    ================================================================ */
-function confirmedSpeakersHTML(speakers, expanded, mode, guestFields) {
+function confirmedSpeakersHTML(speakers, expanded, mode, guestFields, booleanQuestions) {
   const assigned = speakers.filter(s => s.assignedSlot);
   if (!assigned.length) return '<p class="muted-text">Schedule not finalized yet.</p>';
   const gf = guestFields || [];
+  const bq = (booleanQuestions || []).filter(q => q && q.text);
   const allSlots = expanded.allSlots || [];
   assigned.sort((a, b) => {
     const iA = allSlots.findIndex(s => s.id === a.assignedSlot);
@@ -701,6 +720,8 @@ function confirmedSpeakersHTML(speakers, expanded, mode, guestFields) {
   let html = '';
   assigned.forEach(sp => {
     const qs = (sp.questions || []).filter(q => q);
+    const answers = sp.booleanAnswers || {};
+    const yesQs = bq.filter(q => answers[q.id]);
     html += `<div class="confirmed-speaker-card card reveal">
       <div class="confirmed-speaker-header">
         <span class="badge" style="background:var(--accent,#5baed1);color:#031a16;padding:4px 10px;border-radius:6px;font-weight:600;font-size:.8rem;">${esc(slotLabel(sp.assignedSlot, allSlots))}</span>
@@ -709,6 +730,7 @@ function confirmedSpeakersHTML(speakers, expanded, mode, guestFields) {
       ${gf.includes('talkSummary') && sp.talkSummary ? `<p class="confirmed-speaker-summary">${esc(sp.talkSummary)}</p>` : ''}
       ${gf.includes('questions') && qs.length ? `<div class="confirmed-speaker-questions"><h5>Discussion Questions</h5><ol>${qs.map(q => `<li>${esc(q)}</li>`).join('')}</ol></div>` : ''}
       ${gf.includes('presentationLink') && sp.presentationLink ? `<p><a href="${esc(sp.presentationLink)}" target="_blank" rel="noopener" style="color:var(--accent,#5baed1);">Presentation Materials &rarr;</a></p>` : ''}
+      ${yesQs.length ? `<div class="confirmed-speaker-bool"><h5>Confirmed</h5><ul style="margin:0;padding-left:1.2em;">${yesQs.map(q => `<li>&#10003; ${esc(q.text)}</li>`).join('')}</ul></div>` : ''}
     </div>`;
   });
   return html;
@@ -748,7 +770,7 @@ function publicViewHTML(config) {
   const gridStr = config.schedule.mode === 'freeform'
     ? freeformGridHTML(expanded, config.speakers, false)
     : sessionsGridHTML(expanded, config.speakers, false);
-  const confirmedStr = confirmedSpeakersHTML(config.speakers, expanded, config.schedule.mode, config.schedule.guestFields);
+  const confirmedStr = confirmedSpeakersHTML(config.speakers, expanded, config.schedule.mode, config.schedule.guestFields, config.schedule.booleanQuestions);
   return `
     <h3>Schedule${dl ? ' — ' + dl : ''}</h3>
     <div id="schedule-grid-container">${gridStr}</div>
@@ -772,12 +794,15 @@ function guestViewHTML(config) {
   const showSummary = gf.includes('talkSummary');
   const showQuestions = gf.includes('questions');
   const showLink = gf.includes('presentationLink');
-  const hasAnyFields = showSummary || showQuestions || showLink;
+  const boolQs = (schedule.booleanQuestions || []).filter(q => q && q.text);
+  const showBoolQs = boolQs.length > 0;
+  const hasAnyFields = showSummary || showQuestions || showLink || showBoolQs;
 
   const hasAvail = avail.length > 0, hasSummary = !!speaker.talkSummary;
   const hasQs = (speaker.questions || []).some(q => q), hasLink = !!speaker.presentationLink;
   const pill = (ok, label) => `<span class="progress-pill ${ok ? 'progress-pill--done' : 'progress-pill--pending'}">${ok ? '&#10003;' : '&#9675;'} ${label}</span>`;
-  const instructions = schedule.guestInstructions || defaultGuestInstructions(gf, mode);
+  const instructions = schedule.guestInstructions || defaultGuestInstructions(gf, mode, showBoolQs);
+  const boolAnswers = speaker.booleanAnswers || {};
 
   let availHTML = '';
   if (mode === 'sessions') {
@@ -832,6 +857,9 @@ function guestViewHTML(config) {
           <input type="text" id="speaker-q3" placeholder="Question 3" value="${esc(questions[2] || '')}" style="margin-top:8px;" />
         </div>` : ''}
         ${showLink ? `<div class="form-group"><label>Presentation Materials Link</label><input type="url" id="speaker-link" placeholder="https://..." value="${esc(speaker.presentationLink || '')}" /></div>` : ''}
+        ${showBoolQs ? `<div class="form-group"><label>Yes/No Questions</label>
+          ${boolQs.map(q => `<label class="sched-toggle" style="display:flex;align-items:flex-start;gap:8px;margin-top:6px;"><input type="checkbox" class="bool-answer" data-qid="${esc(q.id)}" ${boolAnswers[q.id] ? 'checked' : ''} /> <span>${esc(q.text)}</span></label>`).join('')}
+        </div>` : ''}
         <button type="button" id="save-speaker-info-btn" class="btn">Save Details</button><span id="speaker-info-status" class="save-status"></span>
       </div>
     </div>` : ''}
@@ -852,12 +880,14 @@ function adminViewHTML(config) {
     : '';
 
   const allSlots = expanded.allSlots || [];
+  const boolQs = (schedule.booleanQuestions || []).filter(q => q && q.text);
   let guestTableHTML = '';
   if (!speakers.length) {
     guestTableHTML = '<p class="muted-text">No guests added yet.</p>';
   } else {
     guestTableHTML = '<div style="overflow-x:auto;"><table class="scheduler-table"><thead><tr><th>Name</th><th>Email</th><th>Avail</th>';
     if (mode === 'sessions') guestTableHTML += '<th>Assigned</th>';
+    if (boolQs.length) guestTableHTML += '<th>Responses</th>';
     guestTableHTML += '<th>Invite</th><th></th></tr></thead><tbody>';
     speakers.forEach(sp => {
       const ac = (sp.availability || []).length;
@@ -865,6 +895,12 @@ function adminViewHTML(config) {
       const inviteURL = config.buildInviteURL ? config.buildInviteURL(config.scheduleId, sp.key || sp.id) : '';
       guestTableHTML += `<tr><td>${esc(sp.speakerName)}</td><td>${esc(sp.speakerEmail || '')}</td><td>${ac}${totalSlots !== '—' ? ' / ' + totalSlots : ''}</td>`;
       if (mode === 'sessions') guestTableHTML += `<td>${sp.assignedSlot ? esc(slotLabel(sp.assignedSlot, allSlots)) : '<em>—</em>'}</td>`;
+      if (boolQs.length) {
+        const answers = sp.booleanAnswers || {};
+        const tooltip = boolQs.map(q => `${answers[q.id] ? '\u2713' : '\u00d7'} ${q.text}`).join('\n');
+        const yesCount = boolQs.filter(q => answers[q.id]).length;
+        guestTableHTML += `<td title="${esc(tooltip)}">${yesCount} / ${boolQs.length}</td>`;
+      }
       guestTableHTML += `<td><button class="btn btn-small copy-invite-btn" data-invite-url="${esc(inviteURL)}">Copy Link</button></td><td>`;
       if (mode === 'sessions') guestTableHTML += `<select class="assign-select" data-speaker-id="${sp.id}"><option value="">—</option>${allSlots.map(s => `<option value="${s.id}" ${sp.assignedSlot === s.id ? 'selected' : ''} ${(sp.availability || []).includes(s.id) ? '' : 'disabled'}>${s.day.label} ${s.slot.label}</option>`).join('')}</select>`;
       guestTableHTML += `<button class="btn btn-danger btn-small" data-remove-speaker="${sp.id}" style="margin-left:4px;">Remove</button></td></tr>`;
@@ -928,6 +964,13 @@ function setupFormHTML(schedule) {
         <label class="sched-toggle"><input type="checkbox" id="gf-talkSummary" ${(schedule.guestFields || []).includes('talkSummary') ? 'checked' : ''} /> Talk Summary</label>
         <label class="sched-toggle"><input type="checkbox" id="gf-questions" ${(schedule.guestFields || []).includes('questions') ? 'checked' : ''} /> Discussion Questions</label>
         <label class="sched-toggle"><input type="checkbox" id="gf-presentationLink" ${(schedule.guestFields || []).includes('presentationLink') ? 'checked' : ''} /> Presentation Materials Link</label>
+      </div>
+
+      <div class="form-group" style="margin-top:12px;">
+        <label style="font-weight:600;">Yes/No Questions</label>
+        <p class="muted-text" style="font-size:.8rem;margin:0 0 8px;">Custom check-mark questions (e.g., "Are you available for a lab tour?"). Guests see one checkbox per question.</p>
+        <div id="bool-questions-list">${booleanQuestionsEditorHTML(schedule.booleanQuestions || [])}</div>
+        <button type="button" id="add-bool-question-btn" class="btn btn-small btn-secondary" style="margin-top:6px;">+ Add Question</button>
       </div>
 
       <div class="form-group" style="margin-top:12px;">
@@ -1062,6 +1105,12 @@ function wireGuestForm(speaker, schedule, expanded, config) {
       if (q1) data.questions = [q1.value.trim(), q2?.value.trim() || '', q3?.value.trim() || ''];
       const linkEl = document.getElementById('speaker-link');
       if (linkEl) data.presentationLink = linkEl.value.trim();
+      const boolBoxes = document.querySelectorAll('.bool-answer');
+      if (boolBoxes.length) {
+        const answers = {};
+        boolBoxes.forEach(cb => { if (cb.checked) answers[cb.dataset.qid] = true; });
+        data.booleanAnswers = answers;
+      }
       await saveFn(data);
       st.textContent = 'Saved!'; setTimeout(() => { st.textContent = ''; }, 2000);
     } catch (e) { st.textContent = 'Error.'; console.error(e); }
@@ -1198,6 +1247,41 @@ function wireSetupForm(config) {
     });
   });
 
+  // Boolean questions list — local working copy (ids preserved so existing answers survive)
+  let boolQuestions = (schedule.booleanQuestions || []).map(q => ({ id: q.id || newQuestionId(), text: q.text || '' }));
+
+  function rerenderBoolList() {
+    const el = document.getElementById('bool-questions-list');
+    if (!el) return;
+    el.innerHTML = booleanQuestionsEditorHTML(boolQuestions);
+    wireBoolQuestionRows();
+  }
+
+  function wireBoolQuestionRows() {
+    document.querySelectorAll('.bool-question-text').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const q = boolQuestions.find(q => q.id === inp.dataset.qid);
+        if (q) q.text = inp.value;
+      });
+    });
+    document.querySelectorAll('.bool-question-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        boolQuestions = boolQuestions.filter(q => q.id !== btn.dataset.qid);
+        rerenderBoolList();
+      });
+    });
+  }
+
+  wireBoolQuestionRows();
+
+  document.getElementById('add-bool-question-btn')?.addEventListener('click', () => {
+    boolQuestions.push({ id: newQuestionId(), text: '' });
+    rerenderBoolList();
+    // focus newly added input
+    const rows = document.querySelectorAll('.bool-question-text');
+    rows[rows.length - 1]?.focus();
+  });
+
   // Reset guest instructions to auto-generated default
   document.getElementById('reset-instructions-btn')?.addEventListener('click', () => {
     const gf = [];
@@ -1205,7 +1289,8 @@ function wireSetupForm(config) {
     if (document.getElementById('gf-questions')?.checked) gf.push('questions');
     if (document.getElementById('gf-presentationLink')?.checked) gf.push('presentationLink');
     const ta = document.getElementById('setup-guest-instructions');
-    if (ta) ta.value = defaultGuestInstructions(gf, currentMode);
+    const hasBool = boolQuestions.some(q => (q.text || '').trim());
+    if (ta) ta.value = defaultGuestInstructions(gf, currentMode, hasBool);
   });
 
   // Save
@@ -1260,6 +1345,9 @@ function wireSetupForm(config) {
       endDate: selectedDays[selectedDays.length - 1] || '',
       slotDefs,
       guestFields,
+      booleanQuestions: boolQuestions
+        .map(q => ({ id: q.id, text: (q.text || '').trim() }))
+        .filter(q => q.text),
       startHour: 7,
       endHour: 21,
       granularity: 15

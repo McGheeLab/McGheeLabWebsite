@@ -4,6 +4,119 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.35] - 2026-04-13
+
+### Added
+- **Scheduler: Custom Yes/No Questions for guests** — scheduler owners can define boolean checkbox questions (e.g., "Are you available for a lab tour?") that each invited guest answers alongside their availability
+  - Admin UI in Schedule Settings → "Yes/No Questions" — dynamic list with `+ Add Question` / `Remove` buttons; stable per-question `id` preserves guest answers across text edits and deletions
+  - Guest view: one checkbox per defined question in the Details card (card shows automatically when any questions are defined, even if all other guest fields are off)
+  - Admin guest table gains a "Responses" column (`N/M` yes-count with full answer breakdown on hover)
+  - Confirmed/public speaker cards show a "Confirmed" list of questions each guest answered yes to
+  - Auto-generated guest instructions mention yes/no questions when defined
+- **Schema additions**
+  - `schedules/{id}.booleanQuestions: [{ id, text }]` — owner-defined question list (persisted via existing `onSaveSchedule`)
+  - `participants/{key}.booleanAnswers: { [questionId]: true }` — sparse map; only stores checked answers so deleted questions auto-clean
+- `scheduler.js` helpers: `newQuestionId()`, `booleanQuestionsEditorHTML()`, `booleanQuestionRowHTML()`; `confirmedSpeakersHTML()` now accepts `booleanQuestions` as a 5th param; `defaultGuestInstructions()` accepts `hasBoolQuestions` flag
+- `apps/scheduler/app.js`: seeds `booleanQuestions: []` on new scheduler creation
+
+## [V3.34] - 2026-04-11
+
+### Added
+- **Calendar: Busy-but-Available status** — calendar import events can be toggled between "Unavailable" (default, blocks availability) and "Busy but Available" (shows as partial availability)
+  - Toggle button on calendar blocks in Scheduler's My Schedule grid (green/red circle icons)
+  - Per-event status persisted in `userSettings/{uid}.calendar.eventStatuses`
+  - `CalendarService.setEventStatus(eventId, status)` / `getEventStatus(eventId)` API
+  - Busy-available events inject into `resolveScheduleForUser()` as `type: 'available'` instead of `type: 'unavailable'`
+- **Activity Tracker: ML category suggestions on calendar import** — unlogged calendar events now show ML prediction pills (e.g., "Research", "Meetings") inline
+  - Clicking a suggestion pill imports the event with that category pre-assigned and trains the ML model
+  - Plain "Log it" button still works for uncategorized import
+- **Firebase Cloud Function: `calendarProxy`** — server-side ICS fetch relay to bypass CORS restrictions on Outlook/Google/Apple calendar URLs
+  - Domain-restricted to calendar providers only (prevents open proxy abuse)
+  - Auto-converts `.html` calendar URLs to `.ics`; follows redirects; 5-min cache
+  - First fetch strategy tried before client-side CORS proxies
+
+### Changed
+- **Scheduler: Mode renames** — "Recurring" → "General Availability", "Special Date" → "Special Availability", "Blackout" → "Special Unavailability" across mode selector, layer toggles, and block labels
+- **Scheduler: Layer toggle labels** — external calendar layers now show provider names: "Google Calendar", "Outlook Calendar", "Apple / ICS Calendar" based on connected providers (with brand colors)
+- **Team Availability: Layered visualization** — complete rewrite of segment rendering
+  - Base layer: General Availability renders as green bar
+  - Overlay layer: Calendar events (purple), custom events (user color), blackouts (reason color) render on top, subtracting from availability and showing context (event titles)
+  - **Busy-but-available**: renders with slanted diagonal stripe pattern in muted green, showing the block is not fully unavailable
+  - Rigid blocks retain striped pattern
+- **Calendar events always subtract from availability** — removed `autoBlock` toggle gate; calendar events inject into `resolveScheduleForUser()` whenever any calendar provider is connected
+- **Huddle: CalendarService initialized at boot** — `CalendarService.init()` + `CalendarService.onChange()` now called during huddle bootstrap; fixes calendar events not appearing in Team Availability
+- **CalendarService: ICS fetches awaited during init** — `fetchICSFromUrl` calls in `init()` now use `await Promise.all()` instead of fire-and-forget; initial render has calendar data
+- **Scheduler: CalendarService.onChange re-render** — scheduler registers `CS().onChange()` handler; fixes calendar events not showing until layer toggle cycled
+- **CalendarService: Auto-convert HTML to ICS URLs** — Outlook `.html` calendar URLs automatically converted to `.ics` before fetching
+- **Settings: Outlook calendar URL input promoted** — URL input moved from collapsed `<details>` to primary position; accepts both HTML and ICS links
+
+### Bug Fixes
+- **Activity Tracker loading screen** — `localDateStr()` function was accidentally removed with calendar code migration; restored as standalone utility
+- **Settings calendar status messages invisible** — `showStatus()` was called before `render(); wire();` which destroyed the DOM element; moved to after re-render
+- **Calendar events missing on initial load** — ICS URL fetches were fire-and-forget in `CalendarService.init()`; now awaited so data exists for first render
+
+## [V3.33] - 2026-04-11
+
+### Added
+- **Scheduler: My Schedule Tab** — full-featured personal calendar with layered data
+  - Tab bar: "My Schedule" (default) and "My Schedulers" (existing)
+  - **Layer system**: Recurring (green), Overrides (blue/red), Calendar Events (purple), Custom Events (user-colored) — each toggleable
+  - **Custom events** with title, color picker (12 presets), and weekly repeat toggle; stored in `scheduleCustomEvents` collection
+  - **Calendar event dismissal** — dismiss imported events without affecting source calendar; persisted in `userSettings/{uid}.calendar.dismissedEventIds`
+  - Mode selector, drag-to-create, block edit modals, week nav, zoom, "Copy Mon → Weekdays"
+- **`apps/shared/schedule-utils.js`** — pure time/week utilities (getWeekDays, fmtTime, timeToSlot, etc.)
+- **`apps/shared/schedule-service.js`** — schedule data layer: CRUD, Firestore subscriptions, `resolveScheduleForUser()`, `resolveAvailabilityOverlap()`, custom events, layer config
+- **CalendarService: Event Dismissal** — `dismissEvent()`, `restoreDismissed()`, `getDismissedCount()`
+
+### Changed
+- **Huddle: My Schedule removed** — editing UI moved to Scheduler (~500 lines removed); Team Availability + Rundown overlap refactored to use shared `ScheduleService`
+
+## [V3.32b] - 2026-04-11
+
+### Added
+- **Settings: Check for Updates button** — "App Version" section in Settings app with "Check for Updates" button; displays current cache version; checks for new service worker, prompts install if available, shows "You're on the latest version" if current; works in both embedded and standalone mode
+- **SW `SKIP_WAITING` message handler** — `sw.js` now listens for `{ type: 'SKIP_WAITING' }` messages, allowing the Settings button to trigger immediate activation of a waiting service worker
+- **Auto-bump SW cache version on deploy** — `version_push.py` now automatically increments `CACHE_VERSION` in `sw.js` before committing, ensuring installed PWAs detect and install updates; no manual bump needed
+
+### Bug Fixes
+- **Stale PWA after deploy** — installed desktop/mobile PWA could run permanently outdated code because the service worker had no proactive update mechanism; users had to manually uninstall and reinstall
+  - **Periodic SW update check** — `index.html` SW registration now calls `reg.update()` every 30 minutes, ensuring the browser checks for a new `sw.js` regularly instead of only every 24h
+  - **Visibility-based update check** — `visibilitychange` listener calls `reg.update()` when user returns to the tab/PWA, so resuming the app after being away immediately checks for updates
+  - **Auto-reload on SW activation** — `controllerchange` listener on `navigator.serviceWorker` triggers `location.reload()` when a new SW takes control via `skipWaiting()` + `clients.claim()`; prevents "zombie tab" where old JS runs under new SW
+  - **`updatefound` timing fix** — `app.js` update listener now checks for `state === 'installed'` (not `'activated'`) and also checks `reg.waiting` on page load; fixes race where `skipWaiting()` pushed the worker past `activated` before the listener bound, so the update toast never appeared
+  - **SW precache expanded** — added `mobile-shell.js`, `calendar-service.js`, `schedule-service.js`, `schedule-utils.js` to `APP_URLS` precache list; bumped `CACHE_VERSION` to 2; prevents cache-miss network fetches for shared scripts on first app load
+  - **Iframe re-render guard** — `app.js` `Auth.onChange` handler no longer calls `onRouteChange()` when an app iframe is already loaded (`#lab-app-frame` exists); prevents destroying a working iframe to recreate it when profile loads from Firestore
+- `index.html` — SW registration stores `window.__swReg`, adds `setInterval` + `visibilitychange` update checks, adds `controllerchange` auto-reload
+- `app.js` — `updatefound` listener checks `installed` state + `reg.waiting` on load; apps re-render guard checks `document.getElementById('lab-app-frame')`
+- `sw.js` — `CACHE_VERSION` bumped to 2; added 4 shared scripts to `APP_URLS` precache
+
+## [V3.32] - 2026-04-11
+
+### Bug Fixes
+- **Auth race condition on first login / cold start** — recurring bug where lab apps showed "Sign in required" auth wall even when the user was authenticated, especially on first-time login, page refresh, or PWA cold start
+  - **Standalone grace period** — `auth-bridge.js` `_initStandalone()` no longer calls `_fireAuthFailed()` on the first `null` from `onAuthStateChanged`; instead waits 2s for Firebase persistence to restore the session from IndexedDB before treating null as a definitive sign-out
+  - **Auth recovery path** — new `_authFailed` flag tracks whether the auth wall is showing; if `onAuthStateChanged` later delivers a real user after the wall appeared, `_fireReady()` triggers `location.reload()` to cleanly restart the app with valid credentials
+  - **Embedded null-message guard** — embedded mode message handler no longer calls `_fireAuthFailed()` when parent sends `user: null`; relies on the 8s timeout for genuinely-unauthenticated case, giving the parent time to resolve auth
+  - **Event-driven auth forwarding** — `lab-apps.js` `wireLabApp()` now registers an `Auth.onChange` listener that re-sends auth credentials to active iframes whenever the parent's auth state changes; replaces the fire-and-forget retry pattern (load+0/200/600/1500ms) as the primary delivery mechanism
+  - **`onReady()` null guard** — `onReady(fn)` no longer fires callback with `null` user/profile when `_authFailed` is true; callbacks wait for valid auth or the app to reload
+- **Login timeout after clearing browsing data** — after clearing browser data and refreshing during a stuck-loading state, login calls could hang indefinitely because the service worker cached Google auth endpoints and Firebase login methods had no timeout
+  - **`Auth._authStateResolved` implemented** — `user-system.js` Auth object now sets `_authStateResolved = true` inside `onAuthStateChanged`; previously referenced in `lab-apps.js:157` but never defined (dead code), causing the hub to skip the "auth still loading" guard and redirect to login prematurely
+  - **Login timeouts** — `Auth.login()` and `Auth.googleLogin()` now use `Promise.race` with a 15s timeout; surfaces "Login timed out" error instead of hanging forever on "Please wait..." / "Signing in..."
+  - **SW: Google auth excluded from cache** — `sw.js` no longer applies stale-while-revalidate to `accounts.google.com` or `apis.google.com`; these are now network-only, preventing stale/corrupt cached auth responses after clearing browsing data
+  - **`Auth.offChange(fn)` added** — unsubscribe method for `Auth.onChange` listeners; prevents listener accumulation
+  - **Listener cleanup in `wireLabApp()`** — `Auth.onChange` handler and `window.message` listener are stored in module-level refs and removed before re-registration on each `wireLabApp()` call; consolidated message handler sends to whichever iframes are active
+- **Null profile silently dropped auth messages** — embedded `auth-bridge.js` handler required `user && profile` to be truthy, but parent sent `profile: null` when Firestore profile hadn't loaded yet; every auth retry was silently ignored, leaving the iframe stuck on "Loading..." indefinitely
+  - **Embedded accepts user without profile** — `auth-bridge.js` `_initEmbedded()` now checks `if (user)` instead of `if (user && profile)`; uses `{ role: 'member' }` fallback when profile is null; parent re-sends real profile via `Auth.onChange` when Firestore fetch completes
+  - **Parent sends fallback profile** — `lab-apps.js` `buildAuthPayload()` now sends `{ role: 'member' }` fallback when `Auth.currentProfile` is null but user is authenticated
+  - **Profile-update path** — `_fireReady()` silently updates `_user`/`_profile` on subsequent calls after initial ready (handles parent re-sending with real profile)
+- **Login page redirect loop** — `renderLogin()` didn't check auth state; after apps page timed out and redirected to `#/login`, already-authenticated users saw a login form instead of being redirected to dashboard
+  - `renderLogin()` now checks `Auth.currentUser` first and redirects to `#/dashboard` if already authenticated
+- `apps/shared/auth-bridge.js` — `_authFailed` flag, `_nullSettleTimer` grace period in `_initStandalone()`, recovery reload in `_fireReady()`, profile-update path in `_fireReady()`, null guard in `onReady()`, `if (user)` check in embedded handler with `{ role: 'member' }` fallback
+- `user-system.js` — `Auth._authStateResolved` property, `Auth.offChange()`, 15s `Promise.race` timeout in `Auth.login()` and `Auth.googleLogin()`, `renderLogin()` auth redirect
+- `lab-apps.js` — `buildAuthPayload()` fallback profile, `_authChangeHandler` and `_messageHandler` refs with cleanup, consolidated message listener, `Auth.onChange()` forwarding to iframes
+- `sw.js` — `accounts.google.com` and `apis.google.com` moved to network-only exclusion block
+- `example_app/shared/auth-bridge.js` — synced with main `apps/shared/auth-bridge.js`
+
 ## [V3.31] - 2026-04-10
 
 ### Added

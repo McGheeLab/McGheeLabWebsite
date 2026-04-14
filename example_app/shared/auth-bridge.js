@@ -24,12 +24,13 @@ McgheeLab.AppBridge = (() => {
   let _profile = null;
   let _isEmbedded = window.parent !== window;
   let _ready = false;
+  let _authFailed = false;  // true if auth wall is currently showing
 
   /* ─── Public API ────────────────────────────────────────── */
 
   function onReady(fn) {
-    if (_ready) { fn(_user, _profile); return; }
-    _readyCallbacks.push(fn);
+    if (_ready && !_authFailed) { fn(_user, _profile); return; }
+    if (!_ready) _readyCallbacks.push(fn);
   }
 
   function isEmbedded() { return _isEmbedded; }
@@ -40,9 +41,24 @@ McgheeLab.AppBridge = (() => {
   /* ─── Notify listeners ──────────────────────────────────── */
 
   function _fireReady(user, profile) {
+    // Recovery: if auth wall was showing but we now have a real user, reload to re-init the app
+    if (_authFailed && user) {
+      console.info('[AppBridge] Auth recovered after wall — reloading app');
+      location.reload();
+      return;
+    }
+
+    // Profile update: parent re-sent auth with real profile after initial fallback
+    if (_ready && user) {
+      _user = user;
+      _profile = profile;
+      return;
+    }
+
     _user = user;
     _profile = profile;
     _ready = true;
+    _authFailed = false;
     _readyCallbacks.forEach(fn => fn(user, profile));
     _readyCallbacks = [];
   }
@@ -51,8 +67,23 @@ McgheeLab.AppBridge = (() => {
     _user = null;
     _profile = null;
     _ready = true;
+    _authFailed = true;
     document.body.classList.add('app-auth-failed');
     const el = document.getElementById('app') || document.body;
+
+    // Offline-aware fallback
+    if (!navigator.onLine) {
+      el.innerHTML = `
+        <div class="app-auth-wall">
+          <h2>You're offline</h2>
+          <p>This app requires an internet connection for real-time data.</p>
+          <button onclick="location.reload()" class="app-auth-link" style="cursor:pointer">Retry</button>
+        </div>`;
+      // Auto-retry when connectivity returns
+      window.addEventListener('online', () => location.reload(), { once: true });
+      return;
+    }
+
     el.innerHTML = `
       <div class="app-auth-wall">
         <h2>Sign in required</h2>
@@ -72,7 +103,7 @@ McgheeLab.AppBridge = (() => {
       if (e.data?.type !== 'mcgheelab-auth') return;
 
       const { token, user, profile } = e.data;
-      if (user && profile) {
+      if (user) {
         // If parent sent a custom token, sign into Firebase
         if (token && McgheeLab.auth) {
           try {
@@ -81,50 +112,90 @@ McgheeLab.AppBridge = (() => {
             console.warn('[AppBridge] Custom token sign-in failed, using profile from parent:', err.message);
           }
         }
-        _fireReady(user, profile);
-      } else {
-        _fireAuthFailed();
+        // Accept user even if profile hasn't loaded yet — use fallback.
+        // Parent will re-send via Auth.onChange when profile becomes available.
+        _fireReady(user, profile || { role: 'member' });
       }
+      // Don't call _fireAuthFailed on null user — parent may still be resolving auth.
+      // The timeout below handles the genuinely-not-logged-in case.
     });
 
-    // Tell parent we're ready to receive auth
+    // Tell parent we're ready to receive auth (with retries)
     window.parent.postMessage({ type: 'mcgheelab-app-ready' }, window.location.origin);
+    // Retry asking parent for auth in case the first message was too early
+    setTimeout(() => { if (!_ready) window.parent.postMessage({ type: 'mcgheelab-app-ready' }, window.location.origin); }, 1000);
+    setTimeout(() => { if (!_ready) window.parent.postMessage({ type: 'mcgheelab-app-ready' }, window.location.origin); }, 3000);
 
-    // Timeout: if parent doesn't respond in 5s, show auth wall
+    // Timeout: if parent doesn't respond in 8s, show auth wall
     setTimeout(() => {
       if (!_ready) _fireAuthFailed();
-    }, 5000);
+    }, 8000);
   }
 
   /* ─── Standalone mode: use Firebase directly ────────────── */
 
   function _initStandalone() {
-    if (!McgheeLab.auth) {
-      console.warn('[AppBridge] Firebase not available in standalone mode');
-      _fireAuthFailed();
-      return;
+    let _nullSettleTimer = null;  // grace period before treating null as "no user"
+
+    // Firebase SDK loads with defer — wait for it if not ready yet
+    function tryInit() {
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        if (!McgheeLab.auth) {
+          McgheeLab.auth = firebase.auth();
+          McgheeLab.db   = firebase.firestore();
+        }
+        firebase.auth().onAuthStateChanged(async (fbUser) => {
+          if (fbUser) {
+            // Got a real user — cancel any pending null-settle timer
+            if (_nullSettleTimer) {
+              clearTimeout(_nullSettleTimer);
+              _nullSettleTimer = null;
+            }
+            try {
+              const doc = await firebase.firestore().collection('users').doc(fbUser.uid).get();
+              const profile = doc.exists ? doc.data() : { role: 'guest' };
+              _fireReady(
+                { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
+                profile
+              );
+            } catch (err) {
+              console.warn('[AppBridge] Failed to load profile:', err);
+              _fireReady(
+                { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
+                { role: 'guest' }
+              );
+            }
+          } else {
+            // null user — don't fail immediately. Firebase persistence may still be
+            // restoring the session from IndexedDB. Wait 2s for a real user to arrive.
+            if (!_ready && !_nullSettleTimer) {
+              _nullSettleTimer = setTimeout(() => {
+                _nullSettleTimer = null;
+                if (!_ready) _fireAuthFailed();
+              }, 2000);
+            } else if (_ready && !_authFailed) {
+              // Was signed in, now genuinely signed out (e.g. logout in another tab)
+              _fireAuthFailed();
+            }
+            // If _authFailed is already true, do nothing — wall is already showing
+          }
+        });
+        return true;
+      }
+      return false;
     }
 
-    McgheeLab.auth.onAuthStateChanged(async (fbUser) => {
-      if (fbUser) {
-        try {
-          const doc = await McgheeLab.db.collection('users').doc(fbUser.uid).get();
-          const profile = doc.exists ? doc.data() : { role: 'guest' };
-          _fireReady(
-            { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
-            profile
-          );
-        } catch (err) {
-          console.warn('[AppBridge] Failed to load profile:', err);
-          _fireReady(
-            { uid: fbUser.uid, email: fbUser.email, displayName: fbUser.displayName },
-            { role: 'guest' }
-          );
-        }
-      } else {
-        _fireAuthFailed();
+    if (tryInit()) return;
+
+    // Firebase not loaded yet — poll until available (max 8s)
+    let attempts = 0;
+    const poll = setInterval(() => {
+      attempts++;
+      if (tryInit() || attempts > 40) {
+        clearInterval(poll);
+        if (!_ready) _fireAuthFailed();
       }
-    });
+    }, 200);
   }
 
   /* ─── Init ──────────────────────────────────────────────── */

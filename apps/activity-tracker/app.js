@@ -590,6 +590,13 @@ Split every distinct activity into its own task. Respond with the JSON array onl
   /* ═══════════════════════════════════════════════════════════
      DATE HELPERS
      ═══════════════════════════════════════════════════════════ */
+  function localDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   function todayStr() {
     return localDateStr(new Date());
   }
@@ -828,10 +835,20 @@ Split every distinct activity into its own task. Respond with the JSON array onl
         html += `<div class="app-card" style="margin-top:.75rem;border-color:var(--warning)">
           <p style="margin:0 0 .5rem;font-size:.88rem;color:var(--warning)">You have ${unlogged.length} calendar event${unlogged.length > 1 ? 's' : ''} not yet logged:</p>`;
         for (const ev of unlogged) {
-          html += `<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border)">
-            <span style="flex:1;font-size:.85rem">${esc(ev.title)} <span style="color:var(--muted);font-size:.75rem">${ev.startTime || ''}${ev.duration ? ' (' + formatMinutes(ev.duration) + ')' : ''}</span></span>
-            <button class="act-add-btn act-daily-cal-import" data-event-id="${esc(ev.id)}" data-title="${esc(ev.title)}" data-duration="${ev.duration || ''}" style="padding:.25rem .5rem;font-size:.75rem">Log it</button>
-            <button class="act-ml-btn act-daily-cal-skip" data-event-id="${esc(ev.id)}" style="padding:.25rem .5rem;font-size:.75rem">Skip</button>
+          // ML category suggestions for this event title
+          const suggestions = mlPredict(ev.title, 3);
+          const suggestPills = suggestions.map(s => {
+            const cat = findCategory(s.categoryId);
+            return cat ? `<button class="act-suggest-pill act-cal-suggest" data-event-id="${esc(ev.id)}" data-title="${esc(ev.title)}" data-duration="${ev.duration || ''}" data-cat="${s.categoryId}" style="font-size:.65rem;padding:.15rem .4rem">${esc(cat.label)}</button>` : '';
+          }).filter(Boolean).join('');
+
+          html += `<div style="padding:.35rem 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <span style="flex:1;font-size:.85rem">${esc(ev.title)} <span style="color:var(--muted);font-size:.75rem">${ev.startTime || ''}${ev.duration ? ' (' + formatMinutes(ev.duration) + ')' : ''}</span></span>
+              <button class="act-add-btn act-daily-cal-import" data-event-id="${esc(ev.id)}" data-title="${esc(ev.title)}" data-duration="${ev.duration || ''}" style="padding:.25rem .5rem;font-size:.75rem">Log it</button>
+              <button class="act-ml-btn act-daily-cal-skip" data-event-id="${esc(ev.id)}" style="padding:.25rem .5rem;font-size:.75rem">Skip</button>
+            </div>
+            ${suggestPills ? `<div style="display:flex;gap:.25rem;flex-wrap:wrap;margin-top:.25rem"><span style="font-size:.65rem;color:var(--muted)">Category:</span>${suggestPills}</div>` : ''}
           </div>`;
         }
         html += '</div>';
@@ -1170,6 +1187,34 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       btn.addEventListener('click', () => {
         _skippedEventIds.add(btn.dataset.eventId);
         refreshMain();
+      });
+    });
+
+    // Calendar import with pre-selected category (suggestion pills)
+    appEl.querySelectorAll('.act-cal-suggest').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const title = btn.dataset.title;
+        const duration = parseInt(btn.dataset.duration) || null;
+        const eventId = btn.dataset.eventId;
+        const categoryId = btn.dataset.cat;
+        const categoryPath = getCategoryPath(categoryId);
+        const entry = {
+          date: _currentDate,
+          text: title,
+          categoryPath: categoryPath,
+          duration,
+          milestone: 0,
+          source: 'calendar',
+          calendarEventId: eventId
+        };
+        const id = await saveEntry(entry);
+        entry.id = id;
+        _entries.unshift(entry);
+        // Train ML model on this categorization
+        mlTrain(title, categoryId);
+        refreshMain();
+        const cat = findCategory(categoryId);
+        showToast('Logged: ' + title + (cat ? ' → ' + cat.label : ''));
       });
     });
 

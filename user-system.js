@@ -617,11 +617,13 @@ const Auth = {
   currentUser: null,
   currentProfile: null,
   _listeners: [],
+  _authStateResolved: false,  // true once onAuthStateChanged has fired at least once
 
   init() {
     if (!McgheeLab.auth) return;
     McgheeLab.auth.onAuthStateChanged(async (user) => {
       Auth.currentUser = user;
+      Auth._authStateResolved = true;
       if (user) {
         try { Auth.currentProfile = await DB.getUser(user.uid); } catch (e) {
           console.warn('Failed to load profile:', e);
@@ -639,6 +641,7 @@ const Auth = {
   },
 
   onChange(fn) { Auth._listeners.push(fn); },
+  offChange(fn) { Auth._listeners = Auth._listeners.filter(f => f !== fn); },
 
   updateNavigation() {
     const isAuthed  = !!Auth.currentUser;
@@ -784,6 +787,12 @@ const Auth = {
 function renderLogin() {
   if (!McgheeLab.auth) {
     return '<div class="auth-card"><p>User system is not configured. See firebase-config.js.</p></div>';
+  }
+
+  // If already authenticated, skip login and go to dashboard
+  if (Auth.currentUser) {
+    window.location.hash = '#/dashboard';
+    return '<p>Redirecting&hellip;</p>';
   }
 
   const qs = new URLSearchParams((window.location.hash.split('?')[1]) || '');
@@ -1410,6 +1419,7 @@ async function wireDashboard() {
         sections: ['overview', 'speakers'],
         slotDefs: [],
         guestFields: [],
+        booleanQuestions: [],
         startHour: 8,
         endHour: 18,
         granularity: 30,

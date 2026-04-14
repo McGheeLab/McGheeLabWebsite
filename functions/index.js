@@ -22,6 +22,12 @@ const { onHuddlePlanUpdate, onHelpRequestCreate, onHelpRequestUpdate } = require
 // Equipment booking notifications
 const { onEquipmentBookingCreate, onEquipmentBookingUpdate } = require('./equipment');
 
+// Admin test notifications
+const { sendTestNotification } = require('./test-notifications');
+
+// Calendar proxy (server-side ICS fetch to bypass CORS)
+const { calendarProxy } = require('./calendar-proxy');
+
 // Export all functions
 module.exports = {
   onChatMessageCreate,
@@ -30,4 +36,6 @@ module.exports = {
   onHelpRequestUpdate,
   onEquipmentBookingCreate,
   onEquipmentBookingUpdate,
+  sendTestNotification,
+  calendarProxy,
 };

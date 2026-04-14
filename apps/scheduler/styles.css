@@ -3,6 +3,398 @@
    Standalone lab app for scheduling with sessions & freeform modes
    ================================================================ */
 
+/* ─── Tab Bar ────────────────────────────────────────────────── */
+.sched-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.sched-tab {
+  padding: .6rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: .88rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.sched-tab:hover { color: var(--text); }
+.sched-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ─── Toast ──────────────────────────────────────────────────── */
+.sched-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: .5rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: .85rem;
+  z-index: 1000;
+  transition: opacity .3s;
+}
+.sched-toast.hidden { opacity: 0; pointer-events: none; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MY SCHEDULE TAB
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Layout ─────────────────────────────────────────────────── */
+.ms-layout { display: flex; flex-direction: column; gap: 0; }
+.ms-header { padding: 0 0 .5rem; }
+.ms-body { flex: 1; min-height: 0; }
+.ms-scroll-area { overflow: auto; }
+
+/* ─── Week Nav ───────────────────────────────────────────────── */
+.ms-week-nav {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .35rem;
+}
+.ms-nav-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1.1rem;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ms-nav-btn:hover { background: rgba(255,255,255,.06); }
+.ms-week-label { font-size: .88rem; font-weight: 500; color: var(--text); }
+.ms-nav-today {
+  font-size: .72rem;
+  padding: .15rem .5rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* ─── Mode Selector ──────────────────────────────────────────── */
+.ms-mode-selector {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  margin: .35rem 0;
+}
+.ms-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .65rem;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .78rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ms-mode-btn:hover { background: rgba(255,255,255,.04); }
+.ms-mode-btn.active {
+  border-color: var(--mode-color, var(--accent));
+  color: var(--mode-color, var(--accent));
+  background: color-mix(in srgb, var(--mode-color, var(--accent)) 10%, transparent);
+}
+.ms-mode-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─── Toolbar ────────────────────────────────────────────────── */
+.ms-toolbar {
+  display: flex;
+  gap: .35rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: .25rem 0;
+}
+.ms-zoom-controls { display: flex; gap: 2px; margin-left: auto; }
+.ms-zoom-btn {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .8rem;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ms-zoom-btn:hover { background: rgba(255,255,255,.12); }
+
+/* ─── Layer Panel ────────────────────────────────────────────── */
+.ms-layer-panel {
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: .5rem 0;
+  border-top: 1px solid rgba(255,255,255,.04);
+  margin-top: .35rem;
+}
+.ms-layer-row {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .75rem;
+}
+.ms-layer-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ms-layer-label { color: var(--muted); }
+.ms-layer-toggle {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.ms-layer-toggle input { opacity: 0; width: 0; height: 0; }
+.ms-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.12);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.ms-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 12px; height: 12px;
+  left: 2px; bottom: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform .2s;
+}
+.ms-layer-toggle input:checked + .ms-toggle-slider { background: var(--accent); }
+.ms-layer-toggle input:checked + .ms-toggle-slider::before { transform: translateX(12px); }
+.ms-layer-row--group {
+  flex-direction: column;
+  gap: .2rem;
+  align-items: flex-start;
+  position: relative;
+}
+.ms-layer-row--group .ms-layer-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.ms-layer-row--group .ms-layer-row {
+  padding: 0;
+  font-size: .72rem;
+}
+.ms-restore-btn {
+  font-size: .7rem;
+  padding: .2rem .5rem;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.ms-restore-btn:hover { background: rgba(255,255,255,.12); color: var(--text); }
+
+/* ─── Grid ───────────────────────────────────────────────────── */
+.ms-grid-wrap {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px;
+}
+.ms-grid {
+  display: grid;
+  gap: 0;
+  cursor: crosshair;
+}
+.ms-grid-corner { background: var(--surface); z-index: 3; }
+.ms-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+.ms-grid-day-header {
+  text-align: center;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: .35rem 0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-right: 1px solid var(--border, rgba(255,255,255,.06));
+}
+.ms-grid-day-header.ms-today { color: var(--accent); }
+.ms-grid-daynum {
+  display: block;
+  font-size: .65rem;
+  font-weight: 400;
+  opacity: .7;
+}
+.ms-grid-time-label {
+  font-size: .6rem;
+  color: var(--muted);
+  text-align: right;
+  padding-right: 6px;
+  line-height: 1;
+  border-right: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  align-items: flex-start;
+}
+.ms-grid-time-label--half {
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+
+/* ─── Grid Cells ─────────────────────────────────────────────── */
+.ms-cell {
+  border-right: 1px solid var(--border, rgba(255,255,255,.06));
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  cursor: pointer;
+  transition: background .1s;
+  touch-action: none;
+}
+.ms-grid[data-mode="recurring"] .ms-cell:hover { background: rgba(34,197,94,.08); }
+.ms-grid[data-mode="special"] .ms-cell:hover { background: rgba(59,130,246,.08); }
+.ms-grid[data-mode="blackout"] .ms-cell:hover { background: rgba(239,68,68,.08); }
+
+/* ─── Blocks ─────────────────────────────────────────────────── */
+.ms-block {
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  margin: 1px 2px;
+  padding: 2px 5px;
+  font-size: .7rem;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 1;
+  position: relative;
+  transition: filter .1s;
+}
+.ms-block:hover { filter: brightness(1.2); z-index: 2; }
+.ms-block--rigid {
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,.08) 4px, rgba(255,255,255,.08) 8px) !important;
+}
+.ms-block--flexible { border-left-style: dashed !important; }
+.ms-block--calendar {
+  border-left-style: dotted !important;
+  opacity: .85;
+}
+.ms-block--custom { border-left-width: 4px; }
+.ms-block--busy-available {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    rgba(22, 163, 74, .12) 6px,
+    rgba(22, 163, 74, .12) 12px
+  ) !important;
+  border-left-style: dashed !important;
+}
+.ms-block-label {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ms-block-mode {
+  font-size: .6rem;
+  opacity: .7;
+}
+.ms-block-cal-actions {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.ms-block:hover .ms-block-cal-actions { opacity: .8; }
+.ms-block-dismiss,
+.ms-block-status-toggle {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: .7rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.ms-block-dismiss:hover,
+.ms-block-status-toggle:hover { opacity: 1; transform: scale(1.2); }
+
+/* ─── Modals ─────────────────────────────────────────────────── */
+.ms-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 1rem;
+}
+.ms-modal {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  max-width: 420px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.ms-modal h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.ms-rig-btn {
+  padding: .3rem .65rem;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .78rem;
+  cursor: pointer;
+}
+.ms-rig-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ─── Color Picker ───────────────────────────────────────────── */
+.ms-color-picker {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+.ms-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+.ms-color-swatch:hover { transform: scale(1.15); }
+.ms-color-swatch.active { border-color: #fff; transform: scale(1.15); }
+
 /* ─── Scheduler List (home view) ──────────────────────────────── */
 .sched-home-header {
   display: flex;

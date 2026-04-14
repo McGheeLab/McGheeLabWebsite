@@ -161,6 +161,11 @@
 
           <button class="settings-save-btn" id="save-notif-btn" style="margin-top:1rem">Save Notification Settings</button>
           <div id="notif-status"></div>
+
+          <h3>This Device</h3>
+          <div id="device-push-status" class="device-push-status">
+            <div class="device-push-checking">Checking device registration...</div>
+          </div>
         </div>
 
         <!-- Calendar Integration -->
@@ -199,7 +204,45 @@
               <a href="../../#/admin" target="_top" class="settings-admin-link">Open &rarr;</a>
             </div>
           </div>
+
+          <div class="settings-section">
+            <h2>Test Notifications</h2>
+
+            <div id="push-diagnostics" style="background:var(--bg);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.82rem">
+              <div style="font-weight:600;margin-bottom:.5rem;color:var(--text)">Push Diagnostics</div>
+              <div id="push-diag-info" style="color:var(--muted);line-height:1.6">Checking...</div>
+              <button class="settings-save-btn" id="push-reregister" style="margin-top:.75rem;background:#f59e0b;font-size:.82rem">Re-register for Push Notifications</button>
+              <div id="push-diag-status" style="margin-top:.5rem"></div>
+            </div>
+
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:1rem">Send a test push notification to your devices. Bypasses notification settings so the notification always arrives.</p>
+            <div class="test-notif-grid">
+              <h3>Chat</h3>
+              ${testNotifBtn('chat', 'Channel Message')}
+              ${testNotifBtn('chat-dm', 'Direct Message')}
+              ${testNotifBtn('chat-mention', '@Mention')}
+              <h3>Huddle</h3>
+              ${testNotifBtn('huddle-join', 'Someone Joined')}
+              ${testNotifBtn('huddle-status', 'Status Changed')}
+              ${testNotifBtn('help-request', 'Help Request')}
+              ${testNotifBtn('help-response', 'Help Response')}
+              <h3>Equipment</h3>
+              ${testNotifBtn('equipment-approval', 'Booking Request')}
+              ${testNotifBtn('equipment-confirmed', 'Booking Confirmed')}
+              ${testNotifBtn('equipment-displaced', 'Booking Displaced')}
+            </div>
+            <button class="settings-save-btn" id="test-notif-all" style="margin-top:1rem;background:#6366f1">Send All (one per second)</button>
+            <div id="test-notif-status"></div>
+          </div>
         ` : ''}
+
+        <!-- App Version -->
+        <div class="settings-section">
+          <h2>App Version</h2>
+          <div id="current-version" style="color:var(--muted);font-size:.82rem;margin-bottom:1rem">Detecting version...</div>
+          <div id="update-status" style="margin-bottom:.75rem"></div>
+          <button class="settings-save-btn" id="check-update-btn">Check for Updates</button>
+        </div>
 
         <!-- Logout -->
         <div class="settings-section">
@@ -295,6 +338,9 @@
     // Calendar integration
     wireCalendar();
 
+    // Check for updates
+    wireUpdateButton();
+
     // Logout
     document.getElementById('settings-logout')?.addEventListener('click', () => {
       if (McgheeLab.auth) {
@@ -306,6 +352,369 @@
           }
         });
       }
+    });
+
+    // Device push status (all users)
+    wireDevicePushStatus();
+
+    // Admin-only: test notifications + diagnostics
+    if (_profile?.role === 'admin') {
+      wireTestNotifications();
+      wirePushDiagnostics();
+    }
+  }
+
+  /* ─── App Update ─────────────────────────────────────────── */
+
+  function wireUpdateButton() {
+    const btn = document.getElementById('check-update-btn');
+    const status = document.getElementById('update-status');
+    const versionEl = document.getElementById('current-version');
+    if (!btn || !status) return;
+
+    // Access the parent page's SW registration (works embedded or standalone)
+    function getSwReg() {
+      // Embedded: parent page stores it on window.__swReg
+      if (McgheeLab.AppBridge.isEmbedded()) {
+        try { return window.parent.__swReg; } catch { return null; }
+      }
+      // Standalone: use own navigator
+      return window.__swReg || null;
+    }
+
+    // Detect current cache version by reading sw.js source
+    if (versionEl) {
+      (async () => {
+        try {
+          const resp = await fetch('/sw.js', { cache: 'no-store' });
+          const text = await resp.text();
+          const match = text.match(/CACHE_VERSION\s*=\s*(\d+)/);
+          if (match) {
+            versionEl.textContent = `Current version: ${match[1]}`;
+          } else {
+            versionEl.textContent = '';
+          }
+        } catch {
+          versionEl.textContent = '';
+        }
+      })();
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Checking...';
+      status.innerHTML = '';
+
+      try {
+        // Get or fetch the SW registration
+        let reg = getSwReg();
+        if (!reg && 'serviceWorker' in navigator) {
+          reg = await navigator.serviceWorker.getRegistration();
+        }
+        // Also try parent's navigator for embedded mode
+        if (!reg && McgheeLab.AppBridge.isEmbedded()) {
+          try { reg = await window.parent.navigator.serviceWorker.getRegistration(); } catch {}
+        }
+
+        if (!reg) {
+          status.innerHTML = '<span style="color:var(--warning)">No service worker found. Try reloading the app.</span>';
+          btn.disabled = false;
+          btn.textContent = 'Check for Updates';
+          return;
+        }
+
+        // Force the browser to check for a new sw.js
+        await reg.update();
+
+        // Check if a new worker is waiting or installing
+        if (reg.waiting) {
+          // There's a new version ready — tell it to activate immediately
+          status.innerHTML = '<span style="color:var(--accent)">New version found! Installing...</span>';
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          // The controllerchange listener in index.html will auto-reload
+        } else if (reg.installing) {
+          status.innerHTML = '<span style="color:var(--accent)">Update downloading...</span>';
+          reg.installing.addEventListener('statechange', function() {
+            if (this.state === 'installed') {
+              status.innerHTML = '<span style="color:var(--accent)">New version ready! Reloading...</span>';
+              if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        } else {
+          status.innerHTML = '<span style="color:var(--success)">You\'re on the latest version.</span>';
+        }
+      } catch (err) {
+        status.innerHTML = `<span style="color:var(--danger)">Update check failed: ${esc(err.message)}</span>`;
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Check for Updates';
+    });
+  }
+
+  /* ─── Device Push Status (all users) ─────────────────────── */
+
+  async function wireDevicePushStatus() {
+    const container = document.getElementById('device-push-status');
+    if (!container) return;
+
+    const hasNotifAPI = 'Notification' in window;
+    const hasSW = 'serviceWorker' in navigator;
+    const hasPush = !!window.McgheePush;
+    const permission = hasNotifAPI ? Notification.permission : 'unsupported';
+
+    // Check if this device has a token in Firestore
+    let tokenCount = 0;
+    try {
+      const snap = await db().collection('users').doc(_user.uid).collection('pushTokens').get();
+      tokenCount = snap.size;
+    } catch { /* ignore */ }
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+    // Determine state
+    let state; // 'registered', 'needs-register', 'denied', 'unsupported'
+    if (!hasNotifAPI || !hasSW) {
+      state = 'unsupported';
+    } else if (permission === 'denied') {
+      state = 'denied';
+    } else if (permission === 'granted' && tokenCount > 0) {
+      state = 'registered';
+    } else {
+      state = 'needs-register';
+    }
+
+    const checkIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" style="vertical-align:-3px"><polyline points="20 6 9 17 4 12"/></svg>';
+    const warnIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" style="vertical-align:-3px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    const xIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" style="vertical-align:-3px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+
+    if (state === 'registered') {
+      container.innerHTML = `
+        <div class="device-push-ok">
+          ${checkIcon} <strong>This device is registered for notifications</strong>
+          <div style="color:var(--muted);font-size:.78rem;margin-top:.25rem">${tokenCount} device${tokenCount !== 1 ? 's' : ''} registered to your account</div>
+        </div>`;
+    } else if (state === 'needs-register') {
+      container.innerHTML = `
+        <div class="device-push-warn">
+          ${warnIcon} <strong>This device is not registered for notifications</strong>
+          ${!isStandalone && isIOS ? '<div style="color:var(--muted);font-size:.78rem;margin-top:.25rem">On iOS, install the app to your home screen first, then open it from there.</div>' : ''}
+          <button class="settings-save-btn" id="device-push-register" style="margin-top:.75rem;font-size:.85rem">Enable Push Notifications</button>
+          <div id="device-push-msg" style="margin-top:.5rem"></div>
+        </div>`;
+      document.getElementById('device-push-register')?.addEventListener('click', async () => {
+        const btn = document.getElementById('device-push-register');
+        btn.disabled = true;
+        btn.textContent = 'Registering...';
+        try {
+          if (hasPush) {
+            McgheePush.init();
+            const token = await McgheePush.requestPermission(_user.uid);
+            if (token) {
+              showStatus('device-push-msg', 'Device registered successfully!', 'success');
+              // Refresh the status display
+              await wireDevicePushStatus();
+            } else {
+              const p = Notification.permission;
+              if (p === 'denied') {
+                showStatus('device-push-msg', isIOS
+                  ? 'Permission denied. Go to iOS Settings > McGheeLab > Notifications > Allow.'
+                  : 'Permission denied. Reset in your browser site settings.', 'error');
+              } else {
+                showStatus('device-push-msg', 'Could not get a push token. Try reloading the app.', 'error');
+              }
+              btn.disabled = false;
+              btn.textContent = 'Enable Push Notifications';
+            }
+          } else {
+            showStatus('device-push-msg', 'Push module not loaded. Try reloading the app.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Enable Push Notifications';
+          }
+        } catch (err) {
+          showStatus('device-push-msg', 'Error: ' + err.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Enable Push Notifications';
+        }
+      });
+    } else if (state === 'denied') {
+      container.innerHTML = `
+        <div class="device-push-denied">
+          ${xIcon} <strong>Notifications are blocked for this app</strong>
+          <div style="color:var(--muted);font-size:.78rem;margin-top:.25rem">${isIOS
+            ? 'Go to <strong>iOS Settings > McGheeLab > Notifications</strong> and turn on Allow Notifications, then come back here.'
+            : 'Reset notification permissions in your browser\'s site settings, then reload this page.'}</div>
+        </div>`;
+    } else {
+      container.innerHTML = `
+        <div class="device-push-unsupported">
+          ${xIcon} <strong>Push notifications are not supported on this browser</strong>
+          <div style="color:var(--muted);font-size:.78rem;margin-top:.25rem">Try using Chrome, Edge, or Safari 16.4+ with the app installed to your home screen.</div>
+        </div>`;
+    }
+  }
+
+  /* ─── Test Notifications ─────────────────────────────────── */
+
+  function wireTestNotifications() {
+    const sendTest = async (type, btn) => {
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        const callable = McgheeLab.firebase.functions().httpsCallable('sendTestNotification');
+        const result = await callable({ type });
+        const data = result.data;
+        if (data.success) {
+          btn.textContent = 'Sent!';
+          btn.style.background = '#22c55e';
+          showStatus('test-notif-status', `"${type}" sent to ${data.sent} device(s). ${data.staleTokensCleaned ? data.staleTokensCleaned + ' stale token(s) cleaned.' : ''}`, 'success');
+        } else {
+          btn.textContent = 'Failed';
+          btn.style.background = '#ef4444';
+          showStatus('test-notif-status', data.error || 'Send failed', 'error');
+        }
+      } catch (err) {
+        btn.textContent = 'Error';
+        btn.style.background = '#ef4444';
+        showStatus('test-notif-status', err.message, 'error');
+      }
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = origText;
+        btn.style.background = '';
+      }, 2000);
+    };
+
+    document.querySelectorAll('.test-notif-btn').forEach(btn => {
+      btn.addEventListener('click', () => sendTest(btn.dataset.type, btn));
+    });
+
+    // Send all button
+    document.getElementById('test-notif-all')?.addEventListener('click', async () => {
+      const allBtn = document.getElementById('test-notif-all');
+      allBtn.disabled = true;
+      allBtn.textContent = 'Sending...';
+      const buttons = [...document.querySelectorAll('.test-notif-btn')];
+      for (let i = 0; i < buttons.length; i++) {
+        buttons[i].click();
+        if (i < buttons.length - 1) await new Promise(r => setTimeout(r, 1500));
+      }
+      allBtn.disabled = false;
+      allBtn.textContent = 'Send All (one per second)';
+    });
+  }
+
+  /* ─── Push Diagnostics ───────────────────────────────────── */
+
+  async function wirePushDiagnostics() {
+    const infoEl = document.getElementById('push-diag-info');
+    if (!infoEl) return;
+
+    const lines = [];
+
+    // 1. Browser support
+    const hasNotifAPI = 'Notification' in window;
+    const hasSW = 'serviceWorker' in navigator;
+    lines.push(`Notification API: ${hasNotifAPI ? 'Yes' : 'No'}`);
+    lines.push(`Service Worker API: ${hasSW ? 'Yes' : 'No'}`);
+
+    // 2. Permission state
+    const perm = hasNotifAPI ? Notification.permission : 'unsupported';
+    const permColor = perm === 'granted' ? '#22c55e' : perm === 'denied' ? '#ef4444' : '#f59e0b';
+    lines.push(`Permission: <span style="color:${permColor};font-weight:600">${perm}</span>`);
+
+    // 3. Standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    lines.push(`Standalone (PWA): ${isStandalone ? 'Yes' : 'No'}`);
+
+    // 4. Platform
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const platform = isIOS ? 'iOS' : /Android/.test(ua) ? 'Android' : 'Desktop';
+    lines.push(`Platform: ${platform}`);
+
+    if (isIOS) {
+      lines.push(`<span style="color:var(--muted)">iOS requires: 16.4+, Safari, Add to Home Screen, standalone mode</span>`);
+    }
+
+    // 5. Service worker registrations
+    if (hasSW) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        lines.push(`Service workers registered: ${regs.length}`);
+        regs.forEach((reg, i) => {
+          lines.push(`&nbsp;&nbsp;SW${i + 1}: ${reg.active ? 'active' : reg.installing ? 'installing' : 'waiting'} — scope: ${reg.scope}`);
+        });
+      } catch (err) {
+        lines.push(`Service worker check error: ${err.message}`);
+      }
+    }
+
+    // 6. McgheePush state
+    const hasPush = !!window.McgheePush;
+    lines.push(`McgheePush module: ${hasPush ? 'Loaded' : '<span style="color:#ef4444">Not loaded</span>'}`);
+    if (hasPush) {
+      lines.push(`McgheePush.isSupported(): ${McgheePush.isSupported()}`);
+    }
+
+    // 7. Token count in Firestore
+    try {
+      const snap = await db().collection('users').doc(_user.uid).collection('pushTokens').get();
+      const count = snap.size;
+      const countColor = count > 0 ? '#22c55e' : '#ef4444';
+      lines.push(`Tokens in Firestore: <span style="color:${countColor};font-weight:600">${count}</span>`);
+      if (count > 0) {
+        snap.forEach(doc => {
+          const d = doc.data();
+          lines.push(`&nbsp;&nbsp;${d.platform || '?'} — ${(d.token || doc.id).substring(0, 20)}...`);
+        });
+      }
+    } catch (err) {
+      lines.push(`Token lookup error: ${err.message}`);
+    }
+
+    infoEl.innerHTML = lines.join('<br>');
+
+    // Re-register button
+    document.getElementById('push-reregister')?.addEventListener('click', async () => {
+      const btn = document.getElementById('push-reregister');
+      btn.disabled = true;
+      btn.textContent = 'Registering...';
+
+      try {
+        // Ensure McgheePush is initialized
+        if (window.McgheePush) {
+          McgheePush.init();
+
+          // Request permission + get token
+          const token = await McgheePush.requestPermission(_user.uid);
+          if (token) {
+            showStatus('push-diag-status', `Token registered: ${token.substring(0, 20)}...`, 'success');
+          } else {
+            // Try to get more info about why it failed
+            const p = Notification.permission;
+            if (p === 'denied') {
+              showStatus('push-diag-status', 'Permission denied by browser/OS. On iOS: Settings > McGheeLab > Notifications > Allow.', 'error');
+            } else if (p === 'default') {
+              showStatus('push-diag-status', 'Permission not yet granted. Try tapping again — the browser should show a prompt.', 'error');
+            } else {
+              showStatus('push-diag-status', 'Token generation failed. Check that the service worker is registered.', 'error');
+            }
+          }
+        } else {
+          showStatus('push-diag-status', 'McgheePush module not loaded. Try reloading the app.', 'error');
+        }
+      } catch (err) {
+        showStatus('push-diag-status', 'Error: ' + err.message, 'error');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Re-register for Push Notifications';
+
+      // Refresh diagnostics
+      await wirePushDiagnostics();
     });
   }
 
@@ -349,22 +758,20 @@
       </div>
       <div style="margin-top:.5rem">
         <div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">
-          <strong>Step 1:</strong> Outlook Web &gt; Settings &gt; Calendar &gt; Shared calendars &gt; Publish a calendar &gt; copy the <strong>ICS</strong> link.<br>
-          <strong>Step 2:</strong> Open the link in a new tab — browser downloads a <code>.ics</code> file.<br>
-          <strong>Step 3:</strong> Import that file below.
+          Paste your published Outlook calendar link (HTML or ICS — both work).
         </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-          <label class="settings-save-btn" style="cursor:pointer;display:inline-block;width:auto;padding:.45rem .75rem;font-size:.82rem">
-            Import Outlook .ics File
-            <input type="file" id="cal-outlook-ics-file" accept=".ics,.ical" hidden />
-          </label>
-          ${conn.outlookIcs ? `<button class="settings-save-btn" id="cal-outlook-ics-clear" style="background:#f44336;width:auto;padding:.45rem .75rem;font-size:.82rem">Clear</button>` : ''}
+        <div style="display:flex;gap:.35rem;margin-bottom:.5rem">
+          <input type="text" id="cal-outlook-ics-url" placeholder="https://outlook.office365.com/owa/calendar/.../calendar.html" value="${esc(cfg.outlookIcsUrl || '')}" style="flex:1;padding:.4rem .5rem;background:var(--bg);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text);font-size:.82rem" />
+          <button class="settings-save-btn" id="cal-outlook-ics-fetch" style="width:auto;padding:.4rem .75rem;font-size:.82rem">Fetch</button>
         </div>
-        <details style="margin-top:.5rem">
-          <summary style="color:var(--muted);font-size:.78rem;cursor:pointer">Auto-fetch via URL</summary>
-          <div style="margin-top:.35rem;display:flex;gap:.35rem">
-            <input type="text" id="cal-outlook-ics-url" placeholder="Paste ICS URL" value="${esc(cfg.outlookIcsUrl || '')}" style="flex:1;padding:.4rem .5rem;background:var(--bg);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text);font-size:.82rem" />
-            <button class="settings-save-btn" id="cal-outlook-ics-fetch" style="width:auto;padding:.4rem .75rem;font-size:.82rem">Fetch</button>
+        <details style="margin-top:.35rem">
+          <summary style="color:var(--muted);font-size:.78rem;cursor:pointer">Alternative: Import .ics file</summary>
+          <div style="margin-top:.35rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+            <label class="settings-save-btn" style="cursor:pointer;display:inline-block;width:auto;padding:.45rem .75rem;font-size:.82rem">
+              Import Outlook .ics File
+              <input type="file" id="cal-outlook-ics-file" accept=".ics,.ical" hidden />
+            </label>
+            ${conn.outlookIcs ? `<button class="settings-save-btn" id="cal-outlook-ics-clear" style="background:#f44336;width:auto;padding:.45rem .75rem;font-size:.82rem">Clear</button>` : ''}
           </div>
         </details>
         <details style="margin-top:.35rem">
@@ -451,16 +858,16 @@
       if (!clientId) { showStatus('cal-status', 'Enter your OAuth Client ID', 'error'); return; }
       try {
         await cal.connectGoogle(clientId);
-        showStatus('cal-status', 'Google Calendar connected', 'success');
         render(); wire();
+        showStatus('cal-status', 'Google Calendar connected', 'success');
       } catch (err) {
         showStatus('cal-status', 'Google OAuth error: ' + err.message, 'error');
       }
     });
     document.getElementById('cal-gcal-disconnect')?.addEventListener('click', () => {
       cal.disconnectGoogle();
-      showStatus('cal-status', 'Google Calendar disconnected', 'success');
       render(); wire();
+      showStatus('cal-status', 'Google Calendar disconnected', 'success');
     });
 
     // Outlook OAuth
@@ -469,16 +876,16 @@
       if (!clientId) { showStatus('cal-status', 'Enter your Azure App ID', 'error'); return; }
       try {
         await cal.connectOutlook(clientId);
-        showStatus('cal-status', 'Outlook connected', 'success');
         render(); wire();
+        showStatus('cal-status', 'Outlook connected', 'success');
       } catch (err) {
         showStatus('cal-status', 'Outlook auth error: ' + (err.message || err), 'error');
       }
     });
     document.getElementById('cal-msal-disconnect')?.addEventListener('click', () => {
       cal.disconnectOutlook();
-      showStatus('cal-status', 'Outlook disconnected', 'success');
       render(); wire();
+      showStatus('cal-status', 'Outlook disconnected', 'success');
     });
 
     // Outlook ICS file
@@ -487,8 +894,8 @@
       if (!file) return;
       try {
         const result = await cal.importICSFile(file, 'outlook_ics');
-        showStatus('cal-status', `Imported ${result.count} Outlook event${result.count !== 1 ? 's' : ''}`, 'success');
         render(); wire();
+        showStatus('cal-status', `Imported ${result.count} Outlook event${result.count !== 1 ? 's' : ''}`, 'success');
       } catch (err) {
         showStatus('cal-status', 'Failed to parse file: ' + err.message, 'error');
       }
@@ -496,21 +903,24 @@
     document.getElementById('cal-outlook-ics-clear')?.addEventListener('click', () => {
       cal.clearProvider('outlook_ics');
       cal.saveConfig({ outlookIcsUrl: '' });
-      showStatus('cal-status', 'Outlook ICS cleared', 'success');
       render(); wire();
+      showStatus('cal-status', 'Outlook ICS cleared', 'success');
     });
 
     // Outlook ICS URL
     document.getElementById('cal-outlook-ics-fetch')?.addEventListener('click', async () => {
       const url = document.getElementById('cal-outlook-ics-url')?.value?.trim();
       if (!url) { showStatus('cal-status', 'Paste your Outlook ICS link', 'error'); return; }
+      const btn = document.getElementById('cal-outlook-ics-fetch');
+      if (btn) { btn.disabled = true; btn.textContent = 'Fetching...'; }
       try {
         await cal.saveConfig({ outlookIcsUrl: url });
-        await cal.fetchICSFromUrl(url, 'outlook_ics');
-        showStatus('cal-status', 'Outlook ICS fetched', 'success');
+        const result = await cal.fetchICSFromUrl(url, 'outlook_ics');
         render(); wire();
+        showStatus('cal-status', `Outlook ICS fetched — ${result.count} event${result.count !== 1 ? 's' : ''} loaded`, 'success');
       } catch (err) {
-        showStatus('cal-status', 'Failed to fetch: ' + err.message, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Fetch'; }
+        showStatus('cal-status', 'Failed to fetch ICS: ' + (err.message || 'CORS or network error — try importing the .ics file directly instead'), 'error');
       }
     });
 
@@ -520,8 +930,8 @@
       if (!file) return;
       try {
         const result = await cal.importICSFile(file, 'ics');
-        showStatus('cal-status', `Imported ${result.count} event${result.count !== 1 ? 's' : ''}`, 'success');
         render(); wire();
+        showStatus('cal-status', `Imported ${result.count} event${result.count !== 1 ? 's' : ''}`, 'success');
       } catch (err) {
         showStatus('cal-status', 'Failed to parse file: ' + err.message, 'error');
       }
@@ -529,20 +939,23 @@
     document.getElementById('cal-ics-fetch')?.addEventListener('click', async () => {
       const url = document.getElementById('cal-ics-url')?.value?.trim();
       if (!url) { showStatus('cal-status', 'Enter an ICS URL', 'error'); return; }
+      const btn = document.getElementById('cal-ics-fetch');
+      if (btn) { btn.disabled = true; btn.textContent = 'Fetching...'; }
       try {
         await cal.saveConfig({ icsUrl: url });
-        await cal.fetchICSFromUrl(url, 'ics');
-        showStatus('cal-status', 'ICS fetched', 'success');
+        const result = await cal.fetchICSFromUrl(url, 'ics');
         render(); wire();
+        showStatus('cal-status', `ICS fetched — ${result.count} event${result.count !== 1 ? 's' : ''} loaded`, 'success');
       } catch (err) {
-        showStatus('cal-status', 'Failed to fetch: ' + err.message, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Fetch'; }
+        showStatus('cal-status', 'Failed to fetch ICS: ' + (err.message || 'CORS or network error — try importing the .ics file directly'), 'error');
       }
     });
     document.getElementById('cal-ics-clear')?.addEventListener('click', () => {
       cal.clearProvider('ics');
       cal.saveConfig({ icsUrl: '' });
-      showStatus('cal-status', 'Apple ICS cleared', 'success');
       render(); wire();
+      showStatus('cal-status', 'Apple ICS cleared', 'success');
     });
 
     // Save calendar settings (refresh interval + huddle sync)
@@ -589,6 +1002,10 @@
       </div>
       ${toggleHTML(id, checked !== false)}
     </div>`;
+  }
+
+  function testNotifBtn(type, label) {
+    return `<button class="settings-save-btn test-notif-btn" data-type="${type}" style="width:auto;padding:.4rem .75rem;font-size:.82rem;margin:.25rem">${label}</button>`;
   }
 
   function adminCard(title, desc, appId) {

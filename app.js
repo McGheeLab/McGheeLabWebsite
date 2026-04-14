@@ -71,11 +71,21 @@
         const uid = user?.uid || null;
         const hash = window.location.hash || '';
         const page = hash.slice(2).split('/')[0]?.toLowerCase();
-        // Always re-render apps page on auth change (even same uid) to resolve loading states
-        if (page === 'apps') { lastAuthUid = uid; onRouteChange(); return; }
+        // Re-render apps hub or loading states on auth change, but NOT embedded apps —
+        // wireLabApp's Auth.onChange handler re-sends auth to existing iframes without
+        // destroying them. Only re-render if: (a) on the hub page (no app loaded), or
+        // (b) iframe hasn't loaded yet (still showing Loading… placeholder).
+        if (page === 'apps') {
+          const hasIframe = document.getElementById('lab-app-frame');
+          if (!hasIframe) { lastAuthUid = uid; onRouteChange(); }
+          return;
+        }
         if (uid === lastAuthUid) return; // same user, skip
         lastAuthUid = uid;
         if (page === 'dashboard' || page === 'admin' || page === 'login' || page === 'cv') onRouteChange();
+
+        // Refresh push token on every login so stale tokens don't silently kill notifications
+        if (user && window.McgheePush) McgheePush.refreshToken(user.uid);
 
         // Proactive push prompt for installed PWA on first launch
         if (user) maybePromptPushPermission(user);
@@ -2178,14 +2188,20 @@
     });
 
     // Service worker update notification
+    // The controllerchange listener in index.html handles auto-reload when a new SW
+    // activates via skipWaiting(). This block handles the edge case where the new SW
+    // is waiting (no skipWaiting, or skipWaiting delayed) — show a toast to prompt reload.
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then(reg => {
         if (!reg) return;
+        // If there's already a waiting worker when the page loads, prompt immediately
+        if (reg.waiting) showUpdateToast();
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           if (!newWorker) return;
           newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+            // 'installed' = new SW is ready but waiting to activate
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               showUpdateToast();
             }
           });

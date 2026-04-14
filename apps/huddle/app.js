@@ -47,31 +47,7 @@
   let _filterRundownCategory = '';
 
   // Schedule / Availability state
-  let _scheduleTemplate = null;          // current user's template
-  let _scheduleOverrides = [];           // current user's overrides for current week
-  let _allTemplates = [];                // all users' templates (for team view)
-  let _allOverrides = [];                // all users' overrides for current week
-  let _unsubTemplates = null;
-  let _unsubOverrides = null;
-  let _schedDrag = null;                 // drag state for schedule grid
-  let _schedEditBlock = null;            // block being edited
   let _teamViewDay = null;               // selected day index for team view (0=Mon)
-  let _schedZoomIdx = 5;                 // schedule grid zoom (same levels as plan grid)
-
-  const UNAVAIL_REASONS = [
-    'Class', 'Study', 'Analysis', 'Writing', 'Meeting',
-    'Office Hours', 'Personal', 'Other'
-  ];
-  const REASON_COLORS = {
-    'Class': '#ef4444', 'Study': '#f59e0b', 'Analysis': '#8b5cf6',
-    'Writing': '#3b82f6', 'Meeting': '#ec4899', 'Office Hours': '#14b8a6',
-    'Personal': '#6b7280', 'Other': '#78716c'
-  };
-
-  // Schedule modes (color-coded)
-  const MODE_COLORS = { recurring: '#22c55e', special: '#3b82f6', blackout: '#ef4444' };
-  const MODE_LABELS = { recurring: 'Recurring', special: 'Special Date', blackout: 'Blackout' };
-  let _schedMode = 'recurring'; // 'recurring' | 'special' | 'blackout'
 
   const DEFAULT_RUNDOWN_CATEGORIES = [
     { id: 'cell_culture', label: 'Cell Culture', color: '#5baed1' },
@@ -123,13 +99,26 @@
       subscribeHelp();
       subscribeRundown();
       subscribeRundownConfig();
-      subscribeScheduleTemplates();
-      subscribeScheduleOverrides();
+      // Init shared services
+      if (McgheeLab.CalendarService) {
+        await McgheeLab.CalendarService.init(_user, {});
+      }
+      if (McgheeLab.ScheduleService) {
+        await McgheeLab.ScheduleService.init(_user, _profile);
+        McgheeLab.ScheduleService.onChange(() => {
+          if (_currentSection === 'teamavail') renderMain();
+        });
+      }
+      if (McgheeLab.CalendarService) {
+        McgheeLab.CalendarService.onChange(() => {
+          if (_currentSection === 'teamavail') renderMain();
+        });
+      }
       loadProjects();
 
       if (McgheeLab.MobileShell?.enableTabSwipe) {
         McgheeLab.MobileShell.enableTabSwipe(
-          [{ id: 'planfeed' }, { id: 'helpfeed' }, { id: 'rundown' }, { id: 'teamavail' }, { id: 'addplan' }, { id: 'requesthelp' }, { id: 'addrundown' }, { id: 'myplans' }, { id: 'myhelp' }, { id: 'mytasks' }, { id: 'myschedule' }, { id: 'settings' }],
+          [{ id: 'planfeed' }, { id: 'helpfeed' }, { id: 'rundown' }, { id: 'teamavail' }, { id: 'addplan' }, { id: 'requesthelp' }, { id: 'addrundown' }, { id: 'myplans' }, { id: 'myhelp' }, { id: 'mytasks' }, { id: 'settings' }],
           () => _currentSection,
           (id) => { _currentSection = id; render(); }
         );
@@ -498,174 +487,6 @@
     }, { merge: true });
   }
 
-  // ── Schedule / Availability CRUD & subscriptions ─────────
-
-  function subscribeScheduleTemplates() {
-    if (_unsubTemplates) _unsubTemplates();
-    _unsubTemplates = db().collection('huddleScheduleTemplates')
-      .onSnapshot(snap => {
-        _allTemplates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        _scheduleTemplate = _allTemplates.find(t => t.id === _user.uid) || null;
-        if (_currentSection === 'myschedule' || _currentSection === 'teamavail') renderMain();
-      }, err => { console.warn('[Huddle] Templates listener error:', err); });
-  }
-
-  function subscribeScheduleOverrides() {
-    if (_unsubOverrides) _unsubOverrides();
-    const weekId = currentWeekId();
-    _unsubOverrides = db().collection('huddleScheduleOverrides')
-      .where('weekId', '==', weekId)
-      .onSnapshot(snap => {
-        _allOverrides = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        _scheduleOverrides = _allOverrides.filter(o => o.ownerUid === _user.uid);
-        if (_currentSection === 'myschedule' || _currentSection === 'teamavail') renderMain();
-      }, err => { console.warn('[Huddle] Overrides listener error:', err); });
-  }
-
-  async function saveScheduleTemplate(blocks) {
-    const name = _profile.name || _user.displayName || _user.email;
-    await db().collection('huddleScheduleTemplates').doc(_user.uid).set({
-      ownerUid: _user.uid, ownerName: name,
-      blocks: blocks,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }
-
-  async function addScheduleOverride(data) {
-    const name = _profile.name || _user.displayName || _user.email;
-    return db().collection('huddleScheduleOverrides').add({
-      ownerUid: _user.uid, ownerName: name,
-      weekId: currentWeekId(),
-      date: data.date,
-      action: data.action,
-      blockId: data.blockId || null,
-      block: data.block || null,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }
-
-  async function deleteScheduleOverride(id) {
-    return db().collection('huddleScheduleOverrides').doc(id).delete();
-  }
-
-  function genBlockId() {
-    return 'b_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-  }
-
-  /** Convert calendar time strings ("2:30 PM", "14:30") to "HH:MM" format */
-  function parseCalTimeToHHMM(timeStr) {
-    if (!timeStr) return null;
-    if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-    const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!m) return null;
-    let h = parseInt(m[1]);
-    const min = m[2];
-    if (m[3].toUpperCase() === 'PM' && h < 12) h += 12;
-    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
-    return String(h).padStart(2, '0') + ':' + min;
-  }
-
-  /** Resolve a user's effective schedule for a specific date */
-  function resolveScheduleForUser(uid, dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    const dow = d.getDay(); // 0=Sun
-    const tmpl = _allTemplates.find(t => t.id === uid);
-    const templateBlocks = tmpl ? (tmpl.blocks || []).filter(b => b.dayOfWeek === dow) : [];
-    const overrides = _allOverrides.filter(o => o.ownerUid === uid && o.date === dateStr);
-
-    // Start with template blocks
-    let effective = templateBlocks.map(b => ({ ...b, source: 'template' }));
-
-    // Apply overrides
-    for (const ov of overrides) {
-      if (ov.action === 'remove' && ov.blockId) {
-        effective = effective.filter(b => b.id !== ov.blockId);
-      } else if (ov.action === 'replace' && ov.blockId && ov.block) {
-        effective = effective.map(b => b.id === ov.blockId
-          ? { ...b, ...ov.block, source: 'override' } : b);
-      } else if (ov.action === 'add' && ov.block) {
-        effective.push({ id: ov.id, ...ov.block, source: 'override' });
-      }
-    }
-
-    // Tag mode on each block (backward compat for blocks without mode)
-    effective.forEach(b => {
-      if (!b.mode) {
-        b.mode = b.source === 'template' ? 'recurring'
-          : b.type === 'available' ? 'special' : 'blackout';
-      }
-    });
-
-    // Inject calendar events as blackout blocks (current user only, if enabled)
-    if (uid === _user?.uid && McgheeLab.CalendarService) {
-      try {
-        const calCfg = McgheeLab.CalendarService.getConfig();
-        if (calCfg?.huddle?.autoBlock) {
-          const calEvents = McgheeLab.CalendarService.getEventsForDate(dateStr) || [];
-          for (const ev of calEvents) {
-            const st = parseCalTimeToHHMM(ev.startTime);
-            const et = parseCalTimeToHHMM(ev.endTime);
-            if (st && et && st < et) {
-              effective.push({
-                id: 'cal_' + ev.id,
-                startTime: st,
-                endTime: et,
-                type: 'unavailable',
-                reason: ev.title || 'Calendar',
-                rigidity: 'rigid',
-                mode: 'blackout',
-                source: 'calendar'
-              });
-            }
-          }
-        }
-      } catch (e) { /* CalendarService not ready */ }
-    }
-
-    return effective;
-  }
-
-  /** Find overlapping free windows between two users on a given date */
-  function resolveAvailabilityOverlap(uid1, uid2, dateStr) {
-    const sched1 = resolveScheduleForUser(uid1, dateStr);
-    const sched2 = resolveScheduleForUser(uid2, dateStr);
-
-    // Convert available blocks to minute intervals
-    function getAvailableMinutes(sched) {
-      const avail = sched.filter(b => b.type === 'available');
-      const intervals = [];
-      for (const b of avail) {
-        const [sh, sm] = b.startTime.split(':').map(Number);
-        const [eh, em] = b.endTime.split(':').map(Number);
-        intervals.push({ start: sh * 60 + sm, end: eh * 60 + em });
-      }
-      return intervals;
-    }
-
-    const avail1 = getAvailableMinutes(sched1);
-    const avail2 = getAvailableMinutes(sched2);
-
-    // If either user has no availability data, return empty (can't determine overlap)
-    if (avail1.length === 0 || avail2.length === 0) return [];
-
-    // Find intersections
-    const overlaps = [];
-    for (const a of avail1) {
-      for (const b of avail2) {
-        const start = Math.max(a.start, b.start);
-        const end = Math.min(a.end, b.end);
-        if (start < end) {
-          overlaps.push({
-            startTime: String(Math.floor(start / 60)).padStart(2, '0') + ':' + String(start % 60).padStart(2, '0'),
-            endTime: String(Math.floor(end / 60)).padStart(2, '0') + ':' + String(end % 60).padStart(2, '0')
-          });
-        }
-      }
-    }
-    return overlaps;
-  }
-
   /* ═══════════════════════════════════════════════════════════
      RECURRING TASK GENERATION
      ═══════════════════════════════════════════════════════════ */
@@ -834,7 +655,6 @@
         { id: 'myplans', label: 'My Plans', icon: myPlansIcon() },
         { id: 'myhelp', label: 'My Help', icon: myHelpIcon() },
         { id: 'mytasks', label: 'My Tasks' + (pendingJoinCount ? ` (${pendingJoinCount})` : ''), icon: myTasksIcon() },
-        { id: 'myschedule', label: 'My Schedule', icon: scheduleIcon() },
       ]},
       { heading: '', items: [
         { id: 'settings', label: 'Settings', icon: settingsIcon() },
@@ -877,7 +697,6 @@
       case 'addrundown':  return renderAddRundown();
       case 'mytasks':     return renderMyTasks();
       case 'teamavail':   return renderTeamAvailability();
-      case 'myschedule':  return renderMySchedule();
       case 'settings':    return renderSettings();
       default:            return renderPlanFeed();
     }
@@ -895,7 +714,6 @@
       case 'addrundown':  wireAddRundown(); break;
       case 'mytasks':     wireMyTasks(); break;
       case 'teamavail':   wireTeamAvailability(); break;
-      case 'myschedule':  wireMySchedule(); break;
       case 'settings':    wireSettings(); break;
     }
   }
@@ -2534,7 +2352,7 @@
     // Check for availability overlap
     let overlapHTML = '';
     const dayOptions = days.map(d => {
-      const overlaps = resolveAvailabilityOverlap(_user.uid, requesterUid, d.date);
+      const overlaps = McgheeLab.ScheduleService ? McgheeLab.ScheduleService.resolveAvailabilityOverlap(_user.uid, requesterUid, d.date) : [];
       const overlapStr = overlaps.length > 0
         ? overlaps.map(o => `${fmtTime(o.startTime)}-${fmtTime(o.endTime)}`).join(', ')
         : '';
@@ -2624,480 +2442,6 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     12. MY SCHEDULE — Availability Editor
-     ═══════════════════════════════════════════════════════════ */
-
-  function renderMySchedule() {
-    const days = getWeekDays(_currentWeekOffset);
-    const bounds = { startHour: 0, endHour: 24 };
-    const slots = timeLabels(bounds.startHour, bounds.endHour);
-    const slotH = ZOOM_LEVELS[_schedZoomIdx];
-    const totalRows = slots.length;
-    const today = todayStr();
-
-    // Build grid — day headers match equipment scheduler style
-    const dayHeaders = days.map((d, i) => {
-      const isToday = d.date === today;
-      const dayNum = parseInt(d.date.split('-')[2], 10);
-      return `<div class="hud-grid-day-header hud-sticky-head ${isToday ? 'hud-today' : ''}" style="grid-column:${i + 2}; grid-row:1;">${d.dayShort}<span class="hud-grid-daynum">${dayNum}</span></div>`;
-    }).join('');
-
-    const timeSlots = slots.map((s, si) => {
-      const isHalf = s.time.endsWith(':30');
-      if (isHalf) return `<div class="hud-grid-time-label--half" style="grid-column:1; grid-row:${si + 2};"></div>`;
-      return `<div class="hud-grid-time-label" style="grid-column:1; grid-row:${si + 2};">${s.label}</div>`;
-    }).join('');
-
-    // Empty cells for each day×slot (for drag targets)
-    let cellsHTML = '';
-    for (let di = 0; di < days.length; di++) {
-      for (let si = 0; si < totalRows; si++) {
-        cellsHTML += `<div class="hud-sched-cell" data-day="${di}" data-slot="${si}" data-date="${days[di].date}" style="grid-column:${di + 2}; grid-row:${si + 2};"></div>`;
-      }
-    }
-
-    // Render existing blocks (color by mode)
-    let blocksHTML = '';
-    for (let di = 0; di < days.length; di++) {
-      const dateStr = days[di].date;
-      const blocks = resolveScheduleForUser(_user.uid, dateStr);
-      for (const block of blocks) {
-        const startSlot = timeToSlot(block.startTime, bounds.startHour);
-        const endSlot = timeToSlot(block.endTime, bounds.startHour);
-        if (startSlot < 0 || endSlot <= startSlot) continue;
-        const span = endSlot - startSlot;
-        const isUnavail = block.type === 'unavailable';
-        const color = MODE_COLORS[block.mode] || (isUnavail ? '#ef4444' : '#22c55e');
-        const rigidClass = isUnavail && block.rigidity === 'rigid' ? ' hud-sched-block--rigid' : '';
-        const flexClass = isUnavail && block.rigidity === 'flexible' ? ' hud-sched-block--flexible' : '';
-        const modeTag = MODE_LABELS[block.mode] || '';
-        const label = isUnavail ? (block.reason || 'Busy') : 'Available';
-        const calIcon = block.source === 'calendar' ? '&#128197; ' : '';
-        const readOnly = block.source === 'calendar' ? ' hud-sched-block--readonly' : '';
-        blocksHTML += `<div class="hud-sched-block${rigidClass}${flexClass}${readOnly}" data-block-id="${block.id}" data-date="${dateStr}" data-source="${block.source || ''}" style="grid-column:${di + 2}; grid-row:${startSlot + 2}/span ${span}; border-left-color:${color}; background:${color}22; color:${color};">
-          <span class="hud-sched-block-label">${calIcon}${isUnavail && block.rigidity === 'rigid' ? lockIcon() + ' ' : ''}${escHTML(label)}</span>
-          <span class="hud-sched-block-mode" style="font-size:.6rem;opacity:.7">${modeTag}</span>
-        </div>`;
-      }
-    }
-
-    // Zoom controls
-    const zoomHTML = `<div class="hud-zoom-controls">
-      <button class="hud-zoom-btn" id="hud-sched-zoom-out">&minus;</button>
-      <button class="hud-zoom-btn" id="hud-sched-zoom-in">&plus;</button>
-    </div>`;
-
-    const cornerCell = `<div class="hud-grid-corner hud-sticky-head" style="grid-column:1; grid-row:1;"></div>`;
-
-    // Mode selector
-    const modeSelector = `<div class="hud-sched-mode-selector">
-      <button class="hud-mode-btn${_schedMode === 'recurring' ? ' active' : ''}" data-mode="recurring" style="--mode-color:#22c55e">
-        <span class="hud-mode-dot" style="background:#22c55e"></span> Recurring
-      </button>
-      <button class="hud-mode-btn${_schedMode === 'special' ? ' active' : ''}" data-mode="special" style="--mode-color:#3b82f6">
-        <span class="hud-mode-dot" style="background:#3b82f6"></span> Special Date
-      </button>
-      <button class="hud-mode-btn${_schedMode === 'blackout' ? ' active' : ''}" data-mode="blackout" style="--mode-color:#ef4444">
-        <span class="hud-mode-dot" style="background:#ef4444"></span> Blackout
-      </button>
-    </div>`;
-
-    return `<div class="hud-cal-layout">
-      <div class="hud-cal-header">
-        ${weekNavHTML()}
-        ${modeSelector}
-        <div class="hud-sched-toolbar">
-          <button class="app-btn app-btn--secondary" id="hud-sched-copy-mon" style="font-size:.72rem; padding:.2rem .5rem;">Copy Mon &rarr; Weekdays</button>
-          <button class="app-btn app-btn--secondary" id="hud-sched-clear" style="font-size:.72rem; padding:.2rem .5rem;">Clear All</button>
-          ${zoomHTML}
-        </div>
-        <p style="color:var(--muted); font-size:.75rem; margin:.25rem 0 0;">Select a mode, then drag to create blocks. Click blocks to edit.</p>
-      </div>
-      <div class="hud-cal-body">
-        <div class="hud-cal-scroll-area">
-          <div class="hud-grid-wrap" id="hud-sched-grid-wrap" data-slot-h="${slotH}">
-            <div class="hud-time-grid hud-sched-grid" data-mode="${_schedMode}" style="grid-template-columns:60px repeat(${days.length}, 1fr); grid-template-rows:auto repeat(${totalRows}, ${slotH}px);">
-              ${cornerCell}${dayHeaders}${timeSlots}${cellsHTML}${blocksHTML}
-            </div>
-          </div>
-          <div class="hud-time-slider" id="hud-time-slider">
-            <div class="hud-time-slider-track"></div>
-            <div class="hud-time-slider-thumb" id="hud-time-slider-thumb"></div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  function wireMySchedule() {
-    wireWeekNav();
-    const days = getWeekDays(_currentWeekOffset);
-    const bounds = { startHour: 0, endHour: 24 };
-
-    // Mode selector
-    appEl.querySelectorAll('.hud-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        _schedMode = btn.dataset.mode;
-        appEl.querySelectorAll('.hud-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === _schedMode));
-        const grid = appEl.querySelector('.hud-sched-grid');
-        if (grid) grid.dataset.mode = _schedMode;
-      });
-    });
-
-    // Time slider and scroll
-    const wrap = document.getElementById('hud-sched-grid-wrap');
-    if (wrap) {
-      wireTimeSlider(wrap);
-      wirePinchZoom(wrap);
-      // Auto-scroll to 8 AM
-      const slotH = ZOOM_LEVELS[_schedZoomIdx];
-      wrap.scrollTop = slotH * 16;
-    }
-
-    // Zoom controls
-    const zoomIn = document.getElementById('hud-sched-zoom-in');
-    const zoomOut = document.getElementById('hud-sched-zoom-out');
-    if (zoomIn) zoomIn.addEventListener('click', () => { if (_schedZoomIdx < ZOOM_LEVELS.length - 1) { _schedZoomIdx++; renderMain(); } });
-    if (zoomOut) zoomOut.addEventListener('click', () => { if (_schedZoomIdx > 0) { _schedZoomIdx--; renderMain(); } });
-
-    // Copy Monday to weekdays
-    const copyBtn = document.getElementById('hud-sched-copy-mon');
-    if (copyBtn) copyBtn.addEventListener('click', async () => {
-      const tmpl = _scheduleTemplate;
-      if (!tmpl || !tmpl.blocks) { toast('No schedule to copy'); return; }
-      const monBlocks = tmpl.blocks.filter(b => b.dayOfWeek === 1); // Monday
-      if (monBlocks.length === 0) { toast('No Monday blocks to copy'); return; }
-      // Remove Tue-Fri blocks, add copies of Monday blocks
-      let newBlocks = tmpl.blocks.filter(b => b.dayOfWeek === 0 || b.dayOfWeek === 1 || b.dayOfWeek === 6);
-      for (let dow = 2; dow <= 5; dow++) {
-        for (const mb of monBlocks) {
-          newBlocks.push({ ...mb, id: genBlockId(), dayOfWeek: dow });
-        }
-      }
-      await saveScheduleTemplate(newBlocks);
-      toast('Monday schedule copied to weekdays');
-    });
-
-    // Clear all
-    const clearBtn = document.getElementById('hud-sched-clear');
-    if (clearBtn) clearBtn.addEventListener('click', async () => {
-      if (!confirm('Clear your entire schedule template?')) return;
-      await saveScheduleTemplate([]);
-      toast('Schedule cleared');
-    });
-
-    // Click block to edit (skip calendar-sourced read-only blocks)
-    appEl.querySelectorAll('.hud-sched-block').forEach(block => {
-      block.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (block.dataset.source === 'calendar') {
-          toast('This block is from your calendar and cannot be edited here.');
-          return;
-        }
-        const blockId = block.dataset.blockId;
-        const dateStr = block.dataset.date;
-        showScheduleBlockEditor(blockId, dateStr);
-      });
-    });
-
-    // Drag to create on empty cells — mode determines block type
-    let dragStart = null;
-    appEl.querySelectorAll('.hud-sched-cell').forEach(cell => {
-      cell.addEventListener('pointerdown', (e) => {
-        dragStart = { day: +cell.dataset.day, slot: +cell.dataset.slot, date: cell.dataset.date };
-        cell.setPointerCapture(e.pointerId);
-      });
-      cell.addEventListener('pointerup', (e) => {
-        if (!dragStart) return;
-        const endDay = +cell.dataset.day;
-        const endSlot = +cell.dataset.slot;
-        if (endDay !== dragStart.day) { dragStart = null; return; } // only same day
-        const startSlot = Math.min(dragStart.slot, endSlot);
-        const endSlotFinal = Math.max(dragStart.slot, endSlot) + 1;
-        const startTime = slotToTime(startSlot, bounds.startHour);
-        const endTime = slotToTime(endSlotFinal, bounds.startHour);
-        dragStart = null;
-        showNewScheduleBlockModal(cell.dataset.date, startTime, endTime, _schedMode);
-      });
-    });
-  }
-
-  function showNewScheduleBlockModal(dateStr, startTime, endTime, mode) {
-    mode = mode || _schedMode;
-    const d = new Date(dateStr + 'T00:00:00');
-    const dow = d.getDay();
-    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    const modeColor = MODE_COLORS[mode] || '#22c55e';
-    const modeLabel = MODE_LABELS[mode] || 'Block';
-
-    const reasonOptions = UNAVAIL_REASONS.map(r => `<option value="${r}">${r}</option>`).join('');
-
-    // Mode determines which fields to show
-    const isRecurring = mode === 'recurring';
-    const isSpecial = mode === 'special';
-    const isBlackout = mode === 'blackout';
-
-    const overlay = document.createElement('div');
-    overlay.className = 'hud-modal-overlay';
-    overlay.innerHTML = `<div class="hud-modal">
-      <h3 style="display:flex;align-items:center;gap:.5rem">
-        <span class="hud-mode-dot" style="background:${modeColor};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
-        Add ${modeLabel} Block
-      </h3>
-      <p style="color:var(--muted); font-size:.82rem;">${dayLabel}, ${fmtTime(startTime)} – ${fmtTime(endTime)}</p>
-      ${isRecurring ? `
-        <div style="margin:.75rem 0;">
-          <label class="app-label">Type</label>
-          <select id="hud-sb-type" class="app-input">
-            <option value="available">Available (in lab)</option>
-            <option value="unavailable">Unavailable</option>
-          </select>
-        </div>` : ''}
-      ${isRecurring || isBlackout ? `
-        <div id="hud-sb-unavail-fields" style="${isBlackout ? '' : 'display:none;'}">
-          <div style="margin:.75rem 0;">
-            <label class="app-label">Reason</label>
-            <select id="hud-sb-reason" class="app-input">${reasonOptions}</select>
-          </div>
-          <div style="margin:.75rem 0;">
-            <label class="app-label">Flexibility</label>
-            <div class="hud-view-toggle">
-              <button class="hud-view-btn active" data-rig="rigid">Rigid</button>
-              <button class="hud-view-btn" data-rig="flexible">Flexible</button>
-            </div>
-          </div>
-        </div>` : ''}
-      <div class="hud-form-row" style="margin:.75rem 0;">
-        <div class="hud-form-field" style="flex:1;">
-          <label class="app-label">Start</label>
-          <input id="hud-sb-start" class="app-input" type="time" value="${startTime}" />
-        </div>
-        <div class="hud-form-field" style="flex:1;">
-          <label class="app-label">End</label>
-          <input id="hud-sb-end" class="app-input" type="time" value="${endTime}" />
-        </div>
-      </div>
-      ${isRecurring ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">Recurring blocks repeat every week on ${d.toLocaleDateString('en-US', { weekday: 'long' })}.</p>` : ''}
-      ${isSpecial ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">This one-time availability applies only to ${dayLabel}.</p>` : ''}
-      ${isBlackout ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">This blackout applies only to ${dayLabel} and can change week to week.</p>` : ''}
-      <div class="hud-modal-actions">
-        <button class="app-btn app-btn--secondary" id="hud-sb-cancel">Cancel</button>
-        <button class="app-btn app-btn--primary" id="hud-sb-save">Save</button>
-      </div>
-    </div>`;
-    document.body.appendChild(overlay);
-
-    // Toggle unavailability fields (only for recurring mode)
-    if (isRecurring) {
-      const typeSelect = overlay.querySelector('#hud-sb-type');
-      const unavailFields = overlay.querySelector('#hud-sb-unavail-fields');
-      if (typeSelect && unavailFields) {
-        typeSelect.addEventListener('change', () => {
-          unavailFields.style.display = typeSelect.value === 'unavailable' ? '' : 'none';
-        });
-      }
-    }
-
-    // Rigidity toggle
-    let rigidity = 'rigid';
-    overlay.querySelectorAll('[data-rig]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        rigidity = btn.dataset.rig;
-        overlay.querySelectorAll('[data-rig]').forEach(b => b.classList.toggle('active', b.dataset.rig === rigidity));
-      });
-    });
-
-    overlay.querySelector('#hud-sb-cancel').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    overlay.querySelector('#hud-sb-save').addEventListener('click', async () => {
-      // Determine type based on mode
-      let type, reason;
-      if (isRecurring) {
-        type = overlay.querySelector('#hud-sb-type')?.value || 'available';
-        reason = type === 'unavailable' ? overlay.querySelector('#hud-sb-reason')?.value : null;
-      } else if (isSpecial) {
-        type = 'available';
-        reason = null;
-      } else { // blackout
-        type = 'unavailable';
-        reason = overlay.querySelector('#hud-sb-reason')?.value || 'Other';
-      }
-
-      const st = overlay.querySelector('#hud-sb-start').value;
-      const et = overlay.querySelector('#hud-sb-end').value;
-
-      if (!st || !et || st >= et) { toast('Invalid time range'); return; }
-
-      const blockData = {
-        startTime: st, endTime: et, type, reason,
-        rigidity: type === 'unavailable' ? rigidity : 'flexible',
-        mode
-      };
-
-      try {
-        if (isRecurring) {
-          // Save to weekly template
-          const blocks = _scheduleTemplate ? [..._scheduleTemplate.blocks] : [];
-          blocks.push({ ...blockData, id: genBlockId(), dayOfWeek: dow });
-          await saveScheduleTemplate(blocks);
-        } else {
-          // Save as override (special date or blackout)
-          await addScheduleOverride({
-            date: dateStr, action: 'add', blockId: null,
-            block: blockData
-          });
-        }
-        toast('Block saved');
-        overlay.remove();
-      } catch (err) {
-        console.warn('[Huddle] Save block error:', err);
-        toast('Error saving block');
-      }
-    });
-  }
-
-  function showScheduleBlockEditor(blockId, dateStr) {
-    // Find in template or override
-    const tmplBlock = _scheduleTemplate?.blocks?.find(b => b.id === blockId);
-    const ovrBlock = _allOverrides.find(o => o.id === blockId);
-    const block = tmplBlock || (ovrBlock ? { ...ovrBlock.block, id: blockId } : null);
-    if (!block) return;
-
-    const isTemplate = !!tmplBlock;
-    const blockMode = block.mode || (isTemplate ? 'recurring' : (block.type === 'available' ? 'special' : 'blackout'));
-    const modeColor = MODE_COLORS[blockMode] || '#22c55e';
-    const modeLabel = MODE_LABELS[blockMode] || 'Block';
-    const isBlackout = blockMode === 'blackout';
-    const isSpecial = blockMode === 'special';
-    const isRecurring = blockMode === 'recurring';
-
-    const reasonOptions = UNAVAIL_REASONS.map(r => `<option value="${r}" ${block.reason === r ? 'selected' : ''}>${r}</option>`).join('');
-
-    const overlay = document.createElement('div');
-    overlay.className = 'hud-modal-overlay';
-    overlay.innerHTML = `<div class="hud-modal">
-      <h3 style="display:flex;align-items:center;gap:.5rem">
-        <span class="hud-mode-dot" style="background:${modeColor};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
-        Edit ${modeLabel} Block
-      </h3>
-      ${isRecurring ? `
-        <div style="margin:.75rem 0;">
-          <label class="app-label">Type</label>
-          <select id="hud-sbe-type" class="app-input">
-            <option value="available" ${block.type === 'available' ? 'selected' : ''}>Available (in lab)</option>
-            <option value="unavailable" ${block.type === 'unavailable' ? 'selected' : ''}>Unavailable</option>
-          </select>
-        </div>` : ''}
-      ${(isRecurring || isBlackout) ? `
-        <div id="hud-sbe-unavail-fields" style="${(isBlackout || block.type === 'unavailable') ? '' : 'display:none;'}">
-          <div style="margin:.75rem 0;">
-            <label class="app-label">Reason</label>
-            <select id="hud-sbe-reason" class="app-input">${reasonOptions}</select>
-          </div>
-          <div style="margin:.75rem 0;">
-            <label class="app-label">Flexibility</label>
-            <div class="hud-view-toggle">
-              <button class="hud-view-btn ${block.rigidity === 'rigid' ? 'active' : ''}" data-rig="rigid">Rigid</button>
-              <button class="hud-view-btn ${block.rigidity === 'flexible' ? 'active' : ''}" data-rig="flexible">Flexible</button>
-            </div>
-          </div>
-        </div>` : ''}
-      <div class="hud-form-row" style="margin:.75rem 0;">
-        <div class="hud-form-field" style="flex:1;">
-          <label class="app-label">Start</label>
-          <input id="hud-sbe-start" class="app-input" type="time" value="${block.startTime}" />
-        </div>
-        <div class="hud-form-field" style="flex:1;">
-          <label class="app-label">End</label>
-          <input id="hud-sbe-end" class="app-input" type="time" value="${block.endTime}" />
-        </div>
-      </div>
-      <div class="hud-modal-actions">
-        <button class="app-btn app-btn--danger" id="hud-sbe-delete">Delete</button>
-        <span style="flex:1;"></span>
-        <button class="app-btn app-btn--secondary" id="hud-sbe-cancel">Cancel</button>
-        <button class="app-btn app-btn--primary" id="hud-sbe-save">Save</button>
-      </div>
-    </div>`;
-    document.body.appendChild(overlay);
-
-    if (isRecurring) {
-      const typeSelect = overlay.querySelector('#hud-sbe-type');
-      if (typeSelect) {
-        typeSelect.addEventListener('change', () => {
-          const unavailFields = overlay.querySelector('#hud-sbe-unavail-fields');
-          if (unavailFields) unavailFields.style.display = typeSelect.value === 'unavailable' ? '' : 'none';
-        });
-      }
-    }
-
-    let rigidity = block.rigidity || 'rigid';
-    overlay.querySelectorAll('[data-rig]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        rigidity = btn.dataset.rig;
-        overlay.querySelectorAll('[data-rig]').forEach(b => b.classList.toggle('active', b.dataset.rig === rigidity));
-      });
-    });
-
-    overlay.querySelector('#hud-sbe-cancel').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-
-    overlay.querySelector('#hud-sbe-delete').addEventListener('click', async () => {
-      try {
-        if (isTemplate) {
-          const blocks = (_scheduleTemplate?.blocks || []).filter(b => b.id !== blockId);
-          await saveScheduleTemplate(blocks);
-        } else {
-          await deleteScheduleOverride(blockId);
-        }
-        toast('Block deleted');
-        overlay.remove();
-      } catch (err) { toast('Error deleting'); }
-    });
-
-    overlay.querySelector('#hud-sbe-save').addEventListener('click', async () => {
-      let type, reason;
-      if (isRecurring) {
-        type = overlay.querySelector('#hud-sbe-type')?.value || block.type;
-        reason = type === 'unavailable' ? overlay.querySelector('#hud-sbe-reason')?.value : null;
-      } else if (isSpecial) {
-        type = 'available';
-        reason = null;
-      } else {
-        type = 'unavailable';
-        reason = overlay.querySelector('#hud-sbe-reason')?.value || block.reason;
-      }
-
-      const st = overlay.querySelector('#hud-sbe-start').value;
-      const et = overlay.querySelector('#hud-sbe-end').value;
-      if (!st || !et || st >= et) { toast('Invalid time range'); return; }
-
-      const updatedBlock = {
-        startTime: st, endTime: et, type, reason,
-        rigidity: type === 'unavailable' ? rigidity : 'flexible',
-        mode: blockMode
-      };
-
-      try {
-        if (isTemplate) {
-          const blocks = (_scheduleTemplate?.blocks || []).map(b =>
-            b.id === blockId ? { ...b, ...updatedBlock } : b
-          );
-          await saveScheduleTemplate(blocks);
-        } else {
-          await deleteScheduleOverride(blockId);
-          await addScheduleOverride({
-            date: dateStr, action: 'add', blockId: null,
-            block: updatedBlock
-          });
-        }
-        toast('Block updated');
-        overlay.remove();
-      } catch (err) { toast('Error saving'); }
-    });
-  }
-
-  /* ═══════════════════════════════════════════════════════════
      13. TEAM AVAILABILITY — Gantt View
      ═══════════════════════════════════════════════════════════ */
 
@@ -3115,9 +2459,10 @@
     // Get all users' schedules for this day
     const userSchedules = [];
     const seenUids = new Set();
-    for (const tmpl of _allTemplates) {
+    const _ssTemplates = McgheeLab.ScheduleService ? McgheeLab.ScheduleService.getAllTemplates() : [];
+    for (const tmpl of _ssTemplates) {
       seenUids.add(tmpl.id);
-      const blocks = resolveScheduleForUser(tmpl.id, dateStr);
+      const blocks = McgheeLab.ScheduleService.resolveScheduleForUser(tmpl.id, dateStr);
       userSchedules.push({ uid: tmpl.id, name: tmpl.ownerName, blocks });
     }
 
@@ -3137,27 +2482,68 @@
     if (userSchedules.length === 0) {
       rowsHTML = `<div style="color:var(--muted); text-align:center; padding:2rem;">No team members have set up their schedules yet.</div>`;
     } else {
+      const _ssReasonColors = McgheeLab.ScheduleService ? McgheeLab.ScheduleService.REASON_COLORS : {};
+
       for (const us of userSchedules) {
         const color = getUserColor(us.uid);
         const isMe = us.uid === _user.uid;
 
-        // Build segments
+        // Separate blocks by role
+        const availBlocks = us.blocks.filter(b => b.type === 'available' && b.source !== 'calendar' && b.source !== 'custom');
+        const overlayBlocks = us.blocks.filter(b => b.type === 'unavailable' || b.source === 'calendar' || b.source === 'custom');
+
+        // Helper: time string to minutes
+        const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+        // 1. Render base availability (green background)
         let segmentsHTML = '';
-        for (const block of us.blocks) {
-          const [sh, sm] = block.startTime.split(':').map(Number);
-          const [eh, em] = block.endTime.split(':').map(Number);
-          const startMin = sh * 60 + sm;
-          const endMin = eh * 60 + em;
+        for (const block of availBlocks) {
+          const startMin = toMin(block.startTime);
+          const endMin = toMin(block.endTime);
           const left = Math.max(0, (startMin - barStart) / barRange * 100);
           const width = Math.min(100 - left, (endMin - startMin) / barRange * 100);
           if (width <= 0) continue;
 
-          const isAvail = block.type === 'available';
-          const segColor = isAvail ? color : (REASON_COLORS[block.reason] || '#6b7280');
-          const rigidClass = !isAvail && block.rigidity === 'rigid' ? ' hud-team-seg--rigid' : '';
-          const label = isAvail ? '' : (block.reason || 'Busy');
-          segmentsHTML += `<div class="hud-team-segment${rigidClass}" style="left:${left.toFixed(1)}%; width:${width.toFixed(1)}%; background:${isAvail ? segColor + '55' : segColor + '33'}; border:1px solid ${segColor}66;" title="${label || 'Available'}: ${fmtTime(block.startTime)}-${fmtTime(block.endTime)}">
-            ${width > 8 ? `<span class="hud-team-seg-label">${escHTML(label)}</span>` : ''}
+          segmentsHTML += `<div class="hud-team-segment" style="left:${left.toFixed(1)}%; width:${width.toFixed(1)}%; background:${color}44; border:1px solid ${color}66;" title="Available: ${fmtTime(block.startTime)}-${fmtTime(block.endTime)}"></div>`;
+        }
+
+        // 2. Overlay blocks subtract from availability and show context
+        for (const block of overlayBlocks) {
+          const startMin = toMin(block.startTime);
+          const endMin = toMin(block.endTime);
+          const left = Math.max(0, (startMin - barStart) / barRange * 100);
+          const width = Math.min(100 - left, (endMin - startMin) / barRange * 100);
+          if (width <= 0) continue;
+
+          const isCal = block.source === 'calendar';
+          const isCustom = block.source === 'custom';
+          const isBusyAvail = block.calStatus === 'busy-available';
+          const label = block.title || block.reason || 'Busy';
+
+          let segColor, bgStyle, extraClass = '';
+
+          if (isBusyAvail) {
+            // Busy but available — slanted bar pattern, muted green
+            segColor = '#16a34a';
+            bgStyle = `background: repeating-linear-gradient(-45deg, ${segColor}22, ${segColor}22 4px, ${segColor}44 4px, ${segColor}44 8px); border:1px solid ${segColor}66;`;
+            extraClass = ' hud-team-seg--busy-avail';
+          } else if (isCal) {
+            // Calendar event — purple, subtracts availability
+            segColor = '#9333ea';
+            bgStyle = `background:${segColor}55; border:1px solid ${segColor}66;`;
+          } else if (isCustom) {
+            // Custom event — use custom color
+            segColor = block.color || '#a78bfa';
+            bgStyle = `background:${segColor}55; border:1px solid ${segColor}66;`;
+          } else {
+            // Regular unavailable (blackout, special unavailability)
+            segColor = _ssReasonColors[block.reason] || '#6b7280';
+            bgStyle = `background:${segColor}33; border:1px solid ${segColor}66;`;
+            if (block.rigidity === 'rigid') extraClass = ' hud-team-seg--rigid';
+          }
+
+          segmentsHTML += `<div class="hud-team-segment${extraClass}" style="left:${left.toFixed(1)}%; width:${width.toFixed(1)}%; ${bgStyle} z-index:1;" title="${escHTML(label)}: ${fmtTime(block.startTime)}-${fmtTime(block.endTime)}">
+            ${width > 6 ? `<span class="hud-team-seg-label">${escHTML(label)}</span>` : ''}
           </div>`;
         }
 
@@ -3204,7 +2590,7 @@
         const days = getWeekDays(_currentWeekOffset);
         const dateStr = days[_teamViewDay || 0]?.date;
         if (!dateStr) return;
-        const overlaps = resolveAvailabilityOverlap(_user.uid, uid, dateStr);
+        const overlaps = McgheeLab.ScheduleService ? McgheeLab.ScheduleService.resolveAvailabilityOverlap(_user.uid, uid, dateStr) : [];
         if (overlaps.length === 0) {
           toast('No schedule overlap found');
         } else {
@@ -3432,9 +2818,9 @@
 
   function wireWeekNav() {
     const p = document.getElementById('hud-week-prev'), n = document.getElementById('hud-week-next'), t = document.getElementById('hud-week-today');
-    if (p) p.addEventListener('click', () => { _currentWeekOffset--; subscribePlans(); subscribeHelp(); subscribeRundown(); subscribeScheduleOverrides(); renderMain(); });
-    if (n) n.addEventListener('click', () => { _currentWeekOffset++; subscribePlans(); subscribeHelp(); subscribeRundown(); subscribeScheduleOverrides(); renderMain(); });
-    if (t) t.addEventListener('click', () => { _currentWeekOffset = 0; subscribePlans(); subscribeHelp(); subscribeRundown(); subscribeScheduleOverrides(); renderMain(); });
+    if (p) p.addEventListener('click', () => { _currentWeekOffset--; subscribePlans(); subscribeHelp(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
+    if (n) n.addEventListener('click', () => { _currentWeekOffset++; subscribePlans(); subscribeHelp(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
+    if (t) t.addEventListener('click', () => { _currentWeekOffset = 0; subscribePlans(); subscribeHelp(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
   }
 
   function wireFilters() {

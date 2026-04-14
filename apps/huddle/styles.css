@@ -1688,6 +1688,13 @@
   ) !important;
 }
 
+/* Busy but available — slanted bar infill showing partial availability */
+.hud-team-seg--busy-avail {
+  /* The repeating gradient is set inline via bgStyle, this adds the text styling */
+  color: #16a34a;
+  font-style: italic;
+}
+
 .hud-team-seg-label {
   font-size: .6rem;
   padding: 0 .2rem;

@@ -221,6 +221,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Schedule custom events — user-created personal calendar events
+    // Auth read (for team views); owner CRUD; admin delete
+    match /scheduleCustomEvents/{eventId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.ownerUid;
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+    }
+
     // Huddle schedule templates — recurring weekly availability per user
     // All auth members can read (for team availability view); owner writes own
     match /huddleScheduleTemplates/{userId} {

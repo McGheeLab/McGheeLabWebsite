@@ -26,6 +26,8 @@ McgheeLab.CalendarService = (() => {
   let _initialized = false;
   let _listeners = [];        // onChange callbacks
   let _toastFn = null;        // optional toast callback
+  let _dismissedIds = new Set(); // event IDs the user has dismissed
+  let _eventStatuses = {};       // eventId → 'unavailable' | 'busy-available'
 
   const GCAL_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
   const MSAL_SCOPES = ['Calendars.Read'];
@@ -94,9 +96,15 @@ McgheeLab.CalendarService = (() => {
     await loadConfig();
     restoreSessions();
 
-    // Auto-fetch saved ICS URLs
-    if (_config.icsUrl) fetchICSFromUrl(_config.icsUrl, 'ics');
-    if (_config.outlookIcsUrl) fetchICSFromUrl(_config.outlookIcsUrl, 'outlook_ics');
+    // Load dismissed event IDs and per-event statuses
+    _dismissedIds = new Set(_config.dismissedEventIds || []);
+    _eventStatuses = _config.eventStatuses || {};
+
+    // Auto-fetch saved ICS URLs (await so initial render has data)
+    const fetchPromises = [];
+    if (_config.icsUrl) fetchPromises.push(fetchICSFromUrl(_config.icsUrl, 'ics').catch(() => {}));
+    if (_config.outlookIcsUrl) fetchPromises.push(fetchICSFromUrl(_config.outlookIcsUrl, 'outlook_ics').catch(() => {}));
+    if (fetchPromises.length) await Promise.all(fetchPromises);
 
     startAutoRefresh(_config.autoRefreshMinutes);
     _initialized = true;
@@ -213,13 +221,31 @@ McgheeLab.CalendarService = (() => {
     _notify();
   }
 
+  /** Normalize a calendar URL — auto-convert .html to .ics for Outlook published calendars */
+  function normalizeCalendarUrl(url) {
+    if (!url) return url;
+    // Outlook published calendars have both .html and .ics variants at the same path
+    if (url.match(/outlook\.office365\.com.*\/calendar\.html$/i)) {
+      return url.replace(/\/calendar\.html$/i, '/calendar.ics');
+    }
+    return url;
+  }
+
   async function fetchICSFromUrl(url, provider) {
     provider = provider || 'ics';
+    // Auto-convert HTML calendar URLs to ICS
+    const icsUrl = normalizeCalendarUrl(url);
+
+    // Build fetch strategy list
     const strategies = [
-      () => fetch(url),
-      () => fetch('https://corsproxy.io/?' + encodeURIComponent(url)),
-      () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
-      () => fetch('https://cors-anywhere.herokuapp.com/' + url)
+      // 1. Firebase Cloud Function proxy (most reliable — no CORS issues)
+      () => fetch('https://us-central1-mcgheelab-f56cc.cloudfunctions.net/calendarProxy?url=' + encodeURIComponent(icsUrl)),
+      // 2. Direct fetch (works if server sends CORS headers)
+      () => fetch(icsUrl),
+      // 3. corsproxy.io
+      () => fetch('https://corsproxy.io/?' + encodeURIComponent(icsUrl)),
+      // 4. allorigins
+      () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(icsUrl)),
     ];
     let lastErr = null;
     for (let i = 0; i < strategies.length; i++) {
@@ -235,7 +261,7 @@ McgheeLab.CalendarService = (() => {
         lastErr = err;
       }
     }
-    throw lastErr || new Error('All proxies failed');
+    throw lastErr || new Error('All fetch strategies failed — try importing the .ics file directly');
   }
 
   /* ─── Provider: Google Calendar ──────────────────────────── */
@@ -399,6 +425,11 @@ McgheeLab.CalendarService = (() => {
 
   /* ─── Query ──────────────────────────────────────────────── */
   function getEventsForDate(dateStr) {
+    return _events.filter(e => e.date === dateStr && !_dismissedIds.has(e.id));
+  }
+
+  function getAllEventsForDate(dateStr) {
+    // Includes dismissed events (for "restore" UI)
     return _events.filter(e => e.date === dateStr);
   }
 
@@ -431,6 +462,43 @@ McgheeLab.CalendarService = (() => {
     });
   }
 
+  /* ─── Event Dismissal ─────────────────────────────────────── */
+  async function dismissEvent(eventId) {
+    _dismissedIds.add(eventId);
+    await saveConfig({ dismissedEventIds: Array.from(_dismissedIds) });
+    _notify();
+  }
+
+  async function restoreDismissed() {
+    _dismissedIds.clear();
+    await saveConfig({ dismissedEventIds: [] });
+    _notify();
+  }
+
+  function getDismissedCount() {
+    return _dismissedIds.size;
+  }
+
+  function isDismissed(eventId) {
+    return _dismissedIds.has(eventId);
+  }
+
+  /* ─── Event Status (unavailable vs busy-available) ────────── */
+  async function setEventStatus(eventId, status) {
+    // status: 'unavailable' (default, blocks availability) or 'busy-available' (darker available)
+    if (status === 'unavailable') {
+      delete _eventStatuses[eventId]; // default, no need to store
+    } else {
+      _eventStatuses[eventId] = status;
+    }
+    await saveConfig({ eventStatuses: { ..._eventStatuses } });
+    _notify();
+  }
+
+  function getEventStatus(eventId) {
+    return _eventStatuses[eventId] || 'unavailable';
+  }
+
   /* ─── Clear Providers ────────────────────────────────────── */
   function clearProvider(provider) {
     _events = _events.filter(e => e.provider !== provider);
@@ -443,6 +511,7 @@ McgheeLab.CalendarService = (() => {
     getConfig,
     saveConfig,
     getEventsForDate,
+    getAllEventsForDate,
     getAllEvents,
     fetchAll,
     importICSFile,
@@ -456,6 +525,12 @@ McgheeLab.CalendarService = (() => {
     parseICS,
     mergeICSEvents,
     fetchICSFromUrl,
-    startAutoRefresh
+    startAutoRefresh,
+    dismissEvent,
+    restoreDismissed,
+    getDismissedCount,
+    isDismissed,
+    setEventStatus,
+    getEventStatus
   };
 })();

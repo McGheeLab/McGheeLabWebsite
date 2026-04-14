@@ -8,7 +8,7 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 4;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
 const APPS_CACHE   = `mcgheelab-apps-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;
@@ -43,6 +43,10 @@ const SHELL_URLS = [
 const APP_URLS = [
   '/apps/shared/app-base.css',
   '/apps/shared/auth-bridge.js',
+  '/apps/shared/mobile-shell.js',
+  '/apps/shared/calendar-service.js',
+  '/apps/shared/schedule-service.js',
+  '/apps/shared/schedule-utils.js',
   '/apps/activity-tracker/index.html',
   '/apps/activity-tracker/app.js',
   '/apps/activity-tracker/styles.css',
@@ -84,6 +88,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+/* ---------- Message: allow pages to trigger skipWaiting ---------- */
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 /* ---------- Activate: clean old caches ---------- */
 
 self.addEventListener('activate', (event) => {
@@ -113,12 +125,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Google Auth endpoints — never cache (auth tokens, popups, GIS client)
+  if (url.hostname.includes('accounts.google.com') ||
+      url.hostname.includes('apis.google.com')) {
+    return;
+  }
+
   // CDN resources (Firebase SDK, Chart.js): stale-while-revalidate
   // SDK versions are pinned in HTML files, so cache-first is safe and
   // eliminates the network round-trip on every app switch
   if (url.hostname.includes('gstatic.com') ||
-      url.hostname.includes('jsdelivr.net') ||
-      url.hostname.includes('accounts.google.com')) {
+      url.hostname.includes('jsdelivr.net')) {
     event.respondWith(staleWhileRevalidate(event.request));
     return;
   }

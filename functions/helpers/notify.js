@@ -10,6 +10,10 @@ const STALE_TOKEN_ERRORS = [
   'messaging/registration-token-not-registered',
 ];
 
+// Number of consecutive failures before a token is deleted.
+// Gives users time to revisit the app and refresh their token.
+const MAX_FAILURES = 3;
+
 /**
  * Build an FCM message payload in the format expected by the
  * McGheeLab service worker (firebase-messaging-sw.js).
@@ -19,17 +23,18 @@ const STALE_TOKEN_ERRORS = [
  * @returns {Object} FCM message object
  */
 function buildMessage(token, { title, body, url, tag }) {
+  // Data-only message — no `notification` field.
+  // The `notification` field causes the browser to auto-display AND
+  // the service worker to fire onBackgroundMessage, resulting in
+  // duplicate notifications. Data-only lets the service worker
+  // handle all display via onBackgroundMessage.
   return {
     token,
-    notification: { title, body },
     data: {
       title,
       body,
       url: url || '/#/apps',
       tag: tag || 'mcgheelab-' + Date.now(),
-    },
-    webpush: {
-      fcmOptions: { link: url || '/#/apps' },
     },
   };
 }
@@ -72,14 +77,19 @@ async function sendToUsers(db, messaging, userIds, notif, appKey) {
   if (eligibleUids.length === 0) return 0;
 
   // Gather all FCM tokens for eligible users
-  const tokenEntries = []; // { uid, token }
+  const tokenEntries = []; // { uid, token, docId, failCount }
   await Promise.all(
     eligibleUids.map(async (uid) => {
       const snap = await db.collection('users').doc(uid)
         .collection('pushTokens').get();
       snap.forEach((doc) => {
-        const t = doc.data().token || doc.id;
-        tokenEntries.push({ uid, token: t, docId: doc.id });
+        const data = doc.data();
+        tokenEntries.push({
+          uid,
+          token: data.token || doc.id,
+          docId: doc.id,
+          failCount: data.failCount || 0,
+        });
       });
     })
   );
@@ -90,20 +100,29 @@ async function sendToUsers(db, messaging, userIds, notif, appKey) {
   const messages = tokenEntries.map((entry) => buildMessage(entry.token, notif));
   const response = await messaging.sendEach(messages);
 
-  // Clean up stale tokens
-  const staleDeletes = [];
+  // Handle stale tokens — increment fail count, delete after MAX_FAILURES
+  const staleOps = [];
   response.responses.forEach((result, i) => {
     if (result.error && STALE_TOKEN_ERRORS.includes(result.error.code)) {
       const entry = tokenEntries[i];
-      staleDeletes.push(
-        db.collection('users').doc(entry.uid)
-          .collection('pushTokens').doc(entry.docId).delete()
-      );
+      const docRef = db.collection('users').doc(entry.uid)
+        .collection('pushTokens').doc(entry.docId);
+      const currentFails = (entry.failCount || 0) + 1;
+
+      if (currentFails >= MAX_FAILURES) {
+        staleOps.push(docRef.delete());
+        console.log(`[Notify] Deleted token for ${entry.uid} after ${currentFails} consecutive failures.`);
+      } else {
+        staleOps.push(docRef.update({
+          failCount: currentFails,
+          lastFailedAt: new Date().toISOString(),
+        }));
+        console.log(`[Notify] Token for ${entry.uid} failed (${currentFails}/${MAX_FAILURES}).`);
+      }
     }
   });
-  if (staleDeletes.length > 0) {
-    await Promise.all(staleDeletes);
-    console.log(`[Notify] Cleaned up ${staleDeletes.length} stale token(s).`);
+  if (staleOps.length > 0) {
+    await Promise.all(staleOps);
   }
 
   const sent = response.successCount;

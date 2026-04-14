@@ -24,12 +24,13 @@ McgheeLab.AppBridge = (() => {
   let _profile = null;
   let _isEmbedded = window.parent !== window;
   let _ready = false;
+  let _authFailed = false;  // true if auth wall is currently showing
 
   /* ─── Public API ────────────────────────────────────────── */
 
   function onReady(fn) {
-    if (_ready) { fn(_user, _profile); return; }
-    _readyCallbacks.push(fn);
+    if (_ready && !_authFailed) { fn(_user, _profile); return; }
+    if (!_ready) _readyCallbacks.push(fn);
   }
 
   function isEmbedded() { return _isEmbedded; }
@@ -40,9 +41,24 @@ McgheeLab.AppBridge = (() => {
   /* ─── Notify listeners ──────────────────────────────────── */
 
   function _fireReady(user, profile) {
+    // Recovery: if auth wall was showing but we now have a real user, reload to re-init the app
+    if (_authFailed && user) {
+      console.info('[AppBridge] Auth recovered after wall — reloading app');
+      location.reload();
+      return;
+    }
+
+    // Profile update: parent re-sent auth with real profile after initial fallback
+    if (_ready && user) {
+      _user = user;
+      _profile = profile;
+      return;
+    }
+
     _user = user;
     _profile = profile;
     _ready = true;
+    _authFailed = false;
     _readyCallbacks.forEach(fn => fn(user, profile));
     _readyCallbacks = [];
   }
@@ -51,6 +67,7 @@ McgheeLab.AppBridge = (() => {
     _user = null;
     _profile = null;
     _ready = true;
+    _authFailed = true;
     document.body.classList.add('app-auth-failed');
     const el = document.getElementById('app') || document.body;
 
@@ -86,7 +103,7 @@ McgheeLab.AppBridge = (() => {
       if (e.data?.type !== 'mcgheelab-auth') return;
 
       const { token, user, profile } = e.data;
-      if (user && profile) {
+      if (user) {
         // If parent sent a custom token, sign into Firebase
         if (token && McgheeLab.auth) {
           try {
@@ -95,10 +112,12 @@ McgheeLab.AppBridge = (() => {
             console.warn('[AppBridge] Custom token sign-in failed, using profile from parent:', err.message);
           }
         }
-        _fireReady(user, profile);
-      } else {
-        _fireAuthFailed();
+        // Accept user even if profile hasn't loaded yet — use fallback.
+        // Parent will re-send via Auth.onChange when profile becomes available.
+        _fireReady(user, profile || { role: 'member' });
       }
+      // Don't call _fireAuthFailed on null user — parent may still be resolving auth.
+      // The timeout below handles the genuinely-not-logged-in case.
     });
 
     // Tell parent we're ready to receive auth (with retries)
@@ -116,6 +135,8 @@ McgheeLab.AppBridge = (() => {
   /* ─── Standalone mode: use Firebase directly ────────────── */
 
   function _initStandalone() {
+    let _nullSettleTimer = null;  // grace period before treating null as "no user"
+
     // Firebase SDK loads with defer — wait for it if not ready yet
     function tryInit() {
       if (typeof firebase !== 'undefined' && firebase.auth) {
@@ -124,8 +145,12 @@ McgheeLab.AppBridge = (() => {
           McgheeLab.db   = firebase.firestore();
         }
         firebase.auth().onAuthStateChanged(async (fbUser) => {
-          if (_ready && _user?.uid === fbUser?.uid) return; // same user, skip
           if (fbUser) {
+            // Got a real user — cancel any pending null-settle timer
+            if (_nullSettleTimer) {
+              clearTimeout(_nullSettleTimer);
+              _nullSettleTimer = null;
+            }
             try {
               const doc = await firebase.firestore().collection('users').doc(fbUser.uid).get();
               const profile = doc.exists ? doc.data() : { role: 'guest' };
@@ -141,7 +166,18 @@ McgheeLab.AppBridge = (() => {
               );
             }
           } else {
-            _fireAuthFailed();
+            // null user — don't fail immediately. Firebase persistence may still be
+            // restoring the session from IndexedDB. Wait 2s for a real user to arrive.
+            if (!_ready && !_nullSettleTimer) {
+              _nullSettleTimer = setTimeout(() => {
+                _nullSettleTimer = null;
+                if (!_ready) _fireAuthFailed();
+              }, 2000);
+            } else if (_ready && !_authFailed) {
+              // Was signed in, now genuinely signed out (e.g. logout in another tab)
+              _fireAuthFailed();
+            }
+            // If _authFailed is already true, do nothing — wall is already showing
           }
         });
         return true;

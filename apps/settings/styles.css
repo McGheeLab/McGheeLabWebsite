@@ -292,6 +292,45 @@
   color: #4caf50;
 }
 
+/* --- Device push status --- */
+.device-push-status {
+  background: var(--bg, #0b0e14);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  margin-top: .75rem;
+  font-size: .88rem;
+  line-height: 1.5;
+}
+.device-push-checking {
+  color: var(--muted);
+  font-size: .82rem;
+}
+.device-push-ok strong {
+  color: #22c55e;
+}
+.device-push-warn strong {
+  color: #f59e0b;
+}
+.device-push-denied strong,
+.device-push-unsupported strong {
+  color: #ef4444;
+}
+
+/* --- Test notification grid --- */
+.test-notif-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+  align-items: center;
+}
+.test-notif-grid h3 {
+  width: 100%;
+}
+.test-notif-btn {
+  transition: background .2s;
+}
+
 /* --- Logout --- */
 .settings-logout-btn {
   width: 100%;

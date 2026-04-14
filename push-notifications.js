@@ -78,7 +78,8 @@ window.McgheePush = (() => {
             token,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             platform: detectPlatform(),
-            userAgent: navigator.userAgent.substring(0, 200)
+            userAgent: navigator.userAgent.substring(0, 200),
+            failCount: 0
           });
         console.log('[Push] Token saved to Firestore.');
       }
@@ -86,6 +87,39 @@ window.McgheePush = (() => {
       return token;
     } catch (err) {
       console.error('[Push] Error requesting permission:', err);
+      return null;
+    }
+  }
+
+  /* ---------- Refresh token (call on every login) ---------- */
+
+  async function refreshToken(userId) {
+    if (!isSupported()) return null;
+    if (!VAPID_KEY) return null;
+    if (Notification.permission !== 'granted') return null;
+
+    try {
+      const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+      if (!token) return null;
+
+      // Upsert token in Firestore and reset failure counter
+      if (McgheeLab.db && userId) {
+        await McgheeLab.db
+          .collection('users').doc(userId)
+          .collection('pushTokens').doc(token)
+          .set({
+            token,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            platform: detectPlatform(),
+            userAgent: navigator.userAgent.substring(0, 200),
+            failCount: 0
+          });
+        console.log('[Push] Token refreshed.');
+      }
+
+      return token;
+    } catch (err) {
+      console.warn('[Push] Token refresh failed:', err);
       return null;
     }
   }
@@ -179,6 +213,7 @@ window.McgheePush = (() => {
     isSupported,
     getPermissionState,
     requestPermission,
+    refreshToken,
     removeToken,
     onForegroundMessage,
     isBadgingSupported,
