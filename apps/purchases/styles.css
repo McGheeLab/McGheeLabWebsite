@@ -1,0 +1,16 @@
+/* purchase requests app — prefixed with pur- */
+.pur-form { max-width: 560px; }
+.pur-form .app-label { margin-top: .75rem; }
+.pur-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.pur-table th { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--border); color: var(--muted); font-size: .75rem; text-transform: uppercase; }
+.pur-table td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.pur-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .7rem; font-weight: 600; text-transform: capitalize; }
+.pur-badge--requested { background: rgba(91,174,209,.15); color: var(--accent); }
+.pur-badge--approved  { background: rgba(76,175,80,.15);  color: var(--success); }
+.pur-badge--ordered   { background: rgba(255,193,7,.15);  color: var(--warning); }
+.pur-badge--received  { background: rgba(76,175,80,.15);  color: var(--success); }
+.pur-badge--denied    { background: rgba(233,30,99,.15);  color: var(--danger); }
+.pur-tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; border-bottom: 2px solid var(--border); }
+.pur-tab { background: none; border: none; padding: .5rem 1rem; font-size: .875rem; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.pur-tab:hover { color: var(--text); }
+.pur-tab.active { color: var(--accent); border-bottom-color: var(--accent); }

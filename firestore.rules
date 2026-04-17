@@ -265,16 +265,20 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Activity tracker data — strictly owner-only (no admin access)
+    // Activity tracker data — owner-only (private by default)
     match /trackerData/{userId} {
       allow read, write: if request.auth != null
                          && request.auth.uid == userId;
     }
 
-    // Activity tracker entries — subcollection, strictly owner-only
+    // Activity tracker entries — owner-only, OR admin if user opted in via shareWithAdmin flag
     match /trackerEntries/{userId}/entries/{entryId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+      allow read:  if request.auth != null
+                   && (request.auth.uid == userId
+                       || (isAdmin()
+                           && get(/databases/$(database)/documents/users/$(userId)).data.shareActivity == true));
+      allow write: if request.auth != null
+                   && request.auth.uid == userId;
     }
 
     // Equipment catalog — authenticated read, admin write
@@ -348,6 +352,56 @@ service cloud.firestore {
     match /chatUserMeta/{uid} {
       allow read, write: if request.auth != null
                          && request.auth.uid == uid;
+    }
+
+    // ── ResearchManagement Integration ──
+
+    // Procurement — student submits, admin reviews
+    match /procurement/{docId} {
+      allow read: if request.auth != null
+                  && (request.auth.uid == resource.data.submittedBy || isAdmin());
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // Lab Tasks — admin creates, assignee + admin read/update
+    match /labTasks/{docId} {
+      allow read: if request.auth != null
+                  && (request.auth.uid == resource.data.assignedTo || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && request.auth.uid == resource.data.assignedTo
+                        && request.resource.data.status in ['in_progress', 'completed']);
+      allow delete: if isAdmin();
+    }
+
+    // Lab Status — public read (paper/proposal status), admin write
+    match /labStatus/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Lab Config — authenticated read, admin write
+    match /labConfig/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Purchase Requests — student submits, admin reviews
+    match /purchaseRequests/{docId} {
+      allow read: if request.auth != null
+                  && (request.auth.uid == resource.data.requestedBy || isAdmin());
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // Compliance Submissions — student submits, admin verifies
+    match /complianceSubmissions/{docId} {
+      allow read: if request.auth != null
+                  && (request.auth.uid == resource.data.submittedBy || isAdmin());
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
     }
   }
 }

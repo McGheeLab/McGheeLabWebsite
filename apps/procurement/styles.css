@@ -1,0 +1,96 @@
+/* procurement app styles — prefixed with proc- */
+
+.proc-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--border);
+}
+.proc-tab {
+  background: none;
+  border: none;
+  padding: .5rem 1rem;
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+.proc-tab:hover { color: var(--text); }
+.proc-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.proc-form { max-width: 600px; }
+.proc-form .app-label { margin-top: .75rem; }
+
+.proc-line-items { margin-top: .75rem; }
+.proc-line-item {
+  display: grid;
+  grid-template-columns: 2fr 1fr 80px 100px 32px;
+  gap: .5rem;
+  align-items: end;
+  margin-bottom: .5rem;
+}
+.proc-line-item input { font-size: .8rem; padding: .4rem .5rem; }
+.proc-remove-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: .25rem;
+}
+.proc-remove-btn:hover { opacity: .7; }
+
+.proc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+.proc-table th {
+  text-align: left;
+  padding: .5rem .75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.proc-table td {
+  padding: .5rem .75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.proc-table tr:last-child td { border-bottom: none; }
+
+.proc-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.proc-badge--submitted { background: rgba(91,174,209,.15); color: var(--accent); }
+.proc-badge--reviewed  { background: rgba(76,175,80,.15);  color: var(--success); }
+
+.proc-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.proc-stat {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  min-width: 140px;
+  flex: 1;
+}
+.proc-stat-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.proc-stat-value { font-size: 1.25rem; font-weight: 700; margin-top: .25rem; }
+
+@media (max-width: 600px) {
+  .proc-line-item { grid-template-columns: 1fr; }
+  .proc-summary { flex-direction: column; }
+}

@@ -1,0 +1,14 @@
+/* compliance app — prefixed with comp- */
+.comp-form { max-width: 560px; }
+.comp-form .app-label { margin-top: .75rem; }
+.comp-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.comp-table th { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--border); color: var(--muted); font-size: .75rem; text-transform: uppercase; }
+.comp-table td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.comp-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .7rem; font-weight: 600; text-transform: capitalize; }
+.comp-badge--submitted { background: rgba(91,174,209,.15); color: var(--accent); }
+.comp-badge--verified  { background: rgba(76,175,80,.15);  color: var(--success); }
+.comp-badge--expired   { background: rgba(233,30,99,.15);  color: var(--danger); }
+.comp-tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; border-bottom: 2px solid var(--border); }
+.comp-tab { background: none; border: none; padding: .5rem 1rem; font-size: .875rem; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.comp-tab:hover { color: var(--text); }
+.comp-tab.active { color: var(--accent); border-bottom-color: var(--accent); }

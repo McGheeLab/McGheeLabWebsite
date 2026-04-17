@@ -138,6 +138,43 @@ const LAB_APPS = [
     </svg>`,
     status: 'active',
     adminOnly: false
+  },
+  {
+    id: 'procurement',
+    name: 'Procurement',
+    description: 'Submit purchase orders and receipts with line items, project tags, and invoice PDFs.',
+    path: 'apps/procurement/index.html',
+    icon: `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <path d="M16 10a4 4 0 0 1-8 0"/>
+    </svg>`,
+    status: 'active',
+    adminOnly: false
+  },
+  {
+    id: 'purchases',
+    name: 'Purchase Requests',
+    description: 'Request equipment, supplies, or software. PI reviews and handles ordering.',
+    path: 'apps/purchases/index.html',
+    icon: `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+    </svg>`,
+    status: 'active',
+    adminOnly: false
+  },
+  {
+    id: 'compliance',
+    name: 'Training & Compliance',
+    description: 'Upload training completion certificates (CITI, lab safety, biosafety) for PI verification.',
+    path: 'apps/compliance/index.html',
+    icon: `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+      <polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>`,
+    status: 'active',
+    adminOnly: false
   }
 ];
 

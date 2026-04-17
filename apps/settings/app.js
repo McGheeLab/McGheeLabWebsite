@@ -168,6 +168,22 @@
           </div>
         </div>
 
+        <!-- Privacy -->
+        <div class="settings-section">
+          <h2>Privacy</h2>
+
+          <div class="settings-toggle-row">
+            <div>
+              <div class="settings-toggle-label">Share Activity with PI</div>
+              <div class="settings-toggle-sub">Allow the PI to see your activity tracker entries in the lab dashboard</div>
+            </div>
+            ${toggleHTML('privacy-share-activity', _profile?.shareActivity || false)}
+          </div>
+
+          <button class="settings-save-btn" id="save-privacy-btn" style="margin-top:1rem">Save Privacy Settings</button>
+          <div id="privacy-status"></div>
+        </div>
+
         <!-- Calendar Integration -->
         <div class="settings-section">
           <h2>Calendar Integration</h2>
@@ -311,6 +327,23 @@
       }
       btn.disabled = false;
       btn.textContent = 'Save Notification Settings';
+    });
+
+    // Save privacy settings (shareActivity toggle)
+    document.getElementById('save-privacy-btn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('save-privacy-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      try {
+        const shareActivity = isChecked('privacy-share-activity');
+        await db().collection('users').doc(_user.uid).update({ shareActivity });
+        _profile.shareActivity = shareActivity;
+        showStatus('privacy-status', 'Privacy settings saved', 'success');
+      } catch (err) {
+        showStatus('privacy-status', 'Failed to save: ' + err.message, 'error');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Privacy Settings';
     });
 
     // Quiet hours toggle → enable/disable time inputs
