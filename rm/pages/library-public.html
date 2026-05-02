@@ -108,6 +108,11 @@
     </div>
   </main>
 
+  <!-- Firebase Firestore SDK only — no auth on this page. The viewer reads
+       paper metadata directly from `items/{id}` with an anonymous-read rule
+       gated on meta.library.public == true. -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="/rm/js/library-public.js"></script>
 </body>
 </html>

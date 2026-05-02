@@ -64,19 +64,20 @@
     return url;
   }
 
-  // Atomic-ish update against items.json — re-read, modify, write back.
-  // Server.py's PUT /api/data/items.json overwrites the whole file, so a
-  // concurrent edit between read and write would lose the other change;
-  // for this repo's usage (one PI + a few students) it's an acceptable
-  // race window.
-  async function _patchItem(paperId, mutate) {
-    const data = await api.load('items.json');
-    const items = (data && data.items) || [];
-    const idx = items.findIndex(it => it.id === paperId);
-    if (idx < 0) throw new Error(`Paper ${paperId} no longer in items.json.`);
-    mutate(items[idx]);
-    await api.save('items.json', { items });
-    return items[idx];
+  // Targeted single-doc Firestore update via dotted-path syntax. Replaces
+  // the previous pattern of `await api.load('items.json')` + mutate +
+  // `await api.save('items.json', { items })`, which round-tripped all
+  // ~3,500 items in the lab library through 9 batched commits per share
+  // (10–30s in practice). This path is sub-second.
+  //
+  // The api adapter's cache stays correct: the cheap MAX(updatedAt) probe
+  // sees the new timestamp on next load and triggers a full refresh.
+  async function _patchLibraryFields(paperId, fields) {
+    if (typeof firebridge === 'undefined' || !firebridge.updateDoc) {
+      throw new Error('firebridge.updateDoc not available — page must load firebase-bridge.js.');
+    }
+    // firebridge.updateDoc stamps updatedAt automatically.
+    return firebridge.updateDoc('items', paperId, fields);
   }
 
   async function share(item) {
@@ -89,18 +90,23 @@
 
     const publicUrl = await _getSignedDownloadUrl(lib.pdf.storage_path);
     const nowIso = new Date().toISOString();
-    const updated = await _patchItem(item.id, (it) => {
-      it.meta = it.meta || {};
-      it.meta.library = it.meta.library || {};
-      it.meta.library.public = true;
-      it.meta.library.public_url = publicUrl;
-      it.meta.library.shared_at_iso = nowIso;
-      it.meta.library.shared_by = user.email || user.uid || '';
+    const sharedBy = user.email || user.uid || '';
+
+    await _patchLibraryFields(item.id, {
+      'meta.library.public': true,
+      'meta.library.public_url': publicUrl,
+      'meta.library.shared_at_iso': nowIso,
+      'meta.library.shared_by': sharedBy,
     });
 
-    // Mutate the in-memory item too so the caller sees the change without
-    // an extra reload.
-    item.meta = updated.meta;
+    // Mutate the in-memory item so the caller's UI updates immediately
+    // without re-loading items.json.
+    item.meta = item.meta || {};
+    item.meta.library = item.meta.library || {};
+    item.meta.library.public = true;
+    item.meta.library.public_url = publicUrl;
+    item.meta.library.shared_at_iso = nowIso;
+    item.meta.library.shared_by = sharedBy;
 
     const shareUrl = buildShareUrl(item);
     // Best-effort clipboard copy. Permission failures are silently ignored
@@ -113,15 +119,16 @@
   async function unshare(item) {
     if (!item || item.type !== 'paper') throw new Error('Not a paper item.');
     _requireSignedIn();
-    const updated = await _patchItem(item.id, (it) => {
-      it.meta = it.meta || {};
-      it.meta.library = it.meta.library || {};
-      it.meta.library.public = false;
-      it.meta.library.public_url = '';
+    await _patchLibraryFields(item.id, {
+      'meta.library.public': false,
+      'meta.library.public_url': '',
       // Keep shared_at_iso / shared_by for audit — they show the prior
       // share window. Reset them only on an explicit "wipe" action.
     });
-    item.meta = updated.meta;
+    if (item.meta && item.meta.library) {
+      item.meta.library.public = false;
+      item.meta.library.public_url = '';
+    }
   }
 
   window.LIBRARY_SHARE = { share, unshare, buildShareUrl };
