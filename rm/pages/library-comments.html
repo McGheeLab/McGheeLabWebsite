@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comments &amp; Annotations — McGhee Lab Library</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    .lc-page { padding: 0 24px 32px; }
+    .lc-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 14px; padding: 12px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; }
+    .lc-field { display: flex; flex-direction: column; gap: 3px; }
+    .lc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; font-weight: 600; }
+    .lc-field input, .lc-field select { padding: 5px 8px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+    .lc-field input[type=date] { font-family: ui-monospace, monospace; }
+    .lc-status { color: #6b7280; font-size: 12px; margin-left: auto; }
+    .lc-row { display: flex; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; align-items: flex-start; }
+    .lc-row:hover { background: #f9fafb; }
+    .lc-color-bar { width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0; background: #d1d5db; }
+    .lc-body { flex: 1; min-width: 0; }
+    .lc-row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+    .lc-paper-link { font-weight: 600; font-size: 13px; color: #1e3a8a; text-decoration: none; }
+    .lc-paper-link:hover { text-decoration: underline; }
+    .lc-row-meta { font-size: 11px; color: #6b7280; }
+    .lc-author-chip { font-size: 11px; padding: 2px 8px; background: #eef2ff; color: #3730a3; border-radius: 10px; }
+    .lc-stance-for     { font-size: 10px; padding: 2px 6px; background: #dcfce7; color: #166534; border-radius: 8px; font-weight: 600; }
+    .lc-stance-against { font-size: 10px; padding: 2px 6px; background: #fee2e2; color: #991b1b; border-radius: 8px; font-weight: 600; }
+    .lc-private { font-size: 10px; padding: 2px 6px; background: #fef3c7; color: #92400e; border-radius: 8px; }
+    .lc-quote { background: #fef9c3; border-left: 3px solid #facc15; padding: 6px 10px; margin: 4px 0; font-size: 13px; line-height: 1.45; color: #1f2937; border-radius: 4px; }
+    .lc-comment { font-size: 13px; line-height: 1.45; color: #111827; margin-top: 4px; }
+    .lc-paper-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .lc-tag-chip { font-size: 10px; font-family: ui-monospace, monospace; padding: 1px 7px; border-radius: 10px; background: #f3f4f6; color: #4b5563; cursor: pointer; }
+    .lc-tag-chip:hover { background: #dbeafe; color: #1e3a8a; }
+    .lc-empty { padding: 30px; text-align: center; color: #9ca3af; font-style: italic; }
+    .lc-multiselect { display: flex; flex-wrap: wrap; gap: 4px; max-width: 280px; max-height: 70px; overflow-y: auto; padding: 4px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+    .lc-ms-pill { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #f3f4f6; color: #4b5563; cursor: pointer; user-select: none; border: 1px solid transparent; }
+    .lc-ms-pill.on { background: #1e40af; color: #fff; border-color: #1e3a8a; }
+    /* Section split: Evidence vs Information. */
+    .lc-section-head { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; padding: 0 4px; }
+    .lc-section-tag { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; padding: 3px 9px; border-radius: 12px; font-weight: 700; }
+    .lc-section-evidence { background: #dcfce7; color: #166534; }
+    .lc-section-info { background: #dbeafe; color: #1e3a8a; }
+    .lc-section-count { font-size: 11px; color: #6b7280; }
+    /* Inline edit affordances on each row. Hidden behind ▸ edit by default. */
+    .lc-edit-toggle { background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 11px; padding: 0 4px; margin-left: auto; }
+    .lc-edit-toggle:hover { color: #4338ca; }
+    .lc-edit-panel { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e5e7eb; display: flex; flex-direction: column; gap: 6px; }
+    .lc-edit-line, .lc-owner-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .lc-edit-label { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; color: #9ca3af; font-weight: 600; }
+    .lc-draft-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .lc-draft-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; background: #4338ca; color: #fff; padding: 2px 6px 2px 9px; border-radius: 11px; line-height: 1.4; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lc-draft-x { background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 3px; opacity: .75; }
+    .lc-draft-x:hover { opacity: 1; }
+    .lc-empty-mini { font-size: 11px; color: #9ca3af; font-style: italic; }
+    .lc-draft-add { font-size: 11px; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 5px; background: #fff; color: #374151; max-width: 180px; }
+    .lc-edit-color, .lc-edit-vis, .lc-edit-group { font-size: 11px; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 5px; background: #fff; color: #374151; }
+    .lc-edit-comment, .lc-clear-stance, .lc-edit-delete { font-size: 11px; padding: 2px 8px; border: 1px solid #e5e7eb; background: #fff; color: #4b5563; cursor: pointer; border-radius: 5px; }
+    .lc-edit-comment:hover, .lc-clear-stance:hover { background: #eef2ff; color: #4338ca; border-color: #a5b4fc; }
+    .lc-edit-delete:hover { background: #fef2f2; color: #991b1b; border-color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <div class="page lc-page">
+    <div class="page-header">
+      <h1 class="page-title">Comments &amp; Annotations</h1>
+      <div>
+        <a class="btn" href="/rm/pages/library.html">← Back to library</a>
+      </div>
+    </div>
+
+    <div id="lc-auth-hint" style="display:none;padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;margin-bottom:12px;font-size:13px;">
+      <strong>Not signed in.</strong> Annotations load once you sign in.
+      <a href="/rm/pages/profile.html" style="color:#92400e;text-decoration:underline;">Sign in on the profile page →</a>
+    </div>
+
+    <div class="lc-toolbar">
+      <div class="lc-field" style="flex:1;min-width:260px;">
+        <label>Draft (lit review)</label>
+        <select id="lc-paper" title="Pick a draft to see all annotations tagged as evidence for any of its claims.">
+          <option value="">All drafts</option>
+        </select>
+      </div>
+      <div class="lc-field" style="flex:1;min-width:220px;">
+        <label>Search comment / highlighted text</label>
+        <input type="text" id="lc-search" placeholder="any word">
+      </div>
+      <div class="lc-field">
+        <label>Tag prefix</label>
+        <input type="text" id="lc-tag" placeholder="research:papers:2026" style="font-family:ui-monospace,monospace;">
+      </div>
+      <div class="lc-field">
+        <label>Stance</label>
+        <select id="lc-stance">
+          <option value="all">All</option>
+          <option value="for">Supporting</option>
+          <option value="against">Counter</option>
+          <option value="plain">Plain (no claim)</option>
+        </select>
+      </div>
+      <div class="lc-field">
+        <label>From</label>
+        <input type="date" id="lc-from">
+      </div>
+      <div class="lc-field">
+        <label>To</label>
+        <input type="date" id="lc-to">
+      </div>
+      <div class="lc-field">
+        <label><input type="checkbox" id="lc-has-comment"> has-comment</label>
+      </div>
+      <div class="lc-status" id="lc-status">Loading…</div>
+    </div>
+
+    <div class="lc-toolbar" style="margin-top:-8px;">
+      <div class="lc-field" style="flex:1;min-width:240px;">
+        <label>Authors (click to toggle)</label>
+        <div id="lc-authors" class="lc-multiselect"></div>
+      </div>
+      <div class="lc-field" style="flex:1;min-width:240px;">
+        <label>Highlight colors</label>
+        <div id="lc-colors" class="lc-multiselect"></div>
+      </div>
+    </div>
+
+    <div id="lc-rows"></div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/library-tags.js"></script>
+  <script src="/rm/js/annotation-sync.js"></script>
+  <script src="/rm/js/annotation-groups.js"></script>
+  <script src="/rm/js/library-comments.js"></script>
+</body>
+</html>

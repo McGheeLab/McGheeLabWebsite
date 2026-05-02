@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper — McGhee Lab Library</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <link rel="stylesheet" href="/rm/vendor/pdfjs/pdf_viewer.css">
+</head>
+<body>
+  <div class="page lp-page">
+    <div class="lp-split lp-split-3" id="lp-split">
+      <aside class="lp-side" id="lp-side">
+        <button class="lp-collapse-btn lp-collapse-left" id="lp-collapse-left" title="Collapse details" aria-label="Collapse details">‹</button>
+        <button class="lp-expand-btn lp-expand-left" id="lp-expand-left" title="Show details" aria-label="Show details">›</button>
+        <div class="lp-side-inner">
+          <a class="lp-back-link" href="/rm/pages/library.html">&larr; Back to library</a>
+          <h1 class="lp-title" id="lp-title">Loading…</h1>
+          <div class="lp-subtitle" id="lp-subtitle"></div>
+          <div class="lp-tags" id="lp-tags"></div>
+          <div class="lp-meta" id="lp-metadata"></div>
+          <div class="lp-abstract" id="lp-abstract" style="display:none"></div>
+        </div>
+      </aside>
+
+      <div class="lp-resizer" id="lp-resizer-left" data-side="left" title="Drag to resize"></div>
+
+      <section class="lp-main">
+        <div class="lp-viewer" id="lp-viewer"></div>
+      </section>
+
+      <div class="lp-resizer" id="lp-resizer-right" data-side="right" title="Drag to resize"></div>
+
+      <aside class="lp-annotations" id="lp-annotations">
+        <button class="lp-collapse-btn lp-collapse-right" id="lp-collapse-right" title="Collapse annotations" aria-label="Collapse annotations">›</button>
+        <button class="lp-expand-btn lp-expand-right" id="lp-expand-right" title="Show annotations" aria-label="Show annotations">‹</button>
+        <div class="lp-toolbar lp-toolbar-side">
+          <div class="lp-toolbar-row">
+            <button class="btn btn-sm" id="lp-prev" title="Previous page (←)">‹</button>
+            <input type="number" id="lp-page-input" class="lp-page-input" min="1" value="1">
+            <span id="lp-page-total" class="lp-page-total">/ ?</span>
+            <button class="btn btn-sm" id="lp-next" title="Next page (→)">›</button>
+            <span class="lp-toolbar-sep"></span>
+            <button class="btn btn-sm" id="lp-zoom-out" title="Zoom out (-)">−</button>
+            <span id="lp-zoom-label" class="lp-zoom-label">100%</span>
+            <button class="btn btn-sm" id="lp-zoom-in" title="Zoom in (+)">+</button>
+            <button class="btn btn-sm" id="lp-fit" title="Fit to width">Fit</button>
+          </div>
+          <div id="lp-status" class="lp-status"></div>
+        </div>
+        <div class="lp-annotations-inner" id="lp-annotations-inner">
+          <div class="lp-annotations-empty">Annotations load when you sign in…</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/library-upload.js"></script>
+  <script src="/rm/js/library-tags.js"></script>
+  <script src="/rm/js/library-share.js"></script>
+  <script type="module" src="/rm/js/pdf-viewer.js"></script>
+  <script src="/rm/js/annotation-anchor.js"></script>
+  <script src="/rm/js/annotation-overlay.js"></script>
+  <script src="/rm/js/geom-selection.js"></script>
+  <script src="/rm/js/annotation-sync.js"></script>
+  <script src="/rm/js/annotation-groups.js"></script>
+  <script src="/rm/js/annotation-panel.js"></script>
+  <script src="/rm/js/claims.js"></script>
+  <script src="/rm/js/evidence-tag-dialog.js"></script>
+  <script src="/rm/js/library-paper.js"></script>
+</body>
+</html>

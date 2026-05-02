@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Usage — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    .api-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px}
+    .api-status{font-size:12px;color:var(--text-muted);flex:1 1 auto;min-width:200px}
+    .api-status.running{color:#1e40af;font-weight:500}
+    .api-status.err{color:var(--red)}
+    .api-status.done{color:var(--green);font-weight:500}
+
+    .api-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
+    .api-card h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:0 0 12px 0}
+    .api-card h3{font-size:15px;font-weight:600;color:var(--text);margin:0 0 6px 0}
+
+    .api-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+    .api-metric{padding:10px 12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)}
+    .api-metric .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+    .api-metric .big{font-size:22px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
+    .api-metric .big.cost{color:var(--primary)}
+    .api-metric .sub{font-size:11px;color:var(--text-muted);margin-top:3px}
+
+    .step-row{display:grid;grid-template-columns:28px 1fr 120px 90px;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;align-items:center}
+    .step-row:last-child{border-bottom:none}
+    .step-row .stat{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:10px;text-align:center}
+    .step-row .stat.pending{background:var(--bg);color:var(--text-muted)}
+    .step-row .stat.running{background:#dbeafe;color:#1e40af}
+    .step-row .stat.done{background:var(--green-bg);color:var(--green)}
+    .step-row .stat.failed{background:var(--red-bg);color:var(--red)}
+    .step-row .stat.stopped{background:#e5e7eb;color:#374151}
+    .step-row .lbl{font-size:14px;color:var(--text)}
+    .step-row .lbl .kind{display:inline-block;font-size:10px;background:#ede9fe;color:#5b21b6;padding:1px 6px;border-radius:8px;margin-left:6px;text-transform:uppercase;letter-spacing:.3px;font-weight:600}
+    .step-row .lbl .kind.local{background:#e5e7eb;color:#374151}
+    .step-row .idx{font-size:13px;color:var(--text-muted);text-align:center;font-variant-numeric:tabular-nums}
+
+    .prog{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+    .prog > span{display:block;height:100%;background:var(--primary);transition:width .3s ease}
+
+    .src-split{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);margin-top:6px}
+    .src-split span{background:var(--bg);border:1px solid var(--border);padding:2px 8px;border-radius:10px}
+
+    .log-wrap{background:#111827;color:#e5e7eb;border-radius:var(--radius);padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;max-height:300px;overflow:auto;white-space:pre-wrap;line-height:1.4}
+
+    .btn-warn{background:#fef3c7;color:#78350f;border:1px solid #fbbf24}
+    .btn-warn:hover{background:#fde68a}
+    .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #fca5a5}
+    .btn-danger:hover{background:#fecaca}
+
+    .muted{color:var(--text-muted)}
+    .pricing-footer{font-size:11px;color:var(--text-muted);margin-top:8px}
+
+    /* Per-step model selector */
+    .model-picker{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-top:4px}
+    .model-picker select{font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)}
+
+    /* Expandable step details */
+    details.step-details{margin-top:8px;border-top:1px dashed var(--border);padding-top:8px}
+    details.step-details summary{cursor:pointer;font-size:12px;color:var(--primary);font-weight:500;user-select:none;outline:none;list-style:none}
+    details.step-details summary::-webkit-details-marker{display:none}
+    details.step-details summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+    details.step-details[open] summary::before{transform:rotate(90deg)}
+    details.step-details .detail-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;margin:10px 0 4px 0}
+    details.step-details pre{background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.4;max-height:240px;overflow:auto;white-space:pre-wrap;margin:0;color:var(--text)}
+
+    /* Training set rows */
+    .tr-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    .tr-actions select{font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)}
+    .tr-row{display:grid;grid-template-columns:130px 80px 1fr 180px 70px 70px;gap:10px;padding:8px 10px;font-size:12px;border-bottom:1px solid #f1f5f9;align-items:center}
+    .tr-row:last-child{border-bottom:none}
+    .tr-row:hover{background:var(--bg)}
+    .tr-row .ts{color:var(--text-muted);font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
+    .tr-row .act{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:10px;text-align:center;background:var(--bg);color:var(--text-muted)}
+    .tr-row .act.completed{background:var(--green-bg);color:var(--green)}
+    .tr-row .act.accepted{background:#dbeafe;color:#1e40af}
+    .tr-row .act.rejected{background:var(--red-bg);color:var(--red)}
+    .tr-row .act.uncompleted{background:#fef3c7;color:#78350f}
+    .tr-row .title{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .tr-row .title .src{color:var(--text-muted);font-size:11px;margin-left:6px}
+    .tr-row .title .ctx-badge{font-size:9px;font-weight:700;background:var(--primary);color:#fff;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
+    .tr-row input[type="text"], .tr-row input[type="number"]{font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);width:100%;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .tr-row input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,.12)}
+    .tr-row .catsub{display:flex;gap:4px}
+    .tr-row .catsub input:first-child{width:60px;flex:none}
+    .tr-row .btn-del{background:var(--red-bg);color:var(--red);border:1px solid #fca5a5;font-size:11px;padding:3px 8px;cursor:pointer;border-radius:4px}
+    .tr-row .btn-del:hover{background:#fecaca}
+    .tr-row .btn-save{background:var(--primary);color:#fff;border:1px solid var(--primary);font-size:11px;padding:3px 8px;cursor:pointer;border-radius:4px}
+    .tr-row .btn-save:disabled{background:var(--border);color:var(--text-muted);border-color:var(--border);cursor:default}
+    .tr-head{display:grid;grid-template-columns:130px 80px 1fr 180px 70px 70px;gap:10px;padding:6px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);background:var(--bg)}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">API Usage &amp; Suggester</h1>
+    </div>
+
+    <!-- Action bar -->
+    <div class="api-actions">
+      <button class="btn" id="btn-plan">Re-check plan</button>
+      <button class="btn btn-primary" id="btn-run" disabled>Run now</button>
+      <button class="btn btn-danger" id="btn-stop" style="display:none">Stop</button>
+      <span id="api-status" class="api-status">Loading plan…</span>
+    </div>
+
+    <!-- Plan card: what /start would do -->
+    <div class="api-card" id="plan-card">
+      <h2>Plan (what will happen when you click Run)</h2>
+      <div id="plan-body" class="muted">Calculating…</div>
+    </div>
+
+    <!-- Live run card -->
+    <div class="api-card" id="run-card" style="display:none">
+      <h2>Current run</h2>
+      <div id="run-body"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="api-card" id="log-card" style="display:none">
+      <h2>Log</h2>
+      <pre class="log-wrap" id="log-body"></pre>
+    </div>
+
+    <!-- Training set editor -->
+    <div class="api-card" id="training-card">
+      <h2>Training set (what the suggester learns from)</h2>
+      <div class="tr-actions">
+        <span id="tr-summary" class="muted">Loading…</span>
+        <span style="flex:1"></span>
+        <label class="muted" style="font-size:12px">Show
+          <select id="tr-limit">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+          </select>
+        </label>
+        <button class="btn" id="btn-tr-reload">Reload</button>
+      </div>
+      <div id="tr-list"></div>
+    </div>
+  </div>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/activity-subnav.js"></script>
+  <script src="/rm/js/api-usage.js"></script>
+</body>
+</html>

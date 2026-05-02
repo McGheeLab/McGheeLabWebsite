@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PMR — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    /* ── Page chrome ──────────────────────────────────────────── */
+    .pmr-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+    .pmr-toolbar .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:600}
+    .pmr-toolbar select,.pmr-toolbar input,.pmr-toolbar button{font-size:13px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff}
+    .pmr-toolbar button.primary{background:#2563eb;border-color:#2563eb;color:#fff;font-weight:500}
+    .pmr-toolbar .status-pill{font-size:11px;padding:3px 8px;border-radius:12px;text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+    .pmr-toolbar .status-pill.draft{background:#f3f4f6;color:#6b7280}
+    .pmr-toolbar .status-pill.submitted{background:#fef3c7;color:#92400e}
+    .pmr-toolbar .status-pill.discussed{background:#dbeafe;color:#1e40af}
+    .pmr-toolbar .status-pill.archived{background:#e5e7eb;color:#374151}
+    .pmr-toolbar .grow{flex:1 1 auto}
+
+    /* ── Layout: left rail (student picker, admin only) + body ── */
+    .pmr-layout{display:grid;grid-template-columns:240px 1fr;gap:16px}
+    .pmr-layout.no-rail{grid-template-columns:1fr}
+    .pmr-rail{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 0;max-height:calc(100vh - 220px);overflow-y:auto;position:sticky;top:120px}
+    .pmr-rail h3{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:600;margin:0 0 6px 0;padding:0 14px}
+    .pmr-rail .person{display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:#1f2937;border-left:3px solid transparent}
+    .pmr-rail .person:hover{background:#f9fafb}
+    .pmr-rail .person.active{background:#eff6ff;border-left-color:#2563eb;font-weight:500}
+    .pmr-rail .person .avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;flex-shrink:0}
+    .pmr-rail .person .role{margin-left:auto;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.3px}
+
+    .pmr-body{min-width:0}
+
+    /* ── Block frames ─────────────────────────────────────────── */
+    .pmr-block{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+    .pmr-block h2{margin:0 0 10px 0;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#374151;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .pmr-block h2 .pmr-help{font-size:11px;color:#9ca3af;text-transform:none;letter-spacing:0;font-weight:400}
+
+    /* ── Reference links list ──────────────────────────────────── */
+    .pmr-ref-row{display:grid;grid-template-columns:120px 1fr 1fr 28px;gap:8px;align-items:center;margin-bottom:6px}
+    .pmr-ref-row select,.pmr-ref-row input{font-size:13px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%}
+    .pmr-ref-row .del{cursor:pointer;color:#dc2626;text-align:center;font-size:14px;padding:4px;user-select:none}
+    .pmr-ref-row .del:hover{background:#fee2e2;border-radius:4px}
+    .pmr-add-btn{font-size:12px;color:#2563eb;background:none;border:none;padding:4px 0;cursor:pointer;text-decoration:underline;margin-top:4px}
+
+    /* ── Project overview table ────────────────────────────────── */
+    .pmr-proj-table{width:100%;border-collapse:collapse;font-size:13px}
+    .pmr-proj-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:600;padding:6px 8px;border-bottom:1px solid #e5e7eb}
+    .pmr-proj-table td{padding:8px;vertical-align:top;border-bottom:1px solid #f3f4f6}
+    .pmr-proj-table input,.pmr-proj-table select,.pmr-proj-table textarea{font-size:13px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:5px;width:100%;font-family:inherit}
+    .pmr-proj-table textarea{resize:vertical;min-height:32px}
+    .pmr-status-pill{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:10px}
+    .pmr-status-pill.good{background:#dcfce7;color:#166534}
+    .pmr-status-pill.behind{background:#fef3c7;color:#92400e}
+    .pmr-status-pill.delayed{background:#fee2e2;color:#991b1b}
+    .pmr-status-pill.paused{background:#e5e7eb;color:#374151}
+
+    /* ── Weekly entries ─────────────────────────────────────────── */
+    .pmr-week{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:10px;background:#fafbfc}
+    .pmr-week-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:500}
+    .pmr-week-head input[type="date"]{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;background:#fff}
+    .pmr-week-head .dash{color:#9ca3af}
+    .pmr-week-head .del{margin-left:auto;cursor:pointer;color:#dc2626;font-size:14px;padding:2px 8px}
+    .pmr-section{margin:8px 0 4px 0}
+    .pmr-section-head{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px}
+    .pmr-section-head input{font-size:12px;padding:2px 6px;border:1px solid transparent;background:transparent;border-radius:4px;font-weight:600;color:#374151;flex:1}
+    .pmr-section-head input:focus{border-color:#d1d5db;background:#fff}
+    .pmr-section-head .del{cursor:pointer;color:#dc2626;font-size:13px;padding:2px 6px}
+    .pmr-item{display:grid;grid-template-columns:90px 1fr 28px;gap:6px;align-items:center;margin-bottom:3px;padding-left:12px}
+    .pmr-item select{font-size:11px;padding:2px 4px;border:1px solid #e5e7eb;border-radius:4px;font-weight:500}
+    .pmr-item select.s-done{background:#dcfce7;color:#166534}
+    .pmr-item select.s-in_progress{background:#dbeafe;color:#1e40af}
+    .pmr-item select.s-postponed{background:#e5e7eb;color:#374151}
+    .pmr-item select.s-need{background:#fee2e2;color:#991b1b}
+    .pmr-item input[type="text"]{font-size:13px;padding:3px 6px;border:1px solid transparent;background:transparent;border-radius:4px;width:100%}
+    .pmr-item input[type="text"]:focus{border-color:#d1d5db;background:#fff}
+    .pmr-item .del{cursor:pointer;color:#dc2626;text-align:center;font-size:13px;padding:2px}
+    .pmr-item .del:hover{background:#fee2e2;border-radius:4px}
+
+    /* ── Discussion / next steps ───────────────────────────────── */
+    .pmr-disc-card{border:1px solid #e5e7eb;border-left:4px solid #2563eb;border-radius:6px;padding:8px 10px;margin-bottom:8px;background:#fff;display:grid;grid-template-columns:90px 1fr auto;gap:8px;align-items:flex-start}
+    .pmr-disc-card.kind-blocker{border-left-color:#dc2626}
+    .pmr-disc-card.kind-next_action{border-left-color:#16a34a}
+    .pmr-disc-card.kind-idea{border-left-color:#7c3aed}
+    .pmr-disc-card select{font-size:12px;padding:3px 6px;border:1px solid #e5e7eb;border-radius:4px}
+    .pmr-disc-card textarea{font-size:13px;padding:4px 6px;border:1px solid #e5e7eb;border-radius:5px;min-height:36px;resize:vertical;font-family:inherit;width:100%}
+    .pmr-disc-card .actions{display:flex;flex-direction:column;gap:3px}
+    .pmr-disc-card .actions button{font-size:11px;padding:3px 6px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;cursor:pointer}
+
+    .pmr-empty{text-align:center;padding:30px 20px;color:#9ca3af;font-size:13px}
+    .pmr-loading{padding:20px;color:#6b7280;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">PMR — Project Management Report</h1>
+      <div class="pmr-toolbar">
+        <span class="lbl">Period</span>
+        <select id="pmr-period"></select>
+        <button id="pmr-new" title="Create a new PMR for a different period">+ New period</button>
+        <span class="grow"></span>
+        <span id="pmr-status-pill" class="status-pill draft">draft</span>
+        <button id="pmr-submit" class="primary" title="Mark as submitted for 1:1 discussion">Submit for 1:1</button>
+        <span id="pmr-saving" style="font-size:11px;color:#9ca3af"></span>
+      </div>
+    </div>
+    <div id="pmr-content" class="pmr-loading">Loading…</div>
+  </div>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/activity-subnav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/pmr.js"></script>
+</body>
+</html>

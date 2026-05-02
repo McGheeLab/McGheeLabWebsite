@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared paper — McGhee Lab</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
+      color: #111827;
+      background: #f9fafb;
+    }
+    .lp-pub-header {
+      padding: 16px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .lp-pub-brand {
+      font-weight: 600;
+      color: #1e3a8a;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .lp-pub-brand small {
+      display: block;
+      font-weight: 400;
+      color: #6b7280;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .lp-pub-share-info {
+      font-size: 11px;
+      color: #6b7280;
+      text-align: right;
+    }
+    .lp-pub-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 800px) { .lp-pub-wrap { grid-template-columns: 1fr; } }
+    .lp-pub-meta {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px 18px;
+      align-self: start;
+      position: sticky;
+      top: 16px;
+      max-height: calc(100vh - 110px);
+      overflow: auto;
+    }
+    .lp-pub-meta h1 { font-size: 18px; line-height: 1.35; margin: 0 0 8px; }
+    .lp-pub-authors { font-size: 13px; color: #374151; margin-bottom: 6px; }
+    .lp-pub-journal { font-size: 12px; color: #6b7280; margin-bottom: 12px; }
+    .lp-pub-row { display: flex; gap: 6px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
+    .lp-pub-row:last-child { border-bottom: none; }
+    .lp-pub-row .k { color: #6b7280; min-width: 80px; }
+    .lp-pub-row .v { color: #111827; word-break: break-word; }
+    .lp-pub-abstract { margin-top: 14px; font-size: 13px; line-height: 1.55; color: #374151; }
+    .lp-pub-abstract h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; margin: 0 0 6px; }
+    .lp-pub-pdf {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 70vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .lp-pub-pdf iframe { flex: 1; border: 0; min-height: 70vh; background: #f3f4f6; }
+    .lp-pub-empty {
+      padding: 60px 24px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .lp-pub-empty h2 { font-size: 18px; color: #374151; margin: 0 0 8px; }
+    .lp-pub-doi { display: inline-block; padding: 6px 12px; background: #1e40af; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; margin-top: 10px; }
+    .lp-pub-doi:hover { background: #1e3a8a; }
+    .lp-pub-download { font-size: 12px; color: #1e40af; text-decoration: none; padding: 6px 10px; border: 1px solid #c7d2fe; border-radius: 6px; }
+    .lp-pub-download:hover { background: #eef2ff; }
+  </style>
+</head>
+<body>
+  <header class="lp-pub-header">
+    <a class="lp-pub-brand" href="/rm/">
+      McGhee Lab
+      <small>shared paper · read-only</small>
+    </a>
+    <div id="lp-pub-share" class="lp-pub-share-info"></div>
+  </header>
+
+  <main id="lp-pub-main">
+    <div class="lp-pub-empty" id="lp-pub-loading">
+      <h2>Loading…</h2>
+      <p>Fetching the paper.</p>
+    </div>
+  </main>
+
+  <script src="/rm/js/library-public.js"></script>
+</body>
+</html>

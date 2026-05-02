@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV Editor — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    .cve-layout{display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:start}
+    @media (max-width:900px){.cve-layout{grid-template-columns:1fr}}
+    .cve-side{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px}
+    .cve-side button{display:block;width:100%;text-align:left;background:transparent;border:none;padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:#374151}
+    .cve-side button:hover{background:#f3f4f6}
+    .cve-side button.active{background:#eff6ff;color:#1e40af;font-weight:600}
+    .cve-side .cve-side-group{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;padding:8px 10px 4px}
+    .cve-side .cve-side-count{float:right;color:#9ca3af;font-size:11px}
+
+    .cve-main{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;min-height:400px}
+    .cve-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .cve-section-head h2{margin:0;font-size:16px;color:#111827}
+
+    .cve-empty{padding:40px 20px;text-align:center;color:#6b7280}
+
+    .cve-entry{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:background .1s}
+    .cve-entry:hover{background:#f9fafb;border-color:#93c5fd}
+    .cve-entry .t{font-weight:600;color:#111827;margin-bottom:2px}
+    .cve-entry .m{font-size:12px;color:#6b7280}
+    .cve-entry .y{font-variant-numeric:tabular-nums;color:#2563eb;font-weight:600;float:right;margin-left:10px}
+    .cve-entry .actions{float:right;display:flex;gap:6px;align-items:center;color:#9ca3af;font-size:12px}
+    .cve-entry .actions .del{color:#dc2626;cursor:pointer}
+    .cve-entry .actions .del:hover{text-decoration:underline}
+
+    .cve-modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:30px 12px;overflow-y:auto}
+    .cve-modal-back.open{display:flex}
+    .cve-modal{background:#fff;border-radius:10px;max-width:720px;width:100%;padding:18px 20px;box-shadow:0 20px 40px rgba(0,0,0,.25)}
+    .cve-modal h3{margin:0 0 12px 0;font-size:15px}
+    .cve-form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+    .cve-form .span-2{grid-column:1/-1}
+    .cve-form label{display:flex;flex-direction:column;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;gap:3px}
+    .cve-form label .req{color:#dc2626}
+    .cve-form input, .cve-form select, .cve-form textarea{font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;color:#111827;text-transform:none;letter-spacing:normal}
+    .cve-form textarea{min-height:80px;resize:vertical}
+    .cve-form .hint{font-size:10px;color:#9ca3af;text-transform:none;letter-spacing:0;margin-top:2px}
+    .cve-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid #f1f5f9}
+
+    .cve-status{font-size:12px;color:#6b7280;margin-left:10px}
+    .cve-status.ok{color:#059669}
+    .cve-status.err{color:#dc2626}
+
+    .cve-gated{padding:30px 20px;text-align:center;color:#6b7280;background:#fef3c7;border:1px solid #fde68a;border-radius:10px}
+    .cve-gated a{color:#2563eb}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">CV Editor</h1>
+      <div>
+        <span id="cve-who" style="font-size:13px;color:#6b7280;margin-right:8px"></span>
+        <span id="cve-status" class="cve-status"></span>
+      </div>
+    </div>
+    <div id="cve-root">
+      <div class="empty-state">Connecting to website&hellip;</div>
+    </div>
+  </div>
+
+  <div class="cve-modal-back" id="cve-modal">
+    <div class="cve-modal">
+      <h3 id="cve-modal-title">Entry</h3>
+      <div id="cve-modal-body"></div>
+      <div class="cve-modal-actions">
+        <button class="btn" id="cve-cancel">Cancel</button>
+        <button class="btn btn-primary" id="cve-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/cv-schemas.js"></script>
+  <script src="/rm/js/cv-importers.js"></script>
+  <script src="/rm/js/cv-export.js"></script>
+  <script src="/rm/js/cv-editor.js"></script>
+</body>
+</html>

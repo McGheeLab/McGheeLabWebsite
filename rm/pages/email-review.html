@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Review — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    /* Shared visual language with the calendar page. */
+    .ch-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .ch-summary{padding:14px 18px;background:#eff6ff;border:1px solid #dbeafe;border-radius:10px;margin-bottom:16px}
+    .ch-analytics{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    @media (max-width:900px){.ch-analytics{grid-template-columns:1fr}}
+    .ch-panel{padding:12px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+    .ch-panel h3{margin:0 0 8px 0;font-size:13px;color:#374151;text-transform:uppercase;letter-spacing:.5px}
+    .ch-timeline-wrap{height:220px;position:relative}
+    /* Keep the top-activities panel the same size as the chart even as the
+       list filters down so the search bar doesn't migrate up the page. */
+    #activity-rollup{height:220px;overflow-y:auto;overscroll-behavior:contain}
+    /* Reserve vertical space so the page doesn't collapse as search narrows. */
+    #content{min-height:65vh}
+
+    .er-tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase}
+    .er-tag-research{background:#dbeafe;color:#1e40af}
+    .er-tag-teaching{background:#fef3c7;color:#92400e}
+    .er-tag-service{background:#ede9fe;color:#5b21b6}
+    .er-tag-admin{background:#e5e7eb;color:#374151}
+    .er-tag-personal{background:#fee2e2;color:#991b1b}
+    .er-tag-noise{background:#f1f5f9;color:#475569;opacity:.6}
+    .er-tag-unknown{background:#fef3c7;color:#78350f}
+    .cat-toggles{display:inline-flex;gap:6px;flex-wrap:wrap}
+    .cat-toggle{padding:4px 10px;font-size:12px;font-weight:600;text-transform:uppercase;border-radius:14px;border:1px solid transparent;cursor:pointer;user-select:none;transition:opacity .1s, filter .1s}
+    .cat-toggle.off{opacity:.35;filter:grayscale(1);background:#f3f4f6 !important;color:#9ca3af !important;border-color:#e5e7eb}
+    .cat-toggle-research{background:#dbeafe;color:#1e40af}
+    .cat-toggle-teaching{background:#fef3c7;color:#92400e}
+    .cat-toggle-service{background:#ede9fe;color:#5b21b6}
+    .cat-toggle-admin{background:#e5e7eb;color:#374151}
+    .cat-toggle-personal{background:#fee2e2;color:#991b1b}
+    .cat-toggle-noise{background:#f1f5f9;color:#475569}
+    .cat-toggle-unknown{background:#fef3c7;color:#78350f}
+    .stars{user-select:none;font-size:18px;cursor:pointer;letter-spacing:2px;white-space:nowrap}
+    .stars .s{color:#d1d5db}
+    .stars .s.on{color:#f59e0b}
+    /* Email rows + expand panels use the shared .ch-line / .ch-detail /
+     * .ch-del-btn classes from css/style.css — same look as calendar. */
+    .task-chip{display:inline-block;font-size:11px;padding:2px 6px;background:#dcfce7;color:#166534;border-radius:8px;margin-left:6px}
+    .activity-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}
+    .activity-item .lbl{flex:1;min-width:0;overflow:hidden}
+    .activity-item .cnt{color:#6b7280;margin:0 12px;font-variant-numeric:tabular-nums}
+
+    /* Disposition chips — 3-way classification per email.
+       Shape + colour carry the importance: circle=actionable (red, hot),
+       triangle=reminder (amber, watch), square=info (gray, cold).
+       States: neutral outline · user-chosen (solid fill) · ml-hint
+       (dashed outline) · seed-hint (dotted outline). */
+    .disp-slot{margin-top:4px}
+    .disp-chips{display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap}
+    .disp-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:11px;font-weight:600;border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#6b7280;cursor:pointer;user-select:none;transition:background .1s,border-color .1s,color .1s}
+    .disp-chip:hover{background:#f9fafb}
+    .disp-shape{font-size:11px;line-height:1}
+    /* Importance palette — shape colour = importance signal. */
+    .disp-actionable .disp-shape{color:#dc2626}
+    .disp-reminder   .disp-shape{color:#f59e0b}
+    .disp-info       .disp-shape{color:#6b7280}
+    /* User-chosen = solid fill in the disposition colour. */
+    .disp-chip.user-chosen.disp-actionable{background:#fee2e2;border-color:#dc2626;color:#991b1b}
+    .disp-chip.user-chosen.disp-reminder  {background:#fef3c7;border-color:#f59e0b;color:#92400e}
+    .disp-chip.user-chosen.disp-info      {background:#e5e7eb;border-color:#9ca3af;color:#374151}
+    /* ML-suggested but user hasn't confirmed — dashed. Seeded-by-rule — dotted. */
+    .disp-chip.ml-hint{border-style:dashed;border-color:#9ca3af;color:#374151}
+    .disp-chip.seed-hint{border-style:dotted;color:#374151}
+    /* ✨ Refine button */
+    .disp-refine{margin-left:4px;border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:2px 6px;font-size:11px;cursor:pointer;transition:background .1s}
+    .disp-refine:hover:not(:disabled){background:#f3f4f6}
+    .disp-refine:disabled{opacity:.5;cursor:wait}
+
+    /* Multi-select mode — checkbox column appears at the left of each email
+       row, and clicking a row toggles selection instead of expanding it. */
+    .ch-line .col-select{display:none;align-items:center;justify-content:center}
+    #content.select-mode .ch-line{grid-template-columns:28px 140px 110px 1fr 100px 110px 72px}
+    #content.select-mode .ch-line .col-select{display:flex}
+    #content.select-mode .ch-line.row-selected{background:#eff6ff}
+    #content.select-mode .ch-line.row-selected:hover{background:#dbeafe}
+    .em-bulk-bar{display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#fff;border:1px solid #3b82f6;border-radius:8px;margin-bottom:10px;font-size:12px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+    .em-bulk-bar.active{display:flex}
+    .em-bulk-count{font-weight:600;color:#1e3a8a;margin-right:4px}
+    .em-bulk-btn{border:1px solid #e5e7eb;background:#fff;color:#374151;border-radius:8px;padding:3px 10px;font-size:12px;cursor:pointer;transition:background .1s}
+    .em-bulk-btn:hover{background:#f3f4f6}
+    .em-bulk-btn.bb-danger{border-color:#fecaca;color:#991b1b}
+    .em-bulk-btn.bb-danger:hover{background:#fee2e2}
+    .em-bulk-btn.bb-actionable .shape{color:#dc2626}
+    .em-bulk-btn.bb-reminder   .shape{color:#f59e0b}
+    .em-bulk-btn.bb-info       .shape{color:#6b7280}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Email Review</h1>
+    </div>
+    <div class="ch-toolbar">
+      <select id="year-filter" class="btn" style="font-size:14px"></select>
+      <label style="font-size:12px;color:#374151;display:inline-flex;align-items:center;gap:6px;margin-left:auto;user-select:none">
+        <input type="checkbox" id="only-tasks"> only with tasks
+      </label>
+      <button class="btn btn-sm" id="email-trash-btn" type="button">Trash</button>
+    </div>
+    <div id="year-review" class="ch-summary"></div>
+    <div id="cat-toggles" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="email-analytics" class="ch-analytics">
+      <div class="ch-panel">
+        <h3 id="timeline-title">Monthly email volume by category</h3>
+        <div class="ch-timeline-wrap"><canvas id="timeline-chart"></canvas></div>
+      </div>
+      <div class="ch-panel">
+        <h3>Top activities by volume</h3>
+        <div id="activity-rollup"></div>
+      </div>
+    </div>
+    <div class="ch-toolbar" id="email-events-toolbar">
+      <input type="text" id="search-box" class="btn" placeholder="search subject / sender / activity / category path (e.g. research:grant:onr)" style="font-size:14px;min-width:240px;flex:1;max-width:480px">
+      <select id="sort-by" class="btn" style="font-size:13px" title="Sort emails">
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
+        <option value="predicted-desc">Predicted importance &#9733;</option>
+        <option value="rating-desc">My rating &#9733;</option>
+      </select>
+      <button class="btn btn-sm" id="select-mode-btn" type="button" title="Toggle multi-select mode">Select</button>
+      <span id="result-count" style="margin-left:auto;font-size:12px;color:#6b7280"></span>
+    </div>
+    <div class="em-bulk-bar" id="em-bulk-bar">
+      <span class="em-bulk-count" id="em-bulk-count">0 selected</span>
+      <button class="em-bulk-btn" id="em-bulk-select-all" type="button">Select visible</button>
+      <button class="em-bulk-btn" id="em-bulk-clear" type="button">Clear</button>
+      <span style="flex:1"></span>
+      <button class="em-bulk-btn bb-actionable" data-disp="actionable" type="button">
+        <span class="shape">&#9679;</span> Actionable
+      </button>
+      <button class="em-bulk-btn bb-reminder" data-disp="reminder" type="button">
+        <span class="shape">&#9650;</span> Reminder
+      </button>
+      <button class="em-bulk-btn bb-info" data-disp="info" type="button">
+        <span class="shape">&#9632;</span> Info
+      </button>
+      <button class="em-bulk-btn" id="em-bulk-category" type="button">Assign category&hellip;</button>
+      <button class="em-bulk-btn bb-danger" id="em-bulk-delete" type="button">Move to Trash</button>
+    </div>
+    <div id="content"></div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/activity-subnav.js"></script>
+  <script src="/rm/js/yr-shared.js"></script>
+  <script src="/rm/js/disp-shared.js"></script>
+  <script src="/rm/js/task-editor.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="/rm/js/task-quick-builder.js"></script>
+  <script src="/rm/js/email-review.js"></script>
+</body>
+</html>

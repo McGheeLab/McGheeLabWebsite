@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Year in Review — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    :root{
+      --yr-col-select: 28px;
+      --yr-col-caret: 16px;
+      --yr-col-date: 110px;
+      --yr-col-meta: 160px;
+      --yr-col-stars: 90px;
+      --yr-col-actions: 60px;
+    }
+    .yr-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+    .yr-cat-section{margin-bottom:20px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff}
+    .yr-cat-header{padding:12px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+    .yr-cat-header h2{margin:0;font-size:15px;text-transform:uppercase;letter-spacing:1px;color:#111827}
+    .yr-cat-header .totals{font-size:13px;color:#374151}
+    .yr-cat-body{padding:6px 0}
+    .yr-cat-body.collapsed{display:none}
+
+    .yr-group{padding:10px 16px;border-top:1px solid #f1f5f9}
+    .yr-group:first-child{border-top:none}
+    .yr-group-head{font-weight:600;font-size:14px;margin-bottom:6px;color:#111827;display:flex;justify-content:space-between;align-items:center}
+    .yr-group-totals{font-size:12px;color:#6b7280}
+
+    /* ----- shared grid for any data row (sub-category, event, or email) ----- */
+    .yr-line{
+      display:grid;
+      grid-template-columns: var(--yr-col-select) var(--yr-col-caret) var(--yr-col-date) 1fr var(--yr-col-meta) var(--yr-col-stars) var(--yr-col-actions);
+      gap:10px;
+      align-items:center;
+      padding:6px 10px;
+      font-size:13px;
+      border-bottom:1px solid #f1f5f9;
+      cursor:pointer;
+      text-align:left;
+    }
+    .yr-line:hover{background:#f9fafb}
+    .yr-line > *{min-width:0}
+    .yr-line .col-select{display:flex;justify-content:center}
+    .yr-line .col-caret{color:#9ca3af;text-align:center}
+    .yr-line .col-date{color:#6b7280;font-size:12px;font-variant-numeric:tabular-nums}
+    .yr-line .col-main{color:#111827;overflow:hidden}
+    .yr-line .col-main .title{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .yr-line .col-main .sub{color:#6b7280;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+    .yr-line .col-meta{color:#4b5563;font-size:12px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .yr-line .col-stars{display:flex;justify-content:flex-end;align-items:center}
+    .yr-line .col-actions{display:flex;justify-content:flex-end;gap:8px}
+    .yr-line .indent{display:inline-block}
+
+    /* summary row (sub-category aggregate) variant */
+    .yr-line.sub-row{background:#fafafa;border:1px solid #e5e7eb;border-radius:6px;margin:2px 0;padding:8px 10px}
+    .yr-line.sub-row .col-main .title{font-weight:500}
+    .yr-line.sub-row .col-meta strong{color:#111827}
+    .yr-line.sub-row .col-meta .extra{color:#9ca3af}
+
+    /* event and email variants share the grid but render in lighter chrome */
+    .yr-line.event{background:#ffffff}
+    .yr-line.email{background:#ffffff;border-left:3px solid transparent;border-bottom:1px dashed #f1f5f9}
+    .yr-line.email.related{border-left-color:#dbeafe}
+
+    .yr-events{padding:4px 0 0 24px}
+    .yr-events.collapsed{display:none}
+
+    /* expandable detail below a row */
+    .yr-detail{padding:10px 14px;background:#f9fafb;border-top:1px solid #f1f5f9;font-size:12px}
+    .yr-detail .section{margin-bottom:8px}
+    .yr-detail .label{color:#6b7280;text-transform:uppercase;letter-spacing:.4px;font-size:10px;margin-bottom:3px}
+    .yr-detail .body{white-space:pre-wrap;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;max-height:300px;overflow:auto}
+    .yr-detail .atts a{display:inline-block;margin:2px 6px 2px 0;padding:2px 6px;background:#fff;border:1px solid #e5e7eb;border-radius:4px;text-decoration:none;color:#2563eb;font-size:11px}
+    .yr-detail .people{display:flex;flex-wrap:wrap;gap:6px}
+    .yr-detail .people .chip{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:2px 8px;font-size:11px;color:#374151}
+    .yr-detail .edit-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+    .yr-detail .edit-row input, .yr-detail .edit-row select{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px}
+
+    .caret{display:inline-block;width:12px;color:#9ca3af}
+
+    /* Floating action bar for bulk select */
+    .yr-actionbar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 14px;border-radius:24px;box-shadow:0 10px 25px rgba(0,0,0,.3);display:none;gap:10px;align-items:center;z-index:80;font-size:13px}
+    .yr-actionbar.open{display:flex}
+    .yr-actionbar button{background:#374151;color:#fff;border:1px solid #4b5563;padding:4px 10px;border-radius:14px;font-size:12px;cursor:pointer}
+    .yr-actionbar button:hover{background:#4b5563}
+    .yr-actionbar button.primary{background:#2563eb;border-color:#2563eb}
+    .yr-actionbar button.danger{background:#dc2626;border-color:#dc2626}
+
+    /* Category toggle chips + analytics row */
+    .yr-cat-toggles{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+    .yr-cat-toggle{padding:4px 10px;font-size:12px;font-weight:600;text-transform:uppercase;border-radius:14px;cursor:pointer;user-select:none;border:1px solid transparent;transition:opacity .1s}
+    .yr-cat-toggle.off{opacity:.35;filter:grayscale(1);background:#f3f4f6 !important;color:#9ca3af !important;border-color:#e5e7eb}
+    .yr-analytics{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    @media (max-width:900px){.yr-analytics{grid-template-columns:1fr}}
+    .yr-panel{padding:12px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+    .yr-panel h3{margin:0 0 8px 0;font-size:13px;color:#374151;text-transform:uppercase;letter-spacing:.5px}
+    .yr-timeline-wrap{height:220px;position:relative}
+    .yr-top-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+    .yr-top-row:last-child{border-bottom:none}
+    .yr-top-row:hover{background:#f9fafb}
+    .yr-top-row.active{background:#eff6ff}
+    .yr-top-row .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+    .yr-top-row .meta{color:#6b7280;font-size:12px;margin-left:10px;font-variant-numeric:tabular-nums}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Year in Review</h1>
+      <div class="yr-toolbar">
+        <select id="yr-year" class="btn" style="font-size:14px"></select>
+        <button id="yr-refresh" class="btn" style="font-size:13px">Rebuild</button>
+        <label style="font-size:12px;color:#374151;display:inline-flex;align-items:center;gap:6px;margin-left:8px;user-select:none">
+          <input type="checkbox" id="yr-show-future"> show future
+        </label>
+        <span id="yr-status" style="font-size:12px;color:#6b7280"></span>
+      </div>
+    </div>
+    <div id="content">Loading…</div>
+  </div>
+  <div id="yr-actionbar" class="yr-actionbar">
+    <span id="yr-sel-count">0 selected</span>
+    <button class="primary" id="yr-sel-move">Move to new group…</button>
+    <button class="primary" id="yr-sel-rate">Rate…</button>
+    <button class="danger" id="yr-sel-discard">Discard</button>
+    <button id="yr-sel-clear">Clear</button>
+  </div>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/activity-subnav.js"></script>
+  <script src="/rm/js/yr-shared.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/cv-schemas.js"></script>
+  <script src="/rm/js/cv-send.js"></script>
+  <script src="/rm/js/year-review.js"></script>
+</body>
+</html>
