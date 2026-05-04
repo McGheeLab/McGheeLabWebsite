@@ -259,6 +259,7 @@
         ${lib.pdf ? `<a class="btn btn-sm" href="/rm/pages/library-paper.html?id=${encodeURIComponent(it.id)}">Read</a>` : '<span class="muted">no PDF</span>'}
         ${lib.pdf ? `<button class="btn btn-sm" data-act="open-pdf-tab" data-id="${_escape(it.id)}" title="Open raw PDF in new tab">↗</button>` : ''}
         ${lib.doi ? `<a class="btn btn-sm" href="https://doi.org/${_escape(lib.doi)}" target="_blank" rel="noopener">DOI</a>` : ''}
+        <button class="btn btn-sm" data-act="assign-paper" data-id="${_escape(it.id)}" title="Send this paper to a teammate">Send</button>
       </td>
     `;
     return tr;
@@ -462,6 +463,24 @@
       } finally {
         _setBusy('');
       }
+      return;
+    }
+
+    if (btn.dataset.act === 'assign-paper') {
+      if (!window.TASK_ASSIGN) {
+        _toast('Send is unavailable on this page.', 'error');
+        return;
+      }
+      const authorLine = (lib.authors || [])
+        .map(a => [a.given, a.family].filter(Boolean).join(' '))
+        .join('; ');
+      window.TASK_ASSIGN.open({
+        paperRef: {
+          paperId:      it.id,
+          paperTitle:   it.title || lib.title || it.id,
+          paperAuthors: authorLine,
+        },
+      });
       return;
     }
 

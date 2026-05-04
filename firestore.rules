@@ -8,6 +8,68 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // ── ResearchManagement multi-tenant helpers ──
+    //
+    // Used by the per-user `userData/{uid}/...` namespace and the new shared
+    // top-level collections (projects, funding, compliance, items,
+    // importantPeople). isLabMember() requires a users/{uid} doc to exist —
+    // first-sign-in bootstrap creates that doc with role:'guest', so all
+    // signed-in users pass once bootstrap runs.
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Lab member = signed-in user with a profile whose role is NOT 'guest'.
+    // Fresh Google sign-ins land as role:'guest' (set by RM's profile-bootstrap
+    // and the website's first-time signup) and stay locked out of RM data
+    // until admin promotes them via the website's user-management UI. This is
+    // the gate for "admin must allow any guest user to access RM and lab apps".
+    function isLabMember() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'guest';
+    }
+
+    // True if `data.sharedWithUids` (defaulting to []) contains the caller.
+    // Personal docs opt into admin/teammate visibility by appending a uid to
+    // this field; bulk admin override is intentionally NOT provided.
+    function isShared(data) {
+      return request.auth != null &&
+        data.get('sharedWithUids', []).hasAny([request.auth.uid]);
+    }
+
+    // Helper: check if the requesting user is on the McGhee Lab Capture
+    // extension allowlist. Admins always pass. Other users are matched by
+    // their (lowercased) Google sign-in email against the `emails` array
+    // stored in labConfig/extensionMembers. The PI maintains this list via
+    // the dashboard's settings page.
+    function isExtensionMember() {
+      return request.auth != null && (
+        isAdmin() ||
+        (request.auth.token.email != null &&
+         request.auth.token.email.lower() in
+           get(/databases/$(database)/documents/labConfig/extensionMembers).data.emails)
+      );
+    }
+
+    // Helper: check if the requesting user can write annotations/claims
+    // (the broader "lab contributor" tier). Admins, full extension members,
+    // AND edit-only guests on the labConfig/guestEditors allowlist all
+    // pass. Capture (writes to pending_captures) requires the stricter
+    // isExtensionMember() — guestEditors do NOT get capture rights.
+    function isLabContributor() {
+      return request.auth != null && (
+        isAdmin() ||
+        (request.auth.token.email != null && (
+          request.auth.token.email.lower() in
+            get(/databases/$(database)/documents/labConfig/extensionMembers).data.emails ||
+          request.auth.token.email.lower() in
+            get(/databases/$(database)/documents/labConfig/guestEditors).data.emails
+        ))
+      );
+    }
+
     // Users — public read (team page needs this), own profile or admin write
     match /users/{userId} {
       allow read:  if true;
@@ -402,6 +464,300 @@ service cloud.firestore {
                   && (request.auth.uid == resource.data.submittedBy || isAdmin());
       allow create: if request.auth != null;
       allow update, delete: if isAdmin();
+    }
+
+    // ResearchManagement library: shared paper annotations.
+    //
+    // Visibility model:
+    //   - "lab"     → readable by any authenticated lab member
+    //   - "private" → readable only by the creator (or admin)
+    // Writes always require the writer to be the creator. Admin can do
+    // anything (PI override).
+    match /papers/{paperId}/annotations/{annId} {
+      allow read: if request.auth != null
+                  && (resource.data.visibility == 'lab'
+                      || resource.data.creator.uid == request.auth.uid
+                      || isAdmin());
+      // Annotation create requires the user be on the lab-contributor
+      // allowlist (admin / extension member / guest editor). Read-only
+      // guests see annotations but can't add their own.
+      allow create: if isLabContributor()
+                    && request.resource.data.creator.uid == request.auth.uid
+                    && request.resource.data.visibility in ['lab', 'private'];
+      // Owner / admin can update or delete any field. Non-owners can update
+      // ONLY the evidence-link fields — needed so a non-creator can tag
+      // someone else's lab-visible highlight as evidence for their own draft.
+      allow update: if request.auth != null
+                    && (resource.data.creator.uid == request.auth.uid
+                        || isAdmin()
+                        || request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['evidence_for_claim_ids', 'evidence_stance', 'modified']));
+      allow delete: if request.auth != null
+                    && (resource.data.creator.uid == request.auth.uid || isAdmin());
+    }
+
+    // ResearchManagement paper builder (Phase B) — Yjs CRDT state +
+    // presence for the collaborative paper editor at
+    // /pages/paper-builder.html. Persistence layout:
+    //
+    //   papers/{paperId}/yjs_snapshot/state    — single rolling snapshot
+    //   papers/{paperId}/yjs_updates/{seq}     — append-only update log
+    //   papers/{paperId}/presence/{uid}        — 10s heartbeat per editor
+    //   papers/{paperId}/blocks/{blockId}      — Phase D block index
+    //
+    // v1 ACL: admin-only. Per-paper coauthor permissions (so non-admin
+    // students can edit specific papers) require syncing each paper's
+    // metadata (lead_author_uid, coauthor_uids[]) to a `papers/{paperId}`
+    // doc that rules can read — that sync isn't built yet, so coauthor
+    // tightening is a Phase B follow-up.
+    //
+    // These blocks SIT ALONGSIDE the existing
+    // `papers/{paperId}/annotations/...` rule above; both can match. The
+    // longer-prefix rule wins per Firestore semantics.
+    match /papers/{paperId}/yjs_snapshot/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /papers/{paperId}/yjs_updates/{seq} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+                    && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+    match /papers/{paperId}/presence/{uid} {
+      allow read: if isAdmin();
+      // Each user writes only their own presence doc.
+      allow create, update: if isAdmin() && request.auth.uid == uid;
+      allow delete: if isAdmin();
+    }
+    match /papers/{paperId}/blocks/{blockId} {
+      allow read, write: if isAdmin();
+      match /comments/{commentId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin()
+                      && request.resource.data.author_uid == request.auth.uid;
+        allow update, delete: if request.auth != null
+                              && (resource.data.author_uid == request.auth.uid
+                                  || isAdmin());
+      }
+    }
+    // Named version snapshots — captured Y.Doc state at a point in time.
+    // Save adds a doc; Restore replaces the rolling yjs_snapshot/state and
+    // wipes yjs_updates (handled client-side).
+    match /papers/{paperId}/snapshots/{snapshotId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+                    && request.resource.data.takenBy == request.auth.uid;
+      // Snapshots are immutable once written (except admin delete for cleanup).
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+    // Per-paragraph comments (Phase D) — keyed by block id at the
+    // paper level (not under blocks/ since we read across blocks for the
+    // unified review panel).
+    match /papers/{paperId}/comments/{commentId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+                    && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && (resource.data.authorUid == request.auth.uid
+                                || isAdmin());
+    }
+
+    // ResearchManagement claims (Phase 4) — claims attached to draft papers.
+    // v1 ACL: any authenticated lab member can create; only the creator (or
+    // admin) can edit/delete. Tighten to draft-author-only by populating
+    // /draftAuthors/{draftId} and using the get() rule below — kept in
+    // place for forward compatibility but currently advisory.
+    match /drafts/{draftId}/claims/{claimId} {
+      allow read: if request.auth != null;
+      // Same allowlist gate as annotations — claims are a write surface.
+      allow create: if isLabContributor()
+                    && request.resource.data.creator.uid == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && (resource.data.creator.uid == request.auth.uid || isAdmin());
+    }
+    match /draftAuthors/{draftId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // ResearchManagement extension: capture queue (Phase 6b).
+    //
+    // Access is gated on isExtensionMember() — the PI maintains the email
+    // allowlist in labConfig/extensionMembers. Sign-in alone isn't enough;
+    // a student must be on the allowlist to capture or sync.
+    //
+    // - `read` is lab-wide so the dashboard sync sees every member's captures.
+    // - `create` requires `captured_by_uid` to match the writer (no spoofing).
+    // - `update/delete` are lab-wide so the sync can flip status → 'merged'
+    //   or clean up captures regardless of who originally captured them.
+    match /pending_captures/{paperId} {
+      allow read: if isExtensionMember();
+      allow create: if isExtensionMember()
+                    && request.resource.data.captured_by_uid == request.auth.uid;
+      allow update, delete: if isExtensionMember();
+    }
+
+    // ResearchManagement extension: paper-index dedupe lookup (Phase 6d).
+    //
+    // Reverse-index from {kind}_{value} → paper_id, populated by the
+    // dashboard sync after a capture lands in items.json. The extension
+    // reads it on every paper-detection event to flip the toolbar badge
+    // to ✓ when a paper is already in the library.
+    match /paper_index/{hash} {
+      allow read, write: if isExtensionMember();
+    }
+
+    // labConfig/extensionMembers — the email allowlist itself. Anyone
+    // authenticated can read it (so the popup can preflight-check whether
+    // the user is on the list before showing capture affordances). Only
+    // admins can write.
+    //
+    // Note: this is layered ON TOP of the existing labConfig rule above
+    // (line ~386). Both blocks match docs at /labConfig/{docId}; Firestore
+    // OR's their `allow` clauses, so the more permissive read wins. The
+    // existing rule already grants authenticated read, so the only thing
+    // this block adds is documentation — the union resolves identically.
+    match /labConfig/extensionMembers {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // labConfig/guestEditors — edit-only allowlist for non-lab guests.
+    // These users can annotate papers and create claims (via
+    // isLabContributor()) but can't capture new papers via the extension
+    // (that requires isExtensionMember()).
+    //
+    // Same layering caveat as extensionMembers above — the broad
+    // labConfig/{docId} rule already covers reads; this block formalizes
+    // intent and makes the write restriction explicit.
+    match /labConfig/guestEditors {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // labConfig/annotation_groups — lab-shared list of organizational
+    // groups for highlights ("general", "method", "open question", etc.).
+    // Any lab contributor can create new groups via the per-card "+ New
+    // group..." action; admins can prune the list. Read is open to any
+    // authenticated user (annotation cards need it).
+    //
+    // This rule overrides the broader labConfig/{docId} write=admin rule
+    // — Firestore picks the most specific match for writes.
+    match /labConfig/annotation_groups {
+      allow read: if request.auth != null;
+      allow write: if isLabContributor();
+    }
+
+    // ── ResearchManagement multi-tenant collections (Phase 0+) ──
+    //
+    // SHARED top-level collections — readable by any lab member, admin
+    // writes only. Migrated from local JSON files in the RM repo's data/
+    // tree. See the integration plan at
+    // ~/.claude/plans/i-want-to-integrate-glimmering-sunbeam.md for the
+    // path mapping and migration sequencing.
+
+    match /projects/{projectId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    match /funding/{fundingId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    match /compliance/{complianceId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    match /inventory/{itemId} {
+      allow read:                 if isLabMember();
+      allow create, update:       if isLabMember();
+      allow delete:               if isAdmin();
+    }
+
+    match /items/{itemId} {
+      // Lab members read all items. Anonymous + non-lab users may read an
+      // item ONLY when meta.library.public == true — used by the public
+      // share viewer at /pages/library-public.html (production deploy at
+      // /rm/pages/library-public.html). Writes still require lab membership.
+      allow read: if isLabMember()
+        || (resource.data.meta != null
+            && resource.data.meta.library != null
+            && resource.data.meta.library.public == true);
+      allow write: if isLabMember();
+    }
+
+    match /importantPeople/{personId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    // Lab roster + alumni (data/people/roster.json + alumni.json). Discriminated
+    // by `kind` field ('member' | 'alumni'). Admin maintains; everyone reads.
+    match /people/{memberId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    match /paperTemplates/{templateId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    // PER-USER subtree — strictly owner read/write, with two opt-in escapes:
+    //   1. Docs carrying `sharedWithUids[]` are readable by anyone listed
+    //      (admin or teammate, but only when the user explicitly shares).
+    //   2. Tasks have an extra rule below that lets teammates CREATE a task
+    //      in someone else's queue (with createdByUid = caller) so future
+    //      cross-user task assignment works without schema changes.
+    //
+    // Admins do NOT get a blanket read override — privacy is owner-controlled.
+
+    match /userData/{userId}/{document=**} {
+      allow read:  if isOwner(userId) || isShared(resource.data);
+      allow write: if isOwner(userId);
+    }
+
+    // Project Management Reports — per-student, per-period docs the PI
+    // uses to prep + run 1:1 discussions. Three reasons admins get full
+    // read+write here (unlike the rest of userData):
+    //   1. The PMR is the 1:1 conversation artifact — the PI needs to
+    //      annotate the Discussion / next-steps block during the meeting.
+    //   2. The PMR is explicitly intended to be visible to the PI. Hiding
+    //      it from admin would defeat the purpose; students retain
+    //      privacy on their tasks/buckets/calendar via the blanket rule.
+    //   3. Co-authored PMRs (e.g. Suraj+Alex Fall 2025) are stored once
+    //      under the primary researcher's uid; secondary researchers are
+    //      listed in `researcher_uids[]` and need write access too.
+    match /userData/{userId}/pmr/{periodId} {
+      allow read, write: if isOwner(userId)
+                         || (resource != null && resource.data.researcher_uids != null
+                             && request.auth.uid in resource.data.researcher_uids)
+                         || isAdmin();
+    }
+
+    match /userData/{userId}/tasks/{taskId} {
+      // Teammate can drop a task into someone else's queue if they tag
+      // themselves as creator and the target user is a known lab member.
+      allow create: if isLabMember()
+                    && request.resource.data.createdByUid == request.auth.uid
+                    && exists(/databases/$(database)/documents/users/$(userId));
+      // isAdmin() lets the PI read all assigned tasks across the lab via the
+      // Sharing page's Lab-wide tab (collectionGroup query).
+      allow read:   if isOwner(userId)
+                    || resource.data.createdByUid == request.auth.uid
+                    || isShared(resource.data)
+                    || isAdmin();
+      // Owner can update freely; creator can update without changing the
+      // assignee (so they can't yank the task back covertly).
+      allow update: if isOwner(userId)
+                    || (resource.data.createdByUid == request.auth.uid
+                        && request.resource.data.assignedToUid == resource.data.assignedToUid);
+      allow delete: if isOwner(userId)
+                    || resource.data.createdByUid == request.auth.uid;
     }
   }
 }

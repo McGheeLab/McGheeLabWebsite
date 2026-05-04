@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Tracker — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    /* Mirror surface for the lab-apps activity tracker. The iframe loads
+       /apps/activity-tracker/, which auth-bridge runs in embedded mode and
+       pulls user/profile from the postMessage handshake below. Same origin
+       in prod (mcgheelab.com/rm/ + mcgheelab.com/apps/) and in dev (server.py
+       translate_path mounts /apps/ from the sibling McGheeLabWebsite repo). */
+    html, body { height: 100%; }
+    body { margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+    .top-nav { flex: 0 0 auto; }
+    .tracker-host {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+    .tracker-host iframe {
+      flex: 1 1 auto;
+      width: 100%;
+      border: 0;
+      background: var(--surface);
+    }
+    .tracker-pre {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      color: var(--text-muted);
+      font-size: 14px;
+      text-align: center;
+    }
+    .tracker-pre .card {
+      max-width: 420px;
+      padding: 28px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .tracker-pre h2 { margin-top: 0; font-size: 16px; color: var(--text); }
+  </style>
+</head>
+<body>
+  <main class="tracker-host" id="tracker-host">
+    <div class="tracker-pre" id="tracker-pre">
+      <div class="card">
+        <h2>Loading activity tracker…</h2>
+        <div>Signing you in.</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script>
+  (function () {
+    /* Mirror the lab-apps activity tracker via iframe + postMessage. The
+       lab-app's auth-bridge.js runs in "embedded" mode when window.parent
+       differs from window — it waits for {type:'mcgheelab-auth', user, profile}
+       from us, then renders. Same-origin Firebase IndexedDB persistence means
+       the iframe's firebase.auth() already has the same user, so we skip the
+       custom-token leg of the handshake and just hand over the user object. */
+
+    var IFRAME_SRC = '/apps/activity-tracker/';
+    var host = document.getElementById('tracker-host');
+    var pre  = document.getElementById('tracker-pre');
+    var iframe = null;
+    var iframeReady = false;
+    var lastAuthSig = null;
+
+    function ensureIframe() {
+      if (iframe) return iframe;
+      iframe = document.createElement('iframe');
+      iframe.id = 'tracker-iframe';
+      iframe.src = IFRAME_SRC;
+      iframe.allow = 'microphone; clipboard-read; clipboard-write';
+      iframe.title = 'Activity Tracker';
+      host.appendChild(iframe);
+      if (pre && pre.parentNode) pre.parentNode.removeChild(pre);
+      return iframe;
+    }
+
+    function pushAuth() {
+      if (!iframe || !iframeReady) return;
+      var u = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
+      if (!u) return;
+      var p = (typeof firebridge !== 'undefined' && firebridge.getProfile) ? firebridge.getProfile() : null;
+      var payload = {
+        type: 'mcgheelab-auth',
+        user: { uid: u.uid, email: u.email || '', displayName: u.displayName || '' },
+        profile: p ? Object.assign({ role: p.role || 'member' }, p) : { role: 'member' },
+      };
+      var sig = payload.user.uid + '|' + (payload.profile && payload.profile.role);
+      if (sig === lastAuthSig) return;
+      lastAuthSig = sig;
+      try {
+        iframe.contentWindow.postMessage(payload, window.location.origin);
+      } catch (err) {
+        console.warn('[tracker] postMessage failed:', err);
+      }
+    }
+
+    function showSignInPrompt() {
+      if (!pre) return;
+      pre.innerHTML =
+        '<div class="card">' +
+          '<h2>Sign in required</h2>' +
+          '<div>You need a McGheeLab account to view the activity tracker.</div>' +
+        '</div>';
+    }
+
+    /* The iframe announces it's ready (and may retry at 1s and 3s) — push the
+       current auth payload whenever it does. Only accept messages from the
+       same origin. */
+    window.addEventListener('message', function (e) {
+      if (e.origin !== window.location.origin) return;
+      if (!e.data || e.data.type !== 'mcgheelab-app-ready') return;
+      iframeReady = true;
+      pushAuth();
+    });
+
+    /* Wait for auth to resolve before mounting the iframe so its 8s embedded-
+       mode timeout doesn't fire while we're still booting Firebase. */
+    if (typeof firebridge === 'undefined' || !firebridge.onAuth) {
+      // Firebase scripts haven't initialised yet; bail out with a helpful note.
+      showSignInPrompt();
+      return;
+    }
+    firebridge.onAuth(function (user) {
+      if (!user) { showSignInPrompt(); return; }
+      ensureIframe();
+      pushAuth();
+    });
+  })();
+  </script>
+</body>
+</html>

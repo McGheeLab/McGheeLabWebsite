@@ -64,6 +64,10 @@
     openTasks: [],               // [{subtask, bucket, project, ageDays, isOverdue, isStale, isBlocked}]
     openTasksLoaded: false,      // null while loading, true once attempted
     openTasksError: null,
+    // Phase 9 — comments-under-paper-assignment surfacing.
+    // Key = paperId + '|' + assigneeUid → array of annotation docs (lab-vis).
+    paperAnnotations: {},
+    paperAnnotationsUnsubs: {},
   };
 
   const STALE_DAYS = 14;
@@ -274,6 +278,39 @@
           (b.subtasks || []).forEach(st => walk(st, b, p, 0));
         });
       });
+
+      // Phase 9 — also surface cross-user assigned tasks (Phase 8 model).
+      // These live in userData/{me}/tasks where bucket=='assigned'; another
+      // lab member dropped them in via task-assign.js. Treated as a synthetic
+      // project so they group under "Assigned by teammates" in the open-tasks
+      // panel. Suggested-reading rows skip overdue/stale chips per spec.
+      try {
+        const assignedDoc = await api.load('tasks/assigned.json');
+        const assignedTasks = (assignedDoc && assignedDoc.tasks) || [];
+        const today = todayStr();
+        const synthProject = { id: '_assigned', title: 'Assigned by teammates' };
+        const synthBucket  = { id: '_assigned', title: 'Assigned' };
+        assignedTasks.forEach(t => {
+          if (t.done) return;
+          const upd = t.updatedAt || t.created_at || (t.paper_ref && t.paper_ref.assignedAt);
+          const age = ageDaysOf(upd);
+          const isSuggested = !!(t.paper_ref && t.paper_ref.kind === 'suggested');
+          rows.push({
+            subtask: t,
+            bucket:  synthBucket,
+            project: synthProject,
+            ageDays: age,
+            isOverdue: !isSuggested && !!(t.due_date && t.due_date !== 'TBD' && t.due_date < today),
+            isStale:   !isSuggested && age != null && age >= STALE_DAYS,
+            isBlocked: false,
+            isAssignedFromOthers: true,
+          });
+        });
+      } catch (err) {
+        console.warn('[pmr] assigned-tasks load failed:', err && err.message);
+        // Non-fatal — buckets-tree rows still render.
+      }
+
       // Sort: blockers first, then overdue, then stale, then by due date.
       rows.sort((a, b) => {
         const sa = (a.isBlocked ? 4 : 0) + (a.isOverdue ? 2 : 0) + (a.isStale ? 1 : 0);
@@ -285,11 +322,69 @@
       });
       state.openTasks = rows;
       state.openTasksLoaded = true;
+      // Phase 9 — kick a paper-annotation listener for every paper-bearing
+      // assignment so the comment count & comments expand inline.
+      ensurePaperAnnotationSubs();
     } catch (err) {
       console.warn('[pmr] open-tasks load failed:', err && err.message);
       state.openTasksError = err && err.message || 'load failed';
       state.openTasksLoaded = true;
     }
+  }
+
+  /* Phase 9 — ensure a Firestore listener is attached for every paper-bearing
+   * assignment in state.openTasks. Listener pulls annotations from
+   * papers/{paperId}/annotations filtered by creator.uid == viewedUid (the
+   * assignee). The lab-visibility annotation rule already permits this read
+   * for all signed-in lab members. Listeners are keyed by paperId|uid so we
+   * don't double-attach when the open-tasks list re-renders.
+   */
+  function ensurePaperAnnotationSubs() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    const wantedKeys = new Set();
+    state.openTasks.forEach(r => {
+      const ref = r.subtask && r.subtask.paper_ref;
+      if (!ref || !ref.paperId) return;
+      const uid = r.subtask.assignedToUid || viewedUid();
+      if (!uid) return;
+      const key = ref.paperId + '|' + uid;
+      wantedKeys.add(key);
+      if (state.paperAnnotationsUnsubs[key]) return;
+      try {
+        state.paperAnnotationsUnsubs[key] = firebase.firestore()
+          .collection('papers').doc(ref.paperId)
+          .collection('annotations').where('creator.uid', '==', uid)
+          .onSnapshot(function (snap) {
+            const list = [];
+            snap.forEach(d => list.push(d.data()));
+            // Only annotations that actually carry a comment surface here.
+            // Lab-visibility filter is enforced by the rule; private ones
+            // are excluded for the assigner, included for the assignee.
+            state.paperAnnotations[key] = list.filter(a => a && a.comment);
+            renderBody();
+          }, function (err) {
+            console.warn('[pmr] paper-annotation listener failed for', key, err && err.message);
+          });
+      } catch (err) {
+        console.warn('[pmr] could not attach paper-annotation listener:', err && err.message);
+      }
+    });
+    // Tear down listeners for paper-rows that disappeared.
+    Object.keys(state.paperAnnotationsUnsubs).forEach(k => {
+      if (!wantedKeys.has(k)) {
+        try { state.paperAnnotationsUnsubs[k](); } catch (_) {}
+        delete state.paperAnnotationsUnsubs[k];
+        delete state.paperAnnotations[k];
+      }
+    });
+  }
+
+  function detachAllPaperAnnotationSubs() {
+    Object.keys(state.paperAnnotationsUnsubs).forEach(k => {
+      try { state.paperAnnotationsUnsubs[k](); } catch (_) {}
+    });
+    state.paperAnnotationsUnsubs = {};
+    state.paperAnnotations = {};
   }
 
   /* Refresh the auto-suggested Discussion cards from state.openTasks.
@@ -511,6 +606,7 @@
 
   function detachLiveSync() {
     if (_liveUnsub) { try { _liveUnsub(); } catch (_) {} _liveUnsub = null; }
+    detachAllPaperAnnotationSubs();
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -855,6 +951,12 @@
   }
 
   function renderOpenTaskRow(rowMeta) {
+    // Paper-reading assignments get a dedicated row template that links to
+    // the library viewer + lazily expands to show the assignee's lab-visible
+    // comments on that paper.
+    if (rowMeta.subtask && rowMeta.subtask.paper_ref) {
+      return renderPaperAssignmentRow(rowMeta);
+    }
     const row = document.createElement('div');
     row.style.cssText = 'display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:5px 0;font-size:13px;border-bottom:1px solid #f3f4f6';
 
@@ -906,6 +1008,141 @@
     row.appendChild(pull);
 
     return row;
+  }
+
+  /* Phase 9 — render a paper-assignment row.
+   *  - paper title (link to library viewer)
+   *  - kind chip ("assigned" red / "suggested" blue) + assigner attribution
+   *  - due date + overdue/stale chips (suppressed for suggested rows in loadOpenTasks)
+   *  - <details> expander with the assignee's lab-visible comments on this paper
+   */
+  function renderPaperAssignmentRow(rowMeta) {
+    const t = rowMeta.subtask;
+    const ref = t.paper_ref || {};
+    const uid = t.assignedToUid || viewedUid();
+    const key = ref.paperId + '|' + uid;
+    const annotations = state.paperAnnotations[key] || [];
+    const annLoaded = !!state.paperAnnotationsUnsubs[key];
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'padding:8px 0;border-bottom:1px solid #f3f4f6';
+
+    // Header row
+    const head = document.createElement('div');
+    head.style.cssText = 'display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;font-size:13px';
+
+    const main = document.createElement('div');
+    main.style.cssText = 'min-width:0;overflow:hidden';
+
+    const kindChip = document.createElement('span');
+    const isSuggested = ref.kind === 'suggested';
+    kindChip.textContent = isSuggested ? 'suggested' : 'assigned';
+    kindChip.style.cssText = 'display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 6px;border-radius:8px;margin-right:6px;vertical-align:middle';
+    if (isSuggested) {
+      kindChip.style.background = '#dbeafe';
+      kindChip.style.color = '#1e3a8a';
+    } else {
+      kindChip.style.background = '#fee2e2';
+      kindChip.style.color = '#991b1b';
+    }
+    main.appendChild(kindChip);
+
+    const link = document.createElement('a');
+    link.href = '/rm/pages/library-paper.html?id=' + encodeURIComponent(ref.paperId);
+    link.target = '_self';
+    link.textContent = ref.paperTitle || ref.paperId || '(untitled paper)';
+    link.style.cssText = 'color:#1f2937;text-decoration:none;font-weight:500;border-bottom:1px dotted #9ca3af';
+    main.appendChild(link);
+
+    if (rowMeta.isOverdue) {
+      const c = document.createElement('span');
+      c.textContent = 'overdue';
+      c.title = 'Past due ' + t.due_date;
+      c.style.cssText = 'display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:1px 6px;border-radius:8px;margin-left:6px;background:#fee2e2;color:#991b1b';
+      main.appendChild(c);
+    }
+    if (rowMeta.isStale) {
+      const c = document.createElement('span');
+      c.textContent = rowMeta.ageDays + 'd';
+      c.title = 'No update in ' + rowMeta.ageDays + ' days';
+      c.style.cssText = 'display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:1px 6px;border-radius:8px;margin-left:6px;background:#fef3c7;color:#92400e';
+      main.appendChild(c);
+    }
+
+    if (t.createdByName) {
+      const from = document.createElement('div');
+      from.style.cssText = 'font-size:11px;color:#6b7280;margin-top:2px';
+      from.textContent = 'from ' + t.createdByName + (t.notes ? '  ·  ' + t.notes : '');
+      main.appendChild(from);
+    }
+    head.appendChild(main);
+
+    const due = document.createElement('span');
+    due.style.cssText = 'font-size:12px;color:#6b7280;font-variant-numeric:tabular-nums';
+    due.textContent = (t.due_date && t.due_date !== 'TBD') ? t.due_date : '';
+    head.appendChild(due);
+
+    const opn = document.createElement('a');
+    opn.href = '/rm/pages/library-paper.html?id=' + encodeURIComponent(ref.paperId);
+    opn.textContent = '→ open';
+    opn.title = 'Open the paper viewer';
+    opn.style.cssText = 'font-size:11px;color:#5b21b6;text-decoration:none;padding:2px 6px;border:1px solid #ddd6fe;border-radius:4px;background:#f5f3ff';
+    head.appendChild(opn);
+
+    // Spacer to align with the grid (matching the regular row's 4-col layout).
+    head.appendChild(document.createElement('span'));
+
+    wrap.appendChild(head);
+
+    // Comments expander
+    const det = document.createElement('details');
+    det.style.cssText = 'margin-top:6px;padding-left:8px;border-left:2px solid #ede9fe';
+    const sum = document.createElement('summary');
+    const count = annotations.length;
+    sum.textContent = annLoaded
+      ? (count === 0 ? 'No comments yet' : 'Comments by assignee (' + count + ')')
+      : 'Comments…';
+    sum.style.cssText = 'font-size:11px;color:#6d28d9;cursor:pointer;list-style:none';
+    det.appendChild(sum);
+
+    if (count) {
+      const list = document.createElement('div');
+      list.style.cssText = 'margin-top:6px;display:grid;gap:6px';
+      // Roots first, then replies threaded under their parent.
+      const byParent = {};
+      annotations.forEach(a => {
+        const p = a.parent_id || '_root';
+        (byParent[p] = byParent[p] || []).push(a);
+      });
+      function renderAnn(a, depth) {
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#fafaf9;border:1px solid #e7e5e4;border-radius:6px;padding:6px 8px;font-size:12px;color:#1f2937;margin-left:' + (depth * 12) + 'px';
+        const text = document.createElement('div');
+        text.textContent = a.comment;
+        text.style.whiteSpace = 'pre-wrap';
+        card.appendChild(text);
+        const meta = document.createElement('div');
+        const pages = (a.target && a.target.pages) || [];
+        const pageStr = pages.length ? 'p.' + pages.map(p => (p && p.page) || p).filter(Boolean).slice(0, 3).join(',') : '';
+        const when = (a.modified && a.modified.toDate) ? a.modified.toDate().toISOString().slice(0, 10) :
+                     (a.created  && a.created.toDate)  ? a.created.toDate().toISOString().slice(0, 10) : '';
+        meta.style.cssText = 'font-size:10px;color:#9ca3af;margin-top:2px';
+        meta.textContent = [pageStr, when].filter(Boolean).join('  ·  ');
+        card.appendChild(meta);
+        return card;
+      }
+      function emit(parentKey, depth) {
+        (byParent[parentKey] || []).forEach(a => {
+          list.appendChild(renderAnn(a, depth));
+          emit(a.id, depth + 1);
+        });
+      }
+      emit('_root', 0);
+      det.appendChild(list);
+    }
+    wrap.appendChild(det);
+
+    return wrap;
   }
 
   /* ── Block: Project overview ───────────────────────────────── */

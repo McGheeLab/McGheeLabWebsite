@@ -69,17 +69,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
     try { await firebridge.whenAuthResolved(); } catch (_) {}
   }
+  const isLocal = !window.RM_RUNTIME || window.RM_RUNTIME.isLocal;
   // Phase 9: activity-overview now reads per-user emailMessages + calendarEvents
   // (Phase 7 sync + items.json backfill), so the full renderer works for any
   // signed-in lab member with their own data. The local Import / Process
   // buttons stay hidden on the deploy via .local-only CSS (server.py-only).
-  if (typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
+  // Only gate on deploy — on localhost, /api/data/ JSON falls back so the
+  // page is useful even when Firestore auth hasn't resolved (mirrors the
+  // pre-Phase-9 behavior the user expects in local dev).
+  if (!isLocal && typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
     const gate = await firebridge.gateSignedIn(
       'Sign in to view your activity. Connect Gmail + Calendar in Settings to populate this page.'
     );
     if (!gate.allowed) return;
   }
-  const isLocal = !window.RM_RUNTIME || window.RM_RUNTIME.isLocal;
   // Sections are independently mounted. The Explorer page reuses this script
   // for the Category Explorer alone, so skip any block whose host element is
   // missing rather than throwing. The Import / Process buttons depend on

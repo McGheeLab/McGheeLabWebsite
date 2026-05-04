@@ -293,6 +293,55 @@
     }
   }
 
+  // Render the "Assign reading" widget. Sits below the share widget and lets
+  // the current user send this paper to a teammate as an assigned/suggested
+  // task (paper_ref attached). Hidden until firebridge says we're a lab member.
+  function _renderAssignWidget(item) {
+    const sideInner = document.querySelector('.lp-side-inner');
+    if (!sideInner) return;
+    let host = document.getElementById('lp-assign-widget');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'lp-assign-widget';
+      host.style.margin = '10px 0';
+      const after = document.getElementById('lp-share-widget')
+                 || document.getElementById('lp-tag-editor')
+                 || document.getElementById('lp-tags');
+      if (after) after.insertAdjacentElement('afterend', host);
+      else sideInner.appendChild(host);
+    }
+    const isMember = window.firebridge && firebridge.isLabMember && firebridge.isLabMember();
+    if (!isMember || !window.TASK_ASSIGN) {
+      host.style.display = 'none';
+      return;
+    }
+    host.style.display = '';
+    const isAdmin = firebridge.isAdmin && firebridge.isAdmin();
+    const verb = isAdmin ? 'Assign reading' : 'Suggest reading';
+    host.innerHTML = `
+      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Send to teammate</div>
+      <button id="lp-assign-btn" class="btn btn-sm" style="font-size:12px;width:100%;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;">
+        ${_esc(verb)} →
+      </button>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">
+        Drops this paper into a teammate's queue. Their lab-visibility comments will surface back on their PMR.
+      </div>
+    `;
+    document.getElementById('lp-assign-btn').addEventListener('click', () => {
+      const lib = (item.meta && item.meta.library) || {};
+      const authorLine = (lib.authors || [])
+        .map(a => [a.given, a.family].filter(Boolean).join(' '))
+        .join('; ');
+      window.TASK_ASSIGN.open({
+        paperRef: {
+          paperId:      item.id,
+          paperTitle:   item.title || (lib.title) || item.id,
+          paperAuthors: authorLine,
+        },
+      });
+    });
+  }
+
   async function _saveTags(nextTags) {
     if (!_item) return;
     _setStatus('Saving tags…');
@@ -714,6 +763,7 @@
       _renderMetadata(_item);
       _renderTagEditor(_item);
       _renderShareWidget(_item);
+      _renderAssignWidget(_item);
       const lib = _item.meta && _item.meta.library;
       if (!lib || !lib.pdf || !lib.pdf.storage_path) {
         _setStatus('No PDF attached to this paper.', 'error');
@@ -726,6 +776,8 @@
         _setStatus(e.message || 'Sign-in required to view the PDF.', 'error');
         return;
       }
+      // Re-render assign widget now that firebridge.isLabMember() is reliable.
+      _renderAssignWidget(_item);
       _setStatus('Fetching signed URL…');
       const signedUrl = await window.LIBRARY_UPLOAD.downloadUrl(lib.pdf.storage_path);
       // pdf.js's range-fetch triggers CORS against Firebase Storage. On the

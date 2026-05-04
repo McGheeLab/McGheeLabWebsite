@@ -14,7 +14,12 @@
  * can drop a task into another lab member's queue as long as they tag
  * themselves as creator and the assignee has a users/{uid} doc.
  *
- * Public API: window.TASK_ASSIGN.open() — opens the modal.
+ * Paper-reading mode: open({ paperRef: { paperId, paperTitle, paperAuthors } })
+ * pre-fills the title, renders a paper card, and surfaces an Assigned /
+ * Suggested toggle. The resulting task carries paper_ref, which PMR + the
+ * sharing page key off to render a paper-aware row + assignee comments.
+ *
+ * Public API: window.TASK_ASSIGN.open(opts?) — opens the modal.
  */
 
 (function () {
@@ -42,7 +47,7 @@
     return 'task-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
   }
 
-  function _submit(form, candidates, dismiss) {
+  function _submit(form, candidates, dismiss, paperRef) {
     const status = form.querySelector('.ta-status');
     const assigneeUid = form.querySelector('.ta-assignee').value;
     const text = form.querySelector('.ta-title').value.trim();
@@ -50,6 +55,8 @@
     const hours = parseFloat(form.querySelector('.ta-hours').value || '');
     const importance = parseInt(form.querySelector('.ta-importance').value || '0', 10);
     const notes = form.querySelector('.ta-notes').value.trim();
+    const kindEl = form.querySelector('.ta-kind');
+    const kind = kindEl ? kindEl.value : '';
 
     if (!assigneeUid) { status.textContent = 'Pick a teammate.'; return; }
     if (!text)        { status.textContent = 'Add a task title.';  return; }
@@ -77,6 +84,15 @@
       createdAt: ts,
       updatedAt: ts,
     };
+    if (paperRef && paperRef.paperId) {
+      payload.paper_ref = {
+        paperId:      paperRef.paperId,
+        paperTitle:   paperRef.paperTitle || '',
+        paperAuthors: paperRef.paperAuthors || '',
+        kind:         (kind === 'suggested' ? 'suggested' : 'assigned'),
+        assignedAt:   new Date().toISOString(),
+      };
+    }
 
     // Optimistic close — dismiss immediately, fire write in the background.
     // Failures surface via TOAST.error with a "Retry" button. The assigner
@@ -85,7 +101,8 @@
     dismiss();
     if (window.TOAST) {
       const recipient = (assignee && assignee.name) || 'teammate';
-      TOAST.success('Task sent to ' + recipient, { ttl: 2500 });
+      const verb = paperRef ? 'Reading sent to ' : 'Task sent to ';
+      TOAST.success(verb + recipient, { ttl: 2500 });
     }
     firebridge.db()
       .collection('userData').doc(assigneeUid)
@@ -110,7 +127,43 @@
       });
   }
 
-  async function open() {
+  function _esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+    );
+  }
+
+  function _paperCardHtml(paperRef) {
+    if (!paperRef || !paperRef.paperId) return '';
+    const title = _esc(paperRef.paperTitle || paperRef.paperId);
+    const authors = paperRef.paperAuthors ? _esc(paperRef.paperAuthors) : '';
+    return (
+      '<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px 12px;">' +
+        '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6d28d9;margin-bottom:4px;">Paper</div>' +
+        '<div style="font-size:13px;font-weight:600;color:#312e81;line-height:1.3;">' + title + '</div>' +
+        (authors ? '<div style="font-size:11px;color:#6b7280;margin-top:2px;">' + authors + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  function _kindToggleHtml(paperRef, defaultKind) {
+    if (!paperRef || !paperRef.paperId) return '';
+    const a = defaultKind === 'assigned' ? ' selected' : '';
+    const s = defaultKind === 'suggested' ? ' selected' : '';
+    return (
+      '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
+        'Kind' +
+        '<select class="ta-kind" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
+          '<option value="assigned"' + a + '>Assigned (expected to read)</option>' +
+          '<option value="suggested"' + s + '>Suggested (FYI)</option>' +
+        '</select>' +
+      '</label>'
+    );
+  }
+
+  async function open(opts) {
+    opts = opts || {};
+    const paperRef = opts.paperRef && opts.paperRef.paperId ? opts.paperRef : null;
     if (typeof firebridge === 'undefined' || !firebridge.getUser || !firebridge.getUser()) {
       alert('Sign in to send a task to a teammate.');
       return;
@@ -120,6 +173,11 @@
       alert('No teammates available. Ask the PI to promote lab members in the website console.');
       return;
     }
+    const isAdmin = firebridge.isAdmin && firebridge.isAdmin();
+    const defaultKind = isAdmin ? 'assigned' : 'suggested';
+    const heading = paperRef ? 'Send paper to teammate' : 'Send task to teammate';
+    const titlePrefill = paperRef ? ('Read: ' + (paperRef.paperTitle || paperRef.paperId)) : '';
+    const titlePlaceholder = paperRef ? 'Override the auto-generated title…' : 'What needs to get done?';
 
     const overlay = document.createElement('div');
     overlay.style.cssText =
@@ -130,20 +188,22 @@
       'background:#fff;color:#111;border-radius:12px;max-width:540px;width:100%;' +
       'padding:24px;box-shadow:0 24px 48px rgba(0,0,0,.4);font-family:system-ui,sans-serif;';
     modal.innerHTML =
-      '<h2 style="margin:0 0 14px;font-size:18px;">Send task to teammate</h2>' +
+      '<h2 style="margin:0 0 14px;font-size:18px;">' + _esc(heading) + '</h2>' +
       '<form class="ta-form" style="display:grid;gap:12px;">' +
+        _paperCardHtml(paperRef) +
         '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
           'Assign to' +
           '<select class="ta-assignee" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
             '<option value="">— pick a lab member —</option>' +
-            candidates.map(c => '<option value="' + c.id + '">' +
-              (c.name || c.email || c.id) +
-              (c.category ? ' (' + c.category + ')' : '') + '</option>').join('') +
+            candidates.map(c => '<option value="' + _esc(c.id) + '">' +
+              _esc(c.name || c.email || c.id) +
+              (c.category ? ' (' + _esc(c.category) + ')' : '') + '</option>').join('') +
           '</select>' +
         '</label>' +
+        _kindToggleHtml(paperRef, defaultKind) +
         '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
-          'Task title' +
-          '<input class="ta-title" type="text" placeholder="What needs to get done?" ' +
+          (paperRef ? 'Title (auto-generated, editable)' : 'Task title') +
+          '<input class="ta-title" type="text" value="' + _esc(titlePrefill) + '" placeholder="' + _esc(titlePlaceholder) + '" ' +
             'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
         '</label>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
@@ -170,7 +230,7 @@
         '</div>' +
         '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
           'Notes (optional)' +
-          '<textarea class="ta-notes" rows="3" placeholder="Context, links, deadlines…" ' +
+          '<textarea class="ta-notes" rows="3" placeholder="' + (paperRef ? 'Why this paper, what to focus on…' : 'Context, links, deadlines…') + '" ' +
             'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>' +
         '</label>' +
         '<div class="ta-status" style="font-size:13px;color:#6b7280;min-height:18px;"></div>' +
@@ -186,11 +246,11 @@
     function dismiss() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
 
     const form = modal.querySelector('.ta-form');
-    form.addEventListener('submit', (e) => { e.preventDefault(); _submit(form, candidates, dismiss); });
+    form.addEventListener('submit', (e) => { e.preventDefault(); _submit(form, candidates, dismiss, paperRef); });
     modal.querySelector('.ta-cancel').addEventListener('click', dismiss);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
 
-    // Auto-focus the title once teammate is picked, otherwise focus the picker.
+    // Focus the assignee picker first; once they pick, user will Tab to title.
     setTimeout(() => modal.querySelector('.ta-assignee').focus(), 0);
   }
 

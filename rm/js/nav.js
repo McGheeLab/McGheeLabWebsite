@@ -19,11 +19,13 @@
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/rm/index.html' },
-  { label: 'Activity', href: '/rm/pages/activity-overview.html', children: [
+  { label: 'Activity', href: '/rm/pages/activity-tracker.html', children: [
+    { label: 'Tracker',  href: '/rm/pages/activity-tracker.html' },
     { label: 'Overview', href: '/rm/pages/activity-overview.html' },
     { label: 'Calendar', href: '/rm/pages/calendar.html' },
     { label: 'Email',    href: '/rm/pages/email-review.html' },
     { label: 'Task',     href: '/rm/pages/tasks.html' },
+    { label: 'Sharing',  href: '/rm/pages/sharing.html' },
     { label: 'Year',     href: '/rm/pages/year-review.html' },
   ]},
   { label: 'Research', href: '/rm/pages/projects.html', children: [
