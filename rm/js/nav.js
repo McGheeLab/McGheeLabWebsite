@@ -17,47 +17,62 @@
  * every child of a group ends up hidden, the group itself is hidden.
  */
 
+/* Six-group layout introduced in V3.40 to absorb the migrated lab apps and
+ * public-site admin into RM. Operations links route through Phase-A iframe
+ * bridges (rm/pages/app-<name>.html) until each app is ported to a native
+ * RM page in Phase B (V3.41+); the iframe wrapper is replaced with a
+ * <meta refresh> redirect at port time so bookmarks survive. */
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/rm/index.html' },
+
   { label: 'Activity', href: '/rm/pages/activity-tracker.html', children: [
     { label: 'Tracker',  href: '/rm/pages/activity-tracker.html' },
     { label: 'Overview', href: '/rm/pages/activity-overview.html' },
     { label: 'Calendar', href: '/rm/pages/calendar.html' },
     { label: 'Email',    href: '/rm/pages/email-review.html' },
-    { label: 'Task',     href: '/rm/pages/tasks.html' },
+    { label: 'Tasks',    href: '/rm/pages/tasks.html' },
     { label: 'Sharing',  href: '/rm/pages/sharing.html' },
     { label: 'Year',     href: '/rm/pages/year-review.html' },
   ]},
+
   { label: 'Research', href: '/rm/pages/projects.html', children: [
     { label: 'Projects', href: '/rm/pages/projects.html' },
     { label: 'Library',  href: '/rm/pages/library.html' },
     { label: 'Comments', href: '/rm/pages/library-comments.html' },
     { label: 'Papers',   href: '/rm/pages/paper-builder.html' },
+    { label: 'Teaching', href: '/rm/pages/teaching.html' },
+    { label: 'Service',  href: '/rm/pages/service.html' },
   ]},
-  { label: 'Teaching', href: '/rm/pages/teaching.html' },
-  { label: 'Service',  href: '/rm/pages/service.html' },
-  { label: 'Inventory', href: '/rm/pages/inventory.html' },
-  { label: 'Finance', children: [
-    { label: 'Grant Accounts',    href: '/rm/pages/projects-grants.html' },
+
+  { label: 'Operations', gate: 'lab-member', children: [
+    { label: 'Chat',      href: '/rm/pages/app-chat.html' },
+    { label: 'Huddle',    href: '/rm/pages/app-huddle.html' },
+    { label: 'Meetings',  href: '/rm/pages/app-meetings.html' },
+    { label: 'Scheduler', href: '/rm/pages/app-scheduler.html' },
+    { label: 'Equipment', href: '/rm/pages/app-equipment.html' },
+  ]},
+
+  { label: 'Lab Admin', gate: 'lab-member', children: [
+    { label: 'Compliance',        href: '/rm/pages/compliance.html' },
+    { label: 'Chemical Safety',   href: '/rm/pages/chemicals.html' },
+    { label: 'Inventory',         href: '/rm/pages/inventory.html' },
+    { label: 'Lab Members',       href: '/rm/pages/people.html' },
+    { label: 'Important People',  href: '/rm/pages/important-people.html' },
+    { label: 'Career & Tenure',   href: '/rm/pages/career.html' },
     { label: 'Procurement',       href: '/rm/pages/receipts.html' },
     { label: 'Purchase Requests', href: '/rm/pages/purchase-requests.html' },
+    { label: 'Grant Accounts',    href: '/rm/pages/projects-grants.html' },
     { label: 'Budget',            href: '/rm/pages/budget.html' },
     { label: 'Analytics',         href: '/rm/pages/analytics.html' },
     { label: 'Travel',            href: '/rm/pages/finance.html' },
   ]},
-  { label: 'People', children: [
-    { label: 'Lab Members',       href: '/rm/pages/people.html' },
-    { label: 'Important People',  href: '/rm/pages/important-people.html' },
-    { label: 'Activity',          href: '/rm/pages/activity-summary.html', gate: 'admin' },
-  ]},
-  { label: 'Admin', gate: 'lab-member', children: [
-    { label: 'Compliance',       href: '/rm/pages/compliance.html' },
-    { label: 'Chemical Safety',  href: '/rm/pages/chemicals.html' },
-    { label: 'Career & Tenure',  href: '/rm/pages/career.html' },
-    { label: 'CV Overview',      href: '/rm/pages/cv-overview.html' },
-    { label: 'CV Editor',        href: '/rm/pages/cv-editor.html' },
-    { label: 'Profile',          href: '/rm/pages/profile.html' },
-    { label: 'Settings',         href: '/rm/pages/settings.html' },
+
+  { label: 'Settings', gate: 'lab-member', children: [
+    { label: 'Profile',         href: '/rm/pages/profile.html' },
+    { label: 'Settings',        href: '/rm/pages/settings.html' },
+    { label: 'CV Overview',     href: '/rm/pages/cv-overview.html' },
+    { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
+    { label: 'Member Activity', href: '/rm/pages/activity-summary.html', gate: 'admin' },
   ]},
 ];
 

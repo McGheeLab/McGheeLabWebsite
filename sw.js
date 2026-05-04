@@ -8,7 +8,7 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 4;
+const CACHE_VERSION = 15;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
 const APPS_CACHE   = `mcgheelab-apps-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;
@@ -40,50 +40,18 @@ const SHELL_URLS = [
   '/icons/favicon-32.png'
 ];
 
-const APP_URLS = [
-  '/apps/shared/app-base.css',
-  '/apps/shared/auth-bridge.js',
-  '/apps/shared/mobile-shell.js',
-  '/apps/shared/calendar-service.js',
-  '/apps/shared/schedule-service.js',
-  '/apps/shared/schedule-utils.js',
-  '/apps/activity-tracker/index.html',
-  '/apps/activity-tracker/app.js',
-  '/apps/activity-tracker/styles.css',
-  '/apps/chat/index.html',
-  '/apps/chat/app.js',
-  '/apps/chat/styles.css',
-  '/apps/console/index.html',
-  '/apps/console/app.js',
-  '/apps/console/styles.css',
-  '/apps/equipment/index.html',
-  '/apps/equipment/app.js',
-  '/apps/equipment/styles.css',
-  '/apps/huddle/index.html',
-  '/apps/huddle/app.js',
-  '/apps/huddle/styles.css',
-  '/apps/inventory/index.html',
-  '/apps/inventory/app.js',
-  '/apps/inventory/styles.css',
-  '/apps/meetings/index.html',
-  '/apps/meetings/app.js',
-  '/apps/meetings/styles.css',
-  '/apps/scheduler/index.html',
-  '/apps/scheduler/app.js',
-  '/apps/scheduler/styles.css',
-  '/apps/settings/index.html',
-  '/apps/settings/app.js',
-  '/apps/settings/styles.css'
-];
+/* APPS_CACHE precache list dropped in V3.40: lab apps are now reached via
+ * RM iframe wrappers (rm/pages/app-<name>.html) rather than the public-site
+ * Apps menu. The APPS_CACHE constant + runtime stale-while-revalidate
+ * routing for /apps/* below stay so iframe loads remain fast; we just
+ * don't precache all 33 app files at install time anymore. Phase C deletes
+ * /apps/ entirely and removes APPS_CACHE. */
 
-/* ---------- Install: precache shell + apps ---------- */
+/* ---------- Install: precache shell ---------- */
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    Promise.all([
-      caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL_URLS)),
-      caches.open(APPS_CACHE).then(cache => cache.addAll(APP_URLS))
-    ])
+    caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL_URLS))
   );
   self.skipWaiting();
 });
@@ -128,6 +96,20 @@ self.addEventListener('fetch', (event) => {
   // Google Auth endpoints — never cache (auth tokens, popups, GIS client)
   if (url.hostname.includes('accounts.google.com') ||
       url.hostname.includes('apis.google.com')) {
+    return;
+  }
+
+  // Research Management (mcgheelab.com/rm/) — network-first instead of
+  // stale-while-revalidate. RM ships multiple updates per day during active
+  // development; SWR served the previous build on every reload, masking
+  // shipped fixes until the SECOND reload. Network-first picks up new code
+  // immediately when online, falls back to cache when offline. The cached
+  // copy is still updated on every successful fetch, so offline support
+  // works as before. Firestore data is unaffected — this is just for the
+  // ~100 KB of HTML/JS/CSS that loads RM. Per-user data caching lives in
+  // IndexedDB (js/local-cache.js) and is independent of this SW.
+  if (url.pathname.startsWith('/rm/')) {
+    event.respondWith(networkFirst(event.request, SHELL_CACHE));
     return;
   }
 

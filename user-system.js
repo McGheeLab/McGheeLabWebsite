@@ -658,7 +658,10 @@ const Auth = {
     };
     toggle(['nav-dashboard', 'dnav-dashboard', 'more-dashboard'], isAuthed);
     toggle(['nav-admin',     'dnav-admin',     'more-admin'],     isAdmin);
-    toggle(['nav-apps',      'dnav-apps',      'more-apps'],      isNotGuest);
+    // Apps menu retired in V3.40 — lab apps now live under /rm/. The
+    // 'nav-apps' toggle is left out so any orphaned #dnav-apps element
+    // stays hidden (display:none from the markup) regardless of role.
+    toggle(['nav-rm',        'dnav-rm',        'more-rm'],        isNotGuest);
 
     // Login/Logout text swap across all nav surfaces
     ['nav-login', 'dnav-login', 'more-login'].forEach(id => {
@@ -3347,6 +3350,31 @@ function renderNewsEditor(postId) {
           <div class="media-progress" id="news-cover-progress" hidden></div>
         </div>
 
+        <h3>Team</h3>
+        <p class="hint">Tag the people involved in this post. You are automatically listed as author.</p>
+        <div class="team-fields">
+          <div class="form-group">
+            <label>Author</label>
+            <input type="text" id="news-author-name" readonly class="team-readonly">
+          </div>
+          <div class="form-group">
+            <label for="news-mentor">Mentor</label>
+            <select id="news-mentor">
+              <option value="">— Select mentor —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Contributors</label>
+            <div class="contributor-select-row">
+              <select id="news-contributor-select">
+                <option value="">— Add contributor —</option>
+              </select>
+              <button type="button" id="news-add-contributor-btn" class="btn btn-secondary btn-small">Add</button>
+            </div>
+            <div id="news-contributor-chips" class="contributor-chips"></div>
+          </div>
+        </div>
+
         <h3>Sections</h3>
         <p class="hint">Each section is a block of text with an optional image or video.</p>
         <div id="news-sections-container" class="sections-container"></div>
@@ -3386,10 +3414,65 @@ async function wireNewsEditor(postId) {
   const sectionImages = {};
   const sectionVideos = {};
   let coverImageUrls = null;
+  const selectedContributors = []; // { uid, name, photo }
 
   // Back button
   document.getElementById('news-editor-back-btn')?.addEventListener('click', () => {
     window.location.hash = '#/dashboard';
+  });
+
+  // Team fields: populate mentor + contributor dropdowns from all users
+  const mentorSelect = document.getElementById('news-mentor');
+  const contribSelect = document.getElementById('news-contributor-select');
+  const authorField = document.getElementById('news-author-name');
+  const chipsEl = document.getElementById('news-contributor-chips');
+
+  if (authorField) authorField.value = Auth.currentProfile?.name || Auth.currentUser.email;
+
+  try {
+    const allUsers = await DB.getAllUsers();
+    allUsers.forEach(u => {
+      const makeOpt = (sel) => {
+        const o = document.createElement('option');
+        o.value = u.id;
+        o.textContent = u.name || u.email || u.id;
+        o.dataset.name = u.name || '';
+        o.dataset.photo = JSON.stringify(u.photo || '');
+        sel.appendChild(o);
+      };
+      if (mentorSelect) makeOpt(mentorSelect);
+      if (contribSelect && u.id !== Auth.currentUser.uid) makeOpt(contribSelect);
+    });
+  } catch (e) { console.warn('Failed to load users for news team:', e); }
+
+  function renderContributorChips() {
+    if (!chipsEl) return;
+    chipsEl.innerHTML = selectedContributors.map((c, i) =>
+      `<span class="contributor-chip">${escapeHTML(c.name || c.uid)}
+        <button type="button" class="chip-remove" data-idx="${i}">&times;</button>
+      </span>`
+    ).join('');
+    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedContributors.splice(Number(btn.dataset.idx), 1);
+        renderContributorChips();
+      });
+    });
+  }
+
+  document.getElementById('news-add-contributor-btn')?.addEventListener('click', () => {
+    if (!contribSelect?.value) return;
+    const opt = contribSelect.options[contribSelect.selectedIndex];
+    if (selectedContributors.some(c => c.uid === contribSelect.value)) return;
+    let parsedPhoto = '';
+    try { parsedPhoto = JSON.parse(opt.dataset.photo || '""'); } catch { parsedPhoto = opt.dataset.photo || ''; }
+    selectedContributors.push({
+      uid: contribSelect.value,
+      name: opt.dataset.name || opt.textContent,
+      photo: parsedPhoto
+    });
+    renderContributorChips();
+    contribSelect.value = '';
   });
 
   // Load existing post
@@ -3422,6 +3505,15 @@ async function wireNewsEditor(postId) {
         const preview = document.getElementById('news-cover-preview');
         if (preview && existing.coverImage.medium) {
           preview.innerHTML = `<img src="${escapeHTML(existing.coverImage.medium)}" alt="Cover preview">`;
+        }
+      }
+
+      // Restore team
+      if (existing.team) {
+        if (existing.team.mentor?.uid && mentorSelect) mentorSelect.value = existing.team.mentor.uid;
+        if (Array.isArray(existing.team.contributors)) {
+          existing.team.contributors.forEach(c => selectedContributors.push(c));
+          renderContributorChips();
         }
       }
     }
@@ -3556,6 +3648,27 @@ async function wireNewsEditor(postId) {
       });
     });
 
+    const mentorOpt = mentorSelect?.options[mentorSelect.selectedIndex];
+    let mentorPhoto = '';
+    if (mentorSelect?.value) {
+      try { mentorPhoto = JSON.parse(mentorOpt?.dataset?.photo || '""'); } catch { mentorPhoto = mentorOpt?.dataset?.photo || ''; }
+    }
+    const team = {
+      author: {
+        uid: Auth.currentUser.uid,
+        name: Auth.currentProfile?.name || '',
+        photo: Auth.currentProfile?.photo || ''
+      },
+      contributors: selectedContributors.map(c => ({
+        uid: c.uid, name: c.name, photo: c.photo || ''
+      })),
+      mentor: mentorSelect?.value ? {
+        uid: mentorSelect.value,
+        name: mentorOpt?.dataset?.name || mentorOpt?.textContent || '',
+        photo: mentorPhoto
+      } : null
+    };
+
     return {
       id: existing?.id || undefined,
       title: document.getElementById('news-title').value.trim(),
@@ -3563,6 +3676,7 @@ async function wireNewsEditor(postId) {
       description: document.getElementById('news-description').value.trim(),
       coverImage: coverImageUrls,
       sections,
+      team,
       authorUid: Auth.currentUser.uid,
       authorName: Auth.currentProfile?.name || Auth.currentUser.email,
       authorPhoto: Auth.currentProfile?.photo || null,

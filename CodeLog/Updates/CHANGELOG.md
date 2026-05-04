@@ -4,6 +4,95 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.40] - 2026-05-04
+
+Phase A of the `/apps/` → RM migration. RM becomes the only nav home for lab tools; the public site loses its **Lab Apps** menu. Each unported app is reachable via an iframe-wrapped RM page until V3.41–V3.52 ports it natively. Plan doc: [CodeLog/ClaudesPlan/V3.40_rm_app_migration.md](../ClaudesPlan/V3.40_rm_app_migration.md).
+
+### Added
+- **Iframe-bridge wrappers in RM** — five new pages parameterized from the existing [rm/pages/activity-tracker.html](../../rm/pages/activity-tracker.html) postMessage pattern:
+  - [rm/pages/app-chat.html](../../rm/pages/app-chat.html) → `/apps/chat/`
+  - [rm/pages/app-equipment.html](../../rm/pages/app-equipment.html) → `/apps/equipment/`
+  - [rm/pages/app-huddle.html](../../rm/pages/app-huddle.html) → `/apps/huddle/`
+  - [rm/pages/app-meetings.html](../../rm/pages/app-meetings.html) → `/apps/meetings/`
+  - [rm/pages/app-scheduler.html](../../rm/pages/app-scheduler.html) → `/apps/scheduler/`
+  - Each preserves the null-profile guard (`p ? Object.assign({role: p.role || 'member'}, p) : {role: 'member'}`) — required to avoid stuck-load on first sign-in. Same-origin Firebase IndexedDB persistence means the wrapped app's own `firebase.auth()` already has the user; the postMessage just populates `auth-bridge.js`'s `_user`/`_profile`.
+
+### Changed
+- **`rm/js/nav.js`** — `NAV_ITEMS` rewritten into six top-level groups: `Dashboard | Activity | Research | Operations | Lab Admin | Settings`.
+  - **Operations** (`gate: 'lab-member'`): Chat, Huddle, Meetings, Scheduler, Equipment — all routed through the new iframe wrappers above.
+  - **Lab Admin** (`gate: 'lab-member'`): Compliance, Chemical Safety, Inventory, Lab Members, Important People, Career & Tenure, Procurement (receipts), Purchase Requests, Grant Accounts, Budget, Analytics, Travel — every link points at an existing native RM page.
+  - **Settings** (`gate: 'lab-member'`): Profile, Settings, CV Overview, CV Editor, Member Activity (`gate: 'admin'`).
+  - **Activity** keeps Tracker/Overview/Calendar/Email/Tasks/Sharing/Year (Task → Tasks for grammatical consistency).
+  - **Research** absorbs Teaching and Service as submenu entries (was top-level before) to keep the bar at six items.
+  - Existing per-item gating + auto-collapse-empty-group at lines 163-194 unchanged.
+- **`sw.js`** — `CACHE_VERSION` bumped 14 → 15. The 33-entry `APP_URLS` precache list deleted along with the `caches.open(APPS_CACHE).then(addAll)` install step; install now precaches shell only. The `APPS_CACHE` constant + runtime stale-while-revalidate routing for `/apps/*` (line 213) **stay** so iframe loads still benefit from runtime caching during Phase A. Phase C deletes the constant when `/apps/` itself is removed.
+- **`index.html`** — three `Lab Apps` `<li>` entries removed from the nav surfaces (drawer `nav-apps`, desktop `dnav-apps`, mobile sheet `more-apps`). The conditional `nav-rm`/`dnav-rm`/`more-rm` entries to the RM gateway stay; `nav-dashboard`/`dnav-dashboard` and `nav-admin`/`dnav-admin` are kept until Phase C.
+- **`user-system.js`** — `Auth.updateNavigation()` no longer toggles `nav-apps`/`dnav-apps`/`more-apps` (line 661); the orphaned IDs stay hidden via their `display:none` markup if any external page still ships them.
+
+### Documentation
+- New [CodeLog/ClaudesPlan/V3.40_rm_app_migration.md](../ClaudesPlan/V3.40_rm_app_migration.md) — Phase A plan + Phase B (V3.41–V3.52) port order + per-overlap audit (compliance, inventory, settings, activity-tracker, procurement, purchases) listing the lab-app features that need to merge into the RM page before the lab-app version is deleted.
+- [CodeLog/Architecture/ARCHITECTURE.md](../Architecture/ARCHITECTURE.md) — RM section updated to reflect the six-group nav and the iframe-bridge tier.
+
+## [V3.39] - 2026-04-30
+
+### Added
+- **Slack → Lab Chat history export** (`scripts/slack_export.py`) — one-time script to migrate Slack workspace history into Lab Chat as a frozen archive during the transition off Slack
+  - Pulls users, public + private channels, 1:1 DMs, group DMs, threads, reactions, and file attachments via Slack Web API (paid-tier user OAuth token)
+  - Maps Slack users to Lab Chat UIDs by email; creates `users/slack_{slackId}` ghost docs (`imported: true`, `disabled: true`, `role: 'guest'`) for non-members so messages have a valid `authorUid`
+  - Creates one `chatChannels/slack_{slackId}` doc per Slack conversation under a new `Slack archive` category (auto-added to `chatConfig/settings.categories`); DMs/MPIMs preserve `members` so existing Firestore rules gate visibility
+  - Writes `chatMessages` matching the existing schema with new fields `importedFromSlack: true`, `slackTs`, `slackChannelId`, `importedBy`; idempotent on `slackTs` so re-runs skip duplicates
+  - Two-pass thread import: pass 1 writes top-level messages and builds `slackTs → firestoreId` map; pass 2 writes replies with resolved `threadParentId` and updates parents' `threadReplyCount` / `threadLastReplyAt`
+  - Files >50 MB skipped (matches `storage.rules` limit); others downloaded from `url_private_download` and re-uploaded to `chat/imported/{channelId}/{ts}_{name}` in Firebase Storage
+  - Slack mrkdwn conversion: `<@U…>` mentions resolved to `@displayname` + `mentions: [uid]`; `<#C…>` to `#name`; `<url|label>` to `label (url)`; `<!channel>` etc. preserved as plain text but `mentionsChannel` forced false to avoid retroactive notification storms
+  - Rate-limit handling (Tier 3 `conversations.history` ~50/min, sleeps on `Retry-After` 429s); checkpoint at `scripts/.slack_export_checkpoint.json` so partial runs resume per-channel
+  - CLI flags: `--dry-run`, `--channels name1,name2`, `--skip-files`, `--skip-dms`
+  - Env config via `scripts/.env` (template at `scripts/.env.example`); `.gitignore` updated to exclude env + checkpoint files
+- **`apps/chat/app.js`** — message renderer adds `<span class="chat-badge-imported">from Slack</span>` next to the timestamp when `msg.importedFromSlack === true` (line ~1324 in `renderMessageHTML()`); no behavior change beyond the badge — imported messages stay read-only because their ghost `authorUid` doesn't match any signed-in user
+- **`apps/chat/styles.css`** — `.chat-badge-imported` style (italic muted pill, matching the existing `.chat-badge-pin` shape)
+- **`scripts/requirements.txt`** — `slack_sdk`, `firebase-admin`, `python-dotenv`, `requests`
+- `sw.js`: `CACHE_VERSION` bumped 7 → 8
+
+## [V3.38] - 2026-04-27
+
+### Changed
+- **`modules/manifest.json`** — synced bme576 file list with disk
+  - Removed deleted entries: `01_experimental_design.html`, `01_parameter_estimation.html`
+  - Added: `mc_interactive_explorer.html` (Module 10: Uncertainty & Error Propagation), `11_parameter_estimation.html`, `12_experimental_design.html` (Module 12: DOE), `13_model_validation.html` (Module 13: Model Validation)
+  - Updated `generated` timestamp
+- `sw.js`: `CACHE_VERSION` bumped 6 → 7
+
+## [V3.37] - 2026-04-17
+
+### Added
+- **News posts: Team section** — news post editor now mirrors the research story editor with Author (readonly), Mentor dropdown, and Contributors chip picker
+  - New post schema field `team: { author, mentor, contributors }` saved alongside legacy `authorName`/`authorUid`/`authorPhoto` (legacy fields retained for backwards compatibility with admin review and older posts)
+  - Public news card's expanded area now renders the team grid (reuses `buildStoryTeamHTML()` via `buildExpandedHTML()`)
+  - Editor controls: `#news-author-name`, `#news-mentor`, `#news-contributor-select`, `#news-add-contributor-btn`, `#news-contributor-chips`
+- **News page: Filter bar** — above the feed, with Type (multi-select chips over `NEWS_CATEGORIES`), Person (dropdown from union of `authorName` + `team.author/mentor/contributors[].name`), Time (All / 30d / 3mo / 1yr chips), and "Has comments" toggle
+  - Live "Showing N of M" count and "Clear filters" link
+  - Client-side filter on the already-loaded posts; AND across groups, OR within Type
+  - Comment counts prefetched once via `Promise.all(getCommentsByStory)` and stored on each post as `_commentCount`; powers the has-comments filter and card badges in a single round-trip (removes per-card fetch from `wireNewsFeedInteractions()`)
+- `app.js` new functions: `buildNewsFilterBar()`, `collectNewsPeople()`, `postInvolvesPerson()`, `applyNewsFilters()`, `wireNewsFilters()`
+- `styles.css`: `.news-filter-bar-inner`, `.news-filter-group`, `.news-filter-label`, `.news-filter-chips`, `.news-filter-chip(.active)`, `.news-filter-select`, `.news-filter-toggle`, `.news-filter-meta`, `.news-filter-count`, `.news-filter-clear` (+ 720px breakpoint)
+- `sw.js`: `CACHE_VERSION` bumped 5 → 6
+
+### Changed
+- `buildNewsFeedCard()` expanded content now built via `buildExpandedHTML(newsBlocks, p)` (was `buildStoryHTML(newsBlocks)`) so team renders above sections
+- `wireNewsFeedInteractions()` no longer fetches comment counts per card — uses prefetched `_commentCount`
+
+## [V3.36] - 2026-04-17
+
+### Added
+- **Image lightbox on Research Stories and News pages** — click any content image (cover image or in-story/news section image) to open a full-screen viewer with zoom and pan
+  - Zoom: mouse wheel (toward cursor), `+` / `1:1` / `-` toolbar buttons, `+` / `-` / `0` keys, double-click to toggle fit vs. 2.5×, 2-finger pinch on touch
+  - Pan: drag (mouse or touch) when zoomed in
+  - Close: X button, backdrop click, or Escape key
+  - Single shared overlay lazily appended to `<body>` on first open; delegated click listener on `#stories-feed` and `#news-feed` survives feed re-renders
+  - Skips small identity photos (`.story-feed-avatar`, `.story-team-photo`) and clicks inside buttons/links
+- `app.js`: `ensureLightbox()`, `openImageLightbox(src, alt)`, `wireImageZoom(rootEl)`; hooked into `wireStoryFeedInteractions()` and `wireNewsFeedInteractions()`
+- `styles.css`: `.img-lightbox`, `.img-lightbox-backdrop`, `.img-lightbox-stage`, `.img-lightbox-img`, `.img-lightbox-close`, `.img-lightbox-controls`, `.img-lightbox-btn`; `zoom-in` cursor on eligible images
+- `sw.js`: `CACHE_VERSION` bumped 4 → 5
+
 ## [V3.35] - 2026-04-13
 
 ### Added

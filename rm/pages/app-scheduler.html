@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scheduler — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    /* Phase-A iframe bridge for /apps/scheduler/. First app slated for
+       native port (V3.41) — proof-of-concept for the api.load/api.save
+       contract. */
+    html, body { height: 100%; }
+    body { margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+    .top-nav { flex: 0 0 auto; }
+    .app-host {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+    .app-host iframe {
+      flex: 1 1 auto;
+      width: 100%;
+      border: 0;
+      background: var(--surface);
+    }
+    .app-pre {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      color: var(--text-muted);
+      font-size: 14px;
+      text-align: center;
+    }
+    .app-pre .card {
+      max-width: 420px;
+      padding: 28px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .app-pre h2 { margin-top: 0; font-size: 16px; color: var(--text); }
+  </style>
+</head>
+<body>
+  <main class="app-host" id="app-host">
+    <div class="app-pre" id="app-pre">
+      <div class="card">
+        <h2>Loading Scheduler…</h2>
+        <div>Signing you in.</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script>
+  (function () {
+    var IFRAME_SRC = '/apps/scheduler/';
+    var host = document.getElementById('app-host');
+    var pre  = document.getElementById('app-pre');
+    var iframe = null;
+    var iframeReady = false;
+    var lastAuthSig = null;
+
+    function ensureIframe() {
+      if (iframe) return iframe;
+      iframe = document.createElement('iframe');
+      iframe.id = 'app-iframe';
+      iframe.src = IFRAME_SRC;
+      iframe.allow = 'microphone; clipboard-read; clipboard-write';
+      iframe.title = 'Scheduler';
+      host.appendChild(iframe);
+      if (pre && pre.parentNode) pre.parentNode.removeChild(pre);
+      return iframe;
+    }
+
+    function pushAuth() {
+      if (!iframe || !iframeReady) return;
+      var u = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
+      if (!u) return;
+      var p = (typeof firebridge !== 'undefined' && firebridge.getProfile) ? firebridge.getProfile() : null;
+      var payload = {
+        type: 'mcgheelab-auth',
+        user: { uid: u.uid, email: u.email || '', displayName: u.displayName || '' },
+        profile: p ? Object.assign({ role: p.role || 'member' }, p) : { role: 'member' },
+      };
+      var sig = payload.user.uid + '|' + (payload.profile && payload.profile.role);
+      if (sig === lastAuthSig) return;
+      lastAuthSig = sig;
+      try {
+        iframe.contentWindow.postMessage(payload, window.location.origin);
+      } catch (err) {
+        console.warn('[scheduler] postMessage failed:', err);
+      }
+    }
+
+    function showSignInPrompt() {
+      if (!pre) return;
+      pre.innerHTML =
+        '<div class="card">' +
+          '<h2>Sign in required</h2>' +
+          '<div>You need a McGheeLab account to view Scheduler.</div>' +
+        '</div>';
+    }
+
+    window.addEventListener('message', function (e) {
+      if (e.origin !== window.location.origin) return;
+      if (!e.data || e.data.type !== 'mcgheelab-app-ready') return;
+      iframeReady = true;
+      pushAuth();
+    });
+
+    if (typeof firebridge === 'undefined' || !firebridge.onAuth) {
+      showSignInPrompt();
+      return;
+    }
+    firebridge.onAuth(function (user) {
+      if (!user) { showSignInPrompt(); return; }
+      ensureIframe();
+      pushAuth();
+    });
+  })();
+  </script>
+</body>
+</html>

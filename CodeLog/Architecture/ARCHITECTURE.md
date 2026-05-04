@@ -1,10 +1,12 @@
 # Architecture
 
-**Version:** V3.35
+**Version:** V3.40
 
 ## System Overview
 
 McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, and JavaScript. It uses hash-based routing to navigate between sections without page reloads. Public site content is stored in content.json, while user-generated content (stories, profiles) lives in Firebase Firestore. Authentication is handled by Firebase Auth with invitation-based registration.
+
+As of V3.40 the site is moving toward a **two-tier shape**: the public marketing SPA at `/` (mission, research, projects, team, classes, news, opportunities, login) and the auth-gated **RM** dashboard at `/rm/`. RM is the single home for every lab tool — the 12 standalone apps under `/apps/` and the public-site dashboard/admin/cv/guide routes are migrating into RM in three phases: **Phase A (V3.40)** stitches every existing lab app into RM via iframe-bridge wrappers and prunes the public **Lab Apps** menu; **Phase B (V3.41–V3.52)** ports each app onto the RM data contract (`api.load`/`api.save`, IndexedDB cache, `LIVE_SYNC`, `firebridge` auth gate); **Phase C (V3.53)** deletes `/apps/` and the public-site admin/dashboard surface entirely. Plan: [CodeLog/ClaudesPlan/V3.40_rm_app_migration.md](../ClaudesPlan/V3.40_rm_app_migration.md).
 
 ## Module Breakdown
 
@@ -22,7 +24,10 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 - **User system integration:** Routes for login, dashboard, cv, admin, logout, schedule; wires user-system page interactivity; appends Firestore stories to projects page; loads news feed from Firestore; hides hero on CV page
   - **Scheduler routes:** `#/dashboard/scheduler/{id}` (owner admin view), `#/schedule/{id}?key={uuid}` (private speaker access, key-only)
 - **PI CV view:** `buildPiExpandedHTML()` renders collapsible `<details>` sections with filter bar, citation badges, year-sorted items; `wirePiCvFilter()` handles chip-based section filtering
-- **News page:** `renderNews()` renders feed layout; `buildNewsFeedCard()` creates cards with author, category badge, expandable sections, reactions, and comments; `wireNewsFeedInteractions()` hooks up social features
+- **News page:** `renderNews()` renders feed layout + filter-bar slot; `buildNewsFeedCard()` creates cards (now uses `buildExpandedHTML()` so team renders alongside sections); `wireNewsFeedInteractions()` hooks up social features using prefetched comment counts
+  - **Filter bar:** `buildNewsFilterBar()` builds Type/Person/Time/Has-comments controls from loaded posts; `wireNewsFilters()` owns filter state and re-renders from the cached list via `applyNewsFilters()`; helpers `collectNewsPeople()` / `postInvolvesPerson()` unify author + team (author/mentor/contributors) for the Person filter
+  - Comment counts prefetched once via `Promise.all(getCommentsByStory)`; stored on each post as `_commentCount` for instant has-comments filtering and badge rendering
+- **Image lightbox:** `ensureLightbox()` lazily builds a single shared overlay in `<body>`; `openImageLightbox(src, alt)` opens it; `wireImageZoom(rootEl)` delegates clicks on images inside research-stories/news feeds. Supports wheel/double-click/pinch zoom and drag pan; closes on backdrop, X, or Escape
 - **Error handling:** Render functions wrapped in try/catch with user-facing fallback messages
 
 ### firebase-config.js
@@ -39,7 +44,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - **Dashboard:** Profile editing (name, bio, photo, category), story list with create/edit/delete, scheduler management (create/list/delete, manage via scheduler editor)
   - **Scheduler editor:** `renderSchedulerEditor`/`wireSchedulerEditor` — admin/owner view of a scheduler using `McgheeLab.Scheduler` engine; `renderSchedulePage`/`wireSchedulePage` — private key-only speaker access
   - **Story editor:** Multi-section editor with text areas, drag-and-drop image/video upload, reorder/remove sections, live preview modal, save draft / publish / submit for review
-  - **News editor:** Simplified story editor for news posts — title, category (Event/Conference/Paper/Highlight/Lab Life/Other), sections with text + media, draft/publish flow
+  - **News editor:** Simplified story editor for news posts — title, category (Event/Conference/Paper/Highlight/Lab Life/Other), cover image, Team section (author readonly, mentor dropdown, contributor chip picker — mirrors story editor), sections with text + media, draft/publish flow. Saves `team: { author, mentor, contributors }` alongside legacy `authorName`/`authorUid`/`authorPhoto` for backwards compatibility
   - **Admin panel:** Tabbed interface — user management (role changes), invitation generator (with copy link), pending story review (approve/reject), pending news review (approve/reject), course listings (add creates both `classes` + `schedules` docs with auto-generated schedule ID; edit navigates to course builder; delete cascades across participants + classFiles + Storage + schedules)
 - **Exports:** All render/wire functions and Auth/DB objects on `window.McgheeLab` namespace
 
@@ -111,6 +116,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 
 ### lab-apps.js
 - **Purpose:** Lab Apps hub + iframe embedder — private section for authenticated lab members (non-guest)
+- **Status (V3.40):** **Orphaned in the public nav.** Phase A of the RM migration removed the `Lab Apps` `<li>` entries from all three nav surfaces (drawer, desktop, mobile sheet) and dropped the `nav-apps`/`dnav-apps`/`more-apps` toggle from `Auth.updateNavigation()`. The script is still loaded by `index.html` and the `#/apps` SPA route is still registered in `app.js`, but no nav surface points at it. Phase C (V3.53) deletes the file and the route. **Apps now live under `/rm/`** — see *rm/ (ResearchManagement)* below.
 - **Key sections:**
   - **App registry (`LAB_APPS`):** Array of app definitions with `id`, `name`, `description`, `path` (to standalone `index.html`), `icon` (SVG), `status`, and `adminOnly` flag
   - **Hub renderer (`renderLabApps`):** Auth-gated grid of app cards; filters out `adminOnly` apps for non-admin users; redirects guests to dashboard and unauthenticated to login
@@ -118,7 +124,7 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - **Auth handshake (`wireLabApp`):** Listens for `mcgheelab-app-ready` from iframe → responds with `mcgheelab-auth` containing `user` and `profile` objects; also handles `mcgheelab-app-resize` for auto-sizing
 - **Apps:** Inventory Tracker, Equipment Scheduler, Lab Meeting, Admin Console (admin-only), Activity Tracker, The Huddle, Scheduler
 - **Routing:** `#/apps` (hub) and `#/apps/{appId}` (iframe embed) handled in `app.js` render/wire switches
-- **Navigation:** `#nav-apps` `<li>` shown when `Auth.currentUser` exists and `role !== 'guest'`
+- **Navigation:** ~~`#nav-apps` `<li>` shown when `Auth.currentUser` exists and `role !== 'guest'`~~ — **removed in V3.40.**
 - **Exports:** `McgheeLab.renderLabApps`, `McgheeLab.wireLabApps`, `McgheeLab.renderLabApp`, `McgheeLab.wireLabApp`, `McgheeLab.LAB_APPS`
 
 ### apps/ (standalone app directory)
@@ -142,6 +148,17 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
   - `apps/chat/` — Lab Chat: real-time messaging with channels, DMs, threads, reactions, @mentions, read receipts, and Google Drive file sharing. Desktop: three-panel layout (sidebar + message feed + optional thread panel). Mobile (≤700px): conversation-list-first design with view state machine (`_mobileView`: list/conversation/files); conversation list shows all subscribed channels + DMs with preview/badges; filter dropdown (newest/active/unread/alpha); conversation view replaces sidebar with stats bar (readers/search/files); files view groups channel attachments by type; bottom bar with 5 app quick-nav icons + back arrow FAB; hamburger menu for browse/DM/contacts/search/settings. Subscription-based notifications: all channels visible, users subscribe for alerts. Admin-defined channel categories with channel directory browser. User-organized sidebar with draggable custom groups. Google Drive integration via Google Identity Services OAuth for file uploads to shared lab folder. Browser notifications for @mentions and DMs. Data: `chatConfig/settings` (categories, Drive config), `chatChannels/{channelId}` (metadata + denormalized lastMessage), `chatMessages/{messageId}` (messages with reactions map, readBy array, thread fields), `chatReadState/{uid_channelId}` (per-user read tracking), `chatUserMeta/{uid}` (subscriptions, sidebar layout, prefs)
 - **Execution modes:** Embedded (`.app-embedded` class, header hidden, auth via postMessage) vs Standalone (`.app-standalone` class, header visible, auth via Firebase direct)
 - **Script load order in standalone:** Firebase SDK (compat) → `../../firebase-config.js` → `../shared/auth-bridge.js` → `../shared/mobile-shell.js` → `../shared/calendar-service.js` → `app.js` (chat app omits mobile-shell.js and calendar-service.js)
+- **Status (V3.40):** All 12 apps are reachable through the new RM nav via iframe-bridge wrappers in [rm/pages/app-*.html](../../rm/pages/) — see *rm/* below. The standalone `/apps/<name>/` URLs still work as a fallback during the multi-version migration. Phase B (V3.41–V3.52) replaces each iframe wrapper with a native RM page; Phase C (V3.53) deletes `/apps/` entirely.
+
+### rm/ (ResearchManagement)
+- **Purpose:** Auth-gated lab dashboard at `mcgheelab.com/rm/`. As of V3.40 this is the consolidating home for every lab tool — the 12 lab apps (currently iframe-bridged) plus the migrated public-site dashboard/admin/cv/guide editors (in progress, V3.43–V3.45).
+- **Source of truth:** This `/rm/` tree is the canonical RM source — edit here directly, not the sibling `ResearchManagement/` repo. Detailed RM-internal architecture lives in [rm/CLAUDE.md](../../rm/CLAUDE.md).
+- **Data layer:** Every Firestore path is registered in [rm/js/api-routes.js](../../rm/js/api-routes.js); call sites use `api.load(path)` / `api.save(path, data)` from [rm/js/util.js](../../rm/js/util.js). The adapter at [rm/js/api-firestore-adapter.js](../../rm/js/api-firestore-adapter.js) routes to either `userData/{uid}/<subcollection>` (per-user, `scope: 'user'`) or a top-level lab collection (`scope: 'lab'`, admin-write). IndexedDB cache via [rm/js/local-cache.js](../../rm/js/local-cache.js) with smart `MAX(updatedAt)` revalidation.
+- **Auth gate:** [rm/js/firebase-bridge.js](../../rm/js/firebase-bridge.js) — `firebridge.gateSignedIn()` / `firebridge.gateAdmin('reason')` / `firebridge.whenAuthResolved()`. Anyone can sign in via Google but profile-bootstrap creates `users/{uid}` as `role: 'guest'`; `firestore.rules` `isLabMember()` requires `role != 'guest'`; firebridge renders a full-page pending-access overlay until admin promotes them. The `#dnav-rm` link in the public-site nav appears only after sign-in (regardless of role).
+- **Live sync:** [rm/js/live-sync-helper.js](../../rm/js/live-sync-helper.js) — `LIVE_SYNC.attach({paths, refresh, tag})` debounces remote updates, suppresses post-save blink, deduplicates subscriptions across pages.
+- **Top nav (V3.40 layout):** Six groups in [rm/js/nav.js](../../rm/js/nav.js): **Dashboard** | **Activity** (Tracker, Overview, Calendar, Email, Tasks, Sharing, Year) | **Research** (Projects, Library, Comments, Papers, Teaching, Service) | **Operations** _gate: lab-member_ (Chat, Huddle, Meetings, Scheduler, Equipment) | **Lab Admin** _gate: lab-member_ (Compliance, Chemical Safety, Inventory, Lab Members, Important People, Career & Tenure, Procurement, Purchase Requests, Grant Accounts, Budget, Analytics, Travel) | **Settings** _gate: lab-member_ (Profile, Settings, CV Overview, CV Editor, Member Activity _gate: admin_).
+- **Iframe-bridge tier (Phase A only):** [rm/pages/app-chat.html](../../rm/pages/app-chat.html), [app-equipment.html](../../rm/pages/app-equipment.html), [app-huddle.html](../../rm/pages/app-huddle.html), [app-meetings.html](../../rm/pages/app-meetings.html), [app-scheduler.html](../../rm/pages/app-scheduler.html). Each loads the corresponding `/apps/<name>/` in an iframe, runs `auth-bridge.js` in embedded mode, and forwards `{user, profile}` via postMessage on the existing `mcgheelab-app-ready` → `mcgheelab-auth` handshake. Same-origin Firebase IndexedDB persistence carries the auth into the iframe automatically; the postMessage just populates `auth-bridge.js`'s `_user`/`_profile`. Phase B replaces each wrapper with a native RM page; the wrapper file becomes a `<meta http-equiv="refresh">` redirect to preserve bookmarks, and is deleted entirely in Phase C. The proven activity-tracker bridge at [rm/pages/activity-tracker.html](../../rm/pages/activity-tracker.html) is the template (and is itself rewritten as a native renderer in V3.49).
+- **Production deploy:** Cyberduck FTP the McGheeLabWebsite repo to godaddy — the `/rm/` subdir lands at `mcgheelab.com/rm/`. No build step. Firebase rules / indexes / Cloud Functions deploy from the McGheeLabWebsite repo root via `firebase deploy --only ...`.
 
 ### modules/ (learning module pages)
 - **Purpose:** Standalone full-page HTML lesson files with auto-navigating class-specific headers. Each module is a self-contained page that loads outside the SPA.
@@ -175,6 +192,21 @@ McGheeLab website is a single-page application (SPA) using vanilla HTML, CSS, an
 ### migrate-content.js
 - **Purpose:** One-time migration of content.json → Firestore (research, projects, team)
 - **Usage:** `McgheeLab.migrateContent()` in browser console
+
+### scripts/slack_export.py
+- **Purpose:** One-time Slack → Lab Chat history export run locally with admin Firebase credentials and a workspace-owner Slack user OAuth token. Built for the Slack-off-ramp transition; runs once (idempotent) per workspace, not as a live mirror
+- **Entry point:** `python3 scripts/slack_export.py [--dry-run] [--channels …] [--skip-files] [--skip-dms]`
+- **Dependencies:** `slack_sdk`, `firebase-admin`, `python-dotenv`, `requests` (see `scripts/requirements.txt`)
+- **Config:** `scripts/.env` (template at `scripts/.env.example`); env vars `SLACK_USER_TOKEN`, `FIREBASE_SA_PATH`, `FIREBASE_PROJECT_ID`, `FIREBASE_BUCKET`, `IMPORTER_UID`. Both `.env` and the resume-state checkpoint `.slack_export_checkpoint.json` are gitignored
+- **Schema additions** to existing Lab Chat collections:
+  - `chatChannels/slack_{slackId}`: adds `importedFromSlack: true`, `slackChannelId`. Channels grouped under new `Slack archive` category appended to `chatConfig/settings.categories`
+  - `chatMessages/{auto}`: adds `importedFromSlack: true`, `slackTs`, `slackChannelId`, `importedBy`. Idempotency check is a `where slackChannelId == X and slackTs == Y` query before each write
+  - `users/slack_{slackId}` ghost docs for non-member Slack users: `imported: true`, `disabled: true`, `role: 'guest'` — gives messages a valid `authorUid` without enabling sign-in
+- **Pipeline:** `fetch_all_users` → `fetch_all_channels` → `build_user_map` (email match against existing users, ghost-create otherwise) → for each channel: `ensure_channel_doc` → `fetch_history` (paginated, oldest→newest) → pass-1 writes top-level messages, pass-2 fetches `conversations.replies` for threads and writes with resolved `threadParentId`
+- **Format conversion** (in `convert_text`): Slack `<@U…>` mentions resolve to `@displayname` and append to `mentions: [uid]`; `<#C…|name>` → `#name`; `<url|label>` → `label (url)`; `<!channel>`/`<!here>`/`<!everyone>` preserved as plain `@name` text but `mentionsChannel` forced false to suppress retroactive notification storms
+- **Files:** downloaded from `url_private_download` with bearer auth, re-uploaded to Storage at `chat/imported/{slackChannelId}/{slackTs}_{name}` (made public to match other chat files); >50 MB skipped to honor `storage.rules` limit
+- **Rate limiting & resume:** sleeps between Tier 3 calls and on `Retry-After` 429s; `.slack_export_checkpoint.json` records `channels_done` so re-runs skip completed channels (per-message dedup is via the `slackTs` query)
+- **UI side:** `apps/chat/app.js` `renderMessageHTML()` adds a `chat-badge-imported` "from Slack" pill next to the timestamp when `msg.importedFromSlack === true`
 
 ### content.json
 - **Purpose:** Static site content — mission, research, projects, team, classes
