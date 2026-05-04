@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Ledger → Tracker Migration — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    .mig-grid { display: grid; gap: 16px; max-width: 880px; }
+    .mig-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 22px; box-shadow: var(--shadow); }
+    .mig-card h2 { font-size: 16px; margin: 0 0 6px 0; }
+    .mig-card h3 { font-size: 14px; margin: 0 0 8px 0; color: var(--text); }
+    .mig-card p { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin: 4px 0; }
+    .mig-step-num { display: inline-block; background: var(--primary); color: #fff; width: 22px; height: 22px; border-radius: 50%; text-align: center; font-size: 12px; font-weight: 700; line-height: 22px; margin-right: 8px; }
+    .mig-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0 6px 0; }
+    .mig-actions .btn-danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+    .mig-actions .btn-danger:disabled { background: #fca5a5; border-color: #fca5a5; cursor: not-allowed; }
+    .mig-status { font-size: 12px; color: var(--text-muted); }
+    .mig-status.ok { color: #166534; }
+    .mig-status.err { color: #b91c1c; }
+    .mig-out { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; font-size: 12px; color: var(--text); background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; max-height: 360px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin-top: 8px; }
+    .mig-out:empty { display: none; }
+    .mig-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 6px 0; }
+    .mig-bar-fill { height: 100%; background: #1e40af; transition: width .2s ease; }
+    .mig-bar-fill.ok { background: #16a34a; }
+    .mig-bar-fill.err { background: #b91c1c; }
+    .mig-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    .mig-table th, .mig-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    .mig-table th { background: #f8fafc; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .3px; font-size: 11px; }
+    .mig-tag { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .mig-tag.ok { background: #dcfce7; color: #166534; }
+    .mig-tag.skip { background: #fef3c7; color: #92400e; }
+    .mig-tag.uncat { background: #e5e7eb; color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Activity Ledger → Tracker Migration</h1>
+    </div>
+    <div class="mig-grid">
+      <div class="mig-card">
+        <h2>What this does</h2>
+        <p>One-shot migration of your <code>userData/{uid}/activityLedger</code> rows into <code>trackerEntries/{uid}/entries</code> (the lab-apps activity tracker). After this, the tracker becomes the single source of truth for daily activity.</p>
+        <p><strong>Mapping summary:</strong> RM categories → lab-apps tree per the table reviewed in chat. <strong>Skipped:</strong> <code>noise</code> and <code>personal</code> top-level categories. <strong>Uncategorized:</strong> rows with <code>category=unknown</code>.</p>
+        <p><strong>Idempotency:</strong> each migrated source row is stamped with <code>migrated_to_tracker_id</code>. Re-running this page skips rows that already have that field, so it's safe to retry after a partial run.</p>
+      </div>
+
+      <div class="mig-card">
+        <h3><span class="mig-step-num">1</span>Survey ledger</h3>
+        <p>Reads your activityLedger from Firestore. Counts what would migrate, skip, or land uncategorized. No writes.</p>
+        <div class="mig-actions">
+          <button class="btn" id="btn-survey" disabled>Survey</button>
+          <span class="mig-status" id="survey-status">waiting for sign-in…</span>
+        </div>
+        <div class="mig-out" id="survey-out"></div>
+      </div>
+
+      <div class="mig-card">
+        <h3><span class="mig-step-num">2</span>Dry run (no writes)</h3>
+        <p>Applies the mapping to every row and shows you the first 25 translated entries plus the per-target-category distribution. Inspect before committing.</p>
+        <div class="mig-actions">
+          <button class="btn" id="btn-dryrun" disabled>Dry run</button>
+          <span class="mig-status" id="dryrun-status"></span>
+        </div>
+        <div class="mig-out" id="dryrun-out"></div>
+      </div>
+
+      <div class="mig-card">
+        <h3><span class="mig-step-num">3</span>Migrate for real</h3>
+        <p>Writes one tracker entry per source row, then stamps the source row. Already-stamped rows are skipped.</p>
+        <div class="mig-actions">
+          <button class="btn btn-danger" id="btn-migrate" disabled>Run migration</button>
+          <span class="mig-status" id="migrate-status"></span>
+        </div>
+        <div class="mig-bar"><div class="mig-bar-fill" id="migrate-bar" style="width:0"></div></div>
+        <div class="mig-out" id="migrate-out"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    /* Map an RM (category, sub_category) pair to a lab-apps categoryPath
+       (array of category IDs, root → leaf). Return null to skip the row.
+       Empty array means "uncategorized" (lab-apps default for missing path). */
+    function mapCategory(category, sub_category) {
+      var cat = String(category || '').toLowerCase().trim();
+      var sub = String(sub_category || '').toLowerCase().trim();
+
+      if (cat === 'noise' || cat === 'personal') return null;
+      if (cat === 'unknown' || cat === '') return [];
+
+      if (cat === 'research') {
+        if (sub.indexOf('grant') === 0)             return ['research', 'writing', 'grants'];
+        if (sub.indexOf('mentorship') === 0)        return ['research', 'meetings_research', 'mentorship'];
+        if (sub.indexOf('lab:meeting') === 0
+         || sub === 'lab:general')                  return ['research', 'meetings_research', 'lab_meeting'];
+        if (sub.indexOf('lab:procurement') === 0
+         || sub === 'lab:demo')                     return ['research', 'experiments'];
+        if (sub.indexOf('seminar') === 0)           return ['professional_dev', 'seminar_attendance'];
+        if (sub.indexOf('conference') === 0)        return ['research', 'conferences', 'conf_attendance'];
+        if (sub.indexOf('paper:') === 0)            return ['research', 'writing', 'papers'];
+        if (sub.indexOf('patent:') === 0
+         || sub === 'ip')                           return ['research', 'writing', 'patents'];
+        if (sub.indexOf('collaboration:') === 0)    return ['research', 'meetings_research', 'collaboration'];
+        if (sub.indexOf('engagement:') === 0)       return ['service', 'outreach'];
+        return ['research'];
+      }
+
+      if (cat === 'teaching') {
+        if (sub.indexOf('office-hours') !== -1)     return ['coursework', 'office_hours'];
+        if (sub.indexOf('guest-lecture') === 0)     return ['coursework', 'course_content'];
+        return ['coursework', 'course_prep'];
+      }
+
+      if (cat === 'service') {
+        if (sub.indexOf('outreach') === 0
+         || sub.indexOf('engagement') === 0)        return ['service', 'outreach'];
+        if (sub.indexOf('committee') === 0
+         || sub.indexOf('coe') === 0)               return ['service', 'committee_work'];
+        if (sub.indexOf('conference') === 0)        return ['professional_dev', 'seminar_attendance'];
+        if (sub.indexOf('peer-review') === 0)       return ['service', 'reviews', 'paper_review'];
+        if (sub.indexOf('mentorship') === 0)        return ['service', 'committee_work'];
+        if (sub === 'swces')                        return ['service', 'professional_society'];
+        return ['service'];
+      }
+
+      if (cat === 'admin') {
+        if (sub === 'compliance')                   return ['admin', 'safety_compliance'];
+        if (sub.indexOf('finance') === 0)           return ['admin', 'purchasing'];
+        // hr, meetings, facilities-it, coe, course, other, '' all map to lab_management
+        return ['admin', 'lab_management'];
+      }
+
+      // Unknown top-level → uncategorized
+      return [];
+    }
+
+    /* Translate a single ledger row into a tracker entry payload.
+       Returns { skip: boolean, entry?: object, reason?: string }. */
+    function translateRow(row) {
+      var path = mapCategory(row.category, row.sub_category);
+      if (path === null) {
+        return { skip: true, reason: 'skipped (' + (row.category || 'unknown') + ')' };
+      }
+      // Date: completed_at "2026-04-19T07:09:17" → "2026-04-19".
+      var date = '';
+      if (row.completed_at) {
+        date = String(row.completed_at).split('T')[0] || '';
+      }
+      if (!date && row.year && row.month) {
+        date = row.year + '-' + String(row.month).padStart(2, '0') + '-01';
+      }
+      // Text: "title — description" if description differs from title.
+      var title = String(row.title || '').trim();
+      var desc  = String(row.description || '').trim();
+      var text  = (desc && desc !== title) ? (title + ' — ' + desc) : title;
+      // Duration: hours → minutes (rounded). Allow 0.
+      var duration = Math.round((Number(row.hours) || 0) * 60);
+      // Preserve provenance and RM-specific fields under `original` so nothing is lost.
+      var entry = {
+        date: date,
+        text: text,
+        categoryPath: path,
+        duration: duration,
+        milestone: 0,
+        source: 'rm-imported',
+        original: {
+          ledger_id: row.id || null,
+          from_task_id: row.from_task_id || null,
+          category: row.category || null,
+          sub_category: row.sub_category || null,
+          evidence: row.evidence || null,
+          notes: row.notes || null,
+          completed_at: row.completed_at || null,
+        },
+      };
+      return { skip: false, entry: entry };
+    }
+
+    /* ── State ───────────────────────────────────────────── */
+    var _user = null;
+    var _ledgerRows = null;     // cached after survey
+
+    var $ = function (id) { return document.getElementById(id); };
+    function setStatus(elId, msg, cls) {
+      var el = $(elId);
+      el.className = 'mig-status' + (cls ? ' ' + cls : '');
+      el.textContent = msg || '';
+    }
+    function escape(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); }
+
+    /* Fetch the full activityLedger subcollection for the signed-in user
+       directly via firebridge.db() — bypasses the read-cache adapter, which
+       is what we want for a one-shot bulk job. */
+    async function loadLedger() {
+      var snap = await firebridge.db()
+        .collection('userData').doc(_user.uid)
+        .collection('activityLedger')
+        .get();
+      var rows = [];
+      snap.forEach(function (doc) {
+        var data = doc.data() || {};
+        data._docId = doc.id;
+        rows.push(data);
+      });
+      return rows;
+    }
+
+    /* ── Step 1: survey ─────────────────────────────────── */
+    async function doSurvey() {
+      $('btn-survey').disabled = true;
+      setStatus('survey-status', 'reading Firestore…');
+      $('survey-out').textContent = '';
+      try {
+        var rows = await loadLedger();
+        _ledgerRows = rows;
+
+        var total = rows.length;
+        var migrated = 0, willSkip = 0, willUncat = 0, willMigrate = 0;
+        var alreadyMigrated = 0;
+        var byTarget = {};
+        rows.forEach(function (r) {
+          if (r.migrated_to_tracker_id) { alreadyMigrated++; return; }
+          var t = translateRow(r);
+          if (t.skip) { willSkip++; return; }
+          if (!t.entry.categoryPath || !t.entry.categoryPath.length) {
+            willUncat++;
+          }
+          willMigrate++;
+          var key = (t.entry.categoryPath || []).join(' → ') || '(uncategorized)';
+          byTarget[key] = (byTarget[key] || 0) + 1;
+        });
+
+        var lines = [];
+        lines.push('Total rows in activityLedger: ' + total);
+        lines.push('Already migrated (will skip):  ' + alreadyMigrated);
+        lines.push('Will skip (noise/personal):    ' + willSkip);
+        lines.push('Will migrate uncategorized:    ' + willUncat);
+        lines.push('Will migrate (total):          ' + willMigrate);
+        lines.push('');
+        lines.push('Distribution across lab-apps tree:');
+        var keys = Object.keys(byTarget).sort(function (a, b) { return byTarget[b] - byTarget[a]; });
+        keys.forEach(function (k) {
+          var n = byTarget[k];
+          lines.push('  ' + String(n).padStart(5, ' ') + '  ' + k);
+        });
+        $('survey-out').textContent = lines.join('\n');
+        setStatus('survey-status', 'done · ' + total + ' rows', 'ok');
+        $('btn-dryrun').disabled = (willMigrate === 0);
+      } catch (err) {
+        console.error(err);
+        setStatus('survey-status', 'failed: ' + err.message, 'err');
+      } finally {
+        $('btn-survey').disabled = false;
+      }
+    }
+
+    /* ── Step 2: dry run ────────────────────────────────── */
+    function doDryRun() {
+      if (!_ledgerRows) {
+        setStatus('dryrun-status', 'run survey first', 'err');
+        return;
+      }
+      setStatus('dryrun-status', 'translating…');
+      $('dryrun-out').textContent = '';
+      var samples = [];
+      var byTarget = {};
+      var total = 0;
+      _ledgerRows.forEach(function (r) {
+        if (r.migrated_to_tracker_id) return;
+        var t = translateRow(r);
+        if (t.skip) return;
+        total++;
+        var key = (t.entry.categoryPath || []).join(' → ') || '(uncategorized)';
+        byTarget[key] = (byTarget[key] || 0) + 1;
+        if (samples.length < 25) samples.push({ src: r, out: t.entry });
+      });
+
+      var lines = [];
+      lines.push('Will write ' + total + ' tracker entries.\n');
+      lines.push('Sample (first ' + samples.length + ' translated rows):');
+      lines.push('');
+      samples.forEach(function (s, i) {
+        var path = (s.out.categoryPath || []).join(' → ') || '(uncategorized)';
+        lines.push('[' + (i + 1) + '] ' + s.out.date + '  ' + s.out.duration + 'm  ' + path);
+        lines.push('    ' + (s.out.text.length > 140 ? s.out.text.slice(0, 137) + '…' : s.out.text));
+        lines.push('    src: ' + (s.src.category || '') + ' / ' + (s.src.sub_category || ''));
+      });
+      lines.push('');
+      lines.push('Per-target counts:');
+      var keys = Object.keys(byTarget).sort(function (a, b) { return byTarget[b] - byTarget[a]; });
+      keys.forEach(function (k) {
+        lines.push('  ' + String(byTarget[k]).padStart(5, ' ') + '  ' + k);
+      });
+      $('dryrun-out').textContent = lines.join('\n');
+      setStatus('dryrun-status', 'done · ' + total + ' would migrate', 'ok');
+      $('btn-migrate').disabled = (total === 0);
+    }
+
+    /* ── Step 3: migrate for real ──────────────────────── */
+    async function doMigrate() {
+      if (!_ledgerRows) { setStatus('migrate-status', 'run survey first', 'err'); return; }
+      var pending = _ledgerRows.filter(function (r) {
+        if (r.migrated_to_tracker_id) return false;
+        var t = translateRow(r);
+        return !t.skip;
+      });
+      if (!pending.length) {
+        setStatus('migrate-status', 'nothing to do', 'ok');
+        return;
+      }
+      var ok = window.confirm('About to write ' + pending.length + ' entries to trackerEntries/' + _user.uid + '/entries and stamp the source rows. Continue?');
+      if (!ok) return;
+
+      $('btn-migrate').disabled = true;
+      $('btn-survey').disabled = true;
+      $('btn-dryrun').disabled = true;
+      setStatus('migrate-status', 'writing…');
+      $('migrate-out').textContent = '';
+      $('migrate-bar').style.width = '0';
+      $('migrate-bar').className = 'mig-bar-fill';
+
+      var db = firebridge.db();
+      var trackerRef = db.collection('trackerEntries').doc(_user.uid).collection('entries');
+      var ledgerRef  = db.collection('userData').doc(_user.uid).collection('activityLedger');
+
+      var written = 0;
+      var failed = 0;
+      var logLines = [];
+      function pushLog(msg) {
+        logLines.push(msg);
+        if (logLines.length > 200) logLines.splice(0, logLines.length - 200);
+        $('migrate-out').textContent = logLines.join('\n');
+        $('migrate-out').scrollTop = $('migrate-out').scrollHeight;
+      }
+
+      // Process in chunks to keep the UI responsive and avoid blasting Firestore.
+      var CHUNK = 25;
+      for (var i = 0; i < pending.length; i += CHUNK) {
+        var chunk = pending.slice(i, i + CHUNK);
+        await Promise.all(chunk.map(async function (row) {
+          try {
+            var t = translateRow(row);
+            var entry = Object.assign({}, t.entry, {
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            var ref = await trackerRef.add(entry);
+            // Stamp the source ledger row so re-runs skip it.
+            if (row._docId) {
+              await ledgerRef.doc(row._docId).update({
+                migrated_to_tracker_id: ref.id,
+                migrated_at: firebase.firestore.FieldValue.serverTimestamp(),
+              });
+            }
+            written++;
+            pushLog('OK  ' + entry.date + '  ' + (entry.categoryPath.join('→') || '∅') + '  ' + entry.text.slice(0, 60));
+          } catch (err) {
+            failed++;
+            pushLog('ERR ' + (row.id || row._docId) + ': ' + err.message);
+          }
+        }));
+        var pct = Math.round(((i + chunk.length) / pending.length) * 100);
+        $('migrate-bar').style.width = pct + '%';
+        setStatus('migrate-status', written + ' written, ' + failed + ' failed (' + pct + '%)');
+      }
+
+      if (failed === 0) {
+        $('migrate-bar').className = 'mig-bar-fill ok';
+        setStatus('migrate-status', 'done · ' + written + ' entries written', 'ok');
+      } else {
+        $('migrate-bar').className = 'mig-bar-fill err';
+        setStatus('migrate-status', 'done with errors · ' + written + ' written, ' + failed + ' failed', 'err');
+      }
+      $('btn-survey').disabled = false;
+    }
+
+    /* ── Wire up ────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', function () {
+      $('btn-survey').addEventListener('click', doSurvey);
+      $('btn-dryrun').addEventListener('click', doDryRun);
+      $('btn-migrate').addEventListener('click', doMigrate);
+
+      if (typeof firebridge === 'undefined' || !firebridge.gateSignedIn) {
+        setStatus('survey-status', 'firebase-bridge not loaded', 'err');
+        return;
+      }
+      firebridge.gateSignedIn('Sign in to migrate your activity ledger.').then(function (g) {
+        if (!g.allowed) return;
+        _user = g.user;
+        $('btn-survey').disabled = false;
+        setStatus('survey-status', 'signed in as ' + (g.user.email || g.user.uid));
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

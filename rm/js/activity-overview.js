@@ -69,20 +69,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
     try { await firebridge.whenAuthResolved(); } catch (_) {}
   }
-  const isLocal = !window.RM_RUNTIME || window.RM_RUNTIME.isLocal;
   // Phase 9: activity-overview now reads per-user emailMessages + calendarEvents
   // (Phase 7 sync + items.json backfill), so the full renderer works for any
   // signed-in lab member with their own data. The local Import / Process
   // buttons stay hidden on the deploy via .local-only CSS (server.py-only).
-  // Only gate on deploy — on localhost, /api/data/ JSON falls back so the
-  // page is useful even when Firestore auth hasn't resolved (mirrors the
-  // pre-Phase-9 behavior the user expects in local dev).
-  if (!isLocal && typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
+  if (typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
     const gate = await firebridge.gateSignedIn(
       'Sign in to view your activity. Connect Gmail + Calendar in Settings to populate this page.'
     );
     if (!gate.allowed) return;
   }
+  const isLocal = !window.RM_RUNTIME || window.RM_RUNTIME.isLocal;
   // Sections are independently mounted. The Explorer page reuses this script
   // for the Category Explorer alone, so skip any block whose host element is
   // missing rather than throwing. The Import / Process buttons depend on
@@ -96,7 +93,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderRecent();
   }
   if (document.getElementById('cx-search')) {
-    if (isLocal) await loadCategoryExplorer();  // /api/category-explorer is server.py-only
+    // /api/category-explorer is server.py-only; on deploy, aggregate the
+    // same buckets client-side from the Firestore-backed routes (per-user
+    // tasks/activityLedger/emailMessages/calendarEvents + lab category seeds).
+    await loadCategoryExplorer();
     // Live-sync OFF on activity-overview (Phase 12) — view-mostly page;
     // category overrides change rarely and tab-to-tab sync isn't worth the
     // onSnapshot streams + their initial-state network cost.
@@ -690,21 +690,34 @@ async function _retagItemFirestoreMirror(kind, id, category, sub) {
 }
 
 async function retagItemWithSync(body) {
+  const isDeploy = window.RM_RUNTIME && window.RM_RUNTIME.isDeploy;
   let r = null;
-  try {
-    const res = await fetch('/api/retag-item', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    r = await res.json();
-  } catch (err) {
-    console.warn('[activity-overview] /api/retag-item failed:', err.message || err);
+  // /api/retag-item is server.py-only — skip it on deploy and rely on the
+  // Firestore mirror to be the source of truth. On localhost the legacy
+  // JSON archives still get updated through the endpoint as before.
+  if (!isDeploy) {
+    try {
+      const res = await fetch('/api/retag-item', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      r = await res.json();
+    } catch (err) {
+      console.warn('[activity-overview] /api/retag-item failed:', err.message || err);
+    }
   }
   // Mirror to Firestore so live-sync fires on other tabs (this page, email-review, calendar).
   // Mark the next remote snapshot as our own write so the subscription's debounced
   // refresh doesn't bounce.
   _activityLive.suppressUntil = Date.now() + 2500;
   await _retagItemFirestoreMirror(body.kind, body.id, body.category, body.sub_category);
+  // On deploy, callers check `j.ok && j.updated` — synthesize that shape
+  // from the (skipped) endpoint so move/merge/retag operations don't appear
+  // to silently fail when the Firestore mirror actually carried the write.
+  // Mirror errors are logged inside the helper, not thrown.
+  if (!r && isDeploy) {
+    r = { ok: true, updated: true, source: 'firestore-mirror' };
+  }
   return r;
 }
 
@@ -769,10 +782,19 @@ async function loadCategoryExplorer() {
   const countsEl = document.getElementById('cx-counts');
   countsEl.textContent = 'loading…';
   try {
-    const res = await fetch('/api/category-explorer');
-    const j = await res.json();
-    if (!j.ok) throw new Error(j.error || 'load failed');
-    CX.buckets = j.buckets || [];
+    const isDeploy = window.RM_RUNTIME && window.RM_RUNTIME.isDeploy;
+    let buckets;
+    if (isDeploy) {
+      // Deploy has no server.py — aggregate the same buckets client-side
+      // from the per-user Firestore subcollections + lab category seeds.
+      buckets = await loadCategoryExplorerFromFirestore();
+    } else {
+      const res = await fetch('/api/category-explorer');
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'load failed');
+      buckets = j.buckets || [];
+    }
+    CX.buckets = buckets;
     buildCxTree();
     wireCxSearch();
     wireCxAddButton();
@@ -788,6 +810,137 @@ async function loadCategoryExplorer() {
   } catch (e) {
     countsEl.textContent = 'failed: ' + e.message;
   }
+}
+
+// Client-side equivalent of server.py's `_api_category_explorer`. Aggregates
+// (category, sub_category) buckets across the signed-in user's tasks,
+// activity ledger, email messages, calendar events, and the lab-shared seed
+// paths — applying per-user category overrides for emails/events. Output
+// matches the server's shape (bucket list with counts + capped items[50])
+// so the UI renderer is identical on local + deploy.
+async function loadCategoryExplorerFromFirestore() {
+  const buckets = new Map();
+  function bkey(cat, sub) {
+    const k = `${cat || ''}§${sub || ''}`;
+    let b = buckets.get(k);
+    if (!b) {
+      b = {
+        category: cat || '',
+        sub_category: sub || '',
+        counts: { tasks: 0, activities: 0, emails: 0, events: 0 },
+        items: [],
+      };
+      buckets.set(k, b);
+    }
+    return b;
+  }
+
+  // Load every source in parallel; each path is independently catchable so
+  // a single missing collection doesn't blank the whole explorer.
+  const [tasksDoc, ledgerDoc, mailDoc, eventsDoc, mailOvDoc, evOvDoc, seedsDoc] = await Promise.all([
+    api.load('tasks/inbox.json').catch(() => ({ tasks: [] })),
+    api.load('activity_ledger.json').catch(() => ({ activities: [] })),
+    api.load('email_archive/messages.json').catch(() => ({ messages: [] })),
+    api.load('calendar_archive/events.json').catch(() => ({ events: [] })),
+    api.load('email_archive/category_overrides.json').catch(() => ({})),
+    api.load('calendar_archive/category_overrides.json').catch(() => ({})),
+    api.load('settings/category_seeds.json').catch(() => ({})),
+  ]);
+
+  for (const t of (tasksDoc.tasks || [])) {
+    const b = bkey(t.category, t.sub_category);
+    b.counts.tasks++;
+    b.items.push({
+      kind: 'task', id: t.id || '',
+      title: t.title || '',
+      when: t.created_at || t.due_date || '',
+      extra: t.status || '',
+    });
+  }
+
+  for (const a of (ledgerDoc.activities || [])) {
+    const b = bkey(a.category, a.sub_category);
+    b.counts.activities++;
+    b.items.push({
+      kind: 'activity', id: a.id || '',
+      title: a.title || '',
+      when: a.completed_at || '',
+      extra: `${a.hours || 0}h`,
+    });
+  }
+
+  const mailOverrides = (mailOvDoc && mailOvDoc.overrides) || {};
+  for (const m of (mailDoc.messages || [])) {
+    const id = m.id;
+    if (!id) continue;
+    const ov = mailOverrides[id];
+    const cat = (ov && ov.category) || m.category || '';
+    const sub = (ov && ov.sub_category) || m.sub_category || '';
+    const b = bkey(cat, sub);
+    b.counts.emails++;
+    const fromField = m.from;
+    let fromEmail = '';
+    if (typeof fromField === 'string') {
+      const mm = fromField.match(/<([^>]+)>/);
+      fromEmail = (mm ? mm[1] : fromField).trim();
+    } else if (Array.isArray(fromField) && fromField[0]) {
+      fromEmail = fromField[0].email || '';
+    }
+    b.items.push({
+      kind: 'email', id,
+      title: m.subject || '',
+      when: m.date || (m.internalDate ? new Date(Number(m.internalDate)).toISOString() : ''),
+      extra: fromEmail,
+    });
+  }
+  // Overrides whose underlying email isn't in the loaded slice still belong
+  // in the explorer so the user can find and re-tag them.
+  const seenMailIds = new Set((mailDoc.messages || []).map(m => m.id).filter(Boolean));
+  for (const [id, ov] of Object.entries(mailOverrides)) {
+    if (seenMailIds.has(id) || !ov || typeof ov !== 'object') continue;
+    const b = bkey(ov.category || '', ov.sub_category || '');
+    b.counts.emails++;
+    b.items.push({
+      kind: 'email', id,
+      title: '(email — open in Email Review)',
+      when: '', extra: '',
+    });
+  }
+
+  const evOverrides = (evOvDoc && evOvDoc.overrides) || {};
+  for (const ev of (eventsDoc.events || [])) {
+    const id = ev.id;
+    if (!id) continue;
+    const ov = evOverrides[id];
+    const cat = (ov && ov.category) || ev.category || '';
+    const sub = (ov && ov.sub_category) || ev.sub_category || '';
+    const b = bkey(cat, sub);
+    b.counts.events++;
+    b.items.push({
+      kind: 'event', id,
+      title: ev.title || ev.summary || '',
+      when: ev.start_at || ev.start || '',
+      extra: '',
+    });
+  }
+
+  // Seed paths — empty buckets the user explicitly created. Mark `is_seed`
+  // so the renderer can style them as placeholders.
+  for (const row of ((seedsDoc && seedsDoc.paths) || [])) {
+    const cat = (row.category || '').trim();
+    if (!cat) continue;
+    const b = bkey(cat, (row.sub_category || '').trim());
+    b.is_seed = true;
+  }
+
+  // Match server.py: sort items by `when` desc and cap to 50 per bucket.
+  const out = [];
+  for (const b of buckets.values()) {
+    b.items.sort((a, b2) => (b2.when || '').localeCompare(a.when || ''));
+    if (b.items.length > 50) b.items.length = 50;
+    out.push(b);
+  }
+  return out;
 }
 
 // Build the picker's {tree, counts} from the aggregated buckets so the
