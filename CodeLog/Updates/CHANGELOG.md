@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.42] - 2026-05-05
+
+Console stub deleted. The lab app at `/apps/console/` was a 65-line "Coming Soon" placeholder — no data layer, no functionality, no Firestore reads/writes. Per the V3.40 audit, deletion (rather than a placeholder port) was the right call. Plan doc: [CodeLog/ClaudesPlan/V3.42_console_delete.md](../ClaudesPlan/V3.42_console_delete.md).
+
+**Reorder:** V3.42 was originally scheduler. Scheduler is genuinely heavy (subset port still needs the 1,382-LOC engine) and warrants a dedicated session. Reslotted the trivial overlap-app deletions (V3.42–V3.46) ahead of it so the migration keeps momentum without bundling complexity. Scheduler is now V3.47.
+
+### Removed
+- **`apps/console/`** — entire directory (`app.js` 65 LOC, `index.html`, `styles.css`). Stub functionality (App Management / User Permissions / Integrations / Usage & Logs section cards) was never built; the four "promised" functions are accounted for elsewhere in RM (nav gating, future `rm/pages/admin.html`, [rm/pages/settings.html](../../rm/pages/settings.html), [rm/pages/api-usage.html](../../rm/pages/api-usage.html)).
+- **`lab-apps.js`** — `console` entry removed from `LAB_APPS` registry (lines 53–65). Registry is orphaned in the public nav since V3.40; maintained until Phase C.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bumped 16 → 17.
+
 ## [V3.41] - 2026-05-05
 
 Phase B begins — first native RM port of a lab app. **Meetings** moves off the V3.40 iframe wrapper onto the api.load + IndexedDB cache + LIVE_SYNC contract. **Reorder note:** the V3.40 plan listed scheduler first; on audit it depends on three shared modules (~2,500 LOC including CalendarService's Google OAuth) that would either front-load V3.51's OAuth refactor or ship a feature regression. Swapped V3.41 ↔ V3.42 — meetings is the cleaner proof-of-concept (only `meetings`/`meetingConfig`/`users` collections, no shared services). Plan doc: [CodeLog/ClaudesPlan/V3.41_meetings_port.md](../ClaudesPlan/V3.41_meetings_port.md).
