@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.43] - 2026-05-05
+
+Inventory stub deleted. Same shape as V3.42's console: 48-line "Coming Soon" placeholder with three section cards, no data layer, empty `wire()`. Meanwhile [rm/pages/inventory.html](../../rm/pages/inventory.html) is the real 903-LOC inventory system (8 tabs, 30+ subcategories, multi-location stock, LIVE_SYNC). Plan doc: [CodeLog/ClaudesPlan/V3.43_inventory_delete.md](../ClaudesPlan/V3.43_inventory_delete.md).
+
+**Reorder:** V3.43 was originally purchases. On audit, the RM admin pages for purchases / procurement / compliance have **no student-submission form** — the lab apps are the only path students currently have to file purchase requests, submit receipts, and submit training certificates. Deleting them outright would create three parallel feature regressions. Each requires a "+ Submit" form to land on the corresponding RM page first (V3.44–V3.46), which is a meaningfully bigger lift than V3.42 / V3.43. Inventory is the rare overlap where the lab app is a pure stub, so it slotted in here.
+
+### Removed
+- **`apps/inventory/`** — entire directory (`app.js` 48 LOC, `index.html`, `styles.css`). All inventory functionality lives in [rm/pages/inventory.html](../../rm/pages/inventory.html); the lab-app stub was a placeholder that never delivered any of its three "promised" sections (Supplies / Equipment / Orders).
+- **`lab-apps.js`** — `inventory` entry removed from `LAB_APPS` registry. Registry orphaned in the public nav since V3.40; maintained until Phase C.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bumped 17 → 18.
+
 ## [V3.42] - 2026-05-05
 
 Console stub deleted. The lab app at `/apps/console/` was a 65-line "Coming Soon" placeholder — no data layer, no functionality, no Firestore reads/writes. Per the V3.40 audit, deletion (rather than a placeholder port) was the right call. Plan doc: [CodeLog/ClaudesPlan/V3.42_console_delete.md](../ClaudesPlan/V3.42_console_delete.md).
