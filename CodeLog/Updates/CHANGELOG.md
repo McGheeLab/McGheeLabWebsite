@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.44] - 2026-05-05
+
+New unified **Procurement** page covering the whole purchase lifecycle: request → approve → order (PO upload) → receive (mark from open-orders list, optional receipt) → place (record location) → inventory (auto-create item). One page, one collection (`procurementTickets`), one continuous audit trail per ticket. Plan doc: [CodeLog/ClaudesPlan/V3.44_procurement_tickets.md](../ClaudesPlan/V3.44_procurement_tickets.md). **Requires `firebase deploy --only firestore:rules,storage:rules` after merge** — the rules block for `procurementTickets` is brand-new; without the deploy the page will fail with permission-denied.
+
+### Added
+- **`rm/pages/procurement.html`** + **`rm/js/procurement.js`** (844 LOC) + **`rm/css/procurement.css`** — the unified procurement page. Tabs gated by role: `+ Submit Request` / `My Tickets` (everyone), `Pending` / `Awaiting Order` (admin), `Open Orders` / `Awaiting Placement` / `Archive` (everyone). Each tab renders ticket cards with status + urgency chips, lifecycle stamps, and stage-appropriate action buttons (Approve/Deny, Upload PO, Mark Received, Record Placement). Action modals capture: PO number + order date + ETA + PO file (PDF or image); actual cost + receipt file; location + qty + unit price + category for the inventory hand-off.
+  - **Inventory bridge:** placement creates an `inventory/{newId}` doc with `kind: 'item'`, `procurementTicketId: ticket.id`, the location, quantity, and unit price. The ticket's `inventoryItemId` is stamped with the new doc id so the two stay linked.
+  - **Live sync + surgical writes** following the V3.41 meetings pattern: `LIVE_SYNC.attach({paths: ['procurement/tickets.json', 'lab/users.json'], refresh: loadAndRender, tag: 'procurement'})`; every Firestore write sets `_live.suppressUntil = Date.now() + 2500`, mutates `_tickets` in-memory, and re-renders so the UI updates instantly without waiting for the snapshot echo.
+  - **Storage uploads** under `procurement/{ticketId}/po-{ts}-{name}` and `procurement/{ticketId}/receipt-{ts}-{name}`. 20 MB cap; PDF or image.
+- **`rm/js/api-routes.js`** — new lab-scope route `procurement/tickets.json` → `collection: 'procurementTickets', wrapKey: 'tickets', cache: SHORT`. SHORT TTL because pipeline state changes often.
+- **`firestore.rules`** — new `match /procurementTickets/{ticketId}` block. `read`/`create`/`update` for `isLabMember()` (the lifecycle has multiple actors — requester, admin approver, anyone receiving, anyone placing — so the rule layer is permissive and the UI gates affordances; audit trail lives on `approvedBy` / `receivedBy` / `placedBy` / `updatedAt`). `delete` admin-only.
+- **`storage.rules`** — existing `procurement/{docId}/{allPaths=**}` rule widened to accept `image/.*` alongside `application/pdf`. Same path now serves the legacy `procurement` collection's invoice PDFs and the V3.44 PO + receipt uploads (phone-photo receipts now allowed).
+
+### Changed
+- **`rm/js/nav.js`** — Lab Admin → `Procurement` link now points at `/rm/pages/procurement.html` (was `/rm/pages/receipts.html`). The receipts admin page is reachable via a new `Receipts & Budget` entry directly below — same target, clearer label.
+- **`sw.js`** — `CACHE_VERSION` bumped 18 → 19.
+
+### Notes
+- **`/apps/purchases/` and `/apps/procurement/` stay alive in V3.44.** Cutover risk is real (students may have draft submissions in flight). V3.45 retires them once V3.44 is verified in production. The existing [rm/pages/purchase-requests.html](../../rm/pages/purchase-requests.html) admin-review page also stays for read-only burn-in of the legacy `purchaseRequests` collection.
+- **Reorder reminder:** V3.44 was originally going to be a delete-and-redirect. The audit found the RM admin pages had no student-submission flow, so V3.44 became a greenfield build instead. V3.45+ revised plan: V3.45 retires the two lab apps; V3.46 compliance; V3.47 scheduler; V3.48–V3.52 unchanged.
+
 ## [V3.43] - 2026-05-05
 
 Inventory stub deleted. Same shape as V3.42's console: 48-line "Coming Soon" placeholder with three section cards, no data layer, empty `wire()`. Meanwhile [rm/pages/inventory.html](../../rm/pages/inventory.html) is the real 903-LOC inventory system (8 tabs, 30+ subcategories, multi-location stock, LIVE_SYNC). Plan doc: [CodeLog/ClaudesPlan/V3.43_inventory_delete.md](../ClaudesPlan/V3.43_inventory_delete.md).

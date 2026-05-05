@@ -193,6 +193,16 @@
     cache: MEDIUM,
   });
 
+  // Procurement tickets (V3.44) — unified request → order → receive →
+  // place → inventory lifecycle. SHORT cache because pipeline state
+  // changes often (every transition is a write); LIVE_SYNC keeps the
+  // page current within a session. Lab-scope; shadowJson off (this is
+  // a new collection, no JSON shadow).
+  api.registerRoute('procurement/tickets.json', {
+    scope: 'lab', collection: 'procurementTickets', wrapKey: 'tickets',
+    cache: SHORT,
+  });
+
   // Lab Meetings (V3.41 — ported from /apps/meetings/). Both collections were
   // Firestore-only from day one (the lab app wrote direct), so shadowJson is
   // off (default). MEDIUM cache for the list — meetings are added in batches

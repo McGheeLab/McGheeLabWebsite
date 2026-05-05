@@ -426,6 +426,22 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Procurement Tickets (V3.44) — unified request → order → receive →
+    // place → inventory lifecycle. Any lab member can read (so they can
+    // see open orders to mark received and pending placements). Anyone
+    // signed in can create (students submit requests). Lab members can
+    // update because the lifecycle has multiple actors: requester edits
+    // their own ticket, admin approves/uploads PO, receiver marks
+    // received + records location. The UI gates the affordances; audit
+    // lives on the doc fields (approvedBy, receivedBy, placedBy,
+    // updatedAt). Delete is admin-only.
+    match /procurementTickets/{ticketId} {
+      allow read:   if isLabMember();
+      allow create: if request.auth != null;
+      allow update: if isLabMember();
+      allow delete: if isAdmin();
+    }
+
     // Lab Tasks — admin creates, assignee + admin read/update
     match /labTasks/{docId} {
       allow read: if request.auth != null
@@ -745,8 +761,9 @@ service cloud.firestore {
       allow create: if isLabMember()
                     && request.resource.data.createdByUid == request.auth.uid
                     && exists(/databases/$(database)/documents/users/$(userId));
-      // isAdmin() lets the PI read all assigned tasks across the lab via the
-      // Sharing page's Lab-wide tab (collectionGroup query).
+      // Direct-path reads. Owner sees their own queue; creator sees what they
+      // sent; admin sees everything; a recipient on resource.sharedWithUids
+      // (legacy escape hatch) sees their slice.
       allow read:   if isOwner(userId)
                     || resource.data.createdByUid == request.auth.uid
                     || isShared(resource.data)
@@ -758,6 +775,22 @@ service cloud.firestore {
                         && request.resource.data.assignedToUid == resource.data.assignedToUid);
       allow delete: if isOwner(userId)
                     || resource.data.createdByUid == request.auth.uid;
+    }
+
+    // Required for the Sharing page's collectionGroup('tasks') queries:
+    // "Sent by me" filters createdByUid==me; "Lab-wide" (admin) reads all.
+    // Direct-path reads still flow through the rule above; this match block
+    // exists *only* to authorize collection-group reads (Firestore evaluates
+    // them against `match /{path=**}/<sub>/{doc}` rules separately). We
+    // narrow the read condition so non-task collections elsewhere in the
+    // tree wouldn't accidentally inherit it — there is no other `tasks`
+    // subcollection in this project today, and the createdByUid /
+    // assignedToUid clauses ensure only relevant lab-task docs match.
+    match /{path=**}/tasks/{taskId} {
+      allow read: if request.auth != null
+                  && (resource.data.createdByUid == request.auth.uid
+                      || resource.data.assignedToUid == request.auth.uid
+                      || isAdmin());
     }
   }
 }
