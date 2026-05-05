@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.44
+**Version:** V3.45
 
 ## System Overview
 

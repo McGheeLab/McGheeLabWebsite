@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.45] - 2026-05-05
+
+Retired the two student-submission lab apps replaced by V3.44's unified Procurement page. With V3.44 deployed (Firestore + Storage rules merged, static tree FTP'd), the burn-in window is over. Plan doc: [CodeLog/ClaudesPlan/V3.45_retire_purchases_procurement.md](../ClaudesPlan/V3.45_retire_purchases_procurement.md).
+
+### Removed
+- **`apps/purchases/`** — 126 LOC. Wrote to `purchaseRequests`. Replaced by the Submit Request tab in [rm/pages/procurement.html](../../rm/pages/procurement.html), which writes to the new `procurementTickets` collection.
+- **`apps/procurement/`** — 337 LOC. Wrote to `procurement`. Replaced by the same procurement page; PO + receipt uploads now flow through the lifecycle modals on a single ticket.
+- **`lab-apps.js`** — `procurement` and `purchases` entries removed from `LAB_APPS` registry (was lines 117–141).
+
+### Notes
+- **Legacy collections preserved:** `purchaseRequests` and `procurement` keep their existing data and remain readable. [rm/pages/purchase-requests.html](../../rm/pages/purchase-requests.html) and [rm/pages/receipts.html](../../rm/pages/receipts.html) (now nav'd as `Receipts & Budget`) still display the historical entries unchanged. New submissions go to `procurementTickets` via the V3.44 page.
+- **firestore.rules unchanged.** The legacy collection rules (`purchaseRequests` at line 454, `procurement` at line 422) still permit reads for the admin pages. No deploy needed.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bumped 19 → 20.
+
 ## [V3.44] - 2026-05-05
 
 New unified **Procurement** page covering the whole purchase lifecycle: request → approve → order (PO upload) → receive (mark from open-orders list, optional receipt) → place (record location) → inventory (auto-create item). One page, one collection (`procurementTickets`), one continuous audit trail per ticket. Plan doc: [CodeLog/ClaudesPlan/V3.44_procurement_tickets.md](../ClaudesPlan/V3.44_procurement_tickets.md). **Requires `firebase deploy --only firestore:rules,storage:rules` after merge** — the rules block for `procurementTickets` is brand-new; without the deploy the page will fail with permission-denied.
