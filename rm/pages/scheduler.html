@@ -38,12 +38,25 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/nav.js"></script>
 
+  <!-- Google Identity Services + shared services — V3.51 brought
+       CalendarService + ScheduleService into RM. The V3.47 RM port
+       covered the My Schedulers tab only; with these loaded, future
+       work in V3.53 can re-introduce the My Schedule personal-calendar
+       tab UI on top of the existing service infrastructure. The
+       engine's invite-link flow is unaffected and continues to work
+       without these services. Token storage stays in sessionStorage
+       for now (Firestore-backed refactor is a V3.53+ enhancement). -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="/rm/js/schedule-utils.js"></script>
+  <script src="/rm/js/schedule-service.js"></script>
+  <script src="/rm/js/calendar-service.js"></script>
+
   <!-- Scheduling engine (stateless; emits HTML + wires events).
        Loaded from the repo root because it's also used by the public-site
        SPA's #/dashboard/scheduler editor. -->
   <script src="/scheduler.js"></script>
 
-  <!-- Page renderer (My Schedulers tab; My Schedule deferred to V3.51) -->
+  <!-- Page renderer (My Schedulers tab; My Schedule UI lift is V3.53). -->
   <script src="/rm/js/scheduler.js"></script>
 </body>
 </html>

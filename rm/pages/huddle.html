@@ -21,6 +21,12 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
 
+  <!-- Google Identity Services — V3.51 brought CalendarService into RM,
+       so the Huddle's Lab Schedule view can now overlay Google Calendar
+       events on the Team Availability Gantt (admin click "Connect Google
+       Calendar" to authorise). -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <!-- RM auth + adapter + cache + nav -->
   <script src="/rm/js/firebase-bridge.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
@@ -33,11 +39,24 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/nav.js"></script>
 
-  <!-- Page renderer (V3.50 native port; replaces V3.40 iframe wrapper).
-       The Lab Schedule view's Team Availability Gantt depends on
-       ScheduleService + CalendarService, both of which are V3.51-deferred.
-       The renderer null-checks every call to those services so the
-       section degrades gracefully (empty Gantt) until V3.51 lands. -->
+  <!-- Shared services brought into RM in V3.51 — light up the Huddle's
+       Lab Schedule view (recurring availability templates, per-week
+       overrides, Team Availability Gantt). schedule-utils provides the
+       pure date / time helpers; schedule-service owns the Firestore
+       subscriptions (huddleScheduleTemplates, huddleScheduleOverrides,
+       scheduleCustomEvents) and the resolver that merges template +
+       override + custom-event + calendar events for a given user/day;
+       calendar-service handles Google + Outlook + ICS calendar imports
+       (sessionStorage-backed tokens — Firestore-backed token refactor
+       is a V3.53+ enhancement, not blocking). Renderer at rm/js/huddle.js
+       null-checks every McgheeLab.ScheduleService? / .CalendarService?
+       call so absence of these services would still degrade gracefully;
+       presence lights up the full feature. -->
+  <script src="/rm/js/schedule-utils.js"></script>
+  <script src="/rm/js/schedule-service.js"></script>
+  <script src="/rm/js/calendar-service.js"></script>
+
+  <!-- Page renderer (V3.50 native port). -->
   <script src="/rm/js/huddle.js"></script>
 </body>
 </html>

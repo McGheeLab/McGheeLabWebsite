@@ -43,6 +43,15 @@
        the canonical one going forward. -->
   <script src="/rm/js/rm-categories.js"></script>
 
+  <!-- Google Identity Services + CalendarService — V3.51 brought the
+       calendar-import bridge into RM. With these loaded, the daily-log
+       view's calendar-suggest panel populates with real events again
+       (was empty in V3.49). Token storage stays in sessionStorage for
+       now (Firestore-backed refactor is a V3.53+ enhancement, not
+       blocking). -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="/rm/js/calendar-service.js"></script>
+
   <!-- Page renderer (V3.49 native port; replaces the V3.40 iframe wrapper) -->
   <script src="/rm/js/activity-tracker.js"></script>
 </body>

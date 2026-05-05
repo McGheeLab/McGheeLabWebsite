@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.51] - 2026-05-05
+
+**Equipment native port** + **shared services brought into RM**, lighting up four deferred features in one go. Replaces the V3.40 iframe wrapper at [rm/pages/app-equipment.html](../../rm/pages/app-equipment.html) with a native renderer at [rm/pages/equipment.html](../../rm/pages/equipment.html), and copies CalendarService / ScheduleService / ScheduleUtils from `/apps/shared/` into `/rm/js/`. Three deferred-feature pages (huddle, activity-tracker, scheduler) load the new services via `<script>` tags and their previously-degraded sections light up. Plan doc: [CodeLog/ClaudesPlan/V3.51_equipment_native_plus_shared_services.md](../ClaudesPlan/V3.51_equipment_native_plus_shared_services.md).
+
+**Re-scope from the original V3.51 plan:** the V3.40 plan called this "equipment + sessionStorage→Firestore OAuth token refactor". On execution the token refactor turned out to be a pure enhancement (sessionStorage works fine for re-OAuth-once-per-session), not a blocker. V3.51 ports equipment + brings services in verbatim. Token-storage refactor moves to V3.53+ if/when appetite warrants.
+
+**Phase B is now complete.** Only V3.53 Phase C cleanup remains (delete `/apps/` outright, drop `lab-apps.js`, lift the lab-app Calendar UI into RM settings as a third tab, lift the My Schedule tab UI onto `rm/pages/scheduler.html`, optional Firestore-backed token storage).
+
+### Added
+- **`rm/js/equipment.js`** (2,273 LOC) — copy of [/apps/equipment/app.js](../../apps/equipment/app.js) with five surgical patches (the now-standard playbook):
+  - `window.McgheeLab = window.McgheeLab || {}` at top.
+  - Container id `#app` → `#equipment-root`.
+  - `db()` prefers `firebridge.db()` with `firebase.firestore()` fallback.
+  - Bootstrap rewrite — replaces dual AppBridge / direct-Firebase path with `firebridge.gateSignedIn → whenAuthResolved → Promise.all([loadSettings, loadTraining, loadUsers]) → render → subscribeEquipment + subscribeUsers`. `MobileShell.enableTabSwipe` stays guarded. `firebridge.onAuth` re-renders on role flips so newly-promoted admins see the Admin tab without a manual reload.
+  - `notifyResize()` AppBridge guard — patched from `if (!McgheeLab.AppBridge.isEmbedded()) return;` to also null-check `AppBridge` itself + `.isEmbedded`.
+- **`rm/css/equipment.css`** (1,219 LOC) — full lift of [/apps/equipment/styles.css](../../apps/equipment/styles.css) plus `body { ... }` CSS-var aliases header and `.app-*` base classes (matching V3.41 / V3.47 / V3.49 / V3.50 / V3.52).
+- **`rm/pages/equipment.html`** — RM contract header + GIS client (for admin Calendar push-sync) + equipment.js. Page chrome via `<div id="equipment-root">`.
+- **`rm/js/calendar-service.js`** (536 LOC) — verbatim copy of [/apps/shared/calendar-service.js](../../apps/shared/calendar-service.js). Self-attaches to `window.McgheeLab.CalendarService`. Manages multi-provider calendar integration (Google OAuth, Microsoft MSAL, ICS imports) with sessionStorage-backed tokens.
+- **`rm/js/schedule-service.js`** (418 LOC) — verbatim copy. Self-attaches to `window.McgheeLab.ScheduleService`. Owns Firestore subscriptions to `huddleScheduleTemplates`, `huddleScheduleOverrides`, `scheduleCustomEvents`; resolver merges template + override + custom-event + calendar events for a given user/day.
+- **`rm/js/schedule-utils.js`** (156 LOC) — verbatim copy. Pure date / time utilities (`getWeekDays`, `fmtTime`, `timeToSlot`, `slotToTime`, `USER_COLORS`, `ZOOM_LEVELS`).
+
+### Changed
+- **`rm/js/nav.js`** — Operations → Equipment now points at `/rm/pages/equipment.html` (was `/rm/pages/app-equipment.html`).
+- **`rm/pages/app-equipment.html`** — Phase A iframe wrapper replaced with `<meta refresh>` redirect.
+- **`rm/pages/huddle.html`** — added GIS client + `schedule-utils.js` + `schedule-service.js` + `calendar-service.js`. **Lights up the Lab Schedule tab** (`teamavail`) deferred from V3.50: Team Availability Gantt overlays Google Calendar events, recurring availability templates editable, per-week overrides functional.
+- **`rm/pages/activity-tracker.html`** — added GIS client + `calendar-service.js`. **Lights up the calendar-suggest panel** on the Daily view deferred from V3.49: connect Google Calendar and have today's events suggested as activity entries.
+- **`rm/pages/scheduler.html`** — added GIS client + 3 service script tags. The V3.47 port covered My Schedulers only; supporting infrastructure is now in place so V3.53 can lift the My Schedule tab UI on top.
+- **`sw.js`** — `CACHE_VERSION` bumped 26 → 27.
+
+### Notes
+- **No firestore.rules changes.** All collections used by equipment + the shared services already have rules in place: `equipment` (line 347), `equipmentBookings` (line 354), `equipmentTraining` (line 362), `equipmentSettings` (line 368), `huddleScheduleTemplates` (line 299), `huddleScheduleOverrides` (line 307), `scheduleCustomEvents` (line 288).
+- **Token storage stays in sessionStorage.** Admin's Google Calendar OAuth token (equipment push-sync) and per-user Calendar / Outlook tokens (huddle / activity-tracker / scheduler import) all survive the page lifetime via `sessionStorage`. Re-OAuth once per browser session, same UX as the standalone lab app. Firestore-backed token storage is V3.53+ scope.
+- **`/apps/equipment/` and `/apps/shared/` stay alive.** Standalone URLs still resolve. V3.53 Phase C cleanup deletes every remaining `/apps/` directory.
+- **Settings Calendar tab deferred to V3.53.** Larger UI lift than fits here; the three other deferred features were just-script-tag wiring.
+
 ## [V3.52] - 2026-05-05
 
 Lab Chat **native RM port** — replaces the V3.40 iframe wrapper at [rm/pages/app-chat.html](../../rm/pages/app-chat.html) with a native renderer at [rm/pages/chat.html](../../rm/pages/chat.html). The largest single port in the migration (3,650 LOC + 1,983 LOC of CSS), but follows the same lift-and-patch playbook used for V3.41 meetings, V3.49 activity-tracker, V3.50 huddle. **No V3.51 OAuth deferral** — chat's Drive uploads flow through a Google Apps Script web app (`chatConfig.gdriveScriptUrl`), not per-user Google OAuth, so the file-attach modal continues to work end-to-end without bridging to the deferred CalendarService refactor. Plan doc: [CodeLog/ClaudesPlan/V3.52_chat_native.md](../ClaudesPlan/V3.52_chat_native.md).
