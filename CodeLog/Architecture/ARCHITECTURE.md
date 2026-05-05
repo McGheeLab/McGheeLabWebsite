@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.45
+**Version:** V3.46
 
 ## System Overview
 
@@ -161,6 +161,7 @@ As of V3.40 the site is moving toward a **two-tier shape**: the public marketing
 - **Native ports (Phase B, in progress):**
   - **V3.41 — Lab Meeting:** [rm/pages/meetings.html](../../rm/pages/meetings.html) + [rm/js/meetings.js](../../rm/js/meetings.js) + [rm/css/meetings.css](../../rm/css/meetings.css). Five-section sidebar (Next Meeting, Schedule, Archive, My Items, Settings); admins drag-and-drop presenter assignment, generate semester meetings from config, manage skip weeks and meeting-admin allowlist. Live-syncs `meetings/list.json`, `meetings/config.json`, `lab/users.json` via `LIVE_SYNC.attach`; surgical Firestore writes via `firebridge.db()` with `_live.suppressUntil` echo guard mirror the [rm/js/receipts.js](../../rm/js/receipts.js) pattern. Routes registered in [rm/js/api-routes.js](../../rm/js/api-routes.js).
   - **V3.44 — Procurement (greenfield):** [rm/pages/procurement.html](../../rm/pages/procurement.html) + [rm/js/procurement.js](../../rm/js/procurement.js) + [rm/css/procurement.css](../../rm/css/procurement.css). Single page covers the full purchase pipeline (request → approve → order with PO upload → receive from open-orders list → place at a location → auto-create inventory item). Tabs gated by role; surgical Firestore writes mirror the meetings pattern; placement creates an `inventory/{id}` doc with `kind: 'item'` and back-references the ticket. Stores PO + receipt uploads under `procurement/{ticketId}/{kind}-{ts}-{name}`. New collection `procurementTickets` registered as the route `procurement/tickets.json` (lab-scope, wrapKey `tickets`, SHORT cache); firestore.rules grants `isLabMember()` read/create/update with delete admin-only. Storage rule for `procurement/{docId}/**` widened to accept image content-types alongside PDF (phone-photo receipts).
+  - **V3.46 — Compliance submit flow:** [rm/js/compliance.js](../../rm/js/compliance.js)'s Student Training tab gained an end-to-end student-submission path. Page-header button is now contextual: `+ Add Protocol` on IRB/IACUC tabs (admin-only), `+ Submit Certificate` on Training tab (everyone). New `openSubmitCertModal()` builds a file-upload modal (type/title/dates/cert) that writes to `compliance/{uid}/{docId}/<file>` in Storage (existing rule, no widening) and `complianceSubmissions` in Firestore (existing rule). Non-admin Training reads run `where('submittedBy','==',uid)` to satisfy the per-doc read rule; admin reads use `firebridge.getAll`. With this in place, `apps/compliance/` was deleted.
 - **Production deploy:** Cyberduck FTP the McGheeLabWebsite repo to godaddy — the `/rm/` subdir lands at `mcgheelab.com/rm/`. No build step. Firebase rules / indexes / Cloud Functions deploy from the McGheeLabWebsite repo root via `firebase deploy --only ...`.
 
 ### modules/ (learning module pages)

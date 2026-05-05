@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.46] - 2026-05-05
+
+Compliance: `+ Submit Certificate` flow added to [rm/pages/compliance.html](../../rm/pages/compliance.html); lab-app `/apps/compliance/` retired. Same data shape (`complianceSubmissions` collection, identical fields) — admin-side Student Training tab, Verify button, expiry detection all unchanged. Plan doc: [CodeLog/ClaudesPlan/V3.46_compliance_submit_modal.md](../ClaudesPlan/V3.46_compliance_submit_modal.md).
+
+This is the same audit-gap pattern V3.44 surfaced for purchases / procurement (RM admin pages were missing student-submission flows). Here the gap is small enough — one modal, one collection, no new page — that V3.46 both adds the flow and deletes the lab app in a single release rather than splitting across two phases.
+
+### Added
+- **`rm/js/compliance.js`** — three additions on top of the existing protocol-tracking renderer:
+  - **Contextual button** (`_isAdmin()` + `_updateAddButton()`): the page-header `#add-item` button text/visibility now depends on `(activeTab, role)`. IRB/IACUC tabs show `+ Add Protocol` for admins (hidden for non-admins; collection is admin-write per firestore.rules). Training tab shows `+ Submit Certificate` for everyone.
+  - **Per-role training query** (`renderTrainingTab` fork): admin path keeps `firebridge.getAll('complianceSubmissions',...)`. Non-admin path runs `firebridge.db().collection('complianceSubmissions').where('submittedBy','==',uid).orderBy('createdAt','desc').get()` — required because [firestore.rules:478](../../firestore.rules#L478) restricts read to `(own || isAdmin)`; a bare `getAll` would fail per-doc rule eval against any doc the user doesn't own. Empty state is friendlier for non-admins ("…click + Submit Certificate above to upload your first one"). The Verify button is gated on `_isAdmin()` so non-admins don't see a permission-denied button.
+  - **`openSubmitCertModal()`** (~120 LOC): full cert-upload modal (type select, title, completion date, optional expiry, file input). Builds the modal directly because [forms.js](../../rm/js/forms.js) doesn't support file inputs. On submit: validates required fields, uploads to `compliance/{uid}/{Date.now()-rand}/<safeName>` in Storage (rule at [storage.rules:78](../../storage.rules#L78) — auth + 10 MB + PDF or image), writes to `complianceSubmissions` with `status: 'submitted'`, then switches `activeTab = 'training'` and re-renders so the user sees their new row immediately.
+- **`rm/pages/compliance.html`** — `firebase-storage-compat` SDK added (page never used Storage before V3.46; comment in place flagging why).
+
+### Removed
+- **`apps/compliance/`** — full directory (`app.js` 135 LOC, `index.html`, `styles.css`). Same shape as the V3.42 console and V3.43 inventory deletions; the lab app's renderForm is now the openSubmitCertModal in compliance.js.
+- **`lab-apps.js`** — `compliance` entry removed from `LAB_APPS` registry. After this release, the registry holds only the apps still slated for native ports (equipment, meetings, activity-tracker, huddle, scheduler, chat, settings).
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bumped 20 → 21.
+
+### Notes
+- **No firestore.rules / storage.rules deploy needed.** The existing rules already permit the V3.46 access pattern (auth-create + read-own-or-admin on `complianceSubmissions`; auth-upload of PDF/image up to 10 MB on `compliance/{userId}/**`).
+
 ## [V3.45] - 2026-05-05
 
 Retired the two student-submission lab apps replaced by V3.44's unified Procurement page. With V3.44 deployed (Firestore + Storage rules merged, static tree FTP'd), the burn-in window is over. Plan doc: [CodeLog/ClaudesPlan/V3.45_retire_purchases_procurement.md](../ClaudesPlan/V3.45_retire_purchases_procurement.md).

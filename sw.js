@@ -8,7 +8,7 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 20;
+const CACHE_VERSION = 21;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
 const APPS_CACHE   = `mcgheelab-apps-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;

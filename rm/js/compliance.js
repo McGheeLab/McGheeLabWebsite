@@ -1,4 +1,20 @@
-/* compliance.js — IRB + IACUC protocol tracking */
+/* compliance.js — IRB + IACUC protocol tracking + student training certs.
+ *
+ * V3.46 added the student-side submission flow that previously lived in
+ * /apps/compliance/. The Student Training tab does double duty:
+ *   - Admin: renders every complianceSubmissions doc (firebridge.getAll)
+ *     with Verify buttons and expiry chips.
+ *   - Non-admin: queries their own submissions only
+ *     (where('submittedBy','==',uid)) — required because firestore.rules
+ *     restricts read to (own OR isAdmin); a bare getAll would 404 the
+ *     whole query for any doc the user doesn't own.
+ *
+ * The page-header `+ Add Protocol` button switches label and behavior on
+ * the Training tab, becoming `+ Submit Certificate` and opening
+ * openSubmitCertModal() — file upload to compliance/{uid}/{docId}/<name>
+ * (Storage rule at storage.rules line 78), then write to
+ * complianceSubmissions with status='submitted'. */
+
 
 const PROTOCOL_FIELDS = [
   { key: 'title', label: 'Protocol Title', type: 'text', required: true },
@@ -40,6 +56,27 @@ var TRAINING_COLUMNS = [
   { label: 'Actions', key: null },
 ];
 
+function _isAdmin() {
+  return typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin();
+}
+
+function _updateAddButton() {
+  const addBtn = document.getElementById('add-item');
+  if (!addBtn) return;
+  if (activeTab === 'training') {
+    addBtn.textContent = '+ Submit Certificate';
+  } else if (_isAdmin()) {
+    addBtn.textContent = '+ Add Protocol';
+    addBtn.style.display = '';
+  } else {
+    // Non-admins can't write to the `compliance` collection (admin-only),
+    // so hide the button on IRB/IACUC tabs entirely.
+    addBtn.style.display = 'none';
+    return;
+  }
+  addBtn.style.display = '';
+}
+
 async function loadAndRender() {
   const tabBar = document.getElementById('tabs');
   tabBar.innerHTML = '';
@@ -50,6 +87,8 @@ async function loadAndRender() {
     btn.onclick = () => { activeTab = t.key; _sortKey = null; _sortDir = 'asc'; loadAndRender(); };
     tabBar.appendChild(btn);
   });
+
+  _updateAddButton();
 
   const content = document.getElementById('content');
 
@@ -100,10 +139,31 @@ async function renderTrainingTab(content) {
   content.innerHTML = '<div class="empty-state">Loading student training records&hellip;</div>';
 
   try {
-    var subs = await firebridge.getAll('complianceSubmissions', 'createdAt', 'desc');
+    var subs;
+    if (_isAdmin()) {
+      subs = await firebridge.getAll('complianceSubmissions', 'createdAt', 'desc');
+    } else {
+      // Non-admins: firestore.rules restricts read to own submissions, so
+      // the query MUST include where('submittedBy','==',uid) — a bare
+      // getAll would fail per-doc rule evaluation against any doc the
+      // current user doesn't own.
+      var uid = firebridge.getUser && firebridge.getUser() && firebridge.getUser().uid;
+      if (!uid) {
+        content.innerHTML = '<div class="empty-state">Sign in to see your submissions.</div>';
+        return;
+      }
+      var snap = await firebridge.db().collection('complianceSubmissions')
+        .where('submittedBy', '==', uid)
+        .orderBy('createdAt', 'desc')
+        .get();
+      subs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+    }
 
     if (subs.length === 0) {
-      content.innerHTML = '<div class="empty-state">No student training submissions yet.</div>';
+      var empty = _isAdmin()
+        ? 'No student training submissions yet.'
+        : 'You haven’t submitted any training certificates yet. Click <strong>+ Submit Certificate</strong> above to upload your first one.';
+      content.innerHTML = '<div class="empty-state">' + empty + '</div>';
       return;
     }
 
@@ -136,7 +196,7 @@ async function renderTrainingTab(content) {
       if (s.certificateUrl) {
         html += '<a href="' + s.certificateUrl + '" target="_blank" style="font-size:13px;color:var(--primary);">View</a> ';
       }
-      if (s.status === 'submitted') {
+      if (s.status === 'submitted' && _isAdmin()) {
         html += '<button onclick="verifyTraining(\'' + s.id + '\')">Verify</button>';
       }
       html += '</td></tr>';
@@ -264,6 +324,11 @@ window.onComplianceSort = function (key) {
 };
 
 document.getElementById('add-item').onclick = () => {
+  if (activeTab === 'training') {
+    openSubmitCertModal();
+    return;
+  }
+  if (!_isAdmin()) return; // button is hidden for non-admins on protocol tabs anyway
   const tab = TABS.find(t => t.key === activeTab);
   openForm({
     title: `Add ${tab.label} Protocol`,
@@ -277,6 +342,131 @@ document.getElementById('add-item').onclick = () => {
     },
   });
 };
+
+/* ─── Submit Certificate modal (V3.46) ─────────────────────
+ * Replaces /apps/compliance/. Uploads the cert to
+ * compliance/{uid}/{docId}/<filename> in Storage (rule at
+ * storage.rules:78 — auth + 10MB + PDF/image), then writes a
+ * complianceSubmissions doc with status='submitted'. Defaults the
+ * active tab to Training afterward so the user immediately sees their
+ * submission in the list.
+ */
+function openSubmitCertModal() {
+  if (typeof firebridge === 'undefined' || !firebridge.getUser || !firebridge.getUser()) {
+    if (window.toast) window.toast('Sign in to submit a certificate', 'error');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal" style="max-width: 520px;">' +
+      '<div class="modal-title">Submit Training Certificate</div>' +
+      '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">Upload your completion certificate. The PI verifies submissions from the Student Training tab.</p>' +
+      '<div class="form-group">' +
+        '<label>Training Type *</label>' +
+        '<select id="cert-type">' +
+          '<option value="">— select —</option>' +
+          '<option value="citi_training">CITI Training</option>' +
+          '<option value="lab_safety">Lab Safety</option>' +
+          '<option value="biosafety">Biosafety</option>' +
+          '<option value="radiation">Radiation Safety</option>' +
+          '<option value="animal_care">Animal Care (IACUC)</option>' +
+          '<option value="other">Other</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Title / Course Name *</label>' +
+        '<input id="cert-title" type="text" placeholder="e.g. CITI Human Subjects Research — Basic" />' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Completion Date *</label>' +
+        '<input id="cert-date" type="date" />' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Expiration Date (optional)</label>' +
+        '<input id="cert-expiry" type="date" />' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Certificate (PDF or image)</label>' +
+        '<input id="cert-file" type="file" accept="application/pdf,image/*" />' +
+      '</div>' +
+      '<div id="cert-error" style="display:none;background:var(--red-bg);color:var(--red);padding:8px 12px;border-radius:var(--radius);font-size:13px;margin-bottom:10px;"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn" id="cert-cancel">Cancel</button>' +
+        '<button class="btn btn-primary" id="cert-submit">Submit</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  function close() { overlay.remove(); }
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.querySelector('#cert-cancel').onclick = close;
+
+  overlay.querySelector('#cert-submit').onclick = async () => {
+    const type   = overlay.querySelector('#cert-type').value;
+    const title  = overlay.querySelector('#cert-title').value.trim();
+    const date   = overlay.querySelector('#cert-date').value;
+    const expiry = overlay.querySelector('#cert-expiry').value;
+    const fileEl = overlay.querySelector('#cert-file');
+    const errEl  = overlay.querySelector('#cert-error');
+    const submitBtn = overlay.querySelector('#cert-submit');
+
+    if (!type || !title || !date) {
+      errEl.textContent = 'Type, title, and completion date are all required.';
+      errEl.style.display = 'block';
+      return;
+    }
+    errEl.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+
+    const user = firebridge.getUser();
+    const profile = firebridge.getProfile && firebridge.getProfile();
+
+    try {
+      let certificateUrl = '';
+      let storagePath = '';
+      if (fileEl.files && fileEl.files.length) {
+        const file = fileEl.files[0];
+        const docId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        const safe  = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        storagePath = 'compliance/' + user.uid + '/' + docId + '/' + safe;
+        const ref = firebase.storage().ref().child(storagePath);
+        const snap = await ref.put(file);
+        certificateUrl = await snap.ref.getDownloadURL();
+      }
+
+      const ts = firebase.firestore.FieldValue.serverTimestamp();
+      await firebridge.db().collection('complianceSubmissions').add({
+        submittedBy: user.uid,
+        submitterName: (profile && profile.name) || user.displayName || user.email,
+        type: type,
+        title: title,
+        completionDate: date,
+        expirationDate: expiry || '',
+        certificateUrl: certificateUrl,
+        storagePath: storagePath,
+        status: 'submitted',
+        createdAt: ts,
+        updatedAt: ts,
+      });
+
+      if (window.toast) window.toast('Certificate submitted');
+      close();
+      // Show the Training tab so the user immediately sees their submission.
+      activeTab = 'training';
+      loadAndRender();
+    } catch (err) {
+      console.warn('[compliance] submit cert failed:', err);
+      errEl.textContent = 'Failed: ' + (err.message || 'unknown error');
+      errEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+    }
+  };
+}
 
 (async function () {
   if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
