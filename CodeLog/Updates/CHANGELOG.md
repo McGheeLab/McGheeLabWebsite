@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.52] - 2026-05-05
+
+Lab Chat **native RM port** — replaces the V3.40 iframe wrapper at [rm/pages/app-chat.html](../../rm/pages/app-chat.html) with a native renderer at [rm/pages/chat.html](../../rm/pages/chat.html). The largest single port in the migration (3,650 LOC + 1,983 LOC of CSS), but follows the same lift-and-patch playbook used for V3.41 meetings, V3.49 activity-tracker, V3.50 huddle. **No V3.51 OAuth deferral** — chat's Drive uploads flow through a Google Apps Script web app (`chatConfig.gdriveScriptUrl`), not per-user Google OAuth, so the file-attach modal continues to work end-to-end without bridging to the deferred CalendarService refactor. Plan doc: [CodeLog/ClaudesPlan/V3.52_chat_native.md](../ClaudesPlan/V3.52_chat_native.md).
+
+### Added
+- **`rm/js/chat.js`** (3,650 LOC) — copy of [/apps/chat/app.js](../../apps/chat/app.js) with five surgical patches:
+  - `window.McgheeLab = window.McgheeLab || {}` at top so optional-chaining lookups for `MobileShell?.saveTabScroll` etc. don't ReferenceError.
+  - Container id `#app` → `#chat-root`.
+  - `db()` prefers `firebridge.db()` with `firebase.firestore()` fallback. `TS()` (`FieldValue.serverTimestamp`) unchanged.
+  - **Bootstrap rewrite (lab `app.js` lines 137–208)** — replaces dual AppBridge / direct-Firebase / setInterval-poll path with the RM contract: `firebridge.gateSignedIn()` → `await firebridge.whenAuthResolved()` → `_user/_profile` from firebridge → `canAccessChat(_profile)` chat-specific guest gate → `loadConfig() / loadUsers() / loadUserMeta() / render()` → Firestore subscriptions (channels, read-state, users, config) → `initChatTabSwipe()`. `firebridge.onAuth` handles role flips so newly-promoted chat admins see admin affordances without a manual reload.
+  - **`notifyResize()` AppBridge guard** — patched from `if (McgheeLab.AppBridge.isEmbedded())` to also null-check `AppBridge` itself + `.isEmbedded` so it no-ops cleanly without AppBridge defined.
+- **`rm/css/chat.css`** (1,983 LOC) — full lift of [/apps/chat/styles.css](../../apps/chat/styles.css) plus `body { ... }` CSS-var aliases header and the `.app-card` / `.app-btn` / `.app-input` / `.app-label` / `.app-empty` / `.app-badge` classes the renderer expects (sourced from `/apps/shared/app-base.css`).
+- **`rm/pages/chat.html`** — RM contract header (firebase SDK incl. `firebase-storage-compat` for legacy direct-upload fallback) + chat.js. Page chrome via `<div id="chat-root">`. Drive uploads route through Apps Script (`chatConfig.gdriveScriptUrl`); legacy `driveUrl` field on old messages still resolves alongside the modern `url` (Firebase Storage) field.
+
+### Changed
+- **`rm/js/nav.js`** — Operations → Chat now points at `/rm/pages/chat.html` (was `/rm/pages/app-chat.html`).
+- **`rm/pages/app-chat.html`** — Phase A iframe wrapper replaced with a `<meta refresh>` redirect to the native page so bookmarks pinned to the iframe URL still land correctly. Phase C deletes the redirect alongside the rest of the `app-*.html` wrappers.
+- **`sw.js`** — `CACHE_VERSION` bumped 25 → 26.
+
+### Notes
+- **No firestore.rules changes.** All five chat collections + `users/{uid}/pushTokens` already have rules in place: `chatConfig` ([line 383](../../firestore.rules#L383)), `chatChannels` ([line 389](../../firestore.rules#L389)), `chatMessages` ([line 398](../../firestore.rules#L398)), `chatReadState` ([line 409](../../firestore.rules#L409)), `chatUserMeta/{uid}` owner-only ([line 414](../../firestore.rules#L414)). Chat-admin helper `isChatAdmin()` at line 376 reads `chatConfig.chatAdmins`, so promoting a non-admin to chat admin just means adding their uid to that list — no rule change.
+- **`/apps/chat/` stays alive** as a fallback. Phase C deletes `/apps/` entirely once V3.51 (the only remaining native port) lands.
+- **Chat-specific guest gate preserved.** `canAccessChat(_profile)` lets admin enable chat for a guest user without flipping their role in `users/{uid}` — useful for external collaborators who join a single channel but aren't full lab members.
+- **No LIVE_SYNC.attach.** The renderer's `subscribeChannels` / `subscribeReadState` / `subscribeUsers` / `subscribeConfig` use Firestore `onSnapshot` directly. Layering LIVE_SYNC would duplicate work.
+- **After V3.52, only V3.51 remains** — equipment port + the OAuth refactor that brings CalendarService + ScheduleService into RM and unblocks five deferred features (My Schedule on scheduler, Calendar Integration on settings, Calendar import on activity-tracker, Lab Schedule view on huddle, plus the equipment port itself). Then Phase C cleanup deletes `/apps/` entirely.
+
 ## [V3.50] - 2026-05-05
 
 The Huddle **native RM port (subset)** — replaces the V3.40 iframe wrapper at [rm/pages/app-huddle.html](../../rm/pages/app-huddle.html) with a native renderer at [rm/pages/huddle.html](../../rm/pages/huddle.html). Same lift-and-patch playbook as V3.41 meetings + V3.49 activity-tracker: copy the lab `app.js` (2,888 LOC), surgically patch the bootstrap + container id + db helper + a couple of AppBridge references, leave the 2,800 LOC of view + Firestore subscription code unchanged. The Lab Schedule view (Team Availability Gantt + recurring availability templates) is intentionally deferred to V3.51 alongside the equipment OAuth refactor — the renderer null-checks every `ScheduleService` / `CalendarService` call so the section degrades gracefully (empty Gantt) until V3.51 lands. Plan doc: [CodeLog/ClaudesPlan/V3.50_huddle_native.md](../ClaudesPlan/V3.50_huddle_native.md).
