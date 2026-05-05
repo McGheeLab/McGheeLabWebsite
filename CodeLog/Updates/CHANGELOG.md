@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.49] - 2026-05-05
+
+Activity Tracker **native RM port** — replaces the V3.40 iframe wrapper at [rm/pages/activity-tracker.html](../../rm/pages/activity-tracker.html). Same lift-and-patch pattern as V3.41 meetings: copy the lab `app.js` (2,100 LOC), surgically patch the bootstrap + container id + db helper, leave the 2,000 LOC of view + ML + AI + Chart.js code unchanged. Calendar Integration is deferred to V3.51 alongside the equipment OAuth refactor — the renderer's calendar-suggest panel uses optional chaining (`McgheeLab.CalendarService?.getEventsForDate`) so it stays empty without the service loaded; everything else (daily logging, hierarchical category tree, ML categorization, Anthropic API integration, voice input, Huddle plan integration, weekly analytics) ports verbatim. Plan doc: [CodeLog/ClaudesPlan/V3.49_activity_tracker_native.md](../ClaudesPlan/V3.49_activity_tracker_native.md).
+
+### Added
+- **`rm/js/activity-tracker.js`** (2,123 LOC) — copy of [/apps/activity-tracker/app.js](../../apps/activity-tracker/app.js) with four surgical patches:
+  - `window.McgheeLab = window.McgheeLab || {}` at top so optional-chaining lookups for `MobileShell?` / `CalendarService?` / `RmCategories?` don't ReferenceError.
+  - Container id `#app` → `#tracker-root` (avoids collision with other RM pages that use `#app`).
+  - `db()` prefers `firebridge.db()` when available, falls back to `firebase.firestore()`.
+  - **Bootstrap rewrite** — replaces the dual AppBridge / direct-Firebase path (lines 120–178 of the lab app) with the RM contract: `firebridge.gateSignedIn() → firebridge.whenAuthResolved() → loadData() → render()`. Mobile `enableTabSwipe` stays guarded so it no-ops without the lab shell. Profile-role flips trigger a re-render via `firebridge.onAuth`. No `LIVE_SYNC.attach` — user-scope + single-user-edit means a snapshot listener would only echo our own writes.
+- **`rm/js/rm-categories.js`** (162 LOC) — verbatim copy of [/apps/shared/rm-categories.js](../../apps/shared/rm-categories.js). Bridge from RM's `labConfig/categorySchema` → array tree shape the tracker expects. No patches — uses `firebase.firestore()` directly. Phase C deletes `/apps/shared/` outright; the RM copy is the canonical version going forward.
+- **`rm/css/activity-tracker.css`** (968 LOC) — full lift of [/apps/activity-tracker/styles.css](../../apps/activity-tracker/styles.css) (858 LOC) plus a `body { ... }` CSS-var aliases header (matching V3.41 meetings + V3.47 scheduler patterns) and the `.app-card` / `.app-btn` / `.app-input` / `.app-label` / `.app-empty` / `.app-badge` classes the renderer expects (sourced from `/apps/shared/app-base.css`).
+- **`rm/pages/activity-tracker.html`** — was an iframe wrapper since V3.40; now a native page with the RM contract header + Chart.js CDN (jsdelivr UMD pin matches the lab app version) + rm-categories.js + activity-tracker.js. Page chrome via `<div id="tracker-root">`.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bumped 23 → 24.
+
+### Notes
+- **No firestore.rules changes.** All collections used by the tracker already have rules: `trackerData/{userId}` owner-only ([line 331](../../firestore.rules#L331)), `trackerEntries/{userId}/entries/{entryId}` owner-only ([line 337](../../firestore.rules#L337)), `huddlePlans` lab-member read ([line 227](../../firestore.rules#L227)), `labConfig/categorySchema` lab-member read ([line 448](../../firestore.rules#L448)).
+- **`/apps/activity-tracker/` stays alive.** Standalone URL still loads as a fallback for users who need Calendar import. V3.51 deletes the directory once OAuth lands.
+- **Chart.js loaded as global.** The renderer's analytics dashboard uses `new Chart(...)` directly — UMD CDN bundle satisfies that without renderer changes.
+- **AI categorization keeps working.** Direct Anthropic API call (`https://api.anthropic.com/v1/messages`) using `_profile.anthropicKey` from `users/{uid}` — same path the lab app used; firebridge.getProfile() supplies the same shape.
+
 ## [V3.48] - 2026-05-05
 
 Settings: **Profile + Notifications tabs** added to [rm/pages/settings.html](../../rm/pages/settings.html). Pulls the corresponding sections of `/apps/settings/` into RM. Settings becomes a one-stop shop for self-service config: edit display name + bio + Share Activity with PI, manage push-notification preferences (master toggle, 6 per-app toggles, quiet hours), and (still) maintain the connection registry. Calendar Integration + admin diagnostics + version checker stay in `/apps/settings/` for now (V3.51 sunsets that directory alongside the equipment OAuth refactor). Plan doc: [CodeLog/ClaudesPlan/V3.48_settings_profile_notifications.md](../ClaudesPlan/V3.48_settings_profile_notifications.md).
