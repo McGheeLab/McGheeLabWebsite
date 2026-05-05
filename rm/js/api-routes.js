@@ -193,6 +193,20 @@
     cache: MEDIUM,
   });
 
+  // Schedulers (V3.47 — ported from /apps/scheduler/'s "My Schedulers" tab).
+  // Lab-scope; the rules at firestore.rules:189 allow public read (so guest
+  // invite links resolve unauthenticated). Caching the full list is fine —
+  // small lab won't have hundreds of schedulers, and the My Schedulers tab
+  // filters client-side to ownerUid===uid (admin sees all). MEDIUM cache;
+  // LIVE_SYNC keeps the list current within a session. Editor view bypasses
+  // this route and does direct getDoc() / where('scheduleId','==',id) so it
+  // sees writes from other users immediately without invalidating the
+  // cached list.
+  api.registerRoute('scheduler/list.json', {
+    scope: 'lab', collection: 'schedules', wrapKey: 'schedules',
+    cache: MEDIUM,
+  });
+
   // Procurement tickets (V3.44) — unified request → order → receive →
   // place → inventory lifecycle. SHORT cache because pipeline state
   // changes often (every transition is a write); LIVE_SYNC keeps the

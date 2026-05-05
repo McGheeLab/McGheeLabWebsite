@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.47] - 2026-05-05
+
+Scheduler **subset native port**: the *My Schedulers* tab (create + manage shareable scheduler links) lands at [rm/pages/scheduler.html](../../rm/pages/scheduler.html), backed by the existing stateless `/scheduler.js` engine. The *My Schedule* tab (calendar layers, recurring availability, Google Calendar OAuth) is intentionally deferred to V3.51 alongside the equipment OAuth refactor; the standalone `/apps/scheduler/` URL still resolves until then. Plan doc: [CodeLog/ClaudesPlan/V3.47_scheduler_subset_port.md](../ClaudesPlan/V3.47_scheduler_subset_port.md).
+
+### Added
+- **`rm/pages/scheduler.html`** + **`rm/js/scheduler.js`** (462 LOC) + **`rm/css/scheduler.css`** (full lift of [/apps/scheduler/styles.css](../../apps/scheduler/styles.css) plus a `body { ... }` CSS-var aliases header — same pattern as V3.41 meetings.css).
+  - **List view**: `api.load('scheduler/list.json')` → client-side filter on `ownerUid` (admin sees all). `+ New Scheduler` opens an inline create form; `Manage` / `Delete` actions per row. `LIVE_SYNC.attach` on the list path so cross-tab creates / deletes update without manual reload.
+  - **Editor view**: lifts the engine-mount logic from [/apps/scheduler/app.js:1088-1172](../../apps/scheduler/app.js#L1088-L1172). Loads the schedule + participants via direct firestore reads, builds the engine `config` with `onSaveSchedule` / `onSaveSpeaker` / `onAddSpeaker` / `onDeleteSpeaker` / `onRefresh` / `onSwitchView` callbacks, calls `McgheeLab.Scheduler.render(config)` then `wire('scheduler-editor-content', config)`. Surgical Firestore writes via `firebridge.db()` mirror the V3.41 / V3.44 patterns; `_live.suppressUntil` on each write.
+  - **SDB layer**: `getSchedule` / `saveSchedule` / `deleteSchedule` (cascades deletes participants) / `getSpeakers` / `addSpeaker` (generates UUID key) / `updateSpeaker` / `deleteSpeaker` — direct ports of [/apps/scheduler/app.js:39-87](../../apps/scheduler/app.js#L39-L87).
+- **`rm/js/api-routes.js`** — new lab-scope route `scheduler/list.json` → `collection: 'schedules', wrapKey: 'schedules', cache: MEDIUM`. shadowJson off (Firestore-only from day one). Editor view bypasses this route and queries direct so it picks up writes from concurrent users without invalidating the cached list.
+
+### Changed
+- **`rm/js/nav.js`** — Operations → Scheduler now points at `/rm/pages/scheduler.html` (was `/rm/pages/app-scheduler.html`).
+- **`rm/pages/app-scheduler.html`** — Phase A iframe wrapper replaced with a `<meta http-equiv="refresh">` redirect to the native page so bookmarks pinned to the iframe URL still land correctly. Phase C deletes the redirect alongside the rest of the `app-*.html` wrappers.
+- **`sw.js`** — `CACHE_VERSION` bumped 21 → 22.
+
+### Notes
+- **`firestore.rules` unchanged.** `schedules` (line 189) and `participants` (line 199) rules already permit V3.47's access pattern: public read (so guest invites resolve unauthenticated), owner-or-admin write on schedules, admin-or-key-or-speakerUid write on participants. No deploy needed.
+- **Engine stays at `/scheduler.js`.** Same engine is used by the public-site SPA's `#/dashboard/scheduler` editor; duplicating into `/rm/js/` would create drift. Same-origin script loads from the RM page work fine.
+- **`/apps/scheduler/` kept on disk** for the deferred My Schedule tab. V3.51 OAuth refactor + final sunset deletes the directory.
+
 ## [V3.46] - 2026-05-05
 
 Compliance: `+ Submit Certificate` flow added to [rm/pages/compliance.html](../../rm/pages/compliance.html); lab-app `/apps/compliance/` retired. Same data shape (`complianceSubmissions` collection, identical fields) — admin-side Student Training tab, Verify button, expiry detection all unchanged. Plan doc: [CodeLog/ClaudesPlan/V3.46_compliance_submit_modal.md](../ClaudesPlan/V3.46_compliance_submit_modal.md).
