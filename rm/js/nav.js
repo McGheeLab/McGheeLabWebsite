@@ -46,7 +46,7 @@ const NAV_ITEMS = [
 
   { label: 'Operations', gate: 'lab-member', children: [
     { label: 'Chat',      href: '/rm/pages/app-chat.html' },
-    { label: 'Huddle',    href: '/rm/pages/app-huddle.html' },
+    { label: 'Huddle',    href: '/rm/pages/huddle.html' },
     { label: 'Meetings',  href: '/rm/pages/meetings.html' },
     { label: 'Scheduler', href: '/rm/pages/scheduler.html' },
     { label: 'Equipment', href: '/rm/pages/app-equipment.html' },

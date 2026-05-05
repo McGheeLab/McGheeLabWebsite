@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.50] - 2026-05-05
+
+The Huddle **native RM port (subset)** — replaces the V3.40 iframe wrapper at [rm/pages/app-huddle.html](../../rm/pages/app-huddle.html) with a native renderer at [rm/pages/huddle.html](../../rm/pages/huddle.html). Same lift-and-patch playbook as V3.41 meetings + V3.49 activity-tracker: copy the lab `app.js` (2,888 LOC), surgically patch the bootstrap + container id + db helper + a couple of AppBridge references, leave the 2,800 LOC of view + Firestore subscription code unchanged. The Lab Schedule view (Team Availability Gantt + recurring availability templates) is intentionally deferred to V3.51 alongside the equipment OAuth refactor — the renderer null-checks every `ScheduleService` / `CalendarService` call so the section degrades gracefully (empty Gantt) until V3.51 lands. Plan doc: [CodeLog/ClaudesPlan/V3.50_huddle_native.md](../ClaudesPlan/V3.50_huddle_native.md).
+
+### Added
+- **`rm/js/huddle.js`** (2,918 LOC) — copy of [/apps/huddle/app.js](../../apps/huddle/app.js) with five surgical patches:
+  - `window.McgheeLab = window.McgheeLab || {}` at top so optional-chaining lookups for `MobileShell?` / `CalendarService?` / `ScheduleService?` don't ReferenceError.
+  - Container id `#app` → `#huddle-root`.
+  - `db()` prefers `firebridge.db()` with `firebase.firestore()` fallback.
+  - **Bootstrap rewrite** — replaces dual AppBridge / direct-Firebase path with `firebridge.gateSignedIn()` → `await firebridge.whenAuthResolved()` → `loadSettings()` → `render()` → `subscribePlans/Help/Rundown/RundownConfig`. `CalendarService.init` and `ScheduleService.init` stay guarded so they no-op without the services. Profile-role flips trigger re-render via `firebridge.onAuth`.
+  - **`notifyResize()` AppBridge guard** — patched from `if (McgheeLab.AppBridge.isEmbedded())` to also null-check `AppBridge` itself + `.isEmbedded` so it no-ops cleanly without AppBridge defined (RM is the parent window — no iframe-resize postMessage to fire anyway).
+- **`rm/css/huddle.css`** (1,876 LOC) — full lift of [/apps/huddle/styles.css](../../apps/huddle/styles.css) plus `body { ... }` CSS-var aliases header and the `.app-card` / `.app-btn` / `.app-input` / `.app-label` / `.app-empty` / `.app-badge` classes the renderer expects (sourced from `/apps/shared/app-base.css`). Same pattern as V3.41 meetings + V3.47 scheduler + V3.49 activity-tracker.
+- **`rm/pages/huddle.html`** — RM contract header (firebase SDK + firebase-bridge + adapter + cache + nav) + huddle.js. No Chart.js (huddle doesn't use it); no rm-categories.js (huddle has its own DEFAULT_RUNDOWN_CATEGORIES baked into the renderer + admin-editable `huddleConfig.rundownCategories`).
+
+### Changed
+- **`rm/js/nav.js`** — Operations → Huddle now points at `/rm/pages/huddle.html` (was `/rm/pages/app-huddle.html`).
+- **`rm/pages/app-huddle.html`** — Phase A iframe wrapper replaced with a `<meta refresh>` redirect to the native page so bookmarks pinned to the iframe URL still land correctly. Phase C deletes the redirect alongside the rest of the `app-*.html` wrappers.
+- **`sw.js`** — `CACHE_VERSION` bumped 24 → 25.
+
+### Notes
+- **No firestore.rules changes.** All collections used by the huddle renderer already have rules in place: `huddlePlans` ([line 227](../../firestore.rules#L227)), `huddleHelpRequests` ([line 246](../../firestore.rules#L246)), `huddleSettings/{userId}` owner-only ([line 255](../../firestore.rules#L255)), `huddleRundown` ([line 272](../../firestore.rules#L272)), `huddleConfig` ([line 281](../../firestore.rules#L281)). The Lab Schedule collections (`huddleScheduleTemplates`, `huddleScheduleOverrides`, `scheduleCustomEvents`) are also in place for V3.51.
+- **`/apps/huddle/` stays alive.** Standalone URL still resolves as a fallback for users who need the Lab Schedule view. V3.51 deletes the directory once OAuth lands.
+- **No LIVE_SYNC.attach.** The renderer uses Firestore `onSnapshot` directly via `subscribePlans` / `subscribeHelp` / `subscribeRundown` / `subscribeRundownConfig`. Layering LIVE_SYNC over that would duplicate the work.
+
 ## [V3.49] - 2026-05-05
 
 Activity Tracker **native RM port** — replaces the V3.40 iframe wrapper at [rm/pages/activity-tracker.html](../../rm/pages/activity-tracker.html). Same lift-and-patch pattern as V3.41 meetings: copy the lab `app.js` (2,100 LOC), surgically patch the bootstrap + container id + db helper, leave the 2,000 LOC of view + ML + AI + Chart.js code unchanged. Calendar Integration is deferred to V3.51 alongside the equipment OAuth refactor — the renderer's calendar-suggest panel uses optional chaining (`McgheeLab.CalendarService?.getEventsForDate`) so it stays empty without the service loaded; everything else (daily logging, hierarchical category tree, ML categorization, Anthropic API integration, voice input, Huddle plan integration, weekly analytics) ports verbatim. Plan doc: [CodeLog/ClaudesPlan/V3.49_activity_tracker_native.md](../ClaudesPlan/V3.49_activity_tracker_native.md).
