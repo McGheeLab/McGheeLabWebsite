@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.48] - 2026-05-05
+
+Settings: **Profile + Notifications tabs** added to [rm/pages/settings.html](../../rm/pages/settings.html). Pulls the corresponding sections of `/apps/settings/` into RM. Settings becomes a one-stop shop for self-service config: edit display name + bio + Share Activity with PI, manage push-notification preferences (master toggle, 6 per-app toggles, quiet hours), and (still) maintain the connection registry. Calendar Integration + admin diagnostics + version checker stay in `/apps/settings/` for now (V3.51 sunsets that directory alongside the equipment OAuth refactor). Plan doc: [CodeLog/ClaudesPlan/V3.48_settings_profile_notifications.md](../ClaudesPlan/V3.48_settings_profile_notifications.md).
+
+### Added
+- **`rm/js/settings.js`** — refactored from 154 LOC to 425 LOC. New tab dispatcher, three render functions:
+  - **`renderProfile()`** — fresh `firebridge.db().collection('users').doc(uid).get()` read for off-page-edit visibility, avatar (photo or initial-letter fallback), inputs for `name` + `bio`, switch for `shareActivity`. Save writes `{ name, bio, shareActivity, updatedAt }` via surgical `set(..., { merge: true })`.
+  - **`renderNotifications()`** — reads `userSettings/{uid}` (default fallback when doc doesn't exist), renders 6 per-app push toggles (chat / meetings / equipment / huddle / scheduler / activityTracker) plus master + Do Not Disturb + quiet-hours time pickers. DnD toggle dims the time row live. Save writes a single nested `notifications: { enabled, quietHours: { enabled, start, end }, apps: { ... }: { push } }` patch via merge — same shape the lab app + Cloud Function notification triggers ([functions/helpers/notify.js](../../functions/helpers/notify.js)) already use.
+  - **`renderConnections()`** — extraction of the existing inline connection-table render block, unchanged behavior.
+  - `+ Add Connection` button hidden when Profile / Notifications is active; `add-item.onclick` defensively checks `_isConnectionTab()` against stale handlers.
+- **`rm/css/settings.css`** — new page-scoped stylesheet (~140 LOC). `.settings-card`, `.settings-toggle-row`, CSS-only iOS-style `.settings-switch` (checkbox + faux track), `.settings-status` pills (success / error), `.settings-time-row` for the quiet-hours pickers, avatar styling. Uses RM CSS variables — no aliasing needed.
+
+### Changed
+- **`rm/pages/settings.html`** — added `<link rel="stylesheet" href="/rm/css/settings.css">` directly after the global stylesheet. No other markup changes.
+- **`sw.js`** — `CACHE_VERSION` bumped 22 → 23.
+
+### Notes
+- **No firestore.rules changes.** Both writes target paths already covered: `users/{uid}` (line 96) for Profile; `userSettings/{uid}` (line 85) for Notifications. The `userSettings/{uid}` rule is owner-only (auth uid === userId), which matches V3.48's per-user write pattern.
+- **`/apps/settings/` stays alive.** Calendar Integration there depends on CalendarService's Google OAuth flow — V3.51 scope. Until then, students who need to connect Google Calendar still hit `/apps/settings/` directly.
+- **Cloud Function compatibility preserved.** [functions/helpers/notify.js](../../functions/helpers/notify.js) reads the same `userSettings/{uid}.notifications` schema; per-app toggles set in V3.48's UI continue to gate FCM sends correctly.
+
 ## [V3.47] - 2026-05-05
 
 Scheduler **subset native port**: the *My Schedulers* tab (create + manage shareable scheduler links) lands at [rm/pages/scheduler.html](../../rm/pages/scheduler.html), backed by the existing stateless `/scheduler.js` engine. The *My Schedule* tab (calendar layers, recurring availability, Google Calendar OAuth) is intentionally deferred to V3.51 alongside the equipment OAuth refactor; the standalone `/apps/scheduler/` URL still resolves until then. Plan doc: [CodeLog/ClaudesPlan/V3.47_scheduler_subset_port.md](../ClaudesPlan/V3.47_scheduler_subset_port.md).
