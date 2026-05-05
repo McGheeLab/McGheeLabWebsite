@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.41] - 2026-05-05
+
+Phase B begins — first native RM port of a lab app. **Meetings** moves off the V3.40 iframe wrapper onto the api.load + IndexedDB cache + LIVE_SYNC contract. **Reorder note:** the V3.40 plan listed scheduler first; on audit it depends on three shared modules (~2,500 LOC including CalendarService's Google OAuth) that would either front-load V3.51's OAuth refactor or ship a feature regression. Swapped V3.41 ↔ V3.42 — meetings is the cleaner proof-of-concept (only `meetings`/`meetingConfig`/`users` collections, no shared services). Plan doc: [CodeLog/ClaudesPlan/V3.41_meetings_port.md](../ClaudesPlan/V3.41_meetings_port.md).
+
+### Added
+- **`rm/js/meetings.js`** — 1,827-LOC native renderer ported from [/apps/meetings/app.js](../../apps/meetings/app.js). Bootstrap, data load, and live updates rewritten onto the RM contract; renderer logic lifted near-verbatim.
+  - Bootstrap: `firebridge.gateSignedIn() → firebridge.whenAuthResolved() → loadAndRender() → LIVE_SYNC.attach()`. Live handle stored on `_live` so surgical writes can set `_live.suppressUntil` to skip the echo.
+  - Data load: parallel `api.load('meetings/list.json')`, `api.load('meetings/config.json')`, `api.load('lab/users.json')`. `_meetings` sorts ascending by date; `_labMembers` filters out `role === 'guest'`.
+  - Live updates: single `LIVE_SYNC.attach({paths: [...3 paths], refresh: loadAndRender, tag: 'meetings'})` replaces three separate `onSnapshot` listeners.
+  - Writes (`saveConfig`, `createMeeting`, `updateMeeting`, `deleteMeeting`) use surgical `firebridge.db().collection(...).doc(id)...` direct writes mirroring the [rm/js/receipts.js:79-96](../../rm/js/receipts.js#L79-L96) pattern. Each write bumps `_live.suppressUntil = Date.now() + 2500` and then mutates `_meetings`/`_config` in-memory + calls `renderMain()` so the UI updates instantly without waiting for the suppress window.
+  - `MobileShell.*` and `AppBridge.isEmbedded()` calls dropped — RM owns the top nav and full-page chrome; no `mcgheelab-app-resize` postMessage to fire.
+  - Re-renders on `firebridge.onAuth` profile-role flips (guest → admin promotion shows Settings; meeting-admin promotion unlocks agenda toggles).
+- **`rm/css/meetings.css`** — lifted from [/apps/meetings/styles.css](../../apps/meetings/styles.css) (1,203 LOC) plus the `.app-card` / `.app-btn` / `.app-input` / `.app-label` / `.app-empty` / `.app-badge` classes from [/apps/shared/app-base.css](../../apps/shared/app-base.css). A `body { ... }` block at the top aliases the lab-base CSS variables (`--muted`, `--accent`, `--accent2`, `--danger`, `--success`, `--warning`, `--surface2`, `--radius-lg`) to RM equivalents (`--text-muted`, `--primary`, `--primary-hover`, `--red`, `--green`, `--amber`, `#eef2f6`, `12px`) so every selector renders correctly without per-rule rewrites.
+- **`rm/pages/meetings.html`** — RM contract header (runtime-mode → firebase SDK including storage → firebase-bridge → profile-bootstrap → local-cache → util → api-firestore-adapter → api-routes → live-sync-helper → toast → sync-status → nav → meetings.js). Page container is `<div id="mtg-root">` to avoid colliding with other RM pages that may use `#app`.
+- **`rm/js/api-routes.js`** — two new lab-scope routes:
+  - `meetings/list.json` → `collection: 'meetings', wrapKey: 'meetings', cache: MEDIUM`. `shadowJson` off (Firestore-only from day one; no JSON shadow).
+  - `meetings/config.json` → `collection: 'meetingConfig', doc: 'settings', cache: LONG`. Single-doc route; LONG TTL because semester defaults / rotation order rarely change.
+
+### Changed
+- **`rm/js/nav.js`** — Operations → Meetings now points at `/rm/pages/meetings.html` (was `/rm/pages/app-meetings.html`).
+- **`rm/pages/app-meetings.html`** — Phase A iframe wrapper replaced with a `<meta http-equiv="refresh" content="0;url=/rm/pages/meetings.html">` redirect so any bookmarks pinned to the iframe URL still land in the right place. Phase C deletes the redirect alongside the rest of the `app-*.html` wrappers.
+- **`sw.js`** — `CACHE_VERSION` bumped 15 → 16.
+
+### Notes
+- **`firestore.rules` no-op.** The renderer reads/writes `meetings` (rules at line 317), `meetingConfig` (line 325), and `users` (already gated by `isLabMember()`) with the exact same field shapes the lab app used. No rule deploy needed.
+- **`/apps/meetings/` kept on disk through Phase B.** Standalone URL still works as a fallback during the multi-version migration window. Phase C deletes it.
+- **Phase B remainder reordered:** V3.42 = scheduler (subset port, defer CalendarService until V3.51), V3.43+ unchanged. See plan doc for the full revised table.
+
 ## [V3.40] - 2026-05-04
 
 Phase A of the `/apps/` → RM migration. RM becomes the only nav home for lab tools; the public site loses its **Lab Apps** menu. Each unported app is reachable via an iframe-wrapped RM page until V3.41–V3.52 ports it natively. Plan doc: [CodeLog/ClaudesPlan/V3.40_rm_app_migration.md](../ClaudesPlan/V3.40_rm_app_migration.md).

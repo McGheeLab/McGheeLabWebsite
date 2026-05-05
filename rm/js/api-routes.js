@@ -193,6 +193,22 @@
     cache: MEDIUM,
   });
 
+  // Lab Meetings (V3.41 — ported from /apps/meetings/). Both collections were
+  // Firestore-only from day one (the lab app wrote direct), so shadowJson is
+  // off (default). MEDIUM cache for the list — meetings are added in batches
+  // by the semester-generate flow and lightly mutated thereafter (agenda
+  // toggles, action items, presenter assignments); LIVE_SYNC keeps active
+  // editing in real time. LONG cache for the singleton config doc, which
+  // changes only when an admin edits semester defaults / rotation order.
+  api.registerRoute('meetings/list.json', {
+    scope: 'lab', collection: 'meetings', wrapKey: 'meetings',
+    cache: MEDIUM,
+  });
+  api.registerRoute('meetings/config.json', {
+    scope: 'lab', collection: 'meetingConfig', doc: 'settings',
+    cache: LONG,
+  });
+
   /* ── PERSONAL data (Phase 3) ──────────────────────────────────
    * Stored under userData/{uid}/<subcollection> — strictly owner read/write
    * per firestore.rules. Admin has NO blanket read; users opt into sharing
