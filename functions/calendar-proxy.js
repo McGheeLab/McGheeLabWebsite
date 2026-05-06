@@ -4,7 +4,7 @@
    Fetches a published calendar ICS URL server-side to bypass CORS
    restrictions. Returns the raw ICS text with permissive CORS headers.
 
-   Used by apps/shared/calendar-service.js as the primary fetch strategy.
+   Used by /rm/js/calendar-service.js as the primary fetch strategy.
 
    Usage:
      GET /calendarProxy?url=https://outlook.office365.com/.../calendar.ics

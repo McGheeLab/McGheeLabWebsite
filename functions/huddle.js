@@ -41,7 +41,7 @@ const onHuddlePlanUpdate = onDocumentUpdated('huddlePlans/{planId}', async (even
     await sendToUsers(db, messaging, [afterData.ownerUid], {
       title: 'Huddle Joined',
       body: `${name} joined your huddle: ${planLabel}`,
-      url: '/#/apps/huddle',
+      url: '/rm/pages/huddle.html',
       tag: `huddle-join-${planId}`,
     }, APP_KEY);
   }
@@ -57,7 +57,7 @@ const onHuddlePlanUpdate = onDocumentUpdated('huddlePlans/{planId}', async (even
     await sendToUsers(db, messaging, [afterData.ownerUid], {
       title: 'Huddle Watcher',
       body: `${name} is watching your huddle: ${planLabel}`,
-      url: '/#/apps/huddle',
+      url: '/rm/pages/huddle.html',
       tag: `huddle-watch-${planId}`,
     }, APP_KEY);
   }
@@ -77,7 +77,7 @@ const onHuddlePlanUpdate = onDocumentUpdated('huddlePlans/{planId}', async (even
       await sendToUsers(db, messaging, notifyUids, {
         title: 'Huddle Updated',
         body: `${afterData.ownerName}'s huddle was ${statusLabel}: ${planLabel}`,
-        url: '/#/apps/huddle',
+        url: '/rm/pages/huddle.html',
         tag: `huddle-status-${planId}`,
       }, APP_KEY);
     }
@@ -101,7 +101,7 @@ const onHelpRequestCreate = onDocumentCreated('huddleHelpRequests/{requestId}', 
   await sendToAllMembers(db, messaging, {
     title: 'Help Request',
     body: `${req.ownerName} needs help: ${title}`,
-    url: '/#/apps/huddle',
+    url: '/rm/pages/huddle.html',
     tag: `help-${event.params.requestId}`,
   }, APP_KEY, [req.ownerUid]);
 });
@@ -133,7 +133,7 @@ const onHelpRequestUpdate = onDocumentUpdated('huddleHelpRequests/{requestId}', 
   await sendToUsers(db, messaging, [afterData.ownerUid], {
     title: 'Help Response',
     body: `${responderName} responded to: ${title}`,
-    url: '/#/apps/huddle',
+    url: '/rm/pages/huddle.html',
     tag: `help-${event.params.requestId}`,
   }, APP_KEY);
 });

@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.53] - 2026-05-05
+
+**Phase C cleanup** — closes out the lab-apps-into-RM migration. Every lab app at `/apps/<name>/` either had a native RM page that superseded it or had been deleted as a stub during Phase B (V3.41–V3.52). V3.53 deletes the now-redundant `/apps/` tree outright, removes the orphaned `lab-apps.js` script load from the public site, drops `APPS_CACHE` from the service worker, migrates remaining `/#/apps/<name>` URL references to `/rm/pages/<name>.html`. Plan doc: [CodeLog/ClaudesPlan/V3.53_phase_c_cleanup.md](../ClaudesPlan/V3.53_phase_c_cleanup.md).
+
+**Per user guidance:** `lab-apps.js` itself stays in the repo (the `_splitAppId` / `_splitRatio` split-view harness is reference material for a future RM split-view feature). The public-site SPA's `#/dashboard` / `#/admin` / `#/cv` / `#/guide` routes also stay — those will be re-homed during a future workflow-driven page restructuring.
+
+**Requires `firebase deploy --only functions` after merge** alongside the FTP push — Cloud Functions generate push-notification deep-links that need to point at the new `/rm/pages/` URLs.
+
+### Removed
+- **`apps/`** — entire directory tree. 8 subdirs: activity-tracker, chat, equipment, huddle, meetings, scheduler, settings, shared. Every app has a native RM page (V3.41 / V3.49 / V3.50 / V3.51 / V3.52 ports + V3.47 scheduler subset + V3.48 settings tabs); shared services were copied into `/rm/js/` in V3.51 (calendar-service, schedule-service, schedule-utils) and V3.49 (rm-categories).
+- **`rm/pages/app-*.html`** — 5 redirect wrappers (app-chat.html, app-equipment.html, app-huddle.html, app-meetings.html, app-scheduler.html). Each was already a `<meta refresh>` redirect to its native target after Phase B per-port flips.
+
+### Changed
+- **`index.html`** — `<script defer src="lab-apps.js">` removed. Comment in place explaining the file is preserved for the split-view harness reference.
+- **`sw.js`** — `APPS_CACHE` constant + `ALL_CACHES` membership + the runtime stale-while-revalidate routing for `/apps/*` all dropped. `/lab-apps.js` removed from `SHELL_URLS`. `CACHE_VERSION` bumped 27 → 28; the activate handler evicts every `mcgheelab-apps-v*` cache from prior versions on first navigation post-deploy.
+- **`manifest.json`** — `start_url` migrated `/#/apps` → `/rm/`. Four `shortcuts[].url` entries migrated from `/#/apps/<name>` → `/rm/pages/<name>.html` (Activity Tracker, Lab Chat, Equipment Scheduler, The Huddle).
+- **`functions/equipment.js`** (lines 35, 62, 72), **`functions/huddle.js`** (lines 44, 60, 80, 104, 136), **`functions/chat.js`** (line 49), **`functions/test-notifications.js`** (lines 18, 24, 30, 36, 42, 48, 54, 60, 66, 72) — push-notification deep-link `url` fields migrated from `/#/apps/<name>` → `/rm/pages/<name>.html`. The chat channel deep-links preserve the `?channel=${channelId}` query param.
+- **`functions/calendar-proxy.js`** (line 7 comment) — reference updated from `apps/shared/calendar-service.js` → `/rm/js/calendar-service.js`.
+
+### Notes
+- **`lab-apps.js` preserved** for future split-view feature work (per user guidance). Unloaded — the dead lab-app-iframe code doesn't run anywhere — but the file is in the repo as reference for a general RM split-view harness.
+- **No firestore.rules / storage.rules changes.** The same writes that came from the lab apps now come from the ported RM pages, with the same lab-member identity and rule eligibility.
+- **PWA shortcuts** — users with the app installed will see updated home-screen shortcuts on next reinstall (manifest changes don't propagate live).
+- **Migration complete.** After V3.53 the public-facing footprint is: marketing SPA at `/`, RM dashboard at `/rm/`, `/lab-apps.js` (unloaded), no `/apps/`. All 12 lab apps that started this migration are now native RM pages or have been retired.
+
 ## [V3.51] - 2026-05-05
 
 **Equipment native port** + **shared services brought into RM**, lighting up four deferred features in one go. Replaces the V3.40 iframe wrapper at [rm/pages/app-equipment.html](../../rm/pages/app-equipment.html) with a native renderer at [rm/pages/equipment.html](../../rm/pages/equipment.html), and copies CalendarService / ScheduleService / ScheduleUtils from `/apps/shared/` into `/rm/js/`. Three deferred-feature pages (huddle, activity-tracker, scheduler) load the new services via `<script>` tags and their previously-degraded sections light up. Plan doc: [CodeLog/ClaudesPlan/V3.51_equipment_native_plus_shared_services.md](../ClaudesPlan/V3.51_equipment_native_plus_shared_services.md).

@@ -32,7 +32,7 @@ const onEquipmentBookingCreate = onDocumentCreated('equipmentBookings/{bookingId
         await sendToUsers(db, messaging, managers, {
           title: 'Booking Request',
           body: `${booking.userName} requests ${booking.equipmentName} on ${booking.date}`,
-          url: '/#/apps/equipment',
+          url: '/rm/pages/equipment.html',
           tag: `equip-approve-${event.params.bookingId}`,
         }, APP_KEY);
       }
@@ -59,7 +59,7 @@ const onEquipmentBookingUpdate = onDocumentUpdated('equipmentBookings/{bookingId
     await sendToUsers(db, messaging, [afterData.uid], {
       title: 'Booking Displaced',
       body: `Your ${afterData.equipmentName} booking on ${afterData.date} needs rebooking`,
-      url: '/#/apps/equipment',
+      url: '/rm/pages/equipment.html',
       tag: `equip-displaced-${bookingId}`,
     }, APP_KEY);
   }
@@ -69,7 +69,7 @@ const onEquipmentBookingUpdate = onDocumentUpdated('equipmentBookings/{bookingId
     await sendToUsers(db, messaging, [afterData.uid], {
       title: 'Booking Confirmed',
       body: `Your ${afterData.equipmentName} booking on ${afterData.date} is confirmed`,
-      url: '/#/apps/equipment',
+      url: '/rm/pages/equipment.html',
       tag: `equip-confirmed-${bookingId}`,
     }, APP_KEY);
   }

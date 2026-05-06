@@ -2,7 +2,7 @@
   "name": "McGheeLab",
   "short_name": "McGheeLab",
   "description": "Bioengineering research tools and lab apps for McGheeLab at the University of Arizona",
-  "start_url": "/#/apps",
+  "start_url": "/rm/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -24,25 +24,25 @@
     {
       "name": "Activity Tracker",
       "short_name": "Tracker",
-      "url": "/#/apps/activity-tracker",
+      "url": "/rm/pages/activity-tracker.html",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     },
     {
       "name": "Lab Chat",
       "short_name": "Chat",
-      "url": "/#/apps/chat",
+      "url": "/rm/pages/chat.html",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     },
     {
       "name": "Equipment Scheduler",
       "short_name": "Equipment",
-      "url": "/#/apps/equipment",
+      "url": "/rm/pages/equipment.html",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     },
     {
       "name": "The Huddle",
       "short_name": "Huddle",
-      "url": "/#/apps/huddle",
+      "url": "/rm/pages/huddle.html",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     }
   ]

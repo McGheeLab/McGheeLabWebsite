@@ -46,7 +46,7 @@ const onChatMessageCreate = onDocumentCreated('chatMessages/{messageId}', async 
   const notif = {
     title: isDM ? authorName : `#${channelName}`,
     body: isDM ? bodyText : `${authorName}: ${bodyText}`,
-    url: `/#/apps/chat?channel=${channelId}`,
+    url: `/rm/pages/chat.html?channel=${channelId}`,
     tag: `chat-${channelId}`,
   };
 

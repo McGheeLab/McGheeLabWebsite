@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.51 (Phase B complete; V3.52 chat shipped earlier same day)
+**Version:** V3.53 (Phase C cleanup complete; lab-apps-into-RM migration done)
 
 ## System Overview
 
@@ -115,8 +115,8 @@ As of V3.40 the site is moving toward a **two-tier shape**: the public marketing
 - **Exports:** `McgheeLab.renderClassPage`, `McgheeLab.wireClassPage`, `McgheeLab.ScheduleDB`
 
 ### lab-apps.js
-- **Purpose:** Lab Apps hub + iframe embedder — private section for authenticated lab members (non-guest)
-- **Status (V3.40):** **Orphaned in the public nav.** Phase A of the RM migration removed the `Lab Apps` `<li>` entries from all three nav surfaces (drawer, desktop, mobile sheet) and dropped the `nav-apps`/`dnav-apps`/`more-apps` toggle from `Auth.updateNavigation()`. The script is still loaded by `index.html` and the `#/apps` SPA route is still registered in `app.js`, but no nav surface points at it. Phase C (V3.53) deletes the file and the route. **Apps now live under `/rm/`** — see *rm/ (ResearchManagement)* below.
+- **Purpose (historical):** Lab Apps hub + iframe embedder — private section for authenticated lab members (non-guest)
+- **Status (V3.53):** **No longer loaded.** V3.53 dropped the `<script defer src="lab-apps.js">` tag from [index.html](../../index.html). The file is preserved in the repo as **reference material for a future RM split-view feature** — the `_splitAppId` / `_splitRatio` harness inside this file (originally built to show two iframe-embedded lab apps side-by-side) is the pattern a future split-view in RM will adapt. Until that future work, the file's `LAB_APPS` registry, hub renderer, and iframe embedder are dead code that doesn't run anywhere. The `#/apps` SPA route in [app.js](../../app.js) is still technically registered but resolves to nothing useful — it'll be removed during a future workflow-driven SPA cleanup.
 - **Key sections:**
   - **App registry (`LAB_APPS`):** Array of app definitions with `id`, `name`, `description`, `path` (to standalone `index.html`), `icon` (SVG), `status`, and `adminOnly` flag
   - **Hub renderer (`renderLabApps`):** Auth-gated grid of app cards; filters out `adminOnly` apps for non-admin users; redirects guests to dashboard and unauthenticated to login
@@ -127,7 +127,42 @@ As of V3.40 the site is moving toward a **two-tier shape**: the public marketing
 - **Navigation:** ~~`#nav-apps` `<li>` shown when `Auth.currentUser` exists and `role !== 'guest'`~~ — **removed in V3.40.**
 - **Exports:** `McgheeLab.renderLabApps`, `McgheeLab.wireLabApps`, `McgheeLab.renderLabApp`, `McgheeLab.wireLabApp`, `McgheeLab.LAB_APPS`
 
-### apps/ (standalone app directory)
+### apps/ (RETIRED — V3.53)
+
+The entire `/apps/` directory was deleted in V3.53 Phase C cleanup.
+All 12 lab apps that lived here have either been ported to native
+RM pages under [rm/](../../rm/) or retired as stubs:
+
+| Lab app | Outcome | Phase |
+|---|---|---|
+| `apps/console/` | deleted (stub) | V3.42 |
+| `apps/inventory/` | deleted (stub) | V3.43 |
+| `apps/purchases/` | retired; lives on as the unified [rm/pages/procurement.html](../../rm/pages/procurement.html) | V3.44/V3.45 |
+| `apps/procurement/` | retired; same unified procurement page | V3.44/V3.45 |
+| `apps/compliance/` | retired; submit flow added to [rm/pages/compliance.html](../../rm/pages/compliance.html) | V3.46 |
+| `apps/scheduler/` | ported to [rm/pages/scheduler.html](../../rm/pages/scheduler.html) (My Schedulers) + V3.51 brought ScheduleService into RM | V3.47/V3.51 |
+| `apps/settings/` | Profile + Notifications tabs at [rm/pages/settings.html](../../rm/pages/settings.html) | V3.48 |
+| `apps/activity-tracker/` | native port at [rm/pages/activity-tracker.html](../../rm/pages/activity-tracker.html) | V3.49 |
+| `apps/huddle/` | native port at [rm/pages/huddle.html](../../rm/pages/huddle.html) | V3.50 |
+| `apps/equipment/` | native port at [rm/pages/equipment.html](../../rm/pages/equipment.html) | V3.51 |
+| `apps/meetings/` | native port at [rm/pages/meetings.html](../../rm/pages/meetings.html) | V3.41 |
+| `apps/chat/` | native port at [rm/pages/chat.html](../../rm/pages/chat.html) | V3.52 |
+| `apps/shared/` | services copied into RM: [rm/js/calendar-service.js](../../rm/js/calendar-service.js), [rm/js/schedule-service.js](../../rm/js/schedule-service.js), [rm/js/schedule-utils.js](../../rm/js/schedule-utils.js), [rm/js/rm-categories.js](../../rm/js/rm-categories.js) | V3.49/V3.51 |
+
+The historical content of this section (per-app feature lists, the
+`AppBridge` / `MobileShell` shared-module documentation, the
+embedded vs standalone execution modes) was relevant during Phase
+A's iframe-bridge era and during Phase B's per-app port. Post-V3.53
+it's superseded by the per-page documentation under *rm/
+(ResearchManagement)* below — each native port's section there
+includes the relevant data shape, file paths, and patches applied
+during the lift.
+
+For the historical per-app spec (used during the migration), see
+the V3.40 plan doc and the V3.41–V3.52 per-port plan docs under
+[CodeLog/ClaudesPlan/](../ClaudesPlan/).
+
+### apps/ (legacy — for reference only)
 - **Purpose:** Self-contained mini-applications that run independently or embedded via iframe in the main site
 - **Structure:** Each app has `index.html` (standalone entry point), `app.js` (logic), `styles.css` (app-specific styles)
 - **Shared modules:**
@@ -157,7 +192,7 @@ As of V3.40 the site is moving toward a **two-tier shape**: the public marketing
 - **Auth gate:** [rm/js/firebase-bridge.js](../../rm/js/firebase-bridge.js) — `firebridge.gateSignedIn()` / `firebridge.gateAdmin('reason')` / `firebridge.whenAuthResolved()`. Anyone can sign in via Google but profile-bootstrap creates `users/{uid}` as `role: 'guest'`; `firestore.rules` `isLabMember()` requires `role != 'guest'`; firebridge renders a full-page pending-access overlay until admin promotes them. The `#dnav-rm` link in the public-site nav appears only after sign-in (regardless of role).
 - **Live sync:** [rm/js/live-sync-helper.js](../../rm/js/live-sync-helper.js) — `LIVE_SYNC.attach({paths, refresh, tag})` debounces remote updates, suppresses post-save blink, deduplicates subscriptions across pages.
 - **Top nav (V3.40 layout):** Six groups in [rm/js/nav.js](../../rm/js/nav.js): **Dashboard** | **Activity** (Tracker, Overview, Calendar, Email, Tasks, Sharing, Year) | **Research** (Projects, Library, Comments, Papers, Teaching, Service) | **Operations** _gate: lab-member_ (Chat, Huddle, Meetings, Scheduler, Equipment) | **Lab Admin** _gate: lab-member_ (Compliance, Chemical Safety, Inventory, Lab Members, Important People, Career & Tenure, Procurement, Purchase Requests, Grant Accounts, Budget, Analytics, Travel) | **Settings** _gate: lab-member_ (Profile, Settings, CV Overview, CV Editor, Member Activity _gate: admin_).
-- **Iframe-bridge tier (Phase A only):** [rm/pages/app-chat.html](../../rm/pages/app-chat.html), [app-equipment.html](../../rm/pages/app-equipment.html), [app-huddle.html](../../rm/pages/app-huddle.html), [app-scheduler.html](../../rm/pages/app-scheduler.html). Each loads the corresponding `/apps/<name>/` in an iframe, runs `auth-bridge.js` in embedded mode, and forwards `{user, profile}` via postMessage on the existing `mcgheelab-app-ready` → `mcgheelab-auth` handshake. Same-origin Firebase IndexedDB persistence carries the auth into the iframe automatically; the postMessage just populates `auth-bridge.js`'s `_user`/`_profile`. Phase B replaces each wrapper with a native RM page; the wrapper file becomes a `<meta http-equiv="refresh">` redirect to preserve bookmarks, and is deleted entirely in Phase C. The proven activity-tracker bridge at [rm/pages/activity-tracker.html](../../rm/pages/activity-tracker.html) is the template (and is itself rewritten as a native renderer in V3.49). [rm/pages/app-meetings.html](../../rm/pages/app-meetings.html) was the wrapper; V3.41 ported meetings natively and reduced it to a `<meta refresh>` redirect.
+- **Iframe-bridge tier (RETIRED — V3.53):** Phase A introduced 5 iframe-bridge wrappers under [rm/pages/app-*.html](../../rm/pages/) that loaded `/apps/<name>/` in an iframe and forwarded auth via postMessage. Phase B (V3.41–V3.52) progressively replaced each wrapper's contents with a `<meta refresh>` redirect to its native port. V3.53 deleted all five files outright. Bookmarks pinned to those URLs return 404 after V3.53.
 - **Native ports (Phase B, in progress):**
   - **V3.41 — Lab Meeting:** [rm/pages/meetings.html](../../rm/pages/meetings.html) + [rm/js/meetings.js](../../rm/js/meetings.js) + [rm/css/meetings.css](../../rm/css/meetings.css). Five-section sidebar (Next Meeting, Schedule, Archive, My Items, Settings); admins drag-and-drop presenter assignment, generate semester meetings from config, manage skip weeks and meeting-admin allowlist. Live-syncs `meetings/list.json`, `meetings/config.json`, `lab/users.json` via `LIVE_SYNC.attach`; surgical Firestore writes via `firebridge.db()` with `_live.suppressUntil` echo guard mirror the [rm/js/receipts.js](../../rm/js/receipts.js) pattern. Routes registered in [rm/js/api-routes.js](../../rm/js/api-routes.js).
   - **V3.44 — Procurement (greenfield):** [rm/pages/procurement.html](../../rm/pages/procurement.html) + [rm/js/procurement.js](../../rm/js/procurement.js) + [rm/css/procurement.css](../../rm/css/procurement.css). Single page covers the full purchase pipeline (request → approve → order with PO upload → receive from open-orders list → place at a location → auto-create inventory item). Tabs gated by role; surgical Firestore writes mirror the meetings pattern; placement creates an `inventory/{id}` doc with `kind: 'item'` and back-references the ticket. Stores PO + receipt uploads under `procurement/{ticketId}/{kind}-{ts}-{name}`. New collection `procurementTickets` registered as the route `procurement/tickets.json` (lab-scope, wrapKey `tickets`, SHORT cache); firestore.rules grants `isLabMember()` read/create/update with delete admin-only. Storage rule for `procurement/{docId}/**` widened to accept image content-types alongside PDF (phone-photo receipts).

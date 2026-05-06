@@ -8,13 +8,12 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 27;
+const CACHE_VERSION = 28;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
-const APPS_CACHE   = `mcgheelab-apps-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;
 const CDN_CACHE    = `mcgheelab-cdn-v${CACHE_VERSION}`;
 
-const ALL_CACHES = [SHELL_CACHE, APPS_CACHE, IMAGE_CACHE, CDN_CACHE];
+const ALL_CACHES = [SHELL_CACHE, IMAGE_CACHE, CDN_CACHE];
 
 /* ---------- URLs to precache on install ---------- */
 
@@ -30,7 +29,6 @@ const SHELL_URLS = [
   '/cv-builder.js',
   '/scheduler.js',
   '/class-builder.js',
-  '/lab-apps.js',
   '/push-notifications.js',
   '/content.json',
   '/manifest.json',
@@ -40,12 +38,12 @@ const SHELL_URLS = [
   '/icons/favicon-32.png'
 ];
 
-/* APPS_CACHE precache list dropped in V3.40: lab apps are now reached via
- * RM iframe wrappers (rm/pages/app-<name>.html) rather than the public-site
- * Apps menu. The APPS_CACHE constant + runtime stale-while-revalidate
- * routing for /apps/* below stay so iframe loads remain fast; we just
- * don't precache all 33 app files at install time anymore. Phase C deletes
- * /apps/ entirely and removes APPS_CACHE. */
+/* APPS_CACHE retired in V3.53 alongside the deletion of /apps/. The
+ * registry-cache pair was added in V3.40 to make iframe loads of
+ * /apps/<name>/ fast; with /apps/ deleted in V3.53 there's nothing
+ * left to cache under that key. /lab-apps.js dropped from SHELL_URLS
+ * for the same reason (file preserved in repo for the split-view
+ * harness reference, but not loaded by index.html anymore). */
 
 /* ---------- Install: precache shell ---------- */
 
@@ -176,9 +174,8 @@ async function staleWhileRevalidate(request) {
 
   const fetchPromise = fetch(request).then(response => {
     if (canCache(response)) {
-      const url = new URL(request.url);
-      const cacheName = url.pathname.startsWith('/apps/') ? APPS_CACHE : SHELL_CACHE;
-      caches.open(cacheName).then(cache => {
+      // Single shell cache after V3.53 — APPS_CACHE retired with /apps/.
+      caches.open(SHELL_CACHE).then(cache => {
         try { cache.put(request, response.clone()); } catch (e) { /* body already used */ }
       });
     }
