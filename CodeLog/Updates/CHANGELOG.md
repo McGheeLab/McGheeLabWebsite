@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.54] - 2026-05-05
+
+Settings: **Calendar Sync tab** added — closes the V3.48 deferred work. Lifts the lab-app `/apps/settings/` Calendar Integration UI into [rm/pages/settings.html](../../rm/pages/settings.html) as a new tab between Notifications and All Connections. Three provider cards (Google / Outlook / Apple), auto-refresh interval, Sync to Huddle toggle. Drives the `McgheeLab.CalendarService` singleton brought into RM in V3.51. Plan doc: [CodeLog/ClaudesPlan/V3.54_settings_calendar_tab.md](../ClaudesPlan/V3.54_settings_calendar_tab.md).
+
+**Tab key collision dodge:** the existing connection-registry tab at key `'calendar'` (filters `connections.type === 'calendar'`) is unrelated to the new CalendarService UI. New tab uses key `'cal-sync'` to keep both clear.
+
+### Added
+- **`rm/js/settings.js`** — grew from 425 LOC to 788 LOC. New `cal-sync` entry in `TABS`. `_isConnectionTab()` updated to also exclude `cal-sync`. New `_isConnectionTabKey(k)` helper for tab-bar label counting. New dispatcher branch routes `activeTab === 'cal-sync'` to:
+  - `renderCalendarSync(content)` — three provider cards (Google / Outlook / Apple), sync settings (refresh interval select + Sync to Huddle toggle), Save button + status pill. Adapted from the lab-app's `renderCalendarSection()` with the V3.41/V3.47/V3.49/V3.50/V3.52 RM-idiom pattern (`.cal-card` / `.btn` / `.btn-primary` / `.proc-btn-danger` / `.settings-toggle-row` / `.settings-status`).
+  - `wireCalendarSync(cal)` — handlers for Google connect/disconnect, Outlook ICS file/URL/OAuth, Apple ICS file/URL, save sync settings (`cal.saveConfig({ autoRefreshMinutes, huddle: { autoBlock } })` + `cal.startAutoRefresh(refreshMinutes)`).
+  - `_googleIcon()` / `_outlookIcon()` / `_appleIcon()` — inlined SVG icon helpers (lifted from lab app).
+- **`rm/css/settings.css`** — added `.cal-providers` (auto-fit grid), `.cal-card`, `.cal-header`, `.cal-icon`, `.cal-badge` + `.cal-badge--on` (green-bg when connected), `.cal-body`, `.cal-row`, `.cal-actions`, `.cal-hint`, `.cal-details`, `.cal-select`. Local copy of `.proc-btn-danger` (lifted from procurement.css) so the Disconnect / Clear buttons get the red-tint danger state without depending on procurement.css being loaded on this page.
+
+### Changed
+- **`rm/pages/settings.html`** — added `<script src="/rm/js/calendar-service.js">` between `forms.js` and `settings.js` so `McgheeLab.CalendarService` is defined when `settings.js` runs. The GIS client (already loaded for the existing connection-registry OAuth handling) covers `cal.connectGoogle()`'s GIS token-client requirement.
+- **`sw.js`** — `CACHE_VERSION` bumped 28 → 29.
+
+### Notes
+- **No firestore.rules / storage.rules / functions changes.** CalendarService persists its config in `userSettings/{uid}.calendar` (owner-only rule already in place at [firestore.rules:85](../../firestore.rules#L85)). OAuth tokens stay in `sessionStorage` per V3.51's decision (Firestore-backed token storage remains a future-V3.5x enhancement).
+- **Migration follow-ups list shrinks to 3:** Scheduler My Schedule tab (V3.55), split-view RM feature per user wishlist (V3.56), optional Firestore-backed OAuth tokens (V3.57). Workflow-driven page restructuring stays deferred.
+
 ## [V3.53] - 2026-05-05
 
 **Phase C cleanup** — closes out the lab-apps-into-RM migration. Every lab app at `/apps/<name>/` either had a native RM page that superseded it or had been deleted as a stub during Phase B (V3.41–V3.52). V3.53 deletes the now-redundant `/apps/` tree outright, removes the orphaned `lab-apps.js` script load from the public site, drops `APPS_CACHE` from the service worker, migrates remaining `/#/apps/<name>` URL references to `/rm/pages/<name>.html`. Plan doc: [CodeLog/ClaudesPlan/V3.53_phase_c_cleanup.md](../ClaudesPlan/V3.53_phase_c_cleanup.md).

@@ -147,3 +147,145 @@
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(37,99,235,.15);
 }
+
+/* ─── Calendar Sync tab (V3.54) ──────────────────────────── */
+.cal-providers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.cal-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cal-header strong { font-size: 14px; flex: 1; }
+.cal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cal-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(107,114,128,.15);
+  color: var(--text-muted);
+}
+.cal-badge--on {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.cal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cal-body .form-group { margin: 0; }
+.cal-body .form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  display: block;
+  margin-bottom: 4px;
+}
+.cal-body .form-group input[type="text"] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+.cal-body .form-group input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+.cal-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cal-row > input[type="text"] {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+.cal-row > input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+.cal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cal-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.cal-details {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.cal-details summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.cal-details summary:hover { color: var(--text); }
+.cal-select {
+  padding: 6px 10px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 13px;
+}
+.cal-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+
+/* Reuse .proc-btn-danger from procurement.css for "Disconnect" / "Clear"
+ * buttons here. If procurement.css isn't loaded on settings.html, fall
+ * back to a local copy of the same red-tint danger state. */
+.proc-btn-danger {
+  color: var(--red);
+  border-color: rgba(220,38,38,.3);
+}
+.proc-btn-danger:hover {
+  background: var(--red-bg);
+  border-color: var(--red);
+}

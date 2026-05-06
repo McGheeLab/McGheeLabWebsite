@@ -49,6 +49,12 @@ var CONN_COLUMNS = [
 const TABS = [
   { key: 'profile',       label: 'Profile' },
   { key: 'notifications', label: 'Notifications' },
+  // V3.54 — Calendar Sync (Google + Outlook + Apple ICS imports via the
+  // /rm/js/calendar-service.js singleton brought into RM in V3.51). Tab
+  // key `cal-sync` rather than `calendar` to avoid colliding with the
+  // existing connection-registry filter below that filters on
+  // connections.type === 'calendar'.
+  { key: 'cal-sync',      label: 'Calendar Sync' },
   { key: 'all',           label: 'All Connections' },
   { key: 'email',         label: 'Email' },
   { key: 'calendar',      label: 'Calendars' },
@@ -60,7 +66,9 @@ const TABS = [
 let activeTab = 'profile';
 
 function _isConnectionTab() {
-  return activeTab !== 'profile' && activeTab !== 'notifications';
+  return activeTab !== 'profile'
+      && activeTab !== 'notifications'
+      && activeTab !== 'cal-sync';
 }
 
 function connectionStatusChip(s) {
@@ -88,7 +96,7 @@ async function loadAndRender() {
   TABS.forEach(t => {
     let label = t.label;
     if (t.key === 'all') label += ' (' + connections.length + ')';
-    else if (t.key !== 'profile' && t.key !== 'notifications') {
+    else if (_isConnectionTabKey(t.key)) {
       label += ' (' + connections.filter(c => c.type === t.key).length + ')';
     }
     const btn = document.createElement('button');
@@ -108,7 +116,13 @@ async function loadAndRender() {
   const content = document.getElementById('content');
   if (activeTab === 'profile') return renderProfile(content);
   if (activeTab === 'notifications') return renderNotifications(content);
+  if (activeTab === 'cal-sync') return renderCalendarSync(content);
   return renderConnections(content, connections);
+}
+
+// Helper: is `key` a connection-type filter (vs a personal-config tab)?
+function _isConnectionTabKey(k) {
+  return k !== 'profile' && k !== 'notifications' && k !== 'cal-sync';
 }
 
 /* ─── Profile tab ───────────────────────────────────────── */
@@ -320,6 +334,355 @@ async function renderNotifications(content) {
     btn.disabled = false;
     btn.textContent = 'Save Notifications';
   });
+}
+
+/* ─── Calendar Sync tab (V3.54) ─────────────────────────────
+ * Lifted from /apps/settings/app.js renderCalendarSection() +
+ * wireCalendar(), adapted to RM idiom (.cal-card, .btn primary,
+ * .settings-toggle-row, .settings-status). Drives the McgheeLab.
+ * CalendarService singleton brought into RM in V3.51.
+ *
+ * Three providers:
+ *   - Google Calendar — OAuth Client ID input + GIS token client.
+ *   - Outlook / Microsoft 365 — paste public ICS link OR upload .ics
+ *     file OR OAuth via Azure App ID (advanced).
+ *   - Apple Calendar — upload .ics file OR fetch from URL.
+ *
+ * Sync settings: auto-refresh interval + "Sync to Huddle" toggle
+ * (auto-blocks calendar events as blackout time in the user's
+ * Huddle schedule).
+ */
+
+function _calSvc() {
+  return (typeof McgheeLab !== 'undefined' && McgheeLab.CalendarService) || null;
+}
+
+async function renderCalendarSync(content) {
+  content.innerHTML = '<div class="empty-state">Loading calendar settings&hellip;</div>';
+
+  const cal = _calSvc();
+  if (!cal) {
+    content.innerHTML =
+      '<div class="empty-state">Calendar service not loaded. ' +
+      'Reload the page; if the problem persists, check the browser console for CalendarService errors.</div>';
+    return;
+  }
+
+  // Ensure service is initialised against the current user (idempotent).
+  const user = (firebridge && firebridge.getUser && firebridge.getUser()) || null;
+  if (user && cal.init) {
+    try { await cal.init(user, {}); } catch (e) { console.warn('[settings] CalendarService init:', e); }
+  }
+
+  const cfg  = (cal.getConfig && cal.getConfig()) || {};
+  const conn = (cal.isConnected && cal.isConnected()) || {};
+
+  const refreshOpts = [
+    { val: 0,   label: 'Disabled' },
+    { val: 15,  label: 'Every 15 minutes' },
+    { val: 30,  label: 'Every 30 minutes' },
+    { val: 60,  label: 'Every hour' },
+    { val: 120, label: 'Every 2 hours' },
+    { val: 240, label: 'Every 4 hours' },
+  ];
+
+  content.innerHTML =
+    '<div class="settings-card">' +
+      '<h3 class="settings-h3">Providers</h3>' +
+      '<div class="cal-providers">' +
+
+        // Google
+        '<div class="cal-card">' +
+          '<div class="cal-header">' +
+            '<span class="cal-icon">' + _googleIcon() + '</span>' +
+            '<strong>Google Calendar</strong>' +
+            '<span class="cal-badge ' + (conn.google ? 'cal-badge--on' : '') + '">' +
+              (conn.google ? 'Connected' : 'Not connected') +
+            '</span>' +
+          '</div>' +
+          (conn.google
+            ? '<div class="cal-actions"><button class="btn proc-btn-danger" id="cal-gcal-disconnect">Disconnect</button></div>'
+            : '<div class="cal-body">' +
+                '<div class="form-group">' +
+                  '<label for="cal-gcal-client-id">OAuth Client ID</label>' +
+                  '<input type="text" id="cal-gcal-client-id" placeholder="xxxx.apps.googleusercontent.com" value="' + esc(cfg.gcalClientId || '') + '" />' +
+                  '<div class="cal-hint">console.cloud.google.com → APIs → Credentials → OAuth 2.0 Client ID. Add this site origin to "Authorized JavaScript origins" before connecting.</div>' +
+                '</div>' +
+                '<div class="cal-actions"><button class="btn btn-primary" id="cal-gcal-connect">Connect Google Calendar</button></div>' +
+              '</div>') +
+        '</div>' +
+
+        // Outlook / Microsoft 365
+        '<div class="cal-card">' +
+          '<div class="cal-header">' +
+            '<span class="cal-icon">' + _outlookIcon() + '</span>' +
+            '<strong>Outlook / Microsoft 365</strong>' +
+            '<span class="cal-badge ' + (conn.outlook || conn.outlookIcs ? 'cal-badge--on' : '') + '">' +
+              (conn.outlook ? 'Connected (API)' : conn.outlookIcs ? 'Imported (ICS)' : 'Not connected') +
+            '</span>' +
+          '</div>' +
+          '<div class="cal-body">' +
+            '<div class="cal-hint">Paste your published Outlook calendar link (HTML or ICS — both work).</div>' +
+            '<div class="cal-row">' +
+              '<input type="text" id="cal-outlook-ics-url" placeholder="https://outlook.office365.com/owa/calendar/.../calendar.html" value="' + esc(cfg.outlookIcsUrl || '') + '" />' +
+              '<button class="btn btn-primary" id="cal-outlook-ics-fetch">Fetch</button>' +
+            '</div>' +
+            '<details class="cal-details">' +
+              '<summary>Alternative: Import .ics file</summary>' +
+              '<div class="cal-row" style="margin-top:8px;">' +
+                '<label class="btn" style="cursor:pointer;">' +
+                  'Choose .ics file' +
+                  '<input type="file" id="cal-outlook-ics-file" accept=".ics,.ical" hidden />' +
+                '</label>' +
+                (conn.outlookIcs ? '<button class="btn proc-btn-danger" id="cal-outlook-ics-clear">Clear</button>' : '') +
+              '</div>' +
+            '</details>' +
+            '<details class="cal-details">' +
+              '<summary>Advanced: OAuth API</summary>' +
+              '<div style="margin-top:8px;">' +
+                (conn.outlook
+                  ? '<button class="btn proc-btn-danger" id="cal-msal-disconnect">Disconnect API</button>'
+                  : '<div class="form-group">' +
+                      '<label for="cal-msal-client-id">Azure App (Client) ID</label>' +
+                      '<input type="text" id="cal-msal-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="' + esc(cfg.msalClientId || '') + '" />' +
+                      '<div class="cal-hint">portal.azure.com → App registrations → New → SPA redirect</div>' +
+                      '<div class="cal-actions"><button class="btn btn-primary" id="cal-msal-connect">Connect via OAuth</button></div>' +
+                    '</div>') +
+              '</div>' +
+            '</details>' +
+          '</div>' +
+        '</div>' +
+
+        // Apple Calendar (ICS)
+        '<div class="cal-card">' +
+          '<div class="cal-header">' +
+            '<span class="cal-icon">' + _appleIcon() + '</span>' +
+            '<strong>Apple Calendar</strong>' +
+            '<span class="cal-badge ' + (cfg.icsUrl ? 'cal-badge--on' : '') + '">' +
+              (cfg.icsUrl ? 'Connected (ICS)' : 'File / URL') +
+            '</span>' +
+          '</div>' +
+          '<div class="cal-body">' +
+            '<div class="cal-hint">Export from Calendar.app (File → Export) or publish via iCloud (Share → Public Calendar → copy URL).</div>' +
+            '<div class="cal-row">' +
+              '<label class="btn" style="cursor:pointer;">' +
+                'Choose .ics file' +
+                '<input type="file" id="cal-ics-file" accept=".ics,.ical" hidden />' +
+              '</label>' +
+            '</div>' +
+            '<div class="cal-row">' +
+              '<input type="text" id="cal-ics-url" placeholder="https://p##-caldav.icloud.com/..." value="' + esc(cfg.icsUrl || '') + '" />' +
+              '<button class="btn btn-primary" id="cal-ics-fetch">Fetch</button>' +
+              (cfg.icsUrl ? '<button class="btn proc-btn-danger" id="cal-ics-clear">Clear</button>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+      '</div>' + // .cal-providers
+
+      '<h3 class="settings-h3">Sync Settings</h3>' +
+
+      '<div class="settings-toggle-row">' +
+        '<div>' +
+          '<div class="settings-toggle-label">Auto-Refresh Interval</div>' +
+          '<div class="settings-toggle-sub">How often to re-fetch calendar events from connected providers.</div>' +
+        '</div>' +
+        '<select id="cal-refresh-interval" class="cal-select">' +
+          refreshOpts.map(o => '<option value="' + o.val + '"' + (cfg.autoRefreshMinutes === o.val ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') +
+        '</select>' +
+      '</div>' +
+
+      '<div class="settings-toggle-row">' +
+        '<div>' +
+          '<div class="settings-toggle-label">Sync to Huddle</div>' +
+          '<div class="settings-toggle-sub">Auto-block calendar events as blackout times in your Huddle schedule.</div>' +
+        '</div>' +
+        '<label class="settings-switch">' +
+          '<input type="checkbox" id="cal-huddle-sync" ' + (cfg.huddle && cfg.huddle.autoBlock ? 'checked' : '') + ' />' +
+          '<span class="settings-switch-track"></span>' +
+        '</label>' +
+      '</div>' +
+
+      '<div class="settings-actions">' +
+        '<button class="btn btn-primary" id="cal-save">Save Calendar Settings</button>' +
+        '<span class="settings-status" id="cal-status"></span>' +
+      '</div>' +
+    '</div>';
+
+  wireCalendarSync(cal);
+}
+
+function wireCalendarSync(cal) {
+  const status = document.getElementById('cal-status');
+  function showStatus(msg, kind) {
+    if (!status) return;
+    status.textContent = msg;
+    status.className = 'settings-status' + (kind === 'success' ? ' settings-status--success' : kind === 'error' ? ' settings-status--error' : '');
+    if (kind === 'success') setTimeout(() => { if (status) status.textContent = ''; }, 2500);
+  }
+
+  // ─── Google Calendar ───────────────────────────────────
+  const gConnect = document.getElementById('cal-gcal-connect');
+  if (gConnect) gConnect.addEventListener('click', async () => {
+    const clientId = (document.getElementById('cal-gcal-client-id').value || '').trim();
+    if (!clientId) { showStatus('Enter your OAuth Client ID', 'error'); return; }
+    try {
+      await cal.connectGoogle(clientId);
+      renderCalendarSync(document.getElementById('content'));
+      showStatus('Google Calendar connected', 'success');
+    } catch (err) {
+      showStatus('Google OAuth error: ' + (err.message || err), 'error');
+    }
+  });
+
+  const gDisc = document.getElementById('cal-gcal-disconnect');
+  if (gDisc) gDisc.addEventListener('click', () => {
+    cal.disconnectGoogle();
+    renderCalendarSync(document.getElementById('content'));
+    showStatus('Google Calendar disconnected', 'success');
+  });
+
+  // ─── Outlook OAuth ─────────────────────────────────────
+  const msConnect = document.getElementById('cal-msal-connect');
+  if (msConnect) msConnect.addEventListener('click', async () => {
+    const clientId = (document.getElementById('cal-msal-client-id').value || '').trim();
+    if (!clientId) { showStatus('Enter your Azure App ID', 'error'); return; }
+    try {
+      await cal.connectOutlook(clientId);
+      renderCalendarSync(document.getElementById('content'));
+      showStatus('Outlook connected', 'success');
+    } catch (err) {
+      showStatus('Outlook auth error: ' + (err.message || err), 'error');
+    }
+  });
+
+  const msDisc = document.getElementById('cal-msal-disconnect');
+  if (msDisc) msDisc.addEventListener('click', () => {
+    cal.disconnectOutlook();
+    renderCalendarSync(document.getElementById('content'));
+    showStatus('Outlook disconnected', 'success');
+  });
+
+  // ─── Outlook ICS file ──────────────────────────────────
+  const outIcsFile = document.getElementById('cal-outlook-ics-file');
+  if (outIcsFile) outIcsFile.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const result = await cal.importICSFile(file, 'outlook_ics');
+      renderCalendarSync(document.getElementById('content'));
+      showStatus('Imported ' + result.count + ' Outlook event' + (result.count !== 1 ? 's' : ''), 'success');
+    } catch (err) {
+      showStatus('Failed to parse file: ' + (err.message || err), 'error');
+    }
+  });
+
+  const outIcsClear = document.getElementById('cal-outlook-ics-clear');
+  if (outIcsClear) outIcsClear.addEventListener('click', () => {
+    if (cal.clearProvider) cal.clearProvider('outlook_ics');
+    cal.saveConfig({ outlookIcsUrl: '' });
+    renderCalendarSync(document.getElementById('content'));
+    showStatus('Outlook ICS cleared', 'success');
+  });
+
+  // ─── Outlook ICS URL fetch ─────────────────────────────
+  const outIcsFetch = document.getElementById('cal-outlook-ics-fetch');
+  if (outIcsFetch) outIcsFetch.addEventListener('click', async () => {
+    const url = (document.getElementById('cal-outlook-ics-url').value || '').trim();
+    if (!url) { showStatus('Paste your Outlook ICS link', 'error'); return; }
+    outIcsFetch.disabled = true; outIcsFetch.textContent = 'Fetching…';
+    try {
+      await cal.saveConfig({ outlookIcsUrl: url });
+      const result = await cal.fetchICSFromUrl(url, 'outlook_ics');
+      renderCalendarSync(document.getElementById('content'));
+      showStatus('Outlook ICS fetched — ' + result.count + ' event' + (result.count !== 1 ? 's' : ''), 'success');
+    } catch (err) {
+      outIcsFetch.disabled = false; outIcsFetch.textContent = 'Fetch';
+      showStatus('Failed to fetch ICS: ' + (err.message || 'CORS or network error — try importing the .ics file directly'), 'error');
+    }
+  });
+
+  // ─── Apple ICS file ────────────────────────────────────
+  const aIcsFile = document.getElementById('cal-ics-file');
+  if (aIcsFile) aIcsFile.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const result = await cal.importICSFile(file, 'ics');
+      renderCalendarSync(document.getElementById('content'));
+      showStatus('Imported ' + result.count + ' event' + (result.count !== 1 ? 's' : ''), 'success');
+    } catch (err) {
+      showStatus('Failed to parse file: ' + (err.message || err), 'error');
+    }
+  });
+
+  // ─── Apple ICS URL fetch ───────────────────────────────
+  const aIcsFetch = document.getElementById('cal-ics-fetch');
+  if (aIcsFetch) aIcsFetch.addEventListener('click', async () => {
+    const url = (document.getElementById('cal-ics-url').value || '').trim();
+    if (!url) { showStatus('Enter an ICS URL', 'error'); return; }
+    aIcsFetch.disabled = true; aIcsFetch.textContent = 'Fetching…';
+    try {
+      await cal.saveConfig({ icsUrl: url });
+      const result = await cal.fetchICSFromUrl(url, 'ics');
+      renderCalendarSync(document.getElementById('content'));
+      showStatus('ICS fetched — ' + result.count + ' event' + (result.count !== 1 ? 's' : ''), 'success');
+    } catch (err) {
+      aIcsFetch.disabled = false; aIcsFetch.textContent = 'Fetch';
+      showStatus('Failed to fetch ICS: ' + (err.message || 'CORS or network error — try importing the .ics file directly'), 'error');
+    }
+  });
+
+  const aIcsClear = document.getElementById('cal-ics-clear');
+  if (aIcsClear) aIcsClear.addEventListener('click', () => {
+    if (cal.clearProvider) cal.clearProvider('ics');
+    cal.saveConfig({ icsUrl: '' });
+    renderCalendarSync(document.getElementById('content'));
+    showStatus('Apple ICS cleared', 'success');
+  });
+
+  // ─── Save sync settings ────────────────────────────────
+  const saveBtn = document.getElementById('cal-save');
+  if (saveBtn) saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    try {
+      const refreshMinutes = parseInt(document.getElementById('cal-refresh-interval').value, 10) || 0;
+      const huddleSync = !!document.getElementById('cal-huddle-sync').checked;
+      await cal.saveConfig({
+        autoRefreshMinutes: refreshMinutes,
+        huddle: { autoBlock: huddleSync },
+      });
+      if (cal.startAutoRefresh) cal.startAutoRefresh(refreshMinutes);
+      showStatus('Calendar settings saved', 'success');
+    } catch (err) {
+      showStatus('Failed to save: ' + (err.message || err), 'error');
+    }
+    saveBtn.disabled = false; saveBtn.textContent = 'Save Calendar Settings';
+  });
+}
+
+/* Provider icons (lifted from /apps/settings/app.js so the renderer
+ * is self-contained even if the lab-shared icon helpers go away.) */
+function _googleIcon() {
+  return '<svg viewBox="0 0 24 24" width="18" height="18">' +
+    '<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>' +
+    '<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>' +
+    '<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>' +
+    '<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>' +
+    '</svg>';
+}
+function _outlookIcon() {
+  return '<svg viewBox="0 0 24 24" width="18" height="18">' +
+    '<path fill="#0078D4" d="M24 7.387v10.478c0 .23-.08.424-.238.583a.793.793 0 01-.583.238h-8.87V6.565h8.87c.23 0 .424.08.583.238.159.159.238.353.238.583z"/>' +
+    '<path fill="#0364B8" d="M14.309 6.565v12.122L0 16.58V4.674l14.309 1.891z"/>' +
+    '<ellipse fill="#fff" cx="7.155" cy="11.626" rx="3.46" ry="3.98"/>' +
+    '<ellipse fill="#0078D4" cx="7.155" cy="11.626" rx="2.38" ry="2.93"/>' +
+    '</svg>';
+}
+function _appleIcon() {
+  return '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">' +
+    '<path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>' +
+    '</svg>';
 }
 
 /* ─── Connections tab (existing behavior) ───────────────── */
