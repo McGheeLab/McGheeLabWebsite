@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.57] - 2026-05-05
+
+**Page consolidation Tier 1 — orphan deletions.** First in a 4-tier sweep (V3.57–V3.62) reducing the RM page count from 51 → 38. This release deletes two pages whose renderers were already orphaned or superseded. No user-visible feature loss. Plan doc: [CodeLog/ClaudesPlan/V3.57_page_consolidation_tier1.md](../ClaudesPlan/V3.57_page_consolidation_tier1.md).
+
+### Removed
+- **`rm/js/funding.js`** (269 LOC) — orphan since `rm/pages/funding.html` was made a `<meta refresh>` redirect to grants.html. The data routes (`funding/proposals.json`, `funding/awards.json`, `funding/accounts.json`) stay registered in [api-routes.js](../../rm/js/api-routes.js) — they're still consumed by [grants.js](../../rm/js/grants.js) and [dashboard.js](../../rm/js/dashboard.js). This removal is purely the unused renderer.
+- **`rm/js/purchase-requests.js`** (256 LOC) — superseded by V3.44's procurement.js (844 LOC) which provides the full request → approve → order → receive → place lifecycle. Wrote against legacy `purchaseRequests` Firestore collection; procurement.js writes to `procurementTickets`.
+
+### Changed
+- **`rm/pages/purchase-requests.html`** — replaced with a `<meta refresh>` redirect to `/rm/pages/procurement.html` so old bookmarks survive.
+- **`rm/pages/funding.html`** — fixed the redirect URL from `/pages/grants.html` (broken — missing `/rm/` prefix) to `/rm/pages/grants.html`. Drive-by fix.
+- **`rm/js/nav.js`** — removed the "Purchase Requests" entry from the Lab Admin group. Procurement is the single entry point now.
+- **`sw.js`** — `CACHE_VERSION` bumped 31 → 32.
+
+### Notes
+- **No firestore.rules / functions changes.** Pure file/nav cleanup. The legacy `purchaseRequests` Firestore collection rules stay in place (no live writers, but data may exist).
+- **Net page reduction:** 51 → 49 user-facing pages. ~525 LOC of unused JS removed.
+
 ## [V3.56] - 2026-05-05
 
 **Split View** — new general-purpose split-pane shell that lets the user open any two RM pages side-by-side in iframes. Adapted from the lab-apps.js `_splitAppId` / `_splitRatio` harness preserved through V3.53 cleanup specifically as reference for this work — explicitly flagged on the user's V3.40 follow-up list ("we really like the ability to have multiple pages open in a split view"). Plan doc: [CodeLog/ClaudesPlan/V3.56_split_view.md](../ClaudesPlan/V3.56_split_view.md).

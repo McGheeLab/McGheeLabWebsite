@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.56 (Split View — user-flagged wishlist feature shipped)
+**Version:** V3.57 (Page consolidation Tier 1 — orphan deletions: funding.js + purchase-requests)
 
 ## System Overview
 

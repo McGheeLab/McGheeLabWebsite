@@ -61,7 +61,6 @@ const NAV_ITEMS = [
     { label: 'Career & Tenure',   href: '/rm/pages/career.html' },
     { label: 'Procurement',       href: '/rm/pages/procurement.html' },
     { label: 'Receipts & Budget', href: '/rm/pages/receipts.html' },
-    { label: 'Purchase Requests', href: '/rm/pages/purchase-requests.html' },
     { label: 'Grant Accounts',    href: '/rm/pages/projects-grants.html' },
     { label: 'Budget',            href: '/rm/pages/budget.html' },
     { label: 'Analytics',         href: '/rm/pages/analytics.html' },
