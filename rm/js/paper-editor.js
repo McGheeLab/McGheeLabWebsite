@@ -20,7 +20,11 @@
 (function () {
   /* ── State ── */
 
-  var paramId = new URLSearchParams(window.location.search).get('id') || '';
+  // V3.60: paper id moved from ?id= to ?paper= when paper-editor.html
+  // merged into paper-builder.html. Accept both for redirect-bookmark
+  // survival; prefer the new ?paper= form.
+  var _qp = new URLSearchParams(window.location.search);
+  var paramId = _qp.get('paper') || _qp.get('id') || '';
   var state = {
     paperId: paramId,
     meta: null,

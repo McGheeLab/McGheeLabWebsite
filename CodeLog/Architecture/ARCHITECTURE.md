@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.59 (Page consolidation Tier 3a — library-comments → library tab via `library.html?tab=comments`)
+**Version:** V3.60 (Page consolidation Tier 3b — paper-builder + paper-editor merge via `paper-builder.html?paper=<id>`)
 
 ## System Overview
 

@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.60] - 2026-05-05
+
+**Page consolidation Tier 3b — paper-builder + paper-editor merge.** The Papers list and the per-paper Yjs editor merge into a single page selected by the presence of `?paper=<id>` on `paper-builder.html`. Both DOM blocks coexist; CSS hides the inactive one; only the active mode's renderer scripts load. Plan doc: [CodeLog/ClaudesPlan/V3.60_page_consolidation_tier3b.md](../ClaudesPlan/V3.60_page_consolidation_tier3b.md).
+
+### Changed
+- **`rm/pages/paper-builder.html`** — rewritten as unified shell. Early head script reads `?paper=` and sets `window.__PAPER_MODE` (`'editor'` if present, `'list'` otherwise) + `<html data-paper-mode>`. Both DOM blocks (`.paper-list-mode` and `.paper-editor-mode`) are present; CSS rule `html[data-paper-mode="editor"] .paper-list-mode { display: none; }` (and inverse) hides the inactive block before first paint. KaTeX stylesheet is loaded eagerly (CSS only — no JS cost on the list mode). The trailing inline body script uses `document.write` to load the per-mode script set: list → `paper-builder.js`; editor → `paper-yjs.js` + `paper-blocks.js` + `paper-export-tex.js` + `paper-editor.js`. Common scripts (firebase, firebridge, `paper-schemas.js`) load eagerly for both modes.
+- **`rm/pages/paper-editor.html`** — replaced with a JS redirect that preserves the paper id query param across the URL change (`?id=<x>` → `?paper=<x>`). A simple `<meta refresh>` would have lost the param.
+- **`rm/js/paper-editor.js:23`** — paper-id reader updated to accept `?paper=` (new) or `?id=` (legacy bookmark survival): `_qp.get('paper') || _qp.get('id') || ''`.
+- **`rm/js/paper-builder.js:63,184`** — the list card link and the post-create navigation both now point at `paper-builder.html?paper=<id>` instead of the old `paper-editor.html?id=<id>`. Header doc-comment updated.
+- **`sw.js`** — `CACHE_VERSION` 34 → 35.
+
+### Notes
+- **No firestore.rules / functions changes.** Yjs draft storage at `papers/{paperId}/draft` and the comments subcollection are unchanged. Pure shell unification.
+- **Renderer scripts `paper-builder.js` (209 LOC) and `paper-editor.js` (2181 LOC) keep their existing structure** — each one's `DOMContentLoaded` boot still fires at the natural time and finds its expected DOM elements. With document.write loading only the active mode's scripts, only one renderer boots per page hit.
+- **Net page reduction:** 45 → 44 user-facing pages.
+
 ## [V3.59] - 2026-05-05
 
 **Page consolidation Tier 3a — library-comments → library tab.** Cross-paper Annotations feed merges into [rm/pages/library.html](../../rm/pages/library.html) as `?tab=comments`. Both DOM blocks now coexist on the page; CSS hides the inactive one; only the active tab's renderer scripts load via `document.write`. Plan doc: [CodeLog/ClaudesPlan/V3.59_page_consolidation_tier3a.md](../ClaudesPlan/V3.59_page_consolidation_tier3a.md).

@@ -7,9 +7,37 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <!-- KaTeX styles for inline math rendering. The JS module is lazy-loaded
+       by paper-editor.js when a paragraph blurs into render mode. Loaded
+       eagerly so editor mode renders without a flash even on slow networks
+       (this is a CSS link tag — no parse/exec cost on the list mode). -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
+  <script>
+    /* V3.60 — unified Papers shell. ?paper=<id> activates the editor
+     * for that paper; absence of the param shows the list view (the
+     * default). Replaces the V3.40-era split where paper-editor.html
+     * was a separate page reached from a list card. Both DOM blocks
+     * live side-by-side in this shell; CSS hides the inactive one,
+     * and only the active mode's renderer scripts are loaded. */
+    (function () {
+      var pid = new URLSearchParams(location.search).get('paper');
+      var mode = pid ? 'editor' : 'list';
+      window.__PAPER_MODE = mode;
+      window.__PAPER_ID = pid;
+      document.title = (mode === 'editor')
+        ? 'Paper Editor — McGhee Lab'
+        : 'Papers — McGhee Lab';
+      document.documentElement.dataset.paperMode = mode;
+    })();
+  </script>
+  <style>
+    html[data-paper-mode="editor"] .paper-list-mode { display: none; }
+    html[data-paper-mode="list"]   .paper-editor-mode { display: none; }
+  </style>
 </head>
 <body>
-  <div class="page">
+  <!-- ===== List mode ===== -->
+  <div class="page paper-list-mode">
     <div class="page-header">
       <h1 class="page-title">Papers</h1>
       <div>
@@ -20,8 +48,10 @@
     <div id="pb-list" class="pb-list"></div>
   </div>
 
-  <!-- New-paper modal -->
-  <div id="pb-modal" class="pb-modal" hidden>
+  <!-- New-paper modal (lives inside list mode but the parent .page block
+       hides via display:none, which also hides this modal — fine, the
+       modal only opens from the list mode's "+ New paper" button) -->
+  <div id="pb-modal" class="pb-modal paper-list-mode" hidden>
     <div class="pb-modal-card">
       <div class="pb-modal-header">
         <h2>New paper</h2>
@@ -60,6 +90,62 @@
     </div>
   </div>
 
+  <!-- ===== Editor mode ===== -->
+  <div class="pe-page paper-editor-mode">
+    <div class="pe-topbar">
+      <a class="pe-back" href="/rm/pages/paper-builder.html">← All papers</a>
+      <input type="text" class="pe-title-input" id="pe-title" placeholder="Untitled paper" disabled>
+      <div class="pe-savestate" id="pe-savestate"></div>
+    </div>
+    <div class="pe-readonly-banner" id="pe-readonly-banner" hidden></div>
+    <div class="pe-layout">
+      <aside class="pe-sidebar">
+        <div class="pe-sidebar-title">Outline</div>
+        <ul class="pe-sidebar-list" id="pe-outline"></ul>
+        <div class="pe-sidebar-actions">
+          <button class="btn pe-add-section" id="pe-add-section-btn" disabled>+ Add section</button>
+        </div>
+      </aside>
+      <main class="pe-main" id="pe-main">
+        <div class="pe-main-inner" id="pe-main-inner">
+          <div class="pe-viewfilter-bar">
+            <span>View:</span>
+            <select id="pe-view-filter">
+              <option value="mixed">Mixed (per-block toggle)</option>
+              <option value="skeleton">All skeletons</option>
+              <option value="body">All bodies</option>
+            </select>
+            <span style="margin-left: 16px;">Status:</span>
+            <select id="pe-status-filter">
+              <option value="all">All blocks</option>
+              <option value="draft">Drafts only</option>
+              <option value="needs-review">Needs review only</option>
+              <option value="complete">Complete only</option>
+              <option value="not-complete">Anything not complete</option>
+            </select>
+          </div>
+          <div id="pe-content"></div>
+        </div>
+      </main>
+      <aside class="pe-comments-pane" id="pe-comments-pane" hidden>
+        <div class="pe-comments-header">
+          <span class="pe-comments-title">Comments</span>
+          <button class="pe-icon-btn" id="pe-comments-close" aria-label="Close">×</button>
+        </div>
+        <div class="pe-comments-context" id="pe-comments-context"></div>
+        <div class="pe-comments-list" id="pe-comments-list"></div>
+        <div class="pe-comments-composer">
+          <textarea id="pe-comments-input" rows="3" placeholder="Write a comment&hellip;"></textarea>
+          <button class="btn btn-primary" id="pe-comments-submit">Post</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Add-section popup template (rendered dynamically by paper-editor.js) -->
+  <datalist id="pe-section-kinds-list" class="paper-editor-mode"></datalist>
+
+  <!-- Shared scripts (used by both modes) -->
   <script src="/rm/js/util.js"></script>
   <script src="/rm/js/nav.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
@@ -74,6 +160,23 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/paper-schemas.js"></script>
-  <script src="/rm/js/paper-builder.js"></script>
+
+  <!-- Per-mode scripts via document.write (same V3.58/V3.59 pattern) -->
+  <script>
+    (function () {
+      var mode = window.__PAPER_MODE;
+      var listScripts = ['/rm/js/paper-builder.js'];
+      var editorScripts = [
+        '/rm/js/paper-yjs.js',
+        '/rm/js/paper-blocks.js',
+        '/rm/js/paper-export-tex.js',
+        '/rm/js/paper-editor.js'
+      ];
+      var srcs = (mode === 'editor') ? editorScripts : listScripts;
+      srcs.forEach(function (s) {
+        document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');
+      });
+    })();
+  </script>
 </body>
 </html>

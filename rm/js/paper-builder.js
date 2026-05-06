@@ -1,7 +1,7 @@
 /* paper-builder.js — list of lab papers + "new paper" creation flow.
  *
  * Reads `data/projects/papers.json` for paper metadata. Phase A: each paper
- * card links into `paper-editor.html?id=…`. The editor stores the document
+ * card links into `paper-builder.html?paper=…` (V3.60+; previously paper-editor.html?id=…). The editor stores the document
  * tree in Firestore at `papers/{paperId}/draft`; this list page does NOT touch
  * Firestore — it's safe to view papers when offline or signed out.
  *
@@ -60,7 +60,7 @@
   function renderCard(p) {
     var card = document.createElement('a');
     card.className = 'pb-card';
-    card.href = '/rm/pages/paper-editor.html?id=' + encodeURIComponent(p.id);
+    card.href = '/rm/pages/paper-builder.html?paper=' + encodeURIComponent(p.id);
 
     var coauthorCount = (p.coauthor_uids || []).length + (p.coauthor_emails || []).length;
     var statusHTML = typeof statusChip === 'function' ? statusChip(p.status) : '<span class="chip">' + (p.status || '') + '</span>';
@@ -181,7 +181,7 @@
       arr.push(newRow);
       await api.save('projects/papers.json', { papers: arr });
       // Navigate straight into the editor.
-      window.location.href = '/rm/pages/paper-editor.html?id=' + encodeURIComponent(id);
+      window.location.href = '/rm/pages/paper-builder.html?paper=' + encodeURIComponent(id);
     } catch (err) {
       modalError.textContent = 'Failed to create: ' + err.message;
       modalError.hidden = false;
