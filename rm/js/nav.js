@@ -337,36 +337,238 @@ async function renderWorkflowStrip(state) {
       a.classList.add('active');
     }
     pagesEl.appendChild(a);
+
+    // V3.65 — × button removes the page from the workflow.
+    const rm = document.createElement('button');
+    rm.className = 'ws-page-remove';
+    rm.type = 'button';
+    rm.textContent = '×';
+    rm.title = 'Remove ' + p.label + ' from this workflow';
+    rm.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      _wfRemovePage(id);
+      _wfRefreshStrip();
+    });
+    a.appendChild(rm);
   });
   if (!renderedAny) {
     pagesEl.innerHTML = '<span class="ws-page" style="opacity:.5">No accessible pages in this workflow</span>';
   }
 
-  // V3.65 placeholders — Add page + Save as custom buttons. Disabled
-  // with a tooltip until PR 3 wires them up. We render them now so the
-  // strip's right-hand cluster has its final shape.
+  // V3.65 — + Add page button. Opens picker modal of accessible pages
+  // not already in the workflow.
   const addBtn = document.createElement('button');
   addBtn.className = 'ws-btn';
   addBtn.type = 'button';
   addBtn.textContent = '+ Add page';
-  addBtn.title = 'Add a page to this workflow (coming in V3.65)';
-  addBtn.disabled = true;
-  addBtn.style.opacity = '.55';
-  addBtn.style.cursor = 'not-allowed';
+  addBtn.title = 'Add a page to this workflow';
+  addBtn.addEventListener('click', () => _wfOpenAddPageModal(state, wf));
   actionsEl.insertBefore(addBtn, splitLink);
 
-  if (state.kind === 'default'
-      && (state.addedPageIds.length || state.removedPageIds.length)) {
+  // V3.65 — Save as custom (default workflows) / Save changes (custom).
+  const dirty = (state.addedPageIds.length || state.removedPageIds.length);
+  if (dirty || state.kind === 'custom') {
     const saveBtn = document.createElement('button');
     saveBtn.className = 'ws-btn ws-btn-primary';
     saveBtn.type = 'button';
-    saveBtn.textContent = 'Save as custom';
-    saveBtn.title = 'Save this modified workflow under your account (coming in V3.65)';
-    saveBtn.disabled = true;
-    saveBtn.style.opacity = '.7';
-    saveBtn.style.cursor = 'not-allowed';
+    saveBtn.textContent = state.kind === 'default' ? 'Save as custom' : 'Save changes';
+    saveBtn.title = state.kind === 'default'
+      ? 'Save this modified workflow under your account'
+      : 'Persist edits to this custom workflow';
+    saveBtn.addEventListener('click', () => _wfSaveCurrent(state, wf));
     actionsEl.insertBefore(saveBtn, splitLink);
   }
+}
+
+/* ── V3.65 strip mutations ── */
+
+function _wfWriteState(state) {
+  if (!state) sessionStorage.removeItem(_WF_STORAGE_KEY);
+  else sessionStorage.setItem(_WF_STORAGE_KEY, JSON.stringify(state));
+}
+
+function _wfRemovePage(pageId) {
+  const s = _wfReadState();
+  if (!s) return;
+  if (s.addedPageIds.indexOf(pageId) >= 0) {
+    s.addedPageIds = s.addedPageIds.filter(x => x !== pageId);
+  } else if (s.removedPageIds.indexOf(pageId) < 0) {
+    s.removedPageIds.push(pageId);
+  }
+  _wfWriteState(s);
+}
+
+function _wfAddPage(pageId) {
+  const s = _wfReadState();
+  if (!s) return;
+  if (s.removedPageIds.indexOf(pageId) >= 0) {
+    s.removedPageIds = s.removedPageIds.filter(x => x !== pageId);
+  } else if (s.addedPageIds.indexOf(pageId) < 0) {
+    s.addedPageIds.push(pageId);
+  }
+  _wfWriteState(s);
+}
+
+/* Re-render the strip in place — used after add/remove without
+ * navigating. Removes the existing strip and renders a fresh one. */
+function _wfRefreshStrip() {
+  const existing = document.querySelector('.workflow-strip');
+  if (existing) existing.remove();
+  const state = _wfReadState();
+  if (state) renderWorkflowStrip(state);
+}
+
+function _wfOpenAddPageModal(state, wf) {
+  const pageMap = _wfBuildPageMap();
+  const effective = new Set(_wfEffectivePageIds(wf && wf.pageIds || [], state));
+  const isAdmin = (typeof firebridge !== 'undefined') && firebridge.isAdmin && firebridge.isAdmin();
+  const canAccess = (id) => {
+    if (isAdmin) return true;
+    if (typeof firebridge !== 'undefined' && firebridge.canAccessPage) {
+      return firebridge.canAccessPage(id);
+    }
+    return true;
+  };
+  const candidates = [];
+  pageMap.forEach((p, id) => {
+    if (effective.has(id)) return;     // already in workflow
+    if (!canAccess(id)) return;
+    candidates.push(p);
+  });
+  candidates.sort((a, b) => (a.group || '').localeCompare(b.group || '')
+                          || (a.label || '').localeCompare(b.label || ''));
+
+  const back = document.createElement('div');
+  back.className = 'ws-modal-back';
+  back.addEventListener('click', (e) => { if (e.target === back) back.remove(); });
+  const modal = document.createElement('div');
+  modal.className = 'ws-modal';
+  modal.innerHTML =
+    '<h3>Add a page to ' + (wf && wf.label || 'this workflow') + '</h3>' +
+    '<div class="ws-modal-sub">Pages you can access that aren\'t already in this workflow.</div>' +
+    '<input type="text" class="ws-modal-search" placeholder="Filter…">' +
+    '<div class="ws-modal-list"></div>' +
+    '<div class="ws-modal-actions">' +
+    '  <button class="btn" id="ws-modal-cancel">Close</button>' +
+    '</div>';
+  back.appendChild(modal);
+  document.body.appendChild(back);
+  modal.querySelector('#ws-modal-cancel').addEventListener('click', () => back.remove());
+
+  const list = modal.querySelector('.ws-modal-list');
+  if (!candidates.length) {
+    list.innerHTML = '<div class="ws-modal-empty">No more accessible pages to add.</div>';
+  } else {
+    candidates.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'ws-modal-row';
+      row.innerHTML = '<div class="group">' + (p.group || '') + '</div>'
+                    + '<div class="label">' + p.label + '</div>';
+      row.addEventListener('click', () => {
+        _wfAddPage(p.id);
+        back.remove();
+        _wfRefreshStrip();
+      });
+      list.appendChild(row);
+    });
+  }
+  // Search filter
+  modal.querySelector('.ws-modal-search').addEventListener('input', (e) => {
+    const q = (e.target.value || '').trim().toLowerCase();
+    list.querySelectorAll('.ws-modal-row').forEach(r => {
+      const text = r.textContent.toLowerCase();
+      r.style.display = (!q || text.indexOf(q) >= 0) ? '' : 'none';
+    });
+  });
+  modal.querySelector('.ws-modal-search').focus();
+}
+
+/* Save current strip state as a custom workflow (kind=default + dirty)
+ * or persist edits back to the custom doc (kind=custom). */
+function _wfSaveCurrent(state, wf) {
+  if (typeof firebridge === 'undefined' || !firebridge.db) {
+    alert('Firebase not ready.');
+    return;
+  }
+  const u = firebridge.getUser && firebridge.getUser();
+  if (!u) { alert('Sign in to save workflows.'); return; }
+  const effective = _wfEffectivePageIds(wf && wf.pageIds || [], state);
+  if (state.kind === 'custom') {
+    // Direct save back to existing custom doc.
+    firebridge.db()
+      .collection('userData').doc(u.uid)
+      .collection('customWorkflows').doc(state.id)
+      .set({ pageIds: effective, updatedAt: new Date() }, { merge: true })
+      .then(() => {
+        // Reset dirty edits — pageIds are now the persisted list.
+        const s = _wfReadState();
+        if (s) {
+          s.addedPageIds = []; s.removedPageIds = [];
+          _wfWriteState(s);
+        }
+        _wfRefreshStrip();
+        if (window.toast) toast.show('Workflow saved.', 'ok');
+      })
+      .catch(err => { alert('Save failed: ' + err.message); });
+    return;
+  }
+  // kind === 'default' — open name modal, save as new custom doc.
+  _wfOpenSaveAsModal(state, wf, effective);
+}
+
+function _wfOpenSaveAsModal(state, wf, effectivePageIds) {
+  const back = document.createElement('div');
+  back.className = 'ws-modal-back';
+  back.addEventListener('click', (e) => { if (e.target === back) back.remove(); });
+  const modal = document.createElement('div');
+  modal.className = 'ws-modal';
+  const suggested = (wf && wf.label ? wf.label + ' (mine)' : 'My workflow');
+  modal.innerHTML =
+    '<h3>Save as custom workflow</h3>' +
+    '<div class="ws-modal-sub">Stored under your account at <code>userData/{your-uid}/customWorkflows</code>. Only you can see and edit it.</div>' +
+    '<label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Name</label>' +
+    '<input type="text" id="ws-save-name" class="ws-modal-search" value="' + suggested.replace(/"/g, '&quot;') + '">' +
+    '<div class="ws-modal-actions">' +
+    '  <button class="btn" id="ws-save-cancel">Cancel</button>' +
+    '  <button class="btn btn-primary" id="ws-save-confirm">Save</button>' +
+    '</div>';
+  back.appendChild(modal);
+  document.body.appendChild(back);
+  const nameInput = modal.querySelector('#ws-save-name');
+  nameInput.focus();
+  nameInput.select();
+  modal.querySelector('#ws-save-cancel').addEventListener('click', () => back.remove());
+  modal.querySelector('#ws-save-confirm').addEventListener('click', async () => {
+    const name = (nameInput.value || '').trim();
+    if (!name) { nameInput.focus(); return; }
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (!slug) { alert('Name must include letters or numbers.'); return; }
+    const u = firebridge.getUser && firebridge.getUser();
+    if (!u) return;
+    const docRef = firebridge.db()
+      .collection('userData').doc(u.uid)
+      .collection('customWorkflows').doc(slug);
+    try {
+      await docRef.set({
+        id: slug,
+        label: name,
+        description: 'Custom — based on ' + (wf && wf.label || state.id),
+        icon: '⭐',
+        pageIds: effectivePageIds,
+        basedOn: state.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }, { merge: false });
+      // Switch active state to the new custom workflow.
+      _wfWriteState({ id: slug, kind: 'custom', addedPageIds: [], removedPageIds: [] });
+      back.remove();
+      _wfRefreshStrip();
+      if (window.toast) toast.show('Saved as "' + name + '".', 'ok');
+    } catch (err) {
+      alert('Save failed: ' + err.message);
+    }
+  });
 }
 
 function renderNav() {

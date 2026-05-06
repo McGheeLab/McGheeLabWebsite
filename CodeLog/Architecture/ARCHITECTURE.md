@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.64 (Workflow-driven UX redesign · PR 2 — workflow chooser at `rm/index.html` + workflow-aware nav strip in `nav.js`. Old stats dashboard preserved at `rm/pages/lab-overview.html`. Custom workflows + builder land in V3.65.)
+**Version:** V3.65 (Workflow-driven UX redesign · PR 3 — custom workflows + builder. Closes the V3.63–V3.65 workflow redesign: admin matrix at `userPermissions/{uid}`, default workflows at `labConfig/defaultWorkflows`, per-user custom workflows at `userData/{uid}/customWorkflows`, workflow strip with + Add page / × remove / Save as custom on every RM page.)
 
 ## System Overview
 

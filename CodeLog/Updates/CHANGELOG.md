@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.65] - 2026-05-06
+
+**Workflow-driven UX redesign · PR 3 — custom workflows + builder.** Wires up the V3.64 placeholder buttons in the workflow strip and adds the My Workflows section + builder UI on the chooser. Closes the three-PR workflow redesign initiative. Plan doc: [CodeLog/ClaudesPlan/V3.65_workflow_custom.md](../ClaudesPlan/V3.65_workflow_custom.md).
+
+### Workflow strip becomes interactive
+- **Page chip × button** (each chip on the strip now has a small × on hover-reachable affordance) → marks the page as `removedPageIds` in sessionStorage; strip re-renders without the chip. Removing a previously-added page un-adds instead of negative-removing.
+- **+ Add page** — opens a modal listing accessible pages NOT already in the workflow, grouped by section, with a search filter. Click a row → adds page to sessionStorage's `addedPageIds` (un-removes if previously removed); strip re-renders.
+- **Save as custom** (visible when `addedPageIds.length || removedPageIds.length` for a default workflow) — opens a name modal with `<workflow label> (mine)` pre-filled. Slugifies the name to a kebab-case id; writes a new doc at `userData/{uid}/customWorkflows/{slug}` with `{ id, label, description, icon: '⭐', pageIds, basedOn, createdAt, updatedAt }`. After save, switches the active state to the new custom id (kind='custom') so the strip continues to operate on the saved workflow.
+- **Save changes** (visible on custom workflows when dirty) — direct save back to the custom doc; clears `addedPageIds`/`removedPageIds`.
+
+### Workflow chooser ships the My Workflows section
+- **My workflows** section on `rm/index.html` lists `userData/{uid}/customWorkflows/*`. Each card has Rename + Delete buttons (header-row affordances; click body to enter the workflow).
+- **+ New custom workflow** card opens the builder modal: name input + multi-select page picker (grouped, with filter). Pages filtered by `firebridge.canAccessPage`. Picking ≥1 page + a name → creates the doc and re-renders the chooser.
+- **Rename**: simple `prompt()` for now; updates the doc's `label`. Slug stays the same.
+- **Delete**: confirm dialog → `db().delete()` → re-render.
+
+### Files
+- **Changed:** [rm/js/nav.js](../../rm/js/nav.js) — added `_wfWriteState`, `_wfRemovePage`, `_wfAddPage`, `_wfRefreshStrip`, `_wfOpenAddPageModal`, `_wfSaveCurrent`, `_wfOpenSaveAsModal`. The strip's "+ Add page", chip × buttons, and "Save as custom" / "Save changes" buttons are now functional. ~210 LOC of new strip-mutation code.
+- **Changed:** [rm/js/workflow-chooser.js](../../rm/js/workflow-chooser.js) — `renderCustomCard()`, `renderNewCustomCard()`, `openBuilder()`, `renameCustom()`, `deleteCustom()`. The chooser now renders both default + custom workflow grids and surfaces the builder.
+- **Changed:** [rm/css/workflow.css](../../rm/css/workflow.css) — `.wf-card-actions`, `.wf-custom-card` (left-border accent), `.wf-new-card` (dashed border, primary-tinted icon).
+- **`sw.js`** — `CACHE_VERSION` 39 → 40.
+
+### Notes
+- **No firestore.rules changes.** `userData/{uid}/customWorkflows/*` reads/writes are covered by the existing `userData/{uid}/{document=**}` owner-only rule (firestore.rules:735). No new functions deploy.
+- **Renaming is via `prompt()`** — quick path. A nicer modal could ship in V3.66 if needed.
+- **Builder picks pages preserving insertion order** (Set is insertion-ordered in JS) so the workflow strip displays them in the order the user picked.
+
+### Cumulative across V3.63–V3.65
+- New Firestore paths: `labConfig/defaultWorkflows`, `userPermissions/{uid}`, `userData/{uid}/customWorkflows/*`.
+- New rules block: `userPermissions/{userId}` (admin-write, owner+admin read).
+- New helpers: `firebridge.canAccessPage`, `firebridge.loadAccessGrant`.
+- New pages: `rm/pages/admin-permissions.html` (admin matrix), `rm/pages/lab-overview.html` (preserved V3.62 stats).
+- Front page rewritten: `rm/index.html` is now the workflow chooser; the V3.62 stats grid moved to `lab-overview.html`.
+- `rm/js/nav.js`: 230 → ~640 LOC. Workflow-strip fork inlined so every page that loads nav.js gets the strip.
+- 5 default workflows seeded; users can create unlimited custom workflows under their account.
+
 ## [V3.64] - 2026-05-06
 
 **Workflow-driven UX redesign · PR 2 — workflow chooser + workflow-aware nav strip.** Building on V3.63's foundation, the front page becomes a workflow chooser and every RM page learns to render a focused page strip when a workflow is active. The six-group dropdown nav stays as the "no active workflow" default. Plan doc: [CodeLog/ClaudesPlan/V3.64_workflow_shell.md](../ClaudesPlan/V3.64_workflow_shell.md).

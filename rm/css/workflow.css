@@ -62,6 +62,27 @@
 .wf-chip-more {
   background: transparent; color: var(--text-muted, #6b7280);
 }
+.wf-card-actions {
+  display: flex; gap: 4px; align-items: flex-start;
+  flex-shrink: 0;
+}
+.wf-card-actions .btn-sm {
+  font-size: 11px; padding: 3px 8px;
+}
+.wf-custom-card {
+  border-left: 3px solid var(--primary, #2563eb);
+}
+.wf-new-card {
+  border-style: dashed; cursor: pointer;
+  background: var(--bg, #f8fafc);
+}
+.wf-new-card:hover {
+  background: var(--surface, #fff);
+  border-style: solid;
+}
+.wf-new-card .wf-icon {
+  background: var(--primary, #2563eb); color: #fff;
+}
 
 /* ── Workflow strip (replaces top-nav while a workflow is active) ── */
 .workflow-strip {
