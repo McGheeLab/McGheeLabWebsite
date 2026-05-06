@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.63 (Workflow-driven UX redesign · PR 1 — foundation: page registry from `NAV_ITEMS`, `userPermissions/{uid}` admin matrix, default-workflow Firestore doc, `firebridge.canAccessPage`. Admin-only changes; non-admin users see no UX delta yet.)
+**Version:** V3.64 (Workflow-driven UX redesign · PR 2 — workflow chooser at `rm/index.html` + workflow-aware nav strip in `nav.js`. Old stats dashboard preserved at `rm/pages/lab-overview.html`. Custom workflows + builder land in V3.65.)
 
 ## System Overview
 

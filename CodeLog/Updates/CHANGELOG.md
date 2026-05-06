@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.64] - 2026-05-06
+
+**Workflow-driven UX redesign · PR 2 — workflow chooser + workflow-aware nav strip.** Building on V3.63's foundation, the front page becomes a workflow chooser and every RM page learns to render a focused page strip when a workflow is active. The six-group dropdown nav stays as the "no active workflow" default. Plan doc: [CodeLog/ClaudesPlan/V3.64_workflow_shell.md](../ClaudesPlan/V3.64_workflow_shell.md).
+
+### Added
+- **`rm/index.html`** rewrite — **workflow chooser** replaces the V3.62 14-card stats grid. Top-right "Lab Overview Stats →" link preserves the cards at a new home.
+- **`rm/pages/lab-overview.html`** — new home for the V3.62 dashboard cards (renderer `dashboard.js` unchanged). Reachable from the workflow chooser top-right link.
+- **`rm/js/workflow-chooser.js`** (~140 LOC) — renders the workflow chooser UI: grid of cards, one per workflow. Each card shows icon, label, page count, description, and the first 6 page chips. Click → `WorkflowState.setActive()` + navigate to first accessible page (with `?workflow=<id>` query so the workflow context is bookmarkable on entry). Workflows with zero accessible pages are filtered out (per V3.63 access rules). Renders an empty "My workflows" hook for V3.65 custom workflows.
+- **`rm/js/workflow-state.js`** (~210 LOC) — sessionStorage helpers. `read()`, `write()`, `clear()`, `adoptFromUrl()` (one-time URL → state migration with history.replaceState scrub), `effectivePageIds()`, `isDirty()`, `addPage()`, `removePage()`, `loadActive()`, `loadDefaultWorkflows()`, `loadCustomWorkflows()`, `setActive()`, `decorateHref()`. Exported as `window.WorkflowState`. Used by the chooser (and the V3.65 builder) — NOT loaded on every RM page (see nav.js note).
+- **`rm/css/workflow.css`** (~140 LOC) — shared styles for chooser cards (`.wf-*`) and the workflow strip (`.workflow-strip`, `.ws-*`) plus the V3.65 add-page modal (`.ws-modal-*`). Loaded eagerly on rm/index.html; injected dynamically by nav.js whenever the strip renders so other pages don't pay the cost when no workflow is active.
+
+### Changed
+- **`rm/js/nav.js`** — workflow-strip fork. `renderNav()` now reads sessionStorage early via inlined helpers (`_wfReadState`, `_wfAdoptFromUrl`, `_wfPageIdFromHref`, `_wfBuildPageMap`, `_wfFetchWorkflow`, `_wfEffectivePageIds`, `_wfDecorateHref`) and renders `renderWorkflowStrip()` instead of the six-group nav whenever a workflow is active. The strip awaits `firebridge.whenAuthResolved()` + `firebridge.loadAccessGrant()` so `canAccessPage` filters correctly before chips render. The strip's read logic is kept inline in nav.js (rather than depending on `workflow-state.js` + `page-registry.js`) so every RM page that loads nav.js gets the strip without per-page script changes. Strip rendering: brand link → chooser, page chips (active highlight on current path), `+ Add page` (disabled with V3.65 placeholder tooltip), `⊟ Split` (decorated with `?workflow=`), `Save as custom` (only when dirty; V3.65 placeholder), `× Leave workflow` (clears state + reloads).
+- **`sw.js`** — `CACHE_VERSION` 38 → 39.
+
+### Notes
+- **No firestore.rules / functions changes.** Pure frontend. The workflow strip's Firestore reads (`labConfig/defaultWorkflows`, `userData/{uid}/customWorkflows/{id}`) are gated by V3.63's existing rules.
+- **`rm/index.html` is now a workflow chooser, not a stats dashboard.** Anyone landing on `/rm/` sees the workflow grid. The 14-card summary view is preserved at `/rm/pages/lab-overview.html` and reachable from the chooser's top-right link.
+- **Nav behavior on every page**: when sessionStorage has an active workflow, the workflow strip renders instead of the six-group dropdown nav. The strip is generic — works on every existing RM page without per-page changes. `× Leave workflow` clears sessionStorage + reloads → six-group nav returns. nav.js workflow logic is read-only; mutations (setActive / addPage / save-as-custom) happen on the chooser + (V3.65) builder pages.
+- **`?workflow=<id>` URL param** is recognized as a one-time entry signal — adopted into sessionStorage, then stripped from the URL via `history.replaceState`. This means external bookmarks like `…/library.html?workflow=paper-writing` enter the workflow context cleanly.
+- **`+ Add page` and `Save as custom`** buttons are present in the strip but disabled with tooltip placeholders. V3.65 wires them up.
+- **Net page count:** 39 → 40 (lab-overview.html added).
+
 ## [V3.63] - 2026-05-06
 
 **Workflow-driven UX redesign · PR 1 — foundation.** Sets up the Firestore data model + admin tooling for the new workflow feature without changing what any non-admin user sees yet. PRs 2 (V3.64) and 3 (V3.65) layer on the workflow chooser dashboard, the workflow-aware nav strip, and per-user custom workflows. Plan doc: [CodeLog/ClaudesPlan/V3.63_workflow_foundation.md](../ClaudesPlan/V3.63_workflow_foundation.md).
