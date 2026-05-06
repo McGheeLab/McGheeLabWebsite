@@ -120,6 +120,26 @@
 .workflow-strip .ws-page.active {
   background: #fff; color: #1e3a8a; font-weight: 600;
 }
+/* V3.66 — drag-to-reorder visual states */
+.workflow-strip .ws-page[draggable="true"] { cursor: grab; }
+.workflow-strip .ws-page[draggable="true"]:active { cursor: grabbing; }
+.workflow-strip .ws-page-dragging { opacity: .4; }
+.workflow-strip .ws-page-drop-before {
+  box-shadow: -3px 0 0 0 #fbbf24 inset;
+}
+.workflow-strip .ws-page-drop-after {
+  box-shadow: 3px 0 0 0 #fbbf24 inset;
+}
+
+/* V3.66 — pinned "My Workflows" dropdown in the regular nav */
+.nav-dropdown-pinned > .nav-dropdown-trigger {
+  font-weight: 500;
+}
+.nav-dropdown-pinned .dropdown-divider {
+  height: 1px;
+  background: var(--border, #e5e7eb);
+  margin: 4px 8px;
+}
 .workflow-strip .ws-page-remove {
   margin-left: 2px; padding: 0 4px;
   background: none; border: none;

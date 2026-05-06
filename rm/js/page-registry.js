@@ -89,13 +89,19 @@
   /* Five default workflows seeded at first run. The admin permissions matrix
    * can edit `labConfig/defaultWorkflows` to override these — but the seeds
    * here are the source of truth when Firestore is empty (first load) and
-   * the source for the one-time seed migration tool. */
+   * the source for the one-time seed migration tool.
+   *
+   * `landingPageId` (V3.66) is the page that loads when a user clicks the
+   * workflow card in the chooser or selects it from the pinned-nav dropdown.
+   * Falls back to the first accessible pageId if landingPageId is unset or
+   * not accessible to the user. */
   var DEFAULT_WORKFLOWS = [
     {
       id: 'lab-research',
       label: 'Lab Research',
       description: 'Daily research workflow — track activity, browse the library, manage projects, and capture tasks.',
       icon: '🔬',
+      landingPageId: 'activity-overview__tab__tracker',
       pageIds: [
         'activity-overview__tab__tracker',
         'library',
@@ -112,6 +118,7 @@
       label: 'Paper Writing',
       description: 'Compose papers with the editor, pull annotations from the library, track tasks and PMRs, coordinate via chat.',
       icon: '📝',
+      landingPageId: 'paper-builder',
       pageIds: [
         'paper-builder',
         'library',
@@ -127,6 +134,7 @@
       label: 'Certification & Training',
       description: 'Compliance protocols, chemical safety, training records, and tenure-track milestones.',
       icon: '🎓',
+      landingPageId: 'compliance',
       pageIds: [
         'compliance',
         'chemicals',
@@ -139,6 +147,7 @@
       label: 'Task Scheduling & Activity Reports',
       description: 'Plan tasks, track activity (tracker / year / email), schedule meetings, share assignments, file PMRs.',
       icon: '📊',
+      landingPageId: 'tasks',
       pageIds: [
         'tasks',
         'activity-overview',
@@ -155,6 +164,7 @@
       label: 'Meetings',
       description: 'Run lab meetings, huddles, and 1:1s with chat, calendar, and task capture wired up.',
       icon: '🗣️',
+      landingPageId: 'meetings',
       pageIds: [
         'meetings',
         'huddle',

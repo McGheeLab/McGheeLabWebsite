@@ -229,7 +229,7 @@
   /** Set the active workflow (called by the chooser when the user clicks
    * a card). Resets dirty edits. */
   function setActive(id, kind) {
-    write({ id: id, kind: kind || 'default', addedPageIds: [], removedPageIds: [] });
+    write({ id: id, kind: kind || 'default', addedPageIds: [], removedPageIds: [], orderOverride: null });
   }
 
   /** Add `?workflow=<id>` to a URL while preserving its query + hash.

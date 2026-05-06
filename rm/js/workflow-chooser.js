@@ -44,6 +44,18 @@
     return accessiblePages;
   }
 
+  /* V3.66 — pick the landing page for a workflow.
+   * Prefer wf.landingPageId if set + accessible; else first accessible
+   * page in pageIds order. Returns the page entry from PAGE_REGISTRY. */
+  function pickLandingPage(wf, accessiblePages) {
+    var REG = window.PAGE_REGISTRY || { byId: new Map() };
+    if (wf.landingPageId) {
+      var lp = REG.byId.get(wf.landingPageId);
+      if (lp && firebridge.canAccessPage(lp.id)) return lp;
+    }
+    return (accessiblePages && accessiblePages[0]) || null;
+  }
+
   function renderDefaultCard(wf) {
     var accessiblePages = pageChips(wf);
     if (!accessiblePages.length) return null;
@@ -74,8 +86,9 @@
     card.addEventListener('click', function (e) {
       e.preventDefault();
       WorkflowState.setActive(wf.id, 'default');
-      var first = accessiblePages[0];
-      location.href = WorkflowState.decorateHref(first.href, wf.id);
+      var landing = pickLandingPage(wf, accessiblePages);
+      if (!landing) return;
+      location.href = WorkflowState.decorateHref(landing.href, wf.id);
     });
     return card;
   }
@@ -114,8 +127,9 @@
       if (e.target.closest('[data-action]')) return;
       if (!accessiblePages.length) return;
       WorkflowState.setActive(wf.id, 'custom');
-      var first = accessiblePages[0];
-      location.href = WorkflowState.decorateHref(first.href, wf.id);
+      var landing = pickLandingPage(wf, accessiblePages);
+      if (!landing) return;
+      location.href = WorkflowState.decorateHref(landing.href, wf.id);
     });
     card.querySelector('[data-action="rename"]').addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation();
@@ -209,6 +223,8 @@
       '<input type="text" id="wf-build-search" class="ws-modal-search" placeholder="Filter pages…">' +
       '<div class="ws-modal-list" id="wf-build-list"></div>' +
       '<div class="ws-modal-sub" style="margin-top:6px;font-size:11px;"><span id="wf-build-count">0</span> selected</div>' +
+      '<label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin:10px 0 4px 0;">Landing page <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#9ca3af;">(opens when you click into the workflow)</span></label>' +
+      '<select id="wf-build-landing" class="ws-modal-search"><option value="">First selected page</option></select>' +
       '<div class="ws-modal-actions">' +
       '  <button class="btn" id="wf-build-cancel">Cancel</button>' +
       '  <button class="btn btn-primary" id="wf-build-save">Create</button>' +
@@ -217,6 +233,25 @@
     document.body.appendChild(back);
 
     var list = modal.querySelector('#wf-build-list');
+    var landingSel = modal.querySelector('#wf-build-landing');
+    var pageById = {};
+    pages.forEach(function (p) { pageById[p.id] = p; });
+    function refreshLandingOptions() {
+      var current = landingSel.value;
+      // Empty option = "first selected"
+      landingSel.innerHTML = '<option value="">First selected page</option>';
+      var arr = Array.from(picked);
+      arr.forEach(function (id) {
+        var p = pageById[id];
+        if (!p) return;
+        var opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = p.group + ' · ' + p.label;
+        landingSel.appendChild(opt);
+      });
+      // Preserve previous selection when possible.
+      if (current && picked.has(current)) landingSel.value = current;
+    }
     pages.forEach(function (p) {
       var row = document.createElement('label');
       row.className = 'ws-modal-row';
@@ -228,6 +263,7 @@
       cb.addEventListener('change', function () {
         if (cb.checked) picked.add(p.id); else picked.delete(p.id);
         modal.querySelector('#wf-build-count').textContent = String(picked.size);
+        refreshLandingOptions();
       });
       list.appendChild(row);
     });
@@ -249,6 +285,7 @@
       if (!u) return;
       // Preserve picking order (set is insertion-ordered).
       var pageIds = Array.from(picked);
+      var landingPageId = landingSel.value || '';  // '' falls back to first
       try {
         await firebridge.db()
           .collection('userData').doc(u.uid)
@@ -257,6 +294,7 @@
             id: slug, label: name, icon: '⭐',
             description: '',
             pageIds: pageIds,
+            landingPageId: landingPageId,
             createdAt: new Date(), updatedAt: new Date(),
           });
         if (window.toast) toast.show('Created "' + name + '".', 'ok');

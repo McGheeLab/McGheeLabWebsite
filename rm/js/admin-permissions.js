@@ -219,8 +219,18 @@
       tr.dataset.workflowId = wf.id;
       var th = document.createElement('th');
       th.scope = 'row';
+      // V3.66 — per-workflow landing page picker. Dropdown shows pages
+      // currently checked for this workflow; admin selects one as the
+      // entry point that loads when a user clicks the workflow card.
+      var landingId = wf.landingPageId || '';
       th.innerHTML = '<div>' + (wf.icon ? escHtml(wf.icon) + ' ' : '') + escHtml(wf.label) + '</div>'
-                   + '<div class="row-label-sub">' + escHtml(wf.id) + '</div>';
+                   + '<div class="row-label-sub">' + escHtml(wf.id) + '</div>'
+                   + '<div class="row-label-sub" style="margin-top:4px;">'
+                   + '<label style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px;">Landing</label>'
+                   + '<select class="perm-landing-select" data-workflow-id="' + escHtml(wf.id) + '" style="font-size:11px;padding:2px 4px;max-width:160px;">'
+                   + '<option value="">First page</option>'
+                   + '</select>'
+                   + '</div>';
       tr.appendChild(th);
       var pageSet = new Set(wf.pageIds || []);
       var lastGroup = null;
@@ -238,7 +248,35 @@
         td.appendChild(cb);
         tr.appendChild(td);
       });
+      // Populate landing-page select with the workflow's currently-checked
+      // pages. Also wired to onWorkflowLandingChange.
+      var sel = th.querySelector('.perm-landing-select');
+      refreshLandingSelect(sel, wf);
+      sel.value = landingId;
+      sel.addEventListener('change', onWorkflowLandingChange);
     });
+  }
+
+  /* Rebuild the option list of a workflow's landing select to reflect
+   * its current pageIds. Called on initial render and after any cell
+   * toggle that changes the workflow's page set. */
+  function refreshLandingSelect(sel, wf) {
+    var current = sel.value;
+    sel.innerHTML = '<option value="">First page</option>';
+    (wf.pageIds || []).forEach(function (id) {
+      var p = (window.PAGE_REGISTRY && window.PAGE_REGISTRY.byId.get(id));
+      if (!p) return;
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = p.group + ' · ' + p.label;
+      sel.appendChild(opt);
+    });
+    if (current && (wf.pageIds || []).indexOf(current) >= 0) sel.value = current;
+    else if (wf.landingPageId && (wf.pageIds || []).indexOf(wf.landingPageId) >= 0) {
+      sel.value = wf.landingPageId;
+    } else {
+      sel.value = '';
+    }
   }
 
   /* ── change tracking ── */
@@ -272,6 +310,34 @@
       pendingEdits.set(key, { type: 'workflow', key: wfId, pageId: pageId, checked: current });
       e.target.parentElement.classList.add('perm-cell-changed');
     }
+    // V3.66 — keep landing select in sync with the workflow's current pageIds.
+    var wf = defaultWorkflows.find(function (w) { return w.id === wfId; });
+    if (wf) {
+      // Mirror cell state into wf.pageIds so refreshLandingSelect sees it.
+      var s = new Set(wf.pageIds || []);
+      if (current) s.add(pageId); else s.delete(pageId);
+      wf.pageIds = Array.from(s);
+      var sel = document.querySelector('select.perm-landing-select[data-workflow-id="' + wfId + '"]');
+      if (sel) refreshLandingSelect(sel, wf);
+    }
+    updatePendingStatus();
+  }
+
+  /* V3.66 — landing-page select change. Stores per-workflow pending edit
+   * with type='workflow-landing'. Save flushes to the doc's landingPageId. */
+  function onWorkflowLandingChange(e) {
+    var wfId = e.target.dataset.workflowId;
+    var key = 'workflow-landing:' + wfId;
+    var newVal = e.target.value || '';
+    var wf = defaultWorkflows.find(function (w) { return w.id === wfId; });
+    var initial = wf ? (wf._initialLanding != null ? wf._initialLanding : (wf.landingPageId || '')) : '';
+    if (wf && wf._initialLanding == null) wf._initialLanding = wf.landingPageId || '';
+    if (newVal === initial) {
+      pendingEdits.delete(key);
+    } else {
+      pendingEdits.set(key, { type: 'workflow-landing', key: wfId, landingPageId: newVal });
+    }
+    if (wf) wf.landingPageId = newVal;
     updatePendingStatus();
   }
 
@@ -328,15 +394,26 @@
       await Promise.all(userOps);
 
       // 2. Default workflows: single doc write with updated workflows array.
-      if (anyWorkflowEdit) {
+      // Any workflow-cell edit OR landing edit triggers a write (the doc
+      // is rewritten as a whole).
+      var anyWorkflowMeta = anyWorkflowEdit;
+      pendingEdits.forEach(function (edit) {
+        if (edit.type === 'workflow-landing') anyWorkflowMeta = true;
+      });
+      if (anyWorkflowMeta) {
         await db().collection('labConfig').doc('defaultWorkflows').set({
           workflows: defaultWorkflows.map(function (w) {
             return { id: w.id, label: w.label, description: w.description || '',
-                     icon: w.icon || '', pageIds: (w.pageIds || []).slice() };
+                     icon: w.icon || '',
+                     landingPageId: w.landingPageId || '',
+                     pageIds: (w.pageIds || []).slice() };
           }),
           updatedAt: new Date(),
         }, { merge: true });
         workflowDocExists = true;
+        // Refresh _initialLanding so subsequent edits compare against
+        // the now-saved values.
+        defaultWorkflows.forEach(function (w) { w._initialLanding = w.landingPageId || ''; });
       }
 
       // Refresh initial state to match what we just saved.
@@ -380,7 +457,9 @@
       await db().collection('labConfig').doc('defaultWorkflows').set({
         workflows: defaultWorkflows.map(function (w) {
           return { id: w.id, label: w.label, description: w.description || '',
-                   icon: w.icon || '', pageIds: (w.pageIds || []).slice() };
+                   icon: w.icon || '',
+                   landingPageId: w.landingPageId || '',
+                   pageIds: (w.pageIds || []).slice() };
         }),
         updatedAt: new Date(),
         seededAt: new Date(),

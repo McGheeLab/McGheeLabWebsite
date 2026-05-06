@@ -109,6 +109,8 @@ function _wfReadState() {
     s.kind = s.kind || 'default';
     s.addedPageIds = Array.isArray(s.addedPageIds) ? s.addedPageIds : [];
     s.removedPageIds = Array.isArray(s.removedPageIds) ? s.removedPageIds : [];
+    // V3.66 — orderOverride is null until the user drag-reorders.
+    s.orderOverride = Array.isArray(s.orderOverride) ? s.orderOverride : null;
     return s;
   } catch (e) { return null; }
 }
@@ -127,7 +129,7 @@ function _wfAdoptFromUrl() {
   if (existing && existing.id === wfId) {
     state = existing;  // preserve dirty edits across navigations
   } else {
-    state = { id: wfId, kind: 'default', addedPageIds: [], removedPageIds: [] };
+    state = { id: wfId, kind: 'default', addedPageIds: [], removedPageIds: [], orderOverride: null };
   }
   sessionStorage.setItem(_WF_STORAGE_KEY, JSON.stringify(state));
   qp.delete('workflow');
@@ -214,7 +216,28 @@ function _wfEffectivePageIds(basePageIds, state) {
   const removed = new Set(state.removedPageIds || []);
   const seen = new Set();
   const out = [];
-  (basePageIds || []).concat(state.addedPageIds || []).forEach(id => {
+
+  // V3.66 — orderOverride lets the user drag-to-reorder. When present,
+  // it dictates the visible order. New ids (added or in basePageIds but
+  // not yet in the override) get appended at the end so reorder doesn't
+  // hide subsequent additions.
+  const order = Array.isArray(state.orderOverride) ? state.orderOverride : null;
+  const sourceIds = (basePageIds || []).concat(state.addedPageIds || []);
+
+  if (order) {
+    // First pass: emit ids from the override that still exist in source.
+    const sourceSet = new Set(sourceIds);
+    order.forEach(id => {
+      if (removed.has(id)) return;
+      if (seen.has(id)) return;
+      if (!sourceSet.has(id)) return;  // page no longer in source — drop
+      seen.add(id);
+      out.push(id);
+    });
+  }
+  // Append anything not already in the override (or, if no override,
+  // everything in source order).
+  sourceIds.forEach(id => {
     if (removed.has(id)) return;
     if (seen.has(id)) return;
     seen.add(id);
@@ -329,13 +352,22 @@ async function renderWorkflowStrip(state) {
     a.className = 'ws-page';
     a.href = _wfDecorateHref(p.href, state.id);
     a.textContent = p.label;
-    a.title = p.group + ' · ' + p.label;
+    a.title = p.group + ' · ' + p.label + ' · drag to reorder';
+    a.dataset.pageId = id;
+    a.draggable = true;       // V3.66 — enable HTML5 drag-and-drop
     // Active highlight when the path+query matches.
     const target = new URL(p.href, location.origin);
     if (target.pathname === currentPath
         && (target.search === currentSearch || target.search === '')) {
       a.classList.add('active');
     }
+    // V3.66 — drag handlers for reordering chips. The × button has its
+    // own click handler that stopPropagations, so removal still works.
+    a.addEventListener('dragstart', _wfChipDragStart);
+    a.addEventListener('dragend',   _wfChipDragEnd);
+    a.addEventListener('dragover',  _wfChipDragOver);
+    a.addEventListener('dragleave', _wfChipDragLeave);
+    a.addEventListener('drop',      _wfChipDrop);
     pagesEl.appendChild(a);
 
     // V3.65 — × button removes the page from the workflow.
@@ -344,12 +376,16 @@ async function renderWorkflowStrip(state) {
     rm.type = 'button';
     rm.textContent = '×';
     rm.title = 'Remove ' + p.label + ' from this workflow';
+    rm.draggable = false;     // don't initiate drag from the × button
     rm.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       _wfRemovePage(id);
       _wfRefreshStrip();
     });
+    // Stop the × button from initiating chip drag.
+    rm.addEventListener('mousedown', (e) => e.stopPropagation());
+    rm.addEventListener('dragstart', (e) => e.preventDefault());
     a.appendChild(rm);
   });
   if (!renderedAny) {
@@ -366,8 +402,9 @@ async function renderWorkflowStrip(state) {
   addBtn.addEventListener('click', () => _wfOpenAddPageModal(state, wf));
   actionsEl.insertBefore(addBtn, splitLink);
 
-  // V3.65 — Save as custom (default workflows) / Save changes (custom).
-  const dirty = (state.addedPageIds.length || state.removedPageIds.length);
+  // V3.65 + V3.66 — Save as custom (default workflows) / Save changes (custom).
+  // Dirty when the user has added, removed, OR reordered pages.
+  const dirty = (state.addedPageIds.length || state.removedPageIds.length || state.orderOverride);
   if (dirty || state.kind === 'custom') {
     const saveBtn = document.createElement('button');
     saveBtn.className = 'ws-btn ws-btn-primary';
@@ -379,6 +416,89 @@ async function renderWorkflowStrip(state) {
     saveBtn.addEventListener('click', () => _wfSaveCurrent(state, wf));
     actionsEl.insertBefore(saveBtn, splitLink);
   }
+}
+
+/* ── V3.66 — Drag-to-reorder strip chips ──
+ *
+ * HTML5 drag-and-drop. Each .ws-page has draggable=true. dragstart
+ * captures the pageId being dragged; dragover indicates valid drop
+ * targets (other chips); drop computes the new order and writes
+ * orderOverride to sessionStorage, then refreshes the strip in place.
+ *
+ * The × button is excluded from drag (its dragstart handler returns
+ * preventDefault, and a mousedown stopPropagation prevents the parent
+ * chip's dragstart from firing when the user clicks the ×).
+ *
+ * For custom workflows: the reorder lives in sessionStorage's
+ * orderOverride until the user clicks "Save changes" — same pattern
+ * as add/remove. */
+
+let _wfDragSourceId = null;
+
+function _wfChipDragStart(e) {
+  const chip = e.currentTarget;
+  _wfDragSourceId = chip.dataset.pageId;
+  chip.classList.add('ws-page-dragging');
+  // Required for Firefox compatibility.
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', _wfDragSourceId); } catch (err) { /* IE quirks */ }
+  }
+}
+
+function _wfChipDragEnd(e) {
+  e.currentTarget.classList.remove('ws-page-dragging');
+  document.querySelectorAll('.ws-page-drop-before, .ws-page-drop-after')
+    .forEach(el => el.classList.remove('ws-page-drop-before', 'ws-page-drop-after'));
+  _wfDragSourceId = null;
+}
+
+function _wfChipDragOver(e) {
+  if (!_wfDragSourceId) return;
+  const chip = e.currentTarget;
+  if (chip.dataset.pageId === _wfDragSourceId) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  // Decide before/after based on horizontal midpoint of the target chip.
+  const rect = chip.getBoundingClientRect();
+  const isBefore = (e.clientX - rect.left) < rect.width / 2;
+  chip.classList.toggle('ws-page-drop-before', isBefore);
+  chip.classList.toggle('ws-page-drop-after',  !isBefore);
+}
+
+function _wfChipDragLeave(e) {
+  e.currentTarget.classList.remove('ws-page-drop-before', 'ws-page-drop-after');
+}
+
+function _wfChipDrop(e) {
+  if (!_wfDragSourceId) return;
+  const target = e.currentTarget;
+  if (target.dataset.pageId === _wfDragSourceId) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Build the current effective order from the DOM (so what the user
+  // sees is what we persist).
+  const currentOrder = Array.from(document.querySelectorAll('.ws-page'))
+    .map(el => el.dataset.pageId).filter(Boolean);
+  const fromIdx = currentOrder.indexOf(_wfDragSourceId);
+  let toIdx = currentOrder.indexOf(target.dataset.pageId);
+  if (fromIdx < 0 || toIdx < 0) return;
+
+  const rect = target.getBoundingClientRect();
+  const isBefore = (e.clientX - rect.left) < rect.width / 2;
+  // Remove dragged item; recompute insertion index after the removal.
+  currentOrder.splice(fromIdx, 1);
+  if (toIdx > fromIdx) toIdx -= 1;
+  if (!isBefore) toIdx += 1;
+  currentOrder.splice(toIdx, 0, _wfDragSourceId);
+
+  // Persist as orderOverride and refresh the strip.
+  const s = _wfReadState();
+  if (!s) return;
+  s.orderOverride = currentOrder;
+  _wfWriteState(s);
+  _wfRefreshStrip();
 }
 
 /* ── V3.65 strip mutations ── */
@@ -501,10 +621,11 @@ function _wfSaveCurrent(state, wf) {
       .collection('customWorkflows').doc(state.id)
       .set({ pageIds: effective, updatedAt: new Date() }, { merge: true })
       .then(() => {
-        // Reset dirty edits — pageIds are now the persisted list.
+        // Reset dirty edits — pageIds are now the persisted list, and
+        // orderOverride is folded in.
         const s = _wfReadState();
         if (s) {
-          s.addedPageIds = []; s.removedPageIds = [];
+          s.addedPageIds = []; s.removedPageIds = []; s.orderOverride = null;
           _wfWriteState(s);
         }
         _wfRefreshStrip();
@@ -549,6 +670,10 @@ function _wfOpenSaveAsModal(state, wf, effectivePageIds) {
     const docRef = firebridge.db()
       .collection('userData').doc(u.uid)
       .collection('customWorkflows').doc(slug);
+    // V3.66 — inherit the source workflow's landingPageId when it's still
+    // in the effective list; else fall back to the first page.
+    var landingId = (wf && wf.landingPageId && effectivePageIds.indexOf(wf.landingPageId) >= 0)
+      ? wf.landingPageId : '';
     try {
       await docRef.set({
         id: slug,
@@ -556,12 +681,13 @@ function _wfOpenSaveAsModal(state, wf, effectivePageIds) {
         description: 'Custom — based on ' + (wf && wf.label || state.id),
         icon: '⭐',
         pageIds: effectivePageIds,
+        landingPageId: landingId,
         basedOn: state.id,
         createdAt: new Date(),
         updatedAt: new Date(),
       }, { merge: false });
       // Switch active state to the new custom workflow.
-      _wfWriteState({ id: slug, kind: 'custom', addedPageIds: [], removedPageIds: [] });
+      _wfWriteState({ id: slug, kind: 'custom', addedPageIds: [], removedPageIds: [], orderOverride: null });
       back.remove();
       _wfRefreshStrip();
       if (window.toast) toast.show('Saved as "' + name + '".', 'ok');
@@ -674,6 +800,125 @@ function renderNav() {
   // Apply current auth state immediately (likely a no-op if firebridge hasn't
   // fired yet — onAuth will re-call it).
   applyNavGates();
+
+  // V3.66 — pin custom workflows as a dropdown after the regular groups.
+  // Async; appends to `nav` after firebridge auth resolves.
+  _wfPinCustomWorkflows(nav);
+}
+
+/* ── V3.66 — Pin custom workflows to the nav ──
+ *
+ * After the regular six-group nav renders, fetch the user's custom
+ * workflows and append a "My Workflows ▾" dropdown. Each entry is
+ * one custom workflow; clicking enters the workflow at its first
+ * accessible page. Dropdown is hidden when the user has no custom
+ * workflows.
+ *
+ * Only renders when no workflow is active (it's part of the regular
+ * six-group nav, not the strip). */
+
+let _wfCustomCache = null;
+
+async function _wfPinCustomWorkflows(navEl) {
+  if (typeof firebridge === 'undefined') return;
+  // Inject workflow.css (idempotent — browser dedupes by href). Needed
+  // for .nav-dropdown-pinned styles below.
+  if (!document.querySelector('link[href="/rm/css/workflow.css"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/rm/css/workflow.css';
+    document.head.appendChild(link);
+  }
+  // Wait for sign-in to resolve so the doc reads succeed.
+  try { await firebridge.whenAuthResolved(); } catch (e) { /* ignore */ }
+  const u = firebridge.getUser && firebridge.getUser();
+  if (!u) return;
+  // Also wait for the access grant so canAccessPage filters correctly.
+  if (firebridge.loadAccessGrant) {
+    try { await firebridge.loadAccessGrant(); } catch (e) { /* ignore */ }
+  }
+
+  let workflows = _wfCustomCache;
+  if (!workflows) {
+    try {
+      const snap = await firebridge.db()
+        .collection('userData').doc(u.uid)
+        .collection('customWorkflows').get();
+      workflows = [];
+      snap.forEach(d => workflows.push(Object.assign({ id: d.id }, d.data() || {})));
+    } catch (err) {
+      return;
+    }
+    _wfCustomCache = workflows;
+  }
+  if (!workflows.length) return;
+  if (!document.body.contains(navEl)) return;  // nav was replaced
+
+  const pageMap = _wfBuildPageMap();
+  const isAdmin = firebridge.isAdmin && firebridge.isAdmin();
+  const canAccess = (id) => {
+    if (isAdmin) return true;
+    if (firebridge.canAccessPage) return firebridge.canAccessPage(id);
+    return true;
+  };
+
+  // Compute, per workflow, the landing page href (landingPageId if set
+  // and accessible; else first accessible page).
+  const entries = [];
+  workflows.forEach(wf => {
+    const pageIds = wf.pageIds || [];
+    let landingId = wf.landingPageId;
+    if (landingId && (!canAccess(landingId) || !pageMap.get(landingId))) landingId = null;
+    if (!landingId) {
+      landingId = pageIds.find(id => canAccess(id) && pageMap.get(id));
+    }
+    if (!landingId) return;     // no accessible pages — skip
+    const p = pageMap.get(landingId);
+    if (!p) return;
+    entries.push({
+      id: wf.id,
+      label: wf.label || wf.id,
+      icon: wf.icon || '⭐',
+      href: _wfDecorateHref(p.href, wf.id),
+    });
+  });
+  if (!entries.length) return;
+
+  // Build the dropdown.
+  const wrapper = document.createElement('div');
+  wrapper.className = 'nav-dropdown nav-dropdown-pinned';
+  const trigger = document.createElement('button');
+  trigger.className = 'nav-dropdown-trigger';
+  trigger.textContent = '⭐ My Workflows';
+  trigger.title = 'Custom workflows you saved';
+  const menu = document.createElement('div');
+  menu.className = 'dropdown-menu';
+  entries.forEach(e => {
+    const a = document.createElement('a');
+    a.href = e.href;
+    a.textContent = e.icon + ' ' + e.label;
+    menu.appendChild(a);
+  });
+  // Add a divider + "Manage workflows…" link to the chooser.
+  const div = document.createElement('div');
+  div.className = 'dropdown-divider';
+  menu.appendChild(div);
+  const manage = document.createElement('a');
+  manage.href = '/rm/index.html';
+  manage.textContent = 'Manage workflows…';
+  manage.style.fontStyle = 'italic';
+  manage.style.color = 'var(--text-muted, #6b7280)';
+  menu.appendChild(manage);
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const wasOpen = wrapper.classList.contains('open');
+    document.querySelectorAll('.nav-dropdown.open').forEach(d => d.classList.remove('open'));
+    if (!wasOpen) wrapper.classList.add('open');
+  });
+  wrapper.appendChild(trigger);
+  wrapper.appendChild(menu);
+  navEl.appendChild(wrapper);
 }
 
 /* Show/hide nav entries based on the signed-in user's permissions. Called

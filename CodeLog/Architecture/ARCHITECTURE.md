@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.65 (Workflow-driven UX redesign · PR 3 — custom workflows + builder. Closes the V3.63–V3.65 workflow redesign: admin matrix at `userPermissions/{uid}`, default workflows at `labConfig/defaultWorkflows`, per-user custom workflows at `userData/{uid}/customWorkflows`, workflow strip with + Add page / × remove / Save as custom on every RM page.)
+**Version:** V3.66 (Workflow polish — drag-to-reorder strip chips, pinned `⭐ My Workflows ▾` dropdown in the regular nav, per-workflow `landingPageId` honored by chooser + admin matrix + custom builder.)
 
 ## System Overview
 

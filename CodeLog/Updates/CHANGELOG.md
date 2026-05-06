@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.66] - 2026-05-06
+
+**Workflow polish — drag-to-reorder, pinned custom workflows, per-workflow landing page.** Three quality-of-life additions to the V3.63–V3.65 workflow feature. Plan doc: [CodeLog/ClaudesPlan/V3.66_workflow_polish.md](../ClaudesPlan/V3.66_workflow_polish.md).
+
+### Drag-to-reorder strip chips
+- Each `.ws-page` chip is now `draggable=true`. HTML5 dragstart/dragover/drop reorders chips in place; the new order persists to sessionStorage as `state.orderOverride: [...]` and is rendered immediately. The × button is excluded from drag (its mousedown stops propagation; a dragstart preventDefault keeps it inert).
+- `_wfEffectivePageIds` honors `orderOverride` when present — first emits ids from the override that still exist in source, then appends any added/base ids not yet in the override (so reorder doesn't hide subsequent additions).
+- Visual states: `.ws-page-dragging` (the dragged chip; opacity .4) and `.ws-page-drop-before` / `.ws-page-drop-after` (amber inset shadow on the target chip indicating insertion side).
+- "Save changes" / "Save as custom" treats reorder as a dirty edit — saving folds `orderOverride` into `pageIds` and clears the override.
+
+### Pinned custom workflows in the regular nav
+- After the six-group nav renders (only when no workflow is active), `_wfPinCustomWorkflows()` fetches `userData/{uid}/customWorkflows` and appends a `⭐ My Workflows ▾` dropdown. Each entry is one custom workflow; clicking enters the workflow at its `landingPageId` (or first accessible page).
+- Result is cached in `_wfCustomCache` for the page lifetime so re-renders (e.g. on auth state change) don't re-query.
+- Includes a `Manage workflows…` italic link at the bottom of the menu pointing back at the chooser.
+- `workflow.css` is injected dynamically by nav.js when the dropdown renders so the regular nav isn't forced to load it eagerly.
+
+### Per-workflow default landing page
+- New `landingPageId` field on every workflow record (default workflow seed in `page-registry.js`, `labConfig/defaultWorkflows` doc, `userData/{uid}/customWorkflows/*`).
+- Chooser cards (default + custom) navigate to `landingPageId` if set + accessible; else the first accessible page.
+- Admin matrix `/rm/pages/admin-permissions.html?tab=workflows` row labels grew a `Landing` dropdown that shows the workflow's currently-checked pages and writes to the doc on Save. Auto-refreshes when checkboxes toggle (so removing the landing page from the workflow drops it from the dropdown).
+- Custom workflow builder modal grew a `Landing page` dropdown below the page picker. Defaults to "First selected page". Updates live as the user toggles page checkboxes.
+- "Save as custom" (strip → modal) inherits the source workflow's `landingPageId` when it's still in the effective page list; otherwise empty (first page).
+- Pinned-nav dropdown entries point at `landingPageId` per workflow.
+
+### Files
+- **Changed:** [rm/js/nav.js](../../rm/js/nav.js) — drag handlers (`_wfChipDragStart`, `_wfChipDragEnd`, `_wfChipDragOver`, `_wfChipDragLeave`, `_wfChipDrop`), pinned-nav (`_wfPinCustomWorkflows`), `_wfEffectivePageIds` honors `orderOverride`, `_wfReadState` + `_wfAdoptFromUrl` + `setActive` initialize `orderOverride: null`, save flow inherits `landingPageId` and clears override after save.
+- **Changed:** [rm/js/page-registry.js](../../rm/js/page-registry.js) — added `landingPageId` to each of the 5 default workflow seeds (Lab Research → tracker, Paper Writing → paper-builder, Cert → compliance, Task Scheduling → tasks, Meetings → meetings).
+- **Changed:** [rm/js/workflow-state.js](../../rm/js/workflow-state.js) — `setActive` initializes `orderOverride: null`.
+- **Changed:** [rm/js/workflow-chooser.js](../../rm/js/workflow-chooser.js) — `pickLandingPage()` helper; both card click handlers use it; builder modal grew a `Landing page` dropdown auto-populated from picked pages.
+- **Changed:** [rm/js/admin-permissions.js](../../rm/js/admin-permissions.js) — workflows tab row labels grew a `Landing` select; `onWorkflowLandingChange` tracks pending edits with `type: 'workflow-landing'`; save flushes `landingPageId` per workflow; seed migration includes `landingPageId`.
+- **Changed:** [rm/css/workflow.css](../../rm/css/workflow.css) — `.ws-page-dragging`, `.ws-page-drop-before`, `.ws-page-drop-after`, `.nav-dropdown-pinned`, `.dropdown-divider`.
+- **Changed:** [sw.js](../../sw.js) — `CACHE_VERSION` 40 → 41.
+
+### Notes
+- **No firestore.rules changes.** The `landingPageId` field rides on the existing `labConfig/defaultWorkflows` and `userData/{uid}/customWorkflows/*` writes; existing rules cover both.
+- **No functions deploy.**
+- **Pinned-nav dropdown is empty for users with no custom workflows** — the dropdown isn't rendered at all in that case, so no UI clutter.
+- **Drag-and-drop falls back gracefully on touch devices** that don't fire dragstart; chip reorder via × + Add is still available.
+
 ## [V3.65] - 2026-05-06
 
 **Workflow-driven UX redesign · PR 3 — custom workflows + builder.** Wires up the V3.64 placeholder buttons in the workflow strip and adds the My Workflows section + builder UI on the chooser. Closes the three-PR workflow redesign initiative. Plan doc: [CodeLog/ClaudesPlan/V3.65_workflow_custom.md](../ClaudesPlan/V3.65_workflow_custom.md).
