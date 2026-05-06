@@ -194,6 +194,73 @@ const firebridge = (function () {
     return !!(_user && paperMeta && paperMeta.lead_author_uid === _user.uid);
   }
 
+  /* ── V3.63 — Workflow page access ──
+   *
+   * canAccessPage(pageId) decides whether the current user can include a
+   * page in a custom workflow / see it in a default workflow's chip strip.
+   *
+   * Admins always pass. Otherwise check `userPermissions/{uid}.allowedPageIds`:
+   *   - present + non-empty: user sees only those pages
+   *   - missing or empty:    implicit baseline = pages in any default workflow
+   *
+   * The first call lazily fetches userPermissions/{uid} and the default-
+   * workflow set; both are cached for the life of the page. canAccessPage
+   * is sync — callers that need to await the first fetch can call
+   * `await loadAccessGrant()` first. */
+  var _accessGrant = null;     // null = not yet fetched
+  var _accessGrantPromise = null;
+
+  async function loadAccessGrant() {
+    if (_accessGrantPromise) return _accessGrantPromise;
+    _accessGrantPromise = (async function () {
+      // Wait for sign-in to resolve; otherwise the doc read 403s.
+      if (!_user) await whenAuthResolved();
+      if (!_user) { _accessGrant = { allowedPageIds: null }; return _accessGrant; }
+      try {
+        var snap = await firebase.firestore()
+          .collection('userPermissions').doc(_user.uid).get();
+        if (snap.exists) {
+          var d = snap.data() || {};
+          _accessGrant = { allowedPageIds: Array.isArray(d.allowedPageIds) ? d.allowedPageIds : null };
+        } else {
+          _accessGrant = { allowedPageIds: null };
+        }
+      } catch (err) {
+        // Non-admin user without a grant doc gets PERMISSION_DENIED here.
+        // That's fine — fall back to implicit baseline.
+        _accessGrant = { allowedPageIds: null };
+      }
+      return _accessGrant;
+    })();
+    return _accessGrantPromise;
+  }
+
+  /** Synchronous gate. Returns true if the user can access `pageId`.
+   * Behavior:
+   *   - admin → always true
+   *   - signed-out / no profile → false (callers shouldn't ask before auth)
+   *   - explicit grant doc → membership in allowedPageIds
+   *   - no grant doc → membership in the implicit baseline (union of
+   *                    pageIds across all default workflows, sourced from
+   *                    PAGE_REGISTRY.defaultPageIdSet)
+   *
+   * The first call before `await loadAccessGrant()` returns false (we
+   * haven't fetched yet); call sites should await loadAccessGrant once
+   * during their boot. */
+  function canAccessPage(pageId) {
+    if (isAdmin()) return true;
+    if (!_user) return false;
+    if (!_accessGrant) return false;       // not yet fetched
+    if (_accessGrant.allowedPageIds && _accessGrant.allowedPageIds.length) {
+      return _accessGrant.allowedPageIds.indexOf(pageId) >= 0;
+    }
+    // Implicit baseline. PAGE_REGISTRY may not be loaded on every page
+    // (only nav-bearing pages load page-registry.js); be defensive.
+    var REG = window.PAGE_REGISTRY;
+    if (REG && REG.defaultPageIdSet) return REG.defaultPageIdSet.has(pageId);
+    return true;  // page-registry not loaded → permissive default
+  }
+
   /* ── Firestore helpers ── */
 
   function db() {
@@ -753,6 +820,8 @@ const firebridge = (function () {
     isLabMember: isLabMember,
     canEditPaper: canEditPaper,
     isLeadAuthor: isLeadAuthor,
+    canAccessPage: canAccessPage,
+    loadAccessGrant: loadAccessGrant,
     db: db,
     collection: collection,
     getAll: getAll,

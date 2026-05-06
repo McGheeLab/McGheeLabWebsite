@@ -1,0 +1,425 @@
+/* admin-permissions.js — V3.63 admin matrix for workflow permissions.
+ *
+ * Two tabs (selected by ?tab=users|workflows on the page URL):
+ *   1. Users × Pages
+ *      - Rows: each `users/{uid}` profile (excluding admins).
+ *      - Cols: every page in PAGE_REGISTRY, grouped by section.
+ *      - Cells: <input type="checkbox"> reflecting whether the page is in
+ *               that user's `userPermissions/{uid}.allowedPageIds`.
+ *      - Save: batch-update userPermissions docs (set/merge if non-empty,
+ *              delete if user clears every box).
+ *
+ *   2. Default Workflows × Pages
+ *      - Rows: five default workflows (from labConfig/defaultWorkflows or
+ *              the seed in PAGE_REGISTRY.DEFAULT_WORKFLOWS).
+ *      - Cols: every PAGE_REGISTRY page.
+ *      - Cells: checkbox reflecting whether page is in workflow.pageIds.
+ *      - Save: write the whole `{ workflows: [...] }` doc to
+ *              labConfig/defaultWorkflows.
+ *
+ * The page is admin-gated via firebridge.gateAdmin(). Non-admin users see
+ * the standard pending-access overlay. */
+
+(function () {
+  /* ── helpers ── */
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function db()    { return firebridge.db(); }
+
+  /* ── state ── */
+  var REG = window.PAGE_REGISTRY || { list: [], DEFAULT_WORKFLOWS: [] };
+  var pages = REG.list.slice();         // ordered, used for column headers
+  var users = [];                        // from users/* — populated on boot
+  var defaultWorkflows = [];             // from labConfig/defaultWorkflows or seed
+  var workflowDocExists = false;         // false → show seed prompt
+  // pending edits: { type: 'user'|'workflow', key: <uid|workflowId>,
+  //                  pageId: <id>, checked: bool }
+  var pendingEdits = new Map();          // key = `${type}:${key}:${pageId}`
+  var initialState = { user: new Map(), workflow: new Map() };
+  // user → Set<pageId>; workflow → Set<pageId>
+
+  function setStatus(msg, kind) {
+    var el = document.getElementById('perm-status');
+    el.className = 'perm-status' + (kind ? ' ' + kind : '');
+    el.textContent = msg || '';
+  }
+
+  /* ── boot ── */
+  async function boot() {
+    var gateRes = await firebridge.gateAdmin('manage workflow permissions');
+    if (!gateRes || !gateRes.allowed) return;
+    document.getElementById('perm-gate').style.display = 'none';
+    document.getElementById('perm-content').style.display = '';
+
+    setStatus('Loading…');
+    try {
+      await Promise.all([loadUsers(), loadDefaultWorkflows(), loadAllUserPermissions()]);
+    } catch (err) {
+      console.error('[admin-permissions] load failed:', err);
+      setStatus('Load failed: ' + err.message, 'err');
+      return;
+    }
+
+    if (!workflowDocExists) {
+      document.getElementById('perm-seed-box').style.display = '';
+    }
+    renderUserGrid();
+    renderWorkflowGrid();
+    wireActions();
+    setStatus('');
+  }
+
+  /* ── load data ── */
+
+  async function loadUsers() {
+    var snap = await db().collection('users').get();
+    users = [];
+    snap.forEach(function (d) {
+      var data = d.data() || {};
+      // Exclude admins (they bypass the matrix) and pure-guest profiles
+      // that haven't been promoted (they shouldn't appear yet anyway).
+      if (data.role === 'admin') return;
+      users.push({
+        uid: d.id,
+        name: data.displayName || data.name || data.email || d.id.slice(0, 8),
+        email: data.email || '',
+        role: data.role || 'guest',
+      });
+    });
+    users.sort(function (a, b) {
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  async function loadDefaultWorkflows() {
+    try {
+      var snap = await db().collection('labConfig').doc('defaultWorkflows').get();
+      if (snap.exists) {
+        var data = snap.data() || {};
+        var arr = Array.isArray(data.workflows) ? data.workflows : [];
+        if (arr.length) {
+          defaultWorkflows = arr.map(function (w) { return Object.assign({}, w); });
+          workflowDocExists = true;
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[admin-permissions] defaults read failed (using seed):', err.message);
+    }
+    // Fall back to seed.
+    defaultWorkflows = (REG.DEFAULT_WORKFLOWS || []).map(function (w) {
+      return Object.assign({}, w, { pageIds: (w.pageIds || []).slice() });
+    });
+    workflowDocExists = false;
+  }
+
+  async function loadAllUserPermissions() {
+    try {
+      var snap = await db().collection('userPermissions').get();
+      snap.forEach(function (d) {
+        var data = d.data() || {};
+        var ids = Array.isArray(data.allowedPageIds) ? data.allowedPageIds : [];
+        initialState.user.set(d.id, new Set(ids));
+      });
+    } catch (err) {
+      console.warn('[admin-permissions] userPermissions read failed:', err.message);
+    }
+    // Workflow initial state from current defaults
+    defaultWorkflows.forEach(function (wf) {
+      initialState.workflow.set(wf.id, new Set(wf.pageIds || []));
+    });
+  }
+
+  /* ── grid renderers ── */
+
+  function pageColumns() {
+    // Group columns by section so the header is readable. Keep page order.
+    return pages;
+  }
+
+  function renderHeaderRow(table, firstColLabel) {
+    var thead = table.tHead || table.createTHead();
+    thead.innerHTML = '';
+    var row = thead.insertRow();
+    var firstTh = document.createElement('th');
+    firstTh.textContent = firstColLabel;
+    row.appendChild(firstTh);
+    var lastGroup = null;
+    pageColumns().forEach(function (p) {
+      var th = document.createElement('th');
+      th.title = p.id;
+      var groupChange = (p.group !== lastGroup);
+      if (groupChange) th.classList.add('group-start');
+      lastGroup = p.group;
+      th.innerHTML =
+        (groupChange ? '<div class="col-group">' + escHtml(p.group) + '</div>' : '') +
+        '<div>' + escHtml(p.label) + '</div>';
+      row.appendChild(th);
+    });
+  }
+
+  function renderUserGrid() {
+    var table = document.getElementById('perm-grid-users');
+    renderHeaderRow(table, 'User');
+    var tbody = table.tBodies[0] || table.createTBody();
+    tbody.innerHTML = '';
+    if (!users.length) {
+      var tr = tbody.insertRow();
+      var td = tr.insertCell();
+      td.colSpan = 1 + pages.length;
+      td.className = 'perm-empty';
+      td.textContent = 'No non-admin users found in users/* collection.';
+      return;
+    }
+    users.forEach(function (u) {
+      var tr = tbody.insertRow();
+      tr.dataset.uid = u.uid;
+      var th = document.createElement('th');
+      th.scope = 'row';
+      th.innerHTML = '<div>' + escHtml(u.name) + '</div>'
+                   + '<div class="row-label-sub">' + escHtml(u.email || u.role) + '</div>';
+      tr.appendChild(th);
+      var allowed = initialState.user.get(u.uid) || new Set();
+      var lastGroup = null;
+      pageColumns().forEach(function (p) {
+        var td = document.createElement('td');
+        td.className = 'perm-cell';
+        if (p.group !== lastGroup) td.classList.add('group-start');
+        lastGroup = p.group;
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = allowed.has(p.id);
+        cb.dataset.uid = u.uid;
+        cb.dataset.pageId = p.id;
+        cb.addEventListener('change', onUserCellChange);
+        td.appendChild(cb);
+        tr.appendChild(td);
+      });
+    });
+  }
+
+  function renderWorkflowGrid() {
+    var table = document.getElementById('perm-grid-workflows');
+    renderHeaderRow(table, 'Default workflow');
+    var tbody = table.tBodies[0] || table.createTBody();
+    tbody.innerHTML = '';
+    if (!defaultWorkflows.length) {
+      var tr = tbody.insertRow();
+      var td = tr.insertCell();
+      td.colSpan = 1 + pages.length;
+      td.className = 'perm-empty';
+      td.textContent = 'No default workflows. Click "Seed defaults" above.';
+      return;
+    }
+    defaultWorkflows.forEach(function (wf) {
+      var tr = tbody.insertRow();
+      tr.dataset.workflowId = wf.id;
+      var th = document.createElement('th');
+      th.scope = 'row';
+      th.innerHTML = '<div>' + (wf.icon ? escHtml(wf.icon) + ' ' : '') + escHtml(wf.label) + '</div>'
+                   + '<div class="row-label-sub">' + escHtml(wf.id) + '</div>';
+      tr.appendChild(th);
+      var pageSet = new Set(wf.pageIds || []);
+      var lastGroup = null;
+      pageColumns().forEach(function (p) {
+        var td = document.createElement('td');
+        td.className = 'perm-cell';
+        if (p.group !== lastGroup) td.classList.add('group-start');
+        lastGroup = p.group;
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = pageSet.has(p.id);
+        cb.dataset.workflowId = wf.id;
+        cb.dataset.pageId = p.id;
+        cb.addEventListener('change', onWorkflowCellChange);
+        td.appendChild(cb);
+        tr.appendChild(td);
+      });
+    });
+  }
+
+  /* ── change tracking ── */
+
+  function onUserCellChange(e) {
+    var uid = e.target.dataset.uid;
+    var pageId = e.target.dataset.pageId;
+    var key = 'user:' + uid + ':' + pageId;
+    var initial = (initialState.user.get(uid) || new Set()).has(pageId);
+    var current = e.target.checked;
+    if (current === initial) {
+      pendingEdits.delete(key);
+      e.target.parentElement.classList.remove('perm-cell-changed');
+    } else {
+      pendingEdits.set(key, { type: 'user', key: uid, pageId: pageId, checked: current });
+      e.target.parentElement.classList.add('perm-cell-changed');
+    }
+    updatePendingStatus();
+  }
+
+  function onWorkflowCellChange(e) {
+    var wfId = e.target.dataset.workflowId;
+    var pageId = e.target.dataset.pageId;
+    var key = 'workflow:' + wfId + ':' + pageId;
+    var initial = (initialState.workflow.get(wfId) || new Set()).has(pageId);
+    var current = e.target.checked;
+    if (current === initial) {
+      pendingEdits.delete(key);
+      e.target.parentElement.classList.remove('perm-cell-changed');
+    } else {
+      pendingEdits.set(key, { type: 'workflow', key: wfId, pageId: pageId, checked: current });
+      e.target.parentElement.classList.add('perm-cell-changed');
+    }
+    updatePendingStatus();
+  }
+
+  function updatePendingStatus() {
+    var n = pendingEdits.size;
+    if (!n) { setStatus(''); return; }
+    setStatus(n + ' pending edit' + (n === 1 ? '' : 's'));
+  }
+
+  /* ── save ── */
+
+  async function saveAll() {
+    if (!pendingEdits.size) { setStatus('Nothing to save', 'ok'); return; }
+    var saveBtn = document.getElementById('perm-save');
+    saveBtn.disabled = true;
+    setStatus('Saving…');
+
+    // Group user edits by uid → final set; workflow edits applied to local
+    // defaultWorkflows then a single doc write.
+    var userEdits = new Map();          // uid → Set<pageId> (final state)
+    var anyWorkflowEdit = false;
+
+    pendingEdits.forEach(function (edit) {
+      if (edit.type === 'user') {
+        var s = userEdits.get(edit.key);
+        if (!s) {
+          s = new Set(initialState.user.get(edit.key) || []);
+          userEdits.set(edit.key, s);
+        }
+        if (edit.checked) s.add(edit.pageId);
+        else s.delete(edit.pageId);
+      } else if (edit.type === 'workflow') {
+        anyWorkflowEdit = true;
+        var wf = defaultWorkflows.find(function (w) { return w.id === edit.key; });
+        if (!wf) return;
+        var ids = new Set(wf.pageIds || []);
+        if (edit.checked) ids.add(edit.pageId);
+        else ids.delete(edit.pageId);
+        wf.pageIds = Array.from(ids);
+      }
+    });
+
+    try {
+      // 1. User permissions: per-uid set/delete.
+      var userOps = [];
+      userEdits.forEach(function (set, uid) {
+        var ref = db().collection('userPermissions').doc(uid);
+        if (set.size) {
+          userOps.push(ref.set({ allowedPageIds: Array.from(set), updatedAt: new Date() }, { merge: true }));
+        } else {
+          userOps.push(ref.delete().catch(function () { /* ignore not-found */ }));
+        }
+      });
+      await Promise.all(userOps);
+
+      // 2. Default workflows: single doc write with updated workflows array.
+      if (anyWorkflowEdit) {
+        await db().collection('labConfig').doc('defaultWorkflows').set({
+          workflows: defaultWorkflows.map(function (w) {
+            return { id: w.id, label: w.label, description: w.description || '',
+                     icon: w.icon || '', pageIds: (w.pageIds || []).slice() };
+          }),
+          updatedAt: new Date(),
+        }, { merge: true });
+        workflowDocExists = true;
+      }
+
+      // Refresh initial state to match what we just saved.
+      userEdits.forEach(function (set, uid) {
+        if (set.size) initialState.user.set(uid, set);
+        else initialState.user.delete(uid);
+      });
+      defaultWorkflows.forEach(function (wf) {
+        initialState.workflow.set(wf.id, new Set(wf.pageIds || []));
+      });
+
+      pendingEdits.clear();
+      document.querySelectorAll('.perm-cell-changed')
+        .forEach(function (el) { el.classList.remove('perm-cell-changed'); });
+      setStatus('Saved.', 'ok');
+      document.getElementById('perm-seed-box').style.display = workflowDocExists ? 'none' : '';
+    } catch (err) {
+      console.error('[admin-permissions] save failed:', err);
+      setStatus('Save failed: ' + err.message, 'err');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  function revertAll() {
+    if (!pendingEdits.size) return;
+    pendingEdits.clear();
+    renderUserGrid();
+    renderWorkflowGrid();
+    setStatus('Reverted.', 'ok');
+  }
+
+  async function seedDefaults() {
+    var btn = document.getElementById('perm-seed-defaults');
+    btn.disabled = true;
+    setStatus('Seeding…');
+    try {
+      defaultWorkflows = (REG.DEFAULT_WORKFLOWS || []).map(function (w) {
+        return Object.assign({}, w, { pageIds: (w.pageIds || []).slice() });
+      });
+      await db().collection('labConfig').doc('defaultWorkflows').set({
+        workflows: defaultWorkflows.map(function (w) {
+          return { id: w.id, label: w.label, description: w.description || '',
+                   icon: w.icon || '', pageIds: (w.pageIds || []).slice() };
+        }),
+        updatedAt: new Date(),
+        seededAt: new Date(),
+      });
+      workflowDocExists = true;
+      defaultWorkflows.forEach(function (wf) {
+        initialState.workflow.set(wf.id, new Set(wf.pageIds || []));
+      });
+      pendingEdits.clear();
+      document.getElementById('perm-seed-box').style.display = 'none';
+      renderWorkflowGrid();
+      setStatus('Defaults seeded.', 'ok');
+    } catch (err) {
+      console.error('[admin-permissions] seed failed:', err);
+      setStatus('Seed failed: ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function applySearchFilter(q) {
+    q = (q || '').trim().toLowerCase();
+    var which = window.__PERM_TAB === 'workflows' ? 'perm-grid-workflows' : 'perm-grid-users';
+    var rows = document.querySelectorAll('#' + which + ' tbody tr');
+    rows.forEach(function (tr) {
+      var text = tr.textContent.toLowerCase();
+      tr.style.display = (!q || text.indexOf(q) >= 0) ? '' : 'none';
+    });
+  }
+
+  function wireActions() {
+    document.getElementById('perm-save').addEventListener('click', saveAll);
+    document.getElementById('perm-revert').addEventListener('click', revertAll);
+    var seedBtn = document.getElementById('perm-seed-defaults');
+    if (seedBtn) seedBtn.addEventListener('click', seedDefaults);
+    document.getElementById('perm-search').addEventListener('input', function (e) {
+      applySearchFilter(e.target.value);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', boot);
+})();

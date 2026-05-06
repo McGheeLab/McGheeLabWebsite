@@ -466,6 +466,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // V3.63 — Workflow page-access grants. Per-user doc keyed by uid:
+    // `userPermissions/{uid}` carries `{ allowedPageIds: [<page-id>, ...] }`.
+    // Admin manages this via the admin-permissions matrix. Owner can read
+    // their own grant (used by canAccessPage in firebase-bridge.js to
+    // filter workflow chooser + custom-workflow builder); only admin can
+    // write. A missing doc means the user has the implicit baseline access
+    // (= union of pageIds across all default workflows) — see
+    // page-registry.js DEFAULT_WORKFLOWS.
+    match /userPermissions/{userId} {
+      allow read:  if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
+    }
+
     // Purchase Requests — student submits, admin reviews
     match /purchaseRequests/{docId} {
       allow read: if request.auth != null

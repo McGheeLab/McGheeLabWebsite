@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.62 (Page consolidation Tier 4 — activity hub: tracker/year-review/email-review/activity-summary collapse into `activity-overview.html?tab=<name>`. 51 → 38 user-facing pages cumulative since V3.57.)
+**Version:** V3.63 (Workflow-driven UX redesign · PR 1 — foundation: page registry from `NAV_ITEMS`, `userPermissions/{uid}` admin matrix, default-workflow Firestore doc, `firebridge.canAccessPage`. Admin-only changes; non-admin users see no UX delta yet.)
 
 ## System Overview
 

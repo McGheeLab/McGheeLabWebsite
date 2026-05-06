@@ -73,6 +73,7 @@ const NAV_ITEMS = [
     { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
     { label: 'CV Overview',     href: '/rm/pages/cv-editor.html?tab=lab' },
     { label: 'Member Activity', href: '/rm/pages/activity-overview.html?tab=lab-stats', gate: 'admin' },
+    { label: 'Permissions',     href: '/rm/pages/admin-permissions.html', gate: 'admin' },
   ]},
 
   // V3.56 — Split View opens a side-by-side shell with two RM pages

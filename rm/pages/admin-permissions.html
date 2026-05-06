@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin · Workflow Permissions · McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.63 — workflow-permissions admin page. Two tabs:
+     *   ?tab=users (default) → Users × Pages matrix
+     *   ?tab=workflows       → Default Workflows × Pages matrix */
+    (function () {
+      var t = (new URLSearchParams(location.search).get('tab') === 'workflows')
+        ? 'workflows' : 'users';
+      window.__PERM_TAB = t;
+      document.documentElement.dataset.permTab = t;
+      document.title = (t === 'workflows')
+        ? 'Admin · Default Workflows · McGhee Lab'
+        : 'Admin · User Page Access · McGhee Lab';
+    })();
+  </script>
+  <style>
+    /* Reused .mig-table base from admin-migrate.html, extended for matrix
+       cells (compact checkbox columns, sticky header + first column). */
+    .perm-page { padding: 0 24px 32px; }
+    .perm-toolbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; margin-bottom: 12px;
+      background: var(--surface, #f9fafb); border: 1px solid var(--border, #e5e7eb);
+      border-radius: 10px; flex-wrap: wrap;
+    }
+    .perm-toolbar .perm-status {
+      margin-left: auto; font-size: 12px; color: var(--text-muted, #6b7280);
+    }
+    .perm-toolbar .perm-status.ok  { color: var(--green, #059669); }
+    .perm-toolbar .perm-status.err { color: var(--red, #dc2626); }
+    .perm-search {
+      padding: 6px 10px; border: 1px solid var(--border, #d1d5db);
+      border-radius: 6px; font-size: 13px; min-width: 180px;
+    }
+    /* Tab visibility */
+    html[data-perm-tab="users"]      .perm-tab.tab-workflows { display: none; }
+    html[data-perm-tab="workflows"]  .perm-tab.tab-users     { display: none; }
+
+    .perm-grid-wrap {
+      max-height: 70vh; overflow: auto;
+      border: 1px solid var(--border, #e5e7eb); border-radius: 8px;
+      background: #fff;
+    }
+    .perm-grid {
+      border-collapse: separate; border-spacing: 0; font-size: 12.5px;
+      min-width: 900px;
+    }
+    .perm-grid th, .perm-grid td {
+      padding: 5px 8px; border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle; white-space: nowrap;
+    }
+    .perm-grid thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #f6f7f9; border-bottom: 2px solid #e5e7eb;
+      font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .3px; color: #374151;
+    }
+    .perm-grid tbody th {
+      position: sticky; left: 0; z-index: 1;
+      background: #fff; text-align: left; font-weight: 500;
+      font-size: 12px; max-width: 220px; overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .perm-grid thead th:first-child {
+      left: 0; z-index: 3; background: #f6f7f9; min-width: 220px;
+    }
+    .perm-grid tbody tr:hover td { background: #fafafa; }
+    .perm-grid tbody tr:hover th { background: #fafafa; }
+    .perm-grid input[type="checkbox"] {
+      cursor: pointer; transform: scale(1.05); margin: 0;
+    }
+    .perm-grid .col-group {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .3px;
+      color: #9ca3af; font-weight: 500;
+    }
+    .perm-grid .row-label-sub {
+      font-size: 10.5px; color: var(--text-muted, #6b7280); margin-top: 1px;
+    }
+    .perm-cell {
+      text-align: center; min-width: 32px;
+      cursor: pointer; user-select: none;
+    }
+    .perm-cell:hover { background: #eff6ff; }
+    /* Group separators in column headers */
+    .perm-grid th.group-start { border-left: 2px solid #e5e7eb; }
+    .perm-grid td.group-start { border-left: 2px solid #f1f5f9; }
+    .perm-row-changed th, .perm-row-changed td:not(.perm-cell) {
+      background: color-mix(in srgb, var(--amber, #f59e0b) 10%, white);
+    }
+    .perm-cell-changed { background: color-mix(in srgb, var(--amber, #f59e0b) 18%, white) !important; }
+    .perm-empty {
+      padding: 30px 16px; text-align: center; color: var(--text-muted, #6b7280);
+      font-style: italic; font-size: 13px;
+    }
+    .perm-seed-box {
+      padding: 10px 14px; margin: 12px 0;
+      background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px;
+      font-size: 13px; color: #92400e;
+      display: flex; align-items: center; gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page perm-page">
+    <div class="page-header">
+      <h1 class="page-title">Workflow Permissions</h1>
+      <div class="page-subtitle">Admin-only · matrix of user × page access and default-workflow contents</div>
+    </div>
+
+    <div id="perm-gate" style="padding:24px;">Loading…</div>
+
+    <div id="perm-content" style="display:none;">
+      <div class="tab-bar" id="perm-hub-tabs"></div>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          const HUB = [
+            { tab: 'users',     label: 'Users × Pages' },
+            { tab: 'workflows', label: 'Default Workflows × Pages' },
+          ];
+          const bar = document.getElementById('perm-hub-tabs');
+          const current = window.__PERM_TAB;
+          HUB.forEach(t => {
+            const a = document.createElement('a');
+            a.href = '/rm/pages/admin-permissions.html?tab=' + t.tab;
+            a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
+            a.textContent = t.label;
+            a.style.textDecoration = 'none';
+            bar.appendChild(a);
+          });
+        });
+      </script>
+
+      <div class="perm-toolbar">
+        <input type="text" id="perm-search" class="perm-search" placeholder="Filter rows…">
+        <button class="btn" id="perm-revert">Revert changes</button>
+        <button class="btn btn-primary" id="perm-save">Save changes</button>
+        <span id="perm-status" class="perm-status"></span>
+      </div>
+
+      <div id="perm-seed-box" class="perm-seed-box" style="display:none;">
+        <span><strong>First-run setup:</strong> the <code>labConfig/defaultWorkflows</code> doc doesn't exist yet. Click <strong>Seed defaults</strong> to write the five baseline workflows from <code>page-registry.js</code>.</span>
+        <button class="btn btn-primary" id="perm-seed-defaults" style="margin-left:auto;">Seed defaults</button>
+      </div>
+
+      <!-- Users × Pages tab -->
+      <div class="perm-tab tab-users">
+        <div class="perm-grid-wrap">
+          <table class="perm-grid" id="perm-grid-users">
+            <thead><tr><th>User</th></tr></thead>
+            <tbody><tr><td class="perm-empty">Loading users…</td></tr></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;">
+          Each row is a <code>users/{uid}</code> profile. Checkboxes write to <code>userPermissions/{uid}.allowedPageIds</code>.
+          A user with <strong>no checked pages</strong> falls back to the <em>implicit baseline</em> — pages from any default workflow.
+          Admins are not gated by this matrix and don't appear as rows.
+        </div>
+      </div>
+
+      <!-- Default Workflows × Pages tab -->
+      <div class="perm-tab tab-workflows">
+        <div class="perm-grid-wrap">
+          <table class="perm-grid" id="perm-grid-workflows">
+            <thead><tr><th>Default workflow</th></tr></thead>
+            <tbody><tr><td class="perm-empty">Loading default workflows…</td></tr></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;">
+          Each row is one of the 5 default workflows. Checkboxes edit each workflow's <code>pageIds</code> list,
+          stored in <code>labConfig/defaultWorkflows</code>. Changes here apply to every user immediately.
+          Use the seed button above if this is the first run and the doc doesn't exist yet.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RM contract header -->
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/page-registry.js"></script>
+  <script src="/rm/js/admin-permissions.js"></script>
+</body>
+</html>

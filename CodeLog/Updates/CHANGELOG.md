@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.63] - 2026-05-06
+
+**Workflow-driven UX redesign · PR 1 — foundation.** Sets up the Firestore data model + admin tooling for the new workflow feature without changing what any non-admin user sees yet. PRs 2 (V3.64) and 3 (V3.65) layer on the workflow chooser dashboard, the workflow-aware nav strip, and per-user custom workflows. Plan doc: [CodeLog/ClaudesPlan/V3.63_workflow_foundation.md](../ClaudesPlan/V3.63_workflow_foundation.md).
+
+### Added
+- **`rm/js/page-registry.js`** (~155 LOC) — flattens `nav.js`'s `NAV_ITEMS` into a stable list of page entries (`{ id, label, href, group, gate }`). Page ids are derived from URL+`?tab=` (e.g. `library`, `library__tab__comments`, `activity-overview__tab__tracker`) so any page added to the nav becomes pickable in the admin matrix without a code path on the new feature side. Exports `window.PAGE_REGISTRY = { list, byId, byHref, pageIdFromHref, DEFAULT_WORKFLOWS, defaultPageIdSet }`. Five default workflows (Lab Research / Paper Writing / Certification & Training / Task Scheduling & Activity Reports / Meetings) are seeded as constants — the admin matrix can override these in Firestore but the constants are the fallback when the doc doesn't exist yet.
+- **`rm/pages/admin-permissions.html`** + **`rm/js/admin-permissions.js`** (~370 LOC) — admin-gated two-tab matrix page. Reused `.mig-table` styling extended with sticky-row + sticky-column for matrix scrolling.
+  - **Users × Pages tab** (default) — rows = `users/*` profiles (excluding admins), columns = every PAGE_REGISTRY page grouped by section. Checkbox toggle writes to `userPermissions/{uid}.allowedPageIds`. Save button batches all changes; setting an empty list deletes the doc (so the user falls back to implicit baseline access).
+  - **Default Workflows × Pages tab** — rows = the 5 default workflows (read from `labConfig/defaultWorkflows` if present, else seeded from PAGE_REGISTRY constants). Columns = PAGE_REGISTRY. Save writes the whole `{ workflows: [...] }` doc.
+  - First-run "Seed defaults" button writes the PAGE_REGISTRY seed to Firestore when the labConfig/defaultWorkflows doc doesn't exist.
+  - Page reused the V3.62 `?tab=` URL pattern for tab switching; admin gate uses `firebridge.gateAdmin('manage workflow permissions')`.
+
+### Changed
+- **`rm/js/firebase-bridge.js`** — added `canAccessPage(pageId)` + `loadAccessGrant()`. `canAccessPage` is the synchronous gate used by the workflow chooser (PR 2) and custom-workflow builder (PR 3): admin always wins; otherwise checks `userPermissions/{uid}.allowedPageIds` (or falls back to the union of pages across all default workflows when no grant doc exists). `loadAccessGrant()` lazily fetches the grant doc once per page and is awaited during boot.
+- **`rm/js/api-routes.js`** — added two routes:
+  - `workflows/defaults.json` → `labConfig/defaultWorkflows` (lab-scope, LONG cache, no shadow JSON; admin-write guarded by existing `labConfig/{docId}` rule at firestore.rules:464).
+  - `workflows/custom.json` → `userData/{uid}/customWorkflows` (user-scope, SHORT cache; owner-write covered by existing `userData/{uid}/**` rule). The per-user page-access grant is intentionally NOT registered as an `api.*` route — it's stored at top-level `userPermissions/{uid}` and read/written via direct `firebridge.db()` calls from `admin-permissions.js` and the new `loadAccessGrant()` helper.
+- **`firestore.rules`** — new rule block for `userPermissions/{userId}` collection: owner+admin read, admin-only write. Stored as a top-level collection (not a field on `users/{uid}`) because the existing `users/{uid}` write rule lets the owner write any field of their own profile, which would let users grant themselves any page.
+- **`rm/js/nav.js`** — added `Settings → Permissions` admin-gated entry pointing at the new admin matrix page.
+- **`sw.js`** — `CACHE_VERSION` 37 → 38.
+
+### Notes
+- **Requires `firebase deploy --only firestore:rules`** at merge — the new `userPermissions/{userId}` rule needs to be live before admin-permissions.js can write.
+- **Site behavior is unchanged for non-admin users.** The data model + admin tooling ship now; the workflow chooser + workflow-aware nav strip + custom-workflow persistence land in V3.64 + V3.65.
+- **Net page count:** 38 → 39 (admin-permissions.html added). Visible only to admins.
+- **No functions deploy** required.
+
 ## [V3.62] - 2026-05-05
 
 **Page consolidation Tier 4 — activity hub.** The five activity-related pages (activity-overview / activity-tracker / year-review / email-review / activity-summary) collapse into one tab-aware shell at [rm/pages/activity-overview.html](../../rm/pages/activity-overview.html) selected by `?tab=<overview|tracker|timeline|email|lab-stats>`. This is the largest single page-merge in the V3.57–V3.62 sweep and closes the consolidation work for this session. Plan doc: [CodeLog/ClaudesPlan/V3.62_page_consolidation_tier4.md](../ClaudesPlan/V3.62_page_consolidation_tier4.md).

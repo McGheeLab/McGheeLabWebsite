@@ -450,4 +450,29 @@
       });
     })(_y);
   }
+
+  /* ── V3.63: Workflow-driven UX redesign ─────────────────────────
+   *
+   * Two new routes back the workflow feature. Per-user page-access grants
+   * (the admin matrix) live at `userPermissions/{uid}` and are read/written
+   * via direct firebridge.db() calls from admin-permissions.js + the
+   * canAccessPage helper — they're small per-doc reads that don't need the
+   * api layer's wrap-key / discriminator machinery.
+   *
+   *   - labConfig/defaultWorkflows  — admin-edited list of the 5 default
+   *     workflows (page bundles). Lab-scope, LONG cache (admins rarely
+   *     edit). Existing labConfig/{docId} rule (firestore.rules:464)
+   *     already gates write to admin. shadowJson off — net-new doc.
+   *   - userData/{uid}/customWorkflows — per-user saved workflows.
+   *     Owner read+write per the existing userData/{uid}/{collection}
+   *     rule. SHORT cache, shadowJson off.
+   */
+  api.registerRoute('workflows/defaults.json', {
+    scope: 'lab', collection: 'labConfig', doc: 'defaultWorkflows',
+    cache: LONG,
+  });
+  api.registerRoute('workflows/custom.json', {
+    scope: 'user', subcollection: 'customWorkflows', wrapKey: 'workflows',
+    cache: SHORT,
+  });
 })();
