@@ -992,7 +992,7 @@
 
     // Open in Tasks
     const opn = document.createElement('a');
-    opn.href = '/rm/pages/tasks-add.html';
+    opn.href = '/rm/pages/tasks.html?tab=add';
     opn.target = '_self';
     opn.textContent = '→ tasks';
     opn.title = 'Jump to the bucket workspace';

@@ -3,9 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Task Dashboard — McGhee Lab</title>
+  <title>Tasks — McGhee Lab</title>
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.58 — unified Tasks shell. Single page hosts four tabs
+     * (dashboard / inbox / archive / add) selected via ?tab=<name>;
+     * default is `dashboard`. Replaces the V3.40-era four-page setup
+     * (tasks.html, tasks-inbox.html, tasks-archive.html,
+     * tasks-add.html) which each shipped its own near-identical shell
+     * and a manual cross-link tab bar. The other three pages now
+     * `<meta refresh>` to `tasks.html?tab=<name>` so bookmarks
+     * survive. */
+    (function() {
+      var validTabs = ['dashboard','inbox','archive','add'];
+      var tab = new URLSearchParams(location.search).get('tab') || 'dashboard';
+      if (validTabs.indexOf(tab) === -1) tab = 'dashboard';
+      window.__TASKS_TAB = tab;
+      var TITLES = {
+        dashboard: 'Task Dashboard',
+        inbox:     'Task List',
+        archive:   'Completed Tasks',
+        add:       'Add Task'
+      };
+      document.title = TITLES[tab] + ' — McGhee Lab';
+    })();
+  </script>
 </head>
 <body>
   <div class="page">
@@ -13,31 +36,28 @@
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         const HUB = [
-          { label: 'Dashboard', href: '/rm/pages/tasks.html', current: true },
-          { label: 'Add Task',  href: '/rm/pages/tasks-add.html' },
-          { label: 'Task List', href: '/rm/pages/tasks-inbox.html' },
-          { label: 'Completed', href: '/rm/pages/tasks-archive.html' },
+          { tab: 'dashboard', label: 'Dashboard' },
+          { tab: 'add',       label: 'Add Task' },
+          { tab: 'inbox',     label: 'Task List' },
+          { tab: 'archive',   label: 'Completed' },
         ];
         const bar = document.getElementById('task-hub-tabs');
+        const current = window.__TASKS_TAB;
         HUB.forEach(t => {
           const a = document.createElement('a');
-          a.href = t.href;
-          a.className = 'tab-btn' + (t.current ? ' active' : '');
+          a.href = '/rm/pages/tasks.html?tab=' + t.tab;
+          a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
           a.textContent = t.label;
           a.style.textDecoration = 'none';
           bar.appendChild(a);
         });
       });
     </script>
-    <div class="page-header">
-      <h1 class="page-title">Task Dashboard</h1>
-      <div>
-        <a href="/rm/pages/tasks-add.html" class="btn btn-primary" style="text-decoration:none">+ Add Task</a>
-        <button type="button" class="btn" id="btn-assign-task" style="margin-left:6px;">Send to Teammate</button>
-      </div>
-    </div>
-    <div id="dash-content">Loading…</div>
+    <div class="page-header" id="task-page-header"></div>
+    <div id="task-tab-mount"></div>
   </div>
+
+  <!-- Shared scripts (used by every tab) -->
   <script src="/rm/js/util.js"></script>
   <script src="/rm/js/nav.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
@@ -58,11 +78,52 @@
   <script src="/rm/js/card-grid.js"></script>
   <script src="/rm/js/links.js"></script>
   <script src="/rm/js/task-assign.js"></script>
-  <script src="/rm/js/tasks-dashboard-buckets.js"></script>
+
+  <!-- Render the per-tab header + container, then synchronously load
+       the per-tab renderer via document.write so its DOMContentLoaded
+       boot fires at the natural time. document.write is the simplest
+       way to inject a parser-blocking <script> with a dynamic src. -->
   <script>
-    document.getElementById('btn-assign-task')?.addEventListener('click', () => {
-      if (window.TASK_ASSIGN) TASK_ASSIGN.open();
-    });
+    (function() {
+      var tab = window.__TASKS_TAB;
+      var HEADERS = {
+        dashboard: '<h1 class="page-title">Task Dashboard</h1>'
+                 + '<div>'
+                 + '  <a href="/rm/pages/tasks.html?tab=add" class="btn btn-primary" style="text-decoration:none">+ Add Task</a>'
+                 + '  <button type="button" class="btn" id="btn-assign-task" style="margin-left:6px;">Send to Teammate</button>'
+                 + '</div>',
+        inbox:    '<h1 class="page-title">Task List</h1>',
+        archive:  '<h1 class="page-title">Completed Tasks</h1>',
+        add:      '<h1 class="page-title">Add Task</h1>'
+                 + '<div>'
+                 + '  <a href="/rm/pages/tasks.html?tab=dashboard" class="btn" style="text-decoration:none">&larr; Dashboard</a>'
+                 + '</div>'
+      };
+      var CONTAINERS = {
+        dashboard: '<div id="dash-content">Loading…</div>',
+        inbox:     '<div id="content">Loading…</div>',
+        archive:   '<div id="content">Loading…</div>',
+        add:       '<div id="dash-content">Loading…</div>'
+      };
+      var SCRIPTS = {
+        dashboard: '/rm/js/tasks-dashboard-buckets.js',
+        inbox:     '/rm/js/tasks-inbox-buckets.js',
+        archive:   '/rm/js/tasks-archive-buckets.js',
+        add:       '/rm/js/tasks-buckets.js'
+      };
+      document.getElementById('task-page-header').innerHTML = HEADERS[tab];
+      document.getElementById('task-tab-mount').innerHTML = CONTAINERS[tab];
+      document.write('<scr' + 'ipt src="' + SCRIPTS[tab] + '"><\/scr' + 'ipt>');
+    })();
+  </script>
+  <script>
+    if (window.__TASKS_TAB === 'dashboard') {
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('btn-assign-task')?.addEventListener('click', () => {
+          if (window.TASK_ASSIGN) TASK_ASSIGN.open();
+        });
+      });
+    }
   </script>
 </body>
 </html>

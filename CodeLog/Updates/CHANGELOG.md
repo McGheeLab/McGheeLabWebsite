@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.58] - 2026-05-05
+
+**Page consolidation Tier 2 — tasks subpages → tabs.** The four-page Task hub (tasks.html / tasks-add.html / tasks-inbox.html / tasks-archive.html) collapses to a single tab-aware shell at [rm/pages/tasks.html](../../rm/pages/tasks.html) selected via `?tab=<dashboard|add|inbox|archive>`. The other three pages now `<meta refresh>` to the new tab URL so existing bookmarks survive. Plan doc: [CodeLog/ClaudesPlan/V3.58_page_consolidation_tier2.md](../ClaudesPlan/V3.58_page_consolidation_tier2.md).
+
+### Changed
+- **`rm/pages/tasks.html`** — rewritten as a unified shell. Reads `?tab=<name>` early and exposes it on `window.__TASKS_TAB`; the tab bar renders four hash-style links pointing back at `tasks.html?tab=...`; an inline body script swaps in the right page-header markup + the right container div (`#dash-content` for dashboard/add, `#content` for inbox/archive) and uses `document.write` to synchronously inject the per-tab renderer script (the simplest way to load a parser-blocking `<script>` with a dynamic src so the renderer's `DOMContentLoaded` boot fires at the natural time). The four common renderer scripts are loaded eagerly (`tasks-dashboard-buckets.js` / `tasks-inbox-buckets.js` / `tasks-archive-buckets.js` / `tasks-buckets.js` — only the active tab's script is loaded).
+- **`rm/pages/tasks-add.html`**, **`rm/pages/tasks-inbox.html`**, **`rm/pages/tasks-archive.html`** — replaced with `<meta refresh>` redirects to `tasks.html?tab=add|inbox|archive`. Bookmarks survive.
+- **`rm/js/tasks-dashboard-buckets.js`** — three "Add Task" link sites (line 329 adder header, line 479 "View all proposed", line 1130 row-level deep link) updated to `tasks.html?tab=add[#<subtask-id>]`. The line-1130 deep link previously pointed at the malformed `/pages/tasks-add.html` (missing `/rm/` prefix). Header doc-comment updated.
+- **`rm/js/tasks-inbox-buckets.js`** — two "Open in adder" link sites (line 272 header, line 475 row-level) updated to `tasks.html?tab=add`. Header doc-comment updated.
+- **`rm/js/pmr.js:995`** — "→ tasks" deep-link from PMR weekly entry rows now points at `tasks.html?tab=add`.
+- **`rm/js/activity-overview.js:301`** — "Task Inbox" tile updated to `tasks.html?tab=inbox`.
+- **`sw.js`** — `CACHE_VERSION` bumped 32 → 33.
+
+### Notes
+- **No firestore.rules / functions changes.** Pure frontend reorganization. The four renderers (`tasks-dashboard-buckets.js` / `tasks-inbox-buckets.js` / `tasks-archive-buckets.js` / `tasks-buckets.js`) are unchanged — they still each look for their own container element (`#dash-content` or `#content`) and boot on `DOMContentLoaded`.
+- **`rm/js/activity-subnav.js`** left untouched — its `ACTIVITY_EXTRA_PATHS` (lines 24-28) and `TASK_PATHS` (lines 47-52) still list the legacy `/tasks-add.html` / `/tasks-inbox.html` / `/tasks-archive.html` paths, but with redirects in place those URLs immediately bounce to `tasks.html?tab=...` so the subnav's "Task" pill highlights correctly via the existing `currentPath === '/rm/pages/tasks.html'` match. No correctness issue.
+- **`rm/pages/lab-tasks.html`** unchanged — its own internal tab bar still links to the legacy URLs, which redirect cleanly.
+- **Net page reduction:** 49 → 46 user-facing pages.
+
 ## [V3.57] - 2026-05-05
 
 **Page consolidation Tier 1 — orphan deletions.** First in a 4-tier sweep (V3.57–V3.62) reducing the RM page count from 51 → 38. This release deletes two pages whose renderers were already orphaned or superseded. No user-visible feature loss. Plan doc: [CodeLog/ClaudesPlan/V3.57_page_consolidation_tier1.md](../ClaudesPlan/V3.57_page_consolidation_tier1.md).

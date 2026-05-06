@@ -1,7 +1,7 @@
 /* tasks-inbox-buckets.js — Flat inbox view of all subtasks across data/tasks/buckets.json.
  *
  * Two tabs (Active / Completed), text search, and sort by due / priority / hours / project.
- * Click a row → toggle done; "Open in adder" → jump to /pages/tasks-add.html.
+ * Click a row → toggle done; "Open in adder" → jump to /rm/pages/tasks.html?tab=add.
  */
 
 (function () {
@@ -269,7 +269,7 @@
     bar.appendChild(sort);
 
     const adder = document.createElement('a');
-    adder.href = '/rm/pages/tasks-add.html';
+    adder.href = '/rm/pages/tasks.html?tab=add';
     adder.className = 'btn btn-sm btn-primary';
     adder.style.textDecoration = 'none';
     adder.style.marginLeft = 'auto';
@@ -472,7 +472,7 @@
 
     const open = document.createElement('a');
     open.className = 'btn btn-sm';
-    open.href = '/rm/pages/tasks-add.html';
+    open.href = '/rm/pages/tasks.html?tab=add';
     open.style.textDecoration = 'none';
     open.textContent = 'Open in adder';
     actions.appendChild(open);

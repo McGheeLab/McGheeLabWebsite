@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.57 (Page consolidation Tier 1 — orphan deletions: funding.js + purchase-requests)
+**Version:** V3.58 (Page consolidation Tier 2 — tasks subpages → tabs of `tasks.html?tab=<name>`)
 
 ## System Overview
 

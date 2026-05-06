@@ -298,7 +298,7 @@ function renderTiles() {
   host.appendChild(tile('/rm/pages/calendar.html', 'Calendar',
     'Review events by group, assign categories, roll up into tasks.',
     upcoming, 'muted'));
-  host.appendChild(tile('/rm/pages/tasks-inbox.html', 'Task Inbox',
+  host.appendChild(tile('/rm/pages/tasks.html?tab=inbox', 'Task Inbox',
     'Accept / complete / reject suggestions. Plan your day.',
     suggested || active, suggested ? '' : 'muted'));
   host.appendChild(tile('/rm/pages/year-review.html', 'Year Review',

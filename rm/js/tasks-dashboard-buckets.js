@@ -7,7 +7,7 @@
  * Subtasks are flattened across the project's sub-buckets and rendered as pin-cards
  * inside each pin-box. Sub-bucket appears as a small chip on each row.
  *
- * Add task → routes to /pages/tasks-add.html (the adder/search workspace).
+ * Add task → routes to /rm/pages/tasks.html?tab=add (the adder/search workspace).
  */
 
 (function () {
@@ -326,7 +326,7 @@
 
 
     const adder = document.createElement('a');
-    adder.href = '/rm/pages/tasks-add.html';
+    adder.href = '/rm/pages/tasks.html?tab=add';
     adder.className = 'btn btn-sm';
     adder.style.textDecoration = 'none';
     adder.style.marginLeft = 'auto';
@@ -476,7 +476,7 @@
     if (proposed.length > 12) {
       const more = document.createElement('div');
       more.style.cssText = 'padding:6px 12px;font-size:11px;color:#9ca3af';
-      more.innerHTML = `<a href="/rm/pages/tasks-add.html">View all ${proposed.length} proposed →</a>`;
+      more.innerHTML = `<a href="/rm/pages/tasks.html?tab=add">View all ${proposed.length} proposed →</a>`;
       list.appendChild(more);
     }
     wrap.appendChild(list);
@@ -1127,7 +1127,7 @@
     open.className = 'btn btn-sm';
     open.textContent = 'Open in adder';
     open.style.textDecoration = 'none';
-    open.href = `/pages/tasks-add.html#${encodeURIComponent(st.id)}`;
+    open.href = `/rm/pages/tasks.html?tab=add#${encodeURIComponent(st.id)}`;
     btns.appendChild(open);
     const del = document.createElement('button');
     del.className = 'btn btn-sm btn-danger';
