@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.60 (Page consolidation Tier 3b — paper-builder + paper-editor merge via `paper-builder.html?paper=<id>`)
+**Version:** V3.61 (Page consolidation Tier 3c+3d — cv-overview → cv-editor tab, important-people → people tab)
 
 ## System Overview
 

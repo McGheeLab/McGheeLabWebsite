@@ -57,7 +57,7 @@ const NAV_ITEMS = [
     { label: 'Chemical Safety',   href: '/rm/pages/chemicals.html' },
     { label: 'Inventory',         href: '/rm/pages/inventory.html' },
     { label: 'Lab Members',       href: '/rm/pages/people.html' },
-    { label: 'Important People',  href: '/rm/pages/important-people.html' },
+    { label: 'Important People',  href: '/rm/pages/people.html?tab=important' },
     { label: 'Career & Tenure',   href: '/rm/pages/career.html' },
     { label: 'Procurement',       href: '/rm/pages/procurement.html' },
     { label: 'Receipts & Budget', href: '/rm/pages/receipts.html' },
@@ -70,8 +70,8 @@ const NAV_ITEMS = [
   { label: 'Settings', gate: 'lab-member', children: [
     { label: 'Profile',         href: '/rm/pages/profile.html' },
     { label: 'Settings',        href: '/rm/pages/settings.html' },
-    { label: 'CV Overview',     href: '/rm/pages/cv-overview.html' },
     { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
+    { label: 'CV Overview',     href: '/rm/pages/cv-editor.html?tab=lab' },
     { label: 'Member Activity', href: '/rm/pages/activity-summary.html', gate: 'admin' },
   ]},
 

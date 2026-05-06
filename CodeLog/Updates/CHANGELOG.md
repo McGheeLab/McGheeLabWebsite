@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.61] - 2026-05-05
+
+**Page consolidation Tier 3c+3d — cv-overview + important-people merges.** Two more separate pages collapse into tabs of their primary sibling: cv-overview becomes `cv-editor.html?tab=lab`, important-people becomes `people.html?tab=important`. Both old pages are now `<meta refresh>` redirects. Plan doc: [CodeLog/ClaudesPlan/V3.61_page_consolidation_tier3cd.md](../ClaudesPlan/V3.61_page_consolidation_tier3cd.md).
+
+### Changed
+- **`rm/pages/cv-editor.html`** — rewritten as unified shell with tabs `My CV` (default) / `Lab Overview`. Reads `?tab=` early; sets `<html data-cv-tab>` for CSS visibility. Two DOM blocks (`.cv-mine-block` + `.cv-lab-block`) coexist; CSS hides the inactive one. The cve-* modal lives inside `.cv-mine-block` so it hides automatically on the lab tab. Per-tab scripts via document.write: mine → `cv-importers.js` + `cv-export.js` + `cv-editor.js`; lab → `cv-overview.js`. Common scripts (firebase, firebridge, `cv-schemas.js`) load eagerly.
+- **`rm/pages/cv-overview.html`** → `<meta refresh>` to `cv-editor.html?tab=lab`. Bookmarks survive.
+- **`rm/pages/people.html`** — rewritten as unified shell with tabs `Lab Roster` (default) / `Important People`. Reads `?tab=` early; sets `<html data-people-tab>` for CSS visibility. Two page-header variants coexist (`.people-roster-header` + `.people-important-header`); the inner containers `#tabs` + `#content` + `#context-area` + `#filters` are shared since only one renderer loads per page hit. The `.dossier-*` / `.convo-*` / `.relevance-badge` / `.context-banner` / `.filter-*` styles from former important-people.html are inlined into the unified shell's `<style>` (~80 LOC; harmless on the roster tab). Per-tab renderer via document.write: roster → `people.js`; important → `important-people.js`. Common scripts (firebase, firebridge, `forms.js`) load eagerly.
+- **`rm/pages/important-people.html`** → `<meta refresh>` to `people.html?tab=important`.
+- **`rm/js/nav.js`** — Settings group: "CV Editor" + "CV Overview" entries reordered (Editor first, then Overview-as-tab); Lab Admin group: "Important People" link repointed to `people.html?tab=important`.
+- **`rm/js/dashboard.js:406`** — CV Status card link repointed to `cv-editor.html?tab=lab`.
+- **`sw.js`** — `CACHE_VERSION` 35 → 36.
+
+### Notes
+- **No firestore.rules / functions changes.** Both `cvData/{uid}` (CV) and `people/*.json` + `important-people/*.json` Firestore reads are unchanged. Pure shell unification.
+- **All four renderers (`cv-editor.js`, `cv-overview.js`, `people.js`, `important-people.js`) are unchanged.** With document.write loading only the active tab's renderer, the inactive one never boots and never queries Firestore.
+- **`career.html`** stays separate per the plan — PI tenure dossier is distinct PI-only data, not part of the People hub.
+- **Net page reduction:** 44 → 42 user-facing pages (-2 in this PR).
+
 ## [V3.60] - 2026-05-05
 
 **Page consolidation Tier 3b — paper-builder + paper-editor merge.** The Papers list and the per-paper Yjs editor merge into a single page selected by the presence of `?paper=<id>` on `paper-builder.html`. Both DOM blocks coexist; CSS hides the inactive one; only the active mode's renderer scripts load. Plan doc: [CodeLog/ClaudesPlan/V3.60_page_consolidation_tier3b.md](../ClaudesPlan/V3.60_page_consolidation_tier3b.md).

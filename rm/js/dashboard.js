@@ -403,7 +403,7 @@ async function _runDashboard() {
       if (staleCount) cvBody += ', <span style="color:var(--amber)">' + staleCount + ' stale</span>';
       if (noCV) cvBody += ', ' + noCV + ' no CV';
       grid.appendChild(card('CV Status', userIds.length + ' members',
-        cvBody, '/rm/pages/cv-overview.html'));
+        cvBody, '/rm/pages/cv-editor.html?tab=lab'));
     } catch (e) {
       console.warn('[dashboard] CV read failed:', e.message);
     }

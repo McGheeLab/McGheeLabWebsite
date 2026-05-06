@@ -6,6 +6,22 @@
   <title>CV Editor — McGhee Lab</title>
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.61 — unified CV shell. ?tab=lab shows the lab-wide read-only
+     * Overview (formerly cv-overview.html); default tab is the
+     * personal Editor. Both DOM blocks live side-by-side; CSS hides
+     * the inactive one and only the active tab's renderer scripts
+     * are loaded. */
+    (function () {
+      var tab = (new URLSearchParams(location.search).get('tab') === 'lab')
+        ? 'lab' : 'mine';
+      window.__CV_TAB = tab;
+      document.title = (tab === 'lab')
+        ? 'CV Overview — McGhee Lab'
+        : 'CV Editor — McGhee Lab';
+      document.documentElement.dataset.cvTab = tab;
+    })();
+  </script>
   <style>
     .cve-layout{display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:start}
     @media (max-width:900px){.cve-layout{grid-template-columns:1fr}}
@@ -50,23 +66,64 @@
 
     .cve-gated{padding:30px 20px;text-align:center;color:#6b7280;background:#fef3c7;border:1px solid #fde68a;border-radius:10px}
     .cve-gated a{color:#2563eb}
+
+    /* Tab visibility */
+    html[data-cv-tab="lab"]  .cv-mine-block { display: none; }
+    html[data-cv-tab="mine"] .cv-lab-block  { display: none; }
   </style>
 </head>
 <body>
   <div class="page">
-    <div class="page-header">
-      <h1 class="page-title">CV Editor</h1>
-      <div>
-        <span id="cve-who" style="font-size:13px;color:#6b7280;margin-right:8px"></span>
-        <span id="cve-status" class="cve-status"></span>
+    <div class="tab-bar" id="cv-hub-tabs"></div>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const HUB = [
+          { tab: 'mine', label: 'My CV' },
+          { tab: 'lab',  label: 'Lab Overview' },
+        ];
+        const bar = document.getElementById('cv-hub-tabs');
+        const current = window.__CV_TAB;
+        HUB.forEach(t => {
+          const a = document.createElement('a');
+          a.href = '/rm/pages/cv-editor.html' + (t.tab === 'lab' ? '?tab=lab' : '');
+          a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
+          a.textContent = t.label;
+          a.style.textDecoration = 'none';
+          bar.appendChild(a);
+        });
+      });
+    </script>
+
+    <!-- ===== My CV (editor) tab ===== -->
+    <div class="cv-mine-block">
+      <div class="page-header">
+        <h1 class="page-title">CV Editor</h1>
+        <div>
+          <span id="cve-who" style="font-size:13px;color:#6b7280;margin-right:8px"></span>
+          <span id="cve-status" class="cve-status"></span>
+        </div>
+      </div>
+      <div id="cve-root">
+        <div class="empty-state">Connecting to website&hellip;</div>
       </div>
     </div>
-    <div id="cve-root">
-      <div class="empty-state">Connecting to website&hellip;</div>
+
+    <!-- ===== Lab Overview (read-only) tab ===== -->
+    <div class="cv-lab-block">
+      <div class="page-header">
+        <h1 class="page-title">CV Overview</h1>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="copy-pubs-btn">Copy Publication List</button>
+        </div>
+      </div>
+      <div id="content">
+        <div class="empty-state">Connecting to website&hellip;</div>
+      </div>
     </div>
   </div>
 
-  <div class="cve-modal-back" id="cve-modal">
+  <!-- Modal lives inside the My CV block; only opened from the editor. -->
+  <div class="cve-modal-back cv-mine-block" id="cve-modal">
     <div class="cve-modal">
       <h3 id="cve-modal-title">Entry</h3>
       <div id="cve-modal-body"></div>
@@ -77,6 +134,7 @@
     </div>
   </div>
 
+  <!-- Shared scripts -->
   <script src="/rm/js/util.js"></script>
   <script src="/rm/js/nav.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
@@ -91,8 +149,22 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/cv-schemas.js"></script>
-  <script src="/rm/js/cv-importers.js"></script>
-  <script src="/rm/js/cv-export.js"></script>
-  <script src="/rm/js/cv-editor.js"></script>
+
+  <!-- Per-tab scripts via document.write -->
+  <script>
+    (function () {
+      var tab = window.__CV_TAB;
+      var mineScripts = [
+        '/rm/js/cv-importers.js',
+        '/rm/js/cv-export.js',
+        '/rm/js/cv-editor.js'
+      ];
+      var labScripts = ['/rm/js/cv-overview.js'];
+      var srcs = (tab === 'lab') ? labScripts : mineScripts;
+      srcs.forEach(function (s) {
+        document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');
+      });
+    })();
+  </script>
 </body>
 </html>
