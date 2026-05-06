@@ -9,12 +9,13 @@
 (function () {
   const ACTIVITY_PAGES = [
     { label: 'Overview',       href: '/rm/pages/activity-overview.html' },
+    { label: 'Tracker',        href: '/rm/pages/activity-overview.html?tab=tracker' },
+    { label: 'Email',          href: '/rm/pages/activity-overview.html?tab=email' },
+    { label: 'Year',           href: '/rm/pages/activity-overview.html?tab=timeline' },
     { label: 'Explorer',       href: '/rm/pages/explorer.html' },
     { label: 'Calendar',       href: '/rm/pages/calendar.html' },
-    { label: 'Email',          href: '/rm/pages/email-review.html' },
     { label: 'Task',           href: '/rm/pages/tasks.html' },
     { label: 'Sharing',        href: '/rm/pages/sharing.html' },
-    { label: 'Year',           href: '/rm/pages/year-review.html' },
     { label: 'PMR',            href: '/rm/pages/pmr.html' },
     { label: 'API usage',      href: '/rm/pages/api-usage.html' },
   ];

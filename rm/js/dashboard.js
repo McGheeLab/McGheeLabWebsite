@@ -116,7 +116,7 @@ async function _runDashboard() {
   const emailBody = emailCount
     ? `${emailCount} synced`
     : 'Connect Gmail in Settings';
-  grid.appendChild(card('Email', emailCount, emailBody, '/rm/pages/email-review.html'));
+  grid.appendChild(card('Email', emailCount, emailBody, '/rm/pages/activity-overview.html?tab=email'));
 
   const upcomingBody = upcomingCount
     ? `${upcomingCount} ahead`
@@ -262,7 +262,7 @@ async function _runDashboard() {
       const ev = (doc.groups || []).reduce((s, g) => s + g.event_count, 0);
       const em = (doc.groups || []).reduce((s, g) => s + g.email_count, 0);
       const body = `${year}: ${ev} events, ${em} emails, ${hrs.toFixed(0)}h across ${doc.groups.length} groups`;
-      grid.appendChild(card('Year in Review', hrs.toFixed(0) + 'h', body, '/rm/pages/year-review.html'));
+      grid.appendChild(card('Year in Review', hrs.toFixed(0) + 'h', body, '/rm/pages/activity-overview.html?tab=timeline'));
     }
   } catch (e) { /* year review not built yet */ }
 
@@ -278,7 +278,7 @@ async function _runDashboard() {
           .sort((a, b) => b[1] - a[1]).slice(0, 3)
           .map(([c, n]) => `${n} ${c}`).join(', ')
       : 'No classification yet';
-    grid.appendChild(card('Email Archive', s.total.toLocaleString(), body, '/rm/pages/email-review.html'));
+    grid.appendChild(card('Email Archive', s.total.toLocaleString(), body, '/rm/pages/activity-overview.html?tab=email'));
   } catch (e) { /* email archive not yet built */ }
 
   // ---- Website integration cards (Firestore) ----
@@ -320,7 +320,7 @@ async function _runDashboard() {
         .map(function (kv) { return kv[0] + ': ' + kv[1].toFixed(1) + 'h'; })
         .join(', ') || 'No entries';
       grid.appendChild(card('Lab Activity (7d)', totalHours.toFixed(1) + 'h',
-        catStr, '/rm/pages/activity-summary.html'));
+        catStr, '/rm/pages/activity-overview.html?tab=lab-stats'));
     } catch (e) {
       console.warn('[dashboard] Activity tracker read failed:', e.message);
     }

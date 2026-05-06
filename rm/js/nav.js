@@ -25,14 +25,14 @@
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/rm/index.html' },
 
-  { label: 'Activity', href: '/rm/pages/activity-tracker.html', children: [
-    { label: 'Tracker',  href: '/rm/pages/activity-tracker.html' },
+  { label: 'Activity', href: '/rm/pages/activity-overview.html', children: [
     { label: 'Overview', href: '/rm/pages/activity-overview.html' },
+    { label: 'Tracker',  href: '/rm/pages/activity-overview.html?tab=tracker' },
+    { label: 'Email',    href: '/rm/pages/activity-overview.html?tab=email' },
+    { label: 'Year',     href: '/rm/pages/activity-overview.html?tab=timeline' },
     { label: 'Calendar', href: '/rm/pages/calendar.html' },
-    { label: 'Email',    href: '/rm/pages/email-review.html' },
     { label: 'Tasks',    href: '/rm/pages/tasks.html' },
     { label: 'Sharing',  href: '/rm/pages/sharing.html' },
-    { label: 'Year',     href: '/rm/pages/year-review.html' },
   ]},
 
   { label: 'Research', href: '/rm/pages/projects.html', children: [
@@ -72,7 +72,7 @@ const NAV_ITEMS = [
     { label: 'Settings',        href: '/rm/pages/settings.html' },
     { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
     { label: 'CV Overview',     href: '/rm/pages/cv-editor.html?tab=lab' },
-    { label: 'Member Activity', href: '/rm/pages/activity-summary.html', gate: 'admin' },
+    { label: 'Member Activity', href: '/rm/pages/activity-overview.html?tab=lab-stats', gate: 'admin' },
   ]},
 
   // V3.56 — Split View opens a side-by-side shell with two RM pages

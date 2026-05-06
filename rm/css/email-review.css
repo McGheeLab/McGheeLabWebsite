@@ -1,0 +1,85 @@
+    /* Shared visual language with the calendar page. */
+    .ch-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .ch-summary{padding:14px 18px;background:#eff6ff;border:1px solid #dbeafe;border-radius:10px;margin-bottom:16px}
+    .ch-analytics{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    @media (max-width:900px){.ch-analytics{grid-template-columns:1fr}}
+    .ch-panel{padding:12px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+    .ch-panel h3{margin:0 0 8px 0;font-size:13px;color:#374151;text-transform:uppercase;letter-spacing:.5px}
+    .ch-timeline-wrap{height:220px;position:relative}
+    /* Keep the top-activities panel the same size as the chart even as the
+       list filters down so the search bar doesn't migrate up the page. */
+    #activity-rollup{height:220px;overflow-y:auto;overscroll-behavior:contain}
+    /* Reserve vertical space so the page doesn't collapse as search narrows. */
+    #content{min-height:65vh}
+
+    .er-tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase}
+    .er-tag-research{background:#dbeafe;color:#1e40af}
+    .er-tag-teaching{background:#fef3c7;color:#92400e}
+    .er-tag-service{background:#ede9fe;color:#5b21b6}
+    .er-tag-admin{background:#e5e7eb;color:#374151}
+    .er-tag-personal{background:#fee2e2;color:#991b1b}
+    .er-tag-noise{background:#f1f5f9;color:#475569;opacity:.6}
+    .er-tag-unknown{background:#fef3c7;color:#78350f}
+    .cat-toggles{display:inline-flex;gap:6px;flex-wrap:wrap}
+    .cat-toggle{padding:4px 10px;font-size:12px;font-weight:600;text-transform:uppercase;border-radius:14px;border:1px solid transparent;cursor:pointer;user-select:none;transition:opacity .1s, filter .1s}
+    .cat-toggle.off{opacity:.35;filter:grayscale(1);background:#f3f4f6 !important;color:#9ca3af !important;border-color:#e5e7eb}
+    .cat-toggle-research{background:#dbeafe;color:#1e40af}
+    .cat-toggle-teaching{background:#fef3c7;color:#92400e}
+    .cat-toggle-service{background:#ede9fe;color:#5b21b6}
+    .cat-toggle-admin{background:#e5e7eb;color:#374151}
+    .cat-toggle-personal{background:#fee2e2;color:#991b1b}
+    .cat-toggle-noise{background:#f1f5f9;color:#475569}
+    .cat-toggle-unknown{background:#fef3c7;color:#78350f}
+    .stars{user-select:none;font-size:18px;cursor:pointer;letter-spacing:2px;white-space:nowrap}
+    .stars .s{color:#d1d5db}
+    .stars .s.on{color:#f59e0b}
+    /* Email rows + expand panels use the shared .ch-line / .ch-detail /
+     * .ch-del-btn classes from css/style.css — same look as calendar. */
+    .task-chip{display:inline-block;font-size:11px;padding:2px 6px;background:#dcfce7;color:#166534;border-radius:8px;margin-left:6px}
+    .activity-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}
+    .activity-item .lbl{flex:1;min-width:0;overflow:hidden}
+    .activity-item .cnt{color:#6b7280;margin:0 12px;font-variant-numeric:tabular-nums}
+
+    /* Disposition chips — 3-way classification per email.
+       Shape + colour carry the importance: circle=actionable (red, hot),
+       triangle=reminder (amber, watch), square=info (gray, cold).
+       States: neutral outline · user-chosen (solid fill) · ml-hint
+       (dashed outline) · seed-hint (dotted outline). */
+    .disp-slot{margin-top:4px}
+    .disp-chips{display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap}
+    .disp-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:11px;font-weight:600;border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#6b7280;cursor:pointer;user-select:none;transition:background .1s,border-color .1s,color .1s}
+    .disp-chip:hover{background:#f9fafb}
+    .disp-shape{font-size:11px;line-height:1}
+    /* Importance palette — shape colour = importance signal. */
+    .disp-actionable .disp-shape{color:#dc2626}
+    .disp-reminder   .disp-shape{color:#f59e0b}
+    .disp-info       .disp-shape{color:#6b7280}
+    /* User-chosen = solid fill in the disposition colour. */
+    .disp-chip.user-chosen.disp-actionable{background:#fee2e2;border-color:#dc2626;color:#991b1b}
+    .disp-chip.user-chosen.disp-reminder  {background:#fef3c7;border-color:#f59e0b;color:#92400e}
+    .disp-chip.user-chosen.disp-info      {background:#e5e7eb;border-color:#9ca3af;color:#374151}
+    /* ML-suggested but user hasn't confirmed — dashed. Seeded-by-rule — dotted. */
+    .disp-chip.ml-hint{border-style:dashed;border-color:#9ca3af;color:#374151}
+    .disp-chip.seed-hint{border-style:dotted;color:#374151}
+    /* ✨ Refine button */
+    .disp-refine{margin-left:4px;border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:2px 6px;font-size:11px;cursor:pointer;transition:background .1s}
+    .disp-refine:hover:not(:disabled){background:#f3f4f6}
+    .disp-refine:disabled{opacity:.5;cursor:wait}
+
+    /* Multi-select mode — checkbox column appears at the left of each email
+       row, and clicking a row toggles selection instead of expanding it. */
+    .ch-line .col-select{display:none;align-items:center;justify-content:center}
+    #content.select-mode .ch-line{grid-template-columns:28px 140px 110px 1fr 100px 110px 72px}
+    #content.select-mode .ch-line .col-select{display:flex}
+    #content.select-mode .ch-line.row-selected{background:#eff6ff}
+    #content.select-mode .ch-line.row-selected:hover{background:#dbeafe}
+    .em-bulk-bar{display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#fff;border:1px solid #3b82f6;border-radius:8px;margin-bottom:10px;font-size:12px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+    .em-bulk-bar.active{display:flex}
+    .em-bulk-count{font-weight:600;color:#1e3a8a;margin-right:4px}
+    .em-bulk-btn{border:1px solid #e5e7eb;background:#fff;color:#374151;border-radius:8px;padding:3px 10px;font-size:12px;cursor:pointer;transition:background .1s}
+    .em-bulk-btn:hover{background:#f3f4f6}
+    .em-bulk-btn.bb-danger{border-color:#fecaca;color:#991b1b}
+    .em-bulk-btn.bb-danger:hover{background:#fee2e2}
+    .em-bulk-btn.bb-actionable .shape{color:#dc2626}
+    .em-bulk-btn.bb-reminder   .shape{color:#f59e0b}
+    .em-bulk-btn.bb-info       .shape{color:#6b7280}

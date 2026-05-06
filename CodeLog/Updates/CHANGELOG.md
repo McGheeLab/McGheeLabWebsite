@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.62] - 2026-05-05
+
+**Page consolidation Tier 4 — activity hub.** The five activity-related pages (activity-overview / activity-tracker / year-review / email-review / activity-summary) collapse into one tab-aware shell at [rm/pages/activity-overview.html](../../rm/pages/activity-overview.html) selected by `?tab=<overview|tracker|timeline|email|lab-stats>`. This is the largest single page-merge in the V3.57–V3.62 sweep and closes the consolidation work for this session. Plan doc: [CodeLog/ClaudesPlan/V3.62_page_consolidation_tier4.md](../ClaudesPlan/V3.62_page_consolidation_tier4.md).
+
+### Added
+- **`rm/css/activity-overview.css`** (489 LOC) — extracted from former inline `<style>` block in activity-overview.html. Holds the `act-*` action bar, `jp-*` job progress, `act-stats` / `act-tile` cards, `cx-*` Category Explorer, and `act-recent-*` feed styles.
+- **`rm/css/year-review.css`** (96 LOC) — extracted from former year-review.html. `yr-*` toolbar / category section / line / detail / actionbar.
+- **`rm/css/email-review.css`** (85 LOC) — extracted from former email-review.html. `ch-*` toolbar / summary / analytics, `er-*` tags, `cat-toggle-*`, `disp-*` chips, `em-bulk-bar` selectors.
+
+### Changed
+- **`rm/pages/activity-overview.html`** — rewritten as the unified Activity hub. Reads `?tab=` early and exposes `window.__ACT_TAB` + `<html data-act-tab>`. Five tab-bar links (Overview / Tracker / Year Timeline / Email / Lab Stats). Each tab's DOM block is wrapped in `.act-tab.tab-<name>`; CSS rules `html[data-act-tab="<X>"] .act-tab:not(.tab-<X>) { display: none; }` hide inactive blocks before first paint. The four extracted CSS files load eagerly (each scoped to its prefix; harmless cross-tab). The trailing inline body script uses `document.write` to inject only the active tab's renderer scripts: overview → `yr-shared` + `task-editor` + `explorer-detail` + `activity-overview.js`; tracker → `chart.js@4.4.0` + `rm-categories` + GIS client + `calendar-service` + `activity-tracker.js`; timeline → `yr-shared` + `chart.js@4.4.4` + `cv-schemas` + `cv-send` + `year-review.js`; email → `yr-shared` + `disp-shared` + `task-editor` + `chart.js@4.4.4` + `task-quick-builder` + `email-review.js`; lab-stats → `activity-summary.js`. A separate inline script appends a single `#content` div to the active tab's block when needed (timeline / email / lab-stats renderers all query `#content` — only one is active at a time).
+- **`rm/pages/activity-tracker.html`**, **`rm/pages/year-review.html`**, **`rm/pages/email-review.html`**, **`rm/pages/activity-summary.html`** — replaced with `<meta refresh>` redirects to `activity-overview.html?tab=<name>`. Bookmarks survive.
+- **`rm/js/nav.js`** — Activity dropdown rebuilt: Overview / Tracker / Email / Year now point at the unified hub via `?tab=`; Calendar / Tasks / Sharing kept as they were (separate pages). Settings group: "Member Activity" admin link repointed to `activity-overview.html?tab=lab-stats`.
+- **`rm/js/dashboard.js`** — three card hrefs repointed: "Email" / "Email Archive" → `activity-overview.html?tab=email`; "Year in Review" → `?tab=timeline`; "Member Activity" → `?tab=lab-stats`. Bypasses the redirect bounce.
+- **`rm/js/activity-subnav.js`** — subnav pill list rebuilt: Overview / Tracker / Email / Year now point at the unified hub via `?tab=`. Calendar / Task / Sharing / PMR / API usage / Explorer keep their separate-page URLs. (The legacy `ACTIVITY_EXTRA_PATHS` and `TASK_PATHS` from V3.58 stay — they reference now-redirecting pages, harmless.)
+- **`sw.js`** — `CACHE_VERSION` 36 → 37.
+
+### Notes
+- **No firestore.rules / functions changes.** All four migrated renderers + the existing activity-overview renderer keep their existing Firestore reads / writes unchanged. Pure shell unification.
+- **Renderer scripts unchanged.** `activity-tracker.js` (2123 LOC), `year-review.js` (1507 LOC), `email-review.js` (2254 LOC), `activity-summary.js` (172 LOC), `activity-overview.js` (4309 LOC) — none modified. Each one's `DOMContentLoaded` boot fires at the natural time and finds its expected DOM.
+- **Tab switch is still a full page reload** (URL changes, page reloads, only the active tab's renderer boots). With SW caching this is fast (~150ms cached). Future enhancement could refactor to a true SPA tab swap if reload cost becomes annoying.
+- **`rm/pages/calendar.html` and `rm/pages/sharing.html` stay separate** — calendar has operational tools (Outlook sync, Booked Time, Availability) beyond review; sharing is task collaboration, distinct domain. Per the consolidation plan.
+- **Net page reduction:** 42 → 38 user-facing pages (-4 in this PR).
+
+### Cumulative impact since V3.57
+- **51 → 38 user-facing pages** (-13). Primary navigation surface ~25% smaller.
+- **No firestore.rules / indexes / functions deploys** required across the entire V3.57–V3.62 sweep. Pure frontend reorganization.
+- All renderer scripts kept their existing structure — the merge is purely shell-level. Per-tab document.write loading means inactive tabs never boot or query Firestore.
+- Bookmarks for every old URL survive via `<meta refresh>` (or, for paper-editor, a JS redirect that preserves the id query param).
+
 ## [V3.61] - 2026-05-05
 
 **Page consolidation Tier 3c+3d — cv-overview + important-people merges.** Two more separate pages collapse into tabs of their primary sibling: cv-overview becomes `cv-editor.html?tab=lab`, important-people becomes `people.html?tab=important`. Both old pages are now `<meta refresh>` redirects. Plan doc: [CodeLog/ClaudesPlan/V3.61_page_consolidation_tier3cd.md](../ClaudesPlan/V3.61_page_consolidation_tier3cd.md).

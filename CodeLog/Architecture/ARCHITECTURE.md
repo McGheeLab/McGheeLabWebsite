@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.61 (Page consolidation Tier 3c+3d — cv-overview → cv-editor tab, important-people → people tab)
+**Version:** V3.62 (Page consolidation Tier 4 — activity hub: tracker/year-review/email-review/activity-summary collapse into `activity-overview.html?tab=<name>`. 51 → 38 user-facing pages cumulative since V3.57.)
 
 ## System Overview
 
