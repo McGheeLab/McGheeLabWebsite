@@ -1,34 +1,33 @@
 /* ================================================================
-   Scheduler — RM-native port (V3.47)
+   Scheduler — RM-native port (V3.47 + V3.55)
    ================================================================
-   Subset port of /apps/scheduler/. The "My Schedulers" tab — create
-   and manage shareable scheduler links (lab seminar speaker lineup,
-   meeting time-poll, etc.) — moves here as a native RM page.
+   Two-tab page covering both halves of the original /apps/scheduler/:
 
-   The "My Schedule" tab (personal calendar layers, Google Calendar
-   OAuth) is deferred to V3.51 alongside the equipment OAuth refactor.
-   The standalone /apps/scheduler/ URL still resolves until then;
-   nothing in this file references ScheduleService / CalendarService.
+   1. **My Schedule** (V3.55) — personal calendar with layers
+      (recurring availability, per-week overrides, custom events,
+      Google/Outlook/Apple calendar overlay). Drag on the time grid
+      to create blocks; click blocks to edit; toggle layer visibility
+      from the layer panel. Backed by McgheeLab.ScheduleService +
+      McgheeLab.CalendarService brought into RM in V3.51 and loaded
+      from rm/pages/scheduler.html. Gracefully degrades to an empty
+      Gantt with a "service not loaded" notice if those scripts are
+      absent.
 
-   Architecture:
-     - The scheduling engine at /scheduler.js (1,382 LOC, stateless)
-       is loaded by rm/pages/scheduler.html via <script src="/scheduler.js">
-       and exposes McgheeLab.Scheduler. The engine emits HTML and wires
-       events; it does NOT touch Firestore. Persistence is handled by
-       config callbacks supplied here.
-     - A small SDB wrapper layer (lifted from /apps/scheduler/app.js
-       lines 39-87) does direct firebridge.db() reads/writes against
-       schedules/{id} and participants/{key}. Surgical writes mirror
-       the V3.41 meetings + V3.44 procurement patterns.
-     - List view uses api.load + LIVE_SYNC for cache + cross-tab
-       updates. Editor view does one-shot firestore reads (single
-       editor at a time; engine's onRefresh callback re-loads).
+   2. **My Schedulers** (V3.47) — create + manage shareable scheduler
+      links (lab seminar lineup, meeting time-poll). Editor view
+      mounts McgheeLab.Scheduler from /scheduler.js and wires
+      onSaveSchedule / onSaveSpeaker / etc. config callbacks to
+      surgical Firestore writes via firebridge.db(). List view uses
+      api.load + LIVE_SYNC for cache + cross-tab updates.
+
+   Default tab is `schedulers` to preserve the V3.47 behavior; user
+   switches to `myschedule` via the tab bar at the top.
 
    firestore.rules (already in place):
-     - schedules/{id}: public read; create=any auth; update/delete=
-       (owner || isAdmin).
-     - participants/{id}: public read; create/update/delete with
-       admin OR speakerUid match OR invite-key match (line 199-209).
+     - schedules/{id} + participants/{id}: V3.47 covered.
+     - huddleScheduleTemplates / huddleScheduleOverrides /
+       scheduleCustomEvents: line 288-307; ScheduleService writes via
+       these on My Schedule edits.
    ================================================================ */
 
 (function () {
@@ -43,11 +42,26 @@
   /* ─── State ─────────────────────────────────────────────── */
   let _user = null;
   let _profile = null;
-  let _view = 'list';        // 'list' | 'editor'
+  let _currentTab = 'schedulers'; // 'myschedule' | 'schedulers' (V3.55)
+  let _view = 'list';        // 'list' | 'editor' (within Schedulers tab)
   let _editingId = null;
   let _schedules = [];       // cached list (filtered client-side)
   let _live = null;
   let _toastTimer = null;
+
+  /* ─── My Schedule state (V3.55) ─────────────────────────── */
+  let _weekOffset = 0;
+  let _schedMode = 'recurring';      // 'recurring' | 'special' | 'blackout'
+  let _schedZoomIdx = 5;             // index into ScheduleUtils.ZOOM_LEVELS
+
+  /* Service aliases — null when shared services aren't loaded
+   * (graceful degradation, same pattern as the lab app). */
+  function SS() { return (typeof McgheeLab !== 'undefined' && McgheeLab.ScheduleService) || null; }
+  function SU() { return (typeof McgheeLab !== 'undefined' && McgheeLab.ScheduleUtils) || null; }
+  function CS() { return (typeof McgheeLab !== 'undefined' && McgheeLab.CalendarService) || null; }
+
+  function lockIcon() { return '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>'; }
+  function calIcon() { return '\u{1F4C5}'; }
 
   function db() {
     if (typeof firebridge !== 'undefined' && firebridge.db) return firebridge.db();
@@ -73,6 +87,22 @@
     _user = firebridge.getUser ? firebridge.getUser() : null;
     _profile = firebridge.getProfile ? firebridge.getProfile() : null;
     if (!_user) return;
+
+    // V3.55: init shared services (no-op if not loaded). ScheduleService
+    // and CalendarService back the My Schedule tab; without them the tab
+    // shows an empty Gantt with a "service not loaded" notice.
+    if (CS()) {
+      try { await CS().init(_user, {}); } catch (e) { console.warn('[scheduler] CalendarService init:', e); }
+    }
+    if (SS()) {
+      try { await SS().init(_user, _profile); } catch (e) { console.warn('[scheduler] ScheduleService init:', e); }
+      if (SS().onChange) {
+        SS().onChange(() => { if (_currentTab === 'myschedule') renderMyScheduleContent(); });
+      }
+    }
+    if (CS() && CS().onChange) {
+      CS().onChange(() => { if (_currentTab === 'myschedule') renderMyScheduleContent(); });
+    }
 
     try {
       await loadAndRender();
@@ -201,9 +231,37 @@
     }
   }
 
-  /* ─── List view ─────────────────────────────────────────── */
+  /* ─── Render dispatcher (V3.55 added the tab bar) ────────── */
   function render() {
     root.innerHTML =
+      '<div class="sched-tab-bar">' +
+        '<button class="sched-tab' + (_currentTab === 'myschedule' ? ' active' : '') + '" data-tab="myschedule">My Schedule</button>' +
+        '<button class="sched-tab' + (_currentTab === 'schedulers' ? ' active' : '') + '" data-tab="schedulers">My Schedulers</button>' +
+      '</div>' +
+      '<div id="sched-tab-content"></div>';
+
+    root.querySelectorAll('.sched-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.tab === _currentTab) return;
+        _currentTab = btn.dataset.tab;
+        // Reset Schedulers' editor view when switching tabs so we don't
+        // resume into a half-loaded editor on tab toggle.
+        if (_currentTab === 'schedulers') _view = 'list';
+        render();
+      });
+    });
+
+    const content = document.getElementById('sched-tab-content');
+    if (_currentTab === 'myschedule') {
+      renderMyScheduleTab(content);
+    } else {
+      renderSchedulersTab(content);
+    }
+  }
+
+  /* ─── Schedulers tab (V3.47 — list + create + editor) ────── */
+  function renderSchedulersTab(container) {
+    container.innerHTML =
       '<div class="sched-home-header">' +
         '<h2 class="sched-h2">My Schedulers</h2>' +
         '<button class="btn btn-primary" id="new-sched-btn">+ New Scheduler</button>' +
@@ -459,4 +517,729 @@
     edContainer.innerHTML = Sched.render(buildConfig());
     Sched.wire('scheduler-editor-content', buildConfig());
   }
+
+  /* ═══════════════════════════════════════════════════════════
+     MY SCHEDULE TAB (V3.55 — lifted from /apps/scheduler/app.js
+     lines 191-908 via git history; `appEl` references swapped
+     to `root`; service aliases SS/SU/CS already defined above)
+     ═══════════════════════════════════════════════════════════ */
+  function renderMyScheduleTab(container) {
+    const s = SS();
+    if (!s) {
+      container.innerHTML = '<p class="empty-state">Schedule service not loaded.</p>';
+      return;
+    }
+
+    container.innerHTML = renderMyScheduleHTML();
+    wireMySchedule();
+  }
+
+  function renderMyScheduleContent() {
+    const content = document.getElementById('sched-tab-content');
+    if (!content || _currentTab !== 'myschedule') return;
+    content.innerHTML = renderMyScheduleHTML();
+    wireMySchedule();
+  }
+
+  function renderMyScheduleHTML() {
+    const s = SS();
+    const su = SU();
+    if (!s || !su) return '';
+
+    const days = su.getWeekDays(_weekOffset);
+    const bounds = { startHour: 0, endHour: 24 };
+    const slots = su.timeLabels(bounds.startHour, bounds.endHour);
+    const slotH = su.ZOOM_LEVELS[_schedZoomIdx];
+    const totalRows = slots.length;
+    const today = su.todayStr();
+    const layerCfg = s.getLayerConfig();
+
+    // Week label
+    const weekLabel = su.getWeekLabel(_weekOffset);
+
+    // Day headers
+    const dayHeaders = days.map((d, i) => {
+      const isToday = d.date === today;
+      const dayNum = parseInt(d.date.split('-')[2], 10);
+      return `<div class="ms-grid-day-header ms-sticky-head ${isToday ? 'ms-today' : ''}" style="grid-column:${i + 2}; grid-row:1;">${d.dayShort}<span class="ms-grid-daynum">${dayNum}</span></div>`;
+    }).join('');
+
+    // Time labels
+    const timeSlots = slots.map((sl, si) => {
+      const isHalf = sl.time.endsWith(':30');
+      if (isHalf) return `<div class="ms-grid-time-label--half" style="grid-column:1; grid-row:${si + 2};"></div>`;
+      return `<div class="ms-grid-time-label" style="grid-column:1; grid-row:${si + 2};">${sl.label}</div>`;
+    }).join('');
+
+    // Empty cells for drag targets
+    let cellsHTML = '';
+    for (let di = 0; di < days.length; di++) {
+      for (let si = 0; si < totalRows; si++) {
+        cellsHTML += `<div class="ms-cell" data-day="${di}" data-slot="${si}" data-date="${days[di].date}" style="grid-column:${di + 2}; grid-row:${si + 2};"></div>`;
+      }
+    }
+
+    // Render blocks from all layers
+    let blocksHTML = '';
+    for (let di = 0; di < days.length; di++) {
+      const dateStr = days[di].date;
+      const blocks = s.resolveScheduleForUser(_user.uid, dateStr);
+
+      // Also get calendar events as visible layer (separate from blackout injection)
+      const calEvents = (layerCfg.calendar && CS()) ? CS().getEventsForDate(dateStr) : [];
+
+      for (const block of blocks) {
+        // Filter by layer visibility
+        if (block.source === 'template' && !layerCfg.recurring) continue;
+        if (block.source === 'override' && !layerCfg.overrides) continue;
+        if (block.source === 'custom' && !layerCfg.custom) continue;
+        if (block.source === 'calendar' && !layerCfg.calendar) continue;
+
+        const startSlot = su.timeToSlot(block.startTime, bounds.startHour);
+        const endSlot = su.timeToSlot(block.endTime, bounds.startHour);
+        if (startSlot < 0 || endSlot <= startSlot) continue;
+        const span = endSlot - startSlot;
+
+        const isUnavail = block.type === 'unavailable';
+        const isCal = block.source === 'calendar';
+        const isCustom = block.source === 'custom';
+        const isBusyAvail = isCal && block.calStatus === 'busy-available';
+
+        // Calendar events: purple when unavailable, muted green when busy-available
+        const color = isCustom ? (block.color || '#a78bfa')
+          : isCal ? (isBusyAvail ? '#16a34a' : '#9333ea')
+          : s.MODE_COLORS[block.mode] || (isUnavail ? '#ef4444' : '#22c55e');
+
+        const rigidClass = isUnavail && block.rigidity === 'rigid' ? ' ms-block--rigid' : '';
+        const flexClass = isUnavail && block.rigidity === 'flexible' ? ' ms-block--flexible' : '';
+        const calClass = isCal ? ' ms-block--calendar' : '';
+        const customClass = isCustom ? ' ms-block--custom' : '';
+        const busyAvailClass = isBusyAvail ? ' ms-block--busy-available' : '';
+
+        const label = isCal ? (block.title || 'Calendar')
+          : isCustom ? (block.title || 'Event')
+          : isUnavail ? (block.reason || 'Busy') : 'Available';
+
+        const calStatusLabel = isCal ? (isBusyAvail ? 'Busy but Available' : 'Unavailable') : '';
+        const modeTag = !isCal && !isCustom ? (s.MODE_LABELS[block.mode] || '') : '';
+        const rawEventId = block.id.replace('cal_', '');
+
+        blocksHTML += `<div class="ms-block${rigidClass}${flexClass}${calClass}${customClass}${busyAvailClass}" data-block-id="${block.id}" data-date="${dateStr}" data-source="${block.source || ''}" data-cal-status="${block.calStatus || ''}" style="grid-column:${di + 2}; grid-row:${startSlot + 2}/span ${span}; border-left-color:${color}; background:${color}${isBusyAvail ? '33' : '22'}; color:${color};">
+          <span class="ms-block-label">${isCal ? calIcon() + ' ' : ''}${isUnavail && block.rigidity === 'rigid' && !isCal ? lockIcon() + ' ' : ''}${esc(label)}</span>
+          ${modeTag ? `<span class="ms-block-mode">${modeTag}</span>` : ''}
+          ${isCal ? `<span class="ms-block-mode">${calStatusLabel}</span>` : ''}
+          ${isCal ? `<div class="ms-block-cal-actions">
+            <button class="ms-block-status-toggle" data-event-id="${rawEventId}" data-current="${block.calStatus || 'unavailable'}" title="${isBusyAvail ? 'Mark as unavailable' : 'Mark as busy but available'}">${isBusyAvail ? '&#128308;' : '&#128994;'}</button>
+            <button class="ms-block-dismiss" data-dismiss-id="${rawEventId}" title="Dismiss">&times;</button>
+          </div>` : ''}
+        </div>`;
+      }
+
+      // Render calendar events as visible layer (those not already injected as blackout)
+      if (layerCfg.calendar && CS()) {
+        for (const ev of calEvents) {
+          const st = su.parseCalTimeToHHMM(ev.startTime);
+          const et = su.parseCalTimeToHHMM(ev.endTime);
+          if (!st || !et || st >= et) continue;
+
+          // Skip if already rendered via resolveScheduleForUser blackout injection
+          const alreadyRendered = blocks.some(b => b.id === 'cal_' + ev.id);
+          if (alreadyRendered) continue;
+
+          const startSlot = su.timeToSlot(st, bounds.startHour);
+          const endSlot = su.timeToSlot(et, bounds.startHour);
+          if (startSlot < 0 || endSlot <= startSlot) continue;
+          const span = endSlot - startSlot;
+
+          blocksHTML += `<div class="ms-block ms-block--calendar" data-block-id="cal_${ev.id}" data-date="${dateStr}" data-source="calendar" style="grid-column:${di + 2}; grid-row:${startSlot + 2}/span ${span}; border-left-color:#9333ea; background:#9333ea22; color:#9333ea;">
+            <span class="ms-block-label">${calIcon()} ${esc(ev.title || 'Calendar')}</span>
+            <button class="ms-block-dismiss" data-dismiss-id="${ev.id}" title="Dismiss">&times;</button>
+          </div>`;
+        }
+      }
+    }
+
+    // Zoom controls
+    const zoomHTML = `<div class="ms-zoom-controls">
+      <button class="ms-zoom-btn" id="ms-zoom-out">&minus;</button>
+      <button class="ms-zoom-btn" id="ms-zoom-in">&plus;</button>
+    </div>`;
+
+    // Mode selector
+    const modeSelector = `<div class="ms-mode-selector">
+      <button class="ms-mode-btn${_schedMode === 'recurring' ? ' active' : ''}" data-mode="recurring" style="--mode-color:#22c55e">
+        <span class="ms-mode-dot" style="background:#22c55e"></span> General Availability
+      </button>
+      <button class="ms-mode-btn${_schedMode === 'special' ? ' active' : ''}" data-mode="special" style="--mode-color:#3b82f6">
+        <span class="ms-mode-dot" style="background:#3b82f6"></span> Special Availability
+      </button>
+      <button class="ms-mode-btn${_schedMode === 'blackout' ? ' active' : ''}" data-mode="blackout" style="--mode-color:#ef4444">
+        <span class="ms-mode-dot" style="background:#ef4444"></span> Special Unavailability
+      </button>
+    </div>`;
+
+    // Layer toggles — calendar sources named by provider
+    const dismissedCount = CS()?.getDismissedCount() || 0;
+    const conn = CS()?.isConnected() || {};
+
+    // Build dynamic calendar source labels
+    let calendarLayerRows = '';
+    if (conn.google) {
+      calendarLayerRows += `<div class="ms-layer-row">
+        <span class="ms-layer-dot" style="background:#4285f4"></span>
+        <span class="ms-layer-label">Google Calendar</span>
+      </div>`;
+    }
+    if (conn.outlook || conn.outlookIcs) {
+      calendarLayerRows += `<div class="ms-layer-row">
+        <span class="ms-layer-dot" style="background:#0078d4"></span>
+        <span class="ms-layer-label">Outlook Calendar</span>
+      </div>`;
+    }
+    if (conn.ics && !conn.outlookIcs) {
+      calendarLayerRows += `<div class="ms-layer-row">
+        <span class="ms-layer-dot" style="background:#a3aaae"></span>
+        <span class="ms-layer-label">Apple / ICS Calendar</span>
+      </div>`;
+    }
+    // If no specific providers connected, show generic label
+    if (!calendarLayerRows) {
+      calendarLayerRows = `<div class="ms-layer-row">
+        <span class="ms-layer-dot" style="background:#9333ea"></span>
+        <span class="ms-layer-label">External Calendars</span>
+      </div>`;
+    }
+
+    const layerPanel = `<div class="ms-layer-panel">
+      <div class="ms-layer-row">
+        <span class="ms-layer-dot" style="background:#22c55e"></span>
+        <span class="ms-layer-label">General Availability</span>
+        <label class="ms-layer-toggle"><input type="checkbox" data-layer="recurring" ${layerCfg.recurring ? 'checked' : ''} /><span class="ms-toggle-slider"></span></label>
+      </div>
+      <div class="ms-layer-row">
+        <span class="ms-layer-dot" style="background:#3b82f6"></span>
+        <span class="ms-layer-label">Special Availability / Unavailability</span>
+        <label class="ms-layer-toggle"><input type="checkbox" data-layer="overrides" ${layerCfg.overrides ? 'checked' : ''} /><span class="ms-toggle-slider"></span></label>
+      </div>
+      <div class="ms-layer-row ms-layer-row--group">
+        ${calendarLayerRows}
+        <label class="ms-layer-toggle"><input type="checkbox" data-layer="calendar" ${layerCfg.calendar ? 'checked' : ''} /><span class="ms-toggle-slider"></span></label>
+      </div>
+      <div class="ms-layer-row">
+        <span class="ms-layer-dot" style="background:#a78bfa"></span>
+        <span class="ms-layer-label">Custom Events</span>
+        <label class="ms-layer-toggle"><input type="checkbox" data-layer="custom" ${layerCfg.custom ? 'checked' : ''} /><span class="ms-toggle-slider"></span></label>
+      </div>
+      ${dismissedCount ? `<button class="ms-restore-btn" id="ms-restore-dismissed">Restore ${dismissedCount} dismissed event${dismissedCount > 1 ? 's' : ''}</button>` : ''}
+    </div>`;
+
+    const cornerCell = `<div class="ms-grid-corner ms-sticky-head" style="grid-column:1; grid-row:1;"></div>`;
+
+    return `<div class="ms-layout">
+      <div class="ms-header">
+        <div class="ms-week-nav">
+          <button class="ms-nav-btn" id="ms-week-prev">&lsaquo;</button>
+          <span class="ms-week-label">${weekLabel}</span>
+          <button class="ms-nav-btn" id="ms-week-next">&rsaquo;</button>
+          ${_weekOffset !== 0 ? '<button class="ms-nav-today" id="ms-week-today">Today</button>' : ''}
+        </div>
+        ${modeSelector}
+        <div class="ms-toolbar">
+          <button class="app-btn app-btn--secondary" id="ms-copy-mon" style="font-size:.72rem;padding:.2rem .5rem;">Copy Mon &rarr; Weekdays</button>
+          <button class="app-btn app-btn--secondary" id="ms-add-custom" style="font-size:.72rem;padding:.2rem .5rem;">+ Custom Event</button>
+          ${zoomHTML}
+        </div>
+        ${layerPanel}
+        <p style="color:var(--muted);font-size:.75rem;margin:.25rem 0 0;">Select a mode, then drag to create blocks. Click blocks to edit.</p>
+      </div>
+      <div class="ms-body">
+        <div class="ms-scroll-area">
+          <div class="ms-grid-wrap" id="ms-grid-wrap" data-slot-h="${slotH}">
+            <div class="ms-grid" data-mode="${_schedMode}" style="grid-template-columns:60px repeat(${days.length}, 1fr); grid-template-rows:auto repeat(${totalRows}, ${slotH}px);">
+              ${cornerCell}${dayHeaders}${timeSlots}${cellsHTML}${blocksHTML}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function wireMySchedule() {
+    const s = SS();
+    const su = SU();
+    if (!s || !su) return;
+
+    const days = su.getWeekDays(_weekOffset);
+    const bounds = { startHour: 0, endHour: 24 };
+
+    // Week navigation
+    document.getElementById('ms-week-prev')?.addEventListener('click', () => {
+      _weekOffset--;
+      s.setWeekOffset(_weekOffset);
+      renderMyScheduleContent();
+    });
+    document.getElementById('ms-week-next')?.addEventListener('click', () => {
+      _weekOffset++;
+      s.setWeekOffset(_weekOffset);
+      renderMyScheduleContent();
+    });
+    document.getElementById('ms-week-today')?.addEventListener('click', () => {
+      _weekOffset = 0;
+      s.setWeekOffset(0);
+      renderMyScheduleContent();
+    });
+
+    // Mode selector
+    root.querySelectorAll('.ms-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _schedMode = btn.dataset.mode;
+        root.querySelectorAll('.ms-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === _schedMode));
+        const grid = root.querySelector('.ms-grid');
+        if (grid) grid.dataset.mode = _schedMode;
+      });
+    });
+
+    // Layer toggles
+    root.querySelectorAll('[data-layer]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const cfg = s.getLayerConfig();
+        cfg[cb.dataset.layer] = cb.checked;
+        s.saveLayerConfig(cfg);
+      });
+    });
+
+    // Restore dismissed
+    document.getElementById('ms-restore-dismissed')?.addEventListener('click', async () => {
+      if (CS()) {
+        await CS().restoreDismissed();
+        renderMyScheduleContent();
+        toast('Dismissed events restored');
+      }
+    });
+
+    // Zoom
+    document.getElementById('ms-zoom-in')?.addEventListener('click', () => {
+      if (_schedZoomIdx < su.ZOOM_LEVELS.length - 1) { _schedZoomIdx++; renderMyScheduleContent(); }
+    });
+    document.getElementById('ms-zoom-out')?.addEventListener('click', () => {
+      if (_schedZoomIdx > 0) { _schedZoomIdx--; renderMyScheduleContent(); }
+    });
+
+    // Auto-scroll to 8 AM
+    const wrap = document.getElementById('ms-grid-wrap');
+    if (wrap) {
+      const slotH = su.ZOOM_LEVELS[_schedZoomIdx];
+      wrap.scrollTop = slotH * 16;
+    }
+
+    // Copy Monday to weekdays
+    document.getElementById('ms-copy-mon')?.addEventListener('click', async () => {
+      const tmpl = s.getMyTemplate();
+      if (!tmpl || !tmpl.blocks) { toast('No schedule to copy'); return; }
+      const monBlocks = tmpl.blocks.filter(b => b.dayOfWeek === 1);
+      if (!monBlocks.length) { toast('No Monday blocks to copy'); return; }
+      let newBlocks = tmpl.blocks.filter(b => b.dayOfWeek === 0 || b.dayOfWeek === 1 || b.dayOfWeek === 6);
+      for (let dow = 2; dow <= 5; dow++) {
+        for (const mb of monBlocks) {
+          newBlocks.push({ ...mb, id: s.genBlockId(), dayOfWeek: dow });
+        }
+      }
+      await s.saveScheduleTemplate(newBlocks);
+      toast('Monday schedule copied to weekdays');
+    });
+
+    // Add custom event button
+    document.getElementById('ms-add-custom')?.addEventListener('click', () => {
+      showCustomEventModal(su.todayStr(), '09:00', '10:00');
+    });
+
+    // Click block to edit or dismiss
+    root.querySelectorAll('.ms-block').forEach(block => {
+      block.addEventListener('click', (e) => {
+        if (e.target.classList.contains('ms-block-dismiss')) return; // handled below
+        e.stopPropagation();
+        const source = block.dataset.source;
+        if (source === 'calendar') {
+          toast('Calendar event — dismiss with the X button, or edit in your calendar app.');
+          return;
+        }
+        if (source === 'custom') {
+          showEditCustomEventModal(block.dataset.blockId.replace('custom_', ''), block.dataset.date);
+          return;
+        }
+        showScheduleBlockEditor(block.dataset.blockId, block.dataset.date);
+      });
+    });
+
+    // Dismiss calendar events
+    // Dismiss calendar events
+    root.querySelectorAll('.ms-block-dismiss').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const eventId = btn.dataset.dismissId;
+        if (CS() && eventId) {
+          await CS().dismissEvent(eventId);
+          renderMyScheduleContent();
+          toast('Event dismissed');
+        }
+      });
+    });
+
+    // Toggle calendar event status: unavailable ↔ busy-available
+    root.querySelectorAll('.ms-block-status-toggle').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const eventId = btn.dataset.eventId;
+        const current = btn.dataset.current;
+        const newStatus = current === 'busy-available' ? 'unavailable' : 'busy-available';
+        if (CS() && eventId) {
+          await CS().setEventStatus(eventId, newStatus);
+          renderMyScheduleContent();
+          toast(newStatus === 'busy-available' ? 'Marked as busy but available' : 'Marked as unavailable');
+        }
+      });
+    });
+
+    // Drag to create on empty cells
+    let dragStart = null;
+    root.querySelectorAll('.ms-cell').forEach(cell => {
+      cell.addEventListener('pointerdown', (e) => {
+        dragStart = { day: +cell.dataset.day, slot: +cell.dataset.slot, date: cell.dataset.date };
+        cell.setPointerCapture(e.pointerId);
+      });
+      cell.addEventListener('pointerup', () => {
+        if (!dragStart) return;
+        const endDay = +cell.dataset.day;
+        const endSlot = +cell.dataset.slot;
+        if (endDay !== dragStart.day) { dragStart = null; return; }
+        const startSlot = Math.min(dragStart.slot, endSlot);
+        const endSlotFinal = Math.max(dragStart.slot, endSlot) + 1;
+        const startTime = su.slotToTime(startSlot, bounds.startHour);
+        const endTime = su.slotToTime(endSlotFinal, bounds.startHour);
+        dragStart = null;
+        showNewScheduleBlockModal(cell.dataset.date, startTime, endTime, _schedMode);
+      });
+    });
+  }
+
+  /* ─── New Block Modal ────────────────────────────────────── */
+  function showNewScheduleBlockModal(dateStr, startTime, endTime, mode) {
+    const s = SS();
+    const su = SU();
+    mode = mode || _schedMode;
+    const d = new Date(dateStr + 'T00:00:00');
+    const dow = d.getDay();
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const modeColor = s.MODE_COLORS[mode] || '#22c55e';
+    const modeLabel = s.MODE_LABELS[mode] || 'Block';
+    const reasonOptions = s.UNAVAIL_REASONS.map(r => `<option value="${r}">${r}</option>`).join('');
+
+    const isRecurring = mode === 'recurring';
+    const isSpecial = mode === 'special';
+    const isBlackout = mode === 'blackout';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ms-modal-overlay';
+    overlay.innerHTML = `<div class="ms-modal">
+      <h3 style="display:flex;align-items:center;gap:.5rem">
+        <span class="ms-mode-dot" style="background:${modeColor};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
+        Add ${modeLabel} Block
+      </h3>
+      <p style="color:var(--muted);font-size:.82rem;">${dayLabel}, ${su.fmtTime(startTime)} – ${su.fmtTime(endTime)}</p>
+      ${isRecurring ? `
+        <div style="margin:.75rem 0;">
+          <label class="app-label">Type</label>
+          <select id="ms-sb-type" class="app-input">
+            <option value="available">Available (in lab)</option>
+            <option value="unavailable">Unavailable</option>
+          </select>
+        </div>` : ''}
+      ${isRecurring || isBlackout ? `
+        <div id="ms-sb-unavail-fields" style="${isBlackout ? '' : 'display:none;'}">
+          <div style="margin:.75rem 0;">
+            <label class="app-label">Reason</label>
+            <select id="ms-sb-reason" class="app-input">${reasonOptions}</select>
+          </div>
+          <div style="margin:.75rem 0;">
+            <label class="app-label">Flexibility</label>
+            <div style="display:flex;gap:.35rem">
+              <button class="ms-rig-btn active" data-rig="rigid">Rigid</button>
+              <button class="ms-rig-btn" data-rig="flexible">Flexible</button>
+            </div>
+          </div>
+        </div>` : ''}
+      <div style="display:flex;gap:.5rem;margin:.75rem 0;">
+        <div style="flex:1"><label class="app-label">Start</label><input id="ms-sb-start" class="app-input" type="time" value="${startTime}" /></div>
+        <div style="flex:1"><label class="app-label">End</label><input id="ms-sb-end" class="app-input" type="time" value="${endTime}" /></div>
+      </div>
+      ${isRecurring ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">Repeats every ${d.toLocaleDateString('en-US', { weekday: 'long' })}.</p>` : ''}
+      ${isSpecial ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">Special availability on ${dayLabel} only.</p>` : ''}
+      ${isBlackout ? `<p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">Special unavailability for ${dayLabel} only.</p>` : ''}
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="app-btn app-btn--secondary" id="ms-sb-cancel">Cancel</button>
+        <button class="app-btn app-btn--primary" id="ms-sb-save">Save</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    if (isRecurring) {
+      const typeSelect = overlay.querySelector('#ms-sb-type');
+      const unavailFields = overlay.querySelector('#ms-sb-unavail-fields');
+      if (typeSelect && unavailFields) {
+        typeSelect.addEventListener('change', () => {
+          unavailFields.style.display = typeSelect.value === 'unavailable' ? '' : 'none';
+        });
+      }
+    }
+
+    let rigidity = 'rigid';
+    overlay.querySelectorAll('[data-rig]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        rigidity = btn.dataset.rig;
+        overlay.querySelectorAll('[data-rig]').forEach(b => b.classList.toggle('active', b.dataset.rig === rigidity));
+      });
+    });
+
+    overlay.querySelector('#ms-sb-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('#ms-sb-save').addEventListener('click', async () => {
+      let type, reason;
+      if (isRecurring) {
+        type = overlay.querySelector('#ms-sb-type')?.value || 'available';
+        reason = type === 'unavailable' ? overlay.querySelector('#ms-sb-reason')?.value : null;
+      } else if (isSpecial) {
+        type = 'available'; reason = null;
+      } else {
+        type = 'unavailable';
+        reason = overlay.querySelector('#ms-sb-reason')?.value || 'Other';
+      }
+      const st = overlay.querySelector('#ms-sb-start').value;
+      const et = overlay.querySelector('#ms-sb-end').value;
+      if (!st || !et || st >= et) { toast('Invalid time range'); return; }
+
+      const blockData = { startTime: st, endTime: et, type, reason, rigidity: type === 'unavailable' ? rigidity : 'flexible', mode };
+      try {
+        if (isRecurring) {
+          const tmpl = s.getMyTemplate();
+          const blocks = tmpl ? [...tmpl.blocks] : [];
+          blocks.push({ ...blockData, id: s.genBlockId(), dayOfWeek: dow });
+          await s.saveScheduleTemplate(blocks);
+        } else {
+          await s.addScheduleOverride({ date: dateStr, action: 'add', blockId: null, block: blockData });
+        }
+        toast('Block saved');
+        overlay.remove();
+      } catch (err) { toast('Error saving block'); }
+    });
+  }
+
+  /* ─── Edit Block Modal ───────────────────────────────────── */
+  function showScheduleBlockEditor(blockId, dateStr) {
+    const s = SS();
+    const su = SU();
+    const tmpl = s.getMyTemplate();
+    const tmplBlock = tmpl?.blocks?.find(b => b.id === blockId);
+    const ovrBlock = s.getAllOverrides().find(o => o.id === blockId);
+    const block = tmplBlock || (ovrBlock ? { ...ovrBlock.block, id: blockId } : null);
+    if (!block) return;
+
+    const isTemplate = !!tmplBlock;
+    const blockMode = block.mode || (isTemplate ? 'recurring' : (block.type === 'available' ? 'special' : 'blackout'));
+    const modeColor = s.MODE_COLORS[blockMode] || '#22c55e';
+    const modeLabel = s.MODE_LABELS[blockMode] || 'Block';
+    const isBlackout = blockMode === 'blackout';
+    const isRecurring = blockMode === 'recurring';
+    const reasonOptions = s.UNAVAIL_REASONS.map(r => `<option value="${r}" ${block.reason === r ? 'selected' : ''}>${r}</option>`).join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ms-modal-overlay';
+    overlay.innerHTML = `<div class="ms-modal">
+      <h3 style="display:flex;align-items:center;gap:.5rem">
+        <span class="ms-mode-dot" style="background:${modeColor};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
+        Edit ${modeLabel} Block
+      </h3>
+      ${isRecurring ? `<div style="margin:.75rem 0;"><label class="app-label">Type</label>
+        <select id="ms-sbe-type" class="app-input">
+          <option value="available" ${block.type === 'available' ? 'selected' : ''}>Available</option>
+          <option value="unavailable" ${block.type === 'unavailable' ? 'selected' : ''}>Unavailable</option>
+        </select></div>` : ''}
+      ${(isRecurring || isBlackout) ? `<div id="ms-sbe-unavail-fields" style="${(isBlackout || block.type === 'unavailable') ? '' : 'display:none;'}">
+        <div style="margin:.75rem 0;"><label class="app-label">Reason</label>
+          <select id="ms-sbe-reason" class="app-input">${reasonOptions}</select></div>
+        <div style="margin:.75rem 0;"><label class="app-label">Flexibility</label>
+          <div style="display:flex;gap:.35rem">
+            <button class="ms-rig-btn ${block.rigidity === 'rigid' ? 'active' : ''}" data-rig="rigid">Rigid</button>
+            <button class="ms-rig-btn ${block.rigidity === 'flexible' ? 'active' : ''}" data-rig="flexible">Flexible</button>
+          </div></div></div>` : ''}
+      <div style="display:flex;gap:.5rem;margin:.75rem 0;">
+        <div style="flex:1"><label class="app-label">Start</label><input id="ms-sbe-start" class="app-input" type="time" value="${block.startTime}" /></div>
+        <div style="flex:1"><label class="app-label">End</label><input id="ms-sbe-end" class="app-input" type="time" value="${block.endTime}" /></div>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button class="app-btn app-btn--danger" id="ms-sbe-delete">Delete</button>
+        <span style="flex:1"></span>
+        <button class="app-btn app-btn--secondary" id="ms-sbe-cancel">Cancel</button>
+        <button class="app-btn app-btn--primary" id="ms-sbe-save">Save</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    if (isRecurring) {
+      const typeSelect = overlay.querySelector('#ms-sbe-type');
+      if (typeSelect) typeSelect.addEventListener('change', () => {
+        const uf = overlay.querySelector('#ms-sbe-unavail-fields');
+        if (uf) uf.style.display = typeSelect.value === 'unavailable' ? '' : 'none';
+      });
+    }
+
+    let rigidity = block.rigidity || 'rigid';
+    overlay.querySelectorAll('[data-rig]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        rigidity = btn.dataset.rig;
+        overlay.querySelectorAll('[data-rig]').forEach(b => b.classList.toggle('active', b.dataset.rig === rigidity));
+      });
+    });
+
+    overlay.querySelector('#ms-sbe-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('#ms-sbe-delete').addEventListener('click', async () => {
+      try {
+        if (isTemplate) {
+          const blocks = (tmpl?.blocks || []).filter(b => b.id !== blockId);
+          await s.saveScheduleTemplate(blocks);
+        } else {
+          await s.deleteScheduleOverride(blockId);
+        }
+        toast('Block deleted');
+        overlay.remove();
+      } catch (err) { toast('Error deleting'); }
+    });
+
+    overlay.querySelector('#ms-sbe-save').addEventListener('click', async () => {
+      let type, reason;
+      if (isRecurring) {
+        type = overlay.querySelector('#ms-sbe-type')?.value || block.type;
+        reason = type === 'unavailable' ? overlay.querySelector('#ms-sbe-reason')?.value : null;
+      } else if (blockMode === 'special') {
+        type = 'available'; reason = null;
+      } else {
+        type = 'unavailable';
+        reason = overlay.querySelector('#ms-sbe-reason')?.value || block.reason;
+      }
+      const st = overlay.querySelector('#ms-sbe-start').value;
+      const et = overlay.querySelector('#ms-sbe-end').value;
+      if (!st || !et || st >= et) { toast('Invalid time range'); return; }
+
+      const updatedBlock = { startTime: st, endTime: et, type, reason, rigidity: type === 'unavailable' ? rigidity : 'flexible', mode: blockMode };
+      try {
+        if (isTemplate) {
+          const blocks = (tmpl?.blocks || []).map(b => b.id === blockId ? { ...b, ...updatedBlock } : b);
+          await s.saveScheduleTemplate(blocks);
+        } else {
+          await s.deleteScheduleOverride(blockId);
+          await s.addScheduleOverride({ date: dateStr, action: 'add', blockId: null, block: updatedBlock });
+        }
+        toast('Block updated');
+        overlay.remove();
+      } catch (err) { toast('Error saving'); }
+    });
+  }
+
+  /* ─── Custom Event Modal ─────────────────────────────────── */
+  const PRESET_COLORS = ['#5baed1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#fb923c', '#6b7280', '#3b82f6', '#a78bfa', '#78716c'];
+
+  function showCustomEventModal(dateStr, startTime, endTime, existing) {
+    const su = SU();
+    const s = SS();
+    const d = new Date(dateStr + 'T00:00:00');
+    const dow = d.getDay();
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const isEdit = !!existing;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ms-modal-overlay';
+    overlay.innerHTML = `<div class="ms-modal">
+      <h3>${isEdit ? 'Edit' : 'Add'} Custom Event</h3>
+      <div style="margin:.75rem 0;">
+        <label class="app-label">Title</label>
+        <input id="ms-ce-title" class="app-input" type="text" placeholder="e.g., Lab Meeting" value="${esc(existing?.title || '')}" />
+      </div>
+      <div style="display:flex;gap:.5rem;margin:.75rem 0;">
+        <div style="flex:1"><label class="app-label">Start</label><input id="ms-ce-start" class="app-input" type="time" value="${existing?.startTime || startTime}" /></div>
+        <div style="flex:1"><label class="app-label">End</label><input id="ms-ce-end" class="app-input" type="time" value="${existing?.endTime || endTime}" /></div>
+      </div>
+      <div style="margin:.75rem 0;">
+        <label class="app-label">Color</label>
+        <div class="ms-color-picker" id="ms-ce-colors">
+          ${PRESET_COLORS.map(c => `<button class="ms-color-swatch${(existing?.color || '#a78bfa') === c ? ' active' : ''}" data-color="${c}" style="background:${c}"></button>`).join('')}
+        </div>
+      </div>
+      <div style="margin:.75rem 0;">
+        <label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.35rem">
+          <input type="checkbox" id="ms-ce-recurring" ${existing?.isRecurring ? 'checked' : ''} /> Repeat every ${d.toLocaleDateString('en-US', { weekday: 'long' })}
+        </label>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        ${isEdit ? '<button class="app-btn app-btn--danger" id="ms-ce-delete">Delete</button><span style="flex:1"></span>' : '<span style="flex:1"></span>'}
+        <button class="app-btn app-btn--secondary" id="ms-ce-cancel">Cancel</button>
+        <button class="app-btn app-btn--primary" id="ms-ce-save">Save</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    let selectedColor = existing?.color || '#a78bfa';
+    overlay.querySelectorAll('.ms-color-swatch').forEach(sw => {
+      sw.addEventListener('click', () => {
+        selectedColor = sw.dataset.color;
+        overlay.querySelectorAll('.ms-color-swatch').forEach(s2 => s2.classList.toggle('active', s2.dataset.color === selectedColor));
+      });
+    });
+
+    overlay.querySelector('#ms-ce-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    if (isEdit) {
+      overlay.querySelector('#ms-ce-delete')?.addEventListener('click', async () => {
+        try {
+          await s.deleteCustomEvent(existing.id);
+          toast('Event deleted');
+          overlay.remove();
+        } catch { toast('Error deleting'); }
+      });
+    }
+
+    overlay.querySelector('#ms-ce-save').addEventListener('click', async () => {
+      const title = overlay.querySelector('#ms-ce-title').value.trim();
+      if (!title) { toast('Enter a title'); return; }
+      const st = overlay.querySelector('#ms-ce-start').value;
+      const et = overlay.querySelector('#ms-ce-end').value;
+      if (!st || !et || st >= et) { toast('Invalid time range'); return; }
+      const isRecurring = overlay.querySelector('#ms-ce-recurring').checked;
+
+      const eventData = {
+        title, startTime: st, endTime: et, color: selectedColor,
+        isRecurring,
+        date: isRecurring ? null : dateStr,
+        dayOfWeek: isRecurring ? dow : null
+      };
+      if (isEdit) eventData.id = existing.id;
+
+      try {
+        await s.saveCustomEvent(eventData);
+        toast(isEdit ? 'Event updated' : 'Event created');
+        overlay.remove();
+      } catch { toast('Error saving'); }
+    });
+  }
+
+  function showEditCustomEventModal(eventId, dateStr) {
+    const s = SS();
+    const events = s.getCustomEventsForDate(dateStr);
+    const ev = events.find(e => e.id === eventId);
+    if (!ev) return;
+    showCustomEventModal(dateStr, ev.startTime, ev.endTime, ev);
+  }
+
 })();

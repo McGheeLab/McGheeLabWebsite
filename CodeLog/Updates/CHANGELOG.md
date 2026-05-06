@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.55] - 2026-05-05
+
+Scheduler: **My Schedule tab** lifted from the deleted `/apps/scheduler/app.js` into [rm/pages/scheduler.html](../../rm/pages/scheduler.html) — closes the V3.47 deferred work. With ScheduleService + CalendarService + ScheduleUtils brought into RM in V3.51 and the V3.54 Calendar Sync tab giving users a way to connect calendars, the personal calendar with layered availability + Google/Outlook/Apple overlay is finally live as an RM-native feature. Plan doc: [CodeLog/ClaudesPlan/V3.55_scheduler_my_schedule_tab.md](../ClaudesPlan/V3.55_scheduler_my_schedule_tab.md).
+
+**Default tab is `schedulers`** (preserves V3.47 page behavior — users land on My Schedulers and click into My Schedule on demand).
+
+### Added
+- **`rm/js/scheduler.js`** — grew 462 LOC → 1,246 LOC. Three changes:
+  - **Tab state + service aliases**: `_currentTab`, `_weekOffset`, `_schedMode`, `_schedZoomIdx`. `SS()` / `SU()` / `CS()` lazy lookups for `McgheeLab.ScheduleService` / `.ScheduleUtils` / `.CalendarService` (null when scripts aren't loaded — graceful degrade). `lockIcon()` / `calIcon()` helpers.
+  - **Render dispatcher rewrite**: `render()` now emits a tab bar + `<div id="sched-tab-content">` container, then dispatches to `renderSchedulersTab(container)` (existing V3.47 code, now wrapped) or `renderMyScheduleTab(container)`. Tab switch resets `_view='list'` so the editor doesn't resume into a half-loaded state.
+  - **Boot extension**: after `firebridge.whenAuthResolved()`, init ScheduleService + CalendarService (each guarded `if (SS())` / `if (CS())` so they no-op when scripts aren't loaded). Subscribe to `onChange` callbacks: re-render My Schedule content only when active tab matches.
+  - **My Schedule code** lifted **720 LOC verbatim** from `/apps/scheduler/app.js` lines 191–908 (the complete `renderMyScheduleTab` / `renderMyScheduleContent` / `renderMyScheduleHTML` / `wireMySchedule` + four block-editor / custom-event modal helpers: `showNewScheduleBlockModal`, `showScheduleBlockEditor`, `showCustomEventModal`, `showEditCustomEventModal`). Patches via sed: `appEl.querySelector(All)` → `root.querySelector(All)`. Trailing section divider stripped.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bumped 29 → 30.
+
+### Notes
+- **`rm/css/scheduler.css` unchanged.** The V3.47 lift was a verbatim copy of `/apps/scheduler/styles.css` which already included the `.ms-*` selectors used by the My Schedule tab. The V3.47 plan doc explicitly noted: *"Includes `.ms-*` classes that the deferred My Schedule tab uses — they ride along now so V3.51 doesn't have to re-import the CSS."* Pays off here.
+- **`rm/pages/scheduler.html` unchanged.** V3.51 already wired the script tags for `schedule-utils.js` / `schedule-service.js` / `calendar-service.js` + GIS client.
+- **No firestore.rules changes.** ScheduleService writes to `huddleScheduleTemplates/{userId}` (line 299 — owner write), `huddleScheduleOverrides/{id}` (line 307 — owner manage), `scheduleCustomEvents/{id}` (line 288 — owner manage). All in place since V3.40.
+- **Migration follow-ups list shrinks to 2:** split-view RM feature per user wishlist (V3.56), optional Firestore-backed OAuth tokens (V3.57). Workflow-driven page restructuring stays explicitly deferred per user guidance.
+
 ## [V3.54] - 2026-05-05
 
 Settings: **Calendar Sync tab** added — closes the V3.48 deferred work. Lifts the lab-app `/apps/settings/` Calendar Integration UI into [rm/pages/settings.html](../../rm/pages/settings.html) as a new tab between Notifications and All Connections. Three provider cards (Google / Outlook / Apple), auto-refresh interval, Sync to Huddle toggle. Drives the `McgheeLab.CalendarService` singleton brought into RM in V3.51. Plan doc: [CodeLog/ClaudesPlan/V3.54_settings_calendar_tab.md](../ClaudesPlan/V3.54_settings_calendar_tab.md).
