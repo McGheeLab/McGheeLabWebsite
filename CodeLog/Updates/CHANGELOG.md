@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.56] - 2026-05-05
+
+**Split View** — new general-purpose split-pane shell that lets the user open any two RM pages side-by-side in iframes. Adapted from the lab-apps.js `_splitAppId` / `_splitRatio` harness preserved through V3.53 cleanup specifically as reference for this work — explicitly flagged on the user's V3.40 follow-up list ("we really like the ability to have multiple pages open in a split view"). Plan doc: [CodeLog/ClaudesPlan/V3.56_split_view.md](../ClaudesPlan/V3.56_split_view.md).
+
+### Added
+- **`rm/pages/split-view.html`** — full-viewport shell. RM contract header (firebase SDK + firebase-bridge + adapter + cache + nav) + `<div id="split-root">` + `nav.js` + `split-view.js`. `body.has-split-view` makes the body itself a vertical flex container so `#split-root` fills the viewport below the nav.
+- **`rm/js/split-view.js`** (~190 LOC) — URL-state read/write (single source of truth: `?left=...&right=...&ratio=N`), page-registry flattening from `nav.js`'s `NAV_ITEMS` (split-view.html itself filtered out to prevent recursion), two-pane render with per-pane header (page-swap dropdown + reload + open-full + close), divider pointer-drag with ratio clamped `[0.15, 0.85]`, ratio applied via `flex-basis` (no full re-render). Same-origin iframes auto-share Firebase IndexedDB persistence — no postMessage handshake needed (unlike the V3.40 iframe-bridge era under `/apps/`).
+- **`rm/css/split-view.css`** (~120 LOC) — `.split-shell` (full-viewport flex), `.split-pane` (column flex with iframe filling), `.split-pane-header` (compact control bar), `.split-divider` + `.split-divider-grip`, `body.split-dragging` overlay (suppresses iframe pointer events during drag so the drag isn't captured by inner pointer handlers). Mobile media query (`max-width: 700px`) stacks vertically with horizontal divider.
+
+### Changed
+- **`rm/js/nav.js`** — added top-level `{ label: '⊟ Split', href: '/rm/pages/split-view.html' }` entry. Visually distinct from the regular section dropdowns (no children; leading `⊟` glyph).
+- **`sw.js`** — `CACHE_VERSION` bumped 30 → 31.
+
+### Notes
+- **No firestore.rules / functions changes.** The split shell is pure DOM glue — no Firestore reads, no Cloud Function calls. Pages loaded inside the iframes touch Firestore the same way they do when loaded directly.
+- **Trade-offs:** Each iframe re-loads the full RM bundle (~500KB), so two iframes is ~1MB total. Acceptable for an opt-in mode; future V3.57+ enhancement could convert to direct-mount (per-page renderer-as-function pattern) to eliminate duplication. Each iframe also shows its own RM top nav inside the pane — functional but visually busy. A future enhancement can pass `?embed=1` to the iframe and have `nav.js` skip rendering when present.
+- **Migration follow-ups list shrinks to 1:** optional Firestore-backed OAuth tokens (V3.57). Workflow-driven page restructuring stays explicitly deferred per user guidance.
+
 ## [V3.55] - 2026-05-05
 
 Scheduler: **My Schedule tab** lifted from the deleted `/apps/scheduler/app.js` into [rm/pages/scheduler.html](../../rm/pages/scheduler.html) — closes the V3.47 deferred work. With ScheduleService + CalendarService + ScheduleUtils brought into RM in V3.51 and the V3.54 Calendar Sync tab giving users a way to connect calendars, the personal calendar with layered availability + Google/Outlook/Apple overlay is finally live as an RM-native feature. Plan doc: [CodeLog/ClaudesPlan/V3.55_scheduler_my_schedule_tab.md](../ClaudesPlan/V3.55_scheduler_my_schedule_tab.md).

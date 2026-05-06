@@ -75,6 +75,13 @@ const NAV_ITEMS = [
     { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
     { label: 'Member Activity', href: '/rm/pages/activity-summary.html', gate: 'admin' },
   ]},
+
+  // V3.56 — Split View opens a side-by-side shell with two RM pages
+  // in iframes. Adapted from the lab-apps.js _splitAppId/_splitRatio
+  // harness that the user explicitly flagged as a wanted feature.
+  // Top-level entry (no children) so it sits visually distinct from
+  // the regular section dropdowns.
+  { label: '⊟ Split', href: '/rm/pages/split-view.html' },
 ];
 
 function renderNav() {

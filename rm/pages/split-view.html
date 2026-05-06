@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Split View — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/split-view.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body class="has-split-view">
+  <!-- nav.js renders the top RM nav into document.body. The .has-split-view
+       body class makes the body itself a vertical flex container so #split-root
+       grows to fill the rest of the viewport below the nav. -->
+  <div id="split-root"></div>
+
+  <!-- Firebase SDK is needed because nav.js + firebase-bridge run on this
+       outer page too (so the nav gating + auth overlay work). The inner
+       iframes load their own Firebase SDK independently. -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + adapter + cache + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+
+  <!-- nav.js MUST load before split-view.js — split-view reads NAV_ITEMS
+       from nav.js's top-level scope to build the page-swap dropdowns. -->
+  <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/split-view.js"></script>
+</body>
+</html>

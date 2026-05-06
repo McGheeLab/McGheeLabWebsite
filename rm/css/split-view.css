@@ -1,0 +1,170 @@
+/* ================================================================
+   Split View page styles — V3.56
+   ----------------------------------------------------------------
+   Full-viewport shell. The top RM nav (rendered by nav.js into
+   document.body) sits above; this CSS makes the .split-shell fill
+   the remaining vertical space and lays out two iframes + a
+   draggable divider horizontally.
+   ================================================================ */
+
+html, body { height: 100%; }
+body { margin: 0; }
+
+/* The Split View page intentionally does NOT use the .page wrapper
+ * with the standard header — it occupies the whole viewport below
+ * the nav. The default body padding (if any from style.css) should
+ * not apply here. */
+body.has-split-view {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#split-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.split-shell {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+  width: 100%;
+  background: var(--bg);
+}
+
+.split-pane {
+  flex: 0 0 50%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.split-pane--left  { border-right:  none; }
+.split-pane--right { border-left:   none; }
+
+.split-pane-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.split-pane-select {
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  max-width: 220px;
+}
+.split-pane-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+
+.split-pane-label {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.split-pane-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.split-pane-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.split-pane-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.split-pane-btn--close:hover {
+  background: var(--red-bg);
+  color: var(--red);
+  border-color: rgba(220,38,38,.3);
+}
+
+.split-pane-frame {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
+/* ─── Divider ──────────────────────────────────────────── */
+.split-divider {
+  flex: 0 0 6px;
+  position: relative;
+  cursor: col-resize;
+  background: var(--border);
+  transition: background .15s;
+}
+.split-divider:hover,
+body.split-dragging .split-divider {
+  background: var(--primary);
+}
+.split-divider-grip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 36px;
+  border-radius: 4px;
+  background: rgba(0,0,0,.18);
+  pointer-events: none;
+}
+
+/* While the user is dragging the divider, suppress iframe pointer
+ * events so the drag isn't captured by the iframe's own pointer
+ * handlers (which would freeze the divider). */
+body.split-dragging .split-pane-frame {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ─── Mobile fallback (stack vertically) ──────────────── */
+@media (max-width: 700px) {
+  .split-shell { flex-direction: column; }
+  .split-pane { flex: 1 1 50% !important; }
+  .split-divider {
+    flex: 0 0 6px;
+    cursor: row-resize;
+  }
+  .split-divider-grip {
+    width: 36px;
+    height: 4px;
+  }
+  .split-pane-select { max-width: 140px; }
+}
