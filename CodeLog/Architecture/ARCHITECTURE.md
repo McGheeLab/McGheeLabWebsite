@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.58 (Page consolidation Tier 2 — tasks subpages → tabs of `tasks.html?tab=<name>`)
+**Version:** V3.59 (Page consolidation Tier 3a — library-comments → library tab via `library.html?tab=comments`)
 
 ## System Overview
 

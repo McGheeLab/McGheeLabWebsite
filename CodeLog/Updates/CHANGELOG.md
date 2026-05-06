@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.59] - 2026-05-05
+
+**Page consolidation Tier 3a — library-comments → library tab.** Cross-paper Annotations feed merges into [rm/pages/library.html](../../rm/pages/library.html) as `?tab=comments`. Both DOM blocks now coexist on the page; CSS hides the inactive one; only the active tab's renderer scripts load via `document.write`. Plan doc: [CodeLog/ClaudesPlan/V3.59_page_consolidation_tier3a.md](../ClaudesPlan/V3.59_page_consolidation_tier3a.md).
+
+### Changed
+- **`rm/pages/library.html`** — early `<script>` reads `?tab=` and exposes `window.__LIB_TAB` + sets `<html data-lib-tab>` for CSS visibility toggling. Title becomes "Comments & Annotations — McGhee Lab" when tab=comments. Two tab-bar links (`Papers` / `Comments`) added under the page heading. The `.lc-*` styles from the former library-comments.html are inlined into the unified shell's `<style>` block (~60 LOC; scoped to `.lc-*`, harmless on the papers tab). The papers DOM (extension-install card, dropzone, toolbar, customize modal, table) wraps in `.lib-papers-block`; the comments DOM (toolbar, multiselects, rows container) wraps in `.lib-comments-block`. CSS rules `html[data-lib-tab="comments"] .lib-papers-block { display: none; }` (and the inverse) hide the inactive block. A trailing inline body script uses `document.write` to load the per-tab renderer set: papers → `firebase-storage-compat` + `library-upload.js` + `library-metadata.js` + `library-sync.js` + `library-prefs.js` + `task-assign.js` + `library.js`; comments → `annotation-sync.js` + `annotation-groups.js` + `library-comments.js`. Common scripts (firebase auth/firestore + firebridge + library-tags) load eagerly for both tabs.
+- **`rm/pages/library-comments.html`** — replaced with `<meta refresh>` redirect to `library.html?tab=comments`.
+- **`rm/js/nav.js`** — Comments entry under Research group repointed from `library-comments.html` to `library.html?tab=comments`.
+- **`sw.js`** — `CACHE_VERSION` 33 → 34.
+
+### Notes
+- **No firestore.rules / functions changes.** Pure shell unification; both renderers (`library.js` + `library-comments.js`) keep their existing Firestore reads.
+- **Renderer scripts unchanged.** Each one's `boot()` still queries its own DOM IDs (`#library-tbody` for papers, `#lc-rows` for comments). With `document.write` injecting only the active tab's scripts, the inactive renderer never boots and never queries Firestore.
+- **Net page reduction:** 46 → 45 user-facing pages.
+
 ## [V3.58] - 2026-05-05
 
 **Page consolidation Tier 2 — tasks subpages → tabs.** The four-page Task hub (tasks.html / tasks-add.html / tasks-inbox.html / tasks-archive.html) collapses to a single tab-aware shell at [rm/pages/tasks.html](../../rm/pages/tasks.html) selected via `?tab=<dashboard|add|inbox|archive>`. The other three pages now `<meta refresh>` to the new tab URL so existing bookmarks survive. Plan doc: [CodeLog/ClaudesPlan/V3.58_page_consolidation_tier2.md](../ClaudesPlan/V3.58_page_consolidation_tier2.md).

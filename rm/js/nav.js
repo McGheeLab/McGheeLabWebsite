@@ -38,7 +38,7 @@ const NAV_ITEMS = [
   { label: 'Research', href: '/rm/pages/projects.html', children: [
     { label: 'Projects', href: '/rm/pages/projects.html' },
     { label: 'Library',  href: '/rm/pages/library.html' },
-    { label: 'Comments', href: '/rm/pages/library-comments.html' },
+    { label: 'Comments', href: '/rm/pages/library.html?tab=comments' },
     { label: 'Papers',   href: '/rm/pages/paper-builder.html' },
     { label: 'Teaching', href: '/rm/pages/teaching.html' },
     { label: 'Service',  href: '/rm/pages/service.html' },
