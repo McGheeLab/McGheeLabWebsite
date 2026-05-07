@@ -101,6 +101,47 @@ const NAV_ITEMS = [
 const _WF_STORAGE_KEY = 'mcgheelab.activeWorkflow';
 let _wfDefaultsCache = null;
 
+/* V3.68 — Inlined default-workflow seeds so the strip works on every
+ * RM page without needing page-registry.js. Mirrors
+ * PAGE_REGISTRY.DEFAULT_WORKFLOWS in rm/js/page-registry.js — keep
+ * them in sync. The strip falls back to these whenever the Firestore
+ * `labConfig/defaultWorkflows` doc is missing or doesn't contain the
+ * requested workflow id. Without this fallback, users entering a
+ * default workflow before admin seeds Firestore (or before deploy)
+ * see "Workflow not found" on the strip. */
+const _WF_DEFAULT_SEEDS = [
+  {
+    id: 'lab-research', label: 'Lab Research', icon: '🔬',
+    description: 'Daily research workflow — track activity, browse the library, manage projects, and capture tasks.',
+    landingPageId: 'activity-overview__tab__tracker',
+    pageIds: ['activity-overview__tab__tracker', 'library', 'projects', 'tasks', 'lab-notebook', 'protocols'],
+  },
+  {
+    id: 'paper-writing', label: 'Paper Writing', icon: '📝',
+    description: 'Compose papers with the editor, pull annotations from the library, track tasks and PMRs, coordinate via chat.',
+    landingPageId: 'paper-builder',
+    pageIds: ['paper-builder', 'library', 'library__tab__comments', 'tasks', 'pmr', 'chat', 'lab-notebook'],
+  },
+  {
+    id: 'certification-training', label: 'Certification & Training', icon: '🎓',
+    description: 'Compliance protocols, chemical safety, training records, and tenure-track milestones.',
+    landingPageId: 'compliance',
+    pageIds: ['compliance', 'chemicals', 'career', 'tasks'],
+  },
+  {
+    id: 'task-scheduling', label: 'Task Scheduling & Activity Reports', icon: '📊',
+    description: 'Plan tasks, track activity (tracker / year / email), schedule meetings, share assignments, file PMRs.',
+    landingPageId: 'tasks',
+    pageIds: ['tasks', 'activity-overview', 'activity-overview__tab__tracker', 'activity-overview__tab__timeline', 'activity-overview__tab__email', 'scheduler', 'sharing', 'pmr'],
+  },
+  {
+    id: 'meetings', label: 'Meetings', icon: '🗣️',
+    description: 'Run lab meetings, huddles, and 1:1s with chat, calendar, and task capture wired up.',
+    landingPageId: 'meetings',
+    pageIds: ['meetings', 'huddle', 'chat', 'tasks', 'calendar'],
+  },
+];
+
 function _wfReadState() {
   try {
     const raw = sessionStorage.getItem(_WF_STORAGE_KEY);
@@ -182,23 +223,31 @@ function _wfBuildPageMap() {
  * Firestore (labConfig/defaultWorkflows or userData/{uid}/customWorkflows
  * for the custom kind); falls back to undefined if not reachable. */
 async function _wfFetchWorkflow(state) {
-  if (typeof firebridge === 'undefined' || !firebridge.db) return null;
   if (state.kind === 'default') {
+    // Try Firestore first; fall back to the inlined seed for any id the
+    // Firestore doc doesn't cover (or when the doc is missing entirely,
+    // e.g. before admin seeds it via the matrix). This makes default
+    // workflows usable out-of-the-box even on a fresh deploy.
     if (!_wfDefaultsCache) {
-      try {
-        const snap = await firebridge.db().collection('labConfig').doc('defaultWorkflows').get();
-        if (snap.exists) {
-          const data = snap.data() || {};
-          _wfDefaultsCache = Array.isArray(data.workflows) ? data.workflows : [];
-        } else {
-          _wfDefaultsCache = [];
-        }
-      } catch (e) {
-        _wfDefaultsCache = [];
+      let firestoreList = [];
+      if (typeof firebridge !== 'undefined' && firebridge.db) {
+        try {
+          const snap = await firebridge.db().collection('labConfig').doc('defaultWorkflows').get();
+          if (snap.exists) {
+            const data = snap.data() || {};
+            firestoreList = Array.isArray(data.workflows) ? data.workflows : [];
+          }
+        } catch (e) { /* ignore — fall back to seeds */ }
       }
+      // Merge: Firestore wins on id conflicts; missing ids fall back to seed.
+      const byId = new Map();
+      _WF_DEFAULT_SEEDS.forEach(w => byId.set(w.id, w));
+      firestoreList.forEach(w => { if (w && w.id) byId.set(w.id, w); });
+      _wfDefaultsCache = Array.from(byId.values());
     }
     return _wfDefaultsCache.find(w => w.id === state.id) || null;
   }
+  if (typeof firebridge === 'undefined' || !firebridge.db) return null;
   if (state.kind === 'custom') {
     const u = firebridge.getUser && firebridge.getUser();
     if (!u) return null;

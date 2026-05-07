@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.68] - 2026-05-06
+
+**Bug fix — workflow strip showed "Workflow not found / No pages" before admin seeded `labConfig/defaultWorkflows`.** When admin hadn't yet clicked "Seed defaults" on the V3.63 admin matrix, the Firestore doc didn't exist. The chooser fell back to `PAGE_REGISTRY.DEFAULT_WORKFLOWS` (loaded by `page-registry.js` on the chooser page), so the cards rendered fine. But after clicking a card and navigating to a workflow page, `nav.js`'s `_wfFetchWorkflow` had no fallback — `page-registry.js` isn't loaded on every RM page — so the strip's brand label collapsed to "Workflow not found" and the chips area showed "No pages".
+
+### Changed
+- **`rm/js/nav.js`** — inlined the 5 default-workflow seeds as `_WF_DEFAULT_SEEDS` (mirrors `page-registry.js`'s `DEFAULT_WORKFLOWS`). `_wfFetchWorkflow` for `kind === 'default'` now merges Firestore + seeds (Firestore wins on id conflicts; seeds cover any id Firestore is missing). Result: default workflows render correctly even on a fresh deploy before admin seeds the doc, and partial Firestore data still gracefully falls back to seeds for any workflow id not yet edited.
+- **`sw.js`** — `CACHE_VERSION` 42 → 43.
+
+### Notes
+- **No firestore.rules / functions changes.**
+- The seeds in nav.js and page-registry.js are now duplicated; comment in nav.js flags the keep-in-sync requirement. Future change: when adding a new default workflow, edit both files (or extract the seeds into a shared file loaded by both — out of scope for this fix).
+- Custom workflow path unaffected — it always reads from `userData/{uid}/customWorkflows/{id}` directly.
+
 ## [V3.67] - 2026-05-06
 
 **Bug fix — PMR missing from workflow strip chips.** Two of the V3.63 default workflows (Paper Writing, Task Scheduling & Activity Reports) reference page id `pmr`, but PMR wasn't in `NAV_ITEMS` so `_wfBuildPageMap()` couldn't resolve it — the chip was silently dropped from the workflow strip even though `rm/pages/pmr.html` exists.

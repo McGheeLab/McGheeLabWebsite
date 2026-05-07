@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.67 (Bug fix — PMR added to NAV_ITEMS so Paper Writing + Task Scheduling workflow strips render the PMR chip; was silently dropped because `_wfBuildPageMap()` only walks NAV_ITEMS.)
+**Version:** V3.68 (Bug fix — workflow strip showed "Workflow not found" before admin seeded `labConfig/defaultWorkflows`. nav.js now inlines `_WF_DEFAULT_SEEDS` so default workflows resolve even on a fresh deploy.)
 
 ## System Overview
 
