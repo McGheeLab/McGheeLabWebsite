@@ -52,29 +52,11 @@
 </head>
 <body>
   <div class="page">
-    <div class="tab-bar" id="act-hub-tabs"></div>
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const HUB = [
-          { tab: 'overview',  label: 'Overview' },
-          { tab: 'tracker',   label: 'Tracker' },
-          { tab: 'timeline',  label: 'Year Timeline' },
-          { tab: 'email',     label: 'Email' },
-          { tab: 'lab-stats', label: 'Lab Stats' },
-        ];
-        const bar = document.getElementById('act-hub-tabs');
-        const current = window.__ACT_TAB;
-        HUB.forEach(t => {
-          const a = document.createElement('a');
-          a.href = '/rm/pages/activity-overview.html'
-            + (t.tab === 'overview' ? '' : '?tab=' + t.tab);
-          a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
-          a.textContent = t.label;
-          a.style.textDecoration = 'none';
-          bar.appendChild(a);
-        });
-      });
-    </script>
+    <!-- V3.69 — in-page tab bar removed; navigation between Activity tabs
+         is handled by the shared activity-subnav.js pill-nav (which now
+         includes Lab Stats) and the workflow strip when a workflow is
+         active. Eliminates the redundant third row of navigation that
+         was cluttering pages like the Email tab. -->
 
     <!-- ===== Overview tab (default) ===== -->
     <div class="act-tab tab-overview">

@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.68 (Bug fix — workflow strip showed "Workflow not found" before admin seeded `labConfig/defaultWorkflows`. nav.js now inlines `_WF_DEFAULT_SEEDS` so default workflows resolve even on a fresh deploy.)
+**Version:** V3.69 (Bug fix — redundant in-page Activity tab bar removed from `activity-overview.html`. activity-subnav.js gained the missing Lab Stats pill (admin-gated) and now active-matches on `?tab=` query params.)
 
 ## System Overview
 

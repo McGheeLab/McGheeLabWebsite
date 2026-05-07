@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.69] - 2026-05-06
+
+**Bug fix — redundant Activity tab bar removed.** The Email tab (and every other Activity tab) had three layers of navigation: top nav + activity-subnav pill bar + an in-page tab bar with `Overview / Tracker / Year Timeline / Email / Lab Stats`. The in-page tab bar exactly mirrored the activity-subnav pill bar's Activity-area entries, just with different labels. Removed the in-page bar; activity-subnav is now the single sub-nav for Activity pages.
+
+### Changed
+- **`rm/pages/activity-overview.html`** — deleted the `#act-hub-tabs` div and the inline script that built it. Tabs are still selected via `?tab=<overview|tracker|timeline|email|lab-stats>`; the URL-driven dispatcher and per-tab `document.write` script loader are unchanged.
+- **`rm/js/activity-subnav.js`** —
+  - Added a `Lab Stats` pill (admin-gated via the new `gate: 'admin'` field; mirrors `nav.js`'s gating pattern).
+  - Fixed active-state matching: previously compared only `currentPath`, so the `?tab=tracker` / `?tab=email` / `?tab=timeline` pills never highlighted as active. Now parses each pill's URL and compares pathname + `?tab=` independently.
+  - `applyGates()` hides the Lab Stats pill for non-admin users; re-applied on `firebridge.onAuth` so role promotion picks it up.
+- **`sw.js`** — `CACHE_VERSION` 43 → 44.
+
+### Audited but unchanged
+- **`rm/pages/tasks.html`** has its own `#task-hub-tabs` (Dashboard / Add Task / Task List / Completed). These are tasks-only sub-views; activity-subnav has only a single `Task` pill that points at the dashboard. The two layers serve different purposes (section vs page), so both stay.
+- **`rm/pages/calendar.html`** has a `#cal-tabs` with calendar-specific sub-views (History etc.) — distinct from activity-subnav's `Calendar` pill. Kept.
+- **`rm/pages/lab-tasks.html`**, **`rm/pages/library.html`**, **`rm/pages/people.html`**, **`rm/pages/settings.html`**, etc. — their tab bars are page-specific sub-views (e.g. Library Papers/Comments, People Roster/Important People). Not redundant with activity-subnav.
+
+### Open issue (not fixed in this release)
+- **Emails don't render in the Email tab.** Pre-existing data-flow issue, not a regression from V3.62–V3.68: `email-review.js` reads from `userData/{uid}/emailMessages` (populated by the Gmail scraper Cloud Function) and falls back to legacy `email_archive/summary.json` + `email_archive/by_year/<year>.json`. If the per-user collection is empty AND the legacy JSON files aren't reachable (production deploy doesn't ship the email_archive folder), the page renders empty. Need user diagnostics — browser console output + whether running locally vs production — to know which path is failing.
+
 ## [V3.68] - 2026-05-06
 
 **Bug fix — workflow strip showed "Workflow not found / No pages" before admin seeded `labConfig/defaultWorkflows`.** When admin hadn't yet clicked "Seed defaults" on the V3.63 admin matrix, the Firestore doc didn't exist. The chooser fell back to `PAGE_REGISTRY.DEFAULT_WORKFLOWS` (loaded by `page-registry.js` on the chooser page), so the cards rendered fine. But after clicking a card and navigating to a workflow page, `nav.js`'s `_wfFetchWorkflow` had no fallback — `page-registry.js` isn't loaded on every RM page — so the strip's brand label collapsed to "Workflow not found" and the chips area showed "No pages".

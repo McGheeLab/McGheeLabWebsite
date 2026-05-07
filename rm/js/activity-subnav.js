@@ -12,6 +12,7 @@
     { label: 'Tracker',        href: '/rm/pages/activity-overview.html?tab=tracker' },
     { label: 'Email',          href: '/rm/pages/activity-overview.html?tab=email' },
     { label: 'Year',           href: '/rm/pages/activity-overview.html?tab=timeline' },
+    { label: 'Lab Stats',      href: '/rm/pages/activity-overview.html?tab=lab-stats', gate: 'admin' },
     { label: 'Explorer',       href: '/rm/pages/explorer.html' },
     { label: 'Calendar',       href: '/rm/pages/calendar.html' },
     { label: 'Task',           href: '/rm/pages/tasks.html' },
@@ -57,6 +58,7 @@
     bar.className = 'act-subnav';
     bar.setAttribute('aria-label', 'Activity navigation');
     const currentPath = window.location.pathname;
+    const currentTab  = new URLSearchParams(window.location.search).get('tab') || '';
 
     const lbl = document.createElement('span');
     lbl.className = 'lbl';
@@ -64,16 +66,35 @@
     bar.appendChild(lbl);
 
     for (const p of ACTIVITY_PAGES) {
+      // Parse the pill's href so we can compare path + ?tab independently
+      // (currentPath has no query). Without this, ?tab=tracker / ?tab=email /
+      // ?tab=timeline pills never highlight as active. V3.69.
+      const u = new URL(p.href, location.origin);
+      const pillTab = new URLSearchParams(u.search).get('tab') || '';
+      const isTaskPill = (u.pathname === '/rm/pages/tasks.html' && !pillTab);
+      const pathMatch = (u.pathname === currentPath);
+      const tabMatch  = (pillTab === currentTab);
+      const active = (pathMatch && tabMatch)
+                  || (isTaskPill && TASK_PATHS.has(currentPath));
+
       const a = document.createElement('a');
       a.href = p.href;
       a.textContent = p.label;
-      const isTaskPill = p.href === '/rm/pages/tasks.html';
-      if (p.href === currentPath || (isTaskPill && TASK_PATHS.has(currentPath))) {
-        a.classList.add('active');
-      }
+      if (p.gate) a.dataset.gate = p.gate;
+      if (active) a.classList.add('active');
       bar.appendChild(a);
     }
     return bar;
+  }
+
+  /* Hide gated pills the current user can't see (admin-only). Mirrors
+   * nav.js's applyNavGates pattern. */
+  function applyGates() {
+    const isAdmin = (typeof firebridge !== 'undefined') && firebridge.isAdmin && firebridge.isAdmin();
+    document.querySelectorAll('.act-subnav [data-gate]').forEach(el => {
+      const ok = (el.dataset.gate === 'admin') ? isAdmin : true;
+      el.style.display = ok ? '' : 'none';
+    });
   }
 
   function placeBar(bar, attempt = 0) {
@@ -100,11 +121,19 @@
 
   function run() {
     const currentPath = window.location.pathname;
-    const onActivity = ACTIVITY_PAGES.some(p => p.href === currentPath)
+    // Compare on pathname only (the pill list has multiple ?tab= variants
+    // of /rm/pages/activity-overview.html and any of them should mount
+    // the bar).
+    const onActivity = ACTIVITY_PAGES.some(p => new URL(p.href, location.origin).pathname === currentPath)
                     || ACTIVITY_EXTRA_PATHS.includes(currentPath);
     if (!onActivity) return;
     injectStyles();
     placeBar(buildBar());
+    applyGates();
+    // Re-apply gates when firebridge auth state changes (admin promotion etc.)
+    if (typeof firebridge !== 'undefined' && firebridge.onAuth) {
+      firebridge.onAuth(() => applyGates());
+    }
   }
 
   if (document.readyState === 'loading') {
