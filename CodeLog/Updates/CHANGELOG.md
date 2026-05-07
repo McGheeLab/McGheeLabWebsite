@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.67] - 2026-05-06
+
+**Bug fix — PMR missing from workflow strip chips.** Two of the V3.63 default workflows (Paper Writing, Task Scheduling & Activity Reports) reference page id `pmr`, but PMR wasn't in `NAV_ITEMS` so `_wfBuildPageMap()` couldn't resolve it — the chip was silently dropped from the workflow strip even though `rm/pages/pmr.html` exists.
+
+### Changed
+- **`rm/js/nav.js`** — added `{ label: 'PMR', href: '/rm/pages/pmr.html' }` to the Activity group's children, between Year and Calendar (matches the order used by `activity-subnav.js`). Now the Paper Writing and Task Scheduling workflow strips render the PMR chip, and PMR is also reachable from the regular Activity dropdown.
+- **`sw.js`** — `CACHE_VERSION` 41 → 42.
+
+### Notes
+- **No firestore.rules / functions changes.**
+- **The two future placeholders** (`lab-notebook`, `protocols`) referenced by Lab Research + Paper Writing workflow seeds are intentional — they'll surface as chips automatically when those pages ship.
+- Audited the remaining default-workflow pageIds; PMR was the only resolvable page missing from `NAV_ITEMS`.
+
 ## [V3.66] - 2026-05-06
 
 **Workflow polish — drag-to-reorder, pinned custom workflows, per-workflow landing page.** Three quality-of-life additions to the V3.63–V3.65 workflow feature. Plan doc: [CodeLog/ClaudesPlan/V3.66_workflow_polish.md](../ClaudesPlan/V3.66_workflow_polish.md).

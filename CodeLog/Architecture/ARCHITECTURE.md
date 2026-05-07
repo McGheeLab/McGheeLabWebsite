@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.66 (Workflow polish — drag-to-reorder strip chips, pinned `⭐ My Workflows ▾` dropdown in the regular nav, per-workflow `landingPageId` honored by chooser + admin matrix + custom builder.)
+**Version:** V3.67 (Bug fix — PMR added to NAV_ITEMS so Paper Writing + Task Scheduling workflow strips render the PMR chip; was silently dropped because `_wfBuildPageMap()` only walks NAV_ITEMS.)
 
 ## System Overview
 

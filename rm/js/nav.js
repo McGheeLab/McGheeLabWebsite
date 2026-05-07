@@ -30,6 +30,7 @@ const NAV_ITEMS = [
     { label: 'Tracker',  href: '/rm/pages/activity-overview.html?tab=tracker' },
     { label: 'Email',    href: '/rm/pages/activity-overview.html?tab=email' },
     { label: 'Year',     href: '/rm/pages/activity-overview.html?tab=timeline' },
+    { label: 'PMR',      href: '/rm/pages/pmr.html' },
     { label: 'Calendar', href: '/rm/pages/calendar.html' },
     { label: 'Tasks',    href: '/rm/pages/tasks.html' },
     { label: 'Sharing',  href: '/rm/pages/sharing.html' },
