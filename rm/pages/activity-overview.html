@@ -260,6 +260,15 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/activity-subnav.js"></script>
+  <!-- V3.70 — Chart.js loaded eagerly via a regular <script> tag rather
+       than the per-tab document.write loader below. Chrome was warning
+       that document.write of cross-origin scripts MAY be blocked, and
+       when blocked the email tab's renderTimeline() (which calls
+       new Chart()) throws before renderEmails() ever runs — silently
+       hiding the email list even though 250 rows were sitting in the
+       cache. Loading Chart eagerly costs ~70 KB on tabs that don't use
+       it (overview / lab-stats) but eliminates the timing bomb. -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <!-- Per-tab renderer scripts via document.write so only the active
        tab's renderer boots, and its DOMContentLoaded listener fires at
@@ -275,7 +284,7 @@
           '/rm/js/activity-overview.js'
         ],
         tracker: [
-          'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+          // Chart.js hoisted to a regular <script> tag above (V3.70)
           '/rm/js/rm-categories.js',
           'https://accounts.google.com/gsi/client',
           '/rm/js/calendar-service.js',
@@ -283,7 +292,7 @@
         ],
         timeline: [
           '/rm/js/yr-shared.js',
-          'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+          // Chart.js hoisted to a regular <script> tag above (V3.70)
           '/rm/js/cv-schemas.js',
           '/rm/js/cv-send.js',
           '/rm/js/year-review.js'
@@ -292,7 +301,7 @@
           '/rm/js/yr-shared.js',
           '/rm/js/disp-shared.js',
           '/rm/js/task-editor.js',
-          'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+          // Chart.js hoisted to a regular <script> tag above (V3.70)
           '/rm/js/task-quick-builder.js',
           '/rm/js/email-review.js'
         ],

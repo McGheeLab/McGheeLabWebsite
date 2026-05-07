@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.69 (Bug fix — redundant in-page Activity tab bar removed from `activity-overview.html`. activity-subnav.js gained the missing Lab Stats pill (admin-gated) and now active-matches on `?tab=` query params.)
+**Version:** V3.70 (Bug fix — Email tab silently empty due to Chart.js parser-blocked when loaded via document.write. Hoisted Chart.js to a regular `<script>` tag in `activity-overview.html`.)
 
 ## System Overview
 

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.70] - 2026-05-06
+
+**Bug fix — Email tab silently empty due to Chart.js loaded via document.write.** Diagnosed from user-supplied console output: a Chrome warning that the parser-blocking cross-origin `chart.js@4.4.4` script invoked via `document.write` MAY be blocked, followed by `[email-review] cache HIT for 2026 — 250 rows in 2ms (fresh)` — confirming emails were already cached but never reached the renderer. The Email tab's `refresh()` calls `renderTimeline(...)` (which does `new Chart(...)`) before `renderEmails(...)`. With Chart.js dropped/blocked, `renderTimeline` throws `Chart is not defined` and the rest of `refresh` (including `renderEmails`) never runs.
+
+### Changed
+- **`rm/pages/activity-overview.html`** — hoisted `chart.js@4.4.4` out of the per-tab `document.write` loader and into a regular `<script src=...>` tag in the body. Loads ~70 KB on every tab (including overview / lab-stats which don't use it) but eliminates the parser-blocking warning AND the silent-failure timing bomb. Tracker (was using 4.4.0 — now also 4.4.4) and Timeline tabs benefit too.
+- **`sw.js`** — `CACHE_VERSION` 44 → 45.
+
+### Notes
+- **Closes problem 2 from the previous report.** Emails will render once the SW cache evicts and the new HTML loads. Hard-reload (DevTools → Application → Service Workers → Update on reload) to bypass any stuck cache.
+- **No other pages affected** — calendar.html and analytics.html already loaded Chart.js via regular `<script>` tags. Only activity-overview.html had the document.write pattern.
+- **GIS client** (`https://accounts.google.com/gsi/client`) is still document.write'd for the Tracker tab — it's the only consumer and loading it eagerly could cause unwanted side effects on other tabs.
+
 ## [V3.69] - 2026-05-06
 
 **Bug fix — redundant Activity tab bar removed.** The Email tab (and every other Activity tab) had three layers of navigation: top nav + activity-subnav pill bar + an in-page tab bar with `Overview / Tracker / Year Timeline / Email / Lab Stats`. The in-page tab bar exactly mirrored the activity-subnav pill bar's Activity-area entries, just with different labels. Removed the in-page bar; activity-subnav is now the single sub-nav for Activity pages.
