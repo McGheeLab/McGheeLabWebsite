@@ -34,6 +34,7 @@ const NAV_ITEMS = [
     { label: 'Calendar', href: '/rm/pages/calendar.html' },
     { label: 'Tasks',    href: '/rm/pages/tasks.html' },
     { label: 'Sharing',  href: '/rm/pages/sharing.html' },
+    { label: 'Explorer', href: '/rm/pages/explorer.html' },
   ]},
 
   { label: 'Research', href: '/rm/pages/projects.html', children: [
@@ -74,6 +75,7 @@ const NAV_ITEMS = [
     { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
     { label: 'CV Overview',     href: '/rm/pages/cv-editor.html?tab=lab' },
     { label: 'Member Activity', href: '/rm/pages/activity-overview.html?tab=lab-stats', gate: 'admin' },
+    { label: 'API Usage',       href: '/rm/pages/api-usage.html', gate: 'admin' },
     { label: 'Permissions',     href: '/rm/pages/admin-permissions.html', gate: 'admin' },
   ]},
 

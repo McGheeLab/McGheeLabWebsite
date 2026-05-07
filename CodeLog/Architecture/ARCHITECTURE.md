@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.70 (Bug fix — Email tab silently empty due to Chart.js parser-blocked when loaded via document.write. Hoisted Chart.js to a regular `<script>` tag in `activity-overview.html`.)
+**Version:** V3.71 (Activity sub-nav retired — `rm/js/activity-subnav.js` deleted; Explorer added to the Activity dropdown and API Usage to Settings. Workflows + the regular six-group nav cover all of activity-subnav's surface.)
 
 ## System Overview
 

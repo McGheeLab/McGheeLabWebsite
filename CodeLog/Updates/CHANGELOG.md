@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.71] - 2026-05-06
+
+**Activity sub-nav retired.** The pill-bar at `rm/js/activity-subnav.js` (Overview / Tracker / Email / Year / Lab Stats / Explorer / Calendar / Task / Sharing / PMR / API usage) was a V3.40-era "section nav" stand-in that has been fully replaced by the V3.63–V3.66 workflow strip and the regular Activity dropdown in the top nav. Removing it eliminates the second navigation row that was still appearing on top of every Activity page even while in a workflow.
+
+### Removed
+- **`rm/js/activity-subnav.js`** — deleted (was 137 LOC).
+- `<script src="/rm/js/activity-subnav.js"></script>` removed from 8 pages: [activity-overview.html](../../rm/pages/activity-overview.html), [api-usage.html](../../rm/pages/api-usage.html), [calendar.html](../../rm/pages/calendar.html), [explorer.html](../../rm/pages/explorer.html), [lab-tasks.html](../../rm/pages/lab-tasks.html), [pmr.html](../../rm/pages/pmr.html), [sharing.html](../../rm/pages/sharing.html), [tasks.html](../../rm/pages/tasks.html).
+
+### Changed
+- **`rm/js/nav.js`** — picked up the two pages whose only entry-point was activity-subnav:
+  - **Activity** dropdown → added `Explorer` entry pointing at `/rm/pages/explorer.html`.
+  - **Settings** dropdown → added `API Usage` entry (admin-gated) pointing at `/rm/pages/api-usage.html`.
+- **`rm/pages/activity-overview.html`** — updated the V3.69 "in-page tab bar removed" comment to also note the V3.71 activity-subnav retirement.
+- **`sw.js`** — `CACHE_VERSION` 45 → 46.
+
+### Notes
+- **No firestore.rules / functions changes.** Pure frontend cleanup.
+- **Workflow page registry auto-updated.** `_wfBuildPageMap` in `nav.js` walks `NAV_ITEMS`, so adding Explorer + API Usage there means they're now first-class workflow-strip / admin-matrix candidates without further edits.
+- **CSS for `.act-subnav`, `.act-subnav-styles`** is no longer injected — was only ever used by the deleted file.
+
 ## [V3.70] - 2026-05-06
 
 **Bug fix — Email tab silently empty due to Chart.js loaded via document.write.** Diagnosed from user-supplied console output: a Chrome warning that the parser-blocking cross-origin `chart.js@4.4.4` script invoked via `document.write` MAY be blocked, followed by `[email-review] cache HIT for 2026 — 250 rows in 2ms (fresh)` — confirming emails were already cached but never reached the renderer. The Email tab's `refresh()` calls `renderTimeline(...)` (which does `new Chart(...)`) before `renderEmails(...)`. With Chart.js dropped/blocked, `renderTimeline` throws `Chart is not defined` and the rest of `refresh` (including `renderEmails`) never runs.

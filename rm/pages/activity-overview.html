@@ -52,11 +52,10 @@
 </head>
 <body>
   <div class="page">
-    <!-- V3.69 — in-page tab bar removed; navigation between Activity tabs
-         is handled by the shared activity-subnav.js pill-nav (which now
-         includes Lab Stats) and the workflow strip when a workflow is
-         active. Eliminates the redundant third row of navigation that
-         was cluttering pages like the Email tab. -->
+    <!-- V3.69 — in-page tab bar removed; tabs are selected via ?tab=<name>
+         and the workflow strip / regular Activity dropdown handle nav.
+         V3.71 — activity-subnav.js (the pill bar) also retired since
+         workflows have fully replaced its purpose. -->
 
     <!-- ===== Overview tab (default) ===== -->
     <div class="act-tab tab-overview">
@@ -259,7 +258,6 @@
   <script src="/rm/js/local-cache.js"></script>
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
-  <script src="/rm/js/activity-subnav.js"></script>
   <!-- V3.70 — Chart.js loaded eagerly via a regular <script> tag rather
        than the per-tab document.write loader below. Chrome was warning
        that document.write of cross-origin scripts MAY be blocked, and
