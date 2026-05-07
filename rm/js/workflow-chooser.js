@@ -19,10 +19,13 @@
   }
 
   async function boot() {
+    // V3.74 — only render when the workflows tab is active. The all-pages
+    // tab is handled by all-pages.js on the same container.
+    if (window.__RM_HOME_VIEW && window.__RM_HOME_VIEW !== 'workflows') return;
     if (typeof firebridge === 'undefined') return;
     await firebridge.whenAuthResolved();
     if (!firebridge.getUser()) {
-      var root = document.getElementById('workflow-root');
+      var root = document.getElementById('rm-home-root');
       if (root) root.innerHTML = '<div class="empty-state">Sign in to see your workflows.</div>';
       return;
     }
@@ -159,7 +162,7 @@
   }
 
   function render(defaults, custom) {
-    var root = document.getElementById('workflow-root');
+    var root = document.getElementById('rm-home-root');
     if (!root) return;
     root.innerHTML = '';
 

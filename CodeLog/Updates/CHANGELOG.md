@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.74] - 2026-05-06
+
+**Non-workflow nav redesign — two options: Workflows + All Pages.** The six-group dropdown nav (Activity / Research / Operations / Lab Admin / Settings) is gone. When no workflow is active, the top nav shows just three primary buttons — `🗂 Workflows`, `⊞ All Pages`, `⊟ Split` — and the front page at `rm/index.html` has a tab toggle to flip between two views. The All Pages view is a grouped card grid where each tile shows the page label, group badge, icon, and a one-line description of what the page does.
+
+### Changed
+- **`rm/index.html`** — early head script reads `?view=all-pages|workflows` from URL and exposes `window.__RM_HOME_VIEW`. Page header gained a segmented `Workflows / All Pages` tab pill (`.rm-home-tabs`) plus the existing "Lab Overview Stats →" link. Single content container `#rm-home-root` (renamed from `#workflow-root`) is owned by whichever view is active.
+- **`rm/js/workflow-chooser.js`** — boot guard short-circuits when `__RM_HOME_VIEW !== 'workflows'`. Container references switched from `#workflow-root` → `#rm-home-root`.
+- **`rm/js/nav.js`** — non-workflow `renderNav()` no longer iterates `NAV_ITEMS` to build the six dropdown groups. Renders three flat top-level links: `🗂 Workflows` → `/rm/index.html`, `⊞ All Pages` → `/rm/index.html?view=all-pages`, `⊟ Split` → `/rm/pages/split-view.html`. Active state lights up based on `location.pathname` + `?view=`. The pinned `⭐ My Workflows` dropdown (V3.66) and the workflow strip (V3.64) still render unchanged.
+- **`rm/css/workflow.css`** — added `.rm-home-tabs` segmented control and `.ap-grid` / `.ap-card` / `.ap-card-head` / `.ap-card-icon` / `.ap-card-titlebox` / `.ap-card-label` / `.ap-card-group` / `.ap-card-desc` / `.ap-gate-badge` for the All Pages tile grid.
+- **`sw.js`** — `CACHE_VERSION` 48 → 49.
+
+### Added
+- **`rm/js/all-pages.js`** (~190 LOC) — sibling to `workflow-chooser.js`. Reads `PAGE_REGISTRY.list`, filters by `firebridge.canAccessPage`, groups by `NAV_ITEMS` section, renders ordered card sections (Dashboard / Activity / Research / Operations / Lab Admin / Settings / ⊟ Split / Other). Owns two source-of-truth maps:
+  - `PAGE_DESCRIPTIONS` — one-line blurbs for each page (~40 entries covering every NAV_ITEMS page).
+  - `PAGE_ICONS` — emoji icon per page id.
+  - Cards with admin-gated pages get a small "admin" badge so users know they need privileges to see contents.
+
+### Notes
+- **No firestore.rules / functions changes.**
+- **Direct page links in renderers** (e.g. `<a href="/rm/pages/library.html">`) all still work — only the top-nav dropdowns were dropped.
+- **Adding a new RM page** now requires three things: (1) entry in `NAV_ITEMS` (nav.js), (2) blurb in `PAGE_DESCRIPTIONS` (all-pages.js), (3) optional icon in `PAGE_ICONS`. Pages without a blurb still render — the description block just collapses.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v49`.
+
 ## [V3.73] - 2026-05-06
 
 **Workflow polish #2 — page state persistence + split-within-workflow.** Two related issues raised by the user: (a) opening a paper in the Paper Writing workflow then navigating away and clicking the Paper editor chip again returned them to the empty list instead of the paper; (b) the strip's `⊟ Split` button effectively created two unrelated workflow contexts (one per iframe + one on the parent), instead of opening a second workflow page side-by-side within the same workflow. Plan/notes inline.

@@ -3,20 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>McGhee Lab — Workflows</title>
+  <title>McGhee Lab — RM</title>
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/workflow.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.74 — RM front-page picker. Two top-level tabs:
+     *   ?view=workflows (default) — workflow chooser cards
+     *   ?view=all-pages           — every page tiled by group, with
+     *                                short descriptions */
+    (function () {
+      var v = (new URLSearchParams(location.search).get('view') === 'all-pages')
+        ? 'all-pages' : 'workflows';
+      window.__RM_HOME_VIEW = v;
+      document.documentElement.dataset.rmHomeView = v;
+      document.title = (v === 'all-pages')
+        ? 'McGhee Lab — All Pages'
+        : 'McGhee Lab — Workflows';
+    })();
+  </script>
 </head>
 <body>
   <div class="page wf-page">
     <div class="page-header">
-      <h1 class="page-title">Workflows</h1>
-      <div>
+      <h1 class="page-title" id="rm-home-title">Workflows</h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="rm-home-tabs" id="rm-home-tabs"></div>
         <a class="btn" href="/rm/pages/lab-overview.html">Lab Overview Stats →</a>
       </div>
     </div>
-    <div id="workflow-root">
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const TABS = [
+          { view: 'workflows', label: '🗂 Workflows' },
+          { view: 'all-pages', label: '⊞ All Pages' },
+        ];
+        const bar = document.getElementById('rm-home-tabs');
+        const current = window.__RM_HOME_VIEW;
+        TABS.forEach(t => {
+          const a = document.createElement('a');
+          a.href = '/rm/index.html' + (t.view === 'workflows' ? '' : '?view=all-pages');
+          a.className = 'rm-home-tab' + (t.view === current ? ' active' : '');
+          a.textContent = t.label;
+          bar.appendChild(a);
+        });
+        const titleEl = document.getElementById('rm-home-title');
+        if (titleEl) titleEl.textContent = current === 'all-pages' ? 'All Pages' : 'Workflows';
+      });
+    </script>
+    <div id="rm-home-root">
       <div class="empty-state">Loading…</div>
     </div>
   </div>
@@ -34,6 +69,7 @@
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/page-registry.js"></script>
   <script src="/rm/js/workflow-state.js"></script>
+  <script src="/rm/js/all-pages.js"></script>
   <script src="/rm/js/workflow-chooser.js"></script>
 </body>
 </html>

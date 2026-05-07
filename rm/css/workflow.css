@@ -140,6 +140,83 @@
   background: var(--border, #e5e7eb);
   margin: 4px 8px;
 }
+
+/* ── V3.74 — RM home page tab toggle (Workflows | All Pages) ── */
+.rm-home-tabs {
+  display: inline-flex; gap: 4px;
+  background: var(--bg, #f3f4f6);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px; padding: 3px;
+}
+.rm-home-tab {
+  display: inline-block;
+  padding: 5px 12px; font-size: 13px; font-weight: 500;
+  color: var(--text-muted, #6b7280);
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.rm-home-tab:hover { color: var(--text, #111827); }
+.rm-home-tab.active {
+  background: var(--surface, #fff);
+  color: var(--text, #111827);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+}
+
+/* ── V3.74 — All Pages tile grid ── */
+.ap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ap-card {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 12px 14px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  text-decoration: none; color: inherit;
+  transition: border-color .12s, box-shadow .12s, transform .08s;
+}
+.ap-card:hover {
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 1px 8px rgba(37, 99, 235, .08);
+  transform: translateY(-1px);
+}
+.ap-card-head {
+  display: flex; align-items: center; gap: 10px;
+}
+.ap-card-icon {
+  font-size: 20px; line-height: 1; flex-shrink: 0;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg, #f8fafc); border-radius: 8px;
+}
+.ap-card-titlebox { flex: 1; min-width: 0; }
+.ap-card-label {
+  font-size: 13.5px; font-weight: 600; color: var(--text, #111827);
+  display: flex; align-items: center; gap: 6px;
+}
+.ap-card-group {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--text-muted, #9ca3af); margin-top: 1px;
+}
+.ap-card-desc {
+  font-size: 12.5px; line-height: 1.45;
+  color: var(--text-muted, #4b5563);
+}
+.ap-gate-badge {
+  display: inline-block;
+  padding: 1px 6px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .3px;
+  border-radius: 4px;
+}
+.ap-gate-admin {
+  background: #fef3c7; color: #92400e;
+  border: 1px solid #fde68a;
+}
 .workflow-strip .ws-page-remove {
   margin-left: 2px; padding: 0 4px;
   background: none; border: none;

@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.73 (Workflow polish — chips remember last-visited URL per page id (`pageState` in sessionStorage), so paper-editor reopens to the same paper after navigating away. Strip's `⊟ Split` pre-fills `left=<current>&right=<next workflow page>` and iframes get `?embed=1` to suppress nested nav, so split is "two pages within ONE workflow" instead of two parallel contexts.)
+**Version:** V3.74 (Non-workflow nav redesign — six-group dropdowns replaced with three top-level links (`🗂 Workflows`, `⊞ All Pages`, `⊟ Split`). Front page at `rm/index.html` has a Workflows / All Pages tab toggle. All Pages view is a grouped card grid with per-page descriptions + admin-gate badges.)
 
 ## System Overview
 

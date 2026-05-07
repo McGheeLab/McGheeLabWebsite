@@ -858,80 +858,29 @@ function renderNav() {
   brand.textContent = 'McGhee Lab';
   nav.appendChild(brand);
 
+  // V3.74 — non-workflow nav slimmed to two primary options ("Workflows"
+  // and "All Pages") + Split. The old six-group dropdowns (Activity /
+  // Research / Operations / Lab Admin / Settings) are gone — page
+  // discovery now goes through the All Pages tile grid at
+  // /rm/index.html?view=all-pages, which also shows page descriptions.
+  // Direct links remain via in-page links + the pinned ⭐ My Workflows
+  // dropdown (V3.66) when the user has saved custom workflows.
   const currentPath = window.location.pathname;
-  const isActive = (href) =>
-    currentPath === href || (currentPath === '/' && href === '/rm/index.html');
+  const currentSearch = window.location.search;
+  const currentView = new URLSearchParams(currentSearch).get('view') || '';
+  const onHome = (currentPath === '/rm/index.html' || currentPath === '/rm/' || currentPath === '/');
 
-  NAV_ITEMS.forEach(item => {
-    if (item.href && !item.children) {
-      // Pure direct link (Dashboard).
-      const a = document.createElement('a');
-      a.href = item.href;
-      a.textContent = item.label;
-      if (item.gate) a.dataset.gate = item.gate;
-      if (isActive(item.href)) a.classList.add('active');
-      nav.appendChild(a);
-      return;
-    }
+  function makeTopLink(label, href, isActive) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.textContent = label;
+    if (isActive) a.classList.add('active');
+    return a;
+  }
 
-    // Dropdown group — may also carry its own href, in which case clicking
-    // the trigger navigates to the group's landing page (e.g. Activity →
-    // Overview) while hovering still reveals the sub-menu.
-    const wrapper = document.createElement('div');
-    wrapper.className = 'nav-dropdown';
-    if (item.gate) wrapper.dataset.gate = item.gate;
-
-    const trigger = item.href
-      ? document.createElement('a')
-      : document.createElement('button');
-    trigger.className = 'nav-dropdown-trigger';
-    trigger.textContent = item.label;
-    if (item.href) trigger.href = item.href;
-
-    const menu = document.createElement('div');
-    menu.className = 'dropdown-menu';
-
-    let groupActive = false;
-    item.children.forEach(child => {
-      const a = document.createElement('a');
-      a.href = child.href;
-      a.textContent = child.label;
-      if (child.gate) a.dataset.gate = child.gate;
-      if (isActive(child.href)) {
-        a.classList.add('active');
-        groupActive = true;
-      }
-      menu.appendChild(a);
-    });
-
-    if (groupActive || (item.href && isActive(item.href))) {
-      trigger.classList.add('active');
-    }
-
-    if (item.href) {
-      // Navigating item: default anchor behavior handles the click. Hover
-      // opens the dropdown so users can still branch to sibling pages.
-      wrapper.addEventListener('mouseenter', () => {
-        document.querySelectorAll('.nav-dropdown.open').forEach(d => d.classList.remove('open'));
-        wrapper.classList.add('open');
-      });
-      wrapper.addEventListener('mouseleave', () => {
-        wrapper.classList.remove('open');
-      });
-    } else {
-      // Non-navigating group: click toggles the dropdown.
-      trigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const wasOpen = wrapper.classList.contains('open');
-        document.querySelectorAll('.nav-dropdown.open').forEach(d => d.classList.remove('open'));
-        if (!wasOpen) wrapper.classList.add('open');
-      });
-    }
-
-    wrapper.appendChild(trigger);
-    wrapper.appendChild(menu);
-    nav.appendChild(wrapper);
-  });
+  nav.appendChild(makeTopLink('🗂 Workflows', '/rm/index.html', onHome && currentView !== 'all-pages'));
+  nav.appendChild(makeTopLink('⊞ All Pages', '/rm/index.html?view=all-pages', onHome && currentView === 'all-pages'));
+  nav.appendChild(makeTopLink('⊟ Split', '/rm/pages/split-view.html', currentPath === '/rm/pages/split-view.html'));
 
   // Close dropdowns when clicking outside
   document.addEventListener('click', () => {
