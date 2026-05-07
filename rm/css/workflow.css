@@ -120,6 +120,31 @@
 .workflow-strip .ws-page.active {
   background: #fff; color: #1e3a8a; font-weight: 600;
 }
+/* V3.75 — split-mode pill states. Open pills (= showing in left or
+ * right pane) get a colored badge prefix; the active pane's pill gets
+ * a red border so the user knows which pane will be replaced when
+ * they click a closed pill. */
+.workflow-strip .ws-page-open {
+  background: rgba(255,255,255,.22);
+  color: #fff;
+  font-weight: 500;
+}
+.workflow-strip .ws-page-open::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #fbbf24;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.workflow-strip .ws-page-open--left::before  { background: #34d399; }   /* green dot */
+.workflow-strip .ws-page-open--right::before { background: #60a5fa; }   /* blue dot */
+.workflow-strip .ws-page-active-split {
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px rgba(239,68,68,.25);
+}
+
 /* V3.66 — drag-to-reorder visual states */
 .workflow-strip .ws-page[draggable="true"] { cursor: grab; }
 .workflow-strip .ws-page[draggable="true"]:active { cursor: grabbing; }

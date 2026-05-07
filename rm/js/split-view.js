@@ -1,35 +1,27 @@
 /* ================================================================
-   split-view.js — RM Split View shell
+   split-view.js — RM Split View shell (V3.75 redesign)
    ================================================================
-   Two RM pages side-by-side via iframes. Adapted from the
-   _splitAppId / _splitRatio harness in /lab-apps.js (preserved in
-   the repo through the V3.53 cleanup specifically as reference for
-   this work).
+   Two RM pages side-by-side via iframes. The workflow strip on the
+   parent IS the navigation — pane headers are gone. The strip shows
+   pills for every workflow page; the two pills matching the open
+   panes are styled as "open"; the active pane's pill has a red
+   border.
 
    URL state is the single source of truth:
-     /rm/pages/split-view.html?left=<url>&right=<url>&ratio=<0..1>
+     /rm/pages/split-view.html
+       ?left=<url>&right=<url>&active=<left|right>&ratio=<0..1>
+       [&workflow=<id>]   — adopted by nav.js into sessionStorage
 
-   Defaults (when query params are absent):
-     left  = /rm/index.html
-     right = /rm/index.html (so the user picks something via the
-             dropdown rather than seeing the same page twice — the
-             shell biases the right pane to a different page when
-             possible).
-     ratio = 0.5
-
-   Each pane has a small header bar with:
-     - The page label (read from rm/js/nav.js's NAV_ITEMS registry)
-     - A dropdown to swap to a different page
-     - A "Close" (×) button that collapses to the other pane's URL
-       (i.e. exits split view, reloading the survivor as a normal
-       single-page navigation)
+   Events bridged from nav.js's strip pill clicks:
+     - 'rm:split:swap'     { side, href }   — replace one pane's URL
+     - 'rm:split:set-active' { side }       — flip which pane is active
+     - 'rm:split:close'    { keep }         — exit split; navigate to
+                                              keep ('left'|'right'|'active')
 
    Iframes share Firebase IndexedDB persistence with the parent (same
-   origin), so auth resolves automatically in each pane — no
-   postMessage handshake needed. Each iframe loads its own copy of
-   firebase-bridge / api-firestore-adapter / nav etc., which is some
-   wasted bandwidth (~500KB per iframe) but works without changes
-   to any RM page renderer.
+   origin), so auth resolves automatically in each pane. Iframes are
+   loaded with `?embed=1` so their nav.js suppresses its own top nav
+   (V3.73) — only the parent strip is visible.
    ================================================================ */
 
 (function () {
@@ -41,58 +33,33 @@
     return;
   }
 
-  /* ─── Page registry ──────────────────────────────────────
-   * Read NAV_ITEMS from rm/js/nav.js (same IIFE-less script-tag
-   * scope, loaded before this file). Flatten children into a single
-   * list; skip group-only entries (no href). Skip the Dashboard
-   * top-level entry's duplicate href once it appears as a child.
-   * ──────────────────────────────────────────────────────── */
-  function flattenNav() {
-    const out = [];
-    const seen = new Set();
-    function add(label, href, gate) {
-      if (!href || seen.has(href)) return;
-      // Skip the Split View page itself — having it inside another
-      // split would be confusing (and break URL state nesting).
-      if (href.indexOf('/rm/pages/split-view.html') === 0) return;
-      seen.add(href);
-      out.push({ label, href, gate });
-    }
-    if (typeof NAV_ITEMS === 'undefined') return [];
-    NAV_ITEMS.forEach(item => {
-      if (item.href) add(item.label, item.href, item.gate);
-      (item.children || []).forEach(child => add(child.label, child.href, child.gate || item.gate));
-    });
-    return out;
-  }
-
-  /* ─── URL state ──────────────────────────────────────────
-   * Single source of truth: parse from window.location.search;
-   * write back via history.replaceState so reload survives state
-   * changes without filling browser history.
-   * ──────────────────────────────────────────────────────── */
-  const PAGES = flattenNav();
   const FALLBACK_HREF = '/rm/index.html';
 
+  /* ─── URL state ────────────────────────────────────────── */
   function readState() {
     const p = new URLSearchParams(window.location.search);
     let left = p.get('left') || FALLBACK_HREF;
     let right = p.get('right') || FALLBACK_HREF;
     let ratio = parseFloat(p.get('ratio'));
     if (!(ratio >= 0.15 && ratio <= 0.85)) ratio = 0.5;
-    // Sanitize: only same-origin /rm/pages/ or /rm/index.html targets.
+    let active = p.get('active') === 'right' ? 'right' : 'left';
     if (!_isAllowedHref(left)) left = FALLBACK_HREF;
     if (!_isAllowedHref(right)) right = FALLBACK_HREF;
-    return { left, right, ratio };
+    return { left, right, active, ratio };
   }
 
   function writeState(state) {
     const p = new URLSearchParams({
       left: state.left,
       right: state.right,
+      active: state.active,
       ratio: state.ratio.toFixed(2),
     });
     history.replaceState(null, '', '/rm/pages/split-view.html?' + p.toString());
+    // Expose state to nav.js's strip render (which reads the URL).
+    window.__SPLIT_STATE = state;
+    // Notify any listeners (nav.js's strip refresh hook).
+    window.dispatchEvent(new CustomEvent('rm:split:state-change', { detail: state }));
   }
 
   function _isAllowedHref(href) {
@@ -102,36 +69,17 @@
     return true;
   }
 
-  /* ─── Render ─────────────────────────────────────────────── */
-  let state = readState();
-  let dragging = false;
-
-  render();
-  writeState(state);
-
-  function render() {
-    root.innerHTML =
-      '<div class="split-shell">' +
-        paneHTML('left', state.left, state.ratio) +
-        '<div class="split-divider" id="split-divider" title="Drag to resize">' +
-          '<div class="split-divider-grip"></div>' +
-        '</div>' +
-        paneHTML('right', state.right, 1 - state.ratio) +
-      '</div>';
-
-    wireHeaders('left');
-    wireHeaders('right');
-    wireDivider();
-    applyRatio();
-  }
-
   /* V3.73 — append `?embed=1` to the iframe src so nav.js inside the
-   * iframe suppresses its top nav / workflow strip. Without this, the
-   * user sees three stacked nav bars (parent strip + 2 iframe strips).
-   * Preserves any existing query (incl. `?workflow=<id>` injected by
-   * the strip's split link). */
+   * iframe suppresses its top nav / workflow strip. V3.75: only embed
+   * when a workflow is active; outside a workflow the parent shows no
+   * strip, so the iframe's regular nav is the user's only way to
+   * navigate. Captured at IIFE time before nav.js's _wfAdoptFromUrl
+   * strips ?workflow= via history.replaceState. */
+  const _HAS_WORKFLOW = !!new URLSearchParams(location.search).get('workflow');
+
   function _embedHref(href) {
     if (typeof href !== 'string') return href;
+    if (!_HAS_WORKFLOW) return href;
     const idx = href.indexOf('#');
     const hash = idx >= 0 ? href.slice(idx) : '';
     const path = idx >= 0 ? href.slice(0, idx) : href;
@@ -143,65 +91,97 @@
     return base + '?' + qp.toString() + hash;
   }
 
-  function paneHTML(side, href, ratio) {
-    const label = (PAGES.find(p => p.href === href) || {}).label || _labelFromHref(href);
-    const opts = PAGES.map(p =>
-      '<option value="' + _esc(p.href) + '"' +
-      (p.href === href ? ' selected' : '') + '>' +
-      _esc(p.label) + '</option>'
-    ).join('');
-    return (
-      '<div class="split-pane split-pane--' + side + '" data-side="' + side + '" style="flex-basis:' + (ratio * 100).toFixed(2) + '%;">' +
-        '<div class="split-pane-header">' +
-          '<select class="split-pane-select" data-side="' + side + '">' +
-            opts +
-          '</select>' +
-          '<span class="split-pane-label">' + _esc(label) + '</span>' +
-          '<div class="split-pane-actions">' +
-            '<button class="split-pane-btn" data-act="reload" data-side="' + side + '" title="Reload pane">↻</button>' +
-            '<button class="split-pane-btn" data-act="open-full" data-side="' + side + '" title="Open in full window">⤢</button>' +
-            '<button class="split-pane-btn split-pane-btn--close" data-act="close" data-side="' + side + '" title="Close pane (exit split view)">×</button>' +
-          '</div>' +
+  /* ─── Render ───────────────────────────────────────────── */
+  let state = readState();
+  let dragging = false;
+
+  render();
+  writeState(state);
+
+  function render() {
+    root.innerHTML =
+      '<div class="split-shell">' +
+        paneHTML('left', state.left, state.ratio, state.active === 'left') +
+        '<div class="split-divider" id="split-divider" title="Drag to resize">' +
+          '<div class="split-divider-grip"></div>' +
         '</div>' +
-        '<iframe class="split-pane-frame" data-side="' + side + '" src="' + _esc(_embedHref(href)) + '" title="' + _esc(label) + '"></iframe>' +
+        paneHTML('right', state.right, 1 - state.ratio, state.active === 'right') +
+      '</div>';
+
+    wirePaneFocus('left');
+    wirePaneFocus('right');
+    wireDivider();
+    applyRatio();
+  }
+
+  /* No more pane header — just a thin "active" border via .split-pane.active.
+   * The workflow strip handles label / swap / close. */
+  function paneHTML(side, href, basisRatio, isActive) {
+    return (
+      '<div class="split-pane split-pane--' + side + (isActive ? ' active' : '') + '" data-side="' + side + '" style="flex-basis:' + (basisRatio * 100).toFixed(2) + '%;">' +
+        '<iframe class="split-pane-frame" data-side="' + side + '" src="' + _esc(_embedHref(href)) + '" title="' + _esc(_labelFromHref(href)) + '"></iframe>' +
       '</div>'
     );
   }
 
-  function wireHeaders(side) {
-    const sel = root.querySelector('.split-pane-select[data-side="' + side + '"]');
-    if (sel) sel.addEventListener('change', () => {
-      const newHref = sel.value;
-      if (!_isAllowedHref(newHref)) return;
-      state[side] = newHref;
-      writeState(state);
-      // Swap just this pane's iframe src instead of full re-render so the
-      // OTHER pane doesn't reload (preserves its scroll, its in-progress
-      // edits, etc). V3.73 — embed=1 stays appended.
-      const frame = root.querySelector('.split-pane-frame[data-side="' + side + '"]');
-      if (frame) frame.src = _embedHref(newHref);
-      const labelEl = root.querySelector('.split-pane[data-side="' + side + '"] .split-pane-label');
-      if (labelEl) labelEl.textContent = (PAGES.find(p => p.href === newHref) || {}).label || _labelFromHref(newHref);
-    });
+  /* Click anywhere in a pane's iframe wrapper → make that pane active.
+   * Mousedown on the iframe doesn't bubble to parent (cross-document
+   * boundary), so we listen on the wrapper element via mousedown
+   * capture and a focus-bridge: nav.js can also fire setActive events
+   * directly. */
+  function wirePaneFocus(side) {
+    const pane = root.querySelector('.split-pane--' + side);
+    if (!pane) return;
+    pane.addEventListener('mousedown', () => setActive(side), true);
+  }
 
-    root.querySelectorAll('.split-pane-btn[data-side="' + side + '"]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const act = btn.dataset.act;
-        if (act === 'reload') {
-          const frame = root.querySelector('.split-pane-frame[data-side="' + side + '"]');
-          if (frame) frame.src = frame.src; // assignment triggers reload
-        } else if (act === 'open-full') {
-          window.location.href = state[side];
-        } else if (act === 'close') {
-          // Exit split view; survivor pane becomes the next page.
-          const survivor = side === 'left' ? state.right : state.left;
-          window.location.href = survivor;
-        }
-      });
+  function setActive(side) {
+    if (side !== 'left' && side !== 'right') return;
+    if (state.active === side) return;
+    state.active = side;
+    writeState(state);
+    root.querySelectorAll('.split-pane').forEach(el => {
+      el.classList.toggle('active', el.dataset.side === side);
     });
   }
 
-  /* ─── Divider drag ───────────────────────────────────────── */
+  function swapPane(side, newHref) {
+    if (side !== 'left' && side !== 'right') return;
+    if (!_isAllowedHref(newHref)) return;
+    state[side] = newHref;
+    state.active = side;     // swapping a pane focuses it
+    writeState(state);
+    const frame = root.querySelector('.split-pane-frame[data-side="' + side + '"]');
+    if (frame) frame.src = _embedHref(newHref);
+    root.querySelectorAll('.split-pane').forEach(el => {
+      el.classList.toggle('active', el.dataset.side === side);
+    });
+  }
+
+  function closeSplit(keep) {
+    let survivor;
+    if (keep === 'left')  survivor = state.left;
+    else if (keep === 'right') survivor = state.right;
+    else                  survivor = (state.active === 'left') ? state.left : state.right;
+    if (!survivor) survivor = FALLBACK_HREF;
+    window.location.href = survivor;
+  }
+
+  /* ─── Event bridge from nav.js's workflow strip ──────────── */
+  window.addEventListener('rm:split:swap', (e) => {
+    const d = e && e.detail; if (!d) return;
+    swapPane(d.side, d.href);
+  });
+  window.addEventListener('rm:split:set-active', (e) => {
+    const d = e && e.detail; if (!d) return;
+    setActive(d.side);
+  });
+  window.addEventListener('rm:split:close', (e) => {
+    const keep = (e && e.detail && e.detail.keep) || 'active';
+    closeSplit(keep);
+  });
+
+  /* ─── Divider drag ────────────────────────────────────── */
   function wireDivider() {
     const divider = document.getElementById('split-divider');
     if (!divider) return;
@@ -212,7 +192,6 @@
     });
     divider.addEventListener('pointermove', (e) => {
       if (!dragging) return;
-      // Compute new ratio from pointer X within the shell rect.
       const shell = root.querySelector('.split-shell');
       if (!shell) return;
       const rect = shell.getBoundingClientRect();
@@ -226,7 +205,7 @@
       dragging = false;
       try { divider.releasePointerCapture(e.pointerId); } catch (err) {}
       document.body.classList.remove('split-dragging');
-      writeState(state); // persist final ratio
+      writeState(state);
     });
     divider.addEventListener('pointercancel', () => {
       dragging = false;
@@ -235,20 +214,19 @@
   }
 
   function applyRatio() {
-    const left = root.querySelector('.split-pane--left');
+    const left  = root.querySelector('.split-pane--left');
     const right = root.querySelector('.split-pane--right');
     if (left)  left.style.flexBasis  = (state.ratio * 100).toFixed(2) + '%';
     if (right) right.style.flexBasis = ((1 - state.ratio) * 100).toFixed(2) + '%';
   }
 
-  /* ─── Tiny helpers ───────────────────────────────────────── */
+  /* ─── Tiny helpers ────────────────────────────────────── */
   function _esc(s) {
     if (s == null) return '';
     const d = document.createElement('div');
     d.textContent = String(s);
     return d.innerHTML;
   }
-
   function _labelFromHref(href) {
     if (!href) return 'Page';
     const m = href.match(/\/rm\/pages\/([^.?]+)\.html/);

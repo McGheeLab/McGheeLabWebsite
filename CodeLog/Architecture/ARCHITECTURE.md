@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.74 (Non-workflow nav redesign — six-group dropdowns replaced with three top-level links (`🗂 Workflows`, `⊞ All Pages`, `⊟ Split`). Front page at `rm/index.html` has a Workflows / All Pages tab toggle. All Pages view is a grouped card grid with per-page descriptions + admin-gate badges.)
+**Version:** V3.75 (Split view redesign — pane headers gone; workflow strip pills are the nav. Pills matching open panes get colored side dots (🟢 left, 🔵 right); active pane's pill gets a red outline. Click closed pill → swap into active pane; click open-non-active → flip active. CustomEvent bridge between nav.js and split-view.js: `rm:split:swap`, `rm:split:set-active`, `rm:split:close`, `rm:split:state-change`.)
 
 ## System Overview
 

@@ -49,69 +49,13 @@ body.has-split-view {
 .split-pane--left  { border-right:  none; }
 .split-pane--right { border-left:   none; }
 
-.split-pane-header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-}
-
-.split-pane-select {
-  font-size: 13px;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-family: inherit;
-  max-width: 220px;
-}
-.split-pane-select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
-}
-
-.split-pane-label {
-  flex: 1;
-  color: var(--text-muted);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.split-pane-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.split-pane-btn {
-  appearance: none;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1;
-  padding: 4px 8px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-family: inherit;
-  transition: background .15s, color .15s, border-color .15s;
-}
-.split-pane-btn:hover {
-  background: var(--bg);
-  color: var(--text);
-  border-color: var(--border);
-}
-.split-pane-btn--close:hover {
-  background: var(--red-bg);
-  color: var(--red);
-  border-color: rgba(220,38,38,.3);
+/* V3.75 — pane headers were retired; the workflow strip on the parent
+ * is the single nav. The active pane gets a 2px red border so the
+ * user can see at a glance which pane the strip's pill clicks will
+ * target. Border is drawn inside (box-shadow inset) so it doesn't
+ * shift the iframe by 2px. */
+.split-pane.active {
+  box-shadow: inset 0 0 0 2px var(--red, #dc2626);
 }
 
 .split-pane-frame {
@@ -166,5 +110,4 @@ body.split-dragging .split-pane-frame {
     width: 36px;
     height: 4px;
   }
-  .split-pane-select { max-width: 140px; }
 }

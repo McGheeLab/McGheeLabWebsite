@@ -345,13 +345,44 @@ async function renderWorkflowStrip(state) {
   actionsEl.className = 'ws-actions';
   strip.appendChild(actionsEl);
 
+  // V3.75 — detect split-view mode. When on /rm/pages/split-view.html,
+  // the strip pills become the swap UI: pills matching the open panes
+  // get .ws-page-open + side badge; the active pane gets a red border
+  // (.ws-page-active-split). Pill clicks dispatch events to split-view.js
+  // instead of navigating the parent. The "⊟ Split" button is replaced
+  // with "× Close split" in this mode.
+  const onSplit = location.pathname === '/rm/pages/split-view.html';
+  let splitState = null;
+  if (onSplit) {
+    const sp = new URLSearchParams(location.search);
+    splitState = {
+      left: sp.get('left') || '/rm/index.html',
+      right: sp.get('right') || '/rm/index.html',
+      active: sp.get('active') === 'right' ? 'right' : 'left',
+    };
+  }
+
   // Split + Leave buttons render immediately; page chips wait for fetch.
-  const splitLink = document.createElement('a');
-  splitLink.className = 'ws-btn';
-  splitLink.href = _wfDecorateHref('/rm/pages/split-view.html', state.id);
-  splitLink.textContent = '⊟ Split';
-  splitLink.title = 'Open the split-view shell with the workflow context preserved';
-  actionsEl.appendChild(splitLink);
+  let splitLink = null;
+  if (!onSplit) {
+    splitLink = document.createElement('a');
+    splitLink.className = 'ws-btn';
+    splitLink.href = _wfDecorateHref('/rm/pages/split-view.html', state.id);
+    splitLink.textContent = '⊟ Split';
+    splitLink.title = 'Open the split-view shell with the workflow context preserved';
+    actionsEl.appendChild(splitLink);
+  } else {
+    const closeSplitBtn = document.createElement('button');
+    closeSplitBtn.className = 'ws-btn';
+    closeSplitBtn.type = 'button';
+    closeSplitBtn.textContent = '× Close split';
+    closeSplitBtn.title = 'Exit split view; the active pane becomes the full page';
+    closeSplitBtn.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('rm:split:close', { detail: { keep: 'active' } }));
+    });
+    actionsEl.appendChild(closeSplitBtn);
+    splitLink = closeSplitBtn;     // sentinel for insertBefore() below
+  }
 
   const leaveBtn = document.createElement('button');
   leaveBtn.className = 'ws-btn';
@@ -457,6 +488,21 @@ async function renderWorkflowStrip(state) {
     splitLink.title = 'Open ' + (rightP ? rightP.label : 'a workflow page') + ' side-by-side with the current page';
   }
 
+  // V3.75 — match a chip's base URL against a split pane URL (path + ?tab).
+  function _splitMatch(chipHref, paneHref) {
+    try {
+      const a = new URL(chipHref, location.origin);
+      const b = new URL(paneHref, location.origin);
+      if (a.pathname !== b.pathname) return false;
+      const aTab = new URLSearchParams(a.search).get('tab') || '';
+      const bTab = new URLSearchParams(b.search).get('tab') || '';
+      // Most-specific match: same tab. Generic chip (no tab) matches any
+      // pane URL with the same pathname so the open marker still appears.
+      if (!aTab) return true;
+      return aTab === bTab;
+    } catch (e) { return false; }
+  }
+
   let renderedAny = false;
   ids.forEach(id => {
     const p = pageMap.get(id);
@@ -477,11 +523,41 @@ async function renderWorkflowStrip(state) {
             + ' · drag to reorder';
     a.dataset.pageId = id;
     a.draggable = true;       // V3.66 — enable HTML5 drag-and-drop
-    // Active highlight when the path+query matches.
-    const target = new URL(p.href, location.origin);
-    if (target.pathname === currentPath
-        && (target.search === currentSearch || target.search === '')) {
-      a.classList.add('active');
+    // V3.75 — split-mode states: open + active.
+    let openSide = null;      // 'left' | 'right' | null
+    if (onSplit && splitState) {
+      if (_splitMatch(baseHref, splitState.left))      openSide = 'left';
+      else if (_splitMatch(baseHref, splitState.right)) openSide = 'right';
+      if (openSide) {
+        a.classList.add('ws-page-open');
+        a.classList.add('ws-page-open--' + openSide);
+        if (openSide === splitState.active) a.classList.add('ws-page-active-split');
+        a.title = p.group + ' · ' + p.label + ' · open in ' + openSide
+                + (openSide === splitState.active ? ' (active — click another pill to swap it)' : ' — click to make active');
+      }
+    }
+    // Active highlight when the path+query matches (single-page mode).
+    if (!onSplit) {
+      const target = new URL(p.href, location.origin);
+      if (target.pathname === currentPath
+          && (target.search === currentSearch || target.search === '')) {
+        a.classList.add('active');
+      }
+    }
+    // V3.75 — split-mode click: dispatch events instead of navigating.
+    // split-view.js applies the change and fires rm:split:state-change,
+    // which the listener at the bottom of this file uses to re-render
+    // the strip — no need for a setTimeout fallback.
+    if (onSplit) {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (openSide && openSide === splitState.active) return;     // already active
+        if (openSide) {
+          window.dispatchEvent(new CustomEvent('rm:split:set-active', { detail: { side: openSide } }));
+        } else {
+          window.dispatchEvent(new CustomEvent('rm:split:swap', { detail: { side: splitState.active, href: baseHref } }));
+        }
+      });
     }
     // V3.66 — drag handlers for reordering chips. The × button has its
     // own click handler that stopPropagations, so removal still works.
@@ -1049,6 +1125,18 @@ function applyNavGates() {
 }
 
 document.addEventListener('DOMContentLoaded', renderNav);
+
+// V3.75 — split-view.js dispatches this when its URL state changes
+// (active flip, pane swap). The strip needs to re-render to update
+// open/active visual states. Guarded so the initial writeState call
+// at split-view.js IIFE time (which fires BEFORE nav.js renders the
+// strip on DOMContentLoaded) doesn't try to refresh a strip that
+// doesn't exist yet — the natural DCL render handles initial state.
+window.addEventListener('rm:split:state-change', () => {
+  if (typeof _wfRefreshStrip !== 'function') return;
+  if (!document.querySelector('.workflow-strip')) return;
+  _wfRefreshStrip();
+});
 
 // Re-apply gates whenever firebridge auth state changes. firebridge.onAuth
 // is registered via window.addEventListener so we don't depend on script load

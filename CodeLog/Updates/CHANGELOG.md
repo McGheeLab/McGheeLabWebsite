@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.75] - 2026-05-06
+
+**Split view redesign — single nav, two pages.** The pane headers (per-pane dropdown + reload + open-full + close buttons) are gone. The workflow strip on the parent IS the navigation: pills show every workflow page, the two pills matching the open panes get a colored side dot (🟢 left, 🔵 right), and the active pane's pill gets a red outline. Click a closed pill → swaps it into the active pane. Click an open-but-not-active pill → that side becomes active (red outline jumps over). Click a pane in the iframe → also makes that pane active (mousedown bridges to `setActive`). A new "× Close split" button replaces "⊟ Split" in the strip when on `split-view.html` — exits to the active pane's URL.
+
+### Changed
+- **`rm/js/split-view.js`** — rewritten:
+  - Removed pane-header markup (`.split-pane-header`, `.split-pane-select`, `.split-pane-label`, `.split-pane-actions`, `.split-pane-btn`).
+  - URL state gained `active=<left|right>`; default 'left'. Persisted via `history.replaceState` like before.
+  - Listens for `rm:split:swap`, `rm:split:set-active`, `rm:split:close` CustomEvents on `window` (dispatched by nav.js's strip pill clicks).
+  - `swapPane(side, href)` swaps an iframe src in place (no full re-render); also flips active to the swapped side.
+  - `setActive(side)` toggles `.active` class on the corresponding `.split-pane`.
+  - `closeSplit(keep)` navigates the parent to the surviving pane's URL.
+  - Mousedown on a pane (capture phase) → `setActive(side)`.
+  - Each `writeState()` dispatches `rm:split:state-change` so the strip re-renders to reflect open/active state.
+  - `?embed=1` is now applied to iframe URLs ONLY when a workflow is active. Outside a workflow, iframes load their full RM nav so the user can navigate within each pane (the strip isn't there to swap pages for them).
+- **`rm/js/nav.js`** — `renderWorkflowStrip()` gained split-mode awareness:
+  - Reads `?left`, `?right`, `?active` from URL when on `/rm/pages/split-view.html`.
+  - For each chip, computes `openSide` ('left' | 'right' | null) by matching pathname + `?tab` against the pane URLs. Adds `.ws-page-open` + `.ws-page-open--<side>` classes; `.ws-page-active-split` on the open chip matching `active`.
+  - In split mode, chip click is captured (`e.preventDefault()`) and dispatches the appropriate event:
+    - Closed pill → `rm:split:swap` with side=active, href=baseHref.
+    - Open-non-active pill → `rm:split:set-active` with the open side.
+    - Open-active pill → no-op (already active).
+  - "⊟ Split" button replaced by "× Close split" when on split-view.html.
+  - `rm:split:state-change` listener at file scope re-renders the strip when `swapPane` / `setActive` write new URL state.
+- **`rm/css/split-view.css`** — removed `.split-pane-header`, `.split-pane-select`, `.split-pane-label`, `.split-pane-actions`, `.split-pane-btn` rules (no DOM uses them anymore). Added `.split-pane.active` with an inset 2px red `box-shadow` so the active pane's red border tracks it visually.
+- **`rm/css/workflow.css`** — added split-mode pill states: `.ws-page-open` (subtle highlight + colored side dot via `::before`), `.ws-page-open--left` (green dot), `.ws-page-open--right` (blue dot), `.ws-page-active-split` (red outline + soft red glow).
+- **`sw.js`** — `CACHE_VERSION` 49 → 50.
+
+### Notes
+- **No firestore.rules / functions changes.**
+- **In-pane mousedown sets active.** Click anywhere in a pane (even inside the iframe) makes that pane active. Same-origin iframes don't bubble events to parent normally, but the mousedown capture-phase listener on the wrapper element catches it before the iframe takes focus.
+- **Out-of-workflow split still works.** Each iframe gets its full RM nav so the user can navigate within each pane. The active-pane red border still appears (via mousedown), but the strip swap-and-close UX is workflow-only by design.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v50`.
+
 ## [V3.74] - 2026-05-06
 
 **Non-workflow nav redesign — two options: Workflows + All Pages.** The six-group dropdown nav (Activity / Research / Operations / Lab Admin / Settings) is gone. When no workflow is active, the top nav shows just three primary buttons — `🗂 Workflows`, `⊞ All Pages`, `⊟ Split` — and the front page at `rm/index.html` has a tab toggle to flip between two views. The All Pages view is a grouped card grid where each tile shows the page label, group badge, icon, and a one-line description of what the page does.
