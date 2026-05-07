@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.76] - 2026-05-07
+
+**Split-view navigation robustness — three fixes that together stop iframes from spawning their own nav.** User reported a confusing failure: in Lab Research workflow → split → click a paper in the library iframe → the new library-paper page rendered its own non-workflow nav inside the iframe (the parent strip was unchanged, but the user read the appearance/disappearance as "new workflow nav bar appeared"). Root cause: in-iframe `<a href>` clicks navigate to URLs without `?embed=1`, so the next document's nav.js saw no embed signal and rendered the regular non-workflow nav. Plan doc: [CodeLog/ClaudesPlan/V3.76_split_nav_robustness.md](../ClaudesPlan/V3.76_split_nav_robustness.md).
+
+### Changed
+
+#### 1. `window.name` as a durable embed signal
+- **`rm/js/split-view.js`** — `paneHTML()` now adds `name="rm-embed-<side>"` to each iframe element when `_HAS_WORKFLOW`. The browsing context name SURVIVES navigations within the same frame per the HTML spec, so even after an in-iframe `<a href>` click that drops `?embed=1`, the new document still inherits the name.
+- **`rm/js/nav.js`** — `renderNav()` checks `window.name.startsWith('rm-embed')` BEFORE the existing `?embed=1` URL check. Either signal triggers suppression. The two together are belt-and-suspenders: name is the durable cross-navigation signal, query is the initial-load + defense-in-depth signal.
+
+#### 2. Iframe URL sync to parent split state on `load`
+- **`rm/js/split-view.js`** — new `wireIframeLoad(side)` attaches a `load` listener to each `.split-pane-frame`. On every load (including in-iframe navigations), the handler reads `iframe.contentWindow.location.pathname + .search + .hash`, strips `?embed=1`, and updates `state[side]` if it differs. `writeState()` already dispatches `rm:split:state-change` (V3.75) → strip refreshes → chip "open" markers re-match against the new URL.
+- **Effect:** when the user clicks a paper in the library iframe, the strip sees `state.left` change to `library-paper.html?id=X` and the Library chip's green dot disappears. If they navigate to a different workflow page in the iframe, the corresponding chip lights up.
+
+#### 3. Strip `?embed=1` from saved state URLs
+- **`rm/js/split-view.js`** — new `_stripEmbed(href)` helper. `writeState()` normalizes `state.left` / `state.right` before serializing to the URL, so the parent's URL bar never carries the iframe-internal `?embed=1` artifact. `wireIframeLoad()`'s sync also strips before saving. Result: closing split takes the user to a clean URL like `/rm/pages/library-paper.html?id=X`, no `?embed=1` suffix.
+
+### Other
+- **`sw.js`** — `CACHE_VERSION` 50 → 51.
+
+### Notes
+- **No firestore.rules / functions changes.** Pure frontend.
+- **Out-of-workflow split unchanged.** Iframes don't get `name="rm-embed-..."` (only set when `_HAS_WORKFLOW`), so they render their full RM nav inside — users can navigate within each pane independently. The strip-driven swap UX is workflow-only by design.
+- **CustomEvent bridge unchanged.** `rm:split:swap` / `:set-active` / `:close` / `:state-change` from V3.75 still work; iframe-load sync just calls `writeState()` to fire `:state-change` for free.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v51`.
+
 ## [V3.75] - 2026-05-06
 
 **Split view redesign — single nav, two pages.** The pane headers (per-pane dropdown + reload + open-full + close buttons) are gone. The workflow strip on the parent IS the navigation: pills show every workflow page, the two pills matching the open panes get a colored side dot (🟢 left, 🔵 right), and the active pane's pill gets a red outline. Click a closed pill → swaps it into the active pane. Click an open-but-not-active pill → that side becomes active (red outline jumps over). Click a pane in the iframe → also makes that pane active (mousedown bridges to `setActive`). A new "× Close split" button replaces "⊟ Split" in the strip when on `split-view.html` — exits to the active pane's URL.

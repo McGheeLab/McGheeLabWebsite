@@ -899,11 +899,20 @@ function _wfOpenSaveAsModal(state, wf, effectivePageIds) {
 }
 
 function renderNav() {
-  // V3.73 — `?embed=1` (set by split-view's iframe URLs) suppresses the
-  // top nav entirely so the split shell shows ONE workflow strip on the
-  // parent and clean panes underneath, instead of three nested nav rows.
-  const qp = new URLSearchParams(location.search);
-  if (qp.get('embed') === '1') {
+  // V3.76 — embed suppression is checked in two complementary ways:
+  //   1. window.name === 'rm-embed-<side>' — set by split-view.js on
+  //      iframe creation. The browsing context name SURVIVES navigations
+  //      within the same frame (HTML spec), so a workflow-split iframe
+  //      stays embed-suppressed even after the user clicks an in-page
+  //      <a href> that drops the `?embed=1` query. Bulletproof against
+  //      the V3.75-era "library → paper inside iframe re-renders nav"
+  //      bug.
+  //   2. ?embed=1 query (V3.73 mechanism) — kept as defense-in-depth
+  //      and for the initial document load. If a future call site
+  //      sets only one signal, the other still suppresses.
+  const isEmbed = (typeof window.name === 'string' && window.name.indexOf('rm-embed') === 0)
+               || (new URLSearchParams(location.search).get('embed') === '1');
+  if (isEmbed) {
     document.documentElement.dataset.rmEmbed = '1';
     // Inject minimal CSS to hide ancillary chrome that other scripts add
     // (sync-status indicator etc.) — keeps embedded panes visually clean.

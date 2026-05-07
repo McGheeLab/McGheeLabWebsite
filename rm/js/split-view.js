@@ -49,6 +49,13 @@
   }
 
   function writeState(state) {
+    // V3.76 — normalize URLs before persisting so the artifact `?embed=1`
+    // never leaks into state.left / state.right. Without this, in-iframe
+    // navigations that land on URLs with `embed=1` (rare but possible)
+    // would carry the artifact into the parent's URL bar and into the
+    // survivor URL when the user closes split.
+    state.left  = _stripEmbed(state.left);
+    state.right = _stripEmbed(state.right);
     const p = new URLSearchParams({
       left: state.left,
       right: state.right,
@@ -60,6 +67,25 @@
     window.__SPLIT_STATE = state;
     // Notify any listeners (nav.js's strip refresh hook).
     window.dispatchEvent(new CustomEvent('rm:split:state-change', { detail: state }));
+  }
+
+  /* V3.76 — strip the `?embed=1` artifact from a URL string. Used in
+   * writeState (persistence boundary) and in the iframe-load sync
+   * handler (read boundary) so state.left / state.right always reflect
+   * the user-meaningful URL, never the iframe-internal artifact. */
+  function _stripEmbed(href) {
+    if (typeof href !== 'string' || !href) return href;
+    const hashIdx = href.indexOf('#');
+    const hash = hashIdx >= 0 ? href.slice(hashIdx) : '';
+    const path = hashIdx >= 0 ? href.slice(0, hashIdx) : href;
+    const qIdx = path.indexOf('?');
+    if (qIdx < 0) return href;
+    const base = path.slice(0, qIdx);
+    const qp = new URLSearchParams(path.slice(qIdx + 1));
+    if (!qp.has('embed')) return href;
+    qp.delete('embed');
+    const qs = qp.toString();
+    return base + (qs ? '?' + qs : '') + hash;
   }
 
   function _isAllowedHref(href) {
@@ -110,18 +136,64 @@
 
     wirePaneFocus('left');
     wirePaneFocus('right');
+    wireIframeLoad('left');
+    wireIframeLoad('right');
     wireDivider();
     applyRatio();
   }
 
   /* No more pane header — just a thin "active" border via .split-pane.active.
-   * The workflow strip handles label / swap / close. */
+   * The workflow strip handles label / swap / close.
+   *
+   * V3.76 — `name="rm-embed-<side>"` on the iframe element is a durable
+   * embed signal: the HTML spec says window.name (the browsing context
+   * name) survives navigations within the same frame. nav.js inside the
+   * iframe checks window.name and short-circuits regardless of URL
+   * params — so even after an in-iframe `<a href>` click strips the
+   * `?embed=1` query, the new document still inherits the name and
+   * suppresses its top nav. Without this, library → paper navigation
+   * inside the iframe would render a second nav inside the pane.
+   *
+   * Only set the name when in workflow context (`_HAS_WORKFLOW`) — for
+   * out-of-workflow split, iframes need their full RM nav so the user
+   * can navigate within each pane (the parent strip isn't there). */
   function paneHTML(side, href, basisRatio, isActive) {
+    const nameAttr = _HAS_WORKFLOW ? ' name="rm-embed-' + side + '"' : '';
     return (
       '<div class="split-pane split-pane--' + side + (isActive ? ' active' : '') + '" data-side="' + side + '" style="flex-basis:' + (basisRatio * 100).toFixed(2) + '%;">' +
-        '<iframe class="split-pane-frame" data-side="' + side + '" src="' + _esc(_embedHref(href)) + '" title="' + _esc(_labelFromHref(href)) + '"></iframe>' +
+        '<iframe class="split-pane-frame" data-side="' + side + '"' + nameAttr + ' src="' + _esc(_embedHref(href)) + '" title="' + _esc(_labelFromHref(href)) + '"></iframe>' +
       '</div>'
     );
+  }
+
+  /* V3.76 — sync iframe URL into parent split state. When the user
+   * clicks a link inside the iframe, the iframe navigates within
+   * itself; the parent has no idea unless we listen to its `load`
+   * event. After every load, read iframe.contentWindow.location, strip
+   * the `?embed=1` artifact, and update state[side] if it differs.
+   * writeState() dispatches `rm:split:state-change` (V3.75), which
+   * nav.js's strip refresh-listener uses to re-render — so chip
+   * "open" markers stay accurate to whatever's actually in the pane. */
+  function wireIframeLoad(side) {
+    const frame = root.querySelector('.split-pane-frame[data-side="' + side + '"]');
+    if (!frame) return;
+    frame.addEventListener('load', () => {
+      try {
+        const win = frame.contentWindow;
+        if (!win) return;
+        const path = win.location.pathname;
+        const sp = new URLSearchParams(win.location.search);
+        sp.delete('embed');
+        const qs = sp.toString();
+        const newURL = path + (qs ? '?' + qs : '') + (win.location.hash || '');
+        if (newURL && newURL !== state[side]) {
+          state[side] = newURL;
+          writeState(state);    // dispatches state-change → strip refresh
+        }
+      } catch (e) {
+        // Cross-origin (shouldn't happen for /rm/* internal pages); ignore.
+      }
+    });
   }
 
   /* Click anywhere in a pane's iframe wrapper → make that pane active.

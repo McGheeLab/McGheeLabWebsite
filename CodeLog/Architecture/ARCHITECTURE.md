@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.75 (Split view redesign — pane headers gone; workflow strip pills are the nav. Pills matching open panes get colored side dots (🟢 left, 🔵 right); active pane's pill gets a red outline. Click closed pill → swap into active pane; click open-non-active → flip active. CustomEvent bridge between nav.js and split-view.js: `rm:split:swap`, `rm:split:set-active`, `rm:split:close`, `rm:split:state-change`.)
+**Version:** V3.76 (Split-view nav robustness — `window.name='rm-embed-<side>'` on workflow-split iframes is a durable embed signal that survives in-iframe navigations (HTML spec: browsing context name persists). Iframe `load` listener syncs iframe URL → parent `state[side]` → `rm:split:state-change` → strip re-renders so chip "open" markers stay accurate. `?embed=1` artifact stripped from saved state URLs.)
 
 ## System Overview
 
