@@ -125,6 +125,24 @@
     applyRatio();
   }
 
+  /* V3.73 — append `?embed=1` to the iframe src so nav.js inside the
+   * iframe suppresses its top nav / workflow strip. Without this, the
+   * user sees three stacked nav bars (parent strip + 2 iframe strips).
+   * Preserves any existing query (incl. `?workflow=<id>` injected by
+   * the strip's split link). */
+  function _embedHref(href) {
+    if (typeof href !== 'string') return href;
+    const idx = href.indexOf('#');
+    const hash = idx >= 0 ? href.slice(idx) : '';
+    const path = idx >= 0 ? href.slice(0, idx) : href;
+    const qIdx = path.indexOf('?');
+    const base = qIdx >= 0 ? path.slice(0, qIdx) : path;
+    const qs = qIdx >= 0 ? path.slice(qIdx + 1) : '';
+    const qp = new URLSearchParams(qs);
+    qp.set('embed', '1');
+    return base + '?' + qp.toString() + hash;
+  }
+
   function paneHTML(side, href, ratio) {
     const label = (PAGES.find(p => p.href === href) || {}).label || _labelFromHref(href);
     const opts = PAGES.map(p =>
@@ -145,7 +163,7 @@
             '<button class="split-pane-btn split-pane-btn--close" data-act="close" data-side="' + side + '" title="Close pane (exit split view)">×</button>' +
           '</div>' +
         '</div>' +
-        '<iframe class="split-pane-frame" data-side="' + side + '" src="' + _esc(href) + '" title="' + _esc(label) + '"></iframe>' +
+        '<iframe class="split-pane-frame" data-side="' + side + '" src="' + _esc(_embedHref(href)) + '" title="' + _esc(label) + '"></iframe>' +
       '</div>'
     );
   }
@@ -159,9 +177,9 @@
       writeState(state);
       // Swap just this pane's iframe src instead of full re-render so the
       // OTHER pane doesn't reload (preserves its scroll, its in-progress
-      // edits, etc).
+      // edits, etc). V3.73 — embed=1 stays appended.
       const frame = root.querySelector('.split-pane-frame[data-side="' + side + '"]');
-      if (frame) frame.src = newHref;
+      if (frame) frame.src = _embedHref(newHref);
       const labelEl = root.querySelector('.split-pane[data-side="' + side + '"] .split-pane-label');
       if (labelEl) labelEl.textContent = (PAGES.find(p => p.href === newHref) || {}).label || _labelFromHref(newHref);
     });

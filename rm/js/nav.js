@@ -155,6 +155,11 @@ function _wfReadState() {
     s.removedPageIds = Array.isArray(s.removedPageIds) ? s.removedPageIds : [];
     // V3.66 — orderOverride is null until the user drag-reorders.
     s.orderOverride = Array.isArray(s.orderOverride) ? s.orderOverride : null;
+    // V3.73 — pageState[pageId] = full URL (path+search+hash) the user
+    // was last on for that page within this workflow session. Lets chips
+    // reopen the user's previous context (e.g. ?paper=mebp on the paper
+    // editor) instead of always landing on the canonical chip URL.
+    s.pageState = (s.pageState && typeof s.pageState === 'object') ? s.pageState : {};
     return s;
   } catch (e) { return null; }
 }
@@ -173,7 +178,7 @@ function _wfAdoptFromUrl() {
   if (existing && existing.id === wfId) {
     state = existing;  // preserve dirty edits across navigations
   } else {
-    state = { id: wfId, kind: 'default', addedPageIds: [], removedPageIds: [], orderOverride: null };
+    state = { id: wfId, kind: 'default', addedPageIds: [], removedPageIds: [], orderOverride: null, pageState: {} };
   }
   sessionStorage.setItem(_WF_STORAGE_KEY, JSON.stringify(state));
   qp.delete('workflow');
@@ -394,6 +399,64 @@ async function renderWorkflowStrip(state) {
   };
   const currentPath = location.pathname;
   const currentSearch = location.search;
+  const currentTab = new URLSearchParams(currentSearch).get('tab') || '';
+  // V3.73 — find which chip pageId corresponds to the current page so we
+  // can persist the full URL (path+search+hash) for reopening later. Most
+  // specific match wins: same pathname + same ?tab beats same pathname
+  // alone (so /library.html?tab=comments persists onto the Comments chip,
+  // not the Library Papers chip).
+  let activeChipId = null;
+  let activeChipGenericFallback = null;
+  ids.forEach(id => {
+    const p = pageMap.get(id);
+    if (!p) return;
+    const u = new URL(p.href, location.origin);
+    if (u.pathname !== currentPath) return;
+    const pTab = new URLSearchParams(u.search).get('tab') || '';
+    if (pTab === currentTab) activeChipId = id;
+    else if (!pTab && !activeChipGenericFallback) activeChipGenericFallback = id;
+  });
+  if (!activeChipId) activeChipId = activeChipGenericFallback;
+  if (activeChipId) {
+    state.pageState = state.pageState || {};
+    state.pageState[activeChipId] = location.pathname + location.search + location.hash;
+    _wfWriteState(state);
+  }
+
+  // V3.73 — pre-fill the strip's "⊟ Split" link with workflow context so
+  // splitting opens TWO workflow pages side-by-side (left = current, right
+  // = next workflow page). Both panes inherit the workflow context via
+  // ?workflow=<id> + ?embed=1 (suppresses nested nav inside iframes).
+  const accessibleIds = ids.filter(id => {
+    const pp = pageMap.get(id);
+    return pp && canAccess(id);
+  });
+  if (accessibleIds.length) {
+    // Left pane = current page (with any state — paper id, tab, etc.).
+    const leftURL = location.pathname + location.search + location.hash;
+    // Right pane = next workflow page after current; wrap to first if at end.
+    let rightId = null;
+    if (activeChipId) {
+      const idx = accessibleIds.indexOf(activeChipId);
+      if (idx >= 0) rightId = accessibleIds[(idx + 1) % accessibleIds.length];
+    }
+    if (!rightId) rightId = accessibleIds[0];
+    if (rightId === activeChipId && accessibleIds.length > 1) {
+      rightId = accessibleIds[1];
+    }
+    const rightP = pageMap.get(rightId);
+    const rightRemembered = state.pageState && state.pageState[rightId];
+    const rightURL = rightRemembered || (rightP && rightP.href) || '/rm/index.html';
+    const splitParams = new URLSearchParams({
+      workflow: state.id,
+      left: leftURL,
+      right: rightURL,
+      ratio: '0.5',
+    });
+    splitLink.href = '/rm/pages/split-view.html?' + splitParams.toString();
+    splitLink.title = 'Open ' + (rightP ? rightP.label : 'a workflow page') + ' side-by-side with the current page';
+  }
+
   let renderedAny = false;
   ids.forEach(id => {
     const p = pageMap.get(id);
@@ -402,9 +465,16 @@ async function renderWorkflowStrip(state) {
     renderedAny = true;
     const a = document.createElement('a');
     a.className = 'ws-page';
-    a.href = _wfDecorateHref(p.href, state.id);
+    // V3.73 — chip links to the LAST URL the user visited for this page in
+    // this workflow session (e.g. ?paper=mebp on the editor), not just the
+    // canonical chip href. Falls back to the canonical href on first visit.
+    const remembered = (state.pageState && state.pageState[id]) || null;
+    const baseHref = remembered || p.href;
+    a.href = _wfDecorateHref(baseHref, state.id);
     a.textContent = p.label;
-    a.title = p.group + ' · ' + p.label + ' · drag to reorder';
+    a.title = p.group + ' · ' + p.label
+            + (remembered && remembered !== p.href ? ' · resumes where you left off' : '')
+            + ' · drag to reorder';
     a.dataset.pageId = id;
     a.draggable = true;       // V3.66 — enable HTML5 drag-and-drop
     // Active highlight when the path+query matches.
@@ -738,8 +808,11 @@ function _wfOpenSaveAsModal(state, wf, effectivePageIds) {
         createdAt: new Date(),
         updatedAt: new Date(),
       }, { merge: false });
-      // Switch active state to the new custom workflow.
-      _wfWriteState({ id: slug, kind: 'custom', addedPageIds: [], removedPageIds: [], orderOverride: null });
+      // Switch active state to the new custom workflow. Preserve the
+      // user's pageState (V3.73) so they keep their open URLs across the
+      // save-as transition (e.g. the paper they were editing stays).
+      const carriedPageState = (state && state.pageState) || {};
+      _wfWriteState({ id: slug, kind: 'custom', addedPageIds: [], removedPageIds: [], orderOverride: null, pageState: carriedPageState });
       back.remove();
       _wfRefreshStrip();
       if (window.toast) toast.show('Saved as "' + name + '".', 'ok');
@@ -750,6 +823,23 @@ function _wfOpenSaveAsModal(state, wf, effectivePageIds) {
 }
 
 function renderNav() {
+  // V3.73 — `?embed=1` (set by split-view's iframe URLs) suppresses the
+  // top nav entirely so the split shell shows ONE workflow strip on the
+  // parent and clean panes underneath, instead of three nested nav rows.
+  const qp = new URLSearchParams(location.search);
+  if (qp.get('embed') === '1') {
+    document.documentElement.dataset.rmEmbed = '1';
+    // Inject minimal CSS to hide ancillary chrome that other scripts add
+    // (sync-status indicator etc.) — keeps embedded panes visually clean.
+    const st = document.createElement('style');
+    st.textContent = 'html[data-rm-embed="1"] .top-nav,'
+                   + 'html[data-rm-embed="1"] .workflow-strip,'
+                   + 'html[data-rm-embed="1"] #firebridge-indicator { display: none !important; }'
+                   + 'html[data-rm-embed="1"] body { padding-top: 0 !important; }';
+    document.head.appendChild(st);
+    return;
+  }
+
   // V3.64 — adopt ?workflow=<id> from URL into sessionStorage, then
   // pick which nav to render. If a workflow is active, the strip
   // replaces the six-group nav.

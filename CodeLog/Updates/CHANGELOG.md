@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.73] - 2026-05-06
+
+**Workflow polish #2 — page state persistence + split-within-workflow.** Two related issues raised by the user: (a) opening a paper in the Paper Writing workflow then navigating away and clicking the Paper editor chip again returned them to the empty list instead of the paper; (b) the strip's `⊟ Split` button effectively created two unrelated workflow contexts (one per iframe + one on the parent), instead of opening a second workflow page side-by-side within the same workflow. Plan/notes inline.
+
+### Page state persistence (chips remember where you left off)
+- **`rm/js/nav.js`** — workflow state gained a `pageState: { [pageId]: '<full-url>' }` map in sessionStorage. On every strip render, nav.js identifies the chip whose pathname (and `?tab=` if applicable) matches the current URL and writes `pageState[<pageId>] = location.pathname + location.search + location.hash`. When rendering chips, each chip's `href` is the remembered URL (decorated with `?workflow=<id>`) — falling back to the canonical chip URL on first visit. Title tooltip now says "resumes where you left off" when a chip is set to a non-canonical URL.
+- **Effect:** clicking the Paper editor chip while on `paper-builder.html?paper=mebp`, then jumping to Library, then clicking Paper editor again — second click goes back to `?paper=mebp`. Same applies to any page with deep state in the URL (`?tab=`, `?paper=`, `?ticket=`, `#anchor`).
+- **State preserved across save-as-custom**: when the user converts a dirty default workflow into a custom one via `Save as custom`, `pageState` carries through to the new custom workflow's session.
+- **State scope:** sessionStorage, so per-tab + cleared on browser quit. URL-based deep state is the persistence — re-opening the workflow tomorrow lands on the workflow's `landingPageId` (V3.66) by default.
+
+### Split-within-workflow (single strip on parent, clean panes underneath)
+- **`rm/js/nav.js`** — the strip's `⊟ Split` button now pre-fills the split URL with `left=<current page>` + `right=<next workflow page>` + `workflow=<id>` + `ratio=0.5`. Tooltip says which page will open in the right pane. Right is the *next workflow chip* after the current one (wraps to first if at end; falls back to second if next equals current). Both panes inherit the workflow context via the `?workflow=<id>` adopted by parent nav.js.
+- **`rm/js/nav.js`** — `renderNav()` short-circuits when URL has `?embed=1`: skips the regular nav AND the workflow strip, and injects a small `<style>` rule hiding any `.top-nav`, `.workflow-strip`, and `#firebridge-indicator` (in case other scripts try to mount them later). Result: the parent split-view shell shows ONE workflow strip on top, and the iframes show the page content with no nested nav rows.
+- **`rm/js/split-view.js`** — every iframe `src` is now passed through a new `_embedHref()` helper that appends `?embed=1` (preserving any other query params and hash). Pane dropdown swap also re-embeds.
+
+### Files
+- **Changed:** [rm/js/nav.js](../../rm/js/nav.js) — `_wfReadState` initializes `pageState`; `_wfAdoptFromUrl` + `setActive` (via the `replace_all` of `addedPageIds: [], removedPageIds: [], orderOverride: null`) initialize `pageState: {}`; chip rendering uses `state.pageState[id] || canonical_href`; `renderWorkflowStrip` saves the active chip's full URL on every render; `renderWorkflowStrip` rewrites the split link to `?workflow=<id>&left=<current>&right=<next>&ratio=0.5`; `renderNav` short-circuits on `?embed=1`; `_wfOpenSaveAsModal` carries `pageState` across the kind=default → kind=custom transition.
+- **Changed:** [rm/js/split-view.js](../../rm/js/split-view.js) — `_embedHref()` helper + iframe `src` decoration; pane swap also re-embeds.
+- **Changed:** [sw.js](../../sw.js) — `CACHE_VERSION` 47 → 48.
+
+### Notes
+- **No firestore.rules / functions changes.** Pure frontend.
+- **Scroll position not yet preserved.** URL-level state survives chip-click round trips. In-page scroll restoration is browser-default (Chrome restores on back/forward but not on chip clicks since each chip is a fresh navigation). A V3.74 follow-up could add `beforeunload`-saved scrollY per page id.
+- **Hard-reload required** to evict the SW cache (`mcgheelab-shell-v48`).
+
 ## [V3.72] - 2026-05-06
 
 **Real fix for Email tab silently empty.** V3.70's Chart.js hoist helped but didn't root-cause the issue. The actual bug: the **Year Timeline tab block had a hardcoded `<div id="content">Loading…</div>`** baked into the static HTML. When the user was on the Email tab, `document.getElementById('content')` returned that hidden timeline `#content` (still in the DOM, just `display:none` via CSS) instead of the email tab's intended container. `renderEmails()` wrote its 250 rows into a hidden div and the user saw a blank inbox.

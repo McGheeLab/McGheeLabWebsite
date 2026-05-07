@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.72 (Real fix for Email tab silently empty — Year Timeline tab's hardcoded `<div id="content">` was winning the `getElementById('content')` lookup on the Email tab, sending `renderEmails()` output into a hidden div. Removed the static node so the inline appender creates `#content` in the active tab. `refresh()` also wrapped per-renderer try/catch so a chart hiccup no longer black-holes the inbox.)
+**Version:** V3.73 (Workflow polish — chips remember last-visited URL per page id (`pageState` in sessionStorage), so paper-editor reopens to the same paper after navigating away. Strip's `⊟ Split` pre-fills `left=<current>&right=<next workflow page>` and iframes get `?embed=1` to suppress nested nav, so split is "two pages within ONE workflow" instead of two parallel contexts.)
 
 ## System Overview
 
