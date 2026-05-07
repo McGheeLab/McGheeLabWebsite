@@ -1935,16 +1935,24 @@ async function refresh() {
       ? 'Yearly email volume by category \u2014 All years'
       : `Monthly email volume by category \u2014 ${STATE.year}`;
   }
-  renderYearReview(STATE.emails);
-  renderCatToggles();
+  // V3.72 \u2014 render the email list FIRST and wrap each secondary renderer
+  // in try/catch so a transient failure (e.g. Chart.js missing, hiccup
+  // in renderActivityRollup) doesn't black-hole the inbox. Previously
+  // renderTimeline ran first; if Chart was undefined it threw and
+  // renderEmails never ran, leaving the user with a blank inbox even
+  // though 250 rows were sitting in the cache.
   const filtered = filterEmails();
-  renderTimeline(STATE.emails);          // reads STATE.filter.cats internally
-  renderActivityRollup(filtered);
-  document.getElementById('result-count').textContent = `${filtered.length} of ${STATE.emails.length} emails`;
-  renderEmails(filtered);
+  const cntEl = document.getElementById('result-count');
+  if (cntEl) cntEl.textContent = `${filtered.length} of ${STATE.emails.length} emails`;
+  try { renderEmails(filtered); } catch (e) { console.error('[email-review] renderEmails failed:', e); }
+  try { renderYearReview(STATE.emails); } catch (e) { console.warn('[email-review] renderYearReview failed:', e); }
+  try { renderCatToggles(); } catch (e) { console.warn('[email-review] renderCatToggles failed:', e); }
+  try { renderTimeline(STATE.emails); } catch (e) { console.warn('[email-review] renderTimeline failed (Chart.js may be missing):', e); }
+  try { renderActivityRollup(filtered); } catch (e) { console.warn('[email-review] renderActivityRollup failed:', e); }
   // Coming back from the trash view, the canvas was display:none — nudge the
   // chart to recompute size now that it's visible again.
   if (STATE.timelineChart) { try { STATE.timelineChart.resize(); } catch {} }
+  console.info('[email-review] refresh complete — rendered', filtered.length, 'of', STATE.emails.length, 'emails into #content');
 }
 
 function setDisplay(id, v) { const el = document.getElementById(id); if (el) el.style.display = v; }

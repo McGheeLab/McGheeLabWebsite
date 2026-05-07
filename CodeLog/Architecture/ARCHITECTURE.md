@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.71 (Activity sub-nav retired — `rm/js/activity-subnav.js` deleted; Explorer added to the Activity dropdown and API Usage to Settings. Workflows + the regular six-group nav cover all of activity-subnav's surface.)
+**Version:** V3.72 (Real fix for Email tab silently empty — Year Timeline tab's hardcoded `<div id="content">` was winning the `getElementById('content')` lookup on the Email tab, sending `renderEmails()` output into a hidden div. Removed the static node so the inline appender creates `#content` in the active tab. `refresh()` also wrapped per-renderer try/catch so a chart hiccup no longer black-holes the inbox.)
 
 ## System Overview
 

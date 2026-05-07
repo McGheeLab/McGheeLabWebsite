@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.72] - 2026-05-06
+
+**Real fix for Email tab silently empty.** V3.70's Chart.js hoist helped but didn't root-cause the issue. The actual bug: the **Year Timeline tab block had a hardcoded `<div id="content">Loading…</div>`** baked into the static HTML. When the user was on the Email tab, `document.getElementById('content')` returned that hidden timeline `#content` (still in the DOM, just `display:none` via CSS) instead of the email tab's intended container. `renderEmails()` wrote its 250 rows into a hidden div and the user saw a blank inbox.
+
+The inline script that's supposed to append a per-active-tab `#content` does `if (!document.getElementById('content'))` — so it skipped creating one because the timeline tab's hardcoded one already satisfied the check. Subtle.
+
+### Changed
+- **`rm/pages/activity-overview.html`** — removed the static `<div id="content">Loading…</div>` from the Year Timeline tab block. The inline script now correctly creates `#content` inside whichever tab is active (`email`, `timeline`, or `lab-stats`). Comment added pointing at the V3.72 fix for future readers.
+- **`rm/js/email-review.js`** — defensively wrapped each renderer in `refresh()` in `try/catch` so a transient failure (e.g., Chart.js missing) no longer halts the whole render. **Email rows render FIRST**, before chart / activity rollup, so even if a secondary renderer throws, the inbox appears. Added a `refresh complete — rendered X of Y emails into #content` info log so the next bug is easier to localize.
+- **`sw.js`** — `CACHE_VERSION` 46 → 47.
+
+### Notes
+- **No firestore.rules / functions changes.**
+- **Hard-reload required** to evict the SW cache (DevTools → Application → Service Workers → "Update on reload"). Once the new HTML loads, the email tab should render the cached 250 rows immediately.
+- The Year Timeline tab still works — `year-review.js` queries `#content`, which the inline script now appends dynamically in the timeline tab when `?tab=timeline` is the active URL.
+- **Lessons for future tab consolidations**: when collapsing N pages into one with `?tab=` switching, every tab block must use UNIQUE element IDs OR all defer container creation to a tab-aware appender. Sharing an ID like `#content` across tabs causes silent cross-tab DOM lookups that are nearly impossible to spot in code review (the symptom is "renders into wrong tab", which only manifests at runtime when the user picks a non-default tab).
+
 ## [V3.71] - 2026-05-06
 
 **Activity sub-nav retired.** The pill-bar at `rm/js/activity-subnav.js` (Overview / Tracker / Email / Year / Lab Stats / Explorer / Calendar / Task / Sharing / PMR / API usage) was a V3.40-era "section nav" stand-in that has been fully replaced by the V3.63–V3.66 workflow strip and the regular Activity dropdown in the top nav. Removing it eliminates the second navigation row that was still appearing on top of every Activity page even while in a workflow.

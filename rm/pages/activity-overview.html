@@ -131,7 +131,12 @@
           <span id="yr-status" style="font-size:12px;color:#6b7280"></span>
         </div>
       </div>
-      <div id="content">Loading…</div>
+      <!-- V3.72 — #content is appended dynamically by the inline script
+           below (matches the email + lab-stats tabs). Previously this
+           tab had a hardcoded <div id="content"> that won the
+           getElementById('content') lookup even when the email tab was
+           active, causing renderEmails() to write into a hidden div
+           and the user to see a blank inbox. -->
     </div>
 
     <!-- ===== Email Review tab ===== -->
