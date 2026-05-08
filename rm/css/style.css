@@ -1830,8 +1830,16 @@ body {
 .lp-overlays-foot code{background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:10px}
 .lp-overlays-empty{padding:12px 14px;color:#9ca3af;font-style:italic;font-size:11px;line-height:1.5}
 .lp-overlays-foot-note{margin-top:6px;color:#6b7280;font-size:10px;line-height:1.4}
-.lp-overlays-link-btn{display:inline-block;font-size:11px;padding:3px 9px;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:4px;cursor:pointer}
+.lp-overlays-foot-actions{display:flex;gap:6px;flex-wrap:wrap}
+.lp-overlays-link-btn,.lp-overlays-import-btn{display:inline-block;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer}
+.lp-overlays-link-btn{background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd}
 .lp-overlays-link-btn:hover{background:#ddd6fe}
+.lp-overlays-import-btn{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+.lp-overlays-import-btn:hover{background:#bfdbfe}
+/* V3.95 — grouped sections in the link picker (Papers / Grants / Other) */
+.lp-linkpick-group + .lp-linkpick-group{border-top:1px dashed #e5e7eb}
+.lp-linkpick-group-head{padding:7px 14px 3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:700;display:flex;align-items:center;gap:6px;background:#fafafa;position:sticky;top:0;z-index:1}
+.lp-linkpick-group-count{background:#e5e7eb;color:#6b7280;font-weight:600;padding:0 6px;border-radius:8px;font-size:9px}
 /* V3.94 — link picker modal (reuses .lp-oim-card frame). */
 .lp-linkpick-list{max-height:260px;overflow:auto;padding:4px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin:8px 0}
 .lp-linkpick-row{display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;user-select:none;font-size:12px}

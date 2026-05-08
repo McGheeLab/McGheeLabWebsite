@@ -141,14 +141,19 @@
     if (!_linkedBuckets.length) {
       pop.innerHTML = `
         <div class="lp-overlays-empty">
-          No project buckets linked to this paper yet. Link one and AI overlays
-          (drag-drop a <code>.paper-overlay.md</code> file) will scope to it.
+          No project buckets linked to this paper yet. Link one to scope AI
+          overlays (drag-drop a <code>.paper-overlay.md</code> file or use the
+          import button below) to a specific review task.
         </div>
         <div class="lp-overlays-foot">
-          <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to project…</button>
+          <div class="lp-overlays-foot-actions">
+            <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to project…</button>
+            <button class="btn btn-sm lp-overlays-import-btn" id="lp-overlays-import">+ Import overlay file…</button>
+          </div>
         </div>
       `;
       pop.querySelector('#lp-overlays-link').addEventListener('click', _openLinkPicker);
+      pop.querySelector('#lp-overlays-import').addEventListener('click', _openOverlayFilePicker);
       return;
     }
     const onAll = _active.size === _linkedBuckets.length;
@@ -174,7 +179,10 @@
       </div>
       <div class="lp-overlays-list">${rows}</div>
       <div class="lp-overlays-foot">
-        <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to project…</button>
+        <div class="lp-overlays-foot-actions">
+          <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to project…</button>
+          <button class="btn btn-sm lp-overlays-import-btn" id="lp-overlays-import">+ Import overlay file…</button>
+        </div>
         <div class="lp-overlays-foot-note">
           Highlights with no overlay (general) always render. New highlights you
           create get the currently-active overlays as their <code>bucket_ids</code>.
@@ -182,6 +190,7 @@
       </div>
     `;
     pop.querySelector('#lp-overlays-link').addEventListener('click', _openLinkPicker);
+    pop.querySelector('#lp-overlays-import').addEventListener('click', _openOverlayFilePicker);
     pop.querySelectorAll('input[data-overlay-id]').forEach(inp => {
       inp.addEventListener('change', (ev) => {
         const id = ev.target.getAttribute('data-overlay-id');
@@ -209,6 +218,39 @@
     });
   }
 
+  // ----- File picker for AI overlay import (V3.95) ----------------------
+  // Same import as drag-drop, but invoked from the overlays popover via a
+  // hidden file input. Uses PAPER_OVERLAY_IMPORT.handleDrop so the entire
+  // preview/validate/confirm flow is shared — the only difference is the
+  // delivery (button click vs. drag-drop onto the viewer).
+  function _openOverlayFilePicker() {
+    if (!window.PAPER_OVERLAY_IMPORT || !window.PAPER_OVERLAY_IMPORT.handleDrop) {
+      alert('Overlay import not loaded.');
+      return;
+    }
+    let inp = document.getElementById('lp-overlays-fileinput');
+    if (!inp) {
+      inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = '.md,.markdown,text/markdown';
+      inp.id = 'lp-overlays-fileinput';
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
+    }
+    inp.value = '';     // allow re-selecting the same file
+    inp.onchange = async () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      try {
+        await window.PAPER_OVERLAY_IMPORT.handleDrop(file);
+      } catch (e) {
+        console.error('[paper-overlays] overlay file import failed:', e);
+        alert('Import failed: ' + (e.message || e));
+      }
+    };
+    inp.click();
+  }
+
   // ----- Link picker (V3.94) --------------------------------------------
   // Lets the user link the open paper to existing project buckets without
   // leaving the paper reader. Also creates a fresh bucket for the paper if
@@ -219,23 +261,56 @@
     if (!window.LINKS || !_paperItem) return;
     const existing = document.getElementById('lp-overlays-linkmodal');
     if (existing) existing.remove();
-    let bucketsDoc;
+    let bucketsDoc, itemsDoc;
     try {
-      bucketsDoc = await window.LINKS.loadBuckets();
+      [bucketsDoc, itemsDoc] = await Promise.all([
+        window.LINKS.loadBuckets(),
+        window.LINKS.loadItems(),
+      ]);
     } catch (e) {
       console.warn('[paper-overlays] failed to load buckets:', e);
       return;
     }
     const projects = (bucketsDoc && bucketsDoc.projects) || [];
     const linkedIds = new Set(_linkedBuckets.map(b => b.id));
-    // Sort: linked first, then alpha by title.
-    const sorted = projects.slice().sort((a, b) => {
-      const al = linkedIds.has(a.id) ? 0 : 1;
-      const bl = linkedIds.has(b.id) ? 0 : 1;
-      if (al !== bl) return al - bl;
-      return (a.title || '').localeCompare(b.title || '');
-    });
-    const rows = sorted.map(p => {
+
+    // V3.95 — group by item type so papers + grants float to the top.
+    // Buckets created from items inherit category='research' for both
+    // papers and grants, so we resolve the item type via linked_item_ids
+    // rather than category alone.
+    const itemsById = new Map();
+    for (const it of (itemsDoc && itemsDoc.items) || []) itemsById.set(it.id, it);
+    const groupOf = (bucket) => {
+      const itemId = (bucket.linked_item_ids || [])[0];
+      const it = itemId ? itemsById.get(itemId) : null;
+      const type = (it && it.type) || '';
+      if (type === 'paper') return 'Papers';
+      if (type === 'grant') return 'Grants';
+      const cat = String(bucket.category || '').toLowerCase();
+      if (cat === 'paper' || cat === 'papers')  return 'Papers';
+      if (cat === 'grant' || cat === 'grants')  return 'Grants';
+      return 'Other';
+    };
+    const GROUP_ORDER = { 'Papers': 0, 'Grants': 1, 'Other': 2 };
+    const groups = new Map();   // groupName → [bucket, ...]
+    for (const p of projects) {
+      const g = groupOf(p);
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(p);
+    }
+    // Sort each group: linked first, then alpha by title.
+    for (const arr of groups.values()) {
+      arr.sort((a, b) => {
+        const al = linkedIds.has(a.id) ? 0 : 1;
+        const bl = linkedIds.has(b.id) ? 0 : 1;
+        if (al !== bl) return al - bl;
+        return (a.title || '').localeCompare(b.title || '');
+      });
+    }
+    const orderedGroups = Array.from(groups.keys()).sort((a, b) =>
+      (GROUP_ORDER[a] ?? 99) - (GROUP_ORDER[b] ?? 99)
+    );
+    const rowFor = (p) => {
       const linked = linkedIds.has(p.id);
       const color = getColorForBucket(p.id);
       return `
@@ -246,7 +321,22 @@
           <span class="lp-linkpick-id">${_esc(p.id)}</span>
         </label>
       `;
-    }).join('') || `<div class="lp-linkpick-empty">No project buckets exist yet — create one below.</div>`;
+    };
+    let rows = '';
+    if (!projects.length) {
+      rows = `<div class="lp-linkpick-empty">No project buckets exist yet — create one below.</div>`;
+    } else {
+      rows = orderedGroups.map(name => {
+        const arr = groups.get(name) || [];
+        if (!arr.length) return '';
+        return `
+          <div class="lp-linkpick-group">
+            <div class="lp-linkpick-group-head">${_esc(name)} <span class="lp-linkpick-group-count">${arr.length}</span></div>
+            ${arr.map(rowFor).join('')}
+          </div>
+        `;
+      }).join('');
+    }
 
     const modal = document.createElement('div');
     modal.id = 'lp-overlays-linkmodal';

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.95] - 2026-05-08
+
+**Group buckets by category in the link picker + button to import an AI overlay file.** Reported: "project buckets should be separated by category, papers, grants should be top of the list, then everything else. Also we need a button that allows for a picker to add a file for AI overviews overlays to add to the project as well."
+
+### Changed
+- **`rm/js/paper-overlays.js`** — link picker now groups buckets into **Papers / Grants / Other** sections in that order. Both papers and grants share `category: 'research'` on their items, so the resolver looks up `linked_item_ids[0]` in `items.json` and uses the item's `type` field (`paper` / `grant` / other) — falling back to bucket category for orphan/unlinked buckets. Within each section, linked-first then alpha. Section headers are sticky-positioned + carry a row count chip.
+- **`rm/js/paper-overlays.js`** — new `+ Import overlay file…` button next to `+ Link to project…` in the overlays popover footer. Click opens an `<input type="file" accept=".md,.markdown">` and routes the selected file straight through `PAPER_OVERLAY_IMPORT.handleDrop` — same preview / validate / confirm modal as drag-drop. Lets the user import an AI-generated `.paper-overlay.md` from a button instead of having to drag from Finder/Explorer onto the viewer area. Bucket linking still happens automatically on import (frontmatter `bucket_id` triggers `LINKS.addLink` if the bucket isn't yet linked).
+- **`rm/css/style.css`** — `.lp-linkpick-group` + `.lp-linkpick-group-head` + `.lp-linkpick-group-count` for the grouped sections (sticky header on scroll). `.lp-overlays-foot-actions` flex row + `.lp-overlays-import-btn` (blue accent, paired with the existing purple `.lp-overlays-link-btn`).
+- **`sw.js`** — `CACHE_VERSION` 69 → 70.
+
+### Notes
+- **Why type-not-category for grouping**: items.json papers and grants both carry `category: 'research'` (it's the dashboard tab they live under, not the kind of thing they are). Bucket grouping needs to distinguish them, so we resolve via the linked item's `type`. For buckets created directly on the tasks page (no linked item), they fall into "Other" — there's nothing to disambiguate them.
+- The file picker accepts `.md` and `.markdown` extensions. Drag-drop still works as before — same code path.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v70`.
+
 ## [V3.94] - 2026-05-08
 
 **Link a paper to a project bucket from the paper reader.** Reported: "the overlays says: No project buckets are linked to this paper yet. … I need a way to add the paper to a project bucket. how do I load in the AI highlighting and commenting done by claude." Until now the only way to link was via the projects/dashboard page (`unlinkBucketFromItem`) — context-switching from the reader was disruptive, and the empty-state copy pointed users somewhere else for what felt like an inline action.
