@@ -133,8 +133,33 @@ window.McgheeLab = window.McgheeLab || {};
   let _showManageContacts = false;
   let _showSeenBy = null;
 
-  // Mobile tab state
-  let _mobileTab = 'overview'; // 'overview' | 'chat' | 'files' | 'search'
+  /* V3.86 — embed-mode detection. True when chat is loaded inside a
+   * shell popout (rm/pages/workflow-shell.html or split-view.html).
+   * In embed mode we:
+   *   - default _mobileTab to 'chat' so the user lands on their last
+   *     conversation instead of the Overview list (popout is narrow,
+   *     so chat.js renders the mobile tabbed layout — but the user
+   *     opened the chat popout because they wanted to chat, not to
+   *     browse channels).
+   *   - skip the mobile top bar (page title + hamburger) and bottom
+   *     bar (other-app launcher), which are designed for full-screen
+   *     mobile and just clutter the popout.
+   *   - persist the active channel id in localStorage so reopening
+   *     the popout returns to the same conversation. */
+  const _IS_EMBED = (function () {
+    try {
+      if (window.parent !== window) return true;
+      if (typeof window.name === 'string' && /^rm-(embed|shell)/.test(window.name)) return true;
+      const sp = new URLSearchParams(location.search);
+      if (sp.get('embed') === '1') return true;
+    } catch (e) { /* ignore */ }
+    return false;
+  })();
+  const _LAST_CHANNEL_LS_KEY = 'mcgheelab.chat.lastChannelId';
+
+  // Mobile tab state. In embed mode default to 'chat' so popout opens
+  // straight into the conversation pane (Overview is one tap away).
+  let _mobileTab = _IS_EMBED ? 'chat' : 'overview';
   let _conversationFilter = 'newest';
   let _mobileFilterOpen = false;
   let _mobileHamburgerOpen = false;
@@ -327,9 +352,17 @@ window.McgheeLab = window.McgheeLab || {};
             });
           }
         }
-        // Auto-select most recent channel if none active (channels already sorted by lastActivityAt desc)
+        // V3.86 — auto-select last opened channel (from localStorage) if
+        // it still exists; falls back to most recent channel. Skips
+        // when an _activeChannelId is already set (e.g., the user
+        // already navigated to a different channel during this session).
         if (!_activeChannelId && _channels.length > 0) {
-          selectChannel(_channels[0].id);
+          let pick = null;
+          try {
+            const remembered = localStorage.getItem(_LAST_CHANNEL_LS_KEY);
+            if (remembered && _channels.some(c => c.id === remembered)) pick = remembered;
+          } catch (e) { /* ignore */ }
+          selectChannel(pick || _channels[0].id);
         }
         renderSidebar();
       });
@@ -495,6 +528,9 @@ window.McgheeLab = window.McgheeLab || {};
     _showEmojiPickerFor = null;
     _mentionQuery = null;
     if (isMobile()) _mobileTab = 'chat';
+    // V3.86 — remember last opened channel so the popout (or any
+    // chat session) reopens to the same conversation next time.
+    try { localStorage.setItem(_LAST_CHANNEL_LS_KEY, channelId); } catch (e) {}
     subscribeMessages(channelId);
     render();
     restoreDraft();
@@ -963,8 +999,12 @@ window.McgheeLab = window.McgheeLab || {};
     }
 
     if (isMobile()) {
+      // V3.86 — in embed mode (rendering inside a shell popout), skip
+      // the page-title top bar and the cross-app bottom bar; they're
+      // designed for full-screen mobile and just steal vertical space.
+      // The popout's own header chrome handles "what is this" + close.
       appEl.innerHTML = `
-        ${renderMobileTopBarHTML()}
+        ${_IS_EMBED ? '' : renderMobileTopBarHTML()}
         <nav class="chat-tab-bar" id="chat-tab-bar">
           ${['overview','chat','files','search'].map(t =>
             `<button class="chat-tab${_mobileTab === t ? ' chat-tab--active' : ''}" data-chat-tab="${t}">${({overview:'Overview',chat:'Chat',files:'Files',search:'Search'})[t]}</button>`
@@ -973,7 +1013,7 @@ window.McgheeLab = window.McgheeLab || {};
         <div class="chat-layout">
           ${renderMobileTabContent(channel)}
         </div>
-        ${renderMobileBottomBarHTML()}
+        ${_IS_EMBED ? '' : renderMobileBottomBarHTML()}
         ${_mobileHamburgerOpen ? renderMobileHamburgerMenuHTML() : ''}
         ${renderModals()}
       `;

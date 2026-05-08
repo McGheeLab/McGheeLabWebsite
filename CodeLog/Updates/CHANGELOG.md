@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.87] - 2026-05-08
+
+**Chat-in-popout cleanup.** User reported chat in the side popout was confusing — Overview took precedence over the actual conversation, clicking conversations didn't load reliably, page-title and bottom bars stole vertical space the popout doesn't have. Targeted fixes in chat.js for embed mode.
+
+### Background
+
+Chat renders a `mobile` layout when `window.innerWidth ≤ 700px` (Overview / Chat / Files / Search tabs, one section at a time). Popouts default to 460px wide so they always trip the mobile threshold. The mobile layout was designed for full-screen phones; in a sub-panel it carried two pieces of chrome (page-title top bar + cross-app bottom bar) that were redundant and ate ~80–100 px of vertical space, AND defaulted `_mobileTab` to `overview` so users always landed on the channel list instead of the conversation they wanted to read.
+
+### Changed
+- **`rm/js/chat.js`** — `_IS_EMBED` constant computed once at module init from three signals: `window.parent !== window` (loaded inside an iframe), `window.name` matching `/^rm-(embed|shell)/` (set by V3.76 / V3.78 / V3.85 shell iframes), or `?embed=1` query (V3.73 fallback).
+- **`rm/js/chat.js`** — `_mobileTab` default flips from `'overview'` to `'chat'` when `_IS_EMBED`. Users opening the chat popout land on their last conversation immediately; Overview is one tab tap away if they need to switch channels.
+- **`rm/js/chat.js`** — `render()`'s mobile branch skips `renderMobileTopBarHTML()` and `renderMobileBottomBarHTML()` when `_IS_EMBED`. The popout's own header (page picker dropdown, close × button, drag-resize slider) handles "what is this" + "switch / close." Reclaims ~80 px of vertical space.
+- **`rm/js/chat.js`** — `selectChannel(channelId)` now writes `localStorage['mcgheelab.chat.lastChannelId'] = channelId` on every selection. The channel-subscription bootstrap reads it and auto-picks that channel on first open if it still exists; falls back to the most-recent-activity channel as before. So reopening the chat popout returns to the same conversation across sessions.
+- **`sw.js`** — `CACHE_VERSION` 61 → 62.
+
+### Notes
+- Embed-mode behavior is purely additive — chat outside a popout (full-page on `/rm/pages/chat.html`) keeps the original mobile / desktop layouts unchanged.
+- `localStorage` last-channel persistence is per-browser, not synced across devices.
+- No firestore.rules / functions changes.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v62`.
+
+## [V3.86] - 2026-05-08
+
+**Library paper reader gains four literature-review capabilities** — citations panel, project-bucket overlays, drag-drop `.paper-overlay.md` import, and highlight-aware in-paper search. Wishlist source: [rm/wishlist.md](../../rm/wishlist.md) lines 3–11. Plan: [V3.86_library_paper_overlays.md](../ClaudesPlan/V3.86_library_paper_overlays.md). Project buckets ([rm/js/links.js](../../rm/js/links.js)) are reused as the overlay key — no new entity invented.
+
+### Added
+- **`rm/js/paper-citations.js`** — left-sidebar "Citations on page N" panel. On `_viewer.ready()`, parses references from the back of the paper (heading match + hanging-indent split + DOI/year extraction). On every page change, regex-scans the page text for `[12]` numeric and `(Smith et al., 2020)` author-year tokens; renders one row per unique reference. Hover sidebar → flash on PDF; hover PDF token → highlight sidebar row. Expand row reveals full reference text + DOI link + **"+ Add to library"** button.
+- **`rm/js/paper-overlays.js`** — overlay picker popover anchored at `#lp-overlays-anchor` in the right toolbar. Lists project buckets linked to this paper (`window.LINKS.linkedBucketsForItem`), each with a deterministic-color swatch + checkbox. All / None mini-buttons. State persisted at `localStorage.rm_lp_overlays_<paperId>`. Public API: `init`, `getActiveBucketIds`, `getFilterFn`, `getColorForBucket`, `getLinkedBuckets`, `onChange`.
+- **`rm/js/paper-overlay-import.js`** — drag-drop a `.md` onto `#lp-viewer` to import highlights as bucket-scoped annotations. Banner appears on dragenter, modal on drop. Parser handles minimal YAML frontmatter (`paper_id` / `paper_doi`, `bucket_id`, `overlay_title`) + `## Highlight` blocks (`page`, `quote`, `color`, `comment` literal-block, `cite_in_drafts`, `evidence_stance`). Validation: paper-id strict-match, bucket existence (auto-link if not yet linked to paper), per-quote text-layer fuzzy-whitespace match. Preview modal lets the user de-select unmatched highlights; idempotent (skips existing `(quote, page, bucket)`).
+- **`rm/js/paper-search.js`** — keyword search box at `#lp-search-anchor` in the right toolbar. Scans every page's text items, ranks hits inside existing highlight text-quotes first (page asc as tiebreak). Click a result → `_viewer.gotoPage(p)` + flash via `_flashRectOnPage`. Capped at 6 hits per page so a generic word doesn't return thousands.
+- **`.claude/skills/paper-overlay/SKILL.md`** — Claude Code skill that authors `.paper-overlay.md` files in sibling VSCode lit-review repos (Prostate GELS, MEBP, MRI). Documents the format, behavior rules (verbatim quotes, lens-aware comments, no PII).
+- **`rm/js/library-upload.js`** new `fromDoi(doi)` — looks up DOI via `LIBRARY_METADATA`, builds a paper item with no PDF, appends to `items.json`. Used by Phase 1's "+ Add to library" button. De-dupe by `meta.library.doi`.
+
+### Changed
+- **`rm/pages/library-paper.html`** — script tags for `links.js`, `paper-citations.js`, `paper-overlays.js`, `paper-overlay-import.js`, `paper-search.js`. New DOM slots: `<div id="lp-citations">` between `#lp-tags` and `#lp-metadata`; `<div id="lp-overlays-anchor">` and `<div id="lp-search-anchor">` as new toolbar rows.
+- **`rm/js/library-paper.js`** — initializes each new module after `_mountViewer`; composes `PAPER_OVERLAYS.getFilterFn` AND with `ANNOTATION_PANEL.getFilterFn` in `_applyFilter`; stamps `bucket_ids: PAPER_OVERLAYS.getActiveBucketIds()` on new highlights via `ANNOTATION_OVERLAY.onCreate`; passes `getBuckets`/`getBucketColor`/`onBucketToggle` to `ANNOTATION_PANEL.init`; new helper `_flashRectOnPage(page, x, y, w, h)`; `_onPageChange` now also calls `PAPER_CITATIONS.refreshForPage(p)`; `onPageReady` callback also refreshes citations on the current page.
+- **`rm/js/annotation-sync.js`** — `bucket_ids: []` added to create defaults so every annotation doc carries the field.
+- **`rm/js/annotation-overlay.js`** — `_renderRectsForPage` now draws per-bucket left-edge stripes when `>1` overlay is active and the highlight has `bucket_ids`. Stripes are 3px wide, deterministic color from bucket id, only on the first rect of multi-line highlights.
+- **`rm/js/annotation-panel.js`** — new optional opts `getBuckets`, `getBucketColor`, `onBucketToggle`; `_renderInfoPanel` grows an "Overlays" row of toggleable chips per linked bucket (orphan bucket ids in `bucket_ids` render as a non-clickable warning); chip click delegates to `onBucketToggle` (or falls back to a full `bucket_ids` patch via `onUpdate`).
+- **`rm/css/style.css`** — styles for citations panel rows, overlay picker popover, per-bucket accent stripes + chips, drop banner, import modal, in-paper search results dropdown with `mark` highlighting.
+- **`sw.js`** — `CACHE_VERSION` 60 → 61.
+
+### Notes
+- **Active-overlays state is localStorage, not Firestore.** Per-paper toggle state is ephemeral UI preference; per-paper Firestore prefs would be one read per paper open for no real benefit. (The plan-mode sketch had `paperPrefs` as a Firestore route; we simplified during implementation.)
+- **`firestore.rules` was inspected, no edit required.** The annotations rule (line 505+) doesn't field-allowlist on owner writes — adding `bucket_ids` to a doc the creator owns just works. Non-creator updates are still restricted to `evidence_for_claim_ids`/`evidence_stance`/`modified` (the existing `hasOnly` clause), so non-owners can't change overlays on someone else's annotation. That's correct.
+- **References parser is best-effort.** Numbered references with `[N]` or `N.` prefixes work cleanly; hanging-indent author-year lists work most of the time; column-broken references can split poorly. The cache key is `meta.library.references` on the paper item; if the parse looks wrong, hand-edit `items.json`.
+
 ## [V3.85] - 2026-05-08
 
 **Side popouts now stick to the overall screen edges in both shell modes.** Reported: in workflow split, the popouts followed one of the iframes inside the split (because the workflow-shell URL was being passed AS the left iframe URL, so the workflow shell was nested inside the split — its popouts attached to that nested iframe's edges, not to the overall viewport). Fix: extract popout rendering into a shared module and load it on `split-view.html` too, so both shells render popouts as overlays on their own outermost host.
