@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.93] - 2026-05-08
+
+**Parsed references are cached on the paper item + parsed at import time.** Reported: "the references that populate should be stored in context to the paper so that the next time it is loaded we don't have to do that again. Also when we import a new paper to the library this should be done as well." Previously every paper-reader open re-parsed the references list from scratch (~1–2 s), and import-time imports never parsed at all.
+
+### Changed
+- **`rm/js/paper-citations.js`** — references parser refactored so its core (`_parseRefsByPageRange`) accepts any item-collection callback. Existing in-viewer flow keeps using `_viewer.getTextItems`. New public `PAPER_CITATIONS.parseRefsFromAllItems(items)` lets callers pass pre-collected text items (e.g. from a background pdf.js text extraction). `init()` now short-circuits when `paperItem.meta.library.references` is already populated — the panel uses cached refs immediately and skips the parse + render-all wait. New `onCacheRefs(refs)` callback fires after a fresh parse so the host page can persist refs to the item.
+- **`rm/js/library-paper.js`** — wires `onCacheRefs`: reloads `items.json`, finds the active paper, stamps `meta.library.references` (+ `references_parsed_at` date stamp + `references_parser_version: 'v3.93'` for future re-parse decisions), saves. Subsequent opens of the same paper use the cached array directly — no parse, no wait.
+- **`rm/js/pdf-viewer.js`** — new public `PDF_VIEWER.extractTextItemsFromPdf(blobOrUrl)`. Loads the PDF via pdf.js, calls `page.getTextContent()` on every page (no canvas render, no DOM), converts each item to the `{text, x, y, width, height, page}` shape paper-citations expects. y-coordinates are flipped from PDF's bottom-left origin to top-down so existing line-grouping math works unchanged. Per-page items sorted by `(y asc, x asc)` since pdf.js streams text-content in stream order, not reading order.
+- **`rm/js/library-upload.js`** — new public `LIBRARY_UPLOAD.parseAndCacheRefs(paperId, blob)`. Pipeline: extract text items via `PDF_VIEWER.extractTextItemsFromPdf` → `PAPER_CITATIONS.parseRefsFromAllItems` → save to `items.json` under `meta.library.references`. Best-effort: silently no-ops when either dependency is unloaded so other pages that load library-upload (e.g. the wishlist tooling) aren't broken. `fromDoi` fires this in the background after the OA PDF upload completes; the OA blob is already in memory so no extra fetch.
+- **`rm/js/library.js`** — manual file-upload path (`_processFile`) now also fires `LIBRARY_UPLOAD.parseAndCacheRefs(item.id, file)` after the items.json save. Background, non-blocking — the toast still says "Added X" immediately; the references quietly land on the item a few seconds later.
+- **`rm/pages/library.html`** — papers tab now also loads `paper-citations.js` (so `parseRefsFromAllItems` is exposed) and `pdf-viewer.js` as a module (for `extractTextItemsFromPdf`). paper-citations registers `window.PAPER_CITATIONS` with no DOM side-effects until `init()` is called, which still only happens on the paper-reader.
+- **`sw.js`** — `CACHE_VERSION` 67 → 68.
+
+### Notes
+- The new fields on `meta.library`: `references` (the parsed array), `references_parsed_at` (ISO date), `references_parser_version` (string). Existing items without these fields will get them on next paper-reader open. There's no migration step — the cache builds itself organically.
+- **Failure mode**: when the parser can't find a heading (page range fallback exhausted), it returns `[]` and nothing is cached. Next open will retry. To force a re-parse after a parser improvement, bump `references_parser_version` and add an init-time check to invalidate older cached refs (not implemented yet — current behavior is "cache once, trust forever").
+- **CORS-blocked OA PDFs**: when Unpaywall finds a publisher-hosted PDF that CORS blocks, `pdfBlob` stays null in `fromDoi`, no parse fires at import. Once the user opens the paper (with a manually-uploaded PDF) the V3.93 first-open parse + cache covers them.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v68`.
+
 ## [V3.92] - 2026-05-08
 
 **Two complaints, two fixes.** Reported: "the open pill and close pill are in different locations" and "the citations still don't work — when the paper is loaded we look at the references section of the paper to get the required data."

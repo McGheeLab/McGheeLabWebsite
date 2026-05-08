@@ -107,11 +107,31 @@
   function _parseReferences() {
     if (!_viewer || !_viewer.numPages) return [];
     const numPages = _viewer.numPages;
+    const collect = (startPage, endPage) => {
+      const allItems = [];
+      for (let p = startPage; p <= endPage; p++) {
+        const items = _viewer.getTextItems(p) || [];
+        for (const it of items) allItems.push({ ...it, page: p });
+      }
+      return allItems;
+    };
+    return _parseRefsByPageRange(numPages, collect);
+  }
 
-    // V3.90 — escalating page range. Try last 25 first (fast path for
-    // typical papers), then last 60, then everything. References almost
-    // always live in the last quarter; the wider sweeps catch papers
-    // where the parser would otherwise silently fail.
+  /**
+   * V3.93 — shared core. Given a function that collects text items for a
+   * given page range, this walks an escalating range schedule (last 25 →
+   * last 60 → all pages) and returns parsed references on the first range
+   * where a heading + entries are found. Same logic used by both the
+   * in-viewer flow (paper-citations) and the import-time flow
+   * (library-upload).
+   */
+  function _parseRefsByPageRange(numPages, collectItems) {
+    if (!numPages) return [];
+    // Escalating page range. Try last 25 first (fast path for typical
+    // papers), then last 60, then everything. References almost always
+    // live in the last quarter; the wider sweeps catch papers where the
+    // parser would otherwise silently fail.
     const ranges = [
       [Math.max(1, numPages - 24), numPages],
       [Math.max(1, numPages - 59), numPages],
@@ -120,23 +140,17 @@
 
     for (let r = 0; r < ranges.length; r++) {
       const [startPage, endPage] = ranges[r];
-      const allItems = [];
-      for (let p = startPage; p <= endPage; p++) {
-        const items = _viewer.getTextItems(p) || [];
-        for (const it of items) allItems.push({ ...it, page: p });
-      }
-      if (!allItems.length) continue;
+      const allItems = collectItems(startPage, endPage);
+      if (!allItems || !allItems.length) continue;
 
-      // V3.90 — find the references heading by joining items on each
-      // line (PDFs often render "REFERENCES" as one glyph per span).
+      // Find the references heading by joining items on each line —
+      // PDFs often render "REFERENCES" as one glyph per span.
       const lines = _groupItemsIntoLines(allItems);
       let headingItemIdx = -1;
       for (let li = 0; li < lines.length; li++) {
         const t = lines[li].text.trim();
         if (!t) continue;
-        // Skip lines that are too long — references heading lines are
-        // short. 60 chars is a generous cap that excludes prose.
-        if (t.length > 60) continue;
+        if (t.length > 60) continue;     // skip prose paragraphs
         if (REF_HEADING.test(t)) {
           headingItemIdx = lines[li].lastIdx;
           console.info(`[paper-citations] heading "${t}" found on p.${lines[li].page} (range ${startPage}-${endPage})`);
@@ -150,8 +164,8 @@
         }
         continue;
       }
-      // Found heading — fall through to entry segmentation.
-      return _parseEntriesFromHeading(allItems, headingItemIdx);
+      const out = _parseEntriesFromHeading(allItems, headingItemIdx);
+      if (out && out.length) return out;
     }
     return [];
   }
@@ -628,15 +642,23 @@
   async function _onAllPagesReady() {
     if (_readyDone) return;
     _readyDone = true;
-    _refState = 'parsing';
-    _renderPanel();
-    try {
-      _refs = _parseReferences();
-      _refState = (_refs && _refs.length) ? 'ready' : 'none';
-    } catch (e) {
-      console.warn('[paper-citations] reference parse failed:', e);
-      _refs = [];
-      _refState = 'none';
+    // V3.93 — if cached refs were supplied, skip the parse entirely
+    // and just kick off per-page citation scanning + hover wiring.
+    if (_refState !== 'ready') {
+      _refState = 'parsing';
+      _renderPanel();
+      try {
+        _refs = _parseReferences();
+        _refState = (_refs && _refs.length) ? 'ready' : 'none';
+      } catch (e) {
+        console.warn('[paper-citations] reference parse failed:', e);
+        _refs = [];
+        _refState = 'none';
+      }
+      // Persist to caller (= host page) so the next open uses cached refs.
+      if (_refs && _refs.length && typeof _onCacheRefs === 'function') {
+        try { _onCacheRefs(_refs); } catch (e) { console.warn('[paper-citations] onCacheRefs threw:', e); }
+      }
     }
     _scanPage(_currentPage);
     if (_viewer && _viewer.numPages) {
@@ -645,16 +667,27 @@
     _renderPanel();
   }
 
+  let _onCacheRefs = null;
+
   function init(opts) {
     _viewer = opts.viewer;
     _item = opts.paperItem;
     _sideEl = opts.sideEl;
     _getAllItems = opts.getAllItems || (() => []);
     _onLibraryChanged = opts.onLibraryChanged || null;
+    _onCacheRefs = opts.onCacheRefs || null;
     _readyDone = false;
     _refs = null;
     _refState = 'pending';
     _matchesByPage.clear();
+    // V3.93 — short-circuit when the host page already has refs cached
+    // on the item (parsed by a previous session or at import time).
+    const cached = _item && _item.meta && _item.meta.library && _item.meta.library.references;
+    if (Array.isArray(cached) && cached.length > 0) {
+      _refs = cached;
+      _refState = 'ready';
+      console.info(`[paper-citations] using ${cached.length} cached reference(s)`);
+    }
     if (!_sideEl) {
       console.warn('[paper-citations] init: no sideEl, panel will not render');
       return;
@@ -679,5 +712,32 @@
     if (_sideEl) _sideEl.innerHTML = '';
   }
 
-  window.PAPER_CITATIONS = { init, refreshForPage, refreshLibraryStatus, destroy };
+  /** V3.93 — parse refs from a flat list of {text, x, y, width, height,
+   *  page} items. Used by library-upload to parse at import time without
+   *  rendering the PDF. Items can come from anywhere (pdf.js text content,
+   *  pdf-viewer DOM scrape, etc.) as long as they carry the page number
+   *  and are roughly in reading order within each page. Returns array
+   *  of refs or []. */
+  function parseRefsFromAllItems(items) {
+    if (!Array.isArray(items) || !items.length) return [];
+    const byPage = new Map();
+    let maxPage = 0;
+    for (const it of items) {
+      const p = it.page || 1;
+      if (p > maxPage) maxPage = p;
+      if (!byPage.has(p)) byPage.set(p, []);
+      byPage.get(p).push(it);
+    }
+    const collect = (startPage, endPage) => {
+      const out = [];
+      for (let p = startPage; p <= endPage; p++) {
+        const arr = byPage.get(p);
+        if (arr) for (const it of arr) out.push(it);
+      }
+      return out;
+    };
+    return _parseRefsByPageRange(maxPage, collect);
+  }
+
+  window.PAPER_CITATIONS = { init, refreshForPage, refreshLibraryStatus, destroy, parseRefsFromAllItems };
 })();

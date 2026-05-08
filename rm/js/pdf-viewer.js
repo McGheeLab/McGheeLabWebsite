@@ -466,4 +466,62 @@ async function create(container, pdfUrl, opts = {}) {
   };
 }
 
-window.PDF_VIEWER = { create };
+/**
+ * V3.93 — extract text items from a PDF blob/ArrayBuffer/URL without
+ * rendering canvases or DOM. Used by library-upload to parse references
+ * at import time. Returns a flat array of items shaped like the ones
+ * paper-citations expects: {text, x, y, width, height, page}.
+ *
+ * `source` can be a Blob, ArrayBuffer, or { url } object.
+ * y is converted to top-down CSS-like coords so the paper-citations
+ * line-grouping (which expects increasing y for items further down the
+ * page) works without modification. Within each page we also sort by
+ * (y asc, x asc) since pdf.js streams text-content in stream order
+ * which isn't always reading order.
+ */
+async function extractTextItemsFromPdf(source) {
+  let pdfArg;
+  if (source instanceof Blob) {
+    const buf = await source.arrayBuffer();
+    pdfArg = { data: new Uint8Array(buf) };
+  } else if (source instanceof ArrayBuffer) {
+    pdfArg = { data: new Uint8Array(source) };
+  } else if (typeof source === 'string') {
+    pdfArg = { url: source };
+  } else if (source && source.url) {
+    pdfArg = source;
+  } else {
+    throw new Error('extractTextItemsFromPdf: unsupported source');
+  }
+  const pdf = await getDocument(pdfArg).promise;
+  const numPages = pdf.numPages;
+  const out = [];
+  for (let p = 1; p <= numPages; p++) {
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale: 1.0 });
+    const tc = await page.getTextContent();
+    const pageItems = [];
+    for (const it of tc.items) {
+      const text = it.str;
+      if (!text || !text.trim()) continue;
+      const t = it.transform || [1, 0, 0, 1, 0, 0];
+      const x = t[4];
+      // Convert PDF's bottom-left y origin to top-down CSS-like.
+      const h = it.height || Math.abs(t[3]) || 12;
+      const y = viewport.height - t[5] - h;
+      pageItems.push({
+        text,
+        x, y,
+        width: it.width || 0,
+        height: h,
+        page: p,
+      });
+    }
+    pageItems.sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const it of pageItems) out.push(it);
+  }
+  try { pdf.destroy(); } catch (_) { /* ignore */ }
+  return out;
+}
+
+window.PDF_VIEWER = { create, extractTextItemsFromPdf };

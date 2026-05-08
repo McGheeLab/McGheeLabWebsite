@@ -505,11 +505,51 @@
     });
   }
 
+  /** Brief yellow flash on a page rect — used by paper-search to land
+   *  on a hit. Same overlay layer as the citations flash so it survives
+   *  annotation-overlay redraws (those clear `.pv-overlay`, not
+   *  `.pv-cite-overlay`). */
+  function _flashRectOnPage(page, x, y, w, h) {
+    if (!_viewer || !_viewer.getPageNode) return;
+    const node = _viewer.getPageNode(page);
+    if (!node || !node.wrap) return;
+    let ov = node.wrap.querySelector('.pv-cite-overlay');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.className = 'pv-cite-overlay';
+      ov.style.position = 'absolute';
+      ov.style.left = '0';
+      ov.style.top = '0';
+      ov.style.right = '0';
+      ov.style.bottom = '0';
+      ov.style.pointerEvents = 'none';
+      ov.style.zIndex = '6';
+      node.wrap.appendChild(ov);
+    }
+    const el = document.createElement('div');
+    el.className = 'pv-cite-flash';
+    el.style.position = 'absolute';
+    el.style.left = `${x - 2}px`;
+    el.style.top = `${y - 2}px`;
+    el.style.width = `${w + 4}px`;
+    el.style.height = `${h + 4}px`;
+    el.style.background = 'rgba(250, 204, 21, 0.45)';
+    el.style.border = '2px solid rgba(250, 204, 21, 0.85)';
+    el.style.borderRadius = '3px';
+    el.style.boxShadow = '0 0 8px rgba(250, 204, 21, 0.6)';
+    el.style.pointerEvents = 'none';
+    ov.appendChild(el);
+    setTimeout(() => el.remove(), 1800);
+  }
+
   function _onPageChange(p) {
     const pageInput = document.getElementById('lp-page-input');
     const total = document.getElementById('lp-page-total');
     if (pageInput) pageInput.value = String(p);
     if (total && _viewer) total.textContent = `/ ${_viewer.numPages}`;
+    if (window.PAPER_CITATIONS) {
+      try { window.PAPER_CITATIONS.refreshForPage(p); } catch (_) { /* not initialized yet */ }
+    }
   }
 
   function _onZoomChange(z) {
@@ -533,6 +573,9 @@
       onPageReady: (pageNum) => {
         if (window.ANNOTATION_OVERLAY) {
           try { window.ANNOTATION_OVERLAY.redrawPage(pageNum); } catch (_) { /* not initialized yet */ }
+        }
+        if (window.PAPER_CITATIONS && pageNum === _viewer.currentPage) {
+          try { window.PAPER_CITATIONS.refreshForPage(pageNum); } catch (_) { /* not initialized yet */ }
         }
       },
     });
@@ -578,8 +621,16 @@
     const viewerEl = document.getElementById('lp-viewer');
 
     function _applyFilter() {
-      const fn = window.ANNOTATION_PANEL.getFilterFn();
-      window.ANNOTATION_OVERLAY.setFilter(fn);
+      const panelFn = window.ANNOTATION_PANEL.getFilterFn();
+      const overlayFn = (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getFilterFn)
+        ? window.PAPER_OVERLAYS.getFilterFn()
+        : (() => true);
+      const composed = (ann) => panelFn(ann) && overlayFn(ann);
+      window.ANNOTATION_OVERLAY.setFilter(composed);
+      // Mirror the same composed filter onto the panel by stamping a
+      // hidden field (panel re-runs its own filter on render). Easier:
+      // ask the panel to refresh its render via setAnnotations.
+      window.ANNOTATION_PANEL.setAnnotations(_annotations.filter(overlayFn));
     }
 
     window.ANNOTATION_OVERLAY.init({
@@ -590,11 +641,19 @@
         const color = _colors.find(c => c.id === colorId);
         const autoFlags = (color && color.auto_flags) || [];
         const visibility = window.ANNOTATION_PANEL.getDefaultVisibility() || 'lab';
+        // Stamp the active overlay set onto new highlights so they belong
+        // to whatever review-task overlays the user currently has on. If
+        // no overlays are active (or PAPER_OVERLAYS isn't loaded), the
+        // highlight is "general" and renders unconditionally.
+        const bucketIds = (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getActiveBucketIds)
+          ? window.PAPER_OVERLAYS.getActiveBucketIds()
+          : [];
         try {
           await window.ANNOTATION_SYNC.create(paperId, {
             color_id: colorId,
             visibility,
             target: { pages: anchors },
+            bucket_ids: bucketIds,
             marked_for_investigation: autoFlags.includes('marked_for_investigation'),
           });
         } catch (e) {
@@ -689,6 +748,22 @@
           await window.ANNOTATION_SYNC.toggleCiteInDraft(paperId, annId, draftId, op);
         } catch (e) {
           alert(`Could not ${on ? 'tag' : 'untag'} draft: ${e.message}`);
+        }
+      },
+      getBuckets: () => (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getLinkedBuckets)
+        ? window.PAPER_OVERLAYS.getLinkedBuckets() : [],
+      getBucketColor: (id) => (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getColorForBucket)
+        ? window.PAPER_OVERLAYS.getColorForBucket(id) : '#a78bfa',
+      onBucketToggle: async (annId, bucketId, on) => {
+        const ann = _annotations.find(a => a.id === annId);
+        if (!ann) return;
+        const cur = Array.isArray(ann.bucket_ids) ? ann.bucket_ids.slice() : [];
+        const next = on ? Array.from(new Set(cur.concat([bucketId])))
+                        : cur.filter(x => x !== bucketId);
+        try {
+          await window.ANNOTATION_SYNC.update(paperId, annId, { bucket_ids: next });
+        } catch (e) {
+          alert(`Could not update overlays: ${e.message}`);
         }
       },
     });
@@ -792,10 +867,110 @@
         : `/api/library/pdf-proxy?url=${encodeURIComponent(signedUrl)}`;
       _setStatus('Rendering…');
       await _mountViewer(fetchUrl, { disableRange: isDeploy, disableStream: isDeploy });
+      if (window.PAPER_CITATIONS) {
+        try {
+          window.PAPER_CITATIONS.init({
+            viewer: _viewer,
+            paperItem: _item,
+            sideEl: document.getElementById('lp-citations'),
+            getAllItems: () => _allItems,
+            onLibraryChanged: async () => {
+              // Refresh in-memory items list so subsequent rows see the
+              // newly-added paper as already-in-library, then re-render
+              // the panel so the row's chip flips immediately.
+              try {
+                const d = await api.load('items.json');
+                _allItems = (d && d.items) || _allItems;
+                if (window.PAPER_CITATIONS && window.PAPER_CITATIONS.refreshLibraryStatus) {
+                  window.PAPER_CITATIONS.refreshLibraryStatus();
+                }
+              } catch (_) { /* ignore */ }
+            },
+            // V3.93 — persist freshly parsed refs to items.json under
+            // meta.library.references so subsequent opens skip the parse.
+            onCacheRefs: async (refs) => {
+              try {
+                const d = await api.load('items.json');
+                const items = (d && d.items) || [];
+                const idx = items.findIndex(it => it.id === _item.id);
+                if (idx < 0) return;
+                items[idx].meta = items[idx].meta || {};
+                items[idx].meta.library = items[idx].meta.library || {};
+                items[idx].meta.library.references = refs;
+                items[idx].meta.library.references_parsed_at = new Date().toISOString().slice(0, 10);
+                items[idx].meta.library.references_parser_version = 'v3.93';
+                await api.save('items.json', { items });
+                _allItems = items;
+                _item = items[idx];
+                console.info(`[library-paper] cached ${refs.length} refs on item ${_item.id}`);
+              } catch (e) {
+                console.warn('[library-paper] failed to cache refs:', e);
+              }
+            },
+          });
+        } catch (e) { console.warn('[library-paper] paper-citations init failed:', e); }
+      }
       _setStatus('Loading colors…');
       await _loadColors();
+      _setStatus('Loading overlays…');
+      if (window.PAPER_OVERLAYS) {
+        try {
+          await window.PAPER_OVERLAYS.init({
+            paperItem: _item,
+            mountEl: document.getElementById('lp-overlays-anchor'),
+            // Defer wiring the change handler until after _mountAnnotations
+            // runs (it sets up _applyFilter). Registered below.
+          });
+        } catch (e) { console.warn('[library-paper] paper-overlays init failed:', e); }
+      }
       _setStatus('Loading annotations…');
       await _mountAnnotations();
+      if (window.PAPER_OVERLAY_IMPORT) {
+        try {
+          window.PAPER_OVERLAY_IMPORT.init({
+            viewer: _viewer,
+            paperItem: _item,
+            paperId: _item.id,
+            allItems: _allItems,
+            getCurrentAnnotations: () => _annotations,
+            onImported: ({ written, skipped }) => {
+              _setStatus(`Imported ${written} highlight(s)${skipped ? ` (skipped ${skipped})` : ''}.`);
+              setTimeout(() => _setStatus(''), 3500);
+            },
+          });
+        } catch (e) { console.warn('[library-paper] paper-overlay-import init failed:', e); }
+      }
+      if (window.PAPER_SEARCH) {
+        try {
+          window.PAPER_SEARCH.init({
+            viewer: _viewer,
+            getAnnotations: () => _annotations,
+            mountEl: document.getElementById('lp-search-anchor'),
+            onJump: (r) => {
+              _viewer.gotoPage(r.page);
+              setTimeout(() => _flashRectOnPage(r.page, r.x, r.y, r.w, r.h), 80);
+            },
+          });
+        } catch (e) { console.warn('[library-paper] paper-search init failed:', e); }
+      }
+      if (window.PAPER_OVERLAYS) {
+        // Re-run the composed filter whenever the user toggles overlays.
+        // _applyFilter is defined inside _mountAnnotations' closure, so
+        // re-trigger it via the panel's filter-change emit (which calls
+        // the handler we registered).
+        window.PAPER_OVERLAYS.onChange(() => {
+          if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.getFilterFn) {
+            // Manual fan-out: the panel's onFilterChange callback is what
+            // re-runs _applyFilter. We don't have a public re-emit, so
+            // simulate by fetching the current filter and calling our
+            // composed setFilter directly.
+            const panelFn = window.ANNOTATION_PANEL.getFilterFn();
+            const overlayFn = window.PAPER_OVERLAYS.getFilterFn();
+            window.ANNOTATION_OVERLAY.setFilter((ann) => panelFn(ann) && overlayFn(ann));
+            window.ANNOTATION_PANEL.setAnnotations(_annotations.filter(overlayFn));
+          }
+        });
+      }
       _setStatus('');
     } catch (e) {
       console.error(e);

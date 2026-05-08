@@ -352,6 +352,12 @@
         '/rm/js/library-sync.js',
         '/rm/js/library-prefs.js',
         '/rm/js/task-assign.js',
+        // V3.93 — paper-citations + pdf-viewer load on the library tab so
+        // import-time ref parsing (LIBRARY_UPLOAD.parseAndCacheRefs) has
+        // its dependencies. paper-citations.js is just a registration
+        // (window.PAPER_CITATIONS exposed); no DOM side-effects until
+        // init() is called, which only happens on the paper-reader.
+        '/rm/js/paper-citations.js',
         '/rm/js/library.js'
       ];
       var commentsScripts = [
@@ -365,5 +371,11 @@
       });
     })();
   </script>
+  <!-- V3.93 — pdf-viewer loaded as ES module so LIBRARY_UPLOAD's
+       parseAndCacheRefs (background import-time ref parser) can extract
+       text from imported PDFs without rendering a viewer. Module load
+       is async and won't block the dynamic scripts above; the parse
+       runs after upload completes so timing is fine. -->
+  <script type="module" src="/rm/js/pdf-viewer.js"></script>
 </body>
 </html>

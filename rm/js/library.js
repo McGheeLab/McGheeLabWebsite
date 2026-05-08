@@ -216,6 +216,12 @@
     await _saveItems();
     _setBusy('');
     _toast(`Added "${item.title}".`, 'ok');
+    // V3.93 — fire-and-forget background ref parse so the citation
+    // panel is pre-populated when the user opens the paper.
+    if (LIBRARY_UPLOAD.parseAndCacheRefs) {
+      LIBRARY_UPLOAD.parseAndCacheRefs(item.id, file).catch(e =>
+        console.warn('[library] background ref parse failed:', e));
+    }
   }
 
   // ---- Rendering ---------------------------------------------------------
