@@ -4,6 +4,99 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.103] - 2026-05-08
+
+**Drafts replace project buckets in the paper-reader linkage model.** Reported: "In the project folder, there are papers that we are writing, and there are grants that we are writing. these are what we want to attach to papers so that we can easily add these papers as references to the paper or grant that we are drafting. The add evidence button should select from only the list of paper drafts or grant drafts that are associated with the paper. we can add a paper draft or grant draft from the evidence page as well."
+
+The V3.94–V3.98 picker linked library papers to *project buckets* (`tasks/buckets.json`) — the wrong scoping unit. The lab's actual workflow is: associate a library paper with the paper drafts and grant proposals it's evidence for, then per-annotation tagging picks among those associated drafts. V3.103 swaps the paper reader from buckets to drafts wholesale.
+
+### New schema field
+- **`items.json` library paper:** `meta.library.linked_drafts: [draft-id]` — paper drafts (paper-builder, items.json `type: 'paper'` AND NOT `is_library_entry`) and grant proposals (items.json `type: 'grant'` with status in `drafting | submitted | under_review | revising | rejected`) this library paper is evidence for. Empty / missing = "not linked to any draft yet" (no per-paper shortlist; the inline "+ Link draft…" affordance creates one).
+
+### Changed
+- **`rm/js/paper-overlays.js`** — refactored from `bucket_ids` / `linked_bucket_ids` / `tasks/buckets.json` to `cite_in_drafts` / `meta.library.linked_drafts`. Public API exposes `getActiveDraftIds`, `getLinkedDrafts`, `getColorForDraft`, `linkDraft`, `unlinkDraft`, `openLinkPicker`. Backward-compat aliases (`getActiveBucketIds`, `getLinkedBuckets`, `getColorForBucket`) operate on drafts now to keep one-cycle compat with downstream call sites. Active-set localStorage key bumped from `rm_lp_overlays_<paperId>` to `rm_lp_drafts_<paperId>` so old bucket-active sets don't leak into the draft system. Filter function checks `cite_in_drafts` (with `bucket_ids` fallback only inside annotation-overlay.js stripe rendering, for legacy data).
+- **`rm/js/paper-overlays.js`** — "+ Link to project bucket…" button + modal becomes "+ Link to draft…". Two sections (**Paper drafts** / **Grant drafts**) populated from `items.json`. Each row shows a per-draft swatch + title + `(funder · mechanism · status)` hint. Save writes the new `meta.library.linked_drafts` array directly (single API call). Search input filters live across sections. The free-form "+ Create + link" inline form retired — drafts are entities created on the projects pages, not from the reader.
+- **`rm/js/annotation-overlay.js`** — left-edge stripe rendering driven by `cite_in_drafts` (falls back to `bucket_ids` for legacy annotations) and `getActiveDraftIds()` / `getColorForDraft()`.
+- **`rm/js/annotation-panel.js`** — "Drafts" row in the per-annotation card now lists per-paper-linked drafts only. Inline `+ Link draft…` button calls `PAPER_OVERLAYS.openLinkPicker()` so the user can extend the shortlist without leaving the card. Empty-state copy switches from "none" to "no drafts linked yet" when the paper has no `meta.library.linked_drafts`. The redundant "Overlays" bucket-chip row in `_renderInfoPanel` is retired (drafts now do all the scoping).
+- **`rm/js/library-paper.js`** — `_drafts` filter (a) accepts `type: 'grant'` items in proposal-status as well as paper drafts, and (b) is filtered to `meta.library.linked_drafts` for this paper before passing to the annotation panel. New `_allDrafts` holds the full pool (used implicitly by the link picker; `_drafts` is the per-paper shortlist). `PAPER_OVERLAYS.onChange` callback now reloads `items.json` and re-derives `_drafts` so the panel's selectors update immediately after the user adds / removes a linked draft.
+- **`rm/js/paper-overlay-import.js`** — frontmatter accepts `draft_id` (preferred) or legacy `bucket_id`. Validation surfaces `draftOk` / `draftTitle` / `draftId` (with `bucket*` aliases for the existing preview-modal copy). Imported highlights' `cite_in_drafts` is the union of any per-highlight `cite_in_drafts: [...]` plus the file-level draft id. Auto-link on import calls `PAPER_OVERLAYS.linkDraft` (writes `meta.library.linked_drafts`) instead of `LINKS.addLink` (which wrote `linked_bucket_ids`). Idempotency check now matches on `(quote, page, draft)` instead of `(quote, page, bucket)`.
+- **`rm/css/style.css`** — `.lp-overlay-kind` paper / grant chip on overlay popover rows; `.ann-draft-link` button (purple accent) for the inline "+ Link draft…" affordance.
+- **`sw.js`** — `CACHE_VERSION` 77 → 78.
+
+### Notes
+- **Pre-V3.103 `bucket_ids` data on annotations is preserved** but no longer drives the overlay filter. annotation-overlay.js's stripe rendering falls back to `bucket_ids` when `cite_in_drafts` is empty so existing data still renders coherently. New annotations only get `cite_in_drafts`.
+- **The `tasks/buckets.json` system itself is untouched.** The dashboard, projects page, and tasks tab still use it; we just removed its surface in the paper reader. `LINKS.addLink` etc. continue to operate on `linked_bucket_ids` — independent from the new `meta.library.linked_drafts`.
+- **`evidence-tag-dialog.js` is untouched** because nothing imports it; the inline evidence form in `annotation-panel.js` is the active path. It can be deleted in a follow-up.
+- **`.paper-overlay.md` files written by the `/paper-overlay` skill** with `bucket_id:` keep working (legacy fallback). Update the skill at `.claude/skills/paper-overlay/SKILL.md` to use `draft_id:` going forward (not done in this change; left as a one-line edit).
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v78`.
+
+## [V3.102] - 2026-05-08
+
+**Paper builder: editable figure block (image upload + LaTeX render options).** First of four planned wishlist features (`rm/wishlist.md` "paper builder" — figures, skeleton outlining + claims, body rich text, equation refs). The figure block kind has lived in the schema since Phase A (`PAPER_BLOCK_KINDS` in `rm/js/paper-schemas.js`) but rendered "(unsupported in this phase)". This wires it up end-to-end: drop an image into the editor, tune `\includegraphics` options inline, and have it round-trip through Yjs and the LaTeX export. Plan: [CodeLog/ClaudesPlan/V3.102_figures.md](../ClaudesPlan/V3.102_figures.md).
+
+### Added
+- **`rm/js/paper-figures.js`** (new) — Firebase Cloud Storage upload helper for figures. `uploadImage(paperId, blob)` SHA-256s the blob, checks `getMetadata()` first to skip re-billed re-uploads, writes to `paper-figures/{paperId}/{shortHash}.{ext}` with a custom-metadata stamp (`uploadedBy`, `fullHash`, `paperId`), and resolves `getDownloadURL()`. Allowlist: PNG/JPG/GIF/WebP/SVG/PDF, 15 MB cap. Returns `{storage_path, hash, full_hash, mime, size_bytes, uploaded_at, uploaded_by, download_url, already_existed}`. Path prefix is intentionally distinct from `papers/{paperId}/` (the PDF library) so the storage rule there can stay PDF-only.
+- **`rm/js/paper-blocks.js`** — `renderFigure(yBlock, ctx)` replaces the old `renderUnsupported('Figure')` dispatch. Toolbar matches the equation-block shape (handle, kind tag, status pill, delete). Below it: image preview frame; upload row (`<input type=file>` proxied through a button + status text); collapsible "Layout" details with width (text input + datalist of common LaTeX widths), placement (`H`/`h`/`t`/`b`/`p` select), centering checkbox, label (auto-prefixed with `fig:`, slugified), alt text; caption pane bound to the block's `body` Y.Text via `bindYTextToContentEditable` so cite/math tokens render the same way they do in paragraphs. Imported figures with legacy `attrs.raw_tex` surface the LaTeX source in a read-only `<details>` so the user can rebuild from it. All attrs writes go through `yDoc.transact` with named origins (`figure-upload`, `fig-width`, `fig-placement`, `fig-center`, `fig-label`, `fig-alt`); the attrs observer reflects remote edits into form fields, skipping any input the local user is currently focused on so in-flight typing isn't clobbered.
+- **`rm/js/paper-editor.js`** — `addFigure(secId)` mirrors `addEquation` shape but seeds the V3.102 figure attrs (`storage_path`/`download_url`/`hash`/`mime` empty, `width: '\linewidth'`, `placement: 'H'`, `centering: true`, empty `label`/`alt`). The `+ Figure` button is appended to `pe-add-block-row` after `+ Equation`, gated on `PaperSchemas.styleFor(section).allowFigures` — abstract / keywords / conclusions / acknowledgements / references suppress it; everything else allows it. Render-block ctx now also carries `paperId` so the figure renderer can build the Storage path.
+- **`rm/js/paper-schemas.js`** — `newFigure()` factory + `PaperSchemas.newFigure` export. Used by paper-editor's `addFigure` and exposed for any future tree-builders.
+- **`rm/css/paper-editor.css`** — `.pe-block-figure` styles: `.pe-figure-preview` (dashed-border placeholder, `display:flex` for centered empty hint or `<img>`); `.pe-figure-img` (max-height 480px, max-width 100%, soft shadow); `.pe-figure-uploadrow` (button + status text); `.pe-figure-layout` (collapsible `<details>`, two-column grid of fields); `.pe-figure-caption` (rounded-border content area on focus); `.pe-figure-rawtex` (legacy import preview). Field labels are uppercase 11px gray to match the broader editor chrome.
+
+### Changed
+- **`rm/js/paper-export-tex.js`** — `figureToTex` rewritten to read the V3.102 attrs schema first, falling back to legacy `attrs.path` and ultimately `figures/PLACEHOLDER.pdf`. Source path derived from `attrs.storage_path` as `figures/<basename>` (the export server is expected to mirror the Storage blob into `<repo>/figures/`). `centering` becomes conditional on `attrs.centering` (default true). `label` defaults to `attrs.label` when set, else `fig:<block.id>`. Caption is read from `block.body` (the Y.Text the figure block now binds) and run through `paragraphTextToTex` so `[@cite]` and `**bold**` tokens emit the same LaTeX they do in paragraph bodies; legacy imports with `attrs.caption` still work. `collectCitationKeys` now scans figure captions in addition to paragraphs, so a `[@key]` cited only inside a caption still ends up in the bib.
+- **`rm/pages/paper-builder.html`** — load `firebase-storage-compat.js` (10.14.0 CDN) alongside the existing app/auth/firestore SDKs (figure upload uses `firebase.storage()`); add `/rm/js/paper-figures.js` to the editor-mode script list before `paper-blocks.js`.
+- **`storage.rules`** — new `paper-figures/{paperId}/{=**}` matcher: authenticated read for any signed-in user; authenticated write up to 15 MB, content-type must match `image/.*` or be `application/pdf`. Sits next to (not inside) the existing `papers/{paperId}/` PDF-only matcher so neither rule loosens the other. Deploy: `firebase deploy --only storage:rules`.
+- **`sw.js`** — `CACHE_VERSION` 76 → 77.
+
+### Notes
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v76` and pick up `paper-figures.js` + `firebase-storage-compat.js`.
+- **Storage rules deploy is required** before figure upload works in production. Run `firebase deploy --only storage:rules` from the parent repo root after merging.
+- **Caption is the figure's body, not a separate attr.** This intentionally repurposes the block's existing `body` Y.Text field so the existing `bindYTextToContentEditable` binding works unchanged and the export pipeline runs the caption through the same `paragraphTextToTex` cite/math expansion. Legacy imports with `attrs.caption` are still read by `figureToTex` so old papers don't lose their captions.
+- **Width datalist is suggestions, not validation.** The user can type any LaTeX width spec (e.g. `0.7\linewidth`, `5cm`, `\textwidth - 2cm`); the value is emitted verbatim into `\includegraphics[width=…]`. The datalist just provides single-click presets for the common values.
+- **Label is auto-prefixed with `fig:`.** When the user types a bare slug (e.g. `cellgrowth`), blur normalizes to `fig:cellgrowth` (kebab-cased, lowercased, alphanumeric+`_-`). Already-prefixed values pass through. This keeps `\eqref`/`\ref` resolution consistent with the equation-block's `eq:`-prefix convention.
+- **Where the LaTeX export expects to find the image.** `figureToTex` emits `\includegraphics{figures/<basename>}` where `<basename>` is the last segment of `storage_path` (`<sha256-short>.<ext>`). The actual file mirroring from Storage into `<repo>/figures/` is left to the export server (`/api/paper/export-tex`) — extending that endpoint to fetch `download_url` and write it under `figures/` is the next step before the LaTeX export compiles end-to-end.
+- **Drag-reorder of figures is not implemented yet.** The handle (`⋮⋮`) is decorative on this block kind, matching the equation/paragraph state. Block reorder lands in a later wishlist item.
+
+## [V3.101] - 2026-05-08
+
+**Citations panel: per-digit reverse hover + pixel-perfect highlight rects.** Reported: "when we hover over a citation link on the page, the citations are not individually selectable with hover ... Also the highlights are not in the correct spot, they are slightly off but are better overlaid when the citation is closer to the left side of the page." Two leftover issues from V3.99/V3.100 — both rooted in how rects were derived and how hover listeners were bound.
+
+### Bug Fixes
+- **`rm/js/paper-citations.js`** — reverse hover (PDF → panel) didn't separate cluster digits. `_wirePageTokenHover` bound `mouseenter` listeners to each pdf.js text-layer *span* with a `__citeHoverBound` flag; when a cluster like `[1,2,3]` lived in one span (the common case), the first match won the binding and refs 2 and 3 were silently skipped. Rewritten to render one transparent `.pv-cite-hit` div per match into the existing `pv-cite-overlay` layer with `pointer-events: auto` — so ref 1, ref 2, ref 3 each get their own hover region. Re-binding clears prior `.pv-cite-hit` children so page nav / re-renders don't leak listeners.
+- **`rm/js/paper-citations.js`** — flash rects were drifting off the digit, worse near the right side of the page. V3.99's `_rectForRange` used a char-fraction approximation (`localStart / itemLen * item.width`) that assumes uniform glyph width — wrong for proportional fonts + kerning, with error growing with x-offset (matching the reported "better on the left side" symptom). Replaced with a DOM `Range` based path: `_rectForRangeViaDom` builds `range.setStart(span.firstChild, localStart)` / `.setEnd(...)` against each text-item's underlying text-layer span (`item.domSpan`, already exposed by `pdf-viewer.js`'s `_collectTextItems`), reads `range.getClientRects()` for pixel-perfect rendered rects, and subtracts the page wrap's viewport rect to get wrap-local coords. The V3.99 char-fraction math is kept as `_rectForRangeViaFraction` and used as a fallback when `domSpan` isn't available. `_scanPage` now captures the page wrap's `getBoundingClientRect()` once and threads it through every match.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 75 → 76.
+
+### Notes
+- **Side effect:** native text selection over a citation marker (the digits inside `[1,2,3]`) is now blocked — `pointer-events: auto` on the hit-rect captures clicks/drags. Selection on the surrounding sentence is unaffected (the hit-rects are tight to the match). Acceptable trade-off for fixing the per-digit hover, since selecting citation glyphs specifically is rare.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v76`.
+
+## [V3.100] - 2026-05-08
+
+**Citations panel: per-row token shows `[n]` instead of the cluster.** Reported: "the citation is listed as [1,2,3] Bing 2009 ... [1,2,3] Hubert 2009 etc these [1,2,3] needs to just be [1] Bing 2009 etc." Follow-up to V3.99 — clusters were correctly expanded into one row per ref, but every row still rendered the original cluster text as its label, which read as duplicated noise.
+
+### Changed
+- **`rm/js/paper-citations.js`** — `_scanPage`'s numeric branch now passes a synthesized `` `[${exp.n}]` `` as each match's `token` instead of the original cluster (`m[0]`). One-line change inside the `_expandNumericInner` loop. Author-year matches unchanged. Hover flash still lands on the right digit inside the original cluster (V3.99 narrowed rect preserved).
+- **`sw.js`** — `CACHE_VERSION` 74 → 75.
+
+### Notes
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v75`.
+
+## [V3.99] - 2026-05-08
+
+**Citations panel: cluster citations expand into one row per ref + flash highlights only the marker.** Reported: "on the citations on page viewer, when there is a cluster of citations e.g. [1,5,9] the citations are not separated and we only see the 1st citation represented. Also the entire sentence connected to the citation is highlighted. we only want the number highlighted for the picker." Two related bugs in `paper-citations.js` — both rooted in how the per-page scan converted regex matches to rects.
+
+### Bug Fixes
+- **`rm/js/paper-citations.js`** — when the PDF text said `[1, 5, 9]`, `_matchedRef` only resolved the first number-run (`parseInt((match.inner.match(/\d+/) || [''])[0])`) and `refKey = m[1]` ("1, 5, 9") collapsed the whole cluster into one row. New `_expandNumericInner(inner)` helper splits clusters and numeric ranges into one `{ n, charStart, charEnd }` entry per ref (range `5–7` → entries for 5, 6, 7 all sharing the literal `5–7` char-span). `_scanPage`'s numeric branch now iterates the expansions and emits one match per ref number, each with `refKey = String(n)` so `_renderPanel`'s byKey dedup surfaces all three rows. `_matchedRef`'s numeric path simplified — `match.inner` is now always a single number.
+- **`rm/js/paper-citations.js`** — flash-rect computation widened to entire pdf.js text-items that overlapped the regex match, so hovering a row flashed the whole sentence whenever the marker lived inside a sentence-sized text-run (which is most body-text PDFs). New `_rectForRange(ranges, rangeStart, rangeEnd)` slices each overlapping item by the character-fraction that actually overlaps `[rangeStart, rangeEnd]`. Both numeric and author-year branches now feed their match's char-span through it, so `[1,5,9]` → three thin rects, one per digit; `(Smith, 2020)` → just the marker, not the surrounding run. Approximation assumes roughly even glyph distribution within a text-item — fine for body text, degrades on kerned/justified runs, still vastly better than the whole-item rect.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 73 → 74.
+
+### Notes
+- Existing hover/click behavior is otherwise unchanged. `_renderPanel`'s `byKey` dedup keeps the same row count when the same ref appears in multiple clusters on the page (e.g. `[1,5,9]` and `[5]` still merge into one row for ref 5 with two `hits`). The `lp-cite-token` chip continues to show the original cluster token (`[1,5,9]`) rather than synthesizing a per-row `[5]` — the narrowed flash is what disambiguates which digit each row belongs to.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v74`.
+
 ## [V3.98] - 2026-05-08
 
 **Surface papers + grants directly in the link-picker.** Reported: "on the Link this paper to a project bucket popup the only projects that show up on the linker are other. There are not grants and papers section." Root cause was structural — V3.95 grouped buckets by their linked item's `type`, but most user-created buckets in `tasks/buckets.json` carry `category: ''` and have no `linked_item_ids`, so they all fell into "Other". Many papers + grants in `items.json` had no bucket pinned at all, so they never appeared in the picker.

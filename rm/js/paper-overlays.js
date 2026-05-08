@@ -1,34 +1,48 @@
-/* paper-overlays.js — bucket-scoped highlight overlays for the paper reader.
+/* paper-overlays.js — draft-scoped highlight overlays for the paper reader.
  *
- * The paper has zero or more linked project buckets (via window.LINKS). Each
- * highlight on the paper has an optional `bucket_ids: []` array — buckets it
- * "belongs to". The user toggles which overlays are active; only highlights
- * matching the active set render. Highlights with empty `bucket_ids` are
- * "general" and always render.
+ * V3.103 — refactored from project-bucket scoping to draft scoping.
+ *
+ * Each library paper carries `meta.library.linked_drafts: [draft-id]` —
+ * the lab's paper-builder drafts and grant proposals it's evidence for.
+ * Each annotation has `cite_in_drafts: [draft-id]` for the drafts it
+ * cites into (already used by the evidence flow). The overlays popover
+ * toggles which drafts' highlights render. Highlights with empty
+ * `cite_in_drafts` are "general" and always render.
  *
  * Public API (window.PAPER_OVERLAYS):
  *   init({paperItem, mountEl, onChange})
- *   getActiveBucketIds()        → string[]
- *   getFilterFn()               → (ann) => boolean (composable with panel's)
- *   getColorForBucket(bucketId) → '#rrggbb' (deterministic from the id)
- *   getLinkedBuckets()          → [{id, title}, ...]
- *   onChange(cb)                → register a listener
+ *   getActiveDraftIds()        → string[]
+ *   getFilterFn()              → (ann) => boolean
+ *   getColorForDraft(draftId)  → '#rrggbb' (deterministic from id)
+ *   getLinkedDrafts()          → [{id, title, kind:'paper'|'grant'}, ...]
+ *   onChange(cb)               → register a listener
  *   destroy()
  *
- * Active set is persisted in localStorage at `rm_lp_overlays_<paperId>`.
- * Default when no localStorage entry: all linked buckets active.
+ * Backward-compat aliases retained for one release cycle so external
+ * call sites (annotation-overlay.js stripes, annotation-panel.js
+ * "Overlays" chips) keep working while they migrate:
+ *   getActiveBucketIds, getLinkedBuckets, getColorForBucket
+ *
+ * Active set is persisted in localStorage at `rm_lp_drafts_<paperId>`.
+ * Default when no entry: all linked drafts active.
+ *
+ * The "+ Link to draft…" picker writes to the library paper's
+ * `meta.library.linked_drafts` array and lists every paper draft and
+ * grant proposal in items.json. There's no project-bucket linkage from
+ * the paper reader anymore — that lived under V3.94–V3.98 and was
+ * unused in practice.
  */
 (function () {
   let _paperItem = null;
   let _mountEl = null;
-  let _linkedBuckets = [];   // [{id, title}, ...]
+  let _linkedDrafts = [];   // [{id, title, kind:'paper'|'grant'}, ...]
   let _active = new Set();
   let _changeCallbacks = [];
 
+  /* ─── Persistence (per-paper active set) ──────────────── */
   function _storageKey() {
-    return `rm_lp_overlays_${_paperItem ? _paperItem.id : 'unknown'}`;
+    return `rm_lp_drafts_${_paperItem ? _paperItem.id : 'unknown'}`;
   }
-
   function _loadActive() {
     try {
       const raw = localStorage.getItem(_storageKey());
@@ -37,19 +51,15 @@
         if (Array.isArray(arr)) return new Set(arr);
       }
     } catch (_) { /* corrupt — fall through */ }
-    // Default: all linked buckets active.
-    return new Set(_linkedBuckets.map(b => b.id));
+    return new Set(_linkedDrafts.map(d => d.id));
   }
-
   function _saveActive() {
     try {
       localStorage.setItem(_storageKey(), JSON.stringify(Array.from(_active)));
     } catch (_) { /* quota — ignore */ }
   }
 
-  // Deterministic per-bucket color. Hash the bucket id and pick from a
-  // palette so the same bucket renders the same accent across reloads /
-  // different papers / different users.
+  /* ─── Color palette (deterministic per draft id) ──────── */
   const PALETTE = [
     '#a78bfa', '#34d399', '#fb923c', '#60a5fa',
     '#f472b6', '#facc15', '#22d3ee', '#fb7185',
@@ -63,58 +73,175 @@
     }
     return h;
   }
-  function getColorForBucket(bucketId) {
-    if (!bucketId) return PALETTE[0];
-    return PALETTE[_hash(String(bucketId)) % PALETTE.length];
+  function getColorForDraft(draftId) {
+    if (!draftId) return PALETTE[0];
+    return PALETTE[_hash(String(draftId)) % PALETTE.length];
   }
 
-  // ----- Filter ----------------------------------------------------------
-
+  /* ─── Filter ──────────────────────────────────────────── */
   function getFilterFn() {
     return (ann) => {
-      const ids = Array.isArray(ann.bucket_ids) ? ann.bucket_ids : [];
-      // Highlights with no overlay = "general" — always show.
-      if (!ids.length) return true;
-      // Otherwise, show only if any of the highlight's overlays is active.
+      const ids = Array.isArray(ann.cite_in_drafts) ? ann.cite_in_drafts : [];
+      if (!ids.length) return true;        // general highlight, always show
       return ids.some(id => _active.has(id));
     };
   }
-
-  function getActiveBucketIds() {
-    return Array.from(_active);
-  }
-
-  function getLinkedBuckets() {
-    return _linkedBuckets.slice();
-  }
+  function getActiveDraftIds() { return Array.from(_active); }
+  function getLinkedDrafts()   { return _linkedDrafts.slice(); }
 
   function onChange(cb) {
     if (typeof cb === 'function') _changeCallbacks.push(cb);
   }
-
   function _emitChange() {
     for (const cb of _changeCallbacks) {
       try { cb(); } catch (e) { console.error(e); }
     }
   }
 
-  // ----- UI --------------------------------------------------------------
-
+  /* ─── Helpers ─────────────────────────────────────────── */
   function _esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
     );
   }
 
+  // Status set used to filter "drafts we're writing" from items.json
+  // grants. Awarded / active / completed grants aren't drafts; they're
+  // post-award work. Proposals = anything we'd still cite to.
+  const GRANT_DRAFT_STATUSES = new Set([
+    'drafting', 'submitted', 'under_review', 'revising', 'rejected',
+  ]);
+
+  // Returns drafts available to associate with this paper:
+  //   paper drafts: items.json type:'paper' AND NOT is_library_entry
+  //   grant drafts: items.json type:'grant' AND status in proposals
+  // Each draft: {id, title, kind:'paper'|'grant', hint:'…'}
+  async function _loadAllDrafts() {
+    if (!window.api || !window.api.load) return [];
+    let data;
+    try {
+      data = await api.load('items.json');
+    } catch (e) {
+      console.warn('[paper-overlays] could not load items.json:', e.message || e);
+      return [];
+    }
+    const items = (data && data.items) || [];
+    const out = [];
+    for (const it of items) {
+      const lib = (it.meta || {}).library || {};
+      if (it.type === 'paper' && !lib.is_library_entry) {
+        out.push({
+          id: it.id,
+          title: it.title || it.id,
+          kind: 'paper',
+          hint: _draftHint(it),
+        });
+      } else if (it.type === 'grant' && GRANT_DRAFT_STATUSES.has(it.status)) {
+        out.push({
+          id: it.id,
+          title: it.title || it.id,
+          kind: 'grant',
+          hint: _draftHint(it),
+        });
+      }
+    }
+    return out;
+  }
+  function _draftHint(item) {
+    const m = item.meta || {};
+    if (item.type === 'paper') {
+      const tj = m.target_journal || '';
+      const la = m.lead_author || '';
+      const left = [la, tj].filter(Boolean).join(' · ');
+      const status = item.status ? `(${item.status})` : '';
+      return [left, status].filter(Boolean).join(' ');
+    }
+    if (item.type === 'grant') {
+      const funder = m.funder || m.agency || m.sponsor || '';
+      const mech   = m.mechanism || m.grant_number || m.proposal_number || '';
+      const left = [funder, mech].filter(Boolean).join(' · ');
+      const status = item.status ? `(${item.status})` : '';
+      return [left, status].filter(Boolean).join(' ');
+    }
+    return '';
+  }
+
+  // Reload the linked-drafts list from items.json + paperItem and
+  // refresh the popover. Called after linkDraft / unlinkDraft writes
+  // and after _openLinkPicker save.
+  async function _refreshLinkedDrafts() {
+    if (!_paperItem) return;
+    let data;
+    try {
+      data = await api.load('items.json');
+    } catch (e) {
+      console.warn('[paper-overlays] refresh failed:', e.message || e);
+      return;
+    }
+    const items = (data && data.items) || [];
+    const fresh = items.find(i => i.id === _paperItem.id) || _paperItem;
+    const ids = (fresh.meta && fresh.meta.library && fresh.meta.library.linked_drafts) || [];
+    const enriched = ids.map(id => {
+      const it = items.find(i => i.id === id);
+      if (!it) return { id, title: id, kind: 'paper' };
+      return { id, title: it.title || id, kind: it.type === 'grant' ? 'grant' : 'paper' };
+    });
+    _linkedDrafts = enriched;
+    // Prune _active to live ids; auto-activate newly-linked.
+    const live = new Set(_linkedDrafts.map(d => d.id));
+    for (const id of Array.from(_active)) if (!live.has(id)) _active.delete(id);
+    for (const d of _linkedDrafts) if (!_active.has(d.id)) _active.add(d.id);
+    _saveActive();
+    _emitChange();
+    _render();
+    const pop = _mountEl && _mountEl.querySelector('#lp-overlays-pop');
+    if (pop) { pop.style.display = 'block'; _renderPop(); }
+  }
+
+  // Public: link / unlink a draft from this library paper. Writes
+  // meta.library.linked_drafts on items.json. Idempotent.
+  async function linkDraft(draftId) {
+    if (!_paperItem || !draftId) return;
+    const data = await api.load('items.json');
+    const items = (data && data.items) || [];
+    const idx = items.findIndex(i => i.id === _paperItem.id);
+    if (idx < 0) throw new Error('Open paper not found in items.json');
+    items[idx].meta = items[idx].meta || {};
+    items[idx].meta.library = items[idx].meta.library || {};
+    const arr = Array.isArray(items[idx].meta.library.linked_drafts)
+      ? items[idx].meta.library.linked_drafts.slice() : [];
+    if (arr.indexOf(draftId) === -1) arr.push(draftId);
+    items[idx].meta.library.linked_drafts = arr;
+    await api.save('items.json', { items });
+    _paperItem = items[idx];
+    await _refreshLinkedDrafts();
+  }
+  async function unlinkDraft(draftId) {
+    if (!_paperItem || !draftId) return;
+    const data = await api.load('items.json');
+    const items = (data && data.items) || [];
+    const idx = items.findIndex(i => i.id === _paperItem.id);
+    if (idx < 0) return;
+    items[idx].meta = items[idx].meta || {};
+    items[idx].meta.library = items[idx].meta.library || {};
+    const arr = Array.isArray(items[idx].meta.library.linked_drafts)
+      ? items[idx].meta.library.linked_drafts.filter(x => x !== draftId) : [];
+    items[idx].meta.library.linked_drafts = arr;
+    await api.save('items.json', { items });
+    _paperItem = items[idx];
+    await _refreshLinkedDrafts();
+  }
+
+  /* ─── Overlays popover (toggleable draft list) ────────── */
   function _render() {
     if (!_mountEl) return;
-    const total = _linkedBuckets.length;
+    const total = _linkedDrafts.length;
     const onCount = _active.size;
     const summary = total === 0
-      ? 'No overlays'
-      : (onCount === total ? `All overlays (${total})` : `${onCount}/${total} overlays`);
+      ? 'No drafts linked'
+      : (onCount === total ? `All drafts (${total})` : `${onCount}/${total} drafts`);
     _mountEl.innerHTML = `
-      <button class="btn btn-sm lp-overlays-btn" id="lp-overlays-btn" title="Toggle which review-task overlays render on this paper">
+      <button class="btn btn-sm lp-overlays-btn" id="lp-overlays-btn" title="Toggle which draft's highlights render on this paper">
         <span class="lp-overlays-dot" style="background:${total === 0 ? '#9ca3af' : (onCount > 0 ? '#a78bfa' : '#d1d5db')};"></span>
         ${_esc(summary)}
       </button>
@@ -138,16 +265,16 @@
   function _renderPop() {
     const pop = _mountEl.querySelector('#lp-overlays-pop');
     if (!pop) return;
-    if (!_linkedBuckets.length) {
+    if (!_linkedDrafts.length) {
       pop.innerHTML = `
         <div class="lp-overlays-empty">
-          No project buckets linked to this paper yet. Link one to scope AI
-          overlays (drag-drop a <code>.paper-overlay.md</code> file or use the
-          import button below) to a specific review task.
+          No paper or grant drafts linked yet. Link one to scope this paper's
+          highlights — and to make it eligible as evidence for the draft's
+          claims.
         </div>
         <div class="lp-overlays-foot">
           <div class="lp-overlays-foot-actions">
-            <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to project…</button>
+            <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to draft…</button>
             <button class="btn btn-sm lp-overlays-import-btn" id="lp-overlays-import">+ Import overlay file…</button>
           </div>
         </div>
@@ -156,22 +283,26 @@
       pop.querySelector('#lp-overlays-import').addEventListener('click', _openOverlayFilePicker);
       return;
     }
-    const onAll = _active.size === _linkedBuckets.length;
+    const onAll = _active.size === _linkedDrafts.length;
     const offAll = _active.size === 0;
-    const rows = _linkedBuckets.map(b => {
-      const active = _active.has(b.id);
-      const color = getColorForBucket(b.id);
+    const rows = _linkedDrafts.map(d => {
+      const active = _active.has(d.id);
+      const color = getColorForDraft(d.id);
+      const kindBadge = d.kind === 'grant'
+        ? `<span class="lp-overlay-kind lp-overlay-kind-grant">grant</span>`
+        : `<span class="lp-overlay-kind lp-overlay-kind-paper">paper</span>`;
       return `
         <label class="lp-overlay-row${active ? ' lp-overlay-row-on' : ''}">
-          <input type="checkbox" data-overlay-id="${_esc(b.id)}"${active ? ' checked' : ''}>
+          <input type="checkbox" data-draft-id="${_esc(d.id)}"${active ? ' checked' : ''}>
           <span class="lp-overlay-swatch" style="background:${color};"></span>
-          <span class="lp-overlay-title">${_esc(b.title || b.id)}</span>
+          <span class="lp-overlay-title">${_esc(d.title || d.id)}</span>
+          ${kindBadge}
         </label>
       `;
     }).join('');
     pop.innerHTML = `
       <div class="lp-overlays-head">
-        <span>Active overlays</span>
+        <span>Active drafts</span>
         <span class="lp-overlays-actions">
           <button class="lp-overlays-mini" data-overlay-cmd="all"${onAll ? ' disabled' : ''}>All</button>
           <button class="lp-overlays-mini" data-overlay-cmd="none"${offAll ? ' disabled' : ''}>None</button>
@@ -180,26 +311,25 @@
       <div class="lp-overlays-list">${rows}</div>
       <div class="lp-overlays-foot">
         <div class="lp-overlays-foot-actions">
-          <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to project…</button>
+          <button class="btn btn-sm lp-overlays-link-btn" id="lp-overlays-link">+ Link to draft…</button>
           <button class="btn btn-sm lp-overlays-import-btn" id="lp-overlays-import">+ Import overlay file…</button>
         </div>
         <div class="lp-overlays-foot-note">
-          Highlights with no overlay (general) always render. New highlights you
-          create get the currently-active overlays as their <code>bucket_ids</code>.
+          Highlights with no draft (general) always render. New highlights
+          inherit the active drafts as their <code>cite_in_drafts</code>.
         </div>
       </div>
     `;
     pop.querySelector('#lp-overlays-link').addEventListener('click', _openLinkPicker);
     pop.querySelector('#lp-overlays-import').addEventListener('click', _openOverlayFilePicker);
-    pop.querySelectorAll('input[data-overlay-id]').forEach(inp => {
+    pop.querySelectorAll('input[data-draft-id]').forEach(inp => {
       inp.addEventListener('change', (ev) => {
-        const id = ev.target.getAttribute('data-overlay-id');
+        const id = ev.target.getAttribute('data-draft-id');
         if (ev.target.checked) _active.add(id);
         else _active.delete(id);
         _saveActive();
         _emitChange();
         _render();
-        // Re-open popover after the parent re-render.
         const newPop = _mountEl.querySelector('#lp-overlays-pop');
         if (newPop) { newPop.style.display = 'block'; _renderPop(); }
       });
@@ -207,7 +337,7 @@
     pop.querySelectorAll('[data-overlay-cmd]').forEach(b => {
       b.addEventListener('click', (ev) => {
         const cmd = ev.target.getAttribute('data-overlay-cmd');
-        if (cmd === 'all') _active = new Set(_linkedBuckets.map(b => b.id));
+        if (cmd === 'all') _active = new Set(_linkedDrafts.map(d => d.id));
         else if (cmd === 'none') _active = new Set();
         _saveActive();
         _emitChange();
@@ -218,11 +348,7 @@
     });
   }
 
-  // ----- File picker for AI overlay import (V3.95) ----------------------
-  // Same import as drag-drop, but invoked from the overlays popover via a
-  // hidden file input. Uses PAPER_OVERLAY_IMPORT.handleDrop so the entire
-  // preview/validate/confirm flow is shared — the only difference is the
-  // delivery (button click vs. drag-drop onto the viewer).
+  /* ─── File picker (delegates to existing PAPER_OVERLAY_IMPORT) ── */
   function _openOverlayFilePicker() {
     if (!window.PAPER_OVERLAY_IMPORT || !window.PAPER_OVERLAY_IMPORT.handleDrop) {
       alert('Overlay import not loaded.');
@@ -237,7 +363,7 @@
       inp.style.display = 'none';
       document.body.appendChild(inp);
     }
-    inp.value = '';     // allow re-selecting the same file
+    inp.value = '';
     inp.onchange = async () => {
       const file = inp.files && inp.files[0];
       if (!file) return;
@@ -251,175 +377,69 @@
     inp.click();
   }
 
-  // ----- Link picker (V3.98) --------------------------------------------
-  // V3.94 introduced the picker; V3.95 grouped by item type. V3.98 makes
-  // the Papers + Grants sections show *items* (papers, grants from
-  // items.json) rather than just buckets. When the user checks a paper /
-  // grant row that has no bucket yet, save creates one via
-  // LINKS.pinItemToDashboard (same shape as newProjectForItem). Existing
-  // free-form buckets continue to live in the Other section.
-  //
-  // This solves the production problem where every bucket fell into
-  // "Other" because most buckets were created on the tasks page without
-  // a linked_item_id, AND surfaces papers/grants in the picker that
-  // didn't have a bucket yet.
-
-  function _itemHint(item) {
-    const lib = (item && item.meta && item.meta.library) || {};
-    if (item.type === 'paper') {
-      const a = (lib.authors && lib.authors[0]) || {};
-      const name = a.family || a.given || '';
-      const yr = lib.year || '';
-      const j = lib.journal || lib.target_journal || '';
-      const left = [name, yr].filter(Boolean).join(' ');
-      const right = j;
-      if (left && right) return left + ' · ' + right;
-      return left || right || '';
-    }
-    if (item.type === 'grant') {
-      const m = (item.meta) || {};
-      const agency = m.agency || m.sponsor || m.funder || '';
-      const num = m.grant_number || m.award_number || m.proposal_number || '';
-      const left = [agency, num].filter(Boolean).join(' · ');
-      return left;
-    }
-    return '';
-  }
+  /* ─── Draft link picker (V3.103) ───────────────────────── */
+  // Lists every paper draft + grant proposal from items.json. Checked
+  // = associated with this library paper. Save diffs against the
+  // current meta.library.linked_drafts and writes the new array.
 
   async function _openLinkPicker() {
-    if (!window.LINKS || !_paperItem) return;
+    if (!_paperItem) return;
     const existing = document.getElementById('lp-overlays-linkmodal');
     if (existing) existing.remove();
-    let bucketsDoc, itemsDoc;
-    try {
-      [bucketsDoc, itemsDoc] = await Promise.all([
-        window.LINKS.loadBuckets(),
-        window.LINKS.loadItems(),
-      ]);
-    } catch (e) {
-      console.warn('[paper-overlays] failed to load buckets:', e);
-      return;
-    }
-    const allItems = (itemsDoc && itemsDoc.items) || [];
-    const allBuckets = (bucketsDoc && bucketsDoc.projects) || [];
-    const linkedIds = new Set(_linkedBuckets.map(b => b.id));
-
-    // item id → first bucket that lists it in linked_item_ids. Used to
-    // resolve a paper/grant row to a real bucket when one already
-    // exists (so checking it doesn't auto-create a duplicate bucket).
-    const bucketByItemId = new Map();
-    for (const b of allBuckets) {
-      for (const itemId of (b.linked_item_ids || [])) {
-        if (!bucketByItemId.has(itemId)) bucketByItemId.set(itemId, b);
-      }
-    }
-    // Bucket ids surfaced in Papers/Grants sections — they should NOT
-    // also appear in Other.
-    const itemBucketIds = new Set();
-    for (const b of bucketByItemId.values()) {
-      const item = allItems.find(i => i.id === ((b.linked_item_ids || [])[0]));
-      if (item && (item.type === 'paper' || item.type === 'grant')) {
-        itemBucketIds.add(b.id);
-      }
-    }
-
-    const rowsByKey = new Map();
-    function makeItemRow(item) {
-      const bucket = bucketByItemId.get(item.id);
-      const linked = !!(bucket && linkedIds.has(bucket.id));
-      const row = {
-        kind: 'item',
-        rowKey: 'item:' + item.id,
-        item, bucket,
-        linked,
-        title: item.title || item.name || item.id,
-        hint:  _itemHint(item),
-        willCreate: !bucket,
-        // For the swatch — use the bucket's color if it exists, else a
-        // deterministic per-item color so virtual rows look consistent
-        // across reopens.
-        swatchKey: bucket ? bucket.id : ('item:' + item.id),
-      };
-      rowsByKey.set(row.rowKey, row);
-      return row;
-    }
-    function makeBucketRow(bucket) {
-      const linked = linkedIds.has(bucket.id);
-      const row = {
-        kind: 'bucket',
-        rowKey: 'bucket:' + bucket.id,
-        bucket,
-        linked,
-        title: bucket.title || bucket.id,
-        hint:  bucket.id,
-        willCreate: false,
-        swatchKey: bucket.id,
-      };
-      rowsByKey.set(row.rowKey, row);
-      return row;
-    }
-
-    const paperRows = allItems
-      .filter(i => i.type === 'paper' && i.id !== _paperItem.id)
-      .map(makeItemRow);
-    const grantRows = allItems
-      .filter(i => i.type === 'grant')
-      .map(makeItemRow);
-    const otherRows = allBuckets
-      .filter(b => !itemBucketIds.has(b.id))
-      .map(makeBucketRow);
-
-    const linkedFirstThenAlpha = (a, b) => {
-      const al = a.linked ? 0 : 1, bl = b.linked ? 0 : 1;
-      if (al !== bl) return al - bl;
-      return (a.title || '').localeCompare(b.title || '');
-    };
-    paperRows.sort(linkedFirstThenAlpha);
-    grantRows.sort(linkedFirstThenAlpha);
-    otherRows.sort(linkedFirstThenAlpha);
+    const allDrafts = await _loadAllDrafts();
+    const linkedIds = new Set(_linkedDrafts.map(d => d.id));
 
     const sections = [
-      { name: 'Papers', rows: paperRows },
-      { name: 'Grants', rows: grantRows },
-      { name: 'Other',  rows: otherRows },
+      { name: 'Paper drafts', kind: 'paper', hint: 'Papers we\'re writing — from projects/papers' },
+      { name: 'Grant drafts', kind: 'grant', hint: 'Grant proposals — from projects/grants'      },
     ];
+    sections.forEach(s => { s.rows = allDrafts.filter(d => d.kind === s.kind); });
+    sections.forEach(s => {
+      s.rows.sort((a, b) => {
+        const al = linkedIds.has(a.id) ? 0 : 1, bl = linkedIds.has(b.id) ? 0 : 1;
+        if (al !== bl) return al - bl;
+        return (a.title || '').localeCompare(b.title || '');
+      });
+    });
 
-    const renderRowHTML = (row) => {
-      const color = getColorForBucket(row.swatchKey);
-      const badge = row.willCreate
-        ? `<span class="lp-linkpick-badge" title="Will create a new bucket on save">will create</span>`
-        : '';
-      const hint = row.hint
-        ? `<span class="lp-linkpick-hint">${_esc(row.hint)}</span>`
+    const renderRow = (d) => {
+      const linked = linkedIds.has(d.id);
+      const color = getColorForDraft(d.id);
+      const hint  = d.hint
+        ? `<span class="lp-linkpick-hint">${_esc(d.hint)}</span>`
         : '';
       return `
-        <label class="lp-linkpick-row${row.linked ? ' lp-linkpick-row-linked' : ''}"
-               data-row-search="${_esc(((row.title || '') + ' ' + (row.hint || '')).toLowerCase())}">
-          <input type="checkbox" data-row-key="${_esc(row.rowKey)}"${row.linked ? ' checked' : ''}>
+        <label class="lp-linkpick-row${linked ? ' lp-linkpick-row-linked' : ''}"
+               data-row-search="${_esc(((d.title || '') + ' ' + (d.hint || '')).toLowerCase())}">
+          <input type="checkbox" data-draft-id="${_esc(d.id)}"${linked ? ' checked' : ''}>
           <span class="lp-overlay-swatch" style="background:${color};"></span>
           <span class="lp-linkpick-titlewrap">
-            <span class="lp-linkpick-title">${_esc(row.title)}</span>
+            <span class="lp-linkpick-title">${_esc(d.title || d.id)}</span>
             ${hint}
           </span>
-          ${badge}
         </label>
       `;
     };
-    const renderSectionHTML = (sec) => {
-      const rows = sec.rows;
-      if (!rows.length) return '';   // hide empty sections
-      return `
-        <div class="lp-linkpick-group" data-section="${_esc(sec.name)}">
-          <div class="lp-linkpick-group-head">
-            ${_esc(sec.name)}
-            <span class="lp-linkpick-group-count">${rows.length}</span>
+    const renderSection = (s) => {
+      if (!s.rows.length) {
+        return `
+          <div class="lp-linkpick-group" data-section="${_esc(s.name)}">
+            <div class="lp-linkpick-group-head">${_esc(s.name)} <span class="lp-linkpick-group-count">0</span></div>
+            <div class="lp-linkpick-empty">${_esc(s.hint)}. None yet — create one in the projects page.</div>
           </div>
-          ${rows.map(renderRowHTML).join('')}
+        `;
+      }
+      return `
+        <div class="lp-linkpick-group" data-section="${_esc(s.name)}">
+          <div class="lp-linkpick-group-head">
+            ${_esc(s.name)}
+            <span class="lp-linkpick-group-count">${s.rows.length}</span>
+          </div>
+          ${s.rows.map(renderRow).join('')}
         </div>
       `;
     };
-    const listHTML = sections.map(renderSectionHTML).join('') ||
-      `<div class="lp-linkpick-empty">No papers, grants, or buckets in items.json / tasks/buckets.json yet.</div>`;
+    const listHTML = sections.map(renderSection).join('');
 
     const modal = document.createElement('div');
     modal.id = 'lp-overlays-linkmodal';
@@ -427,20 +447,16 @@
     modal.innerHTML = `
       <div class="lp-oim-backdrop"></div>
       <div class="lp-oim-card">
-        <div class="lp-oim-head">Link this paper to a project bucket</div>
+        <div class="lp-oim-head">Link this paper to a draft</div>
         <div class="lp-oim-summary">
-          Pick papers, grants, or existing buckets to scope this paper's
-          highlights to. Checking a paper or grant that doesn't have a
-          bucket yet will auto-create one with the item's title.
+          Pick the paper drafts and grant proposals this library paper is
+          evidence for. Linking unlocks it in the per-annotation "Tag as
+          evidence" picker on the right side of the reader.
         </div>
         <div class="lp-linkpick-search-wrap">
-          <input id="lp-linkpick-search" type="text" placeholder="Search papers, grants, buckets…" autocomplete="off" />
+          <input id="lp-linkpick-search" type="text" placeholder="Search drafts…" autocomplete="off" />
         </div>
         <div class="lp-linkpick-list">${listHTML}</div>
-        <div class="lp-linkpick-create">
-          <input id="lp-linkpick-newtitle" type="text" placeholder="New free-form bucket (e.g. GELS aim 2 review)" />
-          <button class="btn btn-sm" id="lp-linkpick-newbtn">+ Create + link</button>
-        </div>
         <div class="lp-oim-foot">
           <button class="btn btn-sm" id="lp-linkpick-cancel">Cancel</button>
           <button class="btn btn-sm lp-oim-primary" id="lp-linkpick-save">Save</button>
@@ -453,9 +469,6 @@
     modal.querySelector('.lp-oim-backdrop').addEventListener('click', close);
     modal.querySelector('#lp-linkpick-cancel').addEventListener('click', close);
 
-    // Live search filter — hides rows whose data-row-search doesn't
-    // contain every space-separated token; updates section count chips
-    // to reflect filtered totals + hides empty sections.
     const searchInp = modal.querySelector('#lp-linkpick-search');
     searchInp.addEventListener('input', () => {
       const q = searchInp.value.trim().toLowerCase();
@@ -470,88 +483,30 @@
         });
         const chip = group.querySelector('.lp-linkpick-group-count');
         if (chip) chip.textContent = String(visibleCount);
-        group.style.display = visibleCount === 0 ? 'none' : '';
       });
     });
     setTimeout(() => searchInp.focus(), 0);
-
-    modal.querySelector('#lp-linkpick-newbtn').addEventListener('click', async (ev) => {
-      const inp = modal.querySelector('#lp-linkpick-newtitle');
-      const title = (inp.value || '').trim();
-      if (!title) { inp.focus(); return; }
-      const btn = ev.currentTarget;
-      btn.disabled = true; btn.textContent = 'Creating…';
-      try {
-        // Reuse pinItemToDashboard's bucket-creation shape, but as a
-        // free-form bucket linked only to the open paper.
-        const fresh = await window.LINKS.loadItems();
-        const bucketsDoc2 = await window.LINKS.loadBuckets();
-        const item = (fresh.items || []).find(i => i.id === _paperItem.id) || _paperItem;
-        const idStem = (item.id || 'paper').replace(/^item-/, '');
-        const proj = {
-          id: `proj-${idStem}-${Date.now().toString(36)}`,
-          title,
-          status: 'active',
-          category: item.category || 'paper',
-          due_date: 'TBD',
-          hours_estimate: 0,
-          tracker_entry_id: null,
-          evidence: { email_ids: [], event_ids: [], item_ids: [item.id] },
-          notes: '',
-          created_at: new Date().toISOString().slice(0, 10),
-          completed_at: null,
-          buckets: [],
-          linked_item_ids: [item.id],
-        };
-        bucketsDoc2.projects = bucketsDoc2.projects || [];
-        bucketsDoc2.projects.push(proj);
-        const itemRef = (fresh.items || []).find(i => i.id === item.id);
-        if (itemRef) {
-          if (!Array.isArray(itemRef.linked_bucket_ids)) itemRef.linked_bucket_ids = [];
-          itemRef.linked_bucket_ids.push(proj.id);
-        }
-        await Promise.all([
-          api.save('items.json', fresh),
-          api.save('tasks/buckets.json', bucketsDoc2),
-        ]);
-        close();
-        await _refreshLinkedBuckets();
-      } catch (e) {
-        console.error('[paper-overlays] create-link failed:', e);
-        btn.disabled = false; btn.textContent = '+ Create + link';
-        alert('Failed to create bucket: ' + (e.message || e));
-      }
-    });
 
     modal.querySelector('#lp-linkpick-save').addEventListener('click', async (ev) => {
       const btn = ev.currentTarget;
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
-        // First pass: resolve checked rows to concrete bucket ids.
-        // Virtual item rows (no bucket yet) trigger an auto-create
-        // via LINKS.pinItemToDashboard, which is idempotent if the
-        // item already has a linked bucket.
         const desired = new Set();
-        const checks = modal.querySelectorAll('input[data-row-key]');
-        for (const c of checks) {
-          if (!c.checked) continue;
-          const row = rowsByKey.get(c.getAttribute('data-row-key'));
-          if (!row) continue;
-          if (row.kind === 'bucket') {
-            desired.add(row.bucket.id);
-          } else if (row.kind === 'item') {
-            let bid = row.bucket && row.bucket.id;
-            if (!bid) bid = await window.LINKS.pinItemToDashboard(row.item);
-            desired.add(bid);
-          }
-        }
-        // Second pass: diff against current linked set.
-        const toAdd    = Array.from(desired).filter(id => !linkedIds.has(id));
-        const toRemove = Array.from(linkedIds).filter(id => !desired.has(id));
-        for (const id of toAdd)    await window.LINKS.addLink(_paperItem.id, id);
-        for (const id of toRemove) await window.LINKS.removeLink(_paperItem.id, id);
+        modal.querySelectorAll('input[data-draft-id]').forEach(c => {
+          if (c.checked) desired.add(c.getAttribute('data-draft-id'));
+        });
+        // Single write: rebuild meta.library.linked_drafts from `desired`.
+        const data = await api.load('items.json');
+        const items = (data && data.items) || [];
+        const idx = items.findIndex(i => i.id === _paperItem.id);
+        if (idx < 0) throw new Error('Open paper not found in items.json');
+        items[idx].meta = items[idx].meta || {};
+        items[idx].meta.library = items[idx].meta.library || {};
+        items[idx].meta.library.linked_drafts = Array.from(desired);
+        await api.save('items.json', { items });
+        _paperItem = items[idx];
         close();
-        await _refreshLinkedBuckets();
+        await _refreshLinkedDrafts();
       } catch (e) {
         console.error('[paper-overlays] link save failed:', e);
         btn.disabled = false; btn.textContent = 'Save';
@@ -560,30 +515,7 @@
     });
   }
 
-  async function _refreshLinkedBuckets() {
-    if (!window.LINKS || !_paperItem) return;
-    try {
-      const bucketsDoc = await window.LINKS.loadBuckets();
-      const itemsDoc   = await window.LINKS.loadItems();
-      const fresh = (itemsDoc.items || []).find(i => i.id === _paperItem.id) || _paperItem;
-      const projects = window.LINKS.linkedBucketsForItem(fresh, bucketsDoc) || [];
-      _linkedBuckets = projects.map(p => ({ id: p.id, title: p.title }));
-      // Keep _active in sync: prune missing, default-on for newly-linked.
-      const live = new Set(_linkedBuckets.map(b => b.id));
-      for (const id of Array.from(_active)) if (!live.has(id)) _active.delete(id);
-      for (const b of _linkedBuckets) if (!_active.has(b.id)) _active.add(b.id);
-      _saveActive();
-      _emitChange();
-      _render();
-      const newPop = _mountEl && _mountEl.querySelector('#lp-overlays-pop');
-      if (newPop) { newPop.style.display = 'block'; _renderPop(); }
-    } catch (e) {
-      console.warn('[paper-overlays] refresh after link failed:', e);
-    }
-  }
-
-  // ----- Init ------------------------------------------------------------
-
+  /* ─── Init ────────────────────────────────────────────── */
   async function init(opts) {
     _paperItem = opts.paperItem;
     _mountEl = opts.mountEl;
@@ -592,24 +524,10 @@
       console.warn('[paper-overlays] init: paperItem required');
       return;
     }
-    // Load buckets linked to this paper. window.LINKS may not be loaded on
-    // older builds — guard.
-    if (window.LINKS && typeof window.LINKS.loadBuckets === 'function') {
-      try {
-        const bucketsDoc = await window.LINKS.loadBuckets();
-        const projects = window.LINKS.linkedBucketsForItem(_paperItem, bucketsDoc) || [];
-        _linkedBuckets = projects.map(p => ({ id: p.id, title: p.title }));
-      } catch (e) {
-        console.warn('[paper-overlays] could not load linked buckets:', e);
-        _linkedBuckets = [];
-      }
-    }
+    await _refreshLinkedDrafts();
     _active = _loadActive();
-    // If buckets were added/removed since last visit, prune _active to the
-    // set that still exists (so a deleted bucket doesn't leak into the
-    // saved state forever).
-    const liveIds = new Set(_linkedBuckets.map(b => b.id));
-    _active = new Set(Array.from(_active).filter(id => liveIds.has(id)));
+    const live = new Set(_linkedDrafts.map(d => d.id));
+    _active = new Set(Array.from(_active).filter(id => live.has(id)));
     _saveActive();
     _render();
   }
@@ -618,17 +536,22 @@
     if (_mountEl) _mountEl.innerHTML = '';
     _changeCallbacks = [];
     _active = new Set();
-    _linkedBuckets = [];
+    _linkedDrafts = [];
     _paperItem = null;
   }
 
   window.PAPER_OVERLAYS = {
     init,
-    getActiveBucketIds,
-    getFilterFn,
-    getColorForBucket,
-    getLinkedBuckets,
-    onChange,
-    destroy,
+    // V3.103 draft API
+    getActiveDraftIds, getLinkedDrafts, getColorForDraft, getFilterFn,
+    linkDraft, unlinkDraft,
+    openLinkPicker: _openLinkPicker,   // exposed so the inline evidence
+                                        // form can offer "+ Add draft".
+    onChange, destroy,
+    // Backward-compat aliases (operate on drafts now). One-cycle bridge
+    // for annotation-overlay.js stripes + annotation-panel.js chips.
+    getActiveBucketIds: getActiveDraftIds,
+    getLinkedBuckets:   getLinkedDrafts,
+    getColorForBucket:  getColorForDraft,
   };
 })();

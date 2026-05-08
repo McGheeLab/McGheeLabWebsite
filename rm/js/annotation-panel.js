@@ -23,6 +23,9 @@
   let _getGroups = null;          // () → [{id, name}, ...]
   let _onCreateGroup = null;      // (name) → Promise<groupId>
   let _onCiteToggle = null;       // (annId, draftId, on:boolean) → ...
+  let _getBuckets = null;         // () → [{id, title}, ...] linked-to-this-paper
+  let _onBucketToggle = null;     // (annId, bucketId, on:boolean) → ...
+  let _getBucketColor = null;     // (bucketId) → '#rrggbb'
   let _expandedCards = new Set(); // ann.id of cards whose general "▸ more" edit panel is open
   // For inline forms, each card can have ONE active section: 'comment',
   // 'evidence', or 'info'. null means none. Per-card draft selection +
@@ -213,23 +216,31 @@
 
     // ---- Drafts: chips for tagged + a dropdown to add more (NOT pills).
     const cited = Array.isArray(ann.cite_in_drafts) ? ann.cite_in_drafts : [];
+    // V3.103 — `_getDrafts()` returns ONLY drafts the user has linked to
+    // this paper (via meta.library.linked_drafts). To extend the
+    // shortlist, click the "+ Link draft" button on the right (calls
+    // PAPER_OVERLAYS.openLinkPicker).
     const drafts = (_getDrafts && _getDrafts()) || [];
     const taggedDrafts = drafts.filter(d => cited.includes(d.id));
     const untaggedDrafts = drafts.filter(d => !cited.includes(d.id));
-    const draftsBlock = drafts.length ? `
+    const linkBtn = window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker
+      ? `<button class="ann-draft-link" data-action="link-draft" title="Link a paper / grant draft to this paper">+ Link draft…</button>`
+      : '';
+    const draftsBlock = `
       <div class="ann-edit-row" title="Drafts this highlight feeds into (cite_in_drafts)">
         <span class="ann-tiny-label">Drafts</span>
         <div class="ann-draft-chips">
           ${taggedDrafts.map(d => `
             <span class="ann-draft-chip">${_esc((d.title || d.id).slice(0, 24))}${(d.title || d.id).length > 24 ? '…' : ''}<button class="ann-draft-x" data-id="${_esc(ann.id)}" data-draft="${_esc(d.id)}" title="Remove">×</button></span>
-          `).join('') || '<span class="ann-empty">none</span>'}
+          `).join('') || (drafts.length ? '<span class="ann-empty">none</span>' : '<span class="ann-empty">no drafts linked yet</span>')}
         </div>
         ${untaggedDrafts.length ? `
           <select class="ann-draft-add" data-id="${_esc(ann.id)}">
             <option value="">+ add draft…</option>
             ${untaggedDrafts.map(d => `<option value="${_esc(d.id)}">${_esc((d.title || d.id).slice(0, 60))}</option>`).join('')}
           </select>` : ''}
-      </div>` : '';
+        ${linkBtn}
+      </div>`;
 
     // ---- Group selector + create-new affordance.
     const groupCur = ann.group || 'general';
@@ -379,19 +390,31 @@
     const cited = Array.isArray(ann.cite_in_drafts) ? ann.cite_in_drafts : [];
     const tagged = drafts.filter(d => cited.includes(d.id));
     const untagged = drafts.filter(d => !cited.includes(d.id));
+
+    // V3.103 — Overlays row retired. Pre-V3.103 it managed `bucket_ids`
+    // separately from `cite_in_drafts`; now drafts are the only
+    // scoping mechanism, and the "Drafts" row above already shows /
+    // edits cite_in_drafts.
+    const overlaysRow = '';
+
+    const linkBtnInfo = window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker
+      ? `<button class="ann-draft-link" data-action="link-draft" title="Link a paper / grant draft to this paper">+ Link draft…</button>`
+      : '';
     return `
       <div class="ann-section-panel ann-section-info">
         <div class="ann-section-row">
           <span class="ann-section-label">Drafts</span>
           <div class="ann-draft-chips">
-            ${tagged.map(d => `<span class="ann-draft-chip">${_esc((d.title || d.id).slice(0, 24))}<button class="ann-draft-x" data-id="${_esc(ann.id)}" data-draft="${_esc(d.id)}">×</button></span>`).join('') || '<span class="ann-empty">none</span>'}
+            ${tagged.map(d => `<span class="ann-draft-chip">${_esc((d.title || d.id).slice(0, 24))}<button class="ann-draft-x" data-id="${_esc(ann.id)}" data-draft="${_esc(d.id)}">×</button></span>`).join('') || (drafts.length ? '<span class="ann-empty">none</span>' : '<span class="ann-empty">no drafts linked yet</span>')}
           </div>
           ${untagged.length ? `
             <select class="ann-draft-add" data-id="${_esc(ann.id)}">
               <option value="">+ add draft…</option>
               ${untagged.map(d => `<option value="${_esc(d.id)}">${_esc((d.title || d.id).slice(0, 60))}</option>`).join('')}
             </select>` : ''}
+          ${linkBtnInfo}
         </div>
+        ${overlaysRow}
         <div class="ann-section-row">
           <span class="ann-section-label">Group</span>
           <select class="ann-row-group" data-id="${_esc(ann.id)}">
@@ -491,6 +514,22 @@
         _onDelete && _onDelete(btn.dataset.id);
       });
     });
+    _root.querySelectorAll('.ann-bucket-chip[data-bucket]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const annId = btn.dataset.id;
+        const bucketId = btn.dataset.bucket;
+        const ann = _annotations.find(a => a.id === annId);
+        if (!ann || !bucketId) return;
+        const cur = Array.isArray(ann.bucket_ids) ? ann.bucket_ids.slice() : [];
+        const has = cur.includes(bucketId);
+        const next = has ? cur.filter(x => x !== bucketId) : cur.concat([bucketId]);
+        if (_onBucketToggle) {
+          _onBucketToggle(annId, bucketId, !has);
+        } else if (_onUpdate) {
+          _onUpdate(annId, { bucket_ids: next });
+        }
+      });
+    });
     // Edit-panel expand/collapse toggle — defaults to collapsed.
     _root.querySelectorAll('.ann-link-edit-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -532,6 +571,18 @@
           const cur = Array.isArray(ann && ann.cite_in_drafts)
             ? ann.cite_in_drafts.filter(d => d !== draftId) : [];
           _onUpdate && _onUpdate(annId, { cite_in_drafts: cur });
+        }
+      });
+    });
+
+    // V3.103 — "+ Link draft…" button opens the paper-overlays draft
+    // picker so the user can extend meta.library.linked_drafts inline
+    // from the per-annotation evidence form.
+    _root.querySelectorAll('.ann-draft-link[data-action="link-draft"]').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker) {
+          window.PAPER_OVERLAYS.openLinkPicker();
         }
       });
     });
@@ -745,6 +796,9 @@
     _onDelete = opts.onDelete || null;
     _onReply = opts.onReply || null;
     _onVisibilityDefaultChange = opts.onVisibilityDefaultChange || null;
+    _getBuckets = opts.getBuckets || null;
+    _onBucketToggle = opts.onBucketToggle || null;
+    _getBucketColor = opts.getBucketColor || (() => '#a78bfa');
 
     let stored = null;
     try { stored = localStorage.getItem('rm_lib_default_vis'); } catch (_) { /* ignore */ }

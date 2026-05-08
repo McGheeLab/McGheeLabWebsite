@@ -140,7 +140,22 @@
       if (!pageAnchor) continue;
       const rects = window.ANNOTATION_ANCHOR.anchorToRects(_viewer, pageAnchor);
       const color = _colorById(ann.color_id);
-      for (const r of rects) {
+      // V3.103 — when the highlight cites into multiple drafts AND more
+      // than one draft overlay is active, draw a thin colored left-
+      // stripe per draft so the user can see which draft the
+      // highlight is evidence for. Skip for "general" highlights
+      // (empty cite_in_drafts).
+      // Falls back to legacy ann.bucket_ids when cite_in_drafts is
+      // absent, so existing data renders correctly until migrated.
+      const annDrafts = Array.isArray(ann.cite_in_drafts) && ann.cite_in_drafts.length
+        ? ann.cite_in_drafts
+        : (Array.isArray(ann.bucket_ids) ? ann.bucket_ids : []);
+      const activeOverlayIds = (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getActiveDraftIds)
+        ? new Set(window.PAPER_OVERLAYS.getActiveDraftIds())
+        : new Set();
+      const showStripes = annDrafts.length > 0 && activeOverlayIds.size > 1;
+      for (let ri = 0; ri < rects.length; ri++) {
+        const r = rects[ri];
         const div = document.createElement('div');
         div.className = 'ann-rect';
         if (ann.id === _focusedId) div.classList.add('ann-rect-focused');
@@ -155,6 +170,24 @@
         // No click handler / no pointer-events — see CSS comment in
         // .ann-rect for why. Click-to-focus is via the side panel.
         ov.appendChild(div);
+        // Add left-edge stripes ONLY on the first rect of the highlight
+        // (otherwise multi-line highlights duplicate the stripe per line,
+        // which clutters the page). 3px stripes side-by-side per bucket.
+        if (showStripes && ri === 0 && window.PAPER_OVERLAYS) {
+          const stripeDrafts = annDrafts.filter(id => activeOverlayIds.has(id));
+          const colorFor = window.PAPER_OVERLAYS.getColorForDraft || window.PAPER_OVERLAYS.getColorForBucket;
+          stripeDrafts.forEach((did, idx) => {
+            const s = document.createElement('div');
+            s.className = 'ann-bucket-stripe';
+            s.style.left = `${r.x - 4 - idx * 4}px`;
+            s.style.top = `${r.y}px`;
+            s.style.width = '3px';
+            s.style.height = `${r.height}px`;
+            s.style.backgroundColor = colorFor(did);
+            s.title = did;
+            ov.appendChild(s);
+          });
+        }
       }
     }
   }

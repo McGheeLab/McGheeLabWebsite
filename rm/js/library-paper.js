@@ -684,16 +684,29 @@
       ev.clipboardData.setData('text/plain', text);
     });
 
-    // Load draft list (paper items that aren't library entries) + lab-
-    // shared annotation groups, both used by the per-card UI.
+    // V3.103 — per-paper draft shortlist. The annotation panel's
+    // "Tag as evidence" picker lists the drafts (paper drafts +
+    // grant proposals) the user has explicitly linked to this paper
+    // via `meta.library.linked_drafts`. _allDrafts is the global
+    // pool used by the inline "+ Add draft" affordance to extend
+    // the per-paper list.
     let _drafts = [];
+    let _allDrafts = [];
+    const GRANT_DRAFT_STATUSES = new Set(['drafting', 'submitted', 'under_review', 'revising', 'rejected']);
     try {
       const itemsData = await api.load('items.json');
-      _drafts = (itemsData.items || []).filter(it => {
-        if (it.type !== 'paper') return false;
-        const lib = (it.meta || {}).library || {};
-        return !lib.is_library_entry;
-      }).map(it => ({ id: it.id, title: it.title || it.id }));
+      const all = (itemsData.items || []);
+      _allDrafts = all.filter(it => {
+        if (it.type === 'paper') {
+          const lib = (it.meta || {}).library || {};
+          return !lib.is_library_entry;
+        }
+        if (it.type === 'grant') return GRANT_DRAFT_STATUSES.has(it.status);
+        return false;
+      }).map(it => ({ id: it.id, title: it.title || it.id, kind: it.type === 'grant' ? 'grant' : 'paper' }));
+      // Per-paper shortlist: only drafts the user has linked.
+      const linkedIds = new Set(((_item.meta && _item.meta.library && _item.meta.library.linked_drafts) || []));
+      _drafts = _allDrafts.filter(d => linkedIds.has(d.id));
     } catch (e) {
       console.warn('[library-paper] could not load items.json for drafts:', e.message);
     }
@@ -958,12 +971,28 @@
         // _applyFilter is defined inside _mountAnnotations' closure, so
         // re-trigger it via the panel's filter-change emit (which calls
         // the handler we registered).
-        window.PAPER_OVERLAYS.onChange(() => {
+        window.PAPER_OVERLAYS.onChange(async () => {
+          // V3.103 — when the user adds/removes a linked draft via the
+          // overlays popover or the inline "+ Link draft…" button,
+          // refresh the per-paper draft shortlist (`_drafts`) so the
+          // annotation panel's draft selectors reflect the new set.
+          // _allDrafts comes from items.json and rarely changes; we
+          // re-derive _drafts from it + the open paper's
+          // meta.library.linked_drafts (which the link picker just
+          // wrote). We re-load items.json so _item.meta is fresh.
+          try {
+            const fresh = await api.load('items.json');
+            const updated = (fresh.items || []).find(i => i.id === paperId);
+            if (updated) {
+              _item = updated;
+              const linkedIds = new Set(((updated.meta && updated.meta.library && updated.meta.library.linked_drafts) || []));
+              _drafts = _allDrafts.filter(d => linkedIds.has(d.id));
+              if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.setAnnotations) {
+                window.ANNOTATION_PANEL.setAnnotations(_annotations);
+              }
+            }
+          } catch (e) { /* ignore */ }
           if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.getFilterFn) {
-            // Manual fan-out: the panel's onFilterChange callback is what
-            // re-runs _applyFilter. We don't have a public re-emit, so
-            // simulate by fetching the current filter and calling our
-            // composed setFilter directly.
             const panelFn = window.ANNOTATION_PANEL.getFilterFn();
             const overlayFn = window.PAPER_OVERLAYS.getFilterFn();
             window.ANNOTATION_OVERLAY.setFilter((ann) => panelFn(ann) && overlayFn(ann));
