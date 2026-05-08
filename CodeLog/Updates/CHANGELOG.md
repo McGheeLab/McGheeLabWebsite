@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.85] - 2026-05-08
+
+**Side popouts now stick to the overall screen edges in both shell modes.** Reported: in workflow split, the popouts followed one of the iframes inside the split (because the workflow-shell URL was being passed AS the left iframe URL, so the workflow shell was nested inside the split — its popouts attached to that nested iframe's edges, not to the overall viewport). Fix: extract popout rendering into a shared module and load it on `split-view.html` too, so both shells render popouts as overlays on their own outermost host.
+
+### Added
+- **`rm/js/shell-popouts.js`** (~260 LOC) — shared module. `ShellPopouts.init(opts)` injects the two popout `<div>`s into a host element (idempotent — uses existing `#shell-popout-left` / `#shell-popout-right` if already present), reads/writes URL state for `?leftPopout`, `?rightPopout`, `?leftOpen`, `?rightOpen` (preserving every other URL param so it doesn't trample shell-specific params like `?workflow=` / `?active=` / `?left=` / `?right=`), persists per-side width to `localStorage`, and renders the two states (collapsed pill at viewport edge / open panel with header + iframe + drag-to-resize handle + close pill on slider).
+- The page picker dropdown is restricted to `opts.workflowPageIds` plus the two defaults (`chat` + `tasks`), filtered by `opts.canAccessPage`.
+
+### Changed
+- **`rm/js/workflow-shell.js`** — refactored to delegate popouts to `ShellPopouts.init`. Removed all popout rendering / drag / state code (~140 LOC trimmed); `writeState()` no longer touches popout params. Boot calls `ShellPopouts.init({ container: #shell-root, workflowPageIds: wf.pageIds, … })` after the workflow loads. Behavior unchanged from the user's POV.
+- **`rm/pages/workflow-shell.html`** — new `<script src="/rm/js/shell-popouts.js">` between workflow-state.js and workflow-shell.js.
+- **`rm/pages/split-view.html`** — added `<link rel="stylesheet" href="/rm/css/workflow-shell.css">` (so popout styles are available), wrapped `<div id="split-root">` in a new `<div id="shell-root">` (the positioning anchor), and added `<script src>` tags for `page-registry.js`, `workflow-state.js`, `shell-popouts.js`.
+- **`rm/js/split-view.js`** — after the IIFE renders the panes + writes initial state, calls `ShellPopouts.init({ container: #shell-root, workflowPageIds: <from sessionStorage workflow>, … })` on the next tick (so nav.js's `_wfAdoptFromUrl` has run and sessionStorage holds the workflow). Popouts now render on top of the split, anchored to the overall screen edges.
+- **`rm/css/split-view.css`** — `body.has-split-view #shell-root { flex: 1 1 auto; position: relative; … }` makes the new wrapper the popout positioning anchor; `#split-root` keeps filling the wrapper. No visual change to the panes themselves.
+- **`sw.js`** — `CACHE_VERSION` 59 → 60.
+
+### Notes
+- **Popout state shared via URL** — both shells use the same param names (`leftPopout` / `rightPopout` / `leftOpen` / `rightOpen`), no collision with split's `?left` / `?right` (which are full URLs for the iframe sources).
+- **Width persisted via localStorage** — `mcgheelab.shellPopout.<side>Width`. The user's resized width follows them between workflow-shell and split-view.
+- **No firestore.rules / functions changes.**
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v60`.
+
 ## [V3.84] - 2026-05-08
 
 **Bug fix — close pill on chat popout reloaded the iframe instead of closing the popout.** Reported: "when I click on the close chat popout, it just reloads the chat page and doesn't close the popout."

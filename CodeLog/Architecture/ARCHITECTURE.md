@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.84 (Bug fix — close popout reloaded the chat iframe instead of closing. `writeState` now always writes literal `leftOpen=0|1` so explicit-close survives URL round trip; previously `falsy = omit` collided with `readState`'s "default to open when missing".)
+**Version:** V3.85 (Side popouts extracted into shared `rm/js/shell-popouts.js`; `workflow-shell.html` AND `split-view.html` both initialize it so popouts overlay the overall screen edges in either shell, instead of getting attached to a single iframe inside split.)
 
 ## System Overview
 

@@ -124,6 +124,33 @@
   render();
   writeState(state);
 
+  // V3.85 — initialize the shared shell popouts so split mode also has
+  // chat/tasks (or user-chosen pages) available at the screen edges.
+  // Init after a tick so workflow-state has been adopted into
+  // sessionStorage by nav.js (which fires on DOMContentLoaded — the
+  // split-view IIFE runs before that, so we defer to next tick).
+  setTimeout(function () {
+    if (window.ShellPopouts && ShellPopouts.init) {
+      // Pull workflow page list (if any) for the popout's page picker.
+      let wfPageIds = [];
+      const wfState = (typeof WorkflowState !== 'undefined' && WorkflowState.read)
+        ? WorkflowState.read() : null;
+      if (wfState && wfState.id && window.PAGE_REGISTRY && PAGE_REGISTRY.DEFAULT_WORKFLOWS) {
+        const wf = (PAGE_REGISTRY.DEFAULT_WORKFLOWS || []).find(w => w.id === wfState.id);
+        if (wf) wfPageIds = wf.pageIds || [];
+      }
+      ShellPopouts.init({
+        container: document.getElementById('shell-root') || document.body,
+        workflowPageIds: wfPageIds,
+        canAccessPage: (id) => {
+          if (typeof firebridge === 'undefined' || !firebridge.canAccessPage) return true;
+          return firebridge.canAccessPage(id);
+        },
+        defaults: { left: 'chat', right: 'tasks' },
+      });
+    }
+  }, 0);
+
   function render() {
     root.innerHTML =
       '<div class="split-shell">' +

@@ -6,13 +6,20 @@
   <title>Split View — McGhee Lab</title>
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/split-view.css">
+  <link rel="stylesheet" href="/rm/css/workflow-shell.css">
   <script src="/rm/js/runtime-mode.js"></script>
 </head>
 <body class="has-split-view">
   <!-- nav.js renders the top RM nav into document.body. The .has-split-view
-       body class makes the body itself a vertical flex container so #split-root
-       grows to fill the rest of the viewport below the nav. -->
-  <div id="split-root"></div>
+       body class makes the body itself a vertical flex container so the
+       inner host fills the rest of the viewport below the nav. -->
+  <!-- V3.85 — wrapper provides a positioning anchor so left/right popouts
+       (injected by ShellPopouts.init) overlay the WHOLE split area (not
+       a single iframe inside it). Same DOM shape as workflow-shell.html's
+       #shell-root so the popout CSS works in both shells. -->
+  <div id="shell-root">
+    <div id="split-root"></div>
+  </div>
 
   <!-- Firebase SDK is needed because nav.js + firebase-bridge run on this
        outer page too (so the nav gating + auth overlay work). The inner
@@ -32,8 +39,13 @@
   <script src="/rm/js/sync-status.js"></script>
 
   <!-- nav.js MUST load before split-view.js — split-view reads NAV_ITEMS
-       from nav.js's top-level scope to build the page-swap dropdowns. -->
+       from nav.js's top-level scope to build the page-swap dropdowns.
+       page-registry.js then flattens NAV_ITEMS into PAGE_REGISTRY for
+       the popouts' page picker. -->
   <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/page-registry.js"></script>
+  <script src="/rm/js/workflow-state.js"></script>
+  <script src="/rm/js/shell-popouts.js"></script>
   <script src="/rm/js/split-view.js"></script>
 </body>
 </html>
