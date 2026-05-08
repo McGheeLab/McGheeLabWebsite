@@ -31,19 +31,48 @@
   const MIN_POPOUT_WIDTH = 240;
   const MAX_POPOUT_WIDTH = 900;
   const WIDTH_LS_KEY = function (side) { return 'mcgheelab.shellPopout.' + side + 'Width'; };
+  // V3.89 — persist popout state (open/closed + selected page) to
+  // localStorage so it survives navigations between workflows + browser
+  // restarts. URL still wins when present (so shareable URLs keep
+  // working); localStorage is the source-of-truth fallback when the URL
+  // doesn't specify.
+  const STATE_LS_KEY = 'mcgheelab.shellPopout.state';
 
   let _opts = null;       // saved init options
 
-  /* ─── URL state helpers ───────────────────────────────── */
+  /* ─── URL + localStorage state helpers ────────────────── */
+  function readPersistedState() {
+    try {
+      const raw = localStorage.getItem(STATE_LS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+    return {};
+  }
+  function writePersistedState(s) {
+    try {
+      localStorage.setItem(STATE_LS_KEY, JSON.stringify({
+        leftPopout: s.leftPopout, rightPopout: s.rightPopout,
+        leftOpen:   s.leftOpen,   rightOpen:   s.rightOpen,
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
   function readState() {
     const p = new URLSearchParams(location.search);
+    const persisted = readPersistedState();
+    const defL = (_opts && _opts.defaults && _opts.defaults.left)  || 'chat';
+    const defR = (_opts && _opts.defaults && _opts.defaults.right) || 'tasks';
     const hasLeftOpen  = p.has('leftOpen');
     const hasRightOpen = p.has('rightOpen');
     return {
-      leftPopout:  p.get('leftPopout')  || (_opts && _opts.defaults && _opts.defaults.left)  || 'chat',
-      rightPopout: p.get('rightPopout') || (_opts && _opts.defaults && _opts.defaults.right) || 'tasks',
-      leftOpen:    hasLeftOpen  ? p.get('leftOpen')  === '1' : true,
-      rightOpen:   hasRightOpen ? p.get('rightOpen') === '1' : true,
+      // URL > persisted > default. Means an explicit URL ?leftPopout=
+      // overrides the persisted choice (handy for share links).
+      leftPopout:  p.get('leftPopout')  || persisted.leftPopout  || defL,
+      rightPopout: p.get('rightPopout') || persisted.rightPopout || defR,
+      leftOpen:    hasLeftOpen  ? p.get('leftOpen')  === '1'
+                                 : (persisted.leftOpen  != null ? !!persisted.leftOpen  : true),
+      rightOpen:   hasRightOpen ? p.get('rightOpen') === '1'
+                                 : (persisted.rightOpen != null ? !!persisted.rightOpen : true),
     };
   }
 
@@ -57,6 +86,7 @@
     p.set('leftOpen',    s.leftOpen  ? '1' : '0');
     p.set('rightOpen',   s.rightOpen ? '1' : '0');
     history.replaceState(null, '', location.pathname + '?' + p.toString());
+    writePersistedState(s);     // V3.89 — also persist for cross-nav
   }
 
   /* ─── Width persistence ──────────────────────────────── */
@@ -192,26 +222,69 @@
 
     applyWidth(side);
 
-    // Page picker options.
+    // V3.89 — page picker lists EVERY accessible page from
+    // PAGE_REGISTRY, grouped by NAV section, with the workflow's own
+    // pages listed first as a fast-access "Workflow" group. Previously
+    // it was workflow pages + chat + tasks only — that's enough for
+    // typical workflow popouts but the user wanted to be able to put
+    // any page in either popout slot.
     const picker = header.querySelector('.shell-popout-picker');
     const wfPages = (_opts && _opts.workflowPageIds) || [];
     const canAcc = (_opts && _opts.canAccessPage) || (() => true);
     const seen = new Set();
-    const addOption = (id) => {
-      if (seen.has(id)) return;
-      seen.add(id);
-      const p = pageMap().get(id);
-      if (!p) return;
-      if (!canAcc(id)) return;
+    const allPages = (window.PAGE_REGISTRY && window.PAGE_REGISTRY.list) || [];
+
+    function appendOption(group, p) {
+      if (seen.has(p.id)) return;
+      if (!canAcc(p.id)) return;
+      seen.add(p.id);
+      group.appendChild(buildOption(p, p.id === pageId));
+    }
+    function buildOption(p, selected) {
       const opt = document.createElement('option');
-      opt.value = id;
+      opt.value = p.id;
       opt.textContent = p.label;
-      if (id === pageId) opt.selected = true;
-      picker.appendChild(opt);
-    };
-    wfPages.forEach(addOption);
-    addOption((_opts && _opts.defaults && _opts.defaults.left)  || 'chat');
-    addOption((_opts && _opts.defaults && _opts.defaults.right) || 'tasks');
+      if (selected) opt.selected = true;
+      return opt;
+    }
+
+    // 1. "This workflow" optgroup — fast access to the chips the user
+    //    is already cycling between via the strip.
+    if (wfPages.length) {
+      const wfGroup = document.createElement('optgroup');
+      wfGroup.label = 'This workflow';
+      wfPages.forEach(id => {
+        const p = pageMap().get(id);
+        if (p) appendOption(wfGroup, p);
+      });
+      if (wfGroup.children.length) picker.appendChild(wfGroup);
+    }
+
+    // 2. Defaults (chat / tasks) if not already shown via workflow.
+    const defaultsGroup = document.createElement('optgroup');
+    defaultsGroup.label = 'Quick';
+    [(_opts && _opts.defaults && _opts.defaults.left)  || 'chat',
+     (_opts && _opts.defaults && _opts.defaults.right) || 'tasks'].forEach(id => {
+      const p = pageMap().get(id);
+      if (p) appendOption(defaultsGroup, p);
+    });
+    if (defaultsGroup.children.length) picker.appendChild(defaultsGroup);
+
+    // 3. Every other accessible page, bucketed by NAV group.
+    const byGroup = new Map();
+    allPages.forEach(p => {
+      if (seen.has(p.id)) return;
+      if (!canAcc(p.id)) return;
+      const g = p.group || 'Other';
+      if (!byGroup.has(g)) byGroup.set(g, []);
+      byGroup.get(g).push(p);
+    });
+    byGroup.forEach((pages, groupName) => {
+      const optg = document.createElement('optgroup');
+      optg.label = groupName;
+      pages.forEach(p => appendOption(optg, p));
+      if (optg.children.length) picker.appendChild(optg);
+    });
     picker.addEventListener('change', () => {
       const newId = picker.value;
       const s = readState();

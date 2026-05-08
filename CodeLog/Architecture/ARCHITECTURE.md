@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.88 (Bug fix — split panes nested the workflow shell inside each iframe because the strip's split link used `location.href` (the shell URL). On workflow-shell `nav.js` now derives `leftURL` from the active page's URL via `pageMap` + `pageState[active]`.)
+**Version:** V3.89 (Popouts persist across workflow switches — brand becomes a hover dropdown of all workflows; `rm:shell:switch-workflow` reconfigures workflow-shell.js in-place (no full page nav) so popout iframes stay mounted. Popout state also persisted to localStorage as a fallback for the chooser-route navigation. Page picker lists all accessible pages grouped by NAV section.)
 
 ## System Overview
 

@@ -156,6 +156,93 @@
   box-shadow: 3px 0 0 0 #fbbf24 inset;
 }
 
+/* V3.89 — in-shell brand dropdown (workflow switcher). Hover the
+ * brand on the workflow strip to open a list of all workflows; click
+ * one to switch in-place (popouts stay mounted). */
+.workflow-strip .ws-brand-dropdown {
+  position: relative;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding-right: 12px;
+  border-right: 1px solid rgba(255,255,255,.18);
+  margin-right: 4px;
+  user-select: none;
+}
+.workflow-strip .ws-brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+}
+.workflow-strip .ws-brand-link:hover { color: #dbeafe; }
+.workflow-strip .ws-brand-caret {
+  font-size: 10px;
+  opacity: .7;
+  margin-left: 4px;
+}
+.workflow-strip .ws-brand-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 240px;
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15,23,42,.14);
+  padding: 6px 0;
+  z-index: 60;
+  color: var(--text, #111827);
+  margin-top: 4px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.workflow-strip .ws-brand-dropdown.open .ws-brand-menu { display: block; }
+.workflow-strip .ws-brand-menu-header {
+  padding: 6px 12px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-muted, #6b7280);
+}
+.workflow-strip .ws-brand-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text, #111827);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 400;
+}
+.workflow-strip .ws-brand-menu-item:hover { background: var(--bg, #f3f4f6); }
+.workflow-strip .ws-brand-menu-item--active {
+  background: color-mix(in srgb, var(--primary, #2563eb) 8%, white);
+  font-weight: 600;
+}
+.workflow-strip .ws-brand-menu-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.workflow-strip .ws-brand-menu-divider {
+  height: 1px;
+  background: var(--border, #e5e7eb);
+  margin: 4px 8px;
+}
+.workflow-strip .ws-brand-menu-loading {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  font-style: italic;
+}
+
 /* V3.66 — pinned "My Workflows" dropdown in the regular nav */
 .nav-dropdown-pinned > .nav-dropdown-trigger {
   font-weight: 500;

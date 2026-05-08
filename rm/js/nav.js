@@ -329,12 +329,36 @@ async function renderWorkflowStrip(state) {
   const strip = document.createElement('nav');
   strip.className = 'workflow-strip';
 
-  // Brand link → chooser
-  const brand = document.createElement('a');
-  brand.className = 'ws-brand';
-  brand.href = '/rm/index.html';
-  brand.title = 'Switch workflow';
-  brand.innerHTML = '<span class="ws-icon">🗂</span><span class="ws-brand-label">Loading…</span>';
+  // V3.89 — when on the workflow shell, the brand becomes a hover
+  // dropdown that lists all available workflows (default + custom).
+  // Clicking a workflow inside the dropdown dispatches
+  // rm:shell:switch-workflow so workflow-shell.js can swap workflows
+  // in-place without a full-page navigation. Crucially this preserves
+  // the popouts (their iframes stay mounted = no chat/tasks reload).
+  // Outside the shell, brand stays a plain link to the chooser.
+  const onShellPath = location.pathname === '/rm/pages/workflow-shell.html';
+  let brand;
+  if (onShellPath) {
+    brand = document.createElement('div');
+    brand.className = 'ws-brand ws-brand-dropdown';
+    brand.innerHTML =
+      '<a class="ws-brand-link" href="/rm/index.html" title="Open the workflow chooser">' +
+      '  <span class="ws-icon">🗂</span><span class="ws-brand-label">Loading…</span>' +
+      '  <span class="ws-brand-caret">⌄</span>' +
+      '</a>' +
+      '<div class="ws-brand-menu" role="menu">' +
+      '  <div class="ws-brand-menu-loading">Loading…</div>' +
+      '</div>';
+    // Hover-to-open like nav-dropdown groups in the regular nav.
+    brand.addEventListener('mouseenter', () => brand.classList.add('open'));
+    brand.addEventListener('mouseleave', () => brand.classList.remove('open'));
+  } else {
+    brand = document.createElement('a');
+    brand.className = 'ws-brand';
+    brand.href = '/rm/index.html';
+    brand.title = 'Switch workflow';
+    brand.innerHTML = '<span class="ws-icon">🗂</span><span class="ws-brand-label">Loading…</span>';
+  }
   strip.appendChild(brand);
 
   const pagesEl = document.createElement('div');
@@ -420,12 +444,26 @@ async function renderWorkflowStrip(state) {
   // Fetch the workflow record async; populate label + chips.
   const wf = await _wfFetchWorkflow(state);
   if (!wf) {
-    brand.querySelector('.ws-brand-label').textContent = 'Workflow not found';
+    const labelEl = brand.querySelector('.ws-brand-label');
+    if (labelEl) labelEl.textContent = 'Workflow not found';
     pagesEl.innerHTML = '<span class="ws-page" style="opacity:.5">No pages</span>';
     return;
   }
-  brand.innerHTML = '<span class="ws-icon">' + (wf.icon || '🗂') + '</span>'
-                  + '<span class="ws-brand-label">' + (wf.label || wf.id) + '</span>';
+  // V3.89 — when in shell mode, brand is a dropdown wrapper. Update
+  // only the icon + label (not the whole innerHTML, which would
+  // destroy the dropdown menu structure). Outside shell mode, brand
+  // is a plain anchor and we replace its full innerHTML as before.
+  if (onShellPath) {
+    const iconEl = brand.querySelector('.ws-icon');
+    const labelEl = brand.querySelector('.ws-brand-label');
+    if (iconEl)  iconEl.textContent  = wf.icon || '🗂';
+    if (labelEl) labelEl.textContent = wf.label || wf.id;
+    // Populate the workflow switcher dropdown async.
+    _wfPopulateBrandDropdown(brand, state.id);
+  } else {
+    brand.innerHTML = '<span class="ws-icon">' + (wf.icon || '🗂') + '</span>'
+                    + '<span class="ws-brand-label">' + (wf.label || wf.id) + '</span>';
+  }
 
   const pageMap = _wfBuildPageMap();
   const ids = _wfEffectivePageIds(wf.pageIds || [], state);
@@ -746,6 +784,94 @@ function _wfChipDrop(e) {
   s.orderOverride = currentOrder;
   _wfWriteState(s);
   _wfRefreshStrip();
+}
+
+/* ── V3.89 — populate the in-shell workflow switcher dropdown.
+ *
+ * Lists every default workflow + every custom workflow under the
+ * current user. Click handler dispatches rm:shell:switch-workflow
+ * which workflow-shell.js handles in-place (no full-page navigation),
+ * so popouts and previously-loaded iframes stay mounted. */
+async function _wfPopulateBrandDropdown(brand, currentWfId) {
+  const menu = brand.querySelector('.ws-brand-menu');
+  if (!menu) return;
+  // Use cached lists when available; otherwise fetch.
+  let defaults = _wfDefaultsCache;
+  if (!defaults) {
+    try {
+      const snap = await firebridge.db().collection('labConfig').doc('defaultWorkflows').get();
+      defaults = (snap.exists && snap.data().workflows) || [];
+    } catch (e) { defaults = []; }
+    // Merge with seeds so first-run installs see all 5.
+    const byId = new Map();
+    _WF_DEFAULT_SEEDS.forEach(w => byId.set(w.id, w));
+    defaults.forEach(w => { if (w && w.id) byId.set(w.id, w); });
+    defaults = Array.from(byId.values());
+    _wfDefaultsCache = defaults;
+  }
+  let customs = _wfCustomCache;
+  if (!customs) {
+    customs = [];
+    try {
+      const u = firebridge.getUser && firebridge.getUser();
+      if (u) {
+        const snap = await firebridge.db()
+          .collection('userData').doc(u.uid)
+          .collection('customWorkflows').get();
+        snap.forEach(d => customs.push(Object.assign({ id: d.id }, d.data() || {})));
+      }
+    } catch (e) { /* ignore */ }
+    _wfCustomCache = customs;
+  }
+  const renderEntry = (w, kind) => {
+    const a = document.createElement('a');
+    a.className = 'ws-brand-menu-item' + (w.id === currentWfId ? ' ws-brand-menu-item--active' : '');
+    a.href = '#';
+    a.dataset.workflowId = w.id;
+    a.dataset.workflowKind = kind;
+    a.innerHTML = '<span class="ws-brand-menu-icon">' + escHtml(w.icon || (kind === 'custom' ? '⭐' : '🗂'))
+                + '</span><span>' + escHtml(w.label || w.id) + '</span>';
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      brand.classList.remove('open');
+      if (w.id === currentWfId) return;     // same workflow — no-op
+      window.dispatchEvent(new CustomEvent('rm:shell:switch-workflow', {
+        detail: { workflowId: w.id, kind: kind }
+      }));
+    });
+    return a;
+  };
+  function escHtml(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  menu.innerHTML = '';
+  if (defaults.length) {
+    const h = document.createElement('div');
+    h.className = 'ws-brand-menu-header';
+    h.textContent = 'Default workflows';
+    menu.appendChild(h);
+    defaults.forEach(w => menu.appendChild(renderEntry(w, 'default')));
+  }
+  if (customs.length) {
+    const h = document.createElement('div');
+    h.className = 'ws-brand-menu-header';
+    h.textContent = 'My workflows';
+    menu.appendChild(h);
+    customs.forEach(w => menu.appendChild(renderEntry(w, 'custom')));
+  }
+  // Footer: "Manage workflows…" → chooser
+  const div = document.createElement('div');
+  div.className = 'ws-brand-menu-divider';
+  menu.appendChild(div);
+  const chooser = document.createElement('a');
+  chooser.className = 'ws-brand-menu-item';
+  chooser.href = '/rm/index.html';
+  chooser.textContent = 'Open chooser…';
+  chooser.style.fontStyle = 'italic';
+  menu.appendChild(chooser);
 }
 
 /* ── V3.65 strip mutations ── */

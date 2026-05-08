@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.89] - 2026-05-08
+
+**Popouts persist across workflow switches + page picker lists every page.** Reported: "when switching workflows, the side popouts both default to opened and they refresh. They should be loaded and stay loaded and their state should persist through anything we do in RM. Also the right popout menu does not have the correct dropdown to change the popout to a different page type."
+
+### Three changes
+
+#### 1. In-shell workflow switcher (popouts stay mounted)
+Previously, switching workflows meant: shell → chooser (full page nav) → click another workflow card → shell again (another full page nav). Two reloads obliterated everything in the popouts.
+
+- **`rm/js/nav.js`** — when `location.pathname === '/rm/pages/workflow-shell.html'`, the strip's brand becomes a hover-dropdown wrapper (`.ws-brand-dropdown`) instead of a plain anchor. Hover opens a menu listing all default workflows + the user's custom workflows + an "Open chooser…" footer.
+- **`rm/js/nav.js`** — new `_wfPopulateBrandDropdown()` populates the menu after the workflow record loads. Pulls from `_wfDefaultsCache` + `_wfCustomCache`. Click a menu entry → dispatches `rm:shell:switch-workflow { workflowId, kind }`.
+- **`rm/js/workflow-shell.js`** — listens for `rm:shell:switch-workflow`. Reconfigures in-place: `WorkflowState.setActive(id, kind)`, `replaceState` to update `?workflow=` + clear `?active=`, fetches the new workflow record, picks a landing page, calls `showActiveFrame(landing)` (lazy-creates a new iframe; old workflow's iframes stay mounted under `display: none` in the `_frames` map for instant return), refreshes the strip via `_wfRefreshStrip()`. **No page navigation occurs**, so the popouts (their iframes, scroll positions, in-progress edits) are untouched.
+- **`rm/css/workflow.css`** — `.ws-brand-dropdown` + `.ws-brand-menu` + `.ws-brand-menu-item` styles. Hover-to-open like the regular `.nav-dropdown` pattern.
+
+#### 2. Popout state persists in localStorage
+URL is no longer the only source of popout state. Workflow switch via the chooser still works (full nav) and now restores the user's last popout config from localStorage.
+
+- **`rm/js/shell-popouts.js`** — `readPersistedState()` / `writePersistedState()` read/write `localStorage['mcgheelab.shellPopout.state']` containing `{ leftPopout, rightPopout, leftOpen, rightOpen }`. `readState()` precedence is URL > localStorage > defaults. `writeState()` writes to BOTH URL and localStorage. So opening/closing a popout, swapping a page in a popout, or picking a different default page all stick across navigations and even browser restarts.
+
+#### 3. Page picker lists every accessible page (grouped)
+Was: workflow page IDs + chat + tasks. Many pages weren't reachable as a popout target.
+
+- **`rm/js/shell-popouts.js`** — picker now uses `<optgroup>` sections: "This workflow" (workflow's pageIds), "Quick" (chat / tasks defaults if not already shown), then every other accessible page in `PAGE_REGISTRY.list` bucketed by NAV section (Activity / Research / Operations / Lab Admin / Settings / Other). `firebridge.canAccessPage` filter applied throughout.
+
+### Other
+- **`sw.js`** — `CACHE_VERSION` 63 → 64.
+
+### Notes
+- **Popout iframe persistence** is now true within a shell session (workflow switch via brand dropdown). Across the chooser route (full page nav), the iframe re-creates but at least its open/closed + page selection are restored from localStorage so the visible state matches the user's prior session.
+- **Memory cost of in-shell workflow switching:** previous workflow's main iframes stay in DOM (`display: none`). Switching back is instant; cumulative footprint scales with how many distinct workflows the user visited in the session. Acceptable for typical 2–3 workflow sessions; could add LRU later if it bites.
+- No firestore.rules / functions changes.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v64`.
+
 ## [V3.88] - 2026-05-08
 
 **Bug fix — split panes showed nested workflow nav inside each iframe.** Reported: "now the split pages have their own workflow nav on each page header."

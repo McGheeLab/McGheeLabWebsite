@@ -145,6 +145,51 @@
     showActiveFrame(pageId);     // always swap; force-show is harmless
   });
 
+  /* V3.89 — in-shell workflow switcher. The brand dropdown in the
+   * workflow strip dispatches this event with a new workflow id +
+   * kind. We reconfigure in-place: update sessionStorage, update URL
+   * via replaceState, fetch the new workflow, hide all current main
+   * iframes (kept in DOM so a return to the previous workflow is
+   * instant), ensure + show the new active page's iframe. POPOUTS
+   * UNTOUCHED — their iframes stay mounted = chat/tasks state
+   * preserved across the switch. */
+  window.addEventListener('rm:shell:switch-workflow', async (e) => {
+    const d = e && e.detail; if (!d || !d.workflowId) return;
+    if (typeof WorkflowState !== 'undefined' && WorkflowState.setActive) {
+      WorkflowState.setActive(d.workflowId, d.kind || 'default');
+    }
+    // Update URL to the new workflow + clear the active param so we
+    // re-pick a landing page below. Preserve popout params.
+    const sp = new URLSearchParams(location.search);
+    sp.set('workflow', d.workflowId);
+    sp.delete('active');
+    history.replaceState(null, '', '/rm/pages/workflow-shell.html?' + sp.toString());
+    // Fetch the new workflow + pick a landing page.
+    _wf = null;       // bust the cached _wf so loadWorkflow refetches
+    const wf = await loadWorkflow(d.workflowId);
+    if (!wf) return;
+    let landing = wf.landingPageId;
+    const isAccessible = (id) => {
+      if (!pageHrefForId(id)) return false;
+      if (typeof firebridge === 'undefined' || !firebridge.canAccessPage) return true;
+      return firebridge.canAccessPage(id);
+    };
+    if (!landing || !isAccessible(landing)) {
+      landing = (wf.pageIds || []).find(isAccessible);
+    }
+    if (!landing) return;
+    // Update URL with chosen active page.
+    const sp2 = new URLSearchParams(location.search);
+    sp2.set('active', landing);
+    history.replaceState(null, '', '/rm/pages/workflow-shell.html?' + sp2.toString());
+    // Show the new active iframe (lazy-create on first use). Previous
+    // workflow's main iframes stay in _frames + DOM, just display:none
+    // — switching back is instant.
+    showActiveFrame(landing);
+    // Trigger a strip refresh so chips reflect the new workflow.
+    if (typeof _wfRefreshStrip === 'function') _wfRefreshStrip();
+  });
+
   /* ─── Boot ────────────────────────────────────────────── */
   async function boot() {
     if (typeof firebridge === 'undefined') return;
