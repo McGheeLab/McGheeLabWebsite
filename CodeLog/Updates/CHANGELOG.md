@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.79] - 2026-05-07
+
+**Bulk grant/revoke + sort by role on the Users × Pages admin matrix.** Setting permissions for many lab members one cell at a time was painful. Two upgrades:
+
+1. **Bulk-action bar.** Tick row checkboxes on the users you want to update, tick page chips for the pages to apply, then click `Grant pages to selected users` (adds) or `Revoke pages from selected users` (removes). Status line reports `(N cells changed)` so admin can see the scope before saving.
+2. **Sort users by role.** Default is "Role then name" — clusters admins, postdocs, PhDs, etc. together. Other options: by name, by email. Each user row also gets a small color-coded role tag next to their name for visual scanning.
+
+### Changed
+- **`rm/js/admin-permissions.js`** —
+  - `sortUsers()` factored out of `loadUsers()`. Reads `#perm-user-sort` value; default is `'role'` which uses a `ROLE_ORDER` rank (`admin > pi > postdoc > phd > masters > undergrad > staff > collaborator > member > guest`) with name as tiebreaker.
+  - `renderUserGrid()` calls `sortUsers()` first so re-rendering after a sort change is correct. Each row's label cell gained a `<input class="perm-user-select">` checkbox + a `<span class="perm-role-tag perm-role-<role>">` chip next to the name. Cell checkboxes now overlay pending edits on top of `initialState` so re-rendering during a bulk apply preserves what the admin just toggled.
+  - New module-level state: `selectedUsers: Set<uid>`, `bulkPages: Set<pageId>`.
+  - New handlers: `onUserSelectToggle`, `onBulkPageToggle`, `onBulkSelectAll`, `onBulkClearSelection`, `onBulkClearPages`, `onBulkApply(mode)`. The apply path mutates DOM checkboxes + dispatches synthetic `change` events so the existing `onUserCellChange` flow tracks each flipped cell as a pending edit.
+  - `refreshBulkBar()` builds the page picker chips lazily on first show and syncs the visual state on every selection change.
+  - `wireActions()` now also wires the sort dropdown + the five bulk-bar buttons.
+- **`rm/pages/admin-permissions.html`** — new `.perm-users-toolbar` (sort dropdown + hint), new `#perm-bulk-bar` (3 rows: count + select-all/clear; pages picker; grant/revoke buttons). CSS for `.perm-user-label`, `.perm-user-select`, `.perm-role-tag` (one rule per role with its own color), `.perm-bulk-bar`, `.perm-bulk-chip` (with `.on` state). Workflows tab unaffected.
+- **`sw.js`** — `CACHE_VERSION` 53 → 54.
+
+### Notes
+- **Save flow unchanged.** Bulk apply just generates pending cell edits; `Save changes` (top toolbar) flushes them per the existing `userPermissions/{uid}` write path.
+- **No firestore.rules / functions changes.**
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v54`.
+
 ## [V3.78] - 2026-05-07
 
 **Workflow shell — every workflow page is always loaded, with side popouts.** Two coupled features the user asked for:

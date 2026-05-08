@@ -40,6 +40,9 @@
   var pendingEdits = new Map();          // key = `${type}:${key}:${pageId}`
   var initialState = { user: new Map(), workflow: new Map() };
   // user → Set<pageId>; workflow → Set<pageId>
+  // V3.79 — bulk-action state for the Users × Pages tab.
+  var selectedUsers = new Set();         // uids ticked via row-select checkboxes
+  var bulkPages = new Set();             // pageIds ticked in the bulk-action bar
 
   function setStatus(msg, kind) {
     var el = document.getElementById('perm-status');
@@ -89,7 +92,26 @@
         role: data.role || 'guest',
       });
     });
+    sortUsers();
+  }
+
+  /* V3.79 — sort the users list per the current sort dropdown. Default
+   * is 'role' which clusters by lab-role (admin > member > guest etc.)
+   * with name as secondary key, so admins see related users adjacent. */
+  function sortUsers() {
+    var ROLE_ORDER = ['admin', 'pi', 'postdoc', 'phd', 'masters', 'undergrad', 'staff', 'collaborator', 'member', 'guest'];
+    var rank = function (role) {
+      var idx = ROLE_ORDER.indexOf((role || '').toLowerCase());
+      return idx >= 0 ? idx : ROLE_ORDER.length;
+    };
+    var mode = (document.getElementById('perm-user-sort') || {}).value || 'role';
     users.sort(function (a, b) {
+      if (mode === 'role') {
+        var rA = rank(a.role), rB = rank(b.role);
+        if (rA !== rB) return rA - rB;
+      } else if (mode === 'email') {
+        return (a.email || '').localeCompare(b.email || '');
+      }
       return (a.name || '').localeCompare(b.name || '');
     });
   }
@@ -162,8 +184,12 @@
   }
 
   function renderUserGrid() {
+    sortUsers();
     var table = document.getElementById('perm-grid-users');
     renderHeaderRow(table, 'User');
+    // V3.79 — header for the new leftmost selection column. We still
+    // keep "User" as the row-label column header; insert a select-all
+    // checkbox in the User cell itself.
     var tbody = table.tBodies[0] || table.createTBody();
     tbody.innerHTML = '';
     if (!users.length) {
@@ -179,10 +205,30 @@
       tr.dataset.uid = u.uid;
       var th = document.createElement('th');
       th.scope = 'row';
-      th.innerHTML = '<div>' + escHtml(u.name) + '</div>'
-                   + '<div class="row-label-sub">' + escHtml(u.email || u.role) + '</div>';
+      // V3.79 — row-select checkbox + role tag for visual grouping after
+      // the "Sort by Role" default.
+      var roleTag = u.role ? '<span class="perm-role-tag perm-role-' + escHtml(u.role) + '">' + escHtml(u.role) + '</span>' : '';
+      th.innerHTML =
+        '<label class="perm-user-label">' +
+        '  <input type="checkbox" class="perm-user-select" data-uid="' + escHtml(u.uid) + '"' +
+            (selectedUsers.has(u.uid) ? ' checked' : '') + '>' +
+        '  <span>' +
+        '    <div class="perm-user-name">' + escHtml(u.name) + ' ' + roleTag + '</div>' +
+        '    <div class="row-label-sub">' + escHtml(u.email || u.role) + '</div>' +
+        '  </span>' +
+        '</label>';
+      th.querySelector('.perm-user-select').addEventListener('change', onUserSelectToggle);
       tr.appendChild(th);
-      var allowed = initialState.user.get(u.uid) || new Set();
+      // Build the user's effective page set: initial state + any pending
+      // edits since load. Always copy into a fresh Set so we don't mutate
+      // initialState during a re-render (which can happen on sort change
+      // OR after a bulk-grant/revoke that flipped many cells).
+      var allowed = new Set(initialState.user.get(u.uid) || []);
+      pendingEdits.forEach(function (edit) {
+        if (edit.type !== 'user' || edit.key !== u.uid) return;
+        if (edit.checked) allowed.add(edit.pageId);
+        else allowed.delete(edit.pageId);
+      });
       var lastGroup = null;
       pageColumns().forEach(function (p) {
         var td = document.createElement('td');
@@ -199,6 +245,104 @@
         tr.appendChild(td);
       });
     });
+    refreshBulkBar();
+  }
+
+  /* V3.79 — Users × Pages bulk-action bar. Visible whenever ≥1 user is
+   * selected. Lets admin grant or revoke a set of pages for all
+   * selected users in one click. */
+  function refreshBulkBar() {
+    var bar = document.getElementById('perm-bulk-bar');
+    if (!bar) return;
+    if (window.__PERM_TAB !== 'users') { bar.style.display = 'none'; return; }
+    var n = selectedUsers.size;
+    if (n === 0) { bar.style.display = 'none'; return; }
+    bar.style.display = '';
+    bar.querySelector('.perm-bulk-count').textContent = n + ' user' + (n === 1 ? '' : 's') + ' selected';
+    // Build / refresh the page chip picker.
+    var picker = bar.querySelector('.perm-bulk-pages');
+    if (!picker.dataset.built) {
+      picker.innerHTML = '';
+      pageColumns().forEach(function (p) {
+        var chip = document.createElement('label');
+        chip.className = 'perm-bulk-chip';
+        chip.title = p.group + ' · ' + p.label;
+        chip.innerHTML =
+          '<input type="checkbox" data-page-id="' + escHtml(p.id) + '">' +
+          '<span class="perm-bulk-chip-grp">' + escHtml(p.group) + '</span>' +
+          '<span>' + escHtml(p.label) + '</span>';
+        chip.querySelector('input').addEventListener('change', onBulkPageToggle);
+        picker.appendChild(chip);
+      });
+      picker.dataset.built = '1';
+    }
+    // Sync chip checked state from bulkPages.
+    picker.querySelectorAll('input[data-page-id]').forEach(function (cb) {
+      cb.checked = bulkPages.has(cb.dataset.pageId);
+      cb.parentElement.classList.toggle('on', cb.checked);
+    });
+    bar.querySelector('.perm-bulk-pages-count').textContent =
+      bulkPages.size ? bulkPages.size + ' page' + (bulkPages.size === 1 ? '' : 's') : 'no pages';
+  }
+
+  function onUserSelectToggle(e) {
+    var uid = e.target.dataset.uid;
+    if (!uid) return;
+    if (e.target.checked) selectedUsers.add(uid);
+    else selectedUsers.delete(uid);
+    refreshBulkBar();
+  }
+  function onBulkPageToggle(e) {
+    var pid = e.target.dataset.pageId;
+    if (!pid) return;
+    if (e.target.checked) bulkPages.add(pid);
+    else bulkPages.delete(pid);
+    e.target.parentElement.classList.toggle('on', e.target.checked);
+    refreshBulkBar();
+  }
+  function onBulkSelectAll() {
+    users.forEach(function (u) { selectedUsers.add(u.uid); });
+    document.querySelectorAll('.perm-user-select').forEach(function (cb) { cb.checked = true; });
+    refreshBulkBar();
+  }
+  function onBulkClearSelection() {
+    selectedUsers.clear();
+    document.querySelectorAll('.perm-user-select').forEach(function (cb) { cb.checked = false; });
+    refreshBulkBar();
+  }
+  function onBulkClearPages() {
+    bulkPages.clear();
+    refreshBulkBar();
+  }
+  /* Apply the chip selection to all selected users. mode='grant' adds
+   * the pages to each user; mode='revoke' removes them. We mutate the
+   * matrix DOM by checking/unchecking each cell + firing the existing
+   * onUserCellChange so the pendingEdits map stays the source of truth. */
+  function onBulkApply(mode) {
+    if (!selectedUsers.size) { setStatus('Pick one or more users first.', 'err'); return; }
+    if (!bulkPages.size)     { setStatus('Pick one or more pages.', 'err'); return; }
+    var changed = 0;
+    selectedUsers.forEach(function (uid) {
+      bulkPages.forEach(function (pid) {
+        var cb = document.querySelector('input[type="checkbox"][data-uid="' + cssEscape(uid) + '"][data-page-id="' + cssEscape(pid) + '"]');
+        if (!cb) return;
+        var want = (mode === 'grant');
+        if (cb.checked === want) return;
+        cb.checked = want;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+        changed += 1;
+      });
+    });
+    setStatus(
+      (mode === 'grant' ? 'Granted ' : 'Revoked ') +
+      bulkPages.size + ' page' + (bulkPages.size === 1 ? '' : 's') +
+      ' across ' + selectedUsers.size + ' user' + (selectedUsers.size === 1 ? '' : 's') +
+      ' (' + changed + ' cell' + (changed === 1 ? '' : 's') + ' changed). Click Save to persist.',
+      changed > 0 ? 'ok' : ''
+    );
+  }
+  function cssEscape(s) {
+    return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/[^a-zA-Z0-9_-]/g, function (c) { return '\\' + c; });
   }
 
   function renderWorkflowGrid() {
@@ -647,6 +791,18 @@
     document.getElementById('perm-search').addEventListener('input', function (e) {
       applySearchFilter(e.target.value);
     });
+    // V3.79 — sort dropdown re-renders the user grid in the new order.
+    var sortEl = document.getElementById('perm-user-sort');
+    if (sortEl) sortEl.addEventListener('change', renderUserGrid);
+    // V3.79 — bulk-action bar buttons.
+    var bar = document.getElementById('perm-bulk-bar');
+    if (bar) {
+      bar.querySelector('.perm-bulk-grant') .addEventListener('click', function () { onBulkApply('grant');  });
+      bar.querySelector('.perm-bulk-revoke').addEventListener('click', function () { onBulkApply('revoke'); });
+      bar.querySelector('.perm-bulk-select-all') .addEventListener('click', onBulkSelectAll);
+      bar.querySelector('.perm-bulk-clear-users').addEventListener('click', onBulkClearSelection);
+      bar.querySelector('.perm-bulk-clear-pages').addEventListener('click', onBulkClearPages);
+    }
   }
 
   document.addEventListener('DOMContentLoaded', boot);

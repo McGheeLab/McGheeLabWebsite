@@ -151,6 +151,86 @@
     .perm-add-btn {
       align-self: flex-start;
     }
+
+    /* V3.79 — Users × Pages bulk-action UI */
+    .perm-users-toolbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 0; margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .perm-bulk-hint {
+      font-size: 11px; color: #9ca3af; font-style: italic;
+    }
+    .perm-user-label {
+      display: flex; gap: 8px; align-items: flex-start;
+      cursor: pointer;
+    }
+    .perm-user-label > span {
+      flex: 1; min-width: 0;
+    }
+    .perm-user-name {
+      font-weight: 500; display: flex; gap: 6px; align-items: center;
+    }
+    .perm-user-select {
+      flex-shrink: 0; cursor: pointer;
+      transform: scale(1.05); margin: 2px 0 0 0;
+    }
+    .perm-role-tag {
+      font-size: 9px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .4px;
+      padding: 1px 6px; border-radius: 4px;
+      background: #f3f4f6; color: #4b5563;
+      border: 1px solid #e5e7eb;
+    }
+    .perm-role-admin    { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .perm-role-pi       { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+    .perm-role-postdoc  { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+    .perm-role-phd      { background: #cffafe; color: #155e75; border-color: #a5f3fc; }
+    .perm-role-masters  { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+    .perm-role-undergrad { background: #fce7f3; color: #9d174d; border-color: #fbcfe8; }
+    .perm-role-staff    { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+    .perm-role-collaborator { background: #f5d0fe; color: #6b21a8; border-color: #f0abfc; }
+    .perm-role-guest    { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; }
+
+    .perm-bulk-bar {
+      padding: 12px 14px; margin-bottom: 12px;
+      background: color-mix(in srgb, var(--primary, #2563eb) 6%, #fff);
+      border: 1px solid color-mix(in srgb, var(--primary, #2563eb) 22%, #e5e7eb);
+      border-radius: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+      box-shadow: 0 1px 3px rgba(37,99,235,.06);
+    }
+    .perm-bulk-row1, .perm-bulk-row2, .perm-bulk-row3 {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .perm-bulk-count {
+      font-size: 13px; color: var(--text, #111827);
+    }
+    .perm-bulk-pages {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      max-height: 140px; overflow-y: auto;
+      padding: 4px;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 6px;
+    }
+    .perm-bulk-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; padding: 3px 8px;
+      border: 1px solid #e5e7eb; border-radius: 999px;
+      background: #fff; color: #374151;
+      cursor: pointer; user-select: none;
+    }
+    .perm-bulk-chip:hover { background: #f3f4f6; }
+    .perm-bulk-chip.on {
+      background: var(--primary, #2563eb);
+      color: #fff; border-color: var(--primary, #2563eb);
+    }
+    .perm-bulk-chip.on .perm-bulk-chip-grp { color: rgba(255,255,255,.75); }
+    .perm-bulk-chip input { display: none; }
+    .perm-bulk-chip-grp {
+      font-size: 9px; text-transform: uppercase; letter-spacing: .3px;
+      color: #9ca3af; font-weight: 600;
+    }
+    .perm-bulk-row3 .btn-primary { background: var(--primary, #2563eb); }
   </style>
 </head>
 <body>
@@ -197,6 +277,38 @@
 
       <!-- Users × Pages tab -->
       <div class="perm-tab tab-users">
+        <!-- V3.79 — sort + bulk-action bar -->
+        <div class="perm-users-toolbar">
+          <label style="font-size:12px;color:#374151;display:inline-flex;align-items:center;gap:6px;">
+            Sort:
+            <select id="perm-user-sort" style="font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;">
+              <option value="role">Role then name</option>
+              <option value="name">Name</option>
+              <option value="email">Email</option>
+            </select>
+          </label>
+          <span class="perm-bulk-hint">Tick row checkboxes to start a bulk grant / revoke ↓</span>
+        </div>
+
+        <div id="perm-bulk-bar" class="perm-bulk-bar" style="display:none;">
+          <div class="perm-bulk-row1">
+            <strong class="perm-bulk-count">0 users selected</strong>
+            <button class="btn btn-sm perm-bulk-select-all"  type="button">Select all</button>
+            <button class="btn btn-sm perm-bulk-clear-users" type="button">Clear selection</button>
+          </div>
+          <div class="perm-bulk-row2">
+            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;font-weight:600;">Pages</span>
+            <span class="perm-bulk-pages-count" style="font-size:11px;color:#6b7280;">no pages</span>
+            <button class="btn btn-sm perm-bulk-clear-pages" type="button" style="margin-left:auto;">Clear pages</button>
+          </div>
+          <div class="perm-bulk-pages"></div>
+          <div class="perm-bulk-row3">
+            <button class="btn btn-primary perm-bulk-grant"  type="button">Grant pages to selected users</button>
+            <button class="btn perm-bulk-revoke" type="button">Revoke pages from selected users</button>
+            <span style="font-size:11px;color:#6b7280;font-style:italic;">Click Save above to persist.</span>
+          </div>
+        </div>
+
         <div class="perm-grid-wrap">
           <table class="perm-grid" id="perm-grid-users">
             <thead><tr><th>User</th></tr></thead>

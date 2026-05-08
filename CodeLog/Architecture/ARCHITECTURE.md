@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.78 (Workflow shell — every workflow page is always loaded as an iframe inside `rm/pages/workflow-shell.html`. Chip clicks toggle iframe visibility (no reload, state preserved). Side popouts (left/right) with default chat/tasks, configurable via inline page picker. Cross-iframe consistency via Firestore live-sync. nav.js's window.name suppression accepts both `rm-embed-` (split iframes) and `rm-shell-` (workflow shell iframes) prefixes.)
+**Version:** V3.79 (Bulk grant/revoke + sort-by-role on the Users × Pages admin matrix. Tick row checkboxes + page chips → grant or revoke pages across all selected users in one click. Default sort is Role-then-name; admin sees clustered roles with color-coded tags.)
 
 ## System Overview
 
