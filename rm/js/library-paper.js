@@ -690,25 +690,34 @@
     // via `meta.library.linked_drafts`. _allDrafts is the global
     // pool used by the inline "+ Add draft" affordance to extend
     // the per-paper list.
+    //
+    // Paper drafts live in projects/papers.json (NOT items.json — the
+    // paper-builder owns that file). Grant drafts live in items.json
+    // with type:'grant' and status in proposals.
     let _drafts = [];
     let _allDrafts = [];
     const GRANT_DRAFT_STATUSES = new Set(['drafting', 'submitted', 'under_review', 'revising', 'rejected']);
     try {
-      const itemsData = await api.load('items.json');
-      const all = (itemsData.items || []);
-      _allDrafts = all.filter(it => {
-        if (it.type === 'paper') {
-          const lib = (it.meta || {}).library || {};
-          return !lib.is_library_entry;
-        }
-        if (it.type === 'grant') return GRANT_DRAFT_STATUSES.has(it.status);
-        return false;
-      }).map(it => ({ id: it.id, title: it.title || it.id, kind: it.type === 'grant' ? 'grant' : 'paper' }));
+      const [itemsData, papersData] = await Promise.all([
+        api.load('items.json'),
+        api.load('projects/papers.json').catch(() => ({ papers: [] })),
+      ]);
+      const items = (itemsData.items || []);
+      const papers = (papersData && papersData.papers) || [];
+      const paperDrafts = papers.map(p => ({
+        id: p.id,
+        title: p.title || p.id,
+        kind: 'paper',
+      }));
+      const grantDrafts = items
+        .filter(it => it.type === 'grant' && GRANT_DRAFT_STATUSES.has(it.status))
+        .map(it => ({ id: it.id, title: it.title || it.id, kind: 'grant' }));
+      _allDrafts = paperDrafts.concat(grantDrafts);
       // Per-paper shortlist: only drafts the user has linked.
       const linkedIds = new Set(((_item.meta && _item.meta.library && _item.meta.library.linked_drafts) || []));
       _drafts = _allDrafts.filter(d => linkedIds.has(d.id));
     } catch (e) {
-      console.warn('[library-paper] could not load items.json for drafts:', e.message);
+      console.warn('[library-paper] could not load drafts:', e.message);
     }
 
     let _groups = [{ id: 'general', name: 'General' }];
@@ -976,8 +985,9 @@
           // overlays popover or the inline "+ Link draft…" button,
           // refresh the per-paper draft shortlist (`_drafts`) so the
           // annotation panel's draft selectors reflect the new set.
-          // _allDrafts comes from items.json and rarely changes; we
-          // re-derive _drafts from it + the open paper's
+          // _allDrafts comes from projects/papers.json (paper drafts)
+          // + items.json (grants) and rarely changes; we re-derive
+          // _drafts from it + the open paper's
           // meta.library.linked_drafts (which the link picker just
           // wrote). We re-load items.json so _item.meta is fresh.
           try {

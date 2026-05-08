@@ -113,78 +113,87 @@
   ]);
 
   // Returns drafts available to associate with this paper:
-  //   paper drafts: items.json type:'paper' AND NOT is_library_entry
+  //   paper drafts: every entry in projects/papers.json (the paper-
+  //                 builder's source of truth — papers we're authoring)
   //   grant drafts: items.json type:'grant' AND status in proposals
   // Each draft: {id, title, kind:'paper'|'grant', hint:'…'}
   async function _loadAllDrafts() {
     if (!window.api || !window.api.load) return [];
-    let data;
-    try {
-      data = await api.load('items.json');
-    } catch (e) {
-      console.warn('[paper-overlays] could not load items.json:', e.message || e);
-      return [];
-    }
-    const items = (data && data.items) || [];
     const out = [];
-    for (const it of items) {
-      const lib = (it.meta || {}).library || {};
-      if (it.type === 'paper' && !lib.is_library_entry) {
+    // Paper drafts live in projects/papers.json (separate from items.json).
+    try {
+      const pdata = await api.load('projects/papers.json');
+      const papers = (pdata && pdata.papers) || [];
+      for (const p of papers) {
         out.push({
-          id: it.id,
-          title: it.title || it.id,
+          id: p.id,
+          title: p.title || p.id,
           kind: 'paper',
-          hint: _draftHint(it),
-        });
-      } else if (it.type === 'grant' && GRANT_DRAFT_STATUSES.has(it.status)) {
-        out.push({
-          id: it.id,
-          title: it.title || it.id,
-          kind: 'grant',
-          hint: _draftHint(it),
+          hint: _paperDraftHint(p),
         });
       }
+    } catch (e) {
+      console.warn('[paper-overlays] could not load projects/papers.json:', e.message || e);
+    }
+    // Grants live in items.json with type:'grant'.
+    try {
+      const idata = await api.load('items.json');
+      const items = (idata && idata.items) || [];
+      for (const it of items) {
+        if (it.type === 'grant' && GRANT_DRAFT_STATUSES.has(it.status)) {
+          out.push({
+            id: it.id,
+            title: it.title || it.id,
+            kind: 'grant',
+            hint: _grantDraftHint(it),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[paper-overlays] could not load items.json:', e.message || e);
     }
     return out;
   }
-  function _draftHint(item) {
-    const m = item.meta || {};
-    if (item.type === 'paper') {
-      const tj = m.target_journal || '';
-      const la = m.lead_author || '';
-      const left = [la, tj].filter(Boolean).join(' · ');
-      const status = item.status ? `(${item.status})` : '';
-      return [left, status].filter(Boolean).join(' ');
-    }
-    if (item.type === 'grant') {
-      const funder = m.funder || m.agency || m.sponsor || '';
-      const mech   = m.mechanism || m.grant_number || m.proposal_number || '';
-      const left = [funder, mech].filter(Boolean).join(' · ');
-      const status = item.status ? `(${item.status})` : '';
-      return [left, status].filter(Boolean).join(' ');
-    }
-    return '';
+  function _paperDraftHint(p) {
+    const left = [p.lead_author, p.target_journal].filter(Boolean).join(' · ');
+    const status = p.status ? `(${p.status})` : '';
+    return [left, status].filter(Boolean).join(' ');
   }
-
-  // Reload the linked-drafts list from items.json + paperItem and
-  // refresh the popover. Called after linkDraft / unlinkDraft writes
-  // and after _openLinkPicker save.
+  function _grantDraftHint(item) {
+    const m = item.meta || {};
+    const funder = m.funder || m.agency || m.sponsor || '';
+    const mech   = m.mechanism || m.grant_number || m.proposal_number || '';
+    const left = [funder, mech].filter(Boolean).join(' · ');
+    const status = item.status ? `(${item.status})` : '';
+    return [left, status].filter(Boolean).join(' ');
+  }
+  // Reload the linked-drafts list from the open paper's
+  // meta.library.linked_drafts and refresh the popover. The id is
+  // resolved against BOTH projects/papers.json (paper drafts) and
+  // items.json (grants); titles and kind chips come from there.
   async function _refreshLinkedDrafts() {
     if (!_paperItem) return;
-    let data;
+    let itemsData, papersData;
     try {
-      data = await api.load('items.json');
+      [itemsData, papersData] = await Promise.all([
+        api.load('items.json'),
+        api.load('projects/papers.json').catch(() => ({ papers: [] })),
+      ]);
     } catch (e) {
       console.warn('[paper-overlays] refresh failed:', e.message || e);
       return;
     }
-    const items = (data && data.items) || [];
+    const items = (itemsData && itemsData.items) || [];
+    const papers = (papersData && papersData.papers) || [];
     const fresh = items.find(i => i.id === _paperItem.id) || _paperItem;
     const ids = (fresh.meta && fresh.meta.library && fresh.meta.library.linked_drafts) || [];
     const enriched = ids.map(id => {
+      const paper = papers.find(p => p.id === id);
+      if (paper) return { id, title: paper.title || id, kind: 'paper' };
       const it = items.find(i => i.id === id);
-      if (!it) return { id, title: id, kind: 'paper' };
-      return { id, title: it.title || id, kind: it.type === 'grant' ? 'grant' : 'paper' };
+      if (it && it.type === 'grant') return { id, title: it.title || id, kind: 'grant' };
+      // Fallback: legacy bucket id or unknown — show as paper-flavored.
+      return { id, title: (it && it.title) || id, kind: 'paper' };
     });
     _linkedDrafts = enriched;
     // Prune _active to live ids; auto-activate newly-linked.
