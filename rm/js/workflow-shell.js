@@ -252,6 +252,25 @@
     root.appendChild(handle);
     wireResize(side, handle, root);
 
+    // V3.82 — close pill in the middle of the slider. Click → retract
+    // the popout. The matching extend pill (vertical-text floating tab
+    // at the viewport edge) is the closed-state pill rendered above.
+    const closePill = document.createElement('button');
+    closePill.type = 'button';
+    closePill.className = 'shell-popout-toggle shell-popout-toggle--close';
+    closePill.title = 'Close ' + label + ' popout';
+    closePill.textContent = side === 'left' ? '◂' : '▸';
+    closePill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      togglePopout(side, false);
+    });
+    // Suppress drag start when the user mouses-down on the pill itself —
+    // the pill is anchored to the slider visually but should never
+    // trigger a resize drag.
+    closePill.addEventListener('pointerdown', (e) => e.stopPropagation());
+    root.appendChild(closePill);
+
     // Expanded panel: header (icon + label + page picker + close) + iframe.
     const header = document.createElement('div');
     header.className = 'shell-popout-header';

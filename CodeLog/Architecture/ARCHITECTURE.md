@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.81 (Workflow shell popouts now FLOAT as absolute-positioned overlays over `#shell-main` — main fills the entire shell area regardless of popout state. Compact 32×120 px floating tab pill at mid-height when collapsed; soft drop shadow when open.)
+**Version:** V3.82 (Workflow shell popouts gained a close pill in the middle of the resize slider — click to retract. Pairs with the collapsed-state floating-tab pill (extend) for a one-pill-per-side toggle affordance.)
 
 ## System Overview
 

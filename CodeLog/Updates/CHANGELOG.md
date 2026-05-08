@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.82] - 2026-05-08
+
+**Workflow shell popouts get a close pill on the slider.** When a popout is open, the resize-slider on the inner edge now has a small chevron pill in the vertical middle. Click it → the popout retracts. Pairs with the existing collapsed-state pill (vertical floating tab at viewport edge) which extends; together they give one toggle affordance per side that's always reachable without going to the panel header.
+
+### Changed
+- **`rm/js/workflow-shell.js`** — `renderPopout()` open branch now appends a `.shell-popout-toggle.shell-popout-toggle--close` button alongside the resize handle. Glyph is `◂` for the left popout (closes-toward-left) and `▸` for the right popout. Click → `togglePopout(side, false)`. Both `pointerdown` (stopPropagation) and `click` (preventDefault + stopPropagation) are guarded so grabbing the pill never accidentally starts a resize drag.
+- **`rm/css/workflow-shell.css`** — `.shell-popout-toggle`: 22×56 px capsule, `position: absolute; top: 50%`, anchored to the popout's inner edge with a per-side rounded-corner pattern (right side rounded for left popout, vice versa). White background + soft shadow so it visibly sits on top of the slider. Hover widens to 26 px and tints the icon. `z-index: 11` puts it above the resize handle so it captures clicks cleanly.
+- **`sw.js`** — `CACHE_VERSION` 56 → 57.
+
+### Notes
+- The popout's header still has a `×` close button for users who navigate the panel content top-down. The slider pill is for users who want to toggle without reaching for the header.
+- Closed-state pill (the larger vertical-text floating tab on the viewport edge) is unchanged — it remains the "extend" affordance when the popout is collapsed.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v57`.
+
 ## [V3.81] - 2026-05-08
 
 **Workflow shell popouts are overlays now, not split panes.** V3.80 made the popouts flex items, which split the viewport into three columns (left popout / main / right popout). The user wanted FLOATING overlays so the main page never resizes — popouts slide in over the main content. Fixed by switching popouts to absolute positioning with a soft shadow.

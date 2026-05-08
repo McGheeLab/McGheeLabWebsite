@@ -214,6 +214,47 @@ body.shell-popout-resizing .shell-popout-resize {
   background: var(--primary, #2563eb);
   opacity: .55;
 }
+
+/* V3.82 — close pill in the middle of the slider. Sits on the
+ * popout's inner edge at vertical center; click retracts the popout.
+ * Higher z-index than the resize handle so it captures clicks
+ * cleanly; pointerdown stopPropagation prevents a resize drag from
+ * starting when the user grabs the pill itself. */
+.shell-popout-toggle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 56px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  cursor: pointer;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-muted, #6b7280);
+  padding: 0;
+  font-family: inherit;
+  pointer-events: auto;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .12);
+  transition: background .12s, color .12s, width .12s;
+}
+.shell-popout-toggle:hover {
+  background: var(--bg, #f3f4f6);
+  color: var(--text, #111827);
+  width: 26px;
+}
+.shell-popout--left  .shell-popout-toggle {
+  right: -11px;
+  border-radius: 4px 11px 11px 4px;
+}
+.shell-popout--right .shell-popout-toggle {
+  left: -11px;
+  border-radius: 11px 4px 4px 11px;
+}
 /* Suppress iframe pointer events while dragging so iframes don't
  * capture the pointermove (same trick split-view uses). */
 body.shell-popout-resizing .shell-popout-frame,
