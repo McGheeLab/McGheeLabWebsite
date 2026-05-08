@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.92] - 2026-05-08
+
+**Two complaints, two fixes.** Reported: "the open pill and close pill are in different locations" and "the citations still don't work — when the paper is loaded we look at the references section of the paper to get the required data."
+
+### Changed
+- **`rm/js/shell-popouts.js` + `rm/css/workflow-shell.css`** — popout open/close pill is now a single element anchored at the viewport edge, regardless of state. Closed → vertical icon + label (32×120 floating tab). Open → chevron pointing inward (32×80, same x/y anchor). Mouse muscle-memory carries between toggle and back; previously the close pill sat on the popout's inner edge (~460px from the viewport) so users had to mouse across the popout to close it. Open popout reserves a 32px outer-edge gutter (`padding-left`/`padding-right` on `.shell-popout.open`) so the pill never covers iframe content. Retired the inner-edge `.shell-popout-toggle` button — the header × still closes if the user prefers center-of-panel close.
+- **`rm/js/paper-citations.js`** — references-section heading detection rewritten to scan **joined-line text** instead of per-item text. Many PDFs render "REFERENCES" as one glyph per text-layer span; the previous per-item `REF_HEADING.test(item.text)` couldn't see the heading because no single span held the full word, so the parser silently returned `[]` and every citation rendered as "No matching reference parsed." New `_groupItemsIntoLines()` collapses items at similar y-coordinates on the same page into a single line entry, and the regex runs on the joined text. Page-range fallback escalates from last 25 → last 60 → entire document so long PDFs (and ones with appendices after the references list) still get parsed. Heading regex made case-insensitive and reworded to also match "Notes and References", "1. References", and similar prefixed forms; long lines (>60 chars) are excluded so prose paragraphs containing the word "references" don't false-match. Logs the matched line + page on success and the give-up reason on failure so future regressions are easier to diagnose.
+- **`sw.js`** — `CACHE_VERSION` 66 → 67.
+
+### Notes
+- The paper-citations entry segmentation (numeric prefix at left margin, paragraph y-gap) is unchanged from V3.90 — only heading detection was the silent failure point.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v67`.
+
+## [V3.91] - 2026-05-08
+
+**Paper-reader side panels can be reopened after collapse.** Reported: "when i close the side context windows on the paper reader page they disappear forever because the chat and task side menus are on top of the context menu open and close pills." Root cause: the expand pill (visible only when the panel is collapsed) sat at `left:50%; top:50%` inside a 32px-wide collapsed strip pinned to the viewport edge — exactly where the shell-popout collapsed pill (32px wide, viewport-edge, `top:50%`, 120px tall) lives. The popout pill is in the parent shell's stacking context, so a higher z-index inside the iframe can't beat it; the only way out is to move the expand pill out of the popout pill's vertical zone. The collapse pill (visible when the panel is OPEN) is unaffected — it sits at the panel's inside edge, far from the viewport edge.
+
+### Changed
+- **`rm/css/style.css`** — `.lp-expand-left,.lp-expand-right` now positioned at `top:60px` (anchored near the top of the strip) instead of `top:50%`. The popout pill's vertical span is roughly viewport-center ± 60px, so a top-anchored expand pill is fully clear of it on any reasonable viewport. Inline comment explains why we depart from the matching collapse-pill position.
+- **`sw.js`** — `CACHE_VERSION` 65 → 66.
+
+### Notes
+- Behavior unchanged when the page is opened OUTSIDE the workflow shell (e.g., direct `/rm/pages/library-paper.html` URL) — the expand pill is just slightly higher than before, no functional difference.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v66`.
+
+## [V3.90] - 2026-05-08
+
+**Citation panel actually shows reference metadata + auto-fetches OA PDFs on add.** V3.86 shipped the citations panel but: (a) the references parser was tripping on common journal styles so every token rendered as "No matching reference parsed", and (b) the "+ Add to library" button stub-created a paper item without the PDF, so adding a cited paper still left it in the no-PDF queue. Both fixed.
+
+### Changed
+- **`rm/js/paper-citations.js`** — references parser rewritten to walk text items in reading order rather than y-clustered "lines" (so two-column references aren't column-mixed), more permissive heading regex (matches `References:`, `1. References`, `References 45` page-number tail, etc.), entry segmentation now uses two strong signals — numeric prefix at left margin OR paragraph-level y-gap (>1.4 line heights) — instead of a fragile median-x heuristic. Entry metadata extraction now pulls **title** and **journal** in addition to DOI/year/first-author/arXiv. Two title-extraction styles: APA-ish `Authors. (YYYY). Title. Journal, …` and Vancouver-ish `[1] Authors. Title. Journal year; …`. Console-logs the parse outcome so you can see whether the heading was found.
+- **`rm/js/paper-citations.js`** — citation panel display: each row now shows `<author> <year>` in bold + a truncated title preview in the head. Expanding a row reveals a labeled metadata table (Author / Title / Journal / DOI / arXiv) plus a `<details>` for the raw entry. **"✓ in library" chip** (clickable → opens the cited paper) renders inline in the row head when the parsed DOI or arXiv id matches an existing library entry. **"no id" chip** when neither is parsed (so the user knows there's nothing actionable). Action button is now context-aware: "Open paper →" when in library, "+ Add to library" when not but DOI is parsed, "+ Add (arXiv)" when only arXiv id is parsed (synthesized as a `10.48550/arXiv.<id>` DOI for the Crossref lookup).
+- **`rm/js/library-upload.js`** — `fromDoi(doi)` now tries to fetch the OA PDF automatically. Workflow: Crossref metadata → Unpaywall lookup (`api.unpaywall.org/v2/<doi>?email=…` — CORS-friendly) → if `best_oa_location.url_for_pdf` is present, attempt `fetch(url, { mode: 'cors' })` → verify content-type and `%PDF` magic bytes → upload via existing `uploadPdf(item.id, blob)` path so the paper appears with a real `meta.library.pdf` block exactly like a manual upload. CORS-blocked URLs (most publisher domains) fall back to `meta.library.pdf_candidate_url` + `pdf_candidate_source` + `pdf_candidate_note` so the wishlist's "no-pdf-found queue" workflow has a starting point. Returns `{item, alreadyExisted, pdfInfo, pdfCandidateUrl, oaSource}` — the caller can show a richer success toast.
+- **`rm/js/library-paper.js`** — `onLibraryChanged` callback now reloads `items.json` AND calls `PAPER_CITATIONS.refreshLibraryStatus()` so the citation row's chip flips to "✓ in library" + button flips to "Open paper →" the moment add succeeds. New `PAPER_CITATIONS.refreshLibraryStatus()` is a panel-only re-render (no text re-scan).
+- **`rm/css/style.css`** — `.lp-cite-author` / `.lp-cite-title` / `.lp-cite-chip` / `.lp-cite-chip-lib` / `.lp-cite-chip-noid` / `.lp-cite-meta-row` / `.lp-cite-actions` / `.lp-cite-open` styles for the new richer citation card.
+- **`sw.js`** — `CACHE_VERSION` 64 → 65.
+
+### Notes
+- **Unpaywall is CORS-friendly; PDF hosts are mostly not.** In practice the auto-fetch succeeds on arXiv, bioRxiv, medRxiv, PMC, and most institutional repositories; it CORS-fails on Elsevier, Wiley, Springer, ACS, Nature, IEEE etc. — which is why we save the URL as a candidate so the user can complete the loop manually (or via the planned no-PDF-queue tooling).
+- **`pdf_candidate_url` is a new optional field on `meta.library`.** It does NOT trigger the paper-reader's "this paper has a PDF" code path (`storage_path` does). The citations panel's "Open paper →" button stays inert for candidate-only items until the user uploads the PDF.
+- **`firestore.rules` not affected** — `items.json` writes go through the existing `lab` scope adapter.
+- **arXiv-id-only references**: when only `arXiv:1234.5678` is parsed (no DOI), the panel synthesizes `10.48550/arXiv.1234.5678` as the DOI for the Crossref lookup. Crossref does index arXiv DOIs.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v65`.
+
 ## [V3.89] - 2026-05-08
 
 **Popouts persist across workflow switches + page picker lists every page.** Reported: "when switching workflows, the side popouts both default to opened and they refresh. They should be loaded and stay loaded and their state should persist through anything we do in RM. Also the right popout menu does not have the correct dropdown to change the popout to a different page type."

@@ -168,37 +168,41 @@
     root.classList.toggle('open', isOpen);
     root.innerHTML = '';
 
-    if (!isOpen) {
-      const pill = document.createElement('button');
-      pill.className = 'shell-popout-pill';
-      pill.type = 'button';
-      pill.title = 'Open ' + label + ' (' + side + ' popout)';
+    // V3.90 — single toggle pill anchored at the viewport edge so the
+    // open and close affordances live in EXACTLY the same screen
+    // location. Clicking it toggles state. When the popout is closed
+    // the pill shows the page icon + vertical label; when open it
+    // shows a single chevron pointing inward (= "collapse"). The
+    // floating tab feel survives, but mouse muscle-memory carries
+    // between states.
+    const pill = document.createElement('button');
+    pill.className = 'shell-popout-pill';
+    pill.type = 'button';
+    pill.title = (isOpen ? 'Close ' : 'Open ') + label + ' (' + side + ' popout)';
+    if (isOpen) {
+      pill.classList.add('shell-popout-pill--open');
+      pill.innerHTML =
+        '<span class="shell-popout-pill-chev">' + (side === 'left' ? '◂' : '▸') + '</span>';
+    } else {
       pill.innerHTML =
         '<span class="shell-popout-pill-icon">' + escHtml(icon) + '</span>' +
         '<span class="shell-popout-pill-label">' + escHtml(label) + '</span>';
-      pill.addEventListener('click', () => togglePopout(side, true));
-      root.appendChild(pill);
-      return;
     }
+    pill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      togglePopout(side, !isOpen);
+    });
+    pill.addEventListener('pointerdown', (e) => e.stopPropagation());
+    root.appendChild(pill);
+
+    if (!isOpen) return;
 
     const handle = document.createElement('div');
     handle.className = 'shell-popout-resize shell-popout-resize--' + side;
     handle.title = 'Drag to resize';
     root.appendChild(handle);
     wireResize(side, handle, root);
-
-    const closePill = document.createElement('button');
-    closePill.type = 'button';
-    closePill.className = 'shell-popout-toggle shell-popout-toggle--close';
-    closePill.title = 'Close ' + label + ' popout';
-    closePill.textContent = side === 'left' ? '◂' : '▸';
-    closePill.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      togglePopout(side, false);
-    });
-    closePill.addEventListener('pointerdown', (e) => e.stopPropagation());
-    root.appendChild(closePill);
 
     const header = document.createElement('div');
     header.className = 'shell-popout-header';

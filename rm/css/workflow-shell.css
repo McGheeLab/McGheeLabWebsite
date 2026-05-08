@@ -82,9 +82,12 @@ body.has-workflow-shell > .workflow-strip {
 .shell-popout--left.open  { border-left: 0; }
 .shell-popout--right.open { border-right: 0; }
 
-/* Collapsed pill — compact floating tab at mid-height, not a
- * full-height bar. Just enough to grab attention without obscuring
- * content. */
+/* Toggle pill — V3.90 single pill that sits at the SAME viewport-edge
+ * location whether the popout is open or closed. When closed it shows
+ * an icon + vertical label. When open it shows a chevron pointing
+ * inward (= "collapse"). The popout's iframe + header are pushed
+ * inward by the pill width via padding on .shell-popout.open so the
+ * pill doesn't cover content. */
 .shell-popout-pill {
   position: absolute;
   top: 50%;
@@ -106,6 +109,7 @@ body.has-workflow-shell > .workflow-strip {
   transition: background .12s, transform .12s, width .12s;
   pointer-events: auto;
   box-shadow: 0 2px 8px rgba(15, 23, 42, .10);
+  z-index: 12;        /* above iframe + resize handle */
 }
 .shell-popout--left  .shell-popout-pill {
   left: 0;
@@ -119,7 +123,17 @@ body.has-workflow-shell > .workflow-strip {
 }
 .shell-popout-pill:hover {
   background: var(--bg, #f3f4f6);
-  width: 36px;
+}
+/* Open state: same anchor, just renders a chevron instead of icon+label.
+ * Slightly smaller pill height so it reads as a slimmer "collapse" tab
+ * but stays at the same x/y anchor. */
+.shell-popout-pill--open {
+  height: 80px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #6b7280);
+}
+.shell-popout-pill--open:hover {
+  color: var(--text, #111827);
 }
 .shell-popout-pill-icon {
   font-size: 18px;
@@ -135,6 +149,16 @@ body.has-workflow-shell > .workflow-strip {
   text-orientation: mixed;
   white-space: nowrap;
 }
+.shell-popout-pill-chev {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Open popout reserves a 32px gutter for the pill on its outer edge so
+ * the pill never covers iframe content. Header + iframe sit inside the
+ * gutter. */
+.shell-popout--left.open  { padding-left:  32px; }
+.shell-popout--right.open { padding-right: 32px; }
 
 /* Expanded panel header */
 .shell-popout-header {
@@ -215,46 +239,11 @@ body.shell-popout-resizing .shell-popout-resize {
   opacity: .55;
 }
 
-/* V3.82 — close pill in the middle of the slider. Sits on the
- * popout's inner edge at vertical center; click retracts the popout.
- * Higher z-index than the resize handle so it captures clicks
- * cleanly; pointerdown stopPropagation prevents a resize drag from
- * starting when the user grabs the pill itself. */
-.shell-popout-toggle {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  height: 56px;
-  background: var(--surface, #fff);
-  border: 1px solid var(--border, #e5e7eb);
-  cursor: pointer;
-  z-index: 11;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--text-muted, #6b7280);
-  padding: 0;
-  font-family: inherit;
-  pointer-events: auto;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, .12);
-  transition: background .12s, color .12s, width .12s;
-}
-.shell-popout-toggle:hover {
-  background: var(--bg, #f3f4f6);
-  color: var(--text, #111827);
-  width: 26px;
-}
-.shell-popout--left  .shell-popout-toggle {
-  right: -11px;
-  border-radius: 4px 11px 11px 4px;
-}
-.shell-popout--right .shell-popout-toggle {
-  left: -11px;
-  border-radius: 11px 4px 4px 11px;
-}
+/* V3.90 — .shell-popout-toggle was the inner-edge close pill; retired
+ * because it sat in a different location than the open pill. The
+ * single .shell-popout-pill above now handles both states at the
+ * viewport edge. */
+
 /* Suppress iframe pointer events while dragging so iframes don't
  * capture the pointermove (same trick split-view uses). */
 body.shell-popout-resizing .shell-popout-frame,
