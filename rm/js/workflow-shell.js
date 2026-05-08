@@ -103,8 +103,16 @@
     if (s.active)      p.set('active', s.active);
     if (s.leftPopout)  p.set('leftPopout', s.leftPopout);
     if (s.rightPopout) p.set('rightPopout', s.rightPopout);
-    if (s.leftOpen)    p.set('leftOpen', '1');
-    if (s.rightOpen)   p.set('rightOpen', '1');
+    // V3.84 — ALWAYS write leftOpen / rightOpen with a 0/1 value.
+    // Previously these only landed in the URL when truthy; closing a
+    // popout removed the param entirely, and readState's "default to
+    // open when param missing" (V3.80) saw it gone and re-defaulted
+    // to true. renderPopout then rebuilt the popout open and the
+    // iframe got destroyed-and-recreated → chat appeared to "reload"
+    // on close. Keeping a literal 0/1 in the URL distinguishes
+    // "explicitly closed" from "never visited".
+    p.set('leftOpen',  s.leftOpen  ? '1' : '0');
+    p.set('rightOpen', s.rightOpen ? '1' : '0');
     history.replaceState(null, '', '/rm/pages/workflow-shell.html?' + p.toString());
   }
 

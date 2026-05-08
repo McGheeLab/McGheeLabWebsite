@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.83 (Bug fix — chip clicks in workflow shell didn't switch pages because nav.js wrote `?active=` BEFORE dispatching the event, then workflow-shell.js's listener early-bailed seeing the new value already in URL. Removed the duplicate URL write; listener owns URL state.)
+**Version:** V3.84 (Bug fix — close popout reloaded the chat iframe instead of closing. `writeState` now always writes literal `leftOpen=0|1` so explicit-close survives URL round trip; previously `falsy = omit` collided with `readState`'s "default to open when missing".)
 
 ## System Overview
 

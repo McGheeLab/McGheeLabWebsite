@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.84] - 2026-05-08
+
+**Bug fix — close pill on chat popout reloaded the iframe instead of closing the popout.** Reported: "when I click on the close chat popout, it just reloads the chat page and doesn't close the popout."
+
+### Root cause
+
+`writeState()` in workflow-shell.js only included `leftOpen` / `rightOpen` in the URL when truthy. On close:
+1. `togglePopout(side, false)` → `writeState(s)` → URL drops the `leftOpen` param entirely
+2. `renderPopout(side)` → `readState()` → URL has no `leftOpen`
+3. V3.80's `readState` defaults missing `leftOpen` to **true** (so first-time visits open the popouts)
+4. `renderPopout` sees `isOpen = true` → tears down + rebuilds the panel as if it's still open → new iframe gets a fresh src → chat reloads from scratch
+
+The "default to open when missing" rule and "remove from URL when falsy" rule together made the close-state unrepresentable in the URL.
+
+### Fix
+- **`rm/js/workflow-shell.js`** — `writeState()` now ALWAYS writes `leftOpen` and `rightOpen` as literal `0` / `1` in the URL. Distinguishes "explicitly closed" (`0`) from "never visited" (param absent → still defaults to open).
+- **`sw.js`** — `CACHE_VERSION` 58 → 59.
+
+### Notes
+- Click `×` in the panel header OR the chevron pill in the middle of the slider — both close the popout cleanly now.
+- The pill at the viewport edge re-opens it (URL flips to `=1`); chat iframe is recreated on re-open (separate optimization to keep the iframe alive across toggle is queued).
+- No firestore.rules / functions changes.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v59`.
+
 ## [V3.83] - 2026-05-08
 
 **Bug fix — chip clicks in the workflow shell didn't switch pages.** Reported by user: "when I'm in a workflow, I can't switch pages." Root cause: a race between two writers of `?active=` in the URL.
