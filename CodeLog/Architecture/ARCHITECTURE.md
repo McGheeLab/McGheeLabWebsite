@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.79 (Bulk grant/revoke + sort-by-role on the Users × Pages admin matrix. Tick row checkboxes + page chips → grant or revoke pages across all selected users in one click. Default sort is Role-then-name; admin sees clustered roles with color-coded tags.)
+**Version:** V3.80 (Workflow shell fixes — load order corrected (nav.js before page-registry.js); popouts default open with chat (left) + tasks (right) at 460 px; drag-to-resize handle on each popout's inner edge; width persisted to localStorage per side.)
 
 ## System Overview
 

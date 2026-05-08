@@ -34,9 +34,14 @@
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/toast.js"></script>
   <script src="/rm/js/sync-status.js"></script>
+  <!-- V3.80 — nav.js MUST load before page-registry.js: page-registry
+       reads NAV_ITEMS from nav.js's top-level scope. Wrong order
+       triggered the "[page-registry] NAV_ITEMS not in scope" warning,
+       PAGE_REGISTRY never built, and workflow-shell.js had nothing to
+       render against. -->
+  <script src="/rm/js/nav.js"></script>
   <script src="/rm/js/page-registry.js"></script>
   <script src="/rm/js/workflow-state.js"></script>
-  <script src="/rm/js/nav.js"></script>
   <script src="/rm/js/workflow-shell.js"></script>
 </body>
 </html>

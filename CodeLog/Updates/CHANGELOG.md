@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.80] - 2026-05-08
+
+**Workflow shell fixes — popout sizing + load order regression.** Three bugs reported on V3.78's shell; all fixed.
+
+### Bugs fixed
+
+#### 1. `[page-registry] NAV_ITEMS not in scope` — main page wasn't loading
+- **`rm/pages/workflow-shell.html`** — V3.78 loaded `page-registry.js` BEFORE `nav.js`. page-registry.js reads `NAV_ITEMS` from nav.js's top-level scope, so it warned and bailed → `PAGE_REGISTRY` never built → `workflow-shell.js` couldn't render anything → blank page. Swapped the order: nav.js → page-registry.js → workflow-state.js → workflow-shell.js. Comment in HTML flags the dependency.
+
+#### 2. Popouts didn't show by default
+- **`rm/js/workflow-shell.js`** — `readState()` previously defaulted `leftOpen` / `rightOpen` to `false`, so chat + tasks were collapsed pills on every shell entry and the user had to click them to see anything. Defaults now flip to `true` (open) on first load — chat shows on the left, tasks on the right, immediately. URL params still override (so `?leftOpen=0` collapses on entry).
+
+#### 3. Popouts too small + couldn't be resized
+- **`rm/js/workflow-shell.js`** — bumped `DEFAULT_POPOUT_WIDTH` 380 → **460 px** for actual usability (chat + task lists need real width).
+- **`rm/js/workflow-shell.js`** — added a per-side **drag-to-resize handle** on the popout's inner edge (right edge of left popout; left edge of right popout). Pointer-down on the handle starts a drag; pointermove updates the popout's width inline; pointerup persists the final width to `localStorage` under `mcgheelab.shellPopout.<side>Width` (clamped 240–900 px). Iframe pointer events are suppressed during the drag so the iframe doesn't capture the pointermove (same trick `split-view.js` uses for the divider).
+- **`rm/js/workflow-shell.js`** — `applyPopoutWidth(side)` reads the saved width on render and applies it inline. `readPopoutWidth(side)` falls back to the default + clamps; persisted width survives page reloads, workflow switches, and across devices (well — `localStorage` is per-browser; cross-device sync would require Firestore — out of scope).
+- **`rm/css/workflow-shell.css`** — `.shell-popout.open` now `position: relative` so the absolute-positioned resize handle anchors correctly. `.shell-popout-resize` rules: 6 px wide, full-height, `cursor: col-resize`; turns subtle blue on hover or while dragging. `body.shell-popout-resizing` suppresses iframe pointer events.
+
+### Other
+- **`sw.js`** — `CACHE_VERSION` 54 → 55.
+
+### Notes
+- **`localStorage` (not session)** for popout width — admin's preferred size sticks across browser restarts. URL still owns ephemeral state (which page is in each slot, whether each is open).
+- **No firestore.rules / functions changes.**
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v55`.
+
 ## [V3.79] - 2026-05-07
 
 **Bulk grant/revoke + sort by role on the Users × Pages admin matrix.** Setting permissions for many lab members one cell at a time was painful. Two upgrades:

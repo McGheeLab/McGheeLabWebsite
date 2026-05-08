@@ -65,7 +65,8 @@ body.has-workflow-shell > .workflow-strip {
 .shell-popout--left  { border-right: 1px solid var(--border, #e5e7eb); border-left: 0; }
 .shell-popout--right { border-left:  1px solid var(--border, #e5e7eb); border-right: 0; }
 .shell-popout.open {
-  width: 380px;
+  width: 460px;     /* V3.80 — bigger default; user-resized width set inline */
+  position: relative;
 }
 
 /* Collapsed pill — vertical bar with icon + rotated label, full-height
@@ -163,6 +164,33 @@ body.has-workflow-shell > .workflow-strip {
   border: 0;
   background: var(--bg, #f8fafc);
 }
+
+/* V3.80 — drag-to-resize handle on the popout's inner edge. */
+.shell-popout-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 5;
+  transition: background .12s;
+}
+.shell-popout-resize--left  { right: -3px; }   /* on right edge of LEFT popout */
+.shell-popout-resize--right { left:  -3px; }   /* on left edge of RIGHT popout */
+.shell-popout-resize:hover,
+body.shell-popout-resizing .shell-popout-resize {
+  background: var(--primary, #2563eb);
+  opacity: .55;
+}
+/* Suppress iframe pointer events while dragging so iframes don't
+ * capture the pointermove (same trick split-view uses). */
+body.shell-popout-resizing .shell-popout-frame,
+body.shell-popout-resizing .shell-frame {
+  pointer-events: none;
+  user-select: none;
+}
+body.shell-popout-resizing { cursor: col-resize; }
 
 /* Mobile: popouts stack on top of main as overlays. (Workflow shell
  * is desktop-first; mobile UX is best-effort.) */

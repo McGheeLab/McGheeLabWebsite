@@ -41,21 +41,60 @@
 (function () {
   'use strict';
 
-  const POPOUT_WIDTH_PX = 380;
+  // V3.80 — bigger defaults + clamps. Width is per-side, persisted to
+  // localStorage so the user's preferred size sticks across sessions.
+  const DEFAULT_POPOUT_WIDTH = 460;
+  const MIN_POPOUT_WIDTH = 240;
+  const MAX_POPOUT_WIDTH = 900;
+  const POPOUT_WIDTH_LS_KEY = function (side) { return 'mcgheelab.shellPopout.' + side + 'Width'; };
   const DEFAULT_LEFT_POPOUT = 'chat';
   const DEFAULT_RIGHT_POPOUT = 'tasks';
 
   /* ─── URL state ────────────────────────────────────────── */
   function readState() {
     const p = new URLSearchParams(window.location.search);
+    // V3.80 — popouts now default to OPEN. Without that, every shell
+    // entry started with chat + tasks collapsed and the user had to
+    // click the pills to see them. URL params still override (so a
+    // user who closed them mid-session and bookmarks the URL keeps
+    // that state).
+    const hasLeftOpen  = p.has('leftOpen');
+    const hasRightOpen = p.has('rightOpen');
     return {
       workflow:     p.get('workflow') || '',
       active:       p.get('active') || '',
       leftPopout:   p.get('leftPopout')  || DEFAULT_LEFT_POPOUT,
       rightPopout:  p.get('rightPopout') || DEFAULT_RIGHT_POPOUT,
-      leftOpen:     p.get('leftOpen')  === '1',
-      rightOpen:    p.get('rightOpen') === '1',
+      leftOpen:     hasLeftOpen  ? p.get('leftOpen')  === '1' : true,
+      rightOpen:    hasRightOpen ? p.get('rightOpen') === '1' : true,
     };
+  }
+
+  /* V3.80 — read/write popout width from localStorage. Falls back to
+   * the default and clamps to [MIN, MAX]. */
+  function readPopoutWidth(side) {
+    try {
+      const raw = localStorage.getItem(POPOUT_WIDTH_LS_KEY(side));
+      const n = parseFloat(raw);
+      if (n >= MIN_POPOUT_WIDTH && n <= MAX_POPOUT_WIDTH) return Math.round(n);
+    } catch (e) { /* ignore */ }
+    return DEFAULT_POPOUT_WIDTH;
+  }
+  function writePopoutWidth(side, px) {
+    try {
+      const n = Math.max(MIN_POPOUT_WIDTH, Math.min(MAX_POPOUT_WIDTH, Math.round(px)));
+      localStorage.setItem(POPOUT_WIDTH_LS_KEY(side), String(n));
+    } catch (e) { /* ignore */ }
+  }
+  function applyPopoutWidth(side) {
+    const root = document.getElementById('shell-popout-' + side);
+    if (!root) return;
+    if (!root.classList.contains('open')) {
+      // Collapsed pill width is fixed in CSS; nothing to set.
+      root.style.width = '';
+      return;
+    }
+    root.style.width = readPopoutWidth(side) + 'px';
   }
 
   function writeState(s) {
@@ -205,6 +244,14 @@
       return;
     }
 
+    // V3.80 — drag handle on the inner edge (the side facing #shell-main).
+    // Drag → resize the popout; release → persist width to localStorage.
+    const handle = document.createElement('div');
+    handle.className = 'shell-popout-resize shell-popout-resize--' + side;
+    handle.title = 'Drag to resize';
+    root.appendChild(handle);
+    wireResize(side, handle, root);
+
     // Expanded panel: header (icon + label + page picker + close) + iframe.
     const header = document.createElement('div');
     header.className = 'shell-popout-header';
@@ -225,6 +272,9 @@
     iframe.src = _embedHref(pageHrefForId(pageId) || '/rm/index.html');
     iframe.title = label;
     root.appendChild(iframe);
+
+    // Apply persisted width once the panel is in DOM.
+    applyPopoutWidth(side);
 
     // Populate page picker with workflow pages (so popout is restricted
     // to pages the user already has access to in this workflow).
@@ -270,6 +320,50 @@
     writeState(s);
     renderPopout(side);
     document.body.classList.toggle('shell-popout-' + side + '-open', !!open);
+  }
+
+  /* V3.80 — drag-to-resize a popout panel. The handle is on the popout's
+   * INNER edge (i.e., the side facing #shell-main): for the left
+   * popout that's the right edge; for the right popout that's the left
+   * edge. While dragging, suppress iframe pointer events so the iframe
+   * doesn't capture the drag (same trick the split-view divider uses).
+   * On pointerup, persist the final width to localStorage. */
+  function wireResize(side, handle, root) {
+    let dragging = false;
+    let startX = 0, startWidth = 0;
+    const onMove = (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      // Left popout grows when dragged right (positive dx); right
+      // popout grows when dragged LEFT (negative dx).
+      const next = (side === 'left') ? startWidth + dx : startWidth - dx;
+      const clamped = Math.max(MIN_POPOUT_WIDTH, Math.min(MAX_POPOUT_WIDTH, next));
+      root.style.width = clamped + 'px';
+    };
+    const onUp = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+      document.body.classList.remove('shell-popout-resizing');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup',   onUp);
+      window.removeEventListener('pointercancel', onUp);
+      const px = parseFloat(root.style.width) || DEFAULT_POPOUT_WIDTH;
+      writePopoutWidth(side, px);
+    };
+    handle.addEventListener('pointerdown', (e) => {
+      // Only respond to primary button.
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      dragging = true;
+      startX = e.clientX;
+      startWidth = root.getBoundingClientRect().width;
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      document.body.classList.add('shell-popout-resizing');
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup',   onUp);
+      window.addEventListener('pointercancel', onUp);
+      e.preventDefault();
+    });
   }
 
   /* ─── Strip integration ──────────────────────────────── */
