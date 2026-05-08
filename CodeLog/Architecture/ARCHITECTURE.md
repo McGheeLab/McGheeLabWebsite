@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.77 (Editable workflow meta on the admin matrix — name/icon/description per row are inline inputs; new "+ Add workflow" row at bottom; `×` delete button per row. Seed → admin matrix → Firestore is now the full edit loop for default workflow definitions.)
+**Version:** V3.78 (Workflow shell — every workflow page is always loaded as an iframe inside `rm/pages/workflow-shell.html`. Chip clicks toggle iframe visibility (no reload, state preserved). Side popouts (left/right) with default chat/tasks, configurable via inline page picker. Cross-iframe consistency via Firestore live-sync. nav.js's window.name suppression accepts both `rm-embed-` (split iframes) and `rm-shell-` (workflow shell iframes) prefixes.)
 
 ## System Overview
 

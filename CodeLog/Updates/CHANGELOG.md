@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.78] - 2026-05-07
+
+**Workflow shell — every workflow page is always loaded, with side popouts.** Two coupled features the user asked for:
+
+1. **All workflow pages stay loaded.** Entering a workflow now lands the user on a single shell page (`rm/pages/workflow-shell.html`); each workflow page becomes an iframe inside it. The first chip click on a not-yet-visited page lazy-creates that iframe; subsequent visits to any chip just toggle DOM visibility (no reload, no data refetch). State (paper id, scroll, in-progress edits) survives chip switching.
+2. **Side popouts.** Two collapsible panels (left + right) hugging the edges of the shell. Each is a small vertical pill (40px wide) when collapsed; clicking opens a 380px-wide panel with an iframe of the user's chosen page. Defaults: **left = Chat, right = Tasks**. A small dropdown in each popout's header swaps the page in that slot. URL persists `?leftPopout`, `?rightPopout`, `?leftOpen`, `?rightOpen`.
+
+Cross-iframe consistency: handled by Firestore's existing live-sync (LIVE_SYNC.attach in each renderer) — when iframe A writes, iframe B's listener fires the same way it does for cross-tab updates. No new state-coordination machinery was needed.
+
+### Added
+- **`rm/pages/workflow-shell.html`** — single-page host for an entire workflow. Top: workflow strip (rendered by nav.js, shell-aware). Body: `#shell-popout-left` / `#shell-main` / `#shell-popout-right` row.
+- **`rm/js/workflow-shell.js`** (~280 LOC) — orchestrates iframe lifecycle:
+  - `readState()` / `writeState()` — single source of truth in URL: `?workflow=<id>&active=<pageId>&leftPopout=<pageId>&rightPopout=<pageId>&leftOpen=<0|1>&rightOpen=<0|1>`.
+  - `loadWorkflow(id)` — Firestore (`labConfig/defaultWorkflows`) → seeds (PAGE_REGISTRY.DEFAULT_WORKFLOWS) → `userData/{uid}/customWorkflows/{id}` fallback chain.
+  - `ensureFrame(pageId)` — lazy-creates an iframe for a workflow page, sets `name="rm-shell-<pageId>"` (V3.76 mechanism extended to also recognize `rm-shell-` prefix in nav.js suppression — already covered by the `rm-embed` prefix check).
+  - `showActiveFrame(pageId)` — flips `display` between iframes; first-time activation creates the iframe.
+  - `renderPopout(side)` — collapsed pill or open panel + iframe. Page picker dropdown lets the user pick which page goes in this slot. Restricted to workflow pages + chat/tasks (always available).
+  - Listens for `rm:shell:set-active` events from the strip's chip clicks.
+- **`rm/css/workflow-shell.css`** (~150 LOC) — vertical body flex; `#shell-root` horizontal flex with two popouts hugging edges; `.shell-popout-pill` (collapsed vertical bar with rotated label); `.shell-popout-header` + `.shell-popout-frame` (open state). Mobile fallback: open popouts overlay the main pane.
+
+### Changed
+- **`rm/js/nav.js`** — `renderWorkflowStrip` detects shell mode (`location.pathname === '/rm/pages/workflow-shell.html'`). In shell mode:
+  - Active chip is determined by `?active=<pageId>` (not pathname/tab matching).
+  - Chip click is captured (`e.preventDefault()`) and dispatches `rm:shell:set-active { pageId }`. URL updated via `history.replaceState`. Strip refreshes via `_wfRefreshStrip` so the active class moves.
+  - Suppression check (`window.name`) already accepts the `rm-shell-` prefix because the existing check uses `indexOf('rm-embed') === 0` — needs an update? Actually no, the V3.76 check is `indexOf('rm-embed') === 0` which won't match `rm-shell-*`. **This file's renderNav embed-suppression line 357 needs to also accept `rm-shell-` prefix** — fixed in this commit by using a generic 'rm-' prefix detection (`/^rm-(embed|shell)-/.test(window.name)`).
+- **`rm/js/workflow-chooser.js`** — both default-card and custom-card click handlers route through the workflow shell (`/rm/pages/workflow-shell.html?workflow=<id>&active=<landingPageId>`) instead of the landing page directly.
+- **`sw.js`** — `CACHE_VERSION` 52 → 53.
+
+### Notes
+- **No firestore.rules / functions changes.** Workflow shell uses existing data paths (`labConfig/defaultWorkflows`, `userData/{uid}/customWorkflows`, `users/{uid}.allowedPageIds`).
+- **Memory cost** — each iframe is ~5MB. Typical workflow has 5–7 pages, so peak footprint is ~25–35MB beyond the parent. Manageable on modern devices.
+- **First-paint cost** — only the landing iframe loads on shell entry. Other iframes lazy-load on first chip click. Subsequent chip clicks are instant.
+- **Direct page links from outside the shell** (e.g., a deep link to `/rm/pages/library.html`) still work and bypass the shell. Workflow context is preserved via sessionStorage if the user previously entered a workflow.
+- **Split view** still works as before. From inside the shell, the strip's `⊟ Split` button takes the user to `split-view.html` (leaves the shell). No nested shell-in-split or split-in-shell — out of scope.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v53`.
+
 ## [V3.77] - 2026-05-07
 
 **Editable workflow meta + add/delete in the admin matrix.** The Default Workflows × Pages tab at `admin-permissions.html?tab=workflows` previously showed each workflow's icon, name, and id as static text — only the page-membership checkboxes and landing-page select were editable. Admins can now also rename workflows, change icons, edit descriptions, add brand-new workflows, and delete existing ones — all from the same grid.

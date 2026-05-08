@@ -91,7 +91,13 @@
       WorkflowState.setActive(wf.id, 'default');
       var landing = pickLandingPage(wf, accessiblePages);
       if (!landing) return;
-      location.href = WorkflowState.decorateHref(landing.href, wf.id);
+      // V3.78 — route through the workflow shell so all pages stay
+      // loaded as iframes (no reload on chip switch) and side popouts
+      // are available. Use the page-registry's stable id for `active`.
+      var landingPageId = (window.PAGE_REGISTRY && window.PAGE_REGISTRY.byHref.get(landing.href) || {}).id;
+      var shellURL = '/rm/pages/workflow-shell.html?workflow=' + encodeURIComponent(wf.id)
+                    + (landingPageId ? '&active=' + encodeURIComponent(landingPageId) : '');
+      location.href = shellURL;
     });
     return card;
   }
@@ -132,7 +138,11 @@
       WorkflowState.setActive(wf.id, 'custom');
       var landing = pickLandingPage(wf, accessiblePages);
       if (!landing) return;
-      location.href = WorkflowState.decorateHref(landing.href, wf.id);
+      // V3.78 — route through the workflow shell.
+      var landingPageId = (window.PAGE_REGISTRY && window.PAGE_REGISTRY.byHref.get(landing.href) || {}).id;
+      var shellURL = '/rm/pages/workflow-shell.html?workflow=' + encodeURIComponent(wf.id)
+                    + (landingPageId ? '&active=' + encodeURIComponent(landingPageId) : '');
+      location.href = shellURL;
     });
     card.querySelector('[data-action="rename"]').addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation();

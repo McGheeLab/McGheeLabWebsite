@@ -362,6 +362,15 @@ async function renderWorkflowStrip(state) {
     };
   }
 
+  // V3.78 — detect workflow-shell mode. When on workflow-shell.html, chip
+  // clicks dispatch rm:shell:set-active events instead of navigating
+  // (the shell swaps which iframe is visible, no full-page reload).
+  const onShell = location.pathname === '/rm/pages/workflow-shell.html';
+  let shellActiveId = null;
+  if (onShell) {
+    shellActiveId = new URLSearchParams(location.search).get('active') || '';
+  }
+
   // Split + Leave buttons render immediately; page chips wait for fetch.
   let splitLink = null;
   if (!onSplit) {
@@ -537,12 +546,31 @@ async function renderWorkflowStrip(state) {
       }
     }
     // Active highlight when the path+query matches (single-page mode).
-    if (!onSplit) {
+    if (!onSplit && !onShell) {
       const target = new URL(p.href, location.origin);
       if (target.pathname === currentPath
           && (target.search === currentSearch || target.search === '')) {
         a.classList.add('active');
       }
+    }
+    // V3.78 — shell-mode active state: pill is active when its id ===
+    // ?active= in the URL. Pill clicks dispatch rm:shell:set-active
+    // events instead of navigating; shell.js swaps which iframe is
+    // visible, no full-page reload, page state preserved.
+    if (onShell) {
+      if (id === shellActiveId) a.classList.add('active');
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (id === shellActiveId) return;       // already active — no-op
+        // Update URL via replaceState so the strip can re-render with
+        // the new active pill on next refresh.
+        const sp = new URLSearchParams(location.search);
+        sp.set('active', id);
+        history.replaceState(null, '', '/rm/pages/workflow-shell.html?' + sp.toString());
+        window.dispatchEvent(new CustomEvent('rm:shell:set-active', { detail: { pageId: id } }));
+        // Re-render strip so the active class moves.
+        if (typeof _wfRefreshStrip === 'function') _wfRefreshStrip();
+      });
     }
     // V3.75 — split-mode click: dispatch events instead of navigating.
     // split-view.js applies the change and fires rm:split:state-change,
@@ -900,17 +928,14 @@ function _wfOpenSaveAsModal(state, wf, effectivePageIds) {
 
 function renderNav() {
   // V3.76 — embed suppression is checked in two complementary ways:
-  //   1. window.name === 'rm-embed-<side>' — set by split-view.js on
-  //      iframe creation. The browsing context name SURVIVES navigations
-  //      within the same frame (HTML spec), so a workflow-split iframe
-  //      stays embed-suppressed even after the user clicks an in-page
-  //      <a href> that drops the `?embed=1` query. Bulletproof against
-  //      the V3.75-era "library → paper inside iframe re-renders nav"
-  //      bug.
+  //   1. window.name starts with 'rm-embed' (split-view iframes V3.75)
+  //      OR 'rm-shell-' (workflow-shell iframes V3.78). The browsing
+  //      context name SURVIVES navigations within the same frame (HTML
+  //      spec), so iframes stay nav-suppressed even after in-page
+  //      `<a href>` clicks that drop the `?embed=1` query.
   //   2. ?embed=1 query (V3.73 mechanism) — kept as defense-in-depth
-  //      and for the initial document load. If a future call site
-  //      sets only one signal, the other still suppresses.
-  const isEmbed = (typeof window.name === 'string' && window.name.indexOf('rm-embed') === 0)
+  //      and for the initial document load.
+  const isEmbed = (typeof window.name === 'string' && /^rm-(embed|shell)/.test(window.name))
                || (new URLSearchParams(location.search).get('embed') === '1');
   if (isEmbed) {
     document.documentElement.dataset.rmEmbed = '1';

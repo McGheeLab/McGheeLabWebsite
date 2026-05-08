@@ -1,0 +1,180 @@
+/* workflow-shell.css — V3.78 layout for the workflow shell.
+ *
+ * Body layout: vertical flex (workflow strip on top, #shell-root fills
+ * the rest). #shell-root is a horizontal flex with two popouts hugging
+ * the edges and a main iframe area in the middle.
+ *
+ * Popouts are always in the DOM (left + right). Collapsed = 40px-wide
+ * vertical pill. Open = 380px-wide panel with header + iframe.
+ *
+ * Iframes inside #shell-main are lazy-created by workflow-shell.js;
+ * only one is display: '' at a time (active page), others are
+ * display: none. State preserved across active swaps. */
+
+body.has-workflow-shell {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+/* Strip should never shrink below its content height — locks it in
+ * place so #shell-root can fill the remaining viewport. */
+body.has-workflow-shell > .workflow-strip {
+  flex: 0 0 auto;
+}
+
+#shell-root {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;       /* allow children to shrink + scroll */
+  background: var(--bg, #f8fafc);
+}
+
+/* ─── Main iframe area ─────────────────────────────────── */
+#shell-main {
+  flex: 1 1 auto;
+  position: relative;
+  min-width: 0;
+  background: var(--bg, #f8fafc);
+}
+.shell-frame-wrap {
+  position: absolute;
+  inset: 0;
+  display: block;       /* JS toggles to 'none' for inactive frames */
+}
+.shell-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* ─── Popout panels (left + right) ─────────────────────── */
+.shell-popout {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #fff);
+  border-left: 1px solid var(--border, #e5e7eb);
+  border-right: 1px solid var(--border, #e5e7eb);
+  width: 40px;
+  transition: width .15s ease;
+  min-height: 0;
+}
+.shell-popout--left  { border-right: 1px solid var(--border, #e5e7eb); border-left: 0; }
+.shell-popout--right { border-left:  1px solid var(--border, #e5e7eb); border-right: 0; }
+.shell-popout.open {
+  width: 380px;
+}
+
+/* Collapsed pill — vertical bar with icon + rotated label, full-height
+ * click target. */
+.shell-popout-pill {
+  flex: 1 1 auto;
+  width: 40px;
+  appearance: none;
+  background: var(--surface, #fff);
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 4px;
+  font-family: inherit;
+  color: var(--text, #111827);
+  transition: background .12s;
+}
+.shell-popout-pill:hover {
+  background: var(--bg, #f3f4f6);
+}
+.shell-popout-pill-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.shell-popout-pill-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-muted, #6b7280);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+}
+
+/* Expanded panel header */
+.shell-popout-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg, #f9fafb);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.shell-popout-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #111827);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-popout-icon { font-size: 16px; line-height: 1; }
+.shell-popout-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.shell-popout-picker {
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 4px;
+  background: var(--surface, #fff);
+  max-width: 130px;
+}
+.shell-popout-close {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  border: 1px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+.shell-popout-close:hover {
+  background: var(--bg, #f3f4f6);
+  color: var(--text, #111827);
+}
+.shell-popout-frame {
+  flex: 1 1 auto;
+  width: 100%;
+  border: 0;
+  background: var(--bg, #f8fafc);
+}
+
+/* Mobile: popouts stack on top of main as overlays. (Workflow shell
+ * is desktop-first; mobile UX is best-effort.) */
+@media (max-width: 800px) {
+  .shell-popout.open {
+    position: fixed;
+    top: 0; bottom: 0;
+    width: 88vw;
+    max-width: 380px;
+    z-index: 300;
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.18);
+  }
+  .shell-popout--left.open  { left: 0; }
+  .shell-popout--right.open { right: 0; }
+}
