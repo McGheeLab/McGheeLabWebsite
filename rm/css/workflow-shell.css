@@ -24,18 +24,20 @@ body.has-workflow-shell > .workflow-strip {
   flex: 0 0 auto;
 }
 
+/* V3.81 — popouts are OVERLAYS on top of main, not flex items that
+ * split horizontal space. #shell-root is the positioning anchor;
+ * #shell-main fills it; popouts are absolutely positioned on top. */
 #shell-root {
   flex: 1 1 auto;
-  display: flex;
-  min-height: 0;       /* allow children to shrink + scroll */
+  position: relative;
+  min-height: 0;
   background: var(--bg, #f8fafc);
 }
 
 /* ─── Main iframe area ─────────────────────────────────── */
 #shell-main {
-  flex: 1 1 auto;
-  position: relative;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
   background: var(--bg, #f8fafc);
 }
 .shell-frame-wrap {
@@ -50,52 +52,81 @@ body.has-workflow-shell > .workflow-strip {
   display: block;
 }
 
-/* ─── Popout panels (left + right) ─────────────────────── */
+/* ─── Popout overlays (left + right) ─────────────────────
+ * Floating overlays over main, not flex items. Two states:
+ *   COLLAPSED: small floating tab pill anchored to the edge of the
+ *   viewport at mid-height. Clicking opens the panel.
+ *   OPEN: full-height (top:0/bottom:0) panel slid in from the edge,
+ *   with a soft drop shadow so it's clearly floating over main. */
 .shell-popout {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface, #fff);
-  border-left: 1px solid var(--border, #e5e7eb);
-  border-right: 1px solid var(--border, #e5e7eb);
-  width: 40px;
-  transition: width .15s ease;
-  min-height: 0;
+  background: transparent;
+  pointer-events: none;       /* the pill / panel inside set their own */
+  z-index: 10;
 }
-.shell-popout--left  { border-right: 1px solid var(--border, #e5e7eb); border-left: 0; }
-.shell-popout--right { border-left:  1px solid var(--border, #e5e7eb); border-right: 0; }
+.shell-popout--left  { left: 0; }
+.shell-popout--right { right: 0; }
 .shell-popout.open {
-  width: 460px;     /* V3.80 — bigger default; user-resized width set inline */
-  position: relative;
+  width: 460px;               /* V3.80 default; user-resized inline */
+  background: var(--surface, #fff);
+  border-left:  1px solid var(--border, #e5e7eb);
+  border-right: 1px solid var(--border, #e5e7eb);
+  box-shadow: 0 0 24px rgba(15, 23, 42, .12);
+  pointer-events: auto;
 }
+.shell-popout--left.open  { border-left: 0; }
+.shell-popout--right.open { border-right: 0; }
 
-/* Collapsed pill — vertical bar with icon + rotated label, full-height
- * click target. */
+/* Collapsed pill — compact floating tab at mid-height, not a
+ * full-height bar. Just enough to grab attention without obscuring
+ * content. */
 .shell-popout-pill {
-  flex: 1 1 auto;
-  width: 40px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 120px;
   appearance: none;
   background: var(--surface, #fff);
-  border: 0;
+  border: 1px solid var(--border, #e5e7eb);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 14px 4px;
+  padding: 10px 4px;
   font-family: inherit;
   color: var(--text, #111827);
-  transition: background .12s;
+  transition: background .12s, transform .12s, width .12s;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .10);
+}
+.shell-popout--left  .shell-popout-pill {
+  left: 0;
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+}
+.shell-popout--right .shell-popout-pill {
+  right: 0;
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
 }
 .shell-popout-pill:hover {
   background: var(--bg, #f3f4f6);
+  width: 36px;
 }
 .shell-popout-pill-icon {
   font-size: 18px;
   line-height: 1;
 }
 .shell-popout-pill-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .4px;

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.81] - 2026-05-08
+
+**Workflow shell popouts are overlays now, not split panes.** V3.80 made the popouts flex items, which split the viewport into three columns (left popout / main / right popout). The user wanted FLOATING overlays so the main page never resizes — popouts slide in over the main content. Fixed by switching popouts to absolute positioning with a soft shadow.
+
+### Changed
+- **`rm/css/workflow-shell.css`** — `#shell-root` is now `position: relative` (not flex), and `#shell-main` is `position: absolute; inset: 0;` so main always fills the entire shell area regardless of popout state. `.shell-popout` is `position: absolute; top: 0; bottom: 0;` anchored to the appropriate edge with `z-index: 10`. When `.open`, the popout gets its width (default 460 px, user-resizable) + a soft drop shadow (`box-shadow: 0 0 24px rgba(15,23,42,.12)`) so the floating-layer affordance is visible. Wrapper is `pointer-events: none` when closed; pill + open panel are `pointer-events: auto` so they're clickable but don't block clicks on the main iframe.
+- **Compact pill** (collapsed state) — was a full-height 40 px bar splitting the viewport. Now a small **32×120 px floating tab anchored at mid-height** on the appropriate edge, with rounded corners on the inner side and a small shadow. Hover slightly widens to 36 px for affordance. Vertical rotated label + icon. Replaces the V3.80 full-height pill so collapsed popouts don't visually take real estate from the main page.
+- **`rm/css/workflow-shell.css`** — left popout pill: `border-radius: 0 10px 10px 0`; right popout pill: `border-radius: 10px 0 0 10px`. Borders flipped on `.open` state so the seam is on the appropriate side.
+- **`sw.js`** — `CACHE_VERSION` 55 → 56.
+
+### Notes
+- **No JS changes** — the popout open/close + resize-drag + width persistence (V3.80) all still work; only the visual layout changed.
+- **Trade-off**: when both popouts are open and total ≥ viewport width, they'll overlap each other visually. Acceptable on desktop (viewport > 1000 px is typical); mobile already has a separate overlay rule via the `@media (max-width: 800px)` breakpoint.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v56`.
+
 ## [V3.80] - 2026-05-08
 
 **Workflow shell fixes — popout sizing + load order regression.** Three bugs reported on V3.78's shell; all fixed.

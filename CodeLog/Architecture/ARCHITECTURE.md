@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.80 (Workflow shell fixes — load order corrected (nav.js before page-registry.js); popouts default open with chat (left) + tasks (right) at 460 px; drag-to-resize handle on each popout's inner edge; width persisted to localStorage per side.)
+**Version:** V3.81 (Workflow shell popouts now FLOAT as absolute-positioned overlays over `#shell-main` — main fills the entire shell area regardless of popout state. Compact 32×120 px floating tab pill at mid-height when collapsed; soft drop shadow when open.)
 
 ## System Overview
 
