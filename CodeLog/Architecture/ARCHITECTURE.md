@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.87 (Chat-in-popout cleanup — chat.js detects embed mode (`window.parent !== window` / `window.name` `rm-embed-*` / `rm-shell-*` / `?embed=1`) and (a) defaults the mobile tab to `chat` (not `overview`), (b) skips the mobile top + bottom bars to reclaim vertical space, (c) remembers the last-opened channel in `localStorage` so the popout reopens to the same conversation.)
+**Version:** V3.88 (Bug fix — split panes nested the workflow shell inside each iframe because the strip's split link used `location.href` (the shell URL). On workflow-shell `nav.js` now derives `leftURL` from the active page's URL via `pageMap` + `pageState[active]`.)
 
 ## System Overview
 

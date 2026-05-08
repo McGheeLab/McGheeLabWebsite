@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.88] - 2026-05-08
+
+**Bug fix — split panes showed nested workflow nav inside each iframe.** Reported: "now the split pages have their own workflow nav on each page header."
+
+### Root cause
+
+When the user clicked `⊟ Split` from inside the workflow shell, the strip's pre-fill code in `nav.js` set `leftURL` to `location.pathname + location.search + location.hash`. On the workflow shell, that's `/rm/pages/workflow-shell.html?workflow=…&active=…`. The split's left iframe then loaded **the workflow shell itself** — which boots its own `workflow-shell.js`, renders its own popouts, and lazy-loads its own active-page iframe. The user saw a workflow shell nested inside each split pane.
+
+### Fix
+- **`rm/js/nav.js`** — when `location.pathname === '/rm/pages/workflow-shell.html'`, the strip's split-link `leftURL` is now the **active workflow page's URL** (looked up from `?active=` + `pageMap` + `state.pageState[active]` for resume URL). Outside the shell (split-view, individual pages), behavior is unchanged: `leftURL = location.pathname + .search + .hash`.
+- **`sw.js`** — `CACHE_VERSION` 62 → 63.
+
+### Notes
+- **Effect:** clicking ⊟ Split from the shell now opens split-view with `left=/rm/pages/library.html?paper=mebp` (the actual page), not `left=/rm/pages/workflow-shell.html?…`. The iframe loads the page directly with `?embed=1` + `name=rm-embed-left` so nav.js inside suppresses both regular nav and workflow strip — clean panes.
+- Cmd-click on a chip in shell mode still opens the chip's full URL in a new tab (no behavior change there — the href stays valid).
+- No firestore.rules / functions changes.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v63`.
+
 ## [V3.87] - 2026-05-08
 
 **Chat-in-popout cleanup.** User reported chat in the side popout was confusing — Overview took precedence over the actual conversation, clicking conversations didn't load reliably, page-title and bottom bars stole vertical space the popout doesn't have. Targeted fixes in chat.js for embed mode.

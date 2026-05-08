@@ -473,7 +473,23 @@ async function renderWorkflowStrip(state) {
   });
   if (accessibleIds.length) {
     // Left pane = current page (with any state — paper id, tab, etc.).
-    const leftURL = location.pathname + location.search + location.hash;
+    // V3.88 — when the user is in the workflow shell, location is
+    // /rm/pages/workflow-shell.html (a container). Splitting from
+    // there must use the ACTIVE workflow page's URL as the left pane,
+    // not the shell URL — otherwise each split iframe loads the shell
+    // again, which renders its own popouts + nested iframe inside the
+    // pane (the user's "split pages have their own workflow nav"
+    // report). Pull the active page's remembered URL or canonical
+    // href from pageMap.
+    let leftURL;
+    if (location.pathname === '/rm/pages/workflow-shell.html') {
+      const activeFromUrl = new URLSearchParams(location.search).get('active') || activeChipId;
+      const activeP = activeFromUrl && pageMap.get(activeFromUrl);
+      const remembered = state.pageState && state.pageState[activeFromUrl];
+      leftURL = remembered || (activeP && activeP.href) || '/rm/index.html';
+    } else {
+      leftURL = location.pathname + location.search + location.hash;
+    }
     // Right pane = next workflow page after current; wrap to first if at end.
     let rightId = null;
     if (activeChipId) {
