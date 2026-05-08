@@ -1765,6 +1765,153 @@ body {
 .lp-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;font-weight:600;margin-bottom:4px}
 .lp-abstract-body{font-size:12px;line-height:1.5;color:#374151}
 
+/* Citations panel (paper-citations.js) — left-sidebar list of inline
+ * citations on the currently visible page, with hover-to-flash on the PDF
+ * and an "add referenced paper to library" action. */
+.lp-citations{border-top:1px solid #e5e7eb;padding-top:10px}
+.lp-cite-empty{font-size:11px;color:#9ca3af;font-style:italic}
+.lp-cite-list{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto}
+.lp-cite-row{border:1px solid #e5e7eb;border-radius:6px;background:#fff;font-size:11px;transition:background .12s,border-color .12s}
+.lp-cite-row:hover,.lp-cite-row-active{background:#fffbeb;border-color:#fbbf24}
+.lp-cite-row-head{display:flex;align-items:center;gap:6px;padding:5px 7px;cursor:pointer;user-select:none}
+.lp-cite-token{font-family:ui-monospace,monospace;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:0 5px;font-size:10px;flex-shrink:0}
+.lp-cite-preview{flex:1;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lp-cite-chev{color:#9ca3af;font-size:10px;flex-shrink:0}
+.lp-cite-row-body{padding:6px 9px 8px;border-top:1px dashed #e5e7eb;font-size:11px;line-height:1.45;color:#374151}
+.lp-cite-full{margin-bottom:5px}
+.lp-cite-doi{margin-bottom:5px}
+.lp-cite-doi a{color:#6366f1;text-decoration:none}
+.lp-cite-doi a:hover{text-decoration:underline}
+.lp-cite-author{font-weight:600;color:#111827}
+.lp-cite-title{color:#374151}
+.lp-cite-chip{display:inline-flex;align-items:center;font-size:9px;padding:1px 6px;border-radius:8px;flex-shrink:0;text-decoration:none;font-weight:600;letter-spacing:.2px}
+.lp-cite-chip-lib{background:#dcfce7;color:#166534;border:1px solid #86efac}
+.lp-cite-chip-lib:hover{background:#bbf7d0}
+.lp-cite-chip-noid{background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;font-weight:500}
+.lp-cite-meta-row{display:flex;gap:6px;font-size:11px;line-height:1.5;margin-bottom:3px}
+.lp-cite-meta-row > span:first-child{flex-shrink:0;width:60px;color:#6b7280;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+.lp-cite-meta-row a{color:#6366f1;text-decoration:none;word-break:break-all}
+.lp-cite-meta-row a:hover{text-decoration:underline}
+.lp-cite-full{margin-bottom:5px;color:#6b7280;font-size:10px;line-height:1.45}
+.lp-cite-full-wrap{margin-top:6px}
+.lp-cite-full-wrap summary{font-size:10px;color:#9ca3af;cursor:pointer;user-select:none}
+.lp-cite-full-wrap summary:hover{color:#6b7280}
+.lp-cite-actions{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.lp-cite-add,.lp-cite-open{font-size:10px;padding:3px 9px;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block}
+.lp-cite-add:hover,.lp-cite-open:hover{background:#ddd6fe;color:#5b21b6}
+.lp-cite-open{background:#dbeafe;color:#1e3a8a;border-color:#bfdbfe}
+.lp-cite-open:hover{background:#bfdbfe;color:#1e3a8a}
+.lp-cite-add.lp-cite-added{background:#dcfce7;color:#166534;border-color:#86efac;cursor:default}
+.lp-cite-unmatched{font-size:10px;color:#9ca3af;font-style:italic}
+.pv-cite-overlay{}
+.pv-cite-flash{transition:opacity .12s}
+
+/* Bucket-scoped overlay picker (paper-overlays.js) — toolbar button +
+ * popover lives in the right-panel toolbar, above the annotation list. */
+.lp-toolbar-row-overlays{margin-top:4px}
+.lp-overlays-anchor{position:relative}
+.lp-overlays-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 8px;background:#f9fafb;color:#374151;border:1px solid #d1d5db;border-radius:6px;cursor:pointer}
+.lp-overlays-btn:hover{background:#eef2ff;color:#4338ca;border-color:#a5b4fc}
+.lp-overlays-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#a78bfa}
+.lp-overlays-pop{position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,0.12);z-index:1000;width:280px;font-size:11px}
+.lp-overlays-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#374151}
+.lp-overlays-actions{display:flex;gap:4px}
+.lp-overlays-mini{font-size:10px;padding:2px 8px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:4px;cursor:pointer}
+.lp-overlays-mini:hover{background:#eef2ff;color:#4338ca}
+.lp-overlays-mini[disabled]{opacity:.4;cursor:default}
+.lp-overlays-list{max-height:260px;overflow:auto;padding:4px 0}
+.lp-overlay-row{display:flex;align-items:center;gap:7px;padding:5px 10px;cursor:pointer;user-select:none}
+.lp-overlay-row:hover{background:#f9fafb}
+.lp-overlay-row-on{background:#fef9c3}
+.lp-overlay-row-on:hover{background:#fef08a}
+.lp-overlay-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;flex-shrink:0;border:1px solid rgba(0,0,0,.15)}
+.lp-overlay-title{flex:1;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lp-overlays-foot{padding:6px 10px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:10px;line-height:1.4}
+.lp-overlays-foot code{background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:10px}
+.lp-overlays-empty{padding:12px 14px;color:#9ca3af;font-style:italic;font-size:11px;line-height:1.5}
+.lp-overlays-foot-note{margin-top:6px;color:#6b7280;font-size:10px;line-height:1.4}
+.lp-overlays-link-btn{display:inline-block;font-size:11px;padding:3px 9px;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:4px;cursor:pointer}
+.lp-overlays-link-btn:hover{background:#ddd6fe}
+/* V3.94 — link picker modal (reuses .lp-oim-card frame). */
+.lp-linkpick-list{max-height:260px;overflow:auto;padding:4px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin:8px 0}
+.lp-linkpick-row{display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;user-select:none;font-size:12px}
+.lp-linkpick-row:hover{background:#f9fafb}
+.lp-linkpick-row-linked{background:#eef2ff}
+.lp-linkpick-row-linked:hover{background:#e0e7ff}
+.lp-linkpick-title{flex:1;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.lp-linkpick-id{color:#9ca3af;font-family:ui-monospace,monospace;font-size:10px;flex-shrink:0;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.lp-linkpick-empty{padding:14px;color:#9ca3af;font-style:italic;font-size:11px}
+.lp-linkpick-create{display:flex;gap:6px;padding:8px 14px;border-top:1px solid #e5e7eb;align-items:center}
+.lp-linkpick-create input{flex:1;font-size:12px;padding:5px 8px;border:1px solid #d1d5db;border-radius:5px}
+.lp-linkpick-create input:focus{outline:none;border-color:#a5b4fc;box-shadow:0 0 0 2px rgba(99,102,241,.18)}
+
+/* Per-bucket accent stripe drawn alongside an annotation rect when more
+ * than one overlay is active simultaneously. See annotation-overlay.js. */
+.ann-bucket-stripe{position:absolute;border-radius:1px;pointer-events:none;box-shadow:0 0 2px rgba(0,0,0,.25)}
+
+/* Per-annotation overlay chip (info panel of annotation-panel.js) — click
+ * to add/remove this highlight from a project-bucket overlay. */
+.ann-bucket-chips{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
+.ann-bucket-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;font-size:10px;background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-family:inherit}
+.ann-bucket-chip:hover{background:#fef3c7;border-color:#fbbf24;color:#374151}
+.ann-bucket-chip-on{background:color-mix(in srgb,var(--bucket-color) 22%,#fff);color:#111827;border-color:var(--bucket-color);font-weight:600}
+.ann-bucket-chip-on:hover{background:color-mix(in srgb,var(--bucket-color) 32%,#fff)}
+.ann-bucket-chip-orphan{background:#fee2e2;color:#991b1b;border-color:#fecaca;cursor:default}
+.ann-bucket-chip-swatch{display:inline-block;width:8px;height:8px;border-radius:2px;flex-shrink:0;border:1px solid rgba(0,0,0,.15)}
+
+/* Drag-drop overlay-import (paper-overlay-import.js). The banner appears
+ * inside #lp-viewer when a file is dragged from the OS; the modal pops
+ * on drop with a per-highlight match preview. */
+.lp-md-dropzone{position:absolute;inset:8px;background:rgba(99,102,241,0.10);border:2.5px dashed #6366f1;border-radius:10px;align-items:center;justify-content:center;z-index:50;pointer-events:none;display:flex}
+.lp-md-dropzone-inner{padding:14px 22px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;color:#3730a3;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(67,56,202,.15)}
+.lp-md-dropzone-inner code{background:#fff;padding:2px 7px;border-radius:4px;font-size:12px;border:1px solid #c7d2fe}
+
+.lp-overlay-import-modal{position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center}
+.lp-oim-backdrop{position:absolute;inset:0;background:rgba(15,23,42,0.45)}
+.lp-oim-card{position:relative;width:min(640px,92vw);max-height:84vh;background:#fff;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden}
+.lp-oim-head{padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:14px;color:#111827;display:flex;justify-content:space-between;align-items:center}
+.lp-oim-filename{font-family:ui-monospace,monospace;font-weight:400;font-size:11px;color:#6b7280}
+.lp-oim-summary{padding:10px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-size:12px;color:#374151}
+.lp-oim-summary code{background:#fff;padding:1px 6px;border-radius:3px;border:1px solid #e5e7eb;font-size:11px}
+.lp-oim-warn{color:#b45309;margin-left:6px}
+.lp-oim-errors{padding:8px 16px;background:#fef2f2;border-bottom:1px solid #fecaca;color:#991b1b;font-size:11px;line-height:1.6}
+.lp-oim-list{overflow:auto;flex:1;padding:6px 12px}
+.lp-oim-row{padding:8px 10px;margin:4px 0;border:1px solid #e5e7eb;border-radius:6px;background:#fff;font-size:11px}
+.lp-oim-row-bad{border-color:#fecaca;background:#fef2f2}
+.lp-oim-row-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.lp-oim-page{font-family:ui-monospace,monospace;font-size:10px;color:#6b7280;background:#f3f4f6;padding:1px 6px;border-radius:3px}
+.lp-oim-status{font-size:10px;color:#6b7280;flex:1}
+.lp-oim-row-ok .lp-oim-status{color:#166534}
+.lp-oim-row-bad .lp-oim-status{color:#b91c1c}
+.lp-oim-include{font-size:10px;color:#374151;display:flex;gap:4px;align-items:center}
+.lp-oim-quote{color:#1f2937;line-height:1.45}
+.lp-oim-comment{color:#6b7280;font-style:italic;margin-top:4px;line-height:1.4}
+.lp-oim-issues{color:#b91c1c;font-size:10px;margin-top:4px}
+.lp-oim-foot{padding:10px 16px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px;background:#fafafa}
+.lp-oim-primary{background:#6366f1;color:#fff;border-color:#4f46e5}
+.lp-oim-primary:hover{background:#4f46e5}
+.lp-oim-primary[disabled]{opacity:.5;cursor:default;background:#9ca3af;border-color:#9ca3af}
+
+/* In-paper search (paper-search.js) — toolbar search box that ranks hits
+ * inside existing highlights first. Lives below the overlays toolbar row. */
+.lp-toolbar-row-search{margin-top:4px}
+.lp-search-anchor{position:relative;width:100%}
+.lp-search-wrap{position:relative;width:100%}
+.lp-search-input{width:100%;padding:4px 8px;font-size:11px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#111827;box-sizing:border-box}
+.lp-search-input:focus{border-color:#6366f1;outline:none;box-shadow:0 0 0 2px rgba(99,102,241,.2)}
+.lp-search-results{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,.12);z-index:1000;max-height:380px;overflow:auto;font-size:11px}
+.lp-search-summary{padding:6px 10px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:10px;background:#f9fafb}
+.lp-search-row{padding:6px 10px;border-bottom:1px solid #f3f4f6;cursor:pointer;display:flex;align-items:flex-start;gap:6px;line-height:1.45}
+.lp-search-row:hover{background:#eef2ff}
+.lp-search-row-hl{background:#fffbeb}
+.lp-search-row-hl:hover{background:#fef3c7}
+.lp-search-page{font-family:ui-monospace,monospace;font-size:10px;color:#6b7280;background:#f3f4f6;padding:1px 5px;border-radius:3px;flex-shrink:0}
+.lp-search-chip{font-size:9px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:3px;padding:0 5px;flex-shrink:0}
+.lp-search-snippet{flex:1;color:#111827;font-size:11px}
+.lp-search-snippet mark{background:#fde68a;color:#92400e;padding:0 2px;border-radius:2px}
+.lp-search-empty{padding:10px 12px;color:#9ca3af;font-style:italic}
+.lp-search-more{padding:6px 10px;color:#9ca3af;font-size:10px;font-style:italic;border-top:1px solid #f3f4f6}
+
 .lp-main{display:flex;flex-direction:column;height:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#374151}
 /* Toolbar is now embedded in the right side panel as the first child of
  * #lp-annotations-inner (above the annotation filters). Light-themed to
@@ -1843,9 +1990,14 @@ body {
  * (right edge of left panel, left edge of right panel). */
 .lp-collapse-left{right:4px}
 .lp-collapse-right{left:4px}
-/* Expand pill, only visible when the panel is collapsed, sits centered
- * within the 32px-wide collapsed strip. */
-.lp-expand-left,.lp-expand-right{left:50%;transform:translate(-50%,-50%)}
+/* Expand pill, only visible when the panel is collapsed. Anchored near
+ * the top of the strip rather than centered vertically, because the
+ * shell-popout collapsed pill (workflow-shell.html / split-view.html
+ * parent) sits at viewport vertical center and would otherwise cover
+ * the expand pill — making the panel impossible to reopen. The collapse
+ * pill (visible when the panel is open) keeps `top:50%` because it sits
+ * at the inside edge of the open panel, far from the viewport edge. */
+.lp-expand-left,.lp-expand-right{left:50%;top:60px;transform:translateX(-50%)}
 /* By default expand buttons are hidden (panel is shown). They appear only
  * when the parent is in the collapsed state. */
 .lp-expand-btn{display:none}

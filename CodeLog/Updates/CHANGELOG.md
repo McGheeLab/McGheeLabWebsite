@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.94] - 2026-05-08
+
+**Link a paper to a project bucket from the paper reader.** Reported: "the overlays says: No project buckets are linked to this paper yet. … I need a way to add the paper to a project bucket. how do I load in the AI highlighting and commenting done by claude." Until now the only way to link was via the projects/dashboard page (`unlinkBucketFromItem`) — context-switching from the reader was disruptive, and the empty-state copy pointed users somewhere else for what felt like an inline action.
+
+### Changed
+- **`rm/js/paper-overlays.js`** — overlays popover gains a `+ Link to project…` button (visible whether buckets are linked or not). Click opens a modal listing every existing project bucket with a checkbox; checked = linked. Saving uses `LINKS.addLink` / `LINKS.removeLink` for the diff. Footer of the modal has an inline "+ Create + link" form: type a title, click button, a fresh bucket is created (shape matches `LINKS.newProjectForItem`) and pre-linked to the open paper. After save, the popover re-fetches linked buckets, prunes/adds entries to the active set, and re-renders so the overlays checklist reflects reality immediately.
+- **`rm/js/paper-overlays.js`** — empty-state copy rewritten to be self-serve: instead of "Pin it to a dashboard project (or use Send-to-teammate)" it says "Link one and AI overlays (drag-drop a `.paper-overlay.md` file) will scope to it." Plus the new link button below.
+- **`rm/css/style.css`** — `.lp-overlays-link-btn` (purple primary), `.lp-linkpick-list/-row/-row-linked/-title/-id`, `.lp-linkpick-create` (input + button row), `.lp-linkpick-empty`. Reuses the existing `.lp-oim-card` modal frame from the overlay-import flow so the two modals match visually.
+- **`sw.js`** — `CACHE_VERSION` 68 → 69.
+
+### How the AI-overlay flow now works end-to-end
+
+1. **Open the paper** in `library-paper.html` (it must already exist in the library).
+2. **Click "Overlays" in the right toolbar → "+ Link to project…"** — link to (or create) the bucket your review task lives under, e.g. `proj-gels-...` for GELS aim 2.
+3. **In your VSCode literature-review repo, run `/paper-overlay`** (the skill at `.claude/skills/paper-overlay/SKILL.md`). Claude writes a `<slug>.paper-overlay.md` with frontmatter (`paper_id`, `bucket_id`, `overlay_title`) + `## Highlight` blocks.
+4. **Drag-drop the `.md` onto the paper reader.** `paper-overlay-import.js` parses it, validates that the quotes appear in the paper text, shows a preview modal with matched / unmatched counts. Confirm imports. If the bucket isn't already linked, it auto-links (so step 2 is optional — you can do it via the .md file too).
+5. **The highlights now live in Firestore** with `bucket_ids: [bucketId]` and render under that overlay's color. Toggle the overlay on/off via the same overlays popover.
+6. **Reopen the paper any time** — the highlights persist (they're annotations, not file-bound). The `.paper-overlay.md` was just the import vehicle.
+
+### Notes
+- **One paper, many buckets.** Linking is many-to-many. A paper can carry GELS highlights, MEBP highlights, and prostate-gels highlights simultaneously; the overlays popover toggles which sets render. Use `evidence_stance` in the .md to mark for/against on each highlight.
+- **The .md file is ephemeral.** It's not stored on the bucket — only the parsed annotations are. If you want to re-import after editing the .md, just drag-drop it again; the importer dedupes by `(quote, page, bucket)` so re-imports are idempotent.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v69`.
+
 ## [V3.93] - 2026-05-08
 
 **Parsed references are cached on the paper item + parsed at import time.** Reported: "the references that populate should be stored in context to the paper so that the next time it is loaded we don't have to do that again. Also when we import a new paper to the library this should be done as well." Previously every paper-reader open re-parsed the references list from scratch (~1–2 s), and import-time imports never parsed at all.
