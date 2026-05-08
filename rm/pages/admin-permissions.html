@@ -105,6 +105,52 @@
       font-size: 13px; color: #92400e;
       display: flex; align-items: center; gap: 12px;
     }
+
+    /* V3.77 — inline workflow meta editor in the row label cell. */
+    .perm-wf-meta { display: flex; flex-direction: column; gap: 3px; min-width: 200px; }
+    .perm-wf-row1 { display: flex; gap: 4px; align-items: center; }
+    .perm-wf-icon {
+      width: 32px; text-align: center;
+      font-size: 14px; padding: 3px 4px;
+      border: 1px solid #d1d5db; border-radius: 4px;
+      background: #fff;
+    }
+    .perm-wf-name {
+      flex: 1; min-width: 0;
+      font-size: 13px; font-weight: 600; padding: 3px 6px;
+      border: 1px solid #d1d5db; border-radius: 4px;
+      background: #fff;
+    }
+    .perm-wf-desc {
+      font-size: 11px; padding: 3px 6px;
+      border: 1px solid #d1d5db; border-radius: 4px;
+      background: #fff; color: #4b5563;
+    }
+    .perm-wf-icon:focus, .perm-wf-name:focus, .perm-wf-desc:focus {
+      outline: none; border-color: var(--primary, #2563eb);
+      box-shadow: 0 0 0 2px rgba(37,99,235,.18);
+    }
+    .perm-wf-del {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; color: #9ca3af;
+      border: 1px solid transparent; border-radius: 50%;
+      cursor: pointer; font-size: 16px; line-height: 1;
+      padding: 0;
+    }
+    .perm-wf-del:hover {
+      background: #fef2f2; color: #dc2626; border-color: #fecaca;
+    }
+    .perm-add-row th, .perm-add-row td {
+      background: color-mix(in srgb, var(--primary, #2563eb) 4%, #fff);
+    }
+    .perm-add-icon, .perm-add-name, .perm-add-desc {
+      background: #fff;
+    }
+    .perm-add-btn {
+      align-self: flex-start;
+    }
   </style>
 </head>
 <body>

@@ -215,46 +215,100 @@
       return;
     }
     defaultWorkflows.forEach(function (wf) {
-      var tr = tbody.insertRow();
-      tr.dataset.workflowId = wf.id;
-      var th = document.createElement('th');
-      th.scope = 'row';
-      // V3.66 — per-workflow landing page picker. Dropdown shows pages
-      // currently checked for this workflow; admin selects one as the
-      // entry point that loads when a user clicks the workflow card.
-      var landingId = wf.landingPageId || '';
-      th.innerHTML = '<div>' + (wf.icon ? escHtml(wf.icon) + ' ' : '') + escHtml(wf.label) + '</div>'
-                   + '<div class="row-label-sub">' + escHtml(wf.id) + '</div>'
-                   + '<div class="row-label-sub" style="margin-top:4px;">'
-                   + '<label style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px;">Landing</label>'
-                   + '<select class="perm-landing-select" data-workflow-id="' + escHtml(wf.id) + '" style="font-size:11px;padding:2px 4px;max-width:160px;">'
-                   + '<option value="">First page</option>'
-                   + '</select>'
-                   + '</div>';
-      tr.appendChild(th);
-      var pageSet = new Set(wf.pageIds || []);
-      var lastGroup = null;
-      pageColumns().forEach(function (p) {
-        var td = document.createElement('td');
-        td.className = 'perm-cell';
-        if (p.group !== lastGroup) td.classList.add('group-start');
-        lastGroup = p.group;
-        var cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = pageSet.has(p.id);
-        cb.dataset.workflowId = wf.id;
-        cb.dataset.pageId = p.id;
-        cb.addEventListener('change', onWorkflowCellChange);
-        td.appendChild(cb);
-        tr.appendChild(td);
-      });
-      // Populate landing-page select with the workflow's currently-checked
-      // pages. Also wired to onWorkflowLandingChange.
-      var sel = th.querySelector('.perm-landing-select');
-      refreshLandingSelect(sel, wf);
-      sel.value = landingId;
-      sel.addEventListener('change', onWorkflowLandingChange);
+      tbody.appendChild(buildWorkflowRow(wf));
     });
+
+    // V3.77 — Add-new-workflow row. Pinned to the bottom; admin types
+    // a name/icon, hits Add, the new workflow appears as a regular
+    // editable row above. New workflow has no checked pages yet —
+    // admin checks pages and saves.
+    var addTr = tbody.insertRow();
+    addTr.className = 'perm-add-row';
+    addTr.dataset.role = 'add-workflow';
+    var addTh = document.createElement('th');
+    addTh.scope = 'row';
+    addTh.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:4px;">' +
+      '  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#9ca3af;font-weight:600;">Add a workflow</div>' +
+      '  <div style="display:flex;gap:4px;align-items:center;">' +
+      '    <input type="text" class="perm-add-icon"  placeholder="📁" maxlength="2" style="width:32px;text-align:center;font-size:14px;padding:3px 4px;border:1px solid #d1d5db;border-radius:4px;">' +
+      '    <input type="text" class="perm-add-name"  placeholder="Workflow name" style="flex:1;min-width:0;font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;">' +
+      '  </div>' +
+      '  <input type="text" class="perm-add-desc" placeholder="Short description (optional)" style="font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;">' +
+      '  <button class="btn btn-primary btn-sm perm-add-btn" type="button" style="font-size:11px;padding:3px 10px;">+ Add workflow</button>' +
+      '</div>';
+    addTr.appendChild(addTh);
+    var addColspan = pageColumns().length;
+    var spanCell = document.createElement('td');
+    spanCell.colSpan = addColspan;
+    spanCell.style.color = '#9ca3af';
+    spanCell.style.fontSize = '12px';
+    spanCell.style.fontStyle = 'italic';
+    spanCell.style.padding = '12px 10px';
+    spanCell.textContent = 'New workflows start with no pages — check the boxes above after adding.';
+    addTr.appendChild(spanCell);
+    addTr.querySelector('.perm-add-btn').addEventListener('click', onAddWorkflow);
+  }
+
+  /* V3.77 — Build one editable row for a default workflow. The row's
+   * label cell has inline inputs for icon, name, description, plus the
+   * landing-page select (V3.66) and a delete button. Cell columns
+   * remain checkboxes for page membership. */
+  function buildWorkflowRow(wf) {
+    var tr = document.createElement('tr');
+    tr.dataset.workflowId = wf.id;
+    var th = document.createElement('th');
+    th.scope = 'row';
+    th.innerHTML =
+      '<div class="perm-wf-meta">' +
+      '  <div class="perm-wf-row1">' +
+      '    <input type="text" class="perm-wf-icon" data-workflow-id="' + escHtml(wf.id) + '" data-field="icon" maxlength="2" value="' + escHtml(wf.icon || '') + '" placeholder="🗂" title="Icon (single emoji/character)">' +
+      '    <input type="text" class="perm-wf-name" data-workflow-id="' + escHtml(wf.id) + '" data-field="label" value="' + escHtml(wf.label || '') + '" placeholder="Workflow name" title="Workflow display name">' +
+      '    <button type="button" class="perm-wf-del" data-workflow-id="' + escHtml(wf.id) + '" title="Delete this workflow">×</button>' +
+      '  </div>' +
+      '  <input type="text" class="perm-wf-desc" data-workflow-id="' + escHtml(wf.id) + '" data-field="description" value="' + escHtml(wf.description || '') + '" placeholder="Short description (shown on the chooser card)" title="Description shown on the workflow chooser card">' +
+      '  <div class="row-label-sub" style="font-family:ui-monospace,Menlo,monospace;">' + escHtml(wf.id) + '</div>' +
+      '  <div class="row-label-sub" style="margin-top:2px;">' +
+      '    <label style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px;">Landing</label>' +
+      '    <select class="perm-landing-select" data-workflow-id="' + escHtml(wf.id) + '" style="font-size:11px;padding:2px 4px;max-width:160px;">' +
+      '      <option value="">First page</option>' +
+      '    </select>' +
+      '  </div>' +
+      '</div>';
+    tr.appendChild(th);
+
+    var pageSet = new Set(wf.pageIds || []);
+    var lastGroup = null;
+    pageColumns().forEach(function (p) {
+      var td = document.createElement('td');
+      td.className = 'perm-cell';
+      if (p.group !== lastGroup) td.classList.add('group-start');
+      lastGroup = p.group;
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = pageSet.has(p.id);
+      cb.dataset.workflowId = wf.id;
+      cb.dataset.pageId = p.id;
+      cb.addEventListener('change', onWorkflowCellChange);
+      td.appendChild(cb);
+      tr.appendChild(td);
+    });
+
+    // Wire meta inputs: icon, name, description.
+    th.querySelectorAll('input.perm-wf-icon, input.perm-wf-name, input.perm-wf-desc').forEach(function (inp) {
+      inp.addEventListener('input', onWorkflowMetaChange);
+    });
+    // Delete button.
+    th.querySelector('.perm-wf-del').addEventListener('click', function () {
+      onDeleteWorkflow(wf.id);
+    });
+    // Landing-page select.
+    var sel = th.querySelector('.perm-landing-select');
+    refreshLandingSelect(sel, wf);
+    sel.value = wf.landingPageId || '';
+    sel.addEventListener('change', onWorkflowLandingChange);
+
+    return tr;
   }
 
   /* Rebuild the option list of a workflow's landing select to reflect
@@ -320,6 +374,94 @@
       var sel = document.querySelector('select.perm-landing-select[data-workflow-id="' + wfId + '"]');
       if (sel) refreshLandingSelect(sel, wf);
     }
+    updatePendingStatus();
+  }
+
+  /* V3.77 — workflow meta (icon / label / description) edit. Mutates the
+   * in-memory wf record so subsequent renders reflect typed-but-unsaved
+   * values; tracks one pending edit per (workflowId, field) so save only
+   * fires when something actually changed vs the loaded baseline. */
+  function onWorkflowMetaChange(e) {
+    var wfId = e.target.dataset.workflowId;
+    var field = e.target.dataset.field;
+    if (!wfId || !field) return;
+    var wf = defaultWorkflows.find(function (w) { return w.id === wfId; });
+    if (!wf) return;
+    if (wf._initialMeta == null) {
+      wf._initialMeta = { icon: wf.icon || '', label: wf.label || '', description: wf.description || '' };
+    }
+    var val = e.target.value;
+    var initial = wf._initialMeta[field] || '';
+    var key = 'workflow-meta:' + wfId + ':' + field;
+    if (val === initial) {
+      pendingEdits.delete(key);
+    } else {
+      pendingEdits.set(key, { type: 'workflow-meta', key: wfId, field: field, value: val });
+    }
+    wf[field] = val;
+    updatePendingStatus();
+  }
+
+  /* V3.77 — admin clicks "+ Add workflow" in the bottom row. Validates
+   * inputs, slugifies the name to an id, ensures uniqueness, then
+   * appends a fresh workflow record (no pages yet) and re-renders the
+   * grid. The new workflow is automatically marked dirty via a
+   * pending edit so Save will persist it even if admin saves before
+   * editing further. */
+  function onAddWorkflow() {
+    var iconEl = document.querySelector('.perm-add-icon');
+    var nameEl = document.querySelector('.perm-add-name');
+    var descEl = document.querySelector('.perm-add-desc');
+    var name = (nameEl.value || '').trim();
+    if (!name) { nameEl.focus(); setStatus('Workflow needs a name.', 'err'); return; }
+    var slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (!slug) { nameEl.focus(); setStatus('Name must include letters or numbers.', 'err'); return; }
+    if (defaultWorkflows.some(function (w) { return w.id === slug; })) {
+      setStatus('A workflow with id "' + slug + '" already exists.', 'err');
+      return;
+    }
+    var newWf = {
+      id: slug,
+      label: name,
+      icon: (iconEl.value || '').trim() || '📁',
+      description: (descEl.value || '').trim(),
+      landingPageId: '',
+      pageIds: [],
+    };
+    newWf._initialMeta = { icon: '', label: '', description: '' };  // brand-new
+    defaultWorkflows.push(newWf);
+    initialState.workflow.set(slug, new Set());
+    // Mark all three fields as pending so save flushes the doc.
+    pendingEdits.set('workflow-meta:' + slug + ':icon',        { type: 'workflow-meta', key: slug, field: 'icon',        value: newWf.icon });
+    pendingEdits.set('workflow-meta:' + slug + ':label',       { type: 'workflow-meta', key: slug, field: 'label',       value: newWf.label });
+    pendingEdits.set('workflow-meta:' + slug + ':description', { type: 'workflow-meta', key: slug, field: 'description', value: newWf.description });
+    iconEl.value = ''; nameEl.value = ''; descEl.value = '';
+    renderWorkflowGrid();
+    setStatus('Added "' + name + '" — toggle pages, set Landing, then Save.', 'ok');
+    updatePendingStatus();
+  }
+
+  /* V3.77 — delete a workflow. Confirm first, then drop it from the
+   * in-memory array. Save flushes the absence to Firestore. */
+  function onDeleteWorkflow(wfId) {
+    var wf = defaultWorkflows.find(function (w) { return w.id === wfId; });
+    if (!wf) return;
+    if (!confirm('Delete the "' + (wf.label || wfId) + '" default workflow? This removes it for ALL users on the next Save.')) return;
+    defaultWorkflows = defaultWorkflows.filter(function (w) { return w.id !== wfId; });
+    initialState.workflow.delete(wfId);
+    // Drop any pending edits scoped to this workflow.
+    Array.from(pendingEdits.keys()).forEach(function (k) {
+      if (k.endsWith(':' + wfId)
+          || k === 'workflow-landing:' + wfId
+          || k.indexOf('workflow:' + wfId + ':') === 0
+          || k.indexOf('workflow-meta:' + wfId + ':') === 0) {
+        pendingEdits.delete(k);
+      }
+    });
+    // Mark the doc dirty so save fires (uses a sentinel pending edit).
+    pendingEdits.set('workflow-deleted:' + wfId, { type: 'workflow-deleted', key: wfId });
+    renderWorkflowGrid();
+    setStatus('Deleted "' + (wf.label || wfId) + '" — Save to persist.', 'ok');
     updatePendingStatus();
   }
 
@@ -394,11 +536,15 @@
       await Promise.all(userOps);
 
       // 2. Default workflows: single doc write with updated workflows array.
-      // Any workflow-cell edit OR landing edit triggers a write (the doc
-      // is rewritten as a whole).
+      // ANY edit type that touches the workflow doc (cell toggle, landing
+      // change, meta change, add, delete) triggers the write — we re-
+      // serialize the full array so partial state can't end up in
+      // Firestore.
       var anyWorkflowMeta = anyWorkflowEdit;
       pendingEdits.forEach(function (edit) {
         if (edit.type === 'workflow-landing') anyWorkflowMeta = true;
+        if (edit.type === 'workflow-meta')    anyWorkflowMeta = true;
+        if (edit.type === 'workflow-deleted') anyWorkflowMeta = true;
       });
       if (anyWorkflowMeta) {
         await db().collection('labConfig').doc('defaultWorkflows').set({
@@ -411,9 +557,12 @@
           updatedAt: new Date(),
         }, { merge: true });
         workflowDocExists = true;
-        // Refresh _initialLanding so subsequent edits compare against
-        // the now-saved values.
-        defaultWorkflows.forEach(function (w) { w._initialLanding = w.landingPageId || ''; });
+        // Refresh _initialLanding + _initialMeta so subsequent edits
+        // compare against the now-saved values.
+        defaultWorkflows.forEach(function (w) {
+          w._initialLanding = w.landingPageId || '';
+          w._initialMeta = { icon: w.icon || '', label: w.label || '', description: w.description || '' };
+        });
       }
 
       // Refresh initial state to match what we just saved.

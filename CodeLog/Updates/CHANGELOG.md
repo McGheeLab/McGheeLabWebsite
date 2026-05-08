@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.77] - 2026-05-07
+
+**Editable workflow meta + add/delete in the admin matrix.** The Default Workflows × Pages tab at `admin-permissions.html?tab=workflows` previously showed each workflow's icon, name, and id as static text — only the page-membership checkboxes and landing-page select were editable. Admins can now also rename workflows, change icons, edit descriptions, add brand-new workflows, and delete existing ones — all from the same grid.
+
+### Changed
+- **`rm/js/admin-permissions.js`** — split the workflow-row rendering into `buildWorkflowRow(wf)`. Each row's label cell now contains:
+  - `<input class="perm-wf-icon">` — single-emoji/character picker (maxlength=2 for surrogate-pair emojis like 📊).
+  - `<input class="perm-wf-name">` — workflow display label.
+  - `<input class="perm-wf-desc">` — short description shown on the chooser card.
+  - Workflow id (read-only, monospace).
+  - Landing-page select (V3.66, unchanged).
+  - `<button class="perm-wf-del">×</button>` — delete confirm dialog.
+- **`rm/js/admin-permissions.js`** — new `onWorkflowMetaChange()` handles input → tracks one pending edit per `(workflowId, field)` keyed `workflow-meta:<wfId>:<field>`. Lazy-initializes `wf._initialMeta` on first edit so subsequent saves can compare against the loaded baseline.
+- **`rm/js/admin-permissions.js`** — new `onAddWorkflow()` triggered by the new bottom row. Slugifies the typed name to an id, validates uniqueness, appends a fresh workflow record with empty pageIds, and re-renders. Three pending edits (icon/label/description) are seeded so Save flushes the new workflow even if admin saves immediately.
+- **`rm/js/admin-permissions.js`** — new `onDeleteWorkflow(wfId)` with confirm dialog. Drops the workflow from `defaultWorkflows`, scrubs any pending edits scoped to it, and adds a `workflow-deleted` sentinel so Save fires.
+- **`rm/js/admin-permissions.js`** — `saveAll()` extended to recognize `workflow-meta` and `workflow-deleted` edit types as triggers for the doc write. After save, refreshes both `_initialLanding` and `_initialMeta` baselines per workflow so further edits compare correctly.
+- **`rm/pages/admin-permissions.html`** — new CSS rules for `.perm-wf-meta`, `.perm-wf-row1`, `.perm-wf-icon`, `.perm-wf-name`, `.perm-wf-desc`, `.perm-wf-del`, `.perm-add-row`. Inputs get `:focus` ring; delete button only colors red on hover; add row gets a subtle blue tint to distinguish it.
+- **`sw.js`** — `CACHE_VERSION` 51 → 52.
+
+### Notes
+- **No firestore.rules / functions changes.** The doc shape gained no new fields — `label`, `description`, `icon`, `landingPageId`, `pageIds` were already serialized; admins just couldn't edit name/icon/description from the UI before.
+- **Workflow ids are immutable** in this UI. Renaming changes the display label only. Changing the id would require migrating every user's `customWorkflows` and `pageState` references — out of scope; admins should delete + re-add instead (with confirm).
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v52`.
+
 ## [V3.76] - 2026-05-07
 
 **Split-view navigation robustness — three fixes that together stop iframes from spawning their own nav.** User reported a confusing failure: in Lab Research workflow → split → click a paper in the library iframe → the new library-paper page rendered its own non-workflow nav inside the iframe (the parent strip was unchanged, but the user read the appearance/disappearance as "new workflow nav bar appeared"). Root cause: in-iframe `<a href>` clicks navigate to URLs without `?embed=1`, so the next document's nav.js saw no embed signal and rendered the regular non-workflow nav. Plan doc: [CodeLog/ClaudesPlan/V3.76_split_nav_robustness.md](../ClaudesPlan/V3.76_split_nav_robustness.md).

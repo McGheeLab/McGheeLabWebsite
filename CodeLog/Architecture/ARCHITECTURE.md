@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.76 (Split-view nav robustness — `window.name='rm-embed-<side>'` on workflow-split iframes is a durable embed signal that survives in-iframe navigations (HTML spec: browsing context name persists). Iframe `load` listener syncs iframe URL → parent `state[side]` → `rm:split:state-change` → strip re-renders so chip "open" markers stay accurate. `?embed=1` artifact stripped from saved state URLs.)
+**Version:** V3.77 (Editable workflow meta on the admin matrix — name/icon/description per row are inline inputs; new "+ Add workflow" row at bottom; `×` delete button per row. Seed → admin matrix → Firestore is now the full edit loop for default workflow definitions.)
 
 ## System Overview
 
