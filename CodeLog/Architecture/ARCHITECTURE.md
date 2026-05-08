@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.82 (Workflow shell popouts gained a close pill in the middle of the resize slider — click to retract. Pairs with the collapsed-state floating-tab pill (extend) for a one-pill-per-side toggle affordance.)
+**Version:** V3.83 (Bug fix — chip clicks in workflow shell didn't switch pages because nav.js wrote `?active=` BEFORE dispatching the event, then workflow-shell.js's listener early-bailed seeing the new value already in URL. Removed the duplicate URL write; listener owns URL state.)
 
 ## System Overview
 

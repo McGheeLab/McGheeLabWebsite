@@ -555,20 +555,25 @@ async function renderWorkflowStrip(state) {
     }
     // V3.78 — shell-mode active state: pill is active when its id ===
     // ?active= in the URL. Pill clicks dispatch rm:shell:set-active
-    // events instead of navigating; shell.js swaps which iframe is
-    // visible, no full-page reload, page state preserved.
+    // events instead of navigating; workflow-shell.js handles the URL
+    // update via writeState + swaps which iframe is visible.
+    //
+    // V3.83 — DO NOT update the URL here. Earlier the click handler
+    // updated `?active=` BEFORE dispatching the event; workflow-shell's
+    // listener then read readState() which already had the new value
+    // and its `if (pageId === s.active) return` early-bailed, so
+    // showActiveFrame never fired and the iframe never swapped. Now
+    // the listener owns the URL update — single source of truth.
     if (onShell) {
       if (id === shellActiveId) a.classList.add('active');
       a.addEventListener('click', (e) => {
         e.preventDefault();
-        if (id === shellActiveId) return;       // already active — no-op
-        // Update URL via replaceState so the strip can re-render with
-        // the new active pill on next refresh.
-        const sp = new URLSearchParams(location.search);
-        sp.set('active', id);
-        history.replaceState(null, '', '/rm/pages/workflow-shell.html?' + sp.toString());
+        if (id === shellActiveId) return;     // already active — no-op
+        // CustomEvent dispatch is synchronous — the listener in
+        // workflow-shell.js runs (writeState updates URL, iframe
+        // swaps) before the next line executes, so the strip refresh
+        // reads the new ?active= and lights up the right pill.
         window.dispatchEvent(new CustomEvent('rm:shell:set-active', { detail: { pageId: id } }));
-        // Re-render strip so the active class moves.
         if (typeof _wfRefreshStrip === 'function') _wfRefreshStrip();
       });
     }

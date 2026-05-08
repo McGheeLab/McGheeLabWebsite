@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.83] - 2026-05-08
+
+**Bug fix — chip clicks in the workflow shell didn't switch pages.** Reported by user: "when I'm in a workflow, I can't switch pages." Root cause: a race between two writers of `?active=` in the URL.
+
+### Root cause
+
+V3.78's nav.js chip handler in shell mode did this on click:
+1. `history.replaceState(...)` to set `?active=<newPageId>` on the URL
+2. dispatch `rm:shell:set-active`
+3. `_wfRefreshStrip()`
+
+workflow-shell.js's listener then did:
+```
+const s = readState();   // reads URL — already has the NEW pageId
+if (pageId === s.active) return;
+```
+
+So the listener early-bailed because `?active=` was already updated, and `showActiveFrame()` never ran → iframe never swapped → user clicks did nothing visible.
+
+### Fix
+- **`rm/js/nav.js`** — in shell-mode click handler, removed the URL `replaceState`. The listener in workflow-shell.js owns URL state via its own `writeState()` (which also dispatches `rm:split:state-change` listeners). CustomEvent dispatch is synchronous, so by the time `_wfRefreshStrip()` runs after `dispatchEvent`, the listener has already updated the URL and showActiveFrame has flipped the iframe; strip's chip-active class then reads the new `?active=` and lights up the right pill.
+- **`sw.js`** — `CACHE_VERSION` 57 → 58.
+
+### Notes
+- Single source of truth: workflow-shell.js owns `?active=`. nav.js dispatches user intent.
+- No firestore.rules / functions changes.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v58`.
+
 ## [V3.82] - 2026-05-08
 
 **Workflow shell popouts get a close pill on the slider.** When a popout is open, the resize-slider on the inner edge now has a small chevron pill in the vertical middle. Click it → the popout retracts. Pairs with the existing collapsed-state pill (vertical floating tab at viewport edge) which extends; together they give one toggle affordance per side that's always reachable without going to the panel header.
