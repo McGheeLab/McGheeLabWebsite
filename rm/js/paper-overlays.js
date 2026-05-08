@@ -251,11 +251,40 @@
     inp.click();
   }
 
-  // ----- Link picker (V3.94) --------------------------------------------
-  // Lets the user link the open paper to existing project buckets without
-  // leaving the paper reader. Also creates a fresh bucket for the paper if
-  // the user wants one. After save we re-fetch + re-render so the overlays
-  // checkbox list reflects the new linkage.
+  // ----- Link picker (V3.98) --------------------------------------------
+  // V3.94 introduced the picker; V3.95 grouped by item type. V3.98 makes
+  // the Papers + Grants sections show *items* (papers, grants from
+  // items.json) rather than just buckets. When the user checks a paper /
+  // grant row that has no bucket yet, save creates one via
+  // LINKS.pinItemToDashboard (same shape as newProjectForItem). Existing
+  // free-form buckets continue to live in the Other section.
+  //
+  // This solves the production problem where every bucket fell into
+  // "Other" because most buckets were created on the tasks page without
+  // a linked_item_id, AND surfaces papers/grants in the picker that
+  // didn't have a bucket yet.
+
+  function _itemHint(item) {
+    const lib = (item && item.meta && item.meta.library) || {};
+    if (item.type === 'paper') {
+      const a = (lib.authors && lib.authors[0]) || {};
+      const name = a.family || a.given || '';
+      const yr = lib.year || '';
+      const j = lib.journal || lib.target_journal || '';
+      const left = [name, yr].filter(Boolean).join(' ');
+      const right = j;
+      if (left && right) return left + ' · ' + right;
+      return left || right || '';
+    }
+    if (item.type === 'grant') {
+      const m = (item.meta) || {};
+      const agency = m.agency || m.sponsor || m.funder || '';
+      const num = m.grant_number || m.award_number || m.proposal_number || '';
+      const left = [agency, num].filter(Boolean).join(' · ');
+      return left;
+    }
+    return '';
+  }
 
   async function _openLinkPicker() {
     if (!window.LINKS || !_paperItem) return;
@@ -271,72 +300,126 @@
       console.warn('[paper-overlays] failed to load buckets:', e);
       return;
     }
-    const projects = (bucketsDoc && bucketsDoc.projects) || [];
+    const allItems = (itemsDoc && itemsDoc.items) || [];
+    const allBuckets = (bucketsDoc && bucketsDoc.projects) || [];
     const linkedIds = new Set(_linkedBuckets.map(b => b.id));
 
-    // V3.95 — group by item type so papers + grants float to the top.
-    // Buckets created from items inherit category='research' for both
-    // papers and grants, so we resolve the item type via linked_item_ids
-    // rather than category alone.
-    const itemsById = new Map();
-    for (const it of (itemsDoc && itemsDoc.items) || []) itemsById.set(it.id, it);
-    const groupOf = (bucket) => {
-      const itemId = (bucket.linked_item_ids || [])[0];
-      const it = itemId ? itemsById.get(itemId) : null;
-      const type = (it && it.type) || '';
-      if (type === 'paper') return 'Papers';
-      if (type === 'grant') return 'Grants';
-      const cat = String(bucket.category || '').toLowerCase();
-      if (cat === 'paper' || cat === 'papers')  return 'Papers';
-      if (cat === 'grant' || cat === 'grants')  return 'Grants';
-      return 'Other';
+    // item id → first bucket that lists it in linked_item_ids. Used to
+    // resolve a paper/grant row to a real bucket when one already
+    // exists (so checking it doesn't auto-create a duplicate bucket).
+    const bucketByItemId = new Map();
+    for (const b of allBuckets) {
+      for (const itemId of (b.linked_item_ids || [])) {
+        if (!bucketByItemId.has(itemId)) bucketByItemId.set(itemId, b);
+      }
+    }
+    // Bucket ids surfaced in Papers/Grants sections — they should NOT
+    // also appear in Other.
+    const itemBucketIds = new Set();
+    for (const b of bucketByItemId.values()) {
+      const item = allItems.find(i => i.id === ((b.linked_item_ids || [])[0]));
+      if (item && (item.type === 'paper' || item.type === 'grant')) {
+        itemBucketIds.add(b.id);
+      }
+    }
+
+    const rowsByKey = new Map();
+    function makeItemRow(item) {
+      const bucket = bucketByItemId.get(item.id);
+      const linked = !!(bucket && linkedIds.has(bucket.id));
+      const row = {
+        kind: 'item',
+        rowKey: 'item:' + item.id,
+        item, bucket,
+        linked,
+        title: item.title || item.name || item.id,
+        hint:  _itemHint(item),
+        willCreate: !bucket,
+        // For the swatch — use the bucket's color if it exists, else a
+        // deterministic per-item color so virtual rows look consistent
+        // across reopens.
+        swatchKey: bucket ? bucket.id : ('item:' + item.id),
+      };
+      rowsByKey.set(row.rowKey, row);
+      return row;
+    }
+    function makeBucketRow(bucket) {
+      const linked = linkedIds.has(bucket.id);
+      const row = {
+        kind: 'bucket',
+        rowKey: 'bucket:' + bucket.id,
+        bucket,
+        linked,
+        title: bucket.title || bucket.id,
+        hint:  bucket.id,
+        willCreate: false,
+        swatchKey: bucket.id,
+      };
+      rowsByKey.set(row.rowKey, row);
+      return row;
+    }
+
+    const paperRows = allItems
+      .filter(i => i.type === 'paper' && i.id !== _paperItem.id)
+      .map(makeItemRow);
+    const grantRows = allItems
+      .filter(i => i.type === 'grant')
+      .map(makeItemRow);
+    const otherRows = allBuckets
+      .filter(b => !itemBucketIds.has(b.id))
+      .map(makeBucketRow);
+
+    const linkedFirstThenAlpha = (a, b) => {
+      const al = a.linked ? 0 : 1, bl = b.linked ? 0 : 1;
+      if (al !== bl) return al - bl;
+      return (a.title || '').localeCompare(b.title || '');
     };
-    const GROUP_ORDER = { 'Papers': 0, 'Grants': 1, 'Other': 2 };
-    const groups = new Map();   // groupName → [bucket, ...]
-    for (const p of projects) {
-      const g = groupOf(p);
-      if (!groups.has(g)) groups.set(g, []);
-      groups.get(g).push(p);
-    }
-    // Sort each group: linked first, then alpha by title.
-    for (const arr of groups.values()) {
-      arr.sort((a, b) => {
-        const al = linkedIds.has(a.id) ? 0 : 1;
-        const bl = linkedIds.has(b.id) ? 0 : 1;
-        if (al !== bl) return al - bl;
-        return (a.title || '').localeCompare(b.title || '');
-      });
-    }
-    const orderedGroups = Array.from(groups.keys()).sort((a, b) =>
-      (GROUP_ORDER[a] ?? 99) - (GROUP_ORDER[b] ?? 99)
-    );
-    const rowFor = (p) => {
-      const linked = linkedIds.has(p.id);
-      const color = getColorForBucket(p.id);
+    paperRows.sort(linkedFirstThenAlpha);
+    grantRows.sort(linkedFirstThenAlpha);
+    otherRows.sort(linkedFirstThenAlpha);
+
+    const sections = [
+      { name: 'Papers', rows: paperRows },
+      { name: 'Grants', rows: grantRows },
+      { name: 'Other',  rows: otherRows },
+    ];
+
+    const renderRowHTML = (row) => {
+      const color = getColorForBucket(row.swatchKey);
+      const badge = row.willCreate
+        ? `<span class="lp-linkpick-badge" title="Will create a new bucket on save">will create</span>`
+        : '';
+      const hint = row.hint
+        ? `<span class="lp-linkpick-hint">${_esc(row.hint)}</span>`
+        : '';
       return `
-        <label class="lp-linkpick-row${linked ? ' lp-linkpick-row-linked' : ''}">
-          <input type="checkbox" data-bucket-id="${_esc(p.id)}"${linked ? ' checked' : ''}>
+        <label class="lp-linkpick-row${row.linked ? ' lp-linkpick-row-linked' : ''}"
+               data-row-search="${_esc(((row.title || '') + ' ' + (row.hint || '')).toLowerCase())}">
+          <input type="checkbox" data-row-key="${_esc(row.rowKey)}"${row.linked ? ' checked' : ''}>
           <span class="lp-overlay-swatch" style="background:${color};"></span>
-          <span class="lp-linkpick-title">${_esc(p.title || p.id)}</span>
-          <span class="lp-linkpick-id">${_esc(p.id)}</span>
+          <span class="lp-linkpick-titlewrap">
+            <span class="lp-linkpick-title">${_esc(row.title)}</span>
+            ${hint}
+          </span>
+          ${badge}
         </label>
       `;
     };
-    let rows = '';
-    if (!projects.length) {
-      rows = `<div class="lp-linkpick-empty">No project buckets exist yet — create one below.</div>`;
-    } else {
-      rows = orderedGroups.map(name => {
-        const arr = groups.get(name) || [];
-        if (!arr.length) return '';
-        return `
-          <div class="lp-linkpick-group">
-            <div class="lp-linkpick-group-head">${_esc(name)} <span class="lp-linkpick-group-count">${arr.length}</span></div>
-            ${arr.map(rowFor).join('')}
+    const renderSectionHTML = (sec) => {
+      const rows = sec.rows;
+      if (!rows.length) return '';   // hide empty sections
+      return `
+        <div class="lp-linkpick-group" data-section="${_esc(sec.name)}">
+          <div class="lp-linkpick-group-head">
+            ${_esc(sec.name)}
+            <span class="lp-linkpick-group-count">${rows.length}</span>
           </div>
-        `;
-      }).join('');
-    }
+          ${rows.map(renderRowHTML).join('')}
+        </div>
+      `;
+    };
+    const listHTML = sections.map(renderSectionHTML).join('') ||
+      `<div class="lp-linkpick-empty">No papers, grants, or buckets in items.json / tasks/buckets.json yet.</div>`;
 
     const modal = document.createElement('div');
     modal.id = 'lp-overlays-linkmodal';
@@ -346,13 +429,16 @@
       <div class="lp-oim-card">
         <div class="lp-oim-head">Link this paper to a project bucket</div>
         <div class="lp-oim-summary">
-          Linking lets AI-generated <code>.paper-overlay.md</code> files (and
-          manual highlights) scope to a specific review task. A paper can be
-          linked to many buckets.
+          Pick papers, grants, or existing buckets to scope this paper's
+          highlights to. Checking a paper or grant that doesn't have a
+          bucket yet will auto-create one with the item's title.
         </div>
-        <div class="lp-linkpick-list">${rows}</div>
+        <div class="lp-linkpick-search-wrap">
+          <input id="lp-linkpick-search" type="text" placeholder="Search papers, grants, buckets…" autocomplete="off" />
+        </div>
+        <div class="lp-linkpick-list">${listHTML}</div>
         <div class="lp-linkpick-create">
-          <input id="lp-linkpick-newtitle" type="text" placeholder="New bucket title (e.g. GELS aim 2 review)" />
+          <input id="lp-linkpick-newtitle" type="text" placeholder="New free-form bucket (e.g. GELS aim 2 review)" />
           <button class="btn btn-sm" id="lp-linkpick-newbtn">+ Create + link</button>
         </div>
         <div class="lp-oim-foot">
@@ -367,6 +453,28 @@
     modal.querySelector('.lp-oim-backdrop').addEventListener('click', close);
     modal.querySelector('#lp-linkpick-cancel').addEventListener('click', close);
 
+    // Live search filter — hides rows whose data-row-search doesn't
+    // contain every space-separated token; updates section count chips
+    // to reflect filtered totals + hides empty sections.
+    const searchInp = modal.querySelector('#lp-linkpick-search');
+    searchInp.addEventListener('input', () => {
+      const q = searchInp.value.trim().toLowerCase();
+      const tokens = q.split(/\s+/).filter(Boolean);
+      modal.querySelectorAll('.lp-linkpick-group').forEach(group => {
+        let visibleCount = 0;
+        group.querySelectorAll('.lp-linkpick-row').forEach(row => {
+          const hay = row.getAttribute('data-row-search') || '';
+          const show = !tokens.length || tokens.every(t => hay.includes(t));
+          row.style.display = show ? '' : 'none';
+          if (show) visibleCount++;
+        });
+        const chip = group.querySelector('.lp-linkpick-group-count');
+        if (chip) chip.textContent = String(visibleCount);
+        group.style.display = visibleCount === 0 ? 'none' : '';
+      });
+    });
+    setTimeout(() => searchInp.focus(), 0);
+
     modal.querySelector('#lp-linkpick-newbtn').addEventListener('click', async (ev) => {
       const inp = modal.querySelector('#lp-linkpick-newtitle');
       const title = (inp.value || '').trim();
@@ -374,7 +482,8 @@
       const btn = ev.currentTarget;
       btn.disabled = true; btn.textContent = 'Creating…';
       try {
-        // Reuse pinItemToDashboard's bucket-creation shape.
+        // Reuse pinItemToDashboard's bucket-creation shape, but as a
+        // free-form bucket linked only to the open paper.
         const fresh = await window.LINKS.loadItems();
         const bucketsDoc2 = await window.LINKS.loadBuckets();
         const item = (fresh.items || []).find(i => i.id === _paperItem.id) || _paperItem;
@@ -415,14 +524,30 @@
     });
 
     modal.querySelector('#lp-linkpick-save').addEventListener('click', async (ev) => {
-      const checks = modal.querySelectorAll('input[data-bucket-id]');
-      const desiredLinked = new Set();
-      checks.forEach(c => { if (c.checked) desiredLinked.add(c.getAttribute('data-bucket-id')); });
-      const toAdd = Array.from(desiredLinked).filter(id => !linkedIds.has(id));
-      const toRemove = Array.from(linkedIds).filter(id => !desiredLinked.has(id));
       const btn = ev.currentTarget;
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
+        // First pass: resolve checked rows to concrete bucket ids.
+        // Virtual item rows (no bucket yet) trigger an auto-create
+        // via LINKS.pinItemToDashboard, which is idempotent if the
+        // item already has a linked bucket.
+        const desired = new Set();
+        const checks = modal.querySelectorAll('input[data-row-key]');
+        for (const c of checks) {
+          if (!c.checked) continue;
+          const row = rowsByKey.get(c.getAttribute('data-row-key'));
+          if (!row) continue;
+          if (row.kind === 'bucket') {
+            desired.add(row.bucket.id);
+          } else if (row.kind === 'item') {
+            let bid = row.bucket && row.bucket.id;
+            if (!bid) bid = await window.LINKS.pinItemToDashboard(row.item);
+            desired.add(bid);
+          }
+        }
+        // Second pass: diff against current linked set.
+        const toAdd    = Array.from(desired).filter(id => !linkedIds.has(id));
+        const toRemove = Array.from(linkedIds).filter(id => !desired.has(id));
         for (const id of toAdd)    await window.LINKS.addLink(_paperItem.id, id);
         for (const id of toRemove) await window.LINKS.removeLink(_paperItem.id, id);
         close();

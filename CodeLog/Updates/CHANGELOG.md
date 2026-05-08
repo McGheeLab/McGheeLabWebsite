@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.98] - 2026-05-08
+
+**Surface papers + grants directly in the link-picker.** Reported: "on the Link this paper to a project bucket popup the only projects that show up on the linker are other. There are not grants and papers section." Root cause was structural — V3.95 grouped buckets by their linked item's `type`, but most user-created buckets in `tasks/buckets.json` carry `category: ''` and have no `linked_item_ids`, so they all fell into "Other". Many papers + grants in `items.json` had no bucket pinned at all, so they never appeared in the picker.
+
+### Changed
+- **`rm/js/paper-overlays.js`** — `_openLinkPicker` now shows three sections of *rows*, not just buckets:
+  - **Papers** — every `type: 'paper'` item from `items.json` (excluding the open paper itself). For each, the row resolves to the first bucket linked to that paper (if any), or is a *virtual* row that auto-creates a bucket on save.
+  - **Grants** — every `type: 'grant'` item, same treatment.
+  - **Other** — free-form buckets and any buckets linked to non-paper / non-grant items (research projects, courses, etc.). Buckets surfaced in Papers/Grants are excluded so each appears exactly once.
+  - Auto-create uses the existing `LINKS.pinItemToDashboard(item)` helper, which calls `newProjectForItem` under the hood — bucket title verbatim matches the item title (`item.title || item.name || idStem`).
+- **`rm/js/paper-overlays.js`** — virtual rows render with a yellow `will create` badge so the user knows clicking will instantiate a bucket. Each row carries a muted hint line: "Smith 2024 · Journal" for papers (extracted from `meta.library.authors[0]` / `meta.library.year` / `meta.library.journal`) and "Agency · Grant Number" for grants. The hint is searchable.
+- **`rm/js/paper-overlays.js`** — modal gains a search input that filters rows live across all three sections. Section count chips reflect filtered totals; sections collapse when fully filtered out. Auto-focuses on open. Helps when a lab has dozens of papers in `items.json`.
+- **`rm/js/paper-overlays.js`** — save handler rewritten in two passes: (1) resolve every checked row to a concrete bucket id, calling `pinItemToDashboard` only for virtual item rows that lack a bucket; (2) diff against the open paper's existing linked-bucket set and fire `LINKS.addLink` / `LINKS.removeLink` for the delta. Idempotent for papers/grants that already have a bucket.
+- **`rm/css/style.css`** — `#lp-linkpick-search` styles, `.lp-linkpick-search-wrap` wrapper, `.lp-linkpick-titlewrap` two-line row layout (title + hint), `.lp-linkpick-hint` muted metadata, `.lp-linkpick-badge` for the "will create" indicator.
+- **`sw.js`** — `CACHE_VERSION` 72 → 73.
+
+### Notes
+- **Self-link prevented**: the open paper's own item is filtered out of the Papers section so the user can't accidentally link a paper to itself.
+- **Item hint extraction is best-effort.** Papers often have full metadata under `meta.library`; grants vary in field naming (`meta.agency` / `meta.sponsor` / `meta.funder`, `meta.grant_number` / `meta.award_number` / `meta.proposal_number`). Empty hint just hides the second line — no crash.
+- **The `+ Create + link` inline form below the list** still creates a free-form bucket linked to the open paper only — this is the path for buckets that don't tie to a specific paper or grant in `items.json` (e.g., a one-off review pass with a custom title).
+- **Multiple buckets per item**: when a paper or grant has more than one bucket linked to it, only the first appears in its Papers/Grants row. Extras still show up in Other. A future enhancement could surface all of them (out of scope here).
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v73`.
+
+## [V3.97] - 2026-05-08
+
+**Delete paper from library (with full cascade).** Reported: "we also need a way to delete papers from the library." Until now there was no in-UI way to remove a paper; mistaken imports, duplicates, and obsolete entries had to be cleaned up by hand in the Firebase console — and even that left orphan PDF blobs and orphan `evidence.item_ids` refs on tasks across all users.
+
+### Added
+- **`functions/library.js`** (new) — HTTPS endpoint `deletePaper({itemId})`. CORS allowlist + bearer-token auth match the existing pattern in `functions/scrape-now.js`. The handler runs the full cascade under the Admin SDK in this order: (1) verify caller is an admin (`users/{uid}.role === 'admin'`) OR the original uploader (case-insensitive email match against `items/{itemId}.meta.library.pdf.uploaded_by`); (2) delete the Storage blob at `meta.library.pdf.storage_path` with `{ignoreNotFound:true}`; (3) `db.recursiveDelete(papers/{itemId})` cleans `annotations`, `yjs_snapshot`, `yjs_updates`, `presence`, `snapshots`, `comments`, and the doc itself in one call; (4) collection-group scan of every user's `userData/{uid}/tasks/*`, walking project/bucket/subtask/children trees to prune `itemId` from every `evidence.item_ids[]` and write back only docs that changed; (5) delete `items/{itemId}` last so partial upstream failures don't leave a row pointing at half-deleted state. Idempotent — calling on a missing item still mops up orphan `papers/{id}/*` subcollections and returns `{ok:true, alreadyMissing:true}`. Returns `{ok, itemId, blobDeleted, tasksScanned, tasksUpdated}` for client telemetry.
+- **`functions/index.js`** — registers the new `deletePaper` export.
+- **`rm/js/library.js`** — new `_canDelete(it)` visibility gate (admin-any OR caller email matches `lib.pdf.uploaded_by`); `_renderRow` appends a 🗑 button with `data-act="delete-paper"` after `Send` when `_canDelete` is true; `_onTableClick` gains a `delete-paper` branch that runs `confirm()`, fetches with `Authorization: Bearer <idToken>` against `https://us-central1-mcgheelab-f56cc.cloudfunctions.net/deletePaper`, prunes from `_items`/`_libraryPapers`, re-renders, and toasts on success/failure.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 71 → 73.
+
+### Notes
+- **Storage rules untouched.** `storage.rules` at `papers/{paperId}/{=**}` has no client `delete` rule by design; the Admin SDK in the Cloud Function bypasses Storage rules, so we don't loosen client-side guarantees just to enable deletion.
+- **firestore.rules untouched.** The `items` collection still allows `write: if isLabMember()` (so direct SDK deletes by lab members are technically still possible). The Cloud Function is the authoritative path — UI gates the button to admin/uploader, server re-checks. Tightening to admin-or-uploader-only would need an `isOwner()` predicate and is left as a separate change.
+- **Why a tasks scan instead of a Firestore index.** `evidence.item_ids` lives at multiple nested levels inside every tasks doc (project, bucket, subtask, recursive subtask children). Firestore does not index inside arrays of objects, so an `array-contains` query is impossible — we walk the tree. Per-user task collections are tiny (typically <50 docs/user), so a full collection-group read on delete is acceptable for an action that fires at most a few times per day.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v73`.
+- **Deploy step**: `firebase deploy --only functions:deletePaper` from the repo root before the UI button works in production.
+
+## [V3.96] - 2026-05-08
+
+**Library list: "Go to source" button replaces "DOI" button.** Reported: "in the library, there should be a button that says go to source to download the paper and is a link to the journal to be able to download it." The old `DOI` button only rendered for items with a `doi` field, and "DOI" reads as jargon — it doesn't say "open the journal page so I can grab the PDF."
+
+### Changed
+- **`rm/js/library.js`** — new `_sourceUrl(lib)` helper picks the best journal URL with fallback chain `doi` → `arxiv_id` → `pmid` → captured `url`, returning `{ url, host }` (or `null` when no source identifier is set). `_renderRow` swaps the inline `lib.doi ? <DOI> : ''` template for `src ? <Go to source> : ''`. Title attribute shows "Open at {host}" so the user can see where the link goes — useful when the chain falls through to a non-canonical `lib.url`. URL templates match those already used in `rm/js/library-paper.js:64-66` so the list view and paper-reader metadata pane stay consistent.
+- **`sw.js`** — `CACHE_VERSION` 70 → 71.
+
+### Notes
+- Paper reader and public viewer untouched — they already expose source links via their own UI.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v71`.
+
 ## [V3.95] - 2026-05-08
 
 **Group buckets by category in the link picker + button to import an AI overlay file.** Reported: "project buckets should be separated by category, papers, grants should be top of the list, then everything else. Also we need a button that allows for a picker to add a file for AI overviews overlays to add to the project as well."
