@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Activity Ledger → Tracker Migration — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <style>
@@ -34,7 +35,7 @@
     .mig-tag.uncat { background: #e5e7eb; color: #475569; }
   </style>
 </head>
-<body>
+<body class="rm-desktop-only">
   <div class="page">
     <div class="page-header">
       <h1 class="page-title">Activity Ledger → Tracker Migration</h1>
@@ -77,11 +78,23 @@
         <div class="mig-bar"><div class="mig-bar-fill" id="migrate-bar" style="width:0"></div></div>
         <div class="mig-out" id="migrate-out"></div>
       </div>
+
+      <div class="mig-card">
+        <h3><span class="mig-step-num">4</span>Remap previously imported entries</h3>
+        <p>Re-derives <strong>both <code>date</code> and <code>categoryPath</code></strong> on every <code>trackerEntries</code> doc with <code>source == 'rm-imported'</code>. Pulls the live source ledger row by <code>original.ledger_id</code> so we can reach <code>year</code>/<code>month</code>/<code>notes</code>; if the source row isn't found, falls back to whatever was preserved under <code>original</code> at first migration. Date precedence: <code>"evidence dated YYYY-MM-DD"</code> in notes → <code>year+month-15</code> → completed_at (last resort). Categories use the current RM-vocabulary mapping. Idempotent: skips entries already matching.</p>
+        <div class="mig-actions">
+          <button class="btn" id="btn-remap">Remap entries</button>
+          <span class="mig-status" id="remap-status">requires sign-in</span>
+        </div>
+        <div class="mig-bar"><div class="mig-bar-fill" id="remap-bar" style="width:0"></div></div>
+        <div class="mig-out" id="remap-out"></div>
+      </div>
     </div>
   </div>
 
   <script src="/rm/js/util.js"></script>
   <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/desktop-only-guard.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
@@ -94,9 +107,12 @@
   (function () {
     'use strict';
 
-    /* Map an RM (category, sub_category) pair to a lab-apps categoryPath
-       (array of category IDs, root → leaf). Return null to skip the row.
-       Empty array means "uncategorized" (lab-apps default for missing path). */
+    /* Map an RM (category, sub_category) pair to a categoryPath using
+       RM's own labConfig/categorySchema vocabulary (research/grant,
+       service/outreach, admin/compliance, …). The activity tracker now
+       sources its tree from the same schema, so these IDs resolve
+       directly into the tracker UI. Return null to skip; [] means
+       uncategorized. */
     function mapCategory(category, sub_category) {
       var cat = String(category || '').toLowerCase().trim();
       var sub = String(sub_category || '').toLowerCase().trim();
@@ -105,49 +121,76 @@
       if (cat === 'unknown' || cat === '') return [];
 
       if (cat === 'research') {
-        if (sub.indexOf('grant') === 0)             return ['research', 'writing', 'grants'];
-        if (sub.indexOf('mentorship') === 0)        return ['research', 'meetings_research', 'mentorship'];
-        if (sub.indexOf('lab:meeting') === 0
-         || sub === 'lab:general')                  return ['research', 'meetings_research', 'lab_meeting'];
-        if (sub.indexOf('lab:procurement') === 0
-         || sub === 'lab:demo')                     return ['research', 'experiments'];
-        if (sub.indexOf('seminar') === 0)           return ['professional_dev', 'seminar_attendance'];
-        if (sub.indexOf('conference') === 0)        return ['research', 'conferences', 'conf_attendance'];
-        if (sub.indexOf('paper:') === 0)            return ['research', 'writing', 'papers'];
-        if (sub.indexOf('patent:') === 0
-         || sub === 'ip')                           return ['research', 'writing', 'patents'];
-        if (sub.indexOf('collaboration:') === 0)    return ['research', 'meetings_research', 'collaboration'];
-        if (sub.indexOf('engagement:') === 0)       return ['service', 'outreach'];
-        return ['research'];
+        if (sub.indexOf('grant') === 0)             return ['research', 'grant'];
+        if (sub.indexOf('mentorship') === 0)        return ['research', 'mentorship'];
+        if (sub.indexOf('lab:') === 0
+         || sub === 'lab:meeting'
+         || sub === 'lab:general'
+         || sub === 'lab:demo')                     return ['research', 'lab'];
+        if (sub.indexOf('seminar') === 0)           return ['research', 'seminar'];
+        if (sub.indexOf('conference') === 0)        return ['research', 'conference'];
+        if (sub.indexOf('paper') === 0)             return ['research', 'paper'];
+        if (sub.indexOf('patent') === 0
+         || sub === 'ip')                           return ['research', 'patent'];
+        if (sub.indexOf('collaboration') === 0)     return ['research', 'collaboration'];
+        if (sub.indexOf('engagement') === 0)        return ['service', 'engagement'];
+        return ['research', 'other'];
       }
 
       if (cat === 'teaching') {
-        if (sub.indexOf('office-hours') !== -1)     return ['coursework', 'office_hours'];
-        if (sub.indexOf('guest-lecture') === 0)     return ['coursework', 'course_content'];
-        return ['coursework', 'course_prep'];
+        if (sub.indexOf('course') === 0
+         || sub.indexOf('office-hours') !== -1
+         || sub.indexOf('guest-lecture') === 0)     return ['teaching', 'course'];
+        return ['teaching', 'other'];
       }
 
       if (cat === 'service') {
-        if (sub.indexOf('outreach') === 0
-         || sub.indexOf('engagement') === 0)        return ['service', 'outreach'];
-        if (sub.indexOf('committee') === 0
-         || sub.indexOf('coe') === 0)               return ['service', 'committee_work'];
-        if (sub.indexOf('conference') === 0)        return ['professional_dev', 'seminar_attendance'];
-        if (sub.indexOf('peer-review') === 0)       return ['service', 'reviews', 'paper_review'];
-        if (sub.indexOf('mentorship') === 0)        return ['service', 'committee_work'];
-        if (sub === 'swces')                        return ['service', 'professional_society'];
-        return ['service'];
+        if (sub.indexOf('outreach') === 0)          return ['service', 'outreach'];
+        if (sub.indexOf('engagement') === 0)        return ['service', 'engagement'];
+        if (sub.indexOf('committee') === 0)         return ['service', 'committee'];
+        if (sub.indexOf('coe') === 0)               return ['service', 'coe'];
+        if (sub.indexOf('conference') === 0)        return ['service', 'conference'];
+        if (sub.indexOf('peer-review') === 0)       return ['service', 'peer-review'];
+        if (sub.indexOf('mentorship') === 0)        return ['service', 'mentorship'];
+        if (sub === 'swces')                        return ['service', 'committee'];
+        return ['service', 'other'];
       }
 
       if (cat === 'admin') {
-        if (sub === 'compliance')                   return ['admin', 'safety_compliance'];
-        if (sub.indexOf('finance') === 0)           return ['admin', 'purchasing'];
-        // hr, meetings, facilities-it, coe, course, other, '' all map to lab_management
-        return ['admin', 'lab_management'];
+        if (sub === 'compliance')                   return ['admin', 'compliance'];
+        if (sub.indexOf('finance') === 0)           return ['admin', 'finance'];
+        if (sub.indexOf('hr') === 0)                return ['admin', 'hr'];
+        if (sub === 'meetings')                     return ['admin', 'meetings'];
+        if (sub === 'facilities-it')                return ['admin', 'facilities-it'];
+        if (sub === 'coe')                          return ['admin', 'coe'];
+        return ['admin', 'other'];
       }
 
       // Unknown top-level → uncategorized
       return [];
+    }
+
+    /* Pick the most-accurate "when did this activity actually happen" date
+       we can derive from a ledger row. completed_at is the WORST source
+       (it's when the importer marked the task done, e.g. 2026-04-19 for
+       emails received in 2024-10), so try the better signals first:
+         1. notes field "evidence dated YYYY-MM-DD" (auto-archive stamp)
+         2. year + month → mid-month (day 15), so weekly buckets land in
+            the right ISO week even when only month-precision is known
+         3. completed_at as a last resort */
+    function deriveActivityDate(row) {
+      if (row && row.notes) {
+        var m = String(row.notes).match(/evidence dated (\d{4}-\d{2}-\d{2})/);
+        if (m) return m[1];
+      }
+      if (row && row.year && row.month) {
+        var mm = String(row.month).padStart(2, '0');
+        return String(row.year) + '-' + mm + '-15';
+      }
+      if (row && row.completed_at) {
+        return String(row.completed_at).split('T')[0] || '';
+      }
+      return '';
     }
 
     /* Translate a single ledger row into a tracker entry payload.
@@ -157,14 +200,7 @@
       if (path === null) {
         return { skip: true, reason: 'skipped (' + (row.category || 'unknown') + ')' };
       }
-      // Date: completed_at "2026-04-19T07:09:17" → "2026-04-19".
-      var date = '';
-      if (row.completed_at) {
-        date = String(row.completed_at).split('T')[0] || '';
-      }
-      if (!date && row.year && row.month) {
-        date = row.year + '-' + String(row.month).padStart(2, '0') + '-01';
-      }
+      var date = deriveActivityDate(row);
       // Text: "title — description" if description differs from title.
       var title = String(row.title || '').trim();
       var desc  = String(row.description || '').trim();
@@ -186,6 +222,11 @@
           sub_category: row.sub_category || null,
           evidence: row.evidence || null,
           notes: row.notes || null,
+          // year/month + notes are the source of truth for date re-derivation
+          // in the Remap step. Keep them so we never have to re-query the
+          // source ledger after the initial migration.
+          year: row.year || null,
+          month: row.month || null,
           completed_at: row.completed_at || null,
         },
       };
@@ -390,11 +431,142 @@
       $('btn-survey').disabled = false;
     }
 
+    /* ── Step 4: remap existing rm-imported entries ─────── */
+    /* Re-translate categoryPath AND re-derive date for every tracker
+       entry with source=rm-imported. Pulls the source ledger row by
+       original.ledger_id so we can read year/month (which the first
+       cut of the migration didn't preserve under `original`). Falls
+       back to original.notes + original.completed_at when the source
+       row can't be found. Idempotent — skips entries whose date and
+       categoryPath already match. */
+    async function doRemap() {
+      $('btn-remap').disabled = true;
+      $('btn-survey').disabled = true;
+      $('btn-dryrun').disabled = true;
+      setStatus('remap-status', 'reading source ledger + tracker entries…');
+      $('remap-out').textContent = '';
+      $('remap-bar').style.width = '0';
+      $('remap-bar').className = 'mig-bar-fill';
+
+      var logLines = [];
+      function pushLog(msg) {
+        logLines.push(msg);
+        if (logLines.length > 200) logLines.splice(0, logLines.length - 200);
+        $('remap-out').textContent = logLines.join('\n');
+        $('remap-out').scrollTop = $('remap-out').scrollHeight;
+      }
+
+      try {
+        var db = firebridge.db();
+        var trackerRef = db.collection('trackerEntries').doc(_user.uid).collection('entries');
+        var ledgerRef  = db.collection('userData').doc(_user.uid).collection('activityLedger');
+
+        // Index source ledger rows by `id` so we can reach year/month/notes
+        // for each tracker entry without N round-trips.
+        var ledgerSnap = await ledgerRef.get();
+        var ledgerById = {};
+        ledgerSnap.forEach(function (doc) {
+          var d = doc.data() || {};
+          var key = d.id || doc.id;
+          ledgerById[key] = d;
+        });
+        pushLog('indexed ' + Object.keys(ledgerById).length + ' source ledger rows');
+
+        var trackerSnap = await trackerRef.where('source', '==', 'rm-imported').get();
+        var rows = [];
+        trackerSnap.forEach(function (doc) { rows.push({ id: doc.id, data: doc.data() || {} }); });
+
+        if (!rows.length) {
+          setStatus('remap-status', 'no rm-imported entries found', 'ok');
+          $('btn-remap').disabled = false; $('btn-survey').disabled = false; $('btn-dryrun').disabled = false;
+          return;
+        }
+
+        var changed = 0, unchanged = 0, skipped = 0, failed = 0;
+        var dateChanges = 0, pathChanges = 0;
+
+        var ok = window.confirm('About to recompute categoryPath AND date on ' + rows.length + ' tracker entries with source=rm-imported. Date is re-derived from the email evidence date in notes (preferred) or year+month from the source ledger row, NOT the import date. Continue?');
+        if (!ok) {
+          setStatus('remap-status', 'cancelled', '');
+          $('btn-remap').disabled = false; $('btn-survey').disabled = false; $('btn-dryrun').disabled = false;
+          return;
+        }
+
+        var CHUNK = 25;
+        for (var i = 0; i < rows.length; i += CHUNK) {
+          var chunk = rows.slice(i, i + CHUNK);
+          await Promise.all(chunk.map(async function (r) {
+            try {
+              var orig = r.data.original || {};
+              if (!orig.category) { skipped++; return; }
+
+              // Build a row-shaped object the helpers can consume. Prefer
+              // the live source ledger row (richest metadata); fall back to
+              // whatever was preserved under `original` at first migration.
+              var src = (orig.ledger_id && ledgerById[orig.ledger_id]) || {
+                category: orig.category,
+                sub_category: orig.sub_category,
+                notes: orig.notes,
+                year: orig.year,
+                month: orig.month,
+                completed_at: orig.completed_at,
+              };
+
+              var newPath = mapCategory(src.category, src.sub_category);
+              if (newPath === null) { skipped++; return; }
+              var newDate = deriveActivityDate(src) || r.data.date || '';
+
+              var curPath = r.data.categoryPath || [];
+              var curDate = r.data.date || '';
+              var pathSame = JSON.stringify(curPath) === JSON.stringify(newPath);
+              var dateSame = curDate === newDate;
+              if (pathSame && dateSame) { unchanged++; return; }
+
+              var update = {
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                remappedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              };
+              if (!pathSame) { update.categoryPath = newPath; pathChanges++; }
+              if (!dateSame) { update.date = newDate; dateChanges++; }
+
+              await trackerRef.doc(r.id).update(update);
+              changed++;
+              var pathLabel = pathSame ? '·' : ('[' + curPath.join('→') + ']→[' + newPath.join('→') + ']');
+              var dateLabel = dateSame ? '·' : (curDate + '→' + newDate);
+              pushLog('OK  date:' + dateLabel + '  cat:' + pathLabel + '  ' + (r.data.text || '').slice(0, 50));
+            } catch (err) {
+              failed++;
+              pushLog('ERR ' + r.id + ': ' + err.message);
+            }
+          }));
+          var pct = Math.round(((i + chunk.length) / rows.length) * 100);
+          $('remap-bar').style.width = pct + '%';
+          setStatus('remap-status', changed + ' updated (' + dateChanges + ' date, ' + pathChanges + ' cat), ' + unchanged + ' unchanged, ' + skipped + ' skipped, ' + failed + ' failed (' + pct + '%)');
+        }
+
+        if (failed === 0) {
+          $('remap-bar').className = 'mig-bar-fill ok';
+          setStatus('remap-status', 'done · ' + changed + ' updated (' + dateChanges + ' date, ' + pathChanges + ' cat), ' + unchanged + ' unchanged, ' + skipped + ' skipped', 'ok');
+        } else {
+          $('remap-bar').className = 'mig-bar-fill err';
+          setStatus('remap-status', 'done with errors · ' + changed + ' updated, ' + failed + ' failed', 'err');
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus('remap-status', 'failed: ' + err.message, 'err');
+      } finally {
+        $('btn-remap').disabled = false;
+        $('btn-survey').disabled = false;
+        $('btn-dryrun').disabled = false;
+      }
+    }
+
     /* ── Wire up ────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', function () {
       $('btn-survey').addEventListener('click', doSurvey);
       $('btn-dryrun').addEventListener('click', doDryRun);
       $('btn-migrate').addEventListener('click', doMigrate);
+      $('btn-remap').addEventListener('click', doRemap);
 
       if (typeof firebridge === 'undefined' || !firebridge.gateSignedIn) {
         setStatus('survey-status', 'firebase-bridge not loaded', 'err');
@@ -405,6 +577,7 @@
         _user = g.user;
         $('btn-survey').disabled = false;
         setStatus('survey-status', 'signed in as ' + (g.user.email || g.user.uid));
+        setStatus('remap-status', 'ready');
       });
     });
   })();

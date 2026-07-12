@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Writing a Scientific Paper — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+        </div>
+        <h1 class="training-module-title">Writing a Scientific Paper</h1>
+        <p class="training-module-subtitle">
+          From blank page to submitted manuscript. Structure, citation discipline,
+          authorship norms, the lab's draft workflow, and how to handle revisions.
+          Read top-to-bottom on first encounter; come back to specific sections as
+          a reference.
+        </p>
+      </header>
+
+      <div class="training-layout">
+
+        <!-- ────────────── TOC ────────────── -->
+        <aside class="training-toc" aria-label="Section navigation">
+          <h3>Sections</h3>
+          <ol>
+            <li><a href="#sec-why" class="active">Why we write papers</a></li>
+            <li><a href="#sec-figures">Figure-first drafting</a></li>
+            <li><a href="#sec-imrad">IMRaD anatomy</a></li>
+            <li><a href="#sec-citations">Citation discipline</a></li>
+            <li><a href="#sec-authorship">Authorship</a></li>
+            <li><a href="#sec-workflow">Lab draft workflow</a></li>
+            <li><a href="#sec-revision">Revision letters</a></li>
+            <li><a href="#sec-journal">Journal selection</a></li>
+            <li><a href="#sec-failure">Common failure modes</a></li>
+            <li><a href="#sec-submit">Submission checklist</a></li>
+          </ol>
+        </aside>
+
+        <!-- ────────────── MAIN CONTENT ────────────── -->
+        <main>
+
+          <!-- 1. Why we write papers -->
+          <section class="training-section" id="sec-why">
+            <h2>1. Why we write papers</h2>
+            <p>
+              A scientific paper is not a souvenir of work you've already done.
+              It's the unit of currency by which scientific claims travel from
+              the people who established them to the people who will build on
+              them. If your work doesn't get into a paper, in practical terms
+              it didn't happen — no one outside the lab can use it, cite it,
+              extend it, or even know it existed.
+            </p>
+            <p>
+              Two things follow from that. First, writing should start early —
+              long before the work is "done." Drafting reveals which questions
+              your data actually answers and which it doesn't. Second, every
+              choice in the paper (structure, citation, figure design, journal)
+              is a choice about <em>how the claim will be received</em>. Your
+              job as a writer is to make that reception easy.
+            </p>
+            <div class="training-callout">
+              <strong>One-sentence test.</strong> If you can't say what your
+              paper claims in a single sentence — "we show that X happens
+              when Y, contrary to the previous belief that Z" — then you
+              don't yet have a paper, you have notes. Write the sentence
+              first; everything else hangs off it.
+            </div>
+          </section>
+
+          <!-- 2. Figure-first drafting -->
+          <section class="training-section" id="sec-figures">
+            <h2>2. Figure-first drafting</h2>
+            <p>
+              Before you write a paragraph, draft your figures. Most papers
+              tell their story across 4–6 figures, each making one discrete
+              point. If you can sketch those 4–6 figures from your existing
+              data — even badly, on paper — you have a paper. If you can't,
+              you don't have one yet, and writing prose is premature.
+            </p>
+            <h3>The pencil-sketch test</h3>
+            <ul>
+              <li>Number each figure 1–6.</li>
+              <li>Write a one-line caption for each, in the form of a claim ("Spheroid invasion is reduced 40% in TGF-β-treated samples").</li>
+              <li>Decide what panels A, B, C of that figure show, and which dataset each comes from.</li>
+              <li>Walk a labmate through the sketches verbally. If they stop you with questions, the story has gaps.</li>
+            </ul>
+            <p>
+              Only after the sketch survives a peer reads cleanly should you
+              open the paper builder and start prose.
+            </p>
+            <div class="training-callout">
+              <strong>The cost of skipping this.</strong> Drafting prose before
+              you've sorted out the figures means you'll write paragraphs you
+              later delete because the figure you needed doesn't exist. We've
+              all done it. Don't do it on this paper.
+            </div>
+          </section>
+
+          <!-- 3. IMRaD anatomy -->
+          <section class="training-section" id="sec-imrad">
+            <h2>3. IMRaD anatomy</h2>
+            <p>
+              IMRaD — Introduction, Methods, Results, Discussion — is the
+              backbone almost every empirical biology paper hangs on. Each
+              section has a specific job. Mixing them up is the most common
+              structural failure mode in first drafts.
+            </p>
+
+            <h3>Introduction — the funnel</h3>
+            <p>
+              Opens wide, narrows to your claim. Three paragraphs is the
+              canonical length. (1) The broad biological context — why this
+              question matters. (2) The specific gap — what's known, what's
+              not, what conflict exists in the literature. (3) Your claim
+              and your approach — in one sentence, what this paper shows.
+            </p>
+
+            <div class="compare-bar" data-compare="intro">
+              <button class="compare-btn good active" data-side="good">Good</button>
+              <button class="compare-btn bad"          data-side="bad">Mediocre</button>
+            </div>
+            <div class="compare-pane good is-active" data-pane="intro-good">
+              <p>
+                <em>(Last paragraph of an Introduction.)</em>
+                The role of substrate stiffness in tumor invasion remains
+                contested: some reports show stiffer matrices promote invasion,
+                others show the opposite. We hypothesized that the discrepancy
+                stems from an unappreciated dependence on cell-density at the
+                spheroid edge. Here we show that, in patient-derived breast
+                tumor spheroids, edge cell density inverts the effect of
+                stiffness on invasion — at low edge density, stiffer matrices
+                suppress invasion; at high edge density, they promote it.
+              </p>
+              <span class="annot">Why it works: names the contested question, identifies the missing variable, states the claim in one sentence, hints at the experimental system. Reader knows the entire paper in 70 words.</span>
+            </div>
+            <div class="compare-pane bad" data-pane="intro-bad">
+              <p>
+                <em>(Last paragraph of an Introduction.)</em>
+                In this work, we used patient-derived breast tumor spheroids
+                and varied matrix stiffness to study invasion. We performed
+                live-cell imaging on a confocal microscope and analyzed the
+                resulting data using a variety of computational methods to
+                quantify invasion as a function of multiple parameters. Our
+                results show interesting effects that may have implications
+                for our understanding of tumor biology.
+              </p>
+              <span class="annot">Why it doesn't: describes what you did, not what you found. "Interesting effects" tells the reader nothing. The reader has to read the rest of the paper to find out what the paper claims — and many won't.</span>
+            </div>
+
+            <h3>Methods — the recipe</h3>
+            <p>
+              Methods is for reproducibility, not for storytelling. Someone
+              should be able to redo the experiment from this section.
+              Reagents (catalog numbers), equipment (make + model),
+              parameters (exposure, frame rate, NA), and analysis pipelines
+              (named software versions) all go here. Don't put novel
+              biological context here — that's Introduction or Discussion.
+            </p>
+            <ul>
+              <li><strong>Sentence patterns:</strong> "Cells were maintained in..." / "Images were acquired on a Nikon AX-R confocal..." / "Segmentation was performed using StarDist (v0.8.5)..."</li>
+              <li><strong>Catalog numbers</strong> for every commercial reagent.</li>
+              <li><strong>Cite tool papers</strong> — Fiji, Cellpose, StarDist all have papers that should be cited every time they're used.</li>
+            </ul>
+
+            <h3>Results — figure-anchored prose</h3>
+            <p>
+              Each Results subsection is anchored to one figure. The text
+              walks the reader through what's in the figure and what
+              conclusion it supports. Don't interpret yet — that's
+              Discussion. Don't describe the method beyond what's needed to
+              orient the reader — that's Methods.
+            </p>
+            <p>
+              Each paragraph in Results follows the same rough shape:
+              <strong>(setup what was measured) → (what the data show) →
+              (the conclusion drawn from this figure alone)</strong>. Then
+              the next paragraph picks up the next figure.
+            </p>
+
+            <h3>Discussion — interpret, situate, limit, project</h3>
+            <p>
+              Four jobs for the Discussion: (1) interpret what your data mean
+              biologically, (2) situate the result against the existing
+              literature, (3) honestly note the limitations, (4) project to
+              what the next experiment should be. Don't re-summarize Results —
+              the reader just read them.
+            </p>
+            <div class="training-callout">
+              <strong>Reviewers reliably attack the Discussion.</strong> They
+              want to see you grapple with conflicting prior work and name your
+              own limitations before they do. A Discussion that doesn't do
+              either reads as a sales pitch and reviewers know it.
+            </div>
+          </section>
+
+          <!-- 4. Citation discipline -->
+          <section class="training-section" id="sec-citations">
+            <h2>4. Citation discipline</h2>
+            <p>
+              Citations are how scientific claims are anchored. Under-cite
+              and you sound either ignorant or arrogant; over-cite and you
+              dilute the few citations that actually matter. The rule of
+              thumb is to <strong>cite every non-obvious claim</strong>, and
+              cite the source closest to where the claim is actually
+              established (not a review that re-cites it).
+            </p>
+
+            <h3>When to cite</h3>
+            <ul>
+              <li>A factual claim that isn't textbook common knowledge.</li>
+              <li>A method, reagent, or tool you used — credit the originator.</li>
+              <li>A prior result you're building on, agreeing with, or contradicting.</li>
+              <li>The first introduction of a non-obvious concept or term.</li>
+            </ul>
+
+            <h3>When not to cite</h3>
+            <ul>
+              <li>Common knowledge ("DNA encodes proteins").</li>
+              <li>Methods you described in earlier sentences with the same citation.</li>
+              <li>Where citing a review would be lazy — find the original paper instead.</li>
+            </ul>
+
+            <p>Try the quick exercise below to calibrate.</p>
+
+            <div class="cite-quiz" id="cite-quiz">
+              <div class="cite-quiz-item" data-correct="no">
+                <div class="claim">"DNA is composed of four nucleotide bases (A, C, G, T)."</div>
+                <div class="answers">
+                  <button data-answer="yes">Cite</button>
+                  <button data-answer="no">No cite</button>
+                </div>
+                <div class="explain">Textbook common knowledge — no citation needed.</div>
+              </div>
+              <div class="cite-quiz-item" data-correct="yes">
+                <div class="claim">"TGF-β signaling has been shown to drive epithelial-to-mesenchymal transition in mammary tumors."</div>
+                <div class="answers">
+                  <button data-answer="yes">Cite</button>
+                  <button data-answer="no">No cite</button>
+                </div>
+                <div class="explain">Specific mechanistic claim with a literature trail — cite the primary papers establishing it.</div>
+              </div>
+              <div class="cite-quiz-item" data-correct="yes">
+                <div class="claim">"We segmented nuclei using StarDist."</div>
+                <div class="answers">
+                  <button data-answer="yes">Cite</button>
+                  <button data-answer="no">No cite</button>
+                </div>
+                <div class="explain">Always cite the tool paper for software you used (Schmidt et al., 2018). Other people deserve credit; readers need a pointer.</div>
+              </div>
+              <div class="cite-quiz-item" data-correct="yes">
+                <div class="claim">"Substrate stiffness modulates invasion in 3D matrices, though the direction of the effect remains contested."</div>
+                <div class="answers">
+                  <button data-answer="yes">Cite</button>
+                  <button data-answer="no">No cite</button>
+                </div>
+                <div class="explain">"Contested" is a strong claim — cite both sides. At minimum 2–3 papers showing each direction.</div>
+              </div>
+              <div class="cite-quiz-item" data-correct="no">
+                <div class="claim">"We previously developed this hydrogel system (see Methods)."</div>
+                <div class="answers">
+                  <button data-answer="yes">Cite</button>
+                  <button data-answer="no">No cite</button>
+                </div>
+                <div class="explain">If you cite your own prior paper at first mention, you don't have to re-cite it every sentence. "See Methods" + one Methods-section citation is enough.</div>
+              </div>
+              <div class="cite-quiz-score" id="cite-quiz-score">Click an answer on each item to calibrate.</div>
+            </div>
+
+            <p>
+              In paper-builder, use the
+              <a href="/rm/pages/library.html">Library</a> to drop citations.
+              Don't paste raw citation text in the body — the citation
+              manager handles formatting + the bibliography auto-rebuilds.
+            </p>
+          </section>
+
+          <!-- 5. Authorship -->
+          <section class="training-section" id="sec-authorship">
+            <h2>5. Authorship &amp; contributions</h2>
+            <p>
+              The McGhee Lab uses ICMJE-adjacent authorship criteria. To be
+              an author, a person should meet <strong>all four</strong>:
+            </p>
+            <ol>
+              <li>Substantial contribution to conception, design, acquisition, or analysis.</li>
+              <li>Drafted or critically revised the manuscript for important intellectual content.</li>
+              <li>Final approval of the version to be submitted.</li>
+              <li>Accountable for the integrity of the work.</li>
+            </ol>
+            <p>
+              "Lent us a reagent" — not authorship; acknowledgments. "Ran
+              one batch of cells once" — usually not authorship;
+              acknowledgments. "Designed the experiment, analyzed half the
+              data, and wrote two figures" — authorship.
+            </p>
+
+            <h3>Order of authors</h3>
+            <ul>
+              <li><strong>First author</strong> — did the bulk of the work. Usually the student or postdoc whose project this is.</li>
+              <li><strong>Last author</strong> — PI (Alex). The senior accountable position.</li>
+              <li><strong>Co-first / co-corresponding</strong> — when contributions are genuinely equal. Decided up front, not retrofitted.</li>
+              <li><strong>Middle authors</strong> — by descending contribution.</li>
+            </ul>
+
+            <h3>Contribution statement</h3>
+            <p>
+              Every paper includes a contribution statement using the CRediT
+              taxonomy. Fill it out honestly — co-authors will see it and
+              future grant reviewers may read it. Use the verbs from the
+              CRediT spec: <em>conceptualization, methodology, software,
+              validation, formal analysis, investigation, resources, data
+              curation, writing — original draft, writing — review &amp;
+              editing, visualization, supervision, project administration,
+              funding acquisition.</em>
+            </p>
+
+            <div class="training-callout">
+              <strong>The hardest part of authorship.</strong> Conversations
+              about whether someone has earned authorship should happen
+              <em>before</em> the writing starts. Not after submission, not
+              after revisions. Bring authorship questions to your next PMR.
+            </div>
+          </section>
+
+          <!-- 6. Lab draft workflow -->
+          <section class="training-section" id="sec-workflow">
+            <h2>6. The lab's draft workflow</h2>
+            <p>
+              The lab's drafts live in the
+              <a href="/rm/pages/paper-builder.html">paper builder</a> —
+              not in Word, not in Overleaf, not in personal Google Docs.
+              Why: the paper builder syncs to the
+              <a href="/rm/pages/library.html">Library</a> for citations,
+              tracks revisions, and lets Alex read sections live as you
+              write rather than waiting for "the next draft."
+            </p>
+
+            <h3>The cadence</h3>
+            <ol>
+              <li><strong>Outline + figure list</strong> in the paper builder. Section headings + 1-sentence purpose per section + figure captions.</li>
+              <li><strong>Methods + Results first.</strong> They're the easiest to write because they describe what you already did. Doing them first builds momentum.</li>
+              <li><strong>Discussion next.</strong> The intellectual heavy lifting. Often goes through 3–4 rounds of revision before Introduction is touched.</li>
+              <li><strong>Introduction last.</strong> Counter-intuitively. You only know what to set up once you know where you're going.</li>
+              <li><strong>Polish + Abstract.</strong> The Abstract is the last thing to write because it summarizes everything that's stable.</li>
+            </ol>
+
+            <h3>Don't batch reviews</h3>
+            <p>
+              Drop a section into the paper builder as soon as you have a
+              messy first version. Alex (and other co-authors) can comment
+              inline. Don't wait until the paper is "done" — by then it's
+              too late to restructure, and you'll spend a month deleting
+              prose that won't survive review.
+            </p>
+
+            <h3>Track your tasks in PMR</h3>
+            <p>
+              The <a href="/rm/pages/pmr.html">PMR paper-writing block</a>
+              surfaces all drafts where you're an author. Use it to track
+              status (drafting / review / submitted / in revision / published)
+              and to make sure papers don't quietly stall.
+            </p>
+          </section>
+
+          <!-- 7. Revision letters -->
+          <section class="training-section" id="sec-revision">
+            <h2>7. The revision letter</h2>
+            <p>
+              When a journal returns reviews, you respond with a
+              <strong>point-by-point revision letter</strong> alongside the
+              revised manuscript. The letter is a separate document of its
+              own scientific writing — reviewers and the editor read it
+              carefully, and your tone in it shapes whether the next round
+              goes well.
+            </p>
+
+            <h3>Structure</h3>
+            <ul>
+              <li>Open with a short, sincere thank-you to the editor and reviewers.</li>
+              <li>For each reviewer, list every comment in order, with your response below.</li>
+              <li>Quote the reviewer's comment verbatim (in italics or a quote block).</li>
+              <li>Your response: what you did, where it appears in the revised manuscript, and any quoted text from the revision.</li>
+            </ul>
+
+            <h3>The tone</h3>
+            <p>
+              Stay technical, not defensive. Disagree where you must — but
+              with a reason and a citation, not with frustration. Even when
+              a review is wrong, your job is to explain why in a way that
+              lets the reviewer save face. The editor is reading this letter
+              as much as the reviewers are.
+            </p>
+
+            <h3>The three response shapes</h3>
+            <ul>
+              <li><strong>Agreement.</strong> "We thank the reviewer for this excellent suggestion. We have now [...] (revised manuscript p. 8, lines 23–34)."</li>
+              <li><strong>Partial agreement.</strong> "We agree this is important to address. We have added [...]. However, we respectfully note that [...] is beyond the scope of this work, because [...]."</li>
+              <li><strong>Disagreement.</strong> "We respectfully disagree. Our data show [...] (Figure 3D), consistent with [refs]. We have clarified this in the revised text (p. 5, lines 12–18)."</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>Never ignore a comment.</strong> Even if it's "this is
+              a typo, fix it" — list it, respond, fix it. A revision letter
+              that addresses 14 of 15 comments looks like a revision letter
+              that addresses none of them.
+            </div>
+          </section>
+
+          <!-- 8. Journal selection -->
+          <section class="training-section" id="sec-journal">
+            <h2>8. Journal selection</h2>
+            <p>
+              The right journal matches the paper's scope, audience,
+              prestige tier, open-access policy, and the lab's budget for
+              APCs (article processing charges). Picking a journal is a
+              conversation with Alex, not a unilateral decision — bring it
+              to your PMR.
+            </p>
+
+            <h3>What to weigh</h3>
+            <ul>
+              <li><strong>Scope.</strong> Does the paper fit the journal's stated mission? Check the most recent year of articles in your area.</li>
+              <li><strong>Audience.</strong> Engineers, biologists, clinicians? The right audience cares about your result; the wrong one finds it niche.</li>
+              <li><strong>Prestige.</strong> "Aim high but be realistic." Reach journals are worth one try; rejection costs you time.</li>
+              <li><strong>OA policy.</strong> Some funders require open access. Check before submission.</li>
+              <li><strong>APC.</strong> Open-access fees can be $3–11k. Check whether the lab has budget; some institutional deals waive the fee.</li>
+              <li><strong>Turnaround time.</strong> Some journals decide in 6 weeks; some in 6 months. Important when a thesis deadline is involved.</li>
+            </ul>
+
+            <h3>The "ladder" approach</h3>
+            <p>
+              Pick a target journal and 1–2 fallbacks. If the target rejects,
+              the fallback is ready. Don't reformat for each — pre-formatting
+              for one specific journal before the first submission is a
+              common time-sink that doesn't pay off until you've been
+              accepted.
+            </p>
+          </section>
+
+          <!-- 9. Failure modes -->
+          <section class="training-section" id="sec-failure">
+            <h2>9. Common failure modes</h2>
+            <p>The first-draft failure modes Alex (and any reviewer) sees over and over.</p>
+
+            <h3>Buried lede</h3>
+            <p>
+              The actual claim of the paper appears in the third paragraph
+              of the Discussion instead of the last paragraph of the
+              Introduction. Fix: hoist it. If the reader has to read 12
+              pages to find out what you're claiming, they've already
+              checked out.
+            </p>
+
+            <h3>"Methods" as storytelling</h3>
+            <p>
+              Three paragraphs of biological context in the middle of the
+              Methods section. Methods should be a recipe, not a narrative.
+              Move the biology to Introduction or Discussion.
+            </p>
+
+            <h3>Discussion that re-summarizes Results</h3>
+            <p>
+              First two paragraphs of Discussion repeating what Results just
+              said. Reviewers spot this immediately. Replace with
+              interpretation: <em>what does this mean, beyond the data?</em>
+            </p>
+
+            <h3>Over-claiming generalization</h3>
+            <p>
+              "These results suggest a universal mechanism for tumor
+              invasion." From one cell line, one matrix, one stiffness
+              range? No, they don't. State the scope honestly. Reviewers
+              respect — and grant agencies fund — work that knows its
+              limits.
+            </p>
+
+            <h3>Citation laziness</h3>
+            <p>
+              Citing a review for a specific mechanistic claim, or citing
+              only the lab's own prior papers when others have published on
+              the same topic. Both signal under-reading and invite
+              rejection.
+            </p>
+          </section>
+
+          <!-- 10. Submission checklist -->
+          <section class="training-section" id="sec-submit">
+            <h2>10. Ready-to-submit checklist</h2>
+            <p>
+              The night before submission is the worst time to discover
+              you're missing a co-author's approval. Run this checklist a
+              week ahead. Check items off; the bar at the bottom turns green
+              when every item is done.
+            </p>
+
+            <div class="submit-checklist" id="submit-checklist">
+              <h3>Pre-submission checklist</h3>
+              <label><input type="checkbox"> Title under 150 characters, claim-shaped, not method-shaped.</label>
+              <label><input type="checkbox"> Abstract under journal's word limit, structured if required.</label>
+              <label><input type="checkbox"> All figures final, exported at journal's required DPI &amp; file format.</label>
+              <label><input type="checkbox"> All figure legends complete, with statistical n, scale bars, error bars defined.</label>
+              <label><input type="checkbox"> All references resolved in the citation manager — no [@unknown] or "(Smith et al., ?)".</label>
+              <label><input type="checkbox"> Methods cite every commercial reagent + every named software tool.</label>
+              <label><input type="checkbox"> Data + code availability statement (required by most journals now).</label>
+              <label><input type="checkbox"> Conflict of interest statement.</label>
+              <label><input type="checkbox"> Funding statement listing every grant that supported the work.</label>
+              <label><input type="checkbox"> Author contributions written and confirmed by every co-author.</label>
+              <label><input type="checkbox"> Every co-author has read and approved the final version (written confirmation).</label>
+              <label><input type="checkbox"> Supplementary file complete: extra methods, full data tables, additional figures.</label>
+              <label><input type="checkbox"> Cover letter drafted (1 page, single-spaced, addressed to the editor by name).</label>
+              <label><input type="checkbox"> Suggested reviewers selected (and any to exclude, if appropriate).</label>
+              <label><input type="checkbox"> Final spell-check + read-aloud pass (typos in the Abstract are remarkable).</label>
+              <div class="submit-checklist-progress" id="submit-progress">0 of 15 ready</div>
+              <div class="submit-checklist-bar" id="submit-bar"><div style="width:0%"></div></div>
+            </div>
+
+            <div class="insight">
+              <strong>When the bar turns green</strong> — message Alex with
+              the link to the manuscript in the paper builder. Final
+              submission happens together. After that, the next step is
+              waiting for reviews (see Section 7 when they arrive).
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-paper-writing.js"></script>
+</body>
+</html>

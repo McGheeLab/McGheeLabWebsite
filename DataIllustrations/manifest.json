@@ -1,0 +1,12 @@
+{
+  "visualizations": [
+    {
+      "id": "granular-flow-t06",
+      "title": "Granular Channel — 3D Flow",
+      "description": "Flow through the pore network of a detected grain pack (T06, 5 PIV planes Z05–Z09). Streamlines, flow particles, grains, vasculature builder, and DTI-style bundles.",
+      "file": "viewer3d.html",
+      "thumb": "Images/research/granular-flow-preview.jpg",
+      "tags": ["PIV", "granular flow", "microfluidics"]
+    }
+  ]
+}

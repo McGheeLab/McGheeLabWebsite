@@ -45,7 +45,7 @@
 
     try {
       var _d = await api.load('lab/users.json');
-      var users = ((_d && _d.users) || []).filter(function (u) { return u.role && u.role !== 'guest'; });
+      var users = ((_d && _d.users) || []).filter(function (u) { return LAB_USERS.isVisible(u); });
 
       // Load CV data for each user
       var cvMap = {};

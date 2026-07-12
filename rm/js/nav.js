@@ -33,20 +33,40 @@ const NAV_ITEMS = [
     { label: 'PMR',      href: '/rm/pages/pmr.html' },
     { label: 'Calendar', href: '/rm/pages/calendar.html' },
     { label: 'Tasks',    href: '/rm/pages/tasks.html' },
-    { label: 'Sharing',  href: '/rm/pages/sharing.html' },
+    // V3.313 — the marketplace carries every cross-user task flow
+    // (offers, "I need work" requests, help/handoff asks). V3.317 folded
+    // the legacy Sharing page's tabs into its Assignments view;
+    // sharing.html now redirects here.
+    { label: 'Task Market', href: '/rm/pages/task-market.html', gate: 'lab-member' },
     { label: 'Explorer', href: '/rm/pages/explorer.html' },
   ]},
 
   { label: 'Research', href: '/rm/pages/projects.html', children: [
-    { label: 'Projects', href: '/rm/pages/projects.html' },
-    { label: 'Library',  href: '/rm/pages/library.html' },
-    { label: 'Comments', href: '/rm/pages/library.html?tab=comments' },
-    { label: 'Papers',   href: '/rm/pages/paper-builder.html' },
-    { label: 'Teaching', href: '/rm/pages/teaching.html' },
-    { label: 'Service',  href: '/rm/pages/service.html' },
+    { label: 'Projects',     href: '/rm/pages/projects.html' },
+    { label: 'Library',      href: '/rm/pages/library.html' },
+    { label: 'Comments',     href: '/rm/pages/library.html?tab=comments' },
+    { label: 'Lab Notebook', href: '/rm/pages/lab-notebook.html', gate: 'lab-member' },
+    { label: 'Protocols',    href: '/rm/pages/protocols.html', gate: 'lab-member' },
+    { label: 'Papers',       href: '/rm/pages/paper-builder.html' },
+    // V3.178 — Grants workflow phase 1. V3.179 added the grant writer +
+    // budget editor; the federal grants portal + AI matcher land last.
+    { label: 'Grants',         href: '/rm/pages/grant-builder.html',    gate: 'lab-member' },
+    { label: 'Biosketches',    href: '/rm/pages/grant-biosketch.html',  gate: 'lab-member' },
+    { label: 'Facilities Doc', href: '/rm/pages/grant-facilities.html', gate: 'lab-member' },
+    { label: 'Teaching',     href: '/rm/pages/teaching.html' },
+    { label: 'Service',      href: '/rm/pages/service.html' },
   ]},
 
+  // V3.200 — Training is now a single entry under Operations. The 26
+  // individual training pages still live on disk and are discoverable
+  // via the landing page at /rm/pages/training.html (which has the full
+  // categorized grid); they were dropped from NAV_ITEMS so the workflow
+  // page-map + All Pages grid don't have to scroll past a wall of
+  // training rows. If individual trainings need to become workflow-
+  // addable later, add them back as children of a 'Training' sub-list —
+  // but the landing page is intentionally the primary discovery surface.
   { label: 'Operations', gate: 'lab-member', children: [
+    { label: 'Training',  href: '/rm/pages/training.html' },
     { label: 'Chat',      href: '/rm/pages/chat.html' },
     { label: 'Huddle',    href: '/rm/pages/huddle.html' },
     { label: 'Meetings',  href: '/rm/pages/meetings.html' },
@@ -62,6 +82,7 @@ const NAV_ITEMS = [
     { label: 'Important People',  href: '/rm/pages/people.html?tab=important' },
     { label: 'Career & Tenure',   href: '/rm/pages/career.html' },
     { label: 'Procurement',       href: '/rm/pages/procurement.html' },
+    { label: 'Pcard Helper',      href: '/rm/pages/pcard-helper.html' },
     { label: 'Receipts & Budget', href: '/rm/pages/receipts.html' },
     { label: 'Grant Accounts',    href: '/rm/pages/projects-grants.html' },
     { label: 'Budget',            href: '/rm/pages/budget.html' },
@@ -75,8 +96,12 @@ const NAV_ITEMS = [
     { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
     { label: 'CV Overview',     href: '/rm/pages/cv-editor.html?tab=lab' },
     { label: 'Member Activity', href: '/rm/pages/activity-overview.html?tab=lab-stats', gate: 'admin' },
+    { label: 'Classifier Settings', href: '/rm/pages/classifier-settings.html', gate: 'lab-member' },
     { label: 'API Usage',       href: '/rm/pages/api-usage.html', gate: 'admin' },
     { label: 'Permissions',     href: '/rm/pages/admin-permissions.html', gate: 'admin' },
+    // V3.304 — external teacher/student platform oversight
+    { label: 'Teachers',        href: '/rm/pages/admin-teachers.html', gate: 'admin' },
+    { label: 'Guests',          href: '/rm/pages/admin-guests.html', gate: 'admin' },
   ]},
 
   // V3.56 — Split View opens a side-by-side shell with two RM pages
@@ -134,13 +159,21 @@ const _WF_DEFAULT_SEEDS = [
     id: 'task-scheduling', label: 'Task Scheduling & Activity Reports', icon: '📊',
     description: 'Plan tasks, track activity (tracker / year / email), schedule meetings, share assignments, file PMRs.',
     landingPageId: 'tasks',
-    pageIds: ['tasks', 'activity-overview', 'activity-overview__tab__tracker', 'activity-overview__tab__timeline', 'activity-overview__tab__email', 'scheduler', 'sharing', 'pmr'],
+    pageIds: ['tasks', 'activity-overview', 'activity-overview__tab__tracker', 'activity-overview__tab__timeline', 'activity-overview__tab__email', 'scheduler', 'task-market', 'pmr'],
   },
   {
     id: 'meetings', label: 'Meetings', icon: '🗣️',
     description: 'Run lab meetings, huddles, and 1:1s with chat, calendar, and task capture wired up.',
     landingPageId: 'meetings',
     pageIds: ['meetings', 'huddle', 'chat', 'tasks', 'calendar'],
+  },
+  // V3.178 — Grant Writing workflow. V3.179 adds the grant writer +
+  // budget editor; the federal grants portal + AI matcher land last.
+  {
+    id: 'grant-writing', label: 'Grant Writing', icon: '💰',
+    description: 'Author proposals end-to-end: grant writer + budget builder, biosketch generator, facilities & equipment boilerplate, and (last) an idea-to-grant matcher backed by the federal opportunities portal.',
+    landingPageId: 'grant-builder',
+    pageIds: ['grant-builder', 'grant-biosketch', 'grant-facilities', 'tasks', 'chat'],
   },
 ];
 
@@ -1130,7 +1163,19 @@ function renderNav() {
   function makeTopLink(label, href, isActive) {
     const a = document.createElement('a');
     a.href = href;
-    a.textContent = label;
+    // V3.233: split "🗂 Workflows" into icon + .nav-label span so the
+    // ≤640px CSS rule can hide just the label and show icons only on
+    // narrow screens.
+    const m = label.match(/^(\S+)\s+(.+)$/);
+    if (m) {
+      a.appendChild(document.createTextNode(m[1] + ' '));
+      const lab = document.createElement('span');
+      lab.className = 'nav-label';
+      lab.textContent = m[2];
+      a.appendChild(lab);
+    } else {
+      a.textContent = label;
+    }
     if (isActive) a.classList.add('active');
     return a;
   }
@@ -1237,7 +1282,14 @@ async function _wfPinCustomWorkflows(navEl) {
   wrapper.className = 'nav-dropdown nav-dropdown-pinned';
   const trigger = document.createElement('button');
   trigger.className = 'nav-dropdown-trigger';
-  trigger.textContent = '⭐ My Workflows';
+  // V3.233: wrap label in .nav-label span so the ≤640px CSS rule can
+  // collapse to icon-only on phones. The ::after ▾ caret stays since
+  // it's a pseudo-element rule on the trigger itself.
+  trigger.appendChild(document.createTextNode('⭐ '));
+  const trigLab = document.createElement('span');
+  trigLab.className = 'nav-label';
+  trigLab.textContent = 'My Workflows';
+  trigger.appendChild(trigLab);
   trigger.title = 'Custom workflows you saved';
   const menu = document.createElement('div');
   menu.className = 'dropdown-menu';
@@ -1327,3 +1379,20 @@ window.addEventListener('DOMContentLoaded', () => {
     firebridge.onAuth(() => applyNavGates());
   }
 });
+
+// V3.226 — auto-inject the silent page-time tracker on every RM page.
+// Loading via nav.js (which every RM page already includes) means we
+// don't have to add the <script> tag manually on each page. The tracker
+// itself is a self-installing IIFE that waits for firebridge.onAuth, so
+// it's safe to fire before/after firebase-bridge.js depending on browser
+// scheduling.
+(function injectPageTimeTracker() {
+  try {
+    if (window.__rmPageTimeTrackerInjected) return;
+    window.__rmPageTimeTrackerInjected = true;
+    var s = document.createElement('script');
+    s.src = '/rm/js/page-time-tracker.js';
+    s.async = true;
+    (document.head || document.documentElement).appendChild(s);
+  } catch (e) { /* nav.js shouldn't block on this */ }
+})();

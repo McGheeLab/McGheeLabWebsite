@@ -253,9 +253,11 @@ body.shell-popout-resizing .shell-frame {
 }
 body.shell-popout-resizing { cursor: col-resize; }
 
-/* Mobile: popouts stack on top of main as overlays. (Workflow shell
- * is desktop-first; mobile UX is best-effort.) */
-@media (max-width: 800px) {
+/* Tablet & below: popouts stack on top of main as overlays. (Workflow
+ * shell is desktop-first; mobile UX is best-effort.) V3.233 standardized
+ * breakpoint from 800px to the tablet token (1024px) so iPad-portrait
+ * already gets the overlay treatment. */
+@media (max-width: 1024px) {
   .shell-popout.open {
     position: fixed;
     top: 0; bottom: 0;

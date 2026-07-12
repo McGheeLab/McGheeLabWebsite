@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grants — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/grant-doc.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.179 — unified Grants shell. ?grant=<id> activates the editor
+     * for that grant; absence of the param shows the list view. Mirrors
+     * paper-builder.html's mode-switching pattern. */
+    (function () {
+      var gid = new URLSearchParams(location.search).get('grant');
+      var mode = gid ? 'editor' : 'list';
+      window.__GRANT_MODE = mode;
+      window.__GRANT_ID = gid;
+      document.title = (mode === 'editor')
+        ? 'Grant Editor — McGhee Lab'
+        : 'Grants — McGhee Lab';
+      document.documentElement.dataset.grantMode = mode;
+    })();
+  </script>
+  <style>
+    html[data-grant-mode="editor"] .grant-list-mode { display: none; }
+    html[data-grant-mode="list"]   .grant-editor-mode { display: none; }
+  </style>
+</head>
+<body>
+  <!-- ===== List mode ===== -->
+  <div class="page grant-list-mode">
+    <div class="page-header">
+      <h1 class="page-title">Grants</h1>
+      <div>
+        <button class="btn btn-primary" id="gb-new-grant-btn">+ New grant</button>
+      </div>
+    </div>
+    <div id="gb-status" class="pb-status"></div>
+    <div id="gb-list" class="pb-list"></div>
+  </div>
+
+  <!-- New-grant modal -->
+  <div id="gb-modal" class="pb-modal grant-list-mode" hidden>
+    <div class="pb-modal-card">
+      <div class="pb-modal-header">
+        <h2>New grant draft</h2>
+        <button class="pb-icon-btn" id="gb-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="pb-modal-body">
+        <div class="form-group">
+          <label for="gb-new-title">Working title</label>
+          <input type="text" id="gb-new-title" placeholder="e.g. Microfluidic traction force imaging for…">
+        </div>
+        <div class="form-group">
+          <label for="gb-new-template">Template</label>
+          <select id="gb-new-template"></select>
+          <small class="form-hint" id="gb-new-template-hint"></small>
+        </div>
+        <div class="form-group">
+          <label for="gb-new-mechanism">Mechanism (optional)</label>
+          <input type="text" id="gb-new-mechanism" placeholder="R01, R21, CAREER, BAA, …">
+        </div>
+        <div class="form-group">
+          <label for="gb-new-agency">Agency (optional)</label>
+          <input type="text" id="gb-new-agency" placeholder="NIH, NSF, DOD, DARPA, …">
+        </div>
+        <div class="form-group">
+          <label for="gb-new-deadline">Deadline (optional)</label>
+          <input type="date" id="gb-new-deadline">
+        </div>
+        <div class="pb-modal-error" id="gb-modal-error" hidden></div>
+      </div>
+      <div class="pb-modal-actions">
+        <button class="btn" id="gb-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="gb-modal-create">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Editor mode ===== -->
+  <div class="pe-page grant-editor-mode">
+    <div class="pe-topbar">
+      <a class="pe-back" href="/rm/pages/grant-builder.html">← All grants</a>
+      <input type="text" class="pe-title-input" id="ge-title" placeholder="Untitled grant" disabled>
+      <div class="pe-savestate" id="ge-savestate"></div>
+    </div>
+    <div class="pe-global-toolbar" id="ge-global-toolbar" role="toolbar" aria-label="Grant toolbar">
+      <span style="font-size:12px;color:var(--text-muted,#777);">Mechanism: <strong id="ge-meta-mech">—</strong></span>
+      <span style="font-size:12px;color:var(--text-muted,#777);margin-left:12px;">Agency: <strong id="ge-meta-agency">—</strong></span>
+      <span style="font-size:12px;color:var(--text-muted,#777);margin-left:12px;">Deadline: <strong id="ge-meta-deadline">—</strong></span>
+      <span style="font-size:12px;color:var(--text-muted,#777);margin-left:12px;">Repo:
+        <input type="text" id="ge-meta-repo" placeholder="../My-Grant-Repo"
+               title="Sibling git repo path — lit reviews + AI workflow live here"
+               style="font-size:12px;padding:2px 6px;width:200px;border:1px solid var(--border,#ddd);border-radius:4px;">
+      </span>
+      <span style="flex:1 1 auto;"></span>
+      <button class="btn" id="ge-attach-bio-btn" title="Attach a biosketch variant">+ Biosketch</button>
+      <button class="btn" id="ge-attach-fac-btn" title="Attach a facilities doc">+ Facilities</button>
+      <button class="btn" id="ge-export-tex-btn" title="Export LaTeX bundle">Export LaTeX</button>
+      <button class="btn" id="ge-print-btn" title="Print → PDF">Print</button>
+    </div>
+    <div class="pe-readonly-banner" id="ge-readonly-banner" hidden></div>
+    <div class="pe-layout">
+      <aside class="pe-sidebar">
+        <div class="pe-sidebar-title">Outline</div>
+        <ul class="pe-sidebar-list" id="ge-outline"></ul>
+        <div class="pe-sidebar-actions">
+          <button class="btn pe-add-section" id="ge-add-section-btn" disabled>+ Add section</button>
+        </div>
+        <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border,#ddd);">
+          <div class="pe-sidebar-title">Attached</div>
+          <div id="ge-attached-list" style="font-size:12px;color:var(--text-muted,#777);"></div>
+        </div>
+        <div id="ge-linked-papers-section" style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border,#ddd);">
+          <div class="pe-sidebar-title" style="display:flex;align-items:center;gap:6px;">
+            <span style="flex:1 1 auto;">Linked Papers</span>
+            <button class="btn" id="ge-link-paper-btn" style="font-size:11px;padding:2px 6px;" title="Pick a library paper to tag with this grant">+ Link</button>
+          </div>
+          <div id="ge-linked-papers-list" style="font-size:12px;color:var(--text-muted,#777);"></div>
+          <div id="ge-overlay-dropzone" style="margin-top:8px;padding:8px;border:1.5px dashed var(--border,#cbd5e1);border-radius:4px;text-align:center;font-size:11px;color:var(--text-muted,#777);background:#fafbff;">
+            Drop a <code>.paper-overlay.md</code> file<br>to upload + tag a paper
+          </div>
+          <div id="ge-overlay-files" style="margin-top:8px;font-size:11px;color:var(--text-muted,#777);"></div>
+        </div>
+      </aside>
+      <main class="pe-main" id="ge-main">
+        <div class="pe-main-inner" id="ge-main-inner">
+          <div id="ge-content"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/grant-schemas.js"></script>
+
+  <!-- Per-mode scripts -->
+  <script>
+    (function () {
+      var mode = window.__GRANT_MODE;
+      var listScripts  = ['/rm/js/grant-builder.js'];
+      var editorScripts = [
+        '/rm/js/grant-budget-model.js',
+        '/rm/js/grant-budget.js',
+        '/rm/js/grant-export-tex.js',
+        '/rm/js/grant-editor.js',
+      ];
+      var srcs = (mode === 'editor') ? editorScripts : listScripts;
+      srcs.forEach(function (s) {
+        document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');
+      });
+    })();
+  </script>
+</body>
+</html>

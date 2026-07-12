@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 1: Surface Energy &amp; Adsorbed Water — Surface Functionalization Foundations</title>
+<style>
+  /* ===== worksheet house style (print-first, self-contained) ===== */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .blank.w{min-width:160px}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .circle{color:#334155}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Surface Functionalization Foundations · Lesson 1 Worksheet</div>
+  <h1>Surfaces Are Hungry — Surface Energy &amp; Adsorbed Water</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="01-surface-energy-and-adsorbed-water.html"><b>01-surface-energy-and-adsorbed-water.html</b></a>
+  and keep it next to this worksheet. Each experiment below uses one tab of the lesson. <b>Predict
+  first</b> (before you touch the sliders!), then click the matching <b>Scenario</b> button, run the
+  experiment, record your data, and explain what you saw. The <b>stats panel</b> (left side, under
+  the sliders) and the <b>verdict box</b> (below the plots) give you the numbers to record.
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>Missing Neighbors</h2>
+  <p class="goal">Goal: discover why an atom at the surface feels a net inward pull while an atom in the bulk feels nothing.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">The atom that feels the <b>strongest</b> net inward pull is the one…
+  &nbsp;☐ at the surface &nbsp; ☐ one layer down &nbsp; ☐ deep in the bulk</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click the <b>At the surface</b> scenario (this sets <b>Probe depth</b> to 0). Look at the
+    thin green arrows — those are the pulls from each neighbor. Which pulls are missing, and which
+    way does the thick red resultant arrow point?</li>
+    <li>Drag the <b>Probe depth</b> slider (range 0–6) down one layer at a time. At each depth in
+    the table, read the stats panel: <b>Neighbors present</b>, <b>Neighbors missing</b>, and
+    <b>Net inward pull</b> (% of surface).</li>
+    <li>Use the <b>One layer down</b> and <b>Deep in the bulk</b> scenario buttons to check your
+    top and bottom rows.</li>
+    <li>Return to depth 0, then raise <b>Interaction reach</b> (range 1.0–3.0) and watch whether
+    the imbalance reaches deeper below the surface on the plot.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Probe depth</th><th>Neighbors present</th><th>Neighbors missing</th><th>Net inward pull (% of surface)</th><th>Verdict color (red / yellow / green)</th></tr>
+    <tr><td>0 (surface)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>1</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>2</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>3</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>6 (bulk)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>The net inward pull effectively vanishes by about depth <span class="blank"></span> layers.
+  Raising Interaction reach made the imbalance reach &nbsp;☐ deeper &nbsp; ☐ shallower &nbsp; ☐ no change.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. The bulk atom has the <em>most</em> neighbors pulling on it, yet it feels zero net force.
+  How can that be?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. All the drama of surface science happens in a skin only a few atomic layers thick. What in
+  your data shows that?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>Surface Energy</h2>
+  <p class="goal">Goal: connect bond strength to surface energy γ, using γ ≈ Nε / 2A — strong bonds make a hungry, high-γ surface.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Which fresh surface stores the <b>most</b> energy (highest γ)?
+  &nbsp;☐ waxy polymer &nbsp; ☐ glass / oxide &nbsp; ☐ metal</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Drag <b>Cleave progress</b> (0–100%) slowly from 0 to 100% and watch the bonds crossing the
+    plane stretch, snap, and leave dangling stubs on both new surfaces.</li>
+    <li>Click each scenario in turn — <b>Waxy polymer (weak bonds)</b>, <b>Glass / oxide</b>,
+    <b>Metal (strong bonds)</b> — and read the <b>Estimated γ</b> stat (in mJ/m²) for each.</li>
+    <li>On the plot, compare each γ against the dashed reference lines: PTFE ~20, water 72.8,
+    glass ~300, copper ~1800 mJ/m².</li>
+    <li>Pick one scenario and double the <b>Bond energy ε</b> slider (0.1–5 eV). Does γ double too?
+    Then nudge <b>Surface packing</b> and watch γ move.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Scenario</th><th>Bond energy ε (eV)</th><th>Estimated γ (mJ/m²)</th><th>Closest reference line</th></tr>
+    <tr><td class="lab">Waxy polymer</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Glass / oxide</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Metal</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>When I doubled ε, the Estimated γ was multiplied by about <span class="blank"></span>.
+  Denser packing (higher packing slider) made γ &nbsp;☐ go up &nbsp; ☐ go down &nbsp; ☐ stay the same.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Using γ ≈ Nε / 2A, explain in one sentence why a metal has a much higher surface energy
+  than a waxy polymer:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. The lesson's worked example estimates copper's γ at ~4200 mJ/m², but the real value is
+  ~1800 mJ/m². Why is the simple bond-counting estimate too high?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Water Coats Everything</h2>
+  <p class="goal">Goal: show that in ordinary air every surface is buried under a water film, and find where the film first reaches one full monolayer.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">A hungry surface (BET c = 50) first reaches <b>one full monolayer</b> of water
+  (θ = 1) at about… &nbsp;☐ 5% RH &nbsp; ☐ 20% RH &nbsp; ☐ 60% RH &nbsp; ☐ 95% RH</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Watch the live animation at <b>Room air (45% RH)</b> — molecules land, sit, and leave. Note
+    it is two-way traffic, not a one-way pile-up.</li>
+    <li>Keep <b>Surface hunger (BET c)</b> at 50. Drag <b>Relative humidity</b> (2–97%) to each
+    value in the table and record <b>Coverage θ</b> (layers) and <b>Film thickness</b> (nm) from
+    the stats. Use the <b>Desert-dry</b>, <b>Room air</b>, and <b>Steamy bathroom</b> scenario
+    buttons to hit 10, 45, and 90% quickly.</li>
+    <li>Find the RH where θ first crosses 1 monolayer and write it below.</li>
+    <li>Lower <b>Surface hunger (BET c)</b> toward Teflon-like values and note how much more humid
+    the air must be before even one monolayer forms.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Relative humidity (%)</th><td>10</td><td>30</td><td>45</td><td>70</td><td>90</td></tr>
+    <tr><th>Coverage θ (layers)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><th>Film thickness (nm)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>At c = 50, θ first reaches 1 monolayer near <span class="blank"></span>% RH.
+  After I lowered the BET c, that crossing moved to &nbsp;☐ lower RH &nbsp; ☐ higher RH.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. The BET Type-II curve is steep, then flat-ish, then steep again. Match each part to what the
+  molecules are doing (first layer / stacking multilayers / condensation):</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Why does this water film mean you can't do surface chemistry in open air?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Level Up: Vacuum &amp; Kinetics</h2>
+  <p class="goal">Goal: see how pumping down empties the chamber (long mean free path) and slows recontamination — but the water film desorbs slowly, so bake-out helps.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">When you drop the pressure from ambient to high vacuum, the adsorbed water film…
+  &nbsp;☐ vanishes instantly &nbsp; ☐ desorbs slowly over seconds &nbsp; ☐ stays forever</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Ambient (760 Torr)</b>. Read <b>Mean free path λ</b>, <b>Monolayer time</b>, and
+    <b>Water film left</b> from the stats.</li>
+    <li>Click <b>Rough vacuum (10⁻² Torr)</b>, then <b>High vacuum (10⁻⁶ Torr)</b>, recording the
+    same three stats each time. Watch the film desorb layer by layer — it does NOT vanish the
+    instant pressure drops.</li>
+    <li>From High vacuum, click <b>Bake-out (10⁻⁶ Torr, 420 K)</b> (or raise the <b>Temperature</b>
+    slider, 250–500 K). Note how much faster the last layer leaves.</li>
+    <li>The <b>Pressure</b> slider is logarithmic (1e-8 to 760 Torr) — sweep it and watch λ and
+    monolayer time on the log–log plot.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Scenario</th><th>Pressure</th><th>Mean free path λ</th><th>Monolayer time</th><th>Water film left</th></tr>
+    <tr><td class="lab">Ambient</td><td>760 Torr</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Rough vacuum</td><td>10⁻² Torr</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">High vacuum</td><td>10⁻⁶ Torr</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Bake-out</td><td>10⁻⁶ Torr, 420 K</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>λ went from about <span class="blank"></span> at ambient to about <span class="blank"></span>
+  at 10⁻⁶ Torr. Raising the temperature made the water film leave &nbsp;☐ faster &nbsp; ☐ slower.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Vacuum bares a surface by removing the molecules that <em>arrive</em>. Using your monolayer
+  times, explain why a surface in air can never be clean but a surface at 10⁻⁶ Torr can be worked on:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Why do vacuum scientists <em>bake out</em> their chambers instead of just pumping longer at
+  room temperature?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — put it together</h2>
+  <p>1. In three sentences, tell the story of why a bare surface is so hard to get in air. Use all of
+  these words: <b>missing neighbors</b>, <b>surface energy</b>, <b>adsorption</b>, <b>water film</b>,
+  <b>vacuum</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+  <p>2. Rank these surfaces from hungriest to least hungry, and next to each note whether it grabs a
+  thick or thin water film in room air: <b>copper</b>, <b>glass</b>, <b>Teflon</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>3. <b>Challenge (stretch):</b> the mean free path is λ = k<sub>B</sub>T / (√2 · π d² P), with
+  d ≈ 0.37 nm. At ambient pressure λ ≈ 68 nm. Pressure drops by a factor of 10⁸ from ambient to
+  10⁻⁶ Torr, and λ is inversely proportional to P. Estimate λ at 10⁻⁶ Torr:
+  λ ≈ <span class="blank"></span> (give a number and units).
+  <span class="hint">68 nm × 10⁸ = ? Convert to meters.</span></p>
+  <p>4. Next lesson preview: once you finally have a bare, high-energy surface, it is desperate to
+  react. What might you deliberately put on it to give it the chemistry you actually want?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Surface Functionalization Foundations · Worksheet 1 of 4</footer>
+</body>
+</html>

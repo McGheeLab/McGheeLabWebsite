@@ -1,0 +1,2425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 13: Model Validation — Engineering Cancer Course</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.8rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 20px;border:none;background:none;font-size:.9rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+/* Use flex column so we can reorder children visually (student-task moves above the scenario bar
+   so students read the "TRY THIS" instructions before interacting). HTML source order is preserved
+   for accessibility / screen readers. */
+.tab-content.active{display:flex;flex-direction:column}
+.tab-content > .background-section{order:1}
+.tab-content > .student-task{order:2;margin-top:0;margin-bottom:14px}
+.tab-content > .scenario-bar{order:3}
+.tab-content > .panel{order:4}
+
+/* ── Cards & panels ── */
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:20px;margin-bottom:16px}
+.panel{display:grid;grid-template-columns:280px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+
+/* ── Teaching note ── */
+
+/* ── Discussion prompts ── */
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:14px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb}
+.btn{padding:7px 14px;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-success{background:#059669;color:#fff}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+
+/* ── Stats ── */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}
+.stat-row .value{font-weight:600;color:#1e293b}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+/* height:auto makes the canvas scale proportionally from its intrinsic (attr width×height) ratio */
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+
+/* ── Chart rows ── */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chart-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row,.chart-row-3{grid-template-columns:1fr}}
+
+/* ── Toggle buttons ── */
+.toggle-row{display:flex;gap:6px;margin-bottom:10px}
+.toggle-btn{padding:5px 12px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.8rem;font-weight:600;color:#94a3b8;cursor:pointer}
+.toggle-btn.active{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.toggle-btn.active-red{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+
+/* ── Per-tab scenario bar (just above the plots) ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.active-proper{border-color:#15803d;color:#15803d;background:#f0fdf4}
+.scen-btn.active-improper{border-color:#d97706;color:#d97706;background:#fffbeb}
+.scen-btn.active-overfit{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+.scen-btn.active-underfit{border-color:#7c3aed;color:#7c3aed;background:#f5f3ff}
+.noise-preset-btn{padding:5px 12px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;margin-left:6px}
+.noise-preset-btn:hover{background:#e2e8f0;color:#1e293b}
+.noise-banner{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:6px;padding:6px 10px;margin-top:8px;font-size:.78rem}
+
+/* ── Insight box ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+
+/* ── Validation verdict ── */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict strong{display:block;font-size:.9rem;margin-bottom:2px}
+.toggle-btn.active-amber{border-color:#d97706;color:#d97706;background:#fffbeb}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════════════════ RESPONSIVE / MOBILE ════════════════ */
+
+/* Tablet breakpoint (900px is the existing breakpoint for panel column stacking) */
+@media (max-width: 900px) {
+    .panel{gap:12px}
+}
+
+/* Phone breakpoint */
+@media (max-width: 640px) {
+    header{padding:16px 14px}
+    header h1{font-size:1.25rem;letter-spacing:-.3px}
+    header .subtitle{font-size:.76rem}
+
+    .tab-bar{padding:0 8px}
+    .tab-btn{padding:10px 10px;font-size:.76rem}
+
+    main{padding:10px 8px;max-width:100%}
+
+    /* Scenario bar: compact with label on its own row, buttons wrap 2-per-row */
+    .scenario-bar{padding:8px 10px;gap:6px;border-radius:8px}
+    .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+    .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+
+    .background-section{padding:16px 16px;margin-bottom:12px}
+    .background-section h2{font-size:1rem}
+    .background-section h3{font-size:.9rem}
+    .background-section p,.background-section li{font-size:.84rem}
+    .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+    .worked-example li,.equation-box li{font-size:.82rem}
+
+    .ctrl{padding:12px}
+    .ctrl h3{font-size:.78rem;letter-spacing:.3px}
+    .ctrl-group{margin-bottom:10px}
+    .ctrl-group label{font-size:.78rem}
+
+    .canvas-wrap{padding:8px}
+    .canvas-title{font-size:.68rem;letter-spacing:.3px}
+
+    .btn-row{gap:4px;flex-wrap:wrap}
+    .btn{padding:6px 12px;font-size:.76rem}
+    .noise-preset-btn{margin-left:0;margin-top:6px;font-size:.72rem}
+
+    .student-task{padding:10px 14px;margin-top:10px}
+    .student-task li{font-size:.78rem;line-height:1.45}
+
+    /* Stats rows: smaller text, single-column labels */
+    .stats{padding:10px;font-size:.76rem}
+    .stat-row .label,.stat-row .value{font-size:.76rem}
+
+    /* Verdict + insight boxes */
+    .val-verdict,.insight{font-size:.8rem;padding:10px 12px}
+
+    /* Toggle rows (residual view, pred-vs-obs toggles) */
+    .toggle-btn{padding:4px 10px;font-size:.74rem}
+
+    /* Equations — allow horizontal scroll for overflow */
+    .equation-box p{font-size:.82rem}
+
+    footer{padding:14px;font-size:.7rem}
+}
+
+/* Very small screens: ensure scenario buttons still fit */
+@media (max-width: 380px) {
+    .scen-btn{flex:1 1 100%;font-size:.76rem}
+    header h1{font-size:1.1rem}
+    .tab-btn{padding:8px 8px;font-size:.72rem}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Model Validation</h1>
+  <p class="subtitle">Validating a Cell Invasion Model Against Transwell Assay Data &mdash; Module 13</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="calibration">1. Training &amp; Calibration</button>
+  <button class="tab-btn" data-tab="residuals">2. Residual Diagnostics</button>
+  <button class="tab-btn" data-tab="predobs">3. Prediction vs Observation</button>
+  <button class="tab-btn" data-tab="crossval">4. Cross-Validation</button>
+  <button class="tab-btn" data-tab="extrap">5. Extrapolation Test</button>
+  <button class="tab-btn" data-tab="refine">6. Model Refinement</button>
+</div>
+
+<main>
+
+<!-- ════════════════ TAB 1: TRAINING & CALIBRATION ════════════════ -->
+<section id="tab-calibration" class="tab-content active">
+
+  <div class="background-section">
+    <h2>Background: Calibration vs. Validation</h2>
+
+    <p><strong>Connection to Modules 11&ndash;12:</strong> In Module 11, you learned to <em>calibrate</em> a model &mdash; fitting parameters to data. In Module 12, you learned to <em>design experiments</em> that efficiently test your model assumptions. Now you close the loop: <strong>does your calibrated model actually predict new data?</strong> Validation is the final, essential test before you trust a model for decisions. We use a <em>different</em> cancer system (cell invasion through Transwell membranes) to show that validation principles are universal.</p>
+
+    <h3>Training vs. Validation Split</h3>
+    <p><strong>Calibration</strong> (training) fits model parameters to a subset of data. <strong>Validation</strong> tests the fitted model on <em>unseen</em> data it was never trained on. A model that fits training data perfectly but fails on validation data is <strong>overfit</strong> &mdash; it memorized the noise, not the signal. This is the most important concept in all of modeling.</p>
+
+    <h3>Key Equations &mdash; Cell Invasion Model</h3>
+    <div class="equation-box">
+      <p><strong>Matrigel Transwell invasion model:</strong></p>
+      <p style="text-align:center">$$N_{\text{invaded}}(t) = N_0 \left(1 - e^{-D\,t / L^2}\right) e^{\mu t}$$</p>
+      <p><strong>Parameter meanings:</strong></p>
+      <ul>
+        <li>\(N_0\) = cells seeded (fixed at 50,000)</li>
+        <li>\(D\) = invasion coefficient (cm&sup2;/h) &mdash; how fast cells penetrate the Matrigel</li>
+        <li>\(L\) = Matrigel thickness (cm) &mdash; the barrier cells must cross</li>
+        <li>\(\mu\) = proliferation rate (1/h) &mdash; cell division during the assay</li>
+      </ul>
+      <p><strong>Biology:</strong> The first term \((1 - e^{-Dt/L^2})\) models diffusion-like invasion through the membrane. The second term \(e^{\mu t}\) accounts for exponential proliferation. At early times, invasion dominates; at late times, proliferation amplifies the invaded population.</p>
+    </div>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">Why Hold Out Data?</h3>
+      <p>Suppose you have 9 time points with 4 replicates each = 36 data points. You fit a 2-parameter model (\(D\) and \(\mu\)).</p>
+      <ul>
+        <li>With 36 points and 2 parameters, you have 34 degrees of freedom for error &mdash; <em>plenty</em> for a good fit.</li>
+        <li>But can you trust R&sup2; = 0.99 on training data? No! A flexible enough model will always fit training data well.</li>
+        <li>Hold out 8 separate measurements at different time points. If R&sup2; &gt; 0.95 on <em>both</em> training and validation, you can be confident the model captures real biology.</li>
+        <li>If training R&sup2; = 0.99 but validation R&sup2; = 0.70, something is wrong: overfitting, wrong model structure, or systematic experimental differences.</li>
+      </ul>
+    </div>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">Four Failure Modes of Validation</h3>
+      <p>Use the <strong>Validation Scenario</strong> bar at the top of the page to switch between four cases. All four use the <em>same biology</em> (\(\mu\) = 0.01, \(D\) = 2.5\(\times\)10<sup>-7</sup>) and the <em>same data-generating process</em> &mdash; only the train/validation split or the model form changes:</p>
+      <ul>
+        <li><strong>Proper Split (baseline):</strong> Random interleaved time points span the full range. Mechanistic fit. The model generalizes &mdash; this is what right looks like.</li>
+        <li><strong>Improper Split:</strong> Sequential split (train on 2&ndash;8 h, validate on 24&ndash;48 h). Same biology and same model, but the early-time training data fails to constrain \(\mu\), so the fit drifts. Late-time validation collapses.</li>
+        <li><strong>Overfit:</strong> Proper split, but the model is replaced by a degree-6 polynomial (7 free coefficients). Training R&sup2; goes to nearly 1.00 because the polynomial memorizes every noise wiggle, but predictions oscillate between data points and validation collapses. Classic bias-variance tradeoff failure.</li>
+        <li><strong>Underfit:</strong> Proper split, but the model is replaced by a pure exponential \(N(t) = a\,e^{bt}\) &mdash; missing the diffusion-lag term \(1 - e^{-Dt/L^2}\). Both training and validation R&sup2; are mediocre. More data won't fix it: the <em>model form is wrong</em>. Residuals show systematic structure.</li>
+      </ul>
+      <p>Plus a <strong>High Noise Preset</strong> button next to the noise slider: snaps noise to 0.35 to demonstrate what happens when the data itself is the limiting factor &mdash; even a correct model with a proper split can't be validated reliably under enough noise.</p>
+      <p><strong>The pedagogical point:</strong> validation can fail in fundamentally different ways. The <em>data</em> can be poorly split, the <em>model</em> can be too flexible or too simple, or the <em>measurements</em> can be too noisy. Diagnosing which failure you have is the heart of model validation.</p>
+    </div>
+
+    <h3>Linearized Validation: A Change of Basis</h3>
+    <div class="equation-box">
+      <p>Raw R&sup2; on nonlinear data can be misleading &mdash; exponential growth at late times inflates apparent goodness-of-fit. A more rigorous test is to <strong>linearize</strong> the model first, then check R&sup2; in the transformed space.</p>
+      <p><strong>Divide both sides</strong> by the diffusion factor \(N_0(1 - e^{-D_{\text{fit}}\,t/L^2})\) and take the natural log:</p>
+      <p style="text-align:center">$$y_{\text{lin}} = \ln\!\left(\frac{N_{\text{obs}}}{N_0\,(1 - e^{-D_{\text{fit}}\,t/L^2})}\right), \qquad y_{\text{pred}} = \mu_{\text{fit}}\,t$$</p>
+      <p>If the model is correct, the linearized data falls on a <strong>straight line through the origin with slope &mu;</strong>. Deviations from this line &mdash; especially a different slope for validation data &mdash; reveal model-data mismatch that raw R&sup2; can mask. All R&sup2; values in this module are computed in this linearized space.</p>
+    </div>
+
+  </div>
+
+  <!-- Validation scenario bar -->
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Validation Scenario:</span>
+    <button class="scen-btn active-proper" data-scen="proper" onclick="setScenario('proper')">Proper Split</button>
+    <button class="scen-btn" data-scen="improper" onclick="setScenario('improper')">Improper Split</button>
+    <button class="scen-btn" data-scen="overfit" onclick="setScenario('overfit')">Overfit (Polynomial)</button>
+    <button class="scen-btn" data-scen="underfit" onclick="setScenario('underfit')">Underfit (Pure Exp)</button>
+  </div>
+
+  <!-- Interactive Panel -->
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Parameters</h3>
+      <div class="ctrl-group">
+        <label>N<sub>0</sub> (cells seeded) <span>50,000</span></label>
+      </div>
+      <div class="ctrl-group">
+        <label>Noise Level <span id="v-noise1">0.10</span></label>
+        <input type="range" id="s-noise1" min="0.02" max="0.40" step="0.01" value="0.10">
+        <button class="noise-preset-btn" id="btn-noise-preset" title="Snap noise to 0.35 to demonstrate the high-noise regime">High Noise Preset (0.35)</button>
+      </div>
+      <div id="noise-banner" class="noise-banner" style="display:none">High noise regime: fit uncertainty dominates. Validation R&sup2; becomes unreliable not because the model is wrong, but because the data is too noisy.</div>
+
+<div class="btn-row">
+        <button class="btn btn-primary" id="btn-gen-data">Generate Data</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-success" id="btn-reveal-val" disabled>Reveal Validation Data</button>
+      </div>
+
+      <div class="stats" id="stats-cal">
+        <h4>Fitted Parameters</h4>
+        <div class="stat-row highlight"><span class="label">D (cm&sup2;/h)</span><span class="value" id="st-fitD">--</span></div>
+        <div class="stat-row highlight"><span class="label">&mu; (1/h)</span><span class="value" id="st-fitMu">--</span></div>
+        <h4 style="margin-top:8px">Standard Errors</h4>
+        <div class="stat-row"><span class="label">SE(D)</span><span class="value" id="st-seD">--</span></div>
+        <div class="stat-row"><span class="label">SE(&mu;)</span><span class="value" id="st-seMu">--</span></div>
+        <h4 style="margin-top:8px">Goodness of Fit (Training)</h4>
+        <div class="stat-row"><span class="label">RSS</span><span class="value" id="st-rss1">--</span></div>
+        <div class="stat-row"><span class="label">R&sup2;</span><span class="value" id="st-r2train">--</span></div>
+        <div class="stat-row"><span class="label">RMSE</span><span class="value" id="st-rmse-train">--</span></div>
+        <h4 style="margin-top:8px">True Values</h4>
+        <div class="stat-row"><span class="label">D</span><span class="value">2.50e-7</span></div>
+        <div class="stat-row"><span class="label">&mu;</span><span class="value">0.0100</span></div>
+      </div>
+
+      <div id="val-stats-wrap" style="display:none;margin-top:12px">
+        <div class="stats">
+          <h4 style="color:#dc2626">Validation Fit</h4>
+          <div class="stat-row"><span class="label">R&sup2; (val)</span><span class="value" id="st-r2val">--</span></div>
+          <div class="stat-row"><span class="label">RMSE (val)</span><span class="value" id="st-rmse-val">--</span></div>
+          <div class="stat-row"><span class="label">&Delta;R&sup2;</span><span class="value" id="st-r2gap">--</span></div>
+        </div>
+        <div id="val-verdict" class="val-verdict good" style="display:none"></div>
+      </div>
+    </div>
+    <div class="viz">
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Invasion Time Course</div>
+          <canvas id="c-cal" width="450" height="420"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Linearized View &mdash; ln(N / N<sub>0</sub>f(t)) vs Time</div>
+          <canvas id="c-cal-lin" width="450" height="420"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>With <strong>Proper Split</strong>, generate data at noise = 0.05. Compare fitted \(D\) and \(\mu\) to the true values. Reveal validation; note that train R&sup2; and val R&sup2; are both high.</li>
+      <li>Switch to <strong>Improper Split</strong>. Same biology, but training is clustered at early times. The fitted \(\mu\) drifts. Reveal validation &mdash; late-time points sit off the fitted curve. (Verdict explains why.)</li>
+      <li>Switch to <strong>Overfit</strong>. The mechanistic curve is replaced by a degree-6 polynomial. Training R&sup2; \(\to\) 1.00 (perfect on training points), but the polynomial wiggles wildly between them. Reveal validation &mdash; R&sup2; collapses. Look at the linearized view: the polynomial's linearized prediction is a <em>curve</em>, not a straight line through the origin.</li>
+      <li>Switch to <strong>Underfit</strong>. Now the model is a pure exponential. Both R&sup2; values are mediocre. The model curve misses the early-time invasion lag. Look at the residuals on Tab 2 &mdash; they show a clear early-time trend.</li>
+      <li>Click <strong>High Noise Preset (0.35)</strong>. Noise goes way up. Stay on Proper Split. The model is correct, the split is correct &mdash; yet validation R&sup2; becomes unreliable because the data itself is the limiting factor. Look at the SE on D and \(\mu\) &mdash; they grow.</li>
+      <li>Toggle through all four scenarios at default noise. Note: Proper has the best generalization. The other three each fail differently &mdash; same training R&sup2; signal can hide very different problems. <strong>Always look at validation</strong>.</li>
+    </ol>
+  </div>
+
+</section>
+
+<!-- ════════════════ TAB 2: RESIDUAL DIAGNOSTICS ════════════════ -->
+<section id="tab-residuals" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: Reading Residual Patterns</h2>
+
+    <p>A good fit produces residuals (observed &minus; predicted) that are <strong>random</strong>, centered at zero, roughly <strong>normally distributed</strong>, and show no systematic pattern. Patterns in residuals indicate the model is missing real biology.</p>
+
+    <h3>Three Residual Patterns to Recognize (Residuals vs Time)</h3>
+    <ul>
+      <li><strong>Good fit (random scatter):</strong> Points scatter randomly around zero &mdash; no trend, no pattern. The model captured everything systematic; only random noise remains.</li>
+      <li><strong>Wrong model (U-shaped):</strong> Residuals are negative at early and late times but positive in the middle. The model shape is wrong &mdash; perhaps missing a saturation term.</li>
+      <li><strong>Heteroscedastic (trumpet):</strong> Residuals grow in magnitude with time. The noise is proportional to the signal &mdash; consider weighted least squares or log-transform.</li>
+    </ul>
+
+    <h3>Q-Q Plot: Is the Residual Distribution Normal?</h3>
+    <p>A <strong>quantile-quantile (Q-Q) plot</strong> compares the distribution of your residuals to a standard normal distribution. Sort your residuals, standardize them (z-score), and plot each against its theoretical quantile from \(\mathcal{N}(0,1)\).</p>
+    <ul>
+      <li><strong>Points on the diagonal \(y = x\):</strong> Residuals are approximately normal &mdash; least-squares assumptions hold, confidence intervals are trustworthy.</li>
+      <li><strong>S-shaped curve:</strong> Residuals are heavy-tailed (more extreme values than normal predicts) &mdash; a few outliers are pulling the fit.</li>
+      <li><strong>Curved (banana shape):</strong> Residuals are skewed &mdash; systematic asymmetry, often a sign the model systematically over- or under-predicts on one side.</li>
+    </ul>
+    <p>Why this matters: The classic residuals-vs-predicted plot looks nearly identical to residuals-vs-time for any monotonic model (like this invasion model), so it adds little. A Q-Q plot probes a <em>different</em> property &mdash; the <em>distribution</em> of residuals rather than their temporal structure &mdash; and is much more informative here.</p>
+
+    <h3>Key Equations &mdash; Residual Statistics</h3>
+    <div class="equation-box">
+      <p><strong>Residual:</strong> \(r_i = y_i^{\text{obs}} - y_i^{\text{pred}}\)</p>
+      <p><strong>RMSE:</strong> \(\text{RMSE} = \sqrt{\frac{1}{n}\sum_{i=1}^n r_i^2}\) &mdash; in the units of the data (cells)</p>
+      <p><strong>Mean residual:</strong> should be near zero. If not, the model is biased (systematic over/under-prediction).</p>
+      <p><strong>Skewness:</strong> measures asymmetry of the residual distribution. \(|S| < 0.5\) suggests approximate normality.</p>
+      <p><strong>Key check:</strong> compare training residuals to validation residuals. If validation RMSE is <em>much</em> larger than training RMSE, the model may be overfit.</p>
+    </div>
+
+  </div>
+
+  <!-- Validation scenario bar -->
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Validation Scenario:</span>
+    <button class="scen-btn active-proper" data-scen="proper" onclick="setScenario('proper')">Proper Split</button>
+    <button class="scen-btn" data-scen="improper" onclick="setScenario('improper')">Improper Split</button>
+    <button class="scen-btn" data-scen="overfit" onclick="setScenario('overfit')">Overfit (Polynomial)</button>
+    <button class="scen-btn" data-scen="underfit" onclick="setScenario('underfit')">Underfit (Pure Exp)</button>
+  </div>
+
+  <!-- Interactive Panel -->
+  <div class="panel">
+    <div class="ctrl">
+<h3>Residual View</h3>
+      <div class="toggle-row">
+        <button class="toggle-btn active" id="btn-res-train">Training</button>
+        <button class="toggle-btn" id="btn-res-val">Validation</button>
+      </div>
+
+      <div class="stats" id="stats-res">
+        <h4>Residual Statistics</h4>
+        <div class="stat-row"><span class="label">RMSE</span><span class="value" id="st-res-rmse">--</span></div>
+        <div class="stat-row"><span class="label">Mean Residual</span><span class="value" id="st-res-mean">--</span></div>
+        <div class="stat-row"><span class="label">R&sup2;</span><span class="value" id="st-res-r2">--</span></div>
+        <div class="stat-row"><span class="label">Skewness</span><span class="value" id="st-res-skew">--</span></div>
+        <div class="stat-row"><span class="label">Normality</span><span class="value" id="st-res-norm">--</span></div>
+      </div>
+      <div class="insight" style="margin-top:12px">
+        <strong>Key check:</strong> If residuals show a trend vs. time, the model may be missing a time-dependent effect. If variance grows with predicted value, consider weighted least squares.
+      </div>
+      <div id="verdict-res" class="val-verdict good" style="display:none;margin-top:12px"></div>
+    </div>
+    <div>
+      <div class="chart-row-3">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Residuals vs Time</div>
+          <canvas id="c-res-time" width="350" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Q-Q Plot (Normality Check)</div>
+          <canvas id="c-res-qq" width="350" height="280"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Residual Histogram</div>
+          <canvas id="c-res-hist" width="350" height="280"></canvas>
+        </div>
+      </div>
+      <div class="canvas-wrap" style="margin-top:12px">
+        <div class="canvas-title">Linearized View &mdash; Active Dataset vs Predicted Line (this is the basis for R&sup2;)</div>
+        <canvas id="c-res-lin" width="930" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>With <strong>Proper Split</strong>, view training residuals. Are they random and centered at zero? Does the Q-Q plot show points near the diagonal (residuals approximately normal)?</li>
+      <li>Switch to validation residuals. Is the RMSE similar to training RMSE? Are residuals still random, still on the Q-Q diagonal?</li>
+      <li>Switch to <strong>Improper Split</strong> and view validation residuals. The residuals-vs-time plot should show a clear trend (systematic bias at late times). What does the Q-Q plot look like now? Off the diagonal? Skewed?</li>
+      <li>Switch to <strong>Underfit</strong> (validation). The residuals should show a sharp early-time deviation &mdash; the missing diffusion lag. The Q-Q plot may also depart from the diagonal.</li>
+      <li>Switch to <strong>Overfit</strong> (validation). Residuals can be erratic because the polynomial oscillates wildly between training points. Compare to Underfit: both fail, but the failure <em>pattern</em> in the residuals is fundamentally different.</li>
+      <li>Click <strong>High Noise Preset</strong>. Now noise dominates the residuals. The Q-Q plot still looks normal (noise is Gaussian) but the magnitudes are huge. <em>Different failure mode</em>: data quality, not model or split.</li>
+      <li>Toggle to training residuals across all 4 scenarios &mdash; they always look fine (the fit minimizes them by construction). This is exactly why you <em>cannot</em> trust training residuals alone.</li>
+    </ol>
+  </div>
+
+</section>
+
+<!-- ════════════════ TAB 3: PREDICTION VS OBSERVATION ════════════════ -->
+<section id="tab-predobs" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: The Gold Standard Validation Plot</h2>
+
+    <p>The <strong>prediction vs. observation plot</strong> is the single most important validation figure. Plot predicted values on the x-axis and observed values on the y-axis. Points on the <strong>1:1 diagonal</strong> indicate perfect prediction. Deviation from the diagonal quantifies model error.</p>
+
+    <h3>Reading the Plot</h3>
+    <ul>
+      <li><strong>1:1 line</strong> (dashed) &mdash; perfect prediction reference</li>
+      <li><strong>&plusmn;10% band</strong> (darker shading) &mdash; points within this band are "good enough" for most applications</li>
+      <li><strong>&plusmn;20% band</strong> (lighter shading) &mdash; acceptable for early-stage models</li>
+      <li><strong>Training points (blue circles)</strong> &mdash; usually tighter clustering around the 1:1 line</li>
+      <li><strong>Validation points (red squares)</strong> &mdash; if they scatter more widely, the model overfits</li>
+    </ul>
+
+    <h3>Key Statistics</h3>
+    <div class="equation-box">
+      <p><strong>Pearson correlation:</strong> \(r = \frac{\sum(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum(x_i - \bar{x})^2 \sum(y_i - \bar{y})^2}}\)</p>
+      <p>\(r\) measures correlation, R&sup2; measures explained variance, RMSE measures magnitude of error, and Bias measures systematic over/under-prediction.</p>
+      <p><strong>Bias:</strong> \(\text{Bias} = \frac{1}{n}\sum_{i=1}^n (y_i^{\text{obs}} - y_i^{\text{pred}})\) &mdash; positive means model underpredicts on average</p>
+      <p><strong>95% prediction interval:</strong> Sample 200 parameter sets from the covariance matrix, compute predictions for each, and take the 2.5th and 97.5th percentiles. This captures <em>parameter uncertainty</em> (how well we know \(D\) and \(\mu\)), not measurement noise.</p>
+    </div>
+
+  </div>
+
+  <!-- Validation scenario bar -->
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Validation Scenario:</span>
+    <button class="scen-btn active-proper" data-scen="proper" onclick="setScenario('proper')">Proper Split</button>
+    <button class="scen-btn" data-scen="improper" onclick="setScenario('improper')">Improper Split</button>
+    <button class="scen-btn" data-scen="overfit" onclick="setScenario('overfit')">Overfit (Polynomial)</button>
+    <button class="scen-btn" data-scen="underfit" onclick="setScenario('underfit')">Underfit (Pure Exp)</button>
+  </div>
+
+  <!-- Interactive Panel -->
+  <div class="panel">
+    <div class="ctrl">
+<h3>Display</h3>
+      <div class="toggle-row">
+        <button class="toggle-btn active" id="btn-po-train">Training (blue)</button>
+        <button class="toggle-btn active-red" id="btn-po-val">Validation (red)</button>
+      </div>
+      <div class="stats" id="stats-po">
+        <h4>Validation Statistics</h4>
+        <div class="stat-row highlight"><span class="label">Pearson r</span><span class="value" id="st-po-r">--</span></div>
+        <div class="stat-row highlight"><span class="label">R&sup2; (val)</span><span class="value" id="st-po-r2">--</span></div>
+        <div class="stat-row"><span class="label">RMSE (val)</span><span class="value" id="st-po-rmse">--</span></div>
+        <div class="stat-row"><span class="label">Bias</span><span class="value" id="st-po-bias">--</span></div>
+      </div>
+      <div id="verdict-po" class="val-verdict good" style="display:none;margin-top:12px"></div>
+    </div>
+    <div>
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Prediction vs Observation</div>
+          <canvas id="c-po" width="450" height="420"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Time Course with 95% Prediction Interval</div>
+          <canvas id="c-pi" width="450" height="420"></canvas>
+        </div>
+      </div>
+      <div class="canvas-wrap" style="margin-top:12px">
+        <div class="canvas-title">Linearized View &mdash; Training &amp; Validation vs Predicted Line (this is the basis for R&sup2;)</div>
+        <canvas id="c-po-lin" width="930" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>With <strong>Proper Split</strong>, are most validation points within the &plusmn;10% band? Validation R&sup2; should be close to training R&sup2;.</li>
+      <li>Switch to <strong>Improper Split</strong>. Where do validation points go relative to the 1:1 line? Bias should be sizable. (Same biology, biased fit.)</li>
+      <li>Switch to <strong>Overfit</strong>. The 95% prediction-interval panel hides itself ("N/A for polynomial fit") &mdash; covariance is undefined for a 7-coefficient polynomial. Validation points fan out wildly on the pred-vs-obs scatter.</li>
+      <li>Switch to <strong>Underfit</strong>. Prediction interval also hidden. Pred-vs-obs shows a curved deviation pattern &mdash; the model has the wrong shape.</li>
+      <li>Click <strong>High Noise Preset</strong> and stay on Proper. The 95% prediction interval grows visibly &mdash; uncertainty is now large. Validation points scatter widely but symmetrically around the 1:1 line.</li>
+      <li>Compare bias values across scenarios. Improper/Overfit/Underfit all have systematic bias; Proper and High-Noise have near-zero bias but very different uncertainty.</li>
+    </ol>
+  </div>
+
+</section>
+
+<!-- ════════════════ TAB 4: CROSS-VALIDATION ════════════════ -->
+<section id="tab-crossval" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: k-Fold Cross-Validation</h2>
+
+    <p>Sometimes you don't have enough data to set aside a separate validation set. <strong>Cross-validation</strong> solves this by systematically holding out different subsets, refitting the model each time, and predicting the held-out points. The average prediction error across all folds gives an honest estimate of generalization.</p>
+
+    <h3>The CV Procedure</h3>
+    <ol>
+      <li>Partition \(n\) time points into \(k\) folds</li>
+      <li>For fold \(j = 1, \ldots, k\): fit model on all data <em>except</em> fold \(j\), predict fold \(j\)</li>
+      <li>Compute R&sup2; and RMSE for each fold</li>
+      <li>Average across folds for the overall CV estimate</li>
+    </ol>
+
+    <h3>When to Use Cross-Validation</h3>
+    <ul>
+      <li>Small datasets where holding out a fixed validation set wastes too much data</li>
+      <li>When you want an honest estimate of prediction error without a separate test set</li>
+      <li>To check sensitivity: if one fold has a much lower R&sup2;, investigate those time points</li>
+    </ul>
+
+    <h3>Key Equations</h3>
+    <div class="equation-box">
+      <p><strong>CV estimate of prediction error:</strong></p>
+      <p style="text-align:center">$$\text{CV-R}^2 = \frac{1}{k}\sum_{j=1}^k R_j^2, \qquad \text{CV-RMSE} = \frac{1}{k}\sum_{j=1}^k \text{RMSE}_j$$</p>
+      <p><strong>Std(R&sup2;):</strong> If the standard deviation across folds is large, the model is sensitive to which data is used &mdash; a warning sign.</p>
+    </div>
+
+  </div>
+
+  <!-- Validation scenario bar -->
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Validation Scenario:</span>
+    <button class="scen-btn active-proper" data-scen="proper" onclick="setScenario('proper')">Proper Split</button>
+    <button class="scen-btn" data-scen="improper" onclick="setScenario('improper')">Improper Split</button>
+    <button class="scen-btn" data-scen="overfit" onclick="setScenario('overfit')">Overfit (Polynomial)</button>
+    <button class="scen-btn" data-scen="underfit" onclick="setScenario('underfit')">Underfit (Pure Exp)</button>
+  </div>
+
+  <!-- Interactive Panel -->
+  <div class="panel">
+    <div class="ctrl">
+<h3>CV Settings</h3>
+      <div class="ctrl-group">
+        <label>Folds (k) <span id="v-kfolds">5</span></label>
+        <input type="range" id="s-kfolds" min="3" max="9" step="1" value="5">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-runcv">Run Cross-Validation</button>
+      </div>
+
+      <div class="stats" id="stats-cv">
+        <h4>CV Results (Internal)</h4>
+        <div class="stat-row highlight"><span class="label">Mean R&sup2;</span><span class="value" id="st-cv-meanr2">--</span></div>
+        <div class="stat-row"><span class="label">Std R&sup2;</span><span class="value" id="st-cv-stdr2">--</span></div>
+        <div class="stat-row"><span class="label">Mean RMSE</span><span class="value" id="st-cv-rmse">--</span></div>
+        <h4 style="margin-top:8px">Per-Fold R&sup2;</h4>
+        <div id="cv-fold-rows"></div>
+        <h4 style="margin-top:8px;color:#dc2626">External Validation</h4>
+        <div class="stat-row"><span class="label">R&sup2; (external)</span><span class="value" id="st-cv-ext-r2">--</span></div>
+        <div class="stat-row"><span class="label">RMSE (external)</span><span class="value" id="st-cv-ext-rmse">--</span></div>
+      </div>
+      <div id="verdict-cv" class="val-verdict good" style="display:none;margin-top:12px"></div>
+    </div>
+    <div>
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Cross-Validation Fits (gray = fold fit, red = held-out)</div>
+          <canvas id="c-cv-fits" width="450" height="420"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">R&sup2; per Fold</div>
+          <canvas id="c-cv-bar" width="450" height="420"></canvas>
+        </div>
+      </div>
+      <div class="canvas-wrap" style="margin-top:12px">
+        <div class="canvas-title">Linearized View &mdash; Training &amp; External Validation (this is the basis for R&sup2;)</div>
+        <canvas id="c-cv-lin" width="930" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>With <strong>Proper Split</strong>, run CV with k=5. Mean CV R&sup2; and external R&sup2; should both be high.</li>
+      <li>Switch to <strong>Improper Split</strong> and run CV. Internal CV R&sup2; <em>still looks great</em> (each fold sits in the narrow early window). External R&sup2; collapses. CV cannot detect a biased split.</li>
+      <li>Switch to <strong>Overfit</strong> and run CV. Watch the per-fold bar chart &mdash; some folds may be marked <strong>FAIL</strong> (red) when the polynomial degree is too high relative to the fold's training set size. The remaining folds may show wildly varying R&sup2;. This is what overfitting CV looks like.</li>
+      <li>Switch to <strong>Underfit</strong> and run CV. CV R&sup2; is mediocre and consistent across folds &mdash; no fold can beat the model-form limitation. External R&sup2; matches CV. <em>This pattern (low + consistent CV) is the signature of underfitting</em>.</li>
+      <li>Click <strong>High Noise Preset</strong> and run CV on Proper. CV R&sup2; becomes noisy with high variance across folds. The std R&sup2; gets large &mdash; another diagnostic.</li>
+      <li>Lesson: CV catches some failures (underfitting, high noise variance) but is blind to others (improper split, overfitting at small sizes). Always pair CV with external validation.</li>
+    </ol>
+  </div>
+
+</section>
+
+<!-- ════════════════ TAB 5: EXTRAPOLATION TEST ════════════════ -->
+<section id="tab-extrap" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: Interpolation vs. Extrapolation</h2>
+
+    <p>The strongest form of validation tests the model under <strong>different experimental conditions</strong> than it was trained on. This is <em>extrapolation</em> &mdash; predicting outside the training range. It is where models most often fail, and where failure is most informative.</p>
+
+    <h3>Domain of Validity</h3>
+    <ul>
+      <li><strong>Interpolation:</strong> new conditions within the convex hull of training data. Expected to be reliable for well-calibrated models.</li>
+      <li><strong>Extrapolation:</strong> new conditions outside the training range. Model predictions here depend on assumptions that have NOT been tested.</li>
+    </ul>
+
+    <h3>Why Extrapolation Fails</h3>
+    <p>Our invasion model assumes constant \(D\) and \(\mu\). But at higher cell densities, contact inhibition may reduce proliferation (\(\mu\) decreases). At different Matrigel thicknesses, the invasion mechanism may change. These are model assumptions that only break when tested outside the training range.</p>
+
+    <h3>Connection to DOE (Module 12)</h3>
+    <p>If your initial experiment shows the model fails at new conditions, you now know exactly where to design your next experiment &mdash; in the region where the model breaks down. This is <em>sequential design</em>.</p>
+
+  </div>
+
+  <!-- Validation scenario bar -->
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Validation Scenario:</span>
+    <button class="scen-btn active-proper" data-scen="proper" onclick="setScenario('proper')">Proper Split</button>
+    <button class="scen-btn" data-scen="improper" onclick="setScenario('improper')">Improper Split</button>
+    <button class="scen-btn" data-scen="overfit" onclick="setScenario('overfit')">Overfit (Polynomial)</button>
+    <button class="scen-btn" data-scen="underfit" onclick="setScenario('underfit')">Underfit (Pure Exp)</button>
+  </div>
+
+  <!-- Interactive Panel -->
+  <div class="panel">
+    <div class="ctrl">
+<h3>New Conditions</h3>
+      <div class="ctrl-group">
+        <label>Validation N<sub>0</sub> <span id="v-extN0">50,000</span></label>
+        <input type="range" id="s-extN0" min="25000" max="100000" step="5000" value="50000">
+      </div>
+      <div class="ctrl-group">
+        <label>Validation L (cm) <span id="v-extL">0.005</span></label>
+        <input type="range" id="s-extL" min="0.003" max="0.010" step="0.001" value="0.005">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-extrap">Run Extrapolation</button>
+      </div>
+
+      <div class="stats" id="stats-ext">
+        <h4>Extrapolation Performance</h4>
+        <div class="stat-row highlight"><span class="label">R&sup2;</span><span class="value" id="st-ext-r2">--</span></div>
+        <div class="stat-row"><span class="label">RMSE</span><span class="value" id="st-ext-rmse">--</span></div>
+        <div class="stat-row"><span class="label">Bias</span><span class="value" id="st-ext-bias">--</span></div>
+        <h4 style="margin-top:8px">Condition Divergence</h4>
+        <div class="stat-row"><span class="label">&Delta;N<sub>0</sub></span><span class="value" id="st-ext-dN0">0</span></div>
+        <div class="stat-row"><span class="label">&Delta;L</span><span class="value" id="st-ext-dL">0.000</span></div>
+      </div>
+      <div class="insight" style="margin-top:12px">
+        <strong>Key insight:</strong> As conditions move away from training, model predictions degrade. This is the fundamental limitation of empirical models &mdash; they describe what they have seen, not what they have not.
+      </div>
+      <div id="verdict-ext" class="val-verdict good" style="display:none;margin-top:12px"></div>
+    </div>
+    <div>
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Time Course &mdash; Original vs New Conditions</div>
+          <canvas id="c-ext-tc" width="450" height="420"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Prediction vs Observation &mdash; New Condition</div>
+          <canvas id="c-ext-po" width="450" height="420"></canvas>
+        </div>
+      </div>
+      <div class="canvas-wrap" style="margin-top:12px">
+        <div class="canvas-title">Linearized View &mdash; Extrapolation Data at New Conditions (basis for R&sup2;)</div>
+        <canvas id="c-ext-lin" width="930" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>With <strong>Proper Split</strong>, set \(N_0 = 50{,}000\), \(L = 0.005\) and run extrapolation. R&sup2; should be high (mechanistic model knows the physics).</li>
+      <li>Switch to <strong>Improper Split</strong> and re-run. Fitted \(\mu\) is biased &mdash; extrapolation R&sup2; drops at late times.</li>
+      <li>Switch to <strong>Overfit</strong> and re-run. <em>Catastrophic</em>: the polynomial doesn't even know what \(N_0\) or \(L\) are &mdash; it just predicts as a function of \(t\). At new \(N_0\)/\(L\), predictions are wildly wrong. This is the textbook lesson on why empirical models can't extrapolate.</li>
+      <li>Switch to <strong>Underfit</strong>. Pure exponential also ignores \(N_0\)/\(L\). It extrapolates more "smoothly" than polynomial but still wrong &mdash; missing the diffusion lag means the early-time prediction is off, and that error compounds.</li>
+      <li>Push \(N_0\) to 100,000 or \(L\) to 0.003. The mechanistic model adapts (it knows the physics); the polynomial and exponential do not.</li>
+      <li>Takeaway: extrapolation requires a model that <em>encodes the physics</em>. Empirical/black-box models cannot extrapolate to new physical conditions, period.</li>
+    </ol>
+  </div>
+
+</section>
+
+<!-- ════════════════ TAB 6: MODEL REFINEMENT ════════════════ -->
+<section id="tab-refine" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: When Validation Fails &mdash; Refining Your Model</h2>
+
+    <p>Validation failure is not the end &mdash; it is the <em>beginning</em> of scientific insight. When your model fails on new data, the pattern of failure tells you exactly what is wrong with your assumptions. The goal is to diagnose the mismatch and choose the simplest refinement that fixes it.</p>
+
+    <h3>Diagnosis Checklist</h3>
+    <ol>
+      <li><strong>Where does it fail?</strong> Early times, late times, or everywhere? If late-time divergence, a growth-related assumption is likely wrong. If early-time, an initial-condition or transport assumption is wrong.</li>
+      <li><strong>How does it fail?</strong> Systematic bias (model consistently over- or under-predicts) vs. increased scatter (more noise, but no trend)? Bias means model structure is wrong; scatter means conditions are noisier.</li>
+      <li><strong>Which parameters are sensitive?</strong> Use your sensitivity analysis (Module 8&ndash;9) to identify which parameters the model prediction depends on most. Those are the candidates for refinement.</li>
+    </ol>
+
+    <h3>Three Refinement Strategies</h3>
+    <div class="equation-box">
+      <p><strong>Strategy A &mdash; Re-fit to new data:</strong> Keep the same model form, fit parameters to the validation data alone. If R&sup2; recovers, the model <em>form</em> is correct &mdash; only the <em>parameter values</em> differ between conditions.</p>
+      <p><strong>Strategy B &mdash; Pool all data:</strong> Combine training + validation data and re-fit. This produces a compromise fit. Useful when the two datasets represent the <em>same</em> population and you want maximum statistical power.</p>
+      <p><strong>Strategy C &mdash; Shared + condition-specific parameters:</strong> Keep mechanistic parameters (like \(D\)) shared across conditions, but allow biological parameters (like \(\mu\)) to vary per condition. This is the gold standard: it separates physics (which should be universal) from biology (which can vary).</p>
+    </div>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">Which Remedy to Choose? (depends on the failure mode)</h3>
+      <ul>
+        <li><strong>Improper split</strong> (data is fine, fit is biased): try <strong>Strategy B (Pool)</strong> first &mdash; pooling restores full time-range coverage. Strategy A is a diagnostic; Strategy C confirms biology is consistent across splits.</li>
+        <li><strong>Overfitting</strong> (model too flexible, e.g. high-degree polynomial): the remedy is <em>fewer parameters</em>. Switch back to the mechanistic model. Adding more data won't help &mdash; the problem is model form.</li>
+        <li><strong>Underfitting</strong> (model too simple, missing physics): the remedy is <em>more structure</em>. Restore the missing term (here, the diffusion lag). Adding more data won't help &mdash; you'd just fit the wrong model better.</li>
+        <li><strong>High noise</strong> (data too noisy): no model change helps. Remedies live in the experimental design: more replicates, better instruments, cleaner protocols.</li>
+        <li>If none of the model-side remedies work, consider that the model <em>form</em> may need new variables (carrying capacity, density dependence) or a fundamentally different mechanism.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Validation scenario bar -->
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Validation Scenario:</span>
+    <button class="scen-btn active-proper" data-scen="proper" onclick="setScenario('proper')">Proper Split</button>
+    <button class="scen-btn" data-scen="improper" onclick="setScenario('improper')">Improper Split</button>
+    <button class="scen-btn" data-scen="overfit" onclick="setScenario('overfit')">Overfit (Polynomial)</button>
+    <button class="scen-btn" data-scen="underfit" onclick="setScenario('underfit')">Underfit (Pure Exp)</button>
+  </div>
+
+  <!-- Interactive Panel -->
+  <div class="panel">
+    <div class="ctrl">
+<h3>Refinement Strategy</h3>
+      <!-- Strategies for split-related issues (proper / improper scenarios) -->
+      <div class="btn-row" id="strat-buttons-mech">
+        <button class="btn btn-primary" id="btn-strat-refit" style="font-size:.78rem">A: Re-fit to Val</button>
+        <button class="btn btn-primary" id="btn-strat-pool" style="font-size:.78rem">B: Pool All Data</button>
+        <button class="btn btn-success" id="btn-strat-shared" style="font-size:.78rem">C: Shared + Specific</button>
+      </div>
+      <!-- Remedy for model-form issues (overfit / underfit scenarios) -->
+      <div class="btn-row" id="strat-buttons-modelswap" style="display:none">
+        <button class="btn btn-success" id="btn-strat-mech" style="font-size:.82rem">Switch to Mechanistic Model</button>
+      </div>
+      <!-- Info shown when no remedy is needed -->
+      <div id="strat-info" style="display:none;margin:8px 0;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:.85rem;color:#14532d">
+        Proper split with the mechanistic model is already well-fit &mdash; no refinement needed.
+      </div>
+
+      <div class="stats" id="stats-refine">
+        <h4>Before (Original Model)</h4>
+        <div class="stat-row"><span class="label">Train R&sup2;</span><span class="value" id="st-ref-orig-tr">--</span></div>
+        <div class="stat-row"><span class="label">Val R&sup2;</span><span class="value" id="st-ref-orig-vr">--</span></div>
+        <h4 style="margin-top:8px">After (Refined Model)</h4>
+        <div class="stat-row highlight"><span class="label">Train R&sup2;</span><span class="value" id="st-ref-new-tr">--</span></div>
+        <div class="stat-row highlight"><span class="label">Val R&sup2;</span><span class="value" id="st-ref-new-vr">--</span></div>
+        <h4 style="margin-top:8px">Refined Parameters</h4>
+        <div class="stat-row"><span class="label">D</span><span class="value" id="st-ref-D">--</span></div>
+        <div class="stat-row"><span class="label">&mu; (train)</span><span class="value" id="st-ref-muT">--</span></div>
+        <div class="stat-row"><span class="label">&mu; (val)</span><span class="value" id="st-ref-muV">--</span></div>
+      </div>
+      <div id="verdict-refine" class="val-verdict good" style="display:none;margin-top:12px"></div>
+    </div>
+    <div>
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Model Refinement &mdash; Time Course</div>
+          <canvas id="c-ref-tc" width="450" height="420"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Validation Residuals &mdash; Before (gray) vs After (green)</div>
+          <canvas id="c-ref-res" width="450" height="420"></canvas>
+        </div>
+      </div>
+      <div class="canvas-wrap" style="margin-top:12px">
+        <div class="canvas-title">Linearized View &mdash; Training &amp; Validation with Refined Parameters (basis for R&sup2;)</div>
+        <canvas id="c-ref-lin" width="930" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Switch to <strong>Proper Split</strong>. The remedy panel shows a "no refinement needed" notice &mdash; the baseline fit is already well-constrained.</li>
+      <li>Switch to <strong>Improper Split</strong>. Three remedy buttons appear (Strategy A/B/C). Try each:
+        <ul>
+          <li><strong>A: Re-fit to Val</strong> &mdash; recovers val R&sup2;, but training R&sup2; can drop (you've just swapped which half gets fit).</li>
+          <li><strong>B: Pool All Data</strong> &mdash; the correct remedy for a biased split. Pools train + val, recovers full time-range coverage, both R&sup2; values come back up.</li>
+          <li><strong>C: Shared D, separate \(\mu\)</strong> &mdash; allows \(\mu_{\text{train}}\) and \(\mu_{\text{val}}\) to differ. Since biology is identical, they should converge &mdash; confirming this is a split issue, not a biology issue.</li>
+        </ul>
+      </li>
+      <li>Switch to <strong>Overfit</strong>. The remedy panel changes &mdash; only one button: <strong>Switch to Mechanistic Model</strong>. Click it: the polynomial is replaced by the 2-parameter mechanistic fit. R&sup2; values recover dramatically. Occam's razor.</li>
+      <li>Switch to <strong>Underfit</strong>. Same single button (here it means "Add Diffusion Term"). Click it: the missing physics is restored, residuals become random again.</li>
+      <li>Click <strong>High Noise Preset</strong>. Stay on Proper Split. Note the panel still says "no refinement needed" &mdash; <em>more parameters won't help noisy data</em>. The remedy here is more replicates / better measurements, not a different model.</li>
+    </ol>
+  </div>
+
+</section>
+
+</main>
+
+<footer>Engineering Cancer Course &mdash; Module 13: Model Validation</footer>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (dataGenerated) refreshActiveTab();
+    });
+});
+
+// ════════════════════════════════════════════════════════════════
+// GLOBAL STATE & CONSTANTS
+// ════════════════════════════════════════════════════════════════
+const TRUE_N0 = 50000, TRUE_D = 2.5e-7, TRUE_L = 0.005, TRUE_MU = 0.01;
+// Proper (random-interleaved) split: both training and validation span the full time range
+const TRAIN_TIMES_GOOD = [2,4,6,8,12,16,24,36,48];
+const VAL_TIMES_GOOD   = [3,6,10,18,24,30,42,48];
+// Improper (sequential) split: training only at early times, validation only at late times
+// — same biology everywhere, but training data doesn't constrain μ well
+const TRAIN_TIMES_BAD  = [2,3,4,5,6,7,8];
+const VAL_TIMES_BAD    = [24,30,36,42,48];
+const TRAIN_REPS = 4, VAL_REPS = 3;
+
+let trainData = [], valData = [];
+let trainDataProper = [], trainDataImproper = [];
+let valDataProper = [], valDataImproper = [];
+let fitD = TRUE_D, fitMu = TRUE_MU;
+let fitCov = [[0,0],[0,0]];
+let dataGenerated = false, valRevealed = false;
+let showTrainPO = true, showValPO = true;
+let residualMode = 'train';
+
+// 'proper' | 'improper' | 'overfit' | 'underfit'
+let scenario = 'proper';
+
+// Polynomial (overfit) fit state
+const POLY_DEGREE = 6;
+let polyCoeffs = null;
+// Exponential (underfit) fit state
+let expA = null, expB = null;
+// Unified fit-result object: see plan
+let fitResult = null;
+
+function invasionModel(t, N0, D, L, mu) {
+    return N0 * (1 - Math.exp(-D * t / (L * L))) * Math.exp(mu * t);
+}
+
+function randn() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function generateData(times, reps, N0, D, L, mu, noise) {
+    let data = [];
+    for (let t of times) {
+        let trueVal = invasionModel(t, N0, D, L, mu);
+        for (let r = 0; r < reps; r++) {
+            let obs = trueVal * (1 + noise * randn());
+            data.push({ t, obs: Math.max(0, obs), trueVal });
+        }
+    }
+    return data;
+}
+
+// ════════════════════════════════════════════════════════════════
+// NELDER-MEAD OPTIMIZER
+// ════════════════════════════════════════════════════════════════
+function nelderMead(f, x0, opts) {
+    opts = opts || {};
+    const maxIter = opts.maxIter || 3000;
+    const tol = opts.tol || 1e-14;
+    const n = x0.length;
+    const alpha = 1, gamma = 2, rho = 0.5, sigma = 0.5;
+
+    let simplex = [{ x: x0.slice(), fx: f(x0) }];
+    for (let i = 0; i < n; i++) {
+        let xi = x0.slice();
+        xi[i] *= (xi[i] === 0) ? 0.00025 : 1.05;
+        simplex.push({ x: xi, fx: f(xi) });
+    }
+
+    for (let iter = 0; iter < maxIter; iter++) {
+        simplex.sort((a, b) => a.fx - b.fx);
+        if (simplex[n].fx - simplex[0].fx < tol) break;
+
+        let centroid = new Array(n).fill(0);
+        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) centroid[j] += simplex[i].x[j];
+        for (let j = 0; j < n; j++) centroid[j] /= n;
+
+        let worst = simplex[n];
+        let xr = centroid.map((c, j) => c + alpha * (c - worst.x[j]));
+        let fxr = f(xr);
+
+        if (fxr < simplex[0].fx) {
+            let xe = centroid.map((c, j) => c + gamma * (xr[j] - c));
+            let fxe = f(xe);
+            simplex[n] = fxe < fxr ? { x: xe, fx: fxe } : { x: xr, fx: fxr };
+        } else if (fxr < simplex[n - 1].fx) {
+            simplex[n] = { x: xr, fx: fxr };
+        } else {
+            let xc = centroid.map((c, j) => c + rho * (worst.x[j] - c));
+            let fxc = f(xc);
+            if (fxc < worst.fx) {
+                simplex[n] = { x: xc, fx: fxc };
+            } else {
+                for (let i = 1; i <= n; i++) {
+                    for (let j = 0; j < n; j++) simplex[i].x[j] = simplex[0].x[j] + sigma * (simplex[i].x[j] - simplex[0].x[j]);
+                    simplex[i].fx = f(simplex[i].x);
+                }
+            }
+        }
+    }
+    simplex.sort((a, b) => a.fx - b.fx);
+    return simplex[0].x;
+}
+
+function fitModel(data, N0, L) {
+    const costFn = (params) => {
+        const D = params[0], mu = params[1];
+        if (D <= 0 || mu < -0.1 || mu > 0.2) return 1e20;
+        let rss = 0;
+        for (let i = 0; i < data.length; i++) {
+            const pred = invasionModel(data[i].t, N0, D, L, mu);
+            rss += (data[i].obs - pred) ** 2;
+        }
+        return rss;
+    };
+    return nelderMead(costFn, [TRUE_D * 1.2, TRUE_MU * 1.2]);
+}
+
+function approxCovariance(data, popt, N0, L) {
+    const D0 = popt[0], mu0 = popt[1];
+    const n = data.length, p = 2;
+    let rss = 0;
+    for (let i = 0; i < n; i++) { const pred = invasionModel(data[i].t, N0, D0, L, mu0); rss += (data[i].obs - pred) ** 2; }
+    const s2 = rss / Math.max(1, n - p);
+    const hD = D0 * 1e-6, hMu = mu0 > 0 ? mu0 * 1e-6 : 1e-8;
+    const J = [];
+    for (let i = 0; i < n; i++) {
+        const f0 = invasionModel(data[i].t, N0, D0, L, mu0);
+        const fD = invasionModel(data[i].t, N0, D0 + hD, L, mu0);
+        const fMu = invasionModel(data[i].t, N0, D0, L, mu0 + hMu);
+        J.push([(fD - f0) / hD, (fMu - f0) / hMu]);
+    }
+    const JtJ = [[0,0],[0,0]];
+    for (let i = 0; i < n; i++) for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) JtJ[a][b] += J[i][a] * J[i][b];
+    const det = JtJ[0][0] * JtJ[1][1] - JtJ[0][1] * JtJ[1][0];
+    if (Math.abs(det) < 1e-50) return [[1e-20, 0], [0, 1e-8]];
+    const inv = [[JtJ[1][1]/det, -JtJ[0][1]/det], [-JtJ[1][0]/det, JtJ[0][0]/det]];
+    return [[inv[0][0]*s2, inv[0][1]*s2], [inv[1][0]*s2, inv[1][1]*s2]];
+}
+
+// ════════════════════════════════════════════════════════════════
+// STATISTICS HELPERS
+// ════════════════════════════════════════════════════════════════
+function calcR2(observed, predicted) {
+    let meanObs = 0; for (let i = 0; i < observed.length; i++) meanObs += observed[i]; meanObs /= observed.length;
+    let ssTot = 0, ssRes = 0;
+    for (let i = 0; i < observed.length; i++) { ssTot += (observed[i] - meanObs) ** 2; ssRes += (observed[i] - predicted[i]) ** 2; }
+    return ssTot > 0 ? 1 - ssRes / ssTot : 0;
+}
+function calcRMSE(observed, predicted) { let ss = 0; for (let i = 0; i < observed.length; i++) ss += (observed[i] - predicted[i]) ** 2; return Math.sqrt(ss / observed.length); }
+function calcPearsonR(x, y) { const n = x.length; let mx = 0, my = 0; for (let i = 0; i < n; i++) { mx += x[i]; my += y[i]; } mx /= n; my /= n; let num = 0, dx = 0, dy = 0; for (let i = 0; i < n; i++) { num += (x[i]-mx)*(y[i]-my); dx += (x[i]-mx)**2; dy += (y[i]-my)**2; } return (dx>0&&dy>0) ? num/Math.sqrt(dx*dy) : 0; }
+function calcSkewness(arr) { const n = arr.length; let mean = 0; for (let i = 0; i < n; i++) mean += arr[i]; mean /= n; let m2 = 0, m3 = 0; for (let i = 0; i < n; i++) { const d = arr[i]-mean; m2 += d*d; m3 += d*d*d; } m2 /= n; m3 /= n; return m2 > 0 ? m3/Math.pow(m2,1.5) : 0; }
+
+// Linearization: y_lin = ln(N_obs / [N0 * (1 - exp(-D*t/L^2))]),  y_pred = mu * t
+function getLinearized(tArr, obsArr, D, L, N0, mu) {
+    const yLin = [], yPred = [], tValid = [];
+    for (let i = 0; i < tArr.length; i++) {
+        const f = 1 - Math.exp(-D * tArr[i] / (L * L));
+        if (tArr[i] <= 0 || f < 1e-12 || obsArr[i] <= 0 || N0 * f <= 0) continue;
+        yLin.push(Math.log(obsArr[i] / (N0 * f)));
+        yPred.push(mu * tArr[i]);
+        tValid.push(tArr[i]);
+    }
+    return { yLin, yPred, tValid };
+}
+function calcLinR2(tArr, obsArr, D, L, N0, mu) {
+    const lin = getLinearized(tArr, obsArr, D, L, N0, mu);
+    return lin.yLin.length >= 2 ? calcR2(lin.yLin, lin.yPred) : NaN;
+}
+// Generic linearized R^2: linearize OBSERVATIONS via (D, L, N0) and PREDICTIONS via predFn.
+// Works for any model — mechanistic, polynomial, exponential — as long as predFn(t) > 0.
+function calcLinR2Fn(tArr, obsArr, D, L, N0, predFn) {
+    const yObs = [], yPred = [];
+    for (let i = 0; i < tArr.length; i++) {
+        const f = 1 - Math.exp(-D * tArr[i] / (L * L));
+        const denom = N0 * f;
+        if (tArr[i] <= 0 || f < 1e-12 || obsArr[i] <= 0 || denom <= 0) continue;
+        const p = predFn(tArr[i]);
+        if (!(p > 0) || !isFinite(p)) continue;
+        yObs.push(Math.log(obsArr[i] / denom));
+        yPred.push(Math.log(p / denom));
+    }
+    return yObs.length >= 2 ? calcR2(yObs, yPred) : NaN;
+}
+function fmtR2(v) { return isNaN(v) ? '--' : v.toFixed(4); }
+
+// ── Polynomial least-squares via QR decomposition on the Vandermonde matrix ──
+// Returns coefficient array [c_0, c_1, ..., c_degree] for y = sum(c_i * t^i).
+// Uses Modified Gram-Schmidt on a centered & scaled Vandermonde for numerical stability.
+function polyFit(tArr, yArr, degree) {
+    const n = tArr.length, m = degree + 1;
+    if (n < m) throw new Error('polyFit: not enough points for degree ' + degree);
+    // Center+scale t to [-1, 1] for stability (we'll un-scale into the returned coeffs)
+    const tMin = Math.min(...tArr), tMax = Math.max(...tArr);
+    const tMid = (tMin + tMax) / 2;
+    const tHalfRange = Math.max(1e-9, (tMax - tMin) / 2);
+    // Build Vandermonde V[i][j] = (t_i_scaled)^j  in the SCALED basis
+    const V = [];
+    for (let i = 0; i < n; i++) {
+        const ts = (tArr[i] - tMid) / tHalfRange;
+        const row = new Array(m); row[0] = 1;
+        for (let j = 1; j < m; j++) row[j] = row[j-1] * ts;
+        V.push(row);
+    }
+    // Modified Gram-Schmidt: V = Q*R; Q (n x m) orthonormal columns, R (m x m) upper-triangular.
+    const Q = []; for (let i = 0; i < n; i++) Q.push(new Array(m).fill(0));
+    const R = []; for (let i = 0; i < m; i++) R.push(new Array(m).fill(0));
+    for (let j = 0; j < m; j++) {
+        // Copy V's j-th column into a working vector v
+        let v = new Array(n);
+        for (let i = 0; i < n; i++) v[i] = V[i][j];
+        for (let k = 0; k < j; k++) {
+            let dot = 0;
+            for (let i = 0; i < n; i++) dot += Q[i][k] * v[i];
+            R[k][j] = dot;
+            for (let i = 0; i < n; i++) v[i] -= dot * Q[i][k];
+        }
+        let norm = 0;
+        for (let i = 0; i < n; i++) norm += v[i] * v[i];
+        norm = Math.sqrt(norm);
+        R[j][j] = norm;
+        if (!(norm > 1e-14)) throw new Error('polyFit: rank deficient');
+        for (let i = 0; i < n; i++) Q[i][j] = v[i] / norm;
+    }
+    // Compute Q^T y
+    const Qty = new Array(m).fill(0);
+    for (let j = 0; j < m; j++) {
+        let s = 0;
+        for (let i = 0; i < n; i++) s += Q[i][j] * yArr[i];
+        Qty[j] = s;
+    }
+    // Back-substitute R * a_scaled = Q^T y to get coefficients in the scaled basis
+    const aScaled = new Array(m).fill(0);
+    for (let j = m - 1; j >= 0; j--) {
+        let s = Qty[j];
+        for (let k = j + 1; k < m; k++) s -= R[j][k] * aScaled[k];
+        aScaled[j] = s / R[j][j];
+    }
+    // Convert back to original-t basis: y(t) = sum_j a_scaled[j] * ((t - tMid)/tHalfRange)^j
+    // We return a closure-style descriptor [tMid, tHalfRange, a_scaled...] so polyEval can apply it.
+    // Storing as a tagged object is cleaner: { kind: 'centered', tMid, tHalfRange, c }
+    return { kind: 'centered', tMid: tMid, tHalfRange: tHalfRange, c: aScaled };
+}
+function polyEval(coeffs, t) {
+    if (!coeffs) return NaN;
+    const ts = (t - coeffs.tMid) / coeffs.tHalfRange;
+    let y = 0;
+    for (let i = coeffs.c.length - 1; i >= 0; i--) y = y * ts + coeffs.c[i];
+    return y;
+}
+
+// Centralized verdict text. Each scenario carries a diagnosis + remedy,
+// each tab adds a metric-specific interpretation. Returns {kind, html}.
+function generateVerdict(scenario, tab, metrics) {
+    const DIAG = {
+        proper:   { kind: 'good', headline: 'Good Validation', body: 'Proper random split: training data spans the full time range, so D and \u03BC are well-constrained. The model generalizes to the held-out points.' },
+        improper: { kind: 'bad',  headline: 'Improper Split Detected', body: 'Training data is clustered in early times only, so \u03BC is poorly constrained. The fit drifts onto a biased \u03BC and predictions at late validation times collapse.' },
+        overfit:  { kind: 'bad',  headline: 'Overfitting Detected', body: 'A degree-' + POLY_DEGREE + ' polynomial has ' + (POLY_DEGREE+1) + ' free coefficients and memorizes training noise. Predictions oscillate between data points and extrapolate catastrophically.' },
+        underfit: { kind: 'bad',  headline: 'Underfitting Detected', body: 'Pure exponential a&middot;e^(b&middot;t) ignores the diffusion-lag term (1 - e^{-Dt/L\u00B2}). It cannot capture the early-time invasion ramp \u2014 systematic residuals appear regardless of how much data you have.' }
+    };
+    const REMEDY = {
+        proper:   '',
+        improper: '<br><strong>Remedy:</strong> use a randomized split (or pool train+val when biology is identical) so the fit sees the full time range.',
+        overfit:  '<br><strong>Remedy:</strong> use the mechanistic 2-parameter model (D, \u03BC) instead of a ' + (POLY_DEGREE+1) + '-coefficient polynomial. Occam\'s razor.',
+        underfit: '<br><strong>Remedy:</strong> restore the diffusion term. The full model is N(t) = N\u2080(1 - e^{-Dt/L\u00B2})e^{\u03BCt}.'
+    };
+    const d = DIAG[scenario] || DIAG.proper;
+    const p = REMEDY[scenario] || '';
+
+    // Tab-specific metric body
+    let body = '';
+    if (tab === 'calibration') {
+        const tr = isFinite(metrics.r2train) ? metrics.r2train.toFixed(4) : '--';
+        const vr = isFinite(metrics.r2val) ? metrics.r2val.toFixed(4) : '--';
+        body = ' Training R\u00B2 = ' + tr + ', validation R\u00B2 = ' + vr + '.';
+    } else if (tab === 'residuals') {
+        const r2  = isFinite(metrics.r2) ? metrics.r2.toFixed(4) : '--';
+        body = ' R\u00B2 = ' + r2 + ', mean residual = ' + (isFinite(metrics.meanRes) ? metrics.meanRes.toFixed(1) : '--') + '.';
+    } else if (tab === 'predobs') {
+        const r2 = isFinite(metrics.r2) ? metrics.r2.toFixed(4) : '--';
+        const bias = isFinite(metrics.bias) ? metrics.bias.toFixed(1) : '--';
+        body = ' Validation R\u00B2 = ' + r2 + ', bias = ' + bias + '.';
+    } else if (tab === 'cv') {
+        const cv  = (metrics.cvR2 != null && isFinite(metrics.cvR2)) ? metrics.cvR2.toFixed(4) : '--';
+        const ext = isFinite(metrics.extR2) ? metrics.extR2.toFixed(4) : '--';
+        if (scenario === 'improper') body = ' Internal CV R\u00B2 = ' + cv + ' looks fine because every fold sits in the narrow early window. External R\u00B2 = ' + ext + ' tells the truth.';
+        else if (scenario === 'overfit') body = ' Internal CV R\u00B2 = ' + cv + ' (some folds may even fail numerically). External R\u00B2 = ' + ext + ' \u2014 polynomial cannot generalize.';
+        else if (scenario === 'underfit') body = ' Internal CV R\u00B2 = ' + cv + ', external R\u00B2 = ' + ext + '. Each fold reproduces the same wrong-shape fit \u2014 CV cannot detect missing physics.';
+        else body = ' Internal CV R\u00B2 = ' + cv + ', external R\u00B2 = ' + ext + ' \u2014 both consistent.';
+    } else if (tab === 'extrap') {
+        const r2 = isFinite(metrics.r2) ? metrics.r2.toFixed(4) : '--';
+        body = ' Extrapolation R\u00B2 = ' + r2 + '.';
+        if (scenario === 'overfit') body += ' Polynomial extrapolation is notoriously unstable \u2014 expect wildly wrong predictions outside the training range.';
+    }
+
+    return { kind: d.kind, html: '<strong>' + d.headline + '</strong>' + d.body + body + p };
+}
+
+// Exponential fit y = a * exp(b * t) via existing Nelder-Mead optimizer.
+function expFit(tArr, yArr) {
+    const n = tArr.length;
+    const cost = (params) => {
+        const a = params[0], b = params[1];
+        if (a <= 0 || b < -0.1 || b > 0.5 || !isFinite(a) || !isFinite(b)) return 1e20;
+        let rss = 0;
+        for (let i = 0; i < n; i++) {
+            const pred = a * Math.exp(b * tArr[i]);
+            rss += (yArr[i] - pred) ** 2;
+        }
+        return rss;
+    };
+    // Initial guess: a ~ y at t=0 extrapolation, b ~ 0.05
+    const a0 = Math.max(1, yArr[0] || 1000);
+    return nelderMead(cost, [a0, 0.05]);
+}
+
+// Inverse standard-normal CDF (Beasley-Springer-Moro approximation). Good to ~5 decimal places.
+function normInv(p) {
+    if (p <= 0) return -Infinity; if (p >= 1) return Infinity;
+    if (p < 0.5) return -normInv(1 - p);
+    const t = Math.sqrt(-2 * Math.log(1 - p));
+    const c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+    const d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+    return t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t);
+}
+
+// ════════════════════════════════════════════════════════════════
+// CANVAS CHART UTILITIES
+// ════════════════════════════════════════════════════════════════
+function getCanvasCtx(id) { const c = document.getElementById(id); const dpr = window.devicePixelRatio || 1; const rect = c.getBoundingClientRect(); c.width = rect.width * dpr; c.height = rect.height * dpr; const ctx = c.getContext('2d'); ctx.scale(dpr, dpr); return { ctx, w: rect.width, h: rect.height }; }
+function chartArea(w, h, margin) { margin = margin || { top: 30, right: 20, bottom: 45, left: 65 }; return { l: margin.left, r: w-margin.right, t: margin.top, b: h-margin.bottom, w: w-margin.left-margin.right, h: h-margin.top-margin.bottom }; }
+function drawAxes(ctx, a, xLabel, yLabel) { ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.l,a.t); ctx.lineTo(a.l,a.b); ctx.lineTo(a.r,a.b); ctx.stroke(); ctx.fillStyle='#64748b'; ctx.font='11px -apple-system, sans-serif'; ctx.textAlign='center'; ctx.fillText(xLabel, a.l+a.w/2, a.b+36); ctx.save(); ctx.translate(15, a.t+a.h/2); ctx.rotate(-Math.PI/2); ctx.fillText(yLabel, 0, 0); ctx.restore(); }
+function niceTickLabel(v) { const av = Math.abs(v); if (av>=10000) return (v/1000).toFixed(0)+'k'; if (av>=100) return v.toFixed(0); if (av>=1) return v.toFixed(1); if (av>=0.01) return v.toFixed(2); return v.toExponential(1); }
+function drawTicks(ctx, a, xMin, xMax, yMin, yMax, nTicks) { nTicks = nTicks||5; ctx.fillStyle='#94a3b8'; ctx.font='10px -apple-system, sans-serif'; ctx.textAlign='center'; for (let i=0;i<=nTicks;i++) { const v=xMin+(xMax-xMin)*i/nTicks; const x=a.l+a.w*i/nTicks; ctx.fillText(niceTickLabel(v),x,a.b+18); ctx.strokeStyle='#f1f5f9'; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(x,a.t); ctx.lineTo(x,a.b); ctx.stroke(); } ctx.textAlign='right'; for (let i=0;i<=nTicks;i++) { const v=yMin+(yMax-yMin)*i/nTicks; const y=a.b-a.h*i/nTicks; ctx.fillStyle='#94a3b8'; ctx.fillText(niceTickLabel(v),a.l-6,y+3); ctx.strokeStyle='#f1f5f9'; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(a.l,y); ctx.lineTo(a.r,y); ctx.stroke(); } }
+function mapX(val, min, max, a) { return a.l+(val-min)/(max-min)*a.w; }
+function mapY(val, min, max, a) { return a.b-(val-min)/(max-min)*a.h; }
+function drawCircle(ctx, x, y, r, fill, stroke) { ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI); if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke();} }
+function drawSquare(ctx, cx, cy, r, fill, stroke) { if(fill){ctx.fillStyle=fill;ctx.fillRect(cx-r,cy-r,r*2,r*2);} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.strokeRect(cx-r,cy-r,r*2,r*2);} }
+function clearCanvas(id) { const info = getCanvasCtx(id); info.ctx.clearRect(0,0,info.w,info.h); info.ctx.fillStyle='#fff'; info.ctx.fillRect(0,0,info.w,info.h); return info; }
+
+// ════════════════════════════════════════════════════════════════
+// SIMULATION 1: TRAINING & CALIBRATION
+// ════════════════════════════════════════════════════════════════
+function generateAndFit() {
+    const noise = parseFloat(document.getElementById('s-noise1').value);
+    // Always use SAME biology (TRUE_MU) for data generation. Only train/val time split varies.
+    // Proper = random interleaved split. Improper = sequential split (train early, val late).
+    // Overfit/underfit scenarios reuse the proper-split data; only the model form changes.
+    trainDataProper   = generateData(TRAIN_TIMES_GOOD, TRAIN_REPS, TRUE_N0, TRUE_D, TRUE_L, TRUE_MU, noise);
+    trainDataImproper = generateData(TRAIN_TIMES_BAD,  TRAIN_REPS, TRUE_N0, TRUE_D, TRUE_L, TRUE_MU, noise);
+    valDataProper     = generateData(VAL_TIMES_GOOD,   VAL_REPS,   TRUE_N0, TRUE_D, TRUE_L, TRUE_MU, noise);
+    valDataImproper   = generateData(VAL_TIMES_BAD,    VAL_REPS,   TRUE_N0, TRUE_D, TRUE_L, TRUE_MU, noise);
+    dataGenerated = true; valRevealed = false;
+    document.getElementById('btn-reveal-val').disabled = false;
+    document.getElementById('val-stats-wrap').style.display = 'none';
+    document.getElementById('val-verdict').style.display = 'none';
+    applyScenario();
+}
+
+// Build the unified fit-result object based on the active scenario's fitting outcome.
+// This is the canonical source of "what model is currently active?" for predictions, R2,
+// linearization, and Tab 3's prediction interval.
+function buildFitResult() {
+    if (scenario === 'overfit') {
+        return {
+            modelType: 'polynomial',
+            predict: t => Math.max(0, polyEval(polyCoeffs, t)),
+            paramDisplay: [{ label: 'Polynomial degree', value: String(POLY_DEGREE) }],
+            D_for_lin: TRUE_D,        // linearize observations using the true physics
+            mu_for_lin: null,         // no straight predicted line
+            cov: null,                // no prediction interval
+            showLinearized: true,
+            showPredictionInterval: false
+        };
+    }
+    if (scenario === 'underfit') {
+        return {
+            modelType: 'exponential',
+            predict: t => Math.max(0, expA * Math.exp(expB * t)),
+            paramDisplay: [
+                { label: 'a', value: expA != null ? expA.toExponential(3) : '--' },
+                { label: 'b', value: expB != null ? expB.toFixed(5) : '--' }
+            ],
+            D_for_lin: TRUE_D,
+            mu_for_lin: null,
+            cov: null,
+            showLinearized: true,
+            showPredictionInterval: false
+        };
+    }
+    // Mechanistic (proper, improper)
+    return {
+        modelType: 'mechanistic',
+        predict: t => invasionModel(t, TRUE_N0, fitD, TRUE_L, fitMu),
+        paramDisplay: [
+            { label: 'D', value: isFinite(fitD) ? fitD.toExponential(3) : '--' },
+            { label: '\u03BC', value: isFinite(fitMu) ? fitMu.toFixed(5) : '--' }
+        ],
+        D_for_lin: fitD,
+        mu_for_lin: fitMu,
+        cov: fitCov,
+        showLinearized: true,
+        showPredictionInterval: true
+    };
+}
+
+// Convenience: route any prediction call through the active fit result.
+function predictFn(t) { return fitResult ? fitResult.predict(t) : invasionModel(t, TRUE_N0, fitD, TRUE_L, fitMu); }
+
+function applyScenario() {
+    // Pick active datasets. Overfit/underfit reuse the proper-split data.
+    if (scenario === 'improper') {
+        trainData = trainDataImproper; valData = valDataImproper;
+    } else {
+        trainData = trainDataProper;   valData = valDataProper;
+    }
+
+    // Fit the appropriate model
+    if (scenario === 'overfit') {
+        try {
+            polyCoeffs = polyFit(trainData.map(d=>d.t), trainData.map(d=>d.obs), POLY_DEGREE);
+        } catch(e) { polyCoeffs = null; }
+        fitD = NaN; fitMu = NaN; fitCov = null;
+    } else if (scenario === 'underfit') {
+        try {
+            const popt = expFit(trainData.map(d=>d.t), trainData.map(d=>d.obs));
+            expA = popt[0]; expB = popt[1];
+        } catch(e) { expA = null; expB = null; }
+        fitD = NaN; fitMu = NaN; fitCov = null;
+    } else {
+        const popt = fitModel(trainData, TRUE_N0, TRUE_L);
+        fitD = popt[0]; fitMu = popt[1];
+        fitCov = approxCovariance(trainData, popt, TRUE_N0, TRUE_L);
+    }
+
+    fitResult = buildFitResult();
+    updateTrainingStatsPanel();
+    drawCalibrationPlot();
+    drawLinearizedPlot();
+}
+
+// Update Tab 1's stats panel for whatever model is active.
+function updateTrainingStatsPanel() {
+    const trainObs = trainData.map(d => d.obs);
+    const trainPred = trainData.map(d => predictFn(d.t));
+    let rss = 0; for (let i = 0; i < trainObs.length; i++) rss += (trainObs[i]-trainPred[i])**2;
+
+    const isMech = fitResult.modelType === 'mechanistic';
+    // Fitted-parameter rows: D and mu for mechanistic; placeholders for non-mechanistic
+    document.getElementById('st-fitD').textContent  = isMech ? fitD.toExponential(3) : (fitResult.modelType === 'polynomial' ? 'poly deg ' + POLY_DEGREE : (expA != null ? 'a = '+expA.toExponential(2) : '--'));
+    document.getElementById('st-fitMu').textContent = isMech ? fitMu.toFixed(5) : (fitResult.modelType === 'polynomial' ? '(' + (POLY_DEGREE+1) + ' coefs)' : (expB != null ? 'b = '+expB.toFixed(5) : '--'));
+    document.getElementById('st-seD').textContent   = isMech ? Math.sqrt(Math.max(0,fitCov[0][0])).toExponential(2) : 'n/a';
+    document.getElementById('st-seMu').textContent  = isMech ? Math.sqrt(Math.max(0,fitCov[1][1])).toExponential(2) : 'n/a';
+    document.getElementById('st-rss1').textContent  = rss.toExponential(3);
+    // Linearized R^2 uses the active model's predictions
+    document.getElementById('st-r2train').textContent = fmtR2(calcLinR2Fn(trainData.map(d=>d.t), trainObs, fitResult.D_for_lin, TRUE_L, TRUE_N0, predictFn));
+    document.getElementById('st-rmse-train').textContent = calcRMSE(trainObs,trainPred).toFixed(1);
+    drawCalibrationPlot();
+    drawLinearizedPlot();
+}
+
+function showValidationStats() {
+    if (!dataGenerated || !valRevealed) return;
+    const valObs = valData.map(d => d.obs);
+    const valPred = valData.map(d => predictFn(d.t));
+    const r2val = calcLinR2Fn(valData.map(d=>d.t), valObs, fitResult.D_for_lin, TRUE_L, TRUE_N0, predictFn);
+    const rmseVal = calcRMSE(valObs, valPred);
+
+    const trainObs = trainData.map(d => d.obs);
+    const trainPred = trainData.map(d => predictFn(d.t));
+    const r2train = calcLinR2Fn(trainData.map(d=>d.t), trainObs, fitResult.D_for_lin, TRUE_L, TRUE_N0, predictFn);
+    const r2gap = r2train - r2val;
+
+    document.getElementById('st-r2val').textContent = fmtR2(r2val);
+    document.getElementById('st-rmse-val').textContent = rmseVal.toFixed(1);
+    document.getElementById('st-r2gap').textContent = fmtR2(r2gap);
+
+    const r2el = document.getElementById('st-r2val');
+    r2el.style.color = r2val > 0.85 ? '#15803d' : '#dc2626';
+
+    document.getElementById('val-stats-wrap').style.display = 'block';
+
+    const verdict = document.getElementById('val-verdict');
+    verdict.style.display = 'block';
+    const v = generateVerdict(scenario, 'calibration', { r2train: r2train, r2val: r2val });
+    verdict.className = 'val-verdict ' + v.kind;
+    verdict.innerHTML = v.html;
+}
+
+function drawCalibrationPlot() {
+    if (!dataGenerated) return;
+    const info = clearCanvas('c-cal'); const ctx = info.ctx, w = info.w, h = info.h;
+    const a = chartArea(w, h);
+    let allObs = trainData.map(d=>d.obs);
+    if (valRevealed) allObs = allObs.concat(valData.map(d=>d.obs));
+    const tMax = 52;
+    // Sample the active model curve; clamp at 0 (polynomial can go negative)
+    const curveSamples = [];
+    for (let t = 0.5; t <= tMax; t += 0.5) {
+        const y = predictFn(t);
+        if (isFinite(y)) curveSamples.push({t, y: Math.max(0, y)});
+    }
+    const curveMax = curveSamples.length ? Math.max(...curveSamples.map(p => p.y)) : 0;
+    let yMax = Math.max(...allObs, curveMax) * 1.15;
+
+    drawAxes(ctx, a, 'Time (hours)', 'Invaded Cells');
+    drawTicks(ctx, a, 0, tMax, 0, yMax);
+
+    // Active model curve
+    ctx.strokeStyle = fitResult.modelType === 'polynomial' ? '#dc2626'
+                    : fitResult.modelType === 'exponential' ? '#7c3aed' : '#1e293b';
+    ctx.lineWidth=2.5; ctx.beginPath();
+    let started = false;
+    for (const p of curveSamples) {
+        const px = mapX(p.t,0,tMax,a), py = mapY(p.y,0,yMax,a);
+        if (!started) { ctx.moveTo(px,py); started = true; } else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+
+    for (const d of valData) { const px=mapX(d.t,0,tMax,a), py=mapY(d.obs,0,yMax,a); if(valRevealed) drawSquare(ctx,px,py,4,'rgba(220,38,38,0.7)','#dc2626'); else drawSquare(ctx,px,py,4,'rgba(220,38,38,0.08)','rgba(220,38,38,0.12)'); }
+    for (const d of trainData) { const px=mapX(d.t,0,tMax,a), py=mapY(d.obs,0,yMax,a); drawCircle(ctx,px,py,4,'rgba(37,99,235,0.6)','#2563eb'); }
+
+    const lx=a.l+12, ly=a.t+10;
+    ctx.font='11px -apple-system, sans-serif';
+    drawCircle(ctx,lx,ly,4,'#2563eb','#2563eb'); ctx.fillStyle='#334155'; ctx.textAlign='left'; ctx.fillText('Training data',lx+10,ly+4);
+    const valLabel = valRevealed ? 'Validation data' : 'Validation (hidden)';
+    drawSquare(ctx,lx,ly+18,4,valRevealed?'#dc2626':'rgba(220,38,38,0.15)',null); ctx.fillStyle='#334155'; ctx.fillText(valLabel,lx+10,ly+22);
+    const modelLabel = fitResult.modelType === 'polynomial' ? 'Polynomial fit (deg ' + POLY_DEGREE + ')'
+                    : fitResult.modelType === 'exponential' ? 'Exponential fit a\u00B7e^(b\u00B7t)'
+                    : ('Mechanistic fit (\u03BC \u2248 ' + (isFinite(fitMu) ? fitMu.toFixed(4) : '--') + ')');
+    ctx.strokeStyle = fitResult.modelType === 'polynomial' ? '#dc2626'
+                    : fitResult.modelType === 'exponential' ? '#7c3aed' : '#1e293b';
+    ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(lx-8,ly+34); ctx.lineTo(lx+8,ly+34); ctx.stroke();
+    ctx.fillStyle='#334155'; ctx.fillText(modelLabel,lx+10,ly+38);
+
+    // Scenario-specific footer annotation
+    if (valRevealed) {
+        let footer = null;
+        if (scenario === 'improper') footer = 'Improper split: training clustered early \u2192 biased \u03BC_fit = ' + (isFinite(fitMu) ? fitMu.toFixed(4) : '--') + ' (true \u03BC = 0.0100)';
+        else if (scenario === 'overfit') footer = 'Polynomial degree ' + POLY_DEGREE + ' \u2014 hits training points but oscillates between them';
+        else if (scenario === 'underfit') footer = 'Pure exponential a\u00B7e^(b\u00B7t) \u2014 missing the diffusion lag at early times';
+        if (footer) {
+            ctx.fillStyle='#d97706'; ctx.font='bold 11px -apple-system, sans-serif';
+            ctx.fillText(footer, a.l+12, a.b-8);
+        }
+    }
+}
+
+// Reusable linearized-view chart. cfg = {
+//   canvasId, datasets: [{data:[{t,obs}], stroke, fill, shape, name, linD?, linL?, linN0?}],
+//   lines: [{mu, color, dash, label}], linD, linL, linN0, tMax?
+// }
+function drawLinearizedView(cfg) {
+    if (!dataGenerated) return;
+    const c = document.getElementById(cfg.canvasId); if (!c) return;
+    const info = clearCanvas(cfg.canvasId);
+    const ctx = info.ctx, w = info.w, h = info.h;
+    const a = chartArea(w, h);
+    const tMax = cfg.tMax || 52;
+
+    // Linearize each dataset
+    const lins = [];
+    let allY = [0];
+    for (const ds of cfg.datasets) {
+        if (!ds.data || ds.data.length === 0) { lins.push(null); continue; }
+        const D = ds.linD != null ? ds.linD : cfg.linD;
+        const L = ds.linL != null ? ds.linL : cfg.linL;
+        const N0 = ds.linN0 != null ? ds.linN0 : cfg.linN0;
+        const lin = getLinearized(ds.data.map(d=>d.t), ds.data.map(d=>d.obs), D, L, N0, 0);
+        lins.push(lin);
+        allY = allY.concat(lin.yLin);
+    }
+    for (const line of cfg.lines || []) allY.push(line.mu * tMax);
+    for (const curve of cfg.curves || []) {
+        for (const s of curve.samples) allY.push(s.yLin);
+    }
+
+    let yMin = Math.min(...allY), yMax = Math.max(...allY);
+    const pad = (yMax - yMin) * 0.15 || 0.1;
+    yMin -= pad; yMax += pad; if (yMin > -0.02) yMin = -0.02;
+
+    drawAxes(ctx, a, 'Time (hours)', 'Linearized: ln(N / N\u2080 f(t))');
+    drawTicks(ctx, a, 0, tMax, yMin, yMax);
+
+    // Predicted line(s)
+    for (const line of cfg.lines || []) {
+        ctx.strokeStyle = line.color || '#1e293b'; ctx.lineWidth = 2.5;
+        if (line.dash) ctx.setLineDash(line.dash);
+        ctx.beginPath();
+        ctx.moveTo(mapX(0,0,tMax,a), mapY(0,yMin,yMax,a));
+        ctx.lineTo(mapX(tMax,0,tMax,a), mapY(line.mu*tMax,yMin,yMax,a));
+        ctx.stroke(); ctx.setLineDash([]);
+    }
+    // Predicted curve(s) (sampled)
+    for (const curve of cfg.curves || []) {
+        ctx.strokeStyle = curve.color || '#1e293b'; ctx.lineWidth = 2.5;
+        if (curve.dash) ctx.setLineDash(curve.dash);
+        ctx.beginPath();
+        let started = false;
+        for (const s of curve.samples) {
+            const px = mapX(s.t, 0, tMax, a), py = mapY(s.yLin, yMin, yMax, a);
+            if (!started) { ctx.moveTo(px, py); started = true; } else ctx.lineTo(px, py);
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Data points
+    for (let di = 0; di < cfg.datasets.length; di++) {
+        const ds = cfg.datasets[di]; const lin = lins[di]; if (!lin) continue;
+        for (let i = 0; i < lin.tValid.length; i++) {
+            const px = mapX(lin.tValid[i],0,tMax,a);
+            const py = mapY(lin.yLin[i],yMin,yMax,a);
+            if (ds.shape === 'square') drawSquare(ctx, px, py, 4, ds.fill, ds.stroke);
+            else drawCircle(ctx, px, py, 4, ds.fill, ds.stroke);
+        }
+    }
+
+    // Legend
+    const lx = a.l+12, ly = a.t+10;
+    ctx.font = '11px -apple-system, sans-serif'; ctx.textAlign = 'left';
+    let yoff = 0;
+    for (const ds of cfg.datasets) {
+        if (!ds.data || ds.data.length === 0) continue;
+        if (ds.shape === 'square') drawSquare(ctx, lx, ly+yoff, 4, ds.stroke, ds.stroke);
+        else drawCircle(ctx, lx, ly+yoff, 4, ds.stroke, ds.stroke);
+        ctx.fillStyle = '#334155'; ctx.fillText(ds.name, lx+10, ly+yoff+4);
+        yoff += 16;
+    }
+    for (const line of cfg.lines || []) {
+        ctx.strokeStyle = line.color || '#1e293b'; ctx.lineWidth = 2.5;
+        if (line.dash) ctx.setLineDash(line.dash);
+        ctx.beginPath(); ctx.moveTo(lx-8, ly+yoff+4); ctx.lineTo(lx+8, ly+yoff+4); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#334155'; ctx.fillText(line.label, lx+10, ly+yoff+8);
+        yoff += 16;
+    }
+    for (const curve of cfg.curves || []) {
+        ctx.strokeStyle = curve.color || '#1e293b'; ctx.lineWidth = 2.5;
+        if (curve.dash) ctx.setLineDash(curve.dash);
+        ctx.beginPath(); ctx.moveTo(lx-8, ly+yoff+4); ctx.lineTo(lx+8, ly+yoff+4); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#334155'; ctx.fillText(curve.label, lx+10, ly+yoff+8);
+        yoff += 16;
+    }
+}
+
+function drawLinearizedPlot() {
+    if (!dataGenerated) return;
+    const datasets = [{data: trainData, stroke: '#2563eb', fill: 'rgba(37,99,235,0.6)', shape: 'circle', name: 'Training'}];
+    if (valRevealed) datasets.push({data: valData, stroke: '#dc2626', fill: 'rgba(220,38,38,0.7)', shape: 'square', name: 'Validation'});
+
+    const cfg = {
+        canvasId: 'c-cal-lin', datasets: datasets,
+        linD: fitResult.D_for_lin, linL: TRUE_L, linN0: TRUE_N0
+    };
+    // For mechanistic fits, the linearized prediction is a straight line y = mu*t.
+    // For polynomial/exponential, the linearized prediction is a curve — sample it.
+    if (fitResult.mu_for_lin != null && isFinite(fitResult.mu_for_lin)) {
+        cfg.lines = [{mu: fitResult.mu_for_lin, color: '#1e293b', label: 'y = \u03BC\u00B7t (slope = '+fitResult.mu_for_lin.toFixed(4)+')'}];
+    } else {
+        cfg.curves = [linearizedPredictionCurve(predictFn, fitResult.D_for_lin, TRUE_L, TRUE_N0,
+                       fitResult.modelType === 'polynomial' ? '#dc2626' : '#7c3aed',
+                       fitResult.modelType === 'polynomial' ? 'Polynomial fit (linearized)' : 'Exponential fit (linearized)')];
+    }
+    drawLinearizedView(cfg);
+}
+
+// Sample the active model's prediction across t and convert to linearized space.
+// Returns {samples: [{t, yLin}], color, label} suitable for drawLinearizedView's curves.
+function linearizedPredictionCurve(predFn, D, L, N0, color, label) {
+    const samples = [];
+    for (let t = 0.5; t <= 52; t += 0.5) {
+        const f = 1 - Math.exp(-D * t / (L * L));
+        if (f < 1e-12) continue;
+        const p = predFn(t);
+        if (!(p > 0) || !isFinite(p)) continue;
+        const denom = N0 * f;
+        if (denom <= 0) continue;
+        samples.push({ t, yLin: Math.log(p / denom) });
+    }
+    return { samples, color, label };
+}
+
+document.getElementById('btn-gen-data').onclick = generateAndFit;
+document.getElementById('btn-reveal-val').onclick = function() {
+    valRevealed = true;
+    showValidationStats();
+    drawCalibrationPlot();
+    drawLinearizedPlot();
+};
+function updateNoiseBanner() {
+    const noise = parseFloat(document.getElementById('s-noise1').value);
+    const banner = document.getElementById('noise-banner');
+    if (banner) banner.style.display = noise > 0.25 ? '' : 'none';
+}
+document.getElementById('s-noise1').oninput = function() {
+    document.getElementById('v-noise1').textContent = parseFloat(this.value).toFixed(2);
+    updateNoiseBanner();
+};
+document.getElementById('btn-noise-preset').onclick = function() {
+    const slider = document.getElementById('s-noise1');
+    slider.value = '0.35';
+    document.getElementById('v-noise1').textContent = '0.35';
+    updateNoiseBanner();
+    generateAndFit();
+};
+
+// ════════════════════════════════════════════════════════════════
+// GLOBAL SCENARIO TOGGLE (single bar above tabs)
+// ════════════════════════════════════════════════════════════════
+const SCEN_ACTIVE_CLASS = {
+    'proper':   'active-proper',
+    'improper': 'active-improper',
+    'overfit':  'active-overfit',
+    'underfit': 'active-underfit'
+};
+function setScenario(s) {
+    if (!SCEN_ACTIVE_CLASS[s]) return;
+    scenario = s;
+    // Sync all copies of the scenario bar (one per tab)
+    document.querySelectorAll('.scenario-bar .scen-btn').forEach(b => {
+        Object.values(SCEN_ACTIVE_CLASS).forEach(cls => b.classList.remove(cls));
+        if (b.dataset.scen === s) b.classList.add(SCEN_ACTIVE_CLASS[s]);
+    });
+    if (dataGenerated) {
+        // Scenario change invalidates any previously selected refinement strategy
+        // (a polynomial-pool strategy makes no sense, etc.) — start fresh.
+        activeStrategy = null;
+        stratResult = null;
+        applyScenario();
+        refreshActiveTab();
+    }
+}
+
+function refreshActiveTab() {
+    const activeBtn = document.querySelector('.tab-bar .tab-btn.active');
+    if (!activeBtn) return;
+    const tabId = activeBtn.dataset.tab;
+    if (tabId === 'calibration') {
+        if (valRevealed) showValidationStats();
+        drawCalibrationPlot();
+        drawLinearizedPlot();
+    } else if (tabId === 'residuals') {
+        drawResiduals();
+    } else if (tabId === 'predobs') {
+        drawPredObs();
+    } else if (tabId === 'crossval') {
+        updateCVExternalStats();
+    } else if (tabId === 'extrap') {
+        runExtrapolation();
+    } else if (tabId === 'refine') {
+        updateRefinementButtons();
+        if (activeStrategy) runStrategyFit(activeStrategy);
+        else drawRefinement();
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// SIMULATION 2: RESIDUAL DIAGNOSTICS
+// ════════════════════════════════════════════════════════════════
+function drawResiduals() {
+    if (!dataGenerated) return;
+    const data = residualMode === 'train' ? trainData : valData;
+    const color = residualMode === 'train' ? '#2563eb' : '#dc2626';
+    const colorAlpha = residualMode === 'train' ? 'rgba(37,99,235,0.6)' : 'rgba(220,38,38,0.6)';
+
+    const residuals=[], predicted=[], observed=[], tArr=[];
+    for (const d of data) { const pred=predictFn(d.t); predicted.push(pred); observed.push(d.obs); residuals.push(d.obs-pred); tArr.push(d.t); }
+
+    const rmse=calcRMSE(observed,predicted); let meanRes=0; for(const r of residuals) meanRes+=r; meanRes/=residuals.length;
+    const r2=calcLinR2Fn(tArr,observed,fitResult.D_for_lin,TRUE_L,TRUE_N0,predictFn); const skew=calcSkewness(residuals);
+    document.getElementById('st-res-rmse').textContent=rmse.toFixed(1);
+    document.getElementById('st-res-mean').textContent=meanRes.toFixed(1);
+    document.getElementById('st-res-r2').textContent=fmtR2(r2);
+    document.getElementById('st-res-skew').textContent=skew.toFixed(3);
+    document.getElementById('st-res-norm').textContent=Math.abs(skew)<0.5?'Likely normal':'Possibly skewed';
+
+    function maxAbs(arr){let m=0;for(const v of arr)if(Math.abs(v)>m)m=Math.abs(v);return m;}
+    function arrMin(arr){let m=arr[0];for(let i=1;i<arr.length;i++)if(arr[i]<m)m=arr[i];return m;}
+    function arrMax(arr){let m=arr[0];for(let i=1;i<arr.length;i++)if(arr[i]>m)m=arr[i];return m;}
+
+    // Residuals vs Time
+    (function(){const info=clearCanvas('c-res-time');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);const tMax=arrMax(tArr)*1.1;const rMax=maxAbs(residuals)*1.3;drawAxes(ctx,a,'Time (h)','Residual');drawTicks(ctx,a,0,tMax,-rMax,rMax);ctx.strokeStyle='#94a3b8';ctx.lineWidth=1;ctx.setLineDash([4,4]);const zy=mapY(0,-rMax,rMax,a);ctx.beginPath();ctx.moveTo(a.l,zy);ctx.lineTo(a.r,zy);ctx.stroke();ctx.setLineDash([]);for(let i=0;i<residuals.length;i++)drawCircle(ctx,mapX(tArr[i],0,tMax,a),mapY(residuals[i],-rMax,rMax,a),4,colorAlpha,color);})();
+
+    // Q-Q Plot (Normality Check): standardized residuals vs theoretical normal quantiles
+    (function(){
+        const info = clearCanvas('c-res-qq'); const ctx = info.ctx, w = info.w, h = info.h;
+        const a = chartArea(w, h);
+        const n = residuals.length;
+        if (n < 2) return;
+        // Standardize residuals
+        let mean = 0; for (const r of residuals) mean += r; mean /= n;
+        let vari = 0; for (const r of residuals) vari += (r - mean) ** 2; vari /= Math.max(1, n - 1);
+        const sd = Math.sqrt(vari) || 1;
+        const sortedZ = residuals.map(r => (r - mean) / sd).sort((p, q) => p - q);
+        // Theoretical quantiles (Blom plotting positions: (i - 3/8) / (n + 1/4))
+        const theoretical = [];
+        for (let i = 0; i < n; i++) theoretical.push(normInv((i + 0.625) / (n + 0.25)));
+        const qMax = Math.max(Math.abs(theoretical[0]), Math.abs(theoretical[n-1]), Math.abs(sortedZ[0]), Math.abs(sortedZ[n-1])) * 1.15 || 3;
+        drawAxes(ctx, a, 'Theoretical quantile (Normal)', 'Standardized residual');
+        drawTicks(ctx, a, -qMax, qMax, -qMax, qMax, 4);
+        // Reference line y = x
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(mapX(-qMax, -qMax, qMax, a), mapY(-qMax, -qMax, qMax, a));
+        ctx.lineTo(mapX(qMax, -qMax, qMax, a), mapY(qMax, -qMax, qMax, a));
+        ctx.stroke(); ctx.setLineDash([]);
+        // Points
+        for (let i = 0; i < n; i++) {
+            drawCircle(ctx, mapX(theoretical[i], -qMax, qMax, a), mapY(sortedZ[i], -qMax, qMax, a), 4, colorAlpha, color);
+        }
+        // Label
+        ctx.fillStyle = '#64748b'; ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText('On line = normally distributed', a.l + 8, a.t + 14);
+    })();
+
+    // Histogram
+    (function(){const info=clearCanvas('c-res-hist');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);const rMin=arrMin(residuals),rMax2=arrMax(residuals);let range=rMax2-rMin;if(range<1)range=1;const nBins=Math.max(5,Math.min(15,Math.ceil(Math.sqrt(residuals.length))));const binW=range/nBins;const bins=new Array(nBins).fill(0);for(const r of residuals){const idx=Math.min(nBins-1,Math.floor((r-rMin)/binW));bins[idx]++;}const maxBin=arrMax(bins);drawAxes(ctx,a,'Residual','Count');drawTicks(ctx,a,rMin,rMax2,0,maxBin*1.1,4);for(let i=0;i<nBins;i++){const x1=mapX(rMin+i*binW,rMin,rMax2,a);const x2=mapX(rMin+(i+1)*binW,rMin,rMax2,a);const y1=mapY(bins[i],0,maxBin*1.1,a);const y2=mapY(0,0,maxBin*1.1,a);ctx.fillStyle=colorAlpha;ctx.fillRect(x1+1,y1,x2-x1-2,y2-y1);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(x1+1,y1,x2-x1-2,y2-y1);}})();
+
+    // Verdict
+    const verdict = document.getElementById('verdict-res');
+    if (residualMode === 'train') {
+        verdict.style.display = 'none';
+    } else {
+        verdict.style.display = 'block';
+        const v = generateVerdict(scenario, 'residuals', { r2: r2, meanRes: meanRes });
+        verdict.className = 'val-verdict ' + v.kind;
+        verdict.innerHTML = v.html;
+    }
+
+    // Linearized view of the active dataset
+    const cfg = {
+        canvasId: 'c-res-lin',
+        datasets: [{ data: data, stroke: color, fill: colorAlpha, shape: residualMode === 'train' ? 'circle' : 'square', name: residualMode === 'train' ? 'Training' : 'Validation' }],
+        linD: fitResult.D_for_lin, linL: TRUE_L, linN0: TRUE_N0
+    };
+    if (fitResult.mu_for_lin != null && isFinite(fitResult.mu_for_lin)) {
+        cfg.lines = [{ mu: fitResult.mu_for_lin, color: '#1e293b', label: 'y = \u03BC\u00B7t (slope = '+fitResult.mu_for_lin.toFixed(4)+')' }];
+    } else {
+        cfg.curves = [linearizedPredictionCurve(predictFn, fitResult.D_for_lin, TRUE_L, TRUE_N0,
+                       fitResult.modelType === 'polynomial' ? '#dc2626' : '#7c3aed',
+                       fitResult.modelType === 'polynomial' ? 'Polynomial fit (linearized)' : 'Exponential fit (linearized)')];
+    }
+    drawLinearizedView(cfg);
+}
+
+document.getElementById('btn-res-train').onclick = function(){residualMode='train';this.classList.add('active');this.classList.remove('active-red');document.getElementById('btn-res-val').classList.remove('active-red','active');drawResiduals();};
+document.getElementById('btn-res-val').onclick = function(){residualMode='val';this.classList.add('active-red');this.classList.remove('active');document.getElementById('btn-res-train').classList.remove('active');drawResiduals();};
+
+// ════════════════════════════════════════════════════════════════
+// SIMULATION 3: PREDICTION vs OBSERVATION
+// ════════════════════════════════════════════════════════════════
+function drawPredObs() {
+    if (!dataGenerated) return;
+    const trainObs=[],trainPred=[],valObs=[],valPred=[];
+    for(const d of trainData){trainObs.push(d.obs);trainPred.push(predictFn(d.t));}
+    for(const d of valData){valObs.push(d.obs);valPred.push(predictFn(d.t));}
+
+    const r=calcPearsonR(valPred,valObs);const r2=calcLinR2Fn(valData.map(d=>d.t),valObs,fitResult.D_for_lin,TRUE_L,TRUE_N0,predictFn);const rmse=calcRMSE(valObs,valPred);
+    let bias=0;for(let i=0;i<valObs.length;i++)bias+=(valObs[i]-valPred[i]);bias/=valObs.length;
+    document.getElementById('st-po-r').textContent=r.toFixed(4);
+    document.getElementById('st-po-r2').textContent=fmtR2(r2);
+    document.getElementById('st-po-rmse').textContent=rmse.toFixed(1);
+    document.getElementById('st-po-bias').textContent=bias.toFixed(1);
+
+    // Pred vs Obs scatter
+    (function(){const info=clearCanvas('c-po');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);
+    let allVals=[];if(showTrainPO)allVals=allVals.concat(trainObs,trainPred);if(showValPO)allVals=allVals.concat(valObs,valPred);if(!allVals.length)allVals=[0,1000];
+    let lo=Math.min(...allVals),hi=Math.max(...allVals);lo=Math.max(0,lo*0.9);hi=hi*1.1;
+    drawAxes(ctx,a,'Predicted (cells)','Observed (cells)');drawTicks(ctx,a,lo,hi,lo,hi);
+    ctx.fillStyle='rgba(37,99,235,0.06)';ctx.beginPath();ctx.moveTo(mapX(lo,lo,hi,a),mapY(lo*0.8,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*0.8,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*1.2,lo,hi,a));ctx.lineTo(mapX(lo,lo,hi,a),mapY(lo*1.2,lo,hi,a));ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(37,99,235,0.08)';ctx.beginPath();ctx.moveTo(mapX(lo,lo,hi,a),mapY(lo*0.9,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*0.9,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*1.1,lo,hi,a));ctx.lineTo(mapX(lo,lo,hi,a),mapY(lo*1.1,lo,hi,a));ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(mapX(lo,lo,hi,a),mapY(lo,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi,lo,hi,a));ctx.stroke();ctx.setLineDash([]);
+    if(showTrainPO)for(let i=0;i<trainObs.length;i++)drawCircle(ctx,mapX(trainPred[i],lo,hi,a),mapY(trainObs[i],lo,hi,a),4,'rgba(37,99,235,0.5)','#2563eb');
+    if(showValPO)for(let i=0;i<valObs.length;i++)drawSquare(ctx,mapX(valPred[i],lo,hi,a),mapY(valObs[i],lo,hi,a),4,'rgba(220,38,38,0.6)','#dc2626');
+    const lx=a.r-140,ly=a.t+10;ctx.font='10px -apple-system, sans-serif';ctx.textAlign='left';
+    if(showTrainPO){drawCircle(ctx,lx-6,ly+5,4,'#2563eb','#2563eb');ctx.fillStyle='#334155';ctx.fillText('Training',lx+4,ly+9);}
+    if(showValPO){drawSquare(ctx,lx-6,ly+22,4,'#dc2626','#dc2626');ctx.fillStyle='#334155';ctx.fillText('Validation',lx+4,ly+26);}
+    })();
+
+    // Time course with prediction interval (mechanistic only — covariance isn't defined for poly/exp)
+    (function(){const info=clearCanvas('c-pi');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);
+    const tMax=52;let allObs=trainData.map(d=>d.obs).concat(valData.map(d=>d.obs));
+    // Active model curve sampled for y-axis scaling
+    const sampMax = (() => { let m = 0; for (let t = 1; t <= tMax; t += 2) { const y = predictFn(t); if (isFinite(y) && y > m) m = y; } return m; })();
+    let yMax=Math.max(...allObs, sampMax)*1.25;
+    drawAxes(ctx,a,'Time (hours)','Invaded Cells');drawTicks(ctx,a,0,tMax,0,yMax);
+
+    if (fitResult.showPredictionInterval && fitResult.cov) {
+        const nSamp=200;const sigD=Math.sqrt(Math.max(0,fitResult.cov[0][0]));const sigMu=Math.sqrt(Math.max(0,fitResult.cov[1][1]));
+        let corrDMu=(sigD>0&&sigMu>0)?fitResult.cov[0][1]/(sigD*sigMu):0;corrDMu=Math.max(-0.99,Math.min(0.99,corrDMu));
+        const tEval=[];for(let t=0;t<=tMax;t+=1)tEval.push(t);
+        const envelope=tEval.map(()=>[]);
+        for(let s=0;s<nSamp;s++){const z1=randn(),z2=randn();let sD=fitD+sigD*z1;const sMu=fitMu+sigMu*(corrDMu*z1+Math.sqrt(1-corrDMu*corrDMu)*z2);if(sD<=0)sD=fitD*0.1;for(let i=0;i<tEval.length;i++)envelope[i].push(invasionModel(tEval[i],TRUE_N0,sD,TRUE_L,sMu));}
+        const lo95=[],hi95=[];for(let i=0;i<tEval.length;i++){envelope[i].sort((a,b)=>a-b);lo95.push(envelope[i][Math.floor(0.025*envelope[i].length)]);hi95.push(envelope[i][Math.floor(0.975*envelope[i].length)]);}
+        ctx.fillStyle='rgba(37,99,235,0.15)';ctx.beginPath();
+        for(let i=0;i<tEval.length;i++){const px=mapX(tEval[i],0,tMax,a),py=mapY(lo95[i],0,yMax,a);if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}
+        for(let i=tEval.length-1;i>=0;i--)ctx.lineTo(mapX(tEval[i],0,tMax,a),mapY(hi95[i],0,yMax,a));
+        ctx.closePath();ctx.fill();
+    }
+
+    // Active model curve
+    const curveColor = fitResult.modelType === 'polynomial' ? '#dc2626' : fitResult.modelType === 'exponential' ? '#7c3aed' : '#1e293b';
+    ctx.strokeStyle=curveColor;ctx.lineWidth=2;ctx.beginPath();
+    let started=false;
+    for(let t=0;t<=tMax;t+=0.5){const y=predictFn(t);if(!isFinite(y))continue;const py=mapY(Math.max(0,y),0,yMax,a),px=mapX(t,0,tMax,a);if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py);}ctx.stroke();
+
+    for(const d of trainData)drawCircle(ctx,mapX(d.t,0,tMax,a),mapY(d.obs,0,yMax,a),3,'rgba(37,99,235,0.5)','#2563eb');
+    for(const d of valData)drawSquare(ctx,mapX(d.t,0,tMax,a),mapY(d.obs,0,yMax,a),3,'rgba(220,38,38,0.6)','#dc2626');
+
+    const lx=a.l+12,ly=a.t+8;ctx.font='10px -apple-system, sans-serif';ctx.textAlign='left';
+    if (fitResult.showPredictionInterval) {
+        ctx.fillStyle='rgba(37,99,235,0.15)';ctx.fillRect(lx-8,ly,16,10);ctx.fillStyle='#334155';ctx.fillText('95% Prediction Interval',lx+12,ly+9);
+        drawCircle(ctx,lx,ly+20,3,'#2563eb','#2563eb');ctx.fillStyle='#334155';ctx.fillText('Training',lx+12,ly+23);
+        drawSquare(ctx,lx,ly+34,3,'#dc2626','#dc2626');ctx.fillStyle='#334155';ctx.fillText('Validation',lx+12,ly+37);
+    } else {
+        // Non-mechanistic models have no covariance — explain instead of showing an empty band
+        drawCircle(ctx,lx,ly+5,3,'#2563eb','#2563eb');ctx.fillStyle='#334155';ctx.fillText('Training',lx+12,ly+8);
+        drawSquare(ctx,lx,ly+20,3,'#dc2626','#dc2626');ctx.fillStyle='#334155';ctx.fillText('Validation',lx+12,ly+23);
+        ctx.fillStyle='#92400e';ctx.font='10px -apple-system, sans-serif';
+        ctx.fillText('Prediction interval N/A for ' + fitResult.modelType + ' fit', lx, ly+42);
+    }
+    })();
+
+    // Verdict
+    const verdict = document.getElementById('verdict-po');
+    verdict.style.display = 'block';
+    document.getElementById('st-po-r2').style.color = r2 > 0.85 ? '#15803d' : '#dc2626';
+    const v = generateVerdict(scenario, 'predobs', { r2: r2, bias: bias });
+    verdict.className = 'val-verdict ' + v.kind;
+    verdict.innerHTML = v.html;
+
+    // Linearized view
+    const linDatasets = [];
+    if (showTrainPO) linDatasets.push({ data: trainData, stroke: '#2563eb', fill: 'rgba(37,99,235,0.5)', shape: 'circle', name: 'Training' });
+    if (showValPO) linDatasets.push({ data: valData, stroke: '#dc2626', fill: 'rgba(220,38,38,0.6)', shape: 'square', name: 'Validation' });
+    const cfgPO = {
+        canvasId: 'c-po-lin', datasets: linDatasets,
+        linD: fitResult.D_for_lin, linL: TRUE_L, linN0: TRUE_N0
+    };
+    if (fitResult.mu_for_lin != null && isFinite(fitResult.mu_for_lin)) {
+        cfgPO.lines = [{ mu: fitResult.mu_for_lin, color: '#1e293b', label: 'y = \u03BC\u00B7t (slope = '+fitResult.mu_for_lin.toFixed(4)+')' }];
+    } else {
+        cfgPO.curves = [linearizedPredictionCurve(predictFn, fitResult.D_for_lin, TRUE_L, TRUE_N0,
+                         fitResult.modelType === 'polynomial' ? '#dc2626' : '#7c3aed',
+                         fitResult.modelType === 'polynomial' ? 'Polynomial fit (linearized)' : 'Exponential fit (linearized)')];
+    }
+    drawLinearizedView(cfgPO);
+}
+
+document.getElementById('btn-po-train').onclick=function(){showTrainPO=!showTrainPO;this.classList.toggle('active');drawPredObs();};
+document.getElementById('btn-po-val').onclick=function(){showValPO=!showValPO;this.classList.toggle('active-red');drawPredObs();};
+
+// ════════════════════════════════════════════════════════════════
+// SIMULATION 4: CROSS-VALIDATION
+// ════════════════════════════════════════════════════════════════
+let cvRunning = false;
+
+function runCrossValidation() {
+    if (!dataGenerated || cvRunning) return;
+    cvRunning = true; document.getElementById('btn-runcv').disabled = true;
+    document.getElementById('cv-fold-rows').innerHTML = '';
+    document.getElementById('st-cv-meanr2').textContent = '...';
+    document.getElementById('st-cv-stdr2').textContent = '...';
+    document.getElementById('st-cv-rmse').textContent = '...';
+
+    const k = parseInt(document.getElementById('s-kfolds').value);
+    const timeMap = {};
+    for (const d of trainData) { if (!timeMap[d.t]) timeMap[d.t] = []; timeMap[d.t].push(d); }
+    const uniqueTimes = Object.keys(timeMap).map(Number).sort((a,b)=>a-b);
+    const folds = []; for (let i=0;i<k;i++) folds.push([]);
+    for (let i=0;i<uniqueTimes.length;i++) folds[i%k].push(uniqueTimes[i]);
+
+    const foldResults=[], foldFits=[], foldHeldOut=[];
+    let currentFold = 0;
+
+    function runFold() {
+        if (currentFold >= k) { finishCV(); return; }
+        const heldOutTimes = folds[currentFold];
+        const trainSubset=[], testSubset=[];
+        for (const d of trainData) { if (heldOutTimes.includes(d.t)) testSubset.push(d); else trainSubset.push(d); }
+
+        // Fit per active scenario. Polynomial/exponential may fail on small fold sizes.
+        let foldPredict = null, foldDforLin = TRUE_D, ok = true;
+        try {
+            if (scenario === 'overfit') {
+                const c = polyFit(trainSubset.map(d=>d.t), trainSubset.map(d=>d.obs), POLY_DEGREE);
+                foldPredict = t => Math.max(0, polyEval(c, t));
+            } else if (scenario === 'underfit') {
+                const p = expFit(trainSubset.map(d=>d.t), trainSubset.map(d=>d.obs));
+                const a = p[0], b = p[1];
+                if (!isFinite(a) || !isFinite(b) || a <= 0) throw new Error('exp fit failed');
+                foldPredict = t => Math.max(0, a * Math.exp(b * t));
+            } else {
+                const popt = fitModel(trainSubset, TRUE_N0, TRUE_L);
+                foldDforLin = popt[0];
+                foldPredict = t => invasionModel(t, TRUE_N0, popt[0], TRUE_L, popt[1]);
+            }
+        } catch(e) { ok = false; foldPredict = () => NaN; }
+
+        const testObs = testSubset.map(d => d.obs);
+        const testPred = testSubset.map(d => foldPredict(d.t));
+        const foldR2 = ok ? calcLinR2Fn(testSubset.map(d=>d.t), testObs, foldDforLin, TRUE_L, TRUE_N0, foldPredict) : NaN;
+        const foldRMSE = ok && testPred.every(isFinite) ? calcRMSE(testObs, testPred) : NaN;
+
+        foldResults.push({ r2: foldR2, rmse: foldRMSE, ok: ok });
+        foldFits.push({ predictFn: foldPredict, ok: ok });
+        foldHeldOut.push(testSubset);
+        drawCVAnimation(currentFold, k, foldFits, foldHeldOut);
+        currentFold++;
+        setTimeout(runFold, 600);
+    }
+
+    function finishCV() {
+        const valid = foldResults.filter(r => isFinite(r.r2));
+        let meanR2 = NaN, meanRMSE = NaN, stdR2 = NaN;
+        if (valid.length > 0) {
+            meanR2 = 0; meanRMSE = 0;
+            for (const r of valid) { meanR2 += r.r2; meanRMSE += r.rmse; }
+            meanR2 /= valid.length; meanRMSE /= valid.length;
+            stdR2 = 0; for (const r of valid) stdR2 += (r.r2 - meanR2) ** 2;
+            stdR2 = Math.sqrt(stdR2 / valid.length);
+        }
+        document.getElementById('st-cv-meanr2').textContent = fmtR2(meanR2);
+        document.getElementById('st-cv-stdr2').textContent  = fmtR2(stdR2);
+        document.getElementById('st-cv-rmse').textContent   = isFinite(meanRMSE) ? meanRMSE.toFixed(1) : '--';
+
+        let html = '';
+        for (let i = 0; i < k; i++) {
+            const r = foldResults[i];
+            const v = isFinite(r.r2) ? r.r2.toFixed(4) : '<span style="color:#dc2626">FAILED</span>';
+            html += '<div class="stat-row"><span class="label">Fold ' + (i+1) + '</span><span class="value">' + v + '</span></div>';
+        }
+        document.getElementById('cv-fold-rows').innerHTML = html;
+        drawCVBar(foldResults);
+        updateCVExternalStats(meanR2);
+        cvRunning = false; document.getElementById('btn-runcv').disabled = false;
+    }
+    runFold();
+}
+
+function drawCVAnimation(currentFold,k,foldFits,foldHeldOut) {
+    const info=clearCanvas('c-cv-fits');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);
+    const tMax=52;
+    // Y-axis: scale to data + active fold's predictions where finite
+    let allVals = trainData.map(d=>d.obs);
+    for (let f = 0; f <= currentFold; f++) {
+        const fp = foldFits[f]; if (!fp || !fp.ok) continue;
+        for (let t = 0; t <= tMax; t += 4) {
+            const y = fp.predictFn(t);
+            if (isFinite(y)) allVals.push(Math.max(0, y));
+        }
+    }
+    let yMax = Math.max(...allVals) * 1.2;
+    drawAxes(ctx,a,'Time (hours)','Invaded Cells');drawTicks(ctx,a,0,tMax,0,yMax);
+
+    for(let f=0;f<=currentFold;f++){
+        const fp = foldFits[f]; if (!fp) continue;
+        if (!fp.ok) continue;
+        ctx.strokeStyle=(f===currentFold)?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.4)';
+        ctx.lineWidth=(f===currentFold)?2.5:1;
+        ctx.beginPath();
+        let started=false;
+        for (let t=0;t<=tMax;t+=0.5){
+            const y=fp.predictFn(t); if (!isFinite(y)) continue;
+            const px=mapX(t,0,tMax,a),py=mapY(Math.max(0,y),0,yMax,a);
+            if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py);
+        }
+        ctx.stroke();
+    }
+
+    const heldTimes=new Set(foldHeldOut[currentFold].map(d=>d.t));
+    for(const d of trainData){const px=mapX(d.t,0,tMax,a),py=mapY(d.obs,0,yMax,a);if(heldTimes.has(d.t))drawSquare(ctx,px,py,5,'rgba(220,38,38,0.7)','#dc2626');else drawCircle(ctx,px,py,3,'rgba(37,99,235,0.4)','#2563eb');}
+    ctx.font='12px -apple-system, sans-serif';ctx.textAlign='left';ctx.fillStyle='#1e3a5f';ctx.fillText('Fold '+(currentFold+1)+' / '+k,a.l+10,a.t+18);
+    if (foldFits[currentFold] && !foldFits[currentFold].ok) {
+        ctx.fillStyle='#dc2626';ctx.font='bold 11px -apple-system, sans-serif';
+        ctx.fillText('FOLD FAILED \u2014 fit numerically unstable', a.l+10, a.t+36);
+    }
+}
+
+function drawCVBar(foldResults) {
+    const info=clearCanvas('c-cv-bar');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);
+    const k=foldResults.length;const r2s=foldResults.map(r=>r.r2);
+    const validR2s = r2s.filter(isFinite);
+    const minValid = validR2s.length ? Math.min(...validR2s) : 0;
+    const yMin = Math.min(0.5, minValid - 0.05);
+    const yMax = 1.0;
+    drawAxes(ctx,a,'Fold','R\u00B2');drawTicks(ctx,a,0.5,k+0.5,yMin,yMax,4);
+    const barW=a.w/(k*1.8);
+    for(let i=0;i<k;i++){
+        const cx=mapX(i+1,0.5,k+0.5,a);
+        const yBot=mapY(yMin,yMin,yMax,a);
+        if (isFinite(r2s[i])) {
+            const yTop=mapY(Math.max(yMin, r2s[i]),yMin,yMax,a);
+            ctx.fillStyle='#2563eb';ctx.fillRect(cx-barW/2,yTop,barW,yBot-yTop);
+            ctx.fillStyle='#334155';ctx.font='10px -apple-system, sans-serif';ctx.textAlign='center';ctx.fillText(r2s[i].toFixed(3),cx,yTop-6);
+        } else {
+            // Failed fold: full-height red bar with FAIL label
+            const yTop=mapY(yMax,yMin,yMax,a);
+            ctx.fillStyle='rgba(220,38,38,0.3)';ctx.fillRect(cx-barW/2,yTop,barW,yBot-yTop);
+            ctx.fillStyle='#dc2626';ctx.font='bold 10px -apple-system, sans-serif';ctx.textAlign='center';
+            ctx.fillText('FAIL', cx, (yTop+yBot)/2);
+        }
+    }
+    if (validR2s.length > 0) {
+        let meanR2=0; for(const v of validR2s) meanR2+=v; meanR2/=validR2s.length;
+        const my=mapY(meanR2,yMin,yMax,a);
+        ctx.strokeStyle='#dc2626';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+        ctx.beginPath();ctx.moveTo(a.l,my);ctx.lineTo(a.r,my);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle='#dc2626';ctx.textAlign='right';ctx.font='10px -apple-system, sans-serif';
+        ctx.fillText('Mean R\u00B2 = '+meanR2.toFixed(4),a.r-4,my-6);
+    }
+}
+
+document.getElementById('btn-runcv').onclick = runCrossValidation;
+document.getElementById('s-kfolds').oninput = function(){ document.getElementById('v-kfolds').textContent = this.value; };
+
+function updateCVExternalStats(cvMeanR2) {
+    if (!dataGenerated || valData.length === 0) return;
+    const valObs = valData.map(d => d.obs);
+    const valPred = valData.map(d => predictFn(d.t));
+    const extR2 = calcLinR2Fn(valData.map(d=>d.t), valObs, fitResult.D_for_lin, TRUE_L, TRUE_N0, predictFn);
+    const extRMSE = calcRMSE(valObs, valPred);
+
+    document.getElementById('st-cv-ext-r2').textContent = fmtR2(extR2);
+    document.getElementById('st-cv-ext-r2').style.color = extR2 > 0.85 ? '#15803d' : '#dc2626';
+    document.getElementById('st-cv-ext-rmse').textContent = isFinite(extRMSE) ? extRMSE.toFixed(1) : '--';
+
+    const verdict = document.getElementById('verdict-cv');
+    verdict.style.display = 'block';
+    if (cvMeanR2 === undefined) {
+        const cvText = document.getElementById('st-cv-meanr2').textContent;
+        cvMeanR2 = cvText !== '--' && cvText !== '...' ? parseFloat(cvText) : null;
+    }
+    const cvLabel = (cvMeanR2 != null && isFinite(cvMeanR2)) ? cvMeanR2.toFixed(4) : '--';
+    const v = generateVerdict(scenario, 'cv', { cvR2: cvMeanR2, extR2: extR2 });
+    verdict.className = 'val-verdict ' + v.kind;
+    verdict.innerHTML = v.html;
+
+    // Linearized view: training + external validation
+    const cfgCV = {
+        canvasId: 'c-cv-lin',
+        datasets: [
+            { data: trainData, stroke: '#2563eb', fill: 'rgba(37,99,235,0.5)', shape: 'circle', name: 'Training' },
+            { data: valData, stroke: '#dc2626', fill: 'rgba(220,38,38,0.6)', shape: 'square', name: 'External Val' }
+        ],
+        linD: fitResult.D_for_lin, linL: TRUE_L, linN0: TRUE_N0
+    };
+    if (fitResult.mu_for_lin != null && isFinite(fitResult.mu_for_lin)) {
+        cfgCV.lines = [{ mu: fitResult.mu_for_lin, color: '#1e293b', label: 'y = \u03BC\u00B7t (slope = '+fitResult.mu_for_lin.toFixed(4)+')' }];
+    } else {
+        cfgCV.curves = [linearizedPredictionCurve(predictFn, fitResult.D_for_lin, TRUE_L, TRUE_N0,
+                          fitResult.modelType === 'polynomial' ? '#dc2626' : '#7c3aed',
+                          fitResult.modelType === 'polynomial' ? 'Polynomial fit (linearized)' : 'Exponential fit (linearized)')];
+    }
+    drawLinearizedView(cfgCV);
+}
+
+// ════════════════════════════════════════════════════════════════
+// SIMULATION 5: EXTRAPOLATION TEST
+// ════════════════════════════════════════════════════════════════
+function runExtrapolation() {
+    if (!dataGenerated) return;
+    const extN0=parseInt(document.getElementById('s-extN0').value);
+    const extL=parseFloat(document.getElementById('s-extL').value);
+    const noise=parseFloat(document.getElementById('s-noise1').value);
+    const extTimes=[2,4,8,12,16,24,36,48];
+    // Extrapolation data always uses true biology (TRUE_MU). Failure modes come from the active
+    // fit being wrong, not from biology differences.
+    const extData=generateData(extTimes,3,extN0,TRUE_D,extL,TRUE_MU,noise);
+    const extObs=extData.map(d=>d.obs);
+
+    // Mechanistic models can be re-evaluated at the new (extN0, extL); polynomial/exponential
+    // are pure t-functions and cannot incorporate new physical conditions — they predict the
+    // same regardless. That's part of the lesson.
+    const isMech = fitResult.modelType === 'mechanistic';
+    const predictExt = isMech
+        ? (t => invasionModel(t, extN0, fitD, extL, fitMu))
+        : predictFn;
+    const linDForExt = isMech ? fitD : TRUE_D;
+
+    const extPred = extData.map(d => predictExt(d.t));
+    const r2 = calcLinR2Fn(extData.map(d=>d.t), extObs, linDForExt, extL, extN0, predictExt);
+    const rmse = calcRMSE(extObs, extPred.filter(isFinite).length === extPred.length ? extPred : extPred.map(p => isFinite(p) ? p : 0));
+    let bias=0;for(let i=0;i<extObs.length;i++)bias+=(extObs[i]-(extPred[i]||0));bias/=extObs.length;
+    document.getElementById('st-ext-r2').textContent=fmtR2(r2);
+    document.getElementById('st-ext-rmse').textContent=isFinite(rmse)?rmse.toFixed(1):'--';
+    document.getElementById('st-ext-bias').textContent=bias.toFixed(1);
+    document.getElementById('st-ext-dN0').textContent=(extN0-TRUE_N0).toLocaleString();
+    document.getElementById('st-ext-dL').textContent=(extL-TRUE_L).toFixed(4);
+
+    // Time course
+    (function(){const info=clearCanvas('c-ext-tc');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);
+    const tMax=52;
+    // Sample both prediction surfaces for y-axis scaling
+    const extCurveSamp = []; for (let t = 1; t <= tMax; t += 2) { const y = predictExt(t); if (isFinite(y)) extCurveSamp.push(Math.max(0, y)); }
+    const origCurveSamp = []; for (let t = 1; t <= tMax; t += 2) { const y = predictFn(t); if (isFinite(y)) origCurveSamp.push(Math.max(0, y)); }
+    let yMax = Math.max(...trainData.map(d=>d.obs), ...extData.map(d=>d.obs), ...extCurveSamp, ...origCurveSamp) * 1.2;
+    drawAxes(ctx,a,'Time (hours)','Invaded Cells');drawTicks(ctx,a,0,tMax,0,yMax);
+
+    for(const d of trainData)drawCircle(ctx,mapX(d.t,0,tMax,a),mapY(d.obs,0,yMax,a),3,'rgba(37,99,235,0.25)','rgba(37,99,235,0.4)');
+    // Original-conditions fit (dashed gray): predictFn uses training conditions
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();
+    let s1=false; for(let t=0;t<=tMax;t+=0.5){const y=predictFn(t);if(!isFinite(y))continue;const px=mapX(t,0,tMax,a),py=mapY(Math.max(0,y),0,yMax,a);if(!s1){ctx.moveTo(px,py);s1=true;}else ctx.lineTo(px,py);}
+    ctx.stroke();ctx.setLineDash([]);
+    // New-conditions prediction (solid)
+    ctx.strokeStyle = fitResult.modelType === 'polynomial' ? '#dc2626' : fitResult.modelType === 'exponential' ? '#7c3aed' : '#1e293b';
+    ctx.lineWidth=2.5;ctx.beginPath();
+    let s2=false; for(let t=0;t<=tMax;t+=0.5){const y=predictExt(t);if(!isFinite(y))continue;const px=mapX(t,0,tMax,a),py=mapY(Math.max(0,y),0,yMax,a);if(!s2){ctx.moveTo(px,py);s2=true;}else ctx.lineTo(px,py);}
+    ctx.stroke();
+    for(const d of extData)drawSquare(ctx,mapX(d.t,0,tMax,a),mapY(d.obs,0,yMax,a),4,'rgba(220,38,38,0.6)','#dc2626');
+
+    const lx=a.l+12,ly=a.t+8;ctx.font='10px -apple-system, sans-serif';ctx.textAlign='left';
+    drawCircle(ctx,lx,ly+4,3,'rgba(37,99,235,0.3)','rgba(37,99,235,0.5)');ctx.fillStyle='#64748b';ctx.fillText('Original training',lx+10,ly+8);
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.beginPath();ctx.moveTo(lx-6,ly+20);ctx.lineTo(lx+6,ly+20);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#64748b';ctx.fillText('Original fit',lx+10,ly+23);
+    drawSquare(ctx,lx,ly+36,3,'#dc2626','#dc2626');ctx.fillStyle='#334155';ctx.fillText('New condition',lx+10,ly+39);
+    ctx.strokeStyle='#1e293b';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(lx-6,ly+52);ctx.lineTo(lx+6,ly+52);ctx.stroke();ctx.fillStyle='#334155';ctx.fillText('Prediction (new)',lx+10,ly+55);
+    })();
+
+    // Pred vs Obs
+    (function(){const info=clearCanvas('c-ext-po');const ctx=info.ctx,w=info.w,h=info.h;const a=chartArea(w,h);
+    const allVals=extObs.concat(extPred);let lo=Math.max(0,Math.min(...allVals)*0.85),hi=Math.max(...allVals)*1.15;
+    drawAxes(ctx,a,'Predicted (cells)','Observed (cells)');drawTicks(ctx,a,lo,hi,lo,hi);
+    ctx.fillStyle='rgba(220,38,38,0.06)';ctx.beginPath();ctx.moveTo(mapX(lo,lo,hi,a),mapY(lo*0.8,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*0.8,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*1.2,lo,hi,a));ctx.lineTo(mapX(lo,lo,hi,a),mapY(lo*1.2,lo,hi,a));ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(220,38,38,0.08)';ctx.beginPath();ctx.moveTo(mapX(lo,lo,hi,a),mapY(lo*0.9,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*0.9,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi*1.1,lo,hi,a));ctx.lineTo(mapX(lo,lo,hi,a),mapY(lo*1.1,lo,hi,a));ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(mapX(lo,lo,hi,a),mapY(lo,lo,hi,a));ctx.lineTo(mapX(hi,lo,hi,a),mapY(hi,lo,hi,a));ctx.stroke();ctx.setLineDash([]);
+    for(let i=0;i<extObs.length;i++)drawSquare(ctx,mapX(extPred[i],lo,hi,a),mapY(extObs[i],lo,hi,a),4,'rgba(220,38,38,0.6)','#dc2626');
+    })();
+
+    // Verdict (centralized)
+    const verdict = document.getElementById('verdict-ext');
+    verdict.style.display = 'block';
+    document.getElementById('st-ext-r2').style.color = r2 > 0.85 ? '#15803d' : '#dc2626';
+    const v = generateVerdict(scenario, 'extrap', { r2: r2, bias: bias });
+    verdict.className = 'val-verdict ' + v.kind;
+    verdict.innerHTML = v.html;
+
+    // Linearized view: extrapolation data linearized with the active model's prediction.
+    const cfgExt = {
+        canvasId: 'c-ext-lin',
+        datasets: [
+            { data: extData, stroke: '#dc2626', fill: 'rgba(220,38,38,0.7)', shape: 'square',
+              name: 'New-condition data (N\u2080='+extN0.toLocaleString()+', L='+extL.toFixed(3)+')',
+              linD: linDForExt, linL: extL, linN0: extN0 }
+        ],
+        linD: linDForExt, linL: extL, linN0: extN0
+    };
+    if (isMech) {
+        cfgExt.lines = [{ mu: fitMu, color: '#1e293b', label: 'Mechanistic prediction: y = \u03BC_fit\u00B7t (slope = '+fitMu.toFixed(4)+')' }];
+    } else {
+        cfgExt.curves = [linearizedPredictionCurve(predictExt, linDForExt, extL, extN0,
+                          fitResult.modelType === 'polynomial' ? '#dc2626' : '#7c3aed',
+                          fitResult.modelType === 'polynomial' ? 'Polynomial fit (linearized) \u2014 ignores N\u2080, L' : 'Exponential fit (linearized) \u2014 ignores N\u2080, L')];
+    }
+    drawLinearizedView(cfgExt);
+}
+
+document.getElementById('btn-extrap').onclick = runExtrapolation;
+document.getElementById('s-extN0').oninput = function(){ document.getElementById('v-extN0').textContent = parseInt(this.value).toLocaleString(); };
+document.getElementById('s-extL').oninput = function(){ document.getElementById('v-extL').textContent = parseFloat(this.value).toFixed(3); };
+
+// ════════════════════════════════════════════════════════════════
+// SIMULATION 6: MODEL REFINEMENT
+// ════════════════════════════════════════════════════════════════
+let activeStrategy = null;
+let stratResult = null;
+
+function runStrategyFit(type) {
+    if (!dataGenerated) return;
+    activeStrategy = type;
+    let result = { type: type };
+
+    if (type === 'refit') {
+        const popt = fitModel(valData, TRUE_N0, TRUE_L);
+        result.predTrain = t => invasionModel(t, TRUE_N0, fitD, TRUE_L, fitMu);
+        result.predVal = t => invasionModel(t, TRUE_N0, popt[0], TRUE_L, popt[1]);
+        result.D = popt[0]; result.trainD = fitD; result.muTrain = fitMu; result.muVal = popt[1];
+        result.label = 'Strategy A: Re-fit to validation';
+    } else if (type === 'pool') {
+        const combined = trainData.concat(valData);
+        const popt = fitModel(combined, TRUE_N0, TRUE_L);
+        result.predTrain = t => invasionModel(t, TRUE_N0, popt[0], TRUE_L, popt[1]);
+        result.predVal = t => invasionModel(t, TRUE_N0, popt[0], TRUE_L, popt[1]);
+        result.D = popt[0]; result.trainD = popt[0]; result.muTrain = popt[1]; result.muVal = popt[1];
+        result.label = 'Strategy B: Pooled fit';
+    } else if (type === 'shared') {
+        const costFn = (params) => {
+            const D = params[0], muT = params[1], muV = params[2];
+            if (D <= 0 || muT < -0.1 || muT > 0.2 || muV < -0.1 || muV > 0.2) return 1e20;
+            let rss = 0;
+            for (const d of trainData) rss += (d.obs - invasionModel(d.t, TRUE_N0, D, TRUE_L, muT)) ** 2;
+            for (const d of valData) rss += (d.obs - invasionModel(d.t, TRUE_N0, D, TRUE_L, muV)) ** 2;
+            return rss;
+        };
+        const popt = nelderMead(costFn, [fitD * 1.1, fitMu * 1.1, fitMu * 2]);
+        result.predTrain = t => invasionModel(t, TRUE_N0, popt[0], TRUE_L, popt[1]);
+        result.predVal = t => invasionModel(t, TRUE_N0, popt[0], TRUE_L, popt[2]);
+        result.D = popt[0]; result.trainD = popt[0]; result.muTrain = popt[1]; result.muVal = popt[2];
+        result.label = 'Strategy C: Shared D, separate \u03BC';
+    } else if (type === 'mech') {
+        // Switch from polynomial/exponential back to the mechanistic 2-parameter model
+        const popt = fitModel(trainData, TRUE_N0, TRUE_L);
+        const D = popt[0], mu = popt[1];
+        result.predTrain = t => invasionModel(t, TRUE_N0, D, TRUE_L, mu);
+        result.predVal   = t => invasionModel(t, TRUE_N0, D, TRUE_L, mu);
+        result.D = D; result.trainD = D; result.muTrain = mu; result.muVal = mu;
+        result.label = 'Switch to mechanistic 2-parameter model';
+    }
+
+    stratResult = result;
+    drawRefinement();
+}
+
+// Show only the refinement buttons that make sense for the active scenario.
+function updateRefinementButtons() {
+    const isMechScenario = (scenario === 'proper' || scenario === 'improper');
+    document.getElementById('strat-buttons-mech').style.display = isMechScenario ? '' : 'none';
+    document.getElementById('strat-buttons-modelswap').style.display = isMechScenario ? 'none' : '';
+    // The "no refinement needed" notice is for proper-split (well-fit baseline)
+    document.getElementById('strat-info').style.display = (scenario === 'proper') ? 'block' : 'none';
+}
+
+function drawRefinement() {
+    if (!dataGenerated) return;
+
+    // The "original" baseline is whatever the active scenario's fit produced
+    // (mechanistic for proper/improper, polynomial for overfit, exponential for underfit).
+    const origPredTrain = predictFn;
+    const origPredVal   = predictFn;
+
+    const origTrainR2 = calcLinR2Fn(trainData.map(d=>d.t), trainData.map(d=>d.obs), fitResult.D_for_lin, TRUE_L, TRUE_N0, predictFn);
+    const origValR2   = calcLinR2Fn(valData.map(d=>d.t),   valData.map(d=>d.obs),   fitResult.D_for_lin, TRUE_L, TRUE_N0, predictFn);
+
+    document.getElementById('st-ref-orig-tr').textContent = fmtR2(origTrainR2);
+    document.getElementById('st-ref-orig-vr').textContent = fmtR2(origValR2);
+    document.getElementById('st-ref-orig-vr').style.color = origValR2 > 0.85 ? '#15803d' : '#dc2626';
+
+    if (!stratResult) {
+        // No strategy selected yet — show baseline params, hide remedy stats
+        document.getElementById('st-ref-new-tr').textContent = '--';
+        document.getElementById('st-ref-new-vr').textContent = '--';
+        document.getElementById('st-ref-D').textContent  = isFinite(fitD) ? fitD.toExponential(3) : '--';
+        document.getElementById('st-ref-muT').textContent = isFinite(fitMu) ? fitMu.toFixed(5) : '--';
+        document.getElementById('st-ref-muV').textContent = isFinite(fitMu) ? fitMu.toFixed(5) : '--';
+        document.getElementById('verdict-refine').style.display = 'none';
+    } else {
+        // After a remedy: stratResult always uses the mechanistic model (all 4 strategies refit
+        // mechanistically), so use linearization with stratResult's D.
+        const newTrainR2 = calcLinR2Fn(trainData.map(d=>d.t), trainData.map(d=>d.obs), stratResult.trainD, TRUE_L, TRUE_N0, stratResult.predTrain);
+        const newValR2   = calcLinR2Fn(valData.map(d=>d.t),   valData.map(d=>d.obs),   stratResult.D,      TRUE_L, TRUE_N0, stratResult.predVal);
+        document.getElementById('st-ref-new-tr').textContent = fmtR2(newTrainR2);
+        document.getElementById('st-ref-new-vr').textContent = fmtR2(newValR2);
+        document.getElementById('st-ref-new-tr').style.color = newTrainR2 > 0.85 ? '#15803d' : '#dc2626';
+        document.getElementById('st-ref-new-vr').style.color = newValR2 > 0.85 ? '#15803d' : '#dc2626';
+        document.getElementById('st-ref-D').textContent = stratResult.D.toExponential(3);
+        document.getElementById('st-ref-muT').textContent = stratResult.muTrain.toFixed(5);
+        document.getElementById('st-ref-muV').textContent = stratResult.muVal.toFixed(5);
+
+        // Verdict
+        const verdict = document.getElementById('verdict-refine');
+        verdict.style.display = 'block';
+        if (stratResult.type === 'refit') {
+            if (newValR2 > 0.85) {
+                verdict.className = 'val-verdict good';
+                verdict.innerHTML = '<strong>Data Is Fine, Split Was Wrong</strong>Re-fitting to validation data recovered R\u00B2 = ' + newValR2.toFixed(4) + '. The model form is correct &mdash; the original training just didn\'t span enough of the time range to pin down \u03BC. This fit uses late-time data only (the inverse problem), so it now biases the other way. The real fix is to <em>combine</em> both time windows (Strategy B).';
+            } else {
+                verdict.className = 'val-verdict good';
+                verdict.innerHTML = '<strong>Model Form is Correct</strong>The model already fits both datasets well. No refinement needed.';
+            }
+        } else if (stratResult.type === 'pool') {
+            if (newTrainR2 > 0.85 && newValR2 > 0.85) {
+                verdict.className = 'val-verdict good';
+                verdict.innerHTML = '<strong>Pooling Fixes the Split</strong>Combining training + validation data gives full time-range coverage. The well-constrained fit (D = ' + stratResult.D.toExponential(3) + ', \u03BC = ' + stratResult.muTrain.toFixed(4) + ') now predicts both windows well. This is the proper remedy for a biased chronological split.';
+            } else {
+                verdict.className = 'val-verdict bad';
+                verdict.innerHTML = '<strong>Pooling Helps but Is Imperfect</strong>Pooled fit: \u03BC = ' + stratResult.muTrain.toFixed(4) + ', Train R\u00B2 = ' + newTrainR2.toFixed(4) + ', Val R\u00B2 = ' + newValR2.toFixed(4) + '. When biology is identical, pooling recovers the proper fit. Small residual deviations are noise-driven.';
+            }
+        } else if (stratResult.type === 'shared') {
+            if (newTrainR2 > 0.85 && newValR2 > 0.85) {
+                verdict.className = 'val-verdict good';
+                verdict.innerHTML = '<strong>Shared D, Separate \u03BC</strong>Shared D = ' + stratResult.D.toExponential(3) + ' with \u03BC<sub>train</sub> = ' + stratResult.muTrain.toFixed(4) + ' and \u03BC<sub>val</sub> = ' + stratResult.muVal.toFixed(4) + '. Both fit well (Train R\u00B2 = ' + newTrainR2.toFixed(4) + ', Val R\u00B2 = ' + newValR2.toFixed(4) + '). Since the biology is actually the same everywhere, if \u03BC<sub>train</sub> \u2248 \u03BC<sub>val</sub>, that confirms you had a split problem, not a biology problem \u2014 Strategy B (pool) is the simpler correct answer.';
+            } else {
+                verdict.className = 'val-verdict good';
+                verdict.innerHTML = '<strong>Parameters Converge</strong>\u03BC<sub>train</sub> = ' + stratResult.muTrain.toFixed(4) + ', \u03BC<sub>val</sub> = ' + stratResult.muVal.toFixed(4) + '. The two \u03BC estimates agree, confirming there\'s no biological difference between the two time windows &mdash; just a split issue that pooling will fix.';
+            }
+        } else if (stratResult.type === 'mech') {
+            const sourceLabel = scenario === 'overfit' ? 'polynomial' : 'exponential';
+            const wasNote = scenario === 'overfit'
+                ? 'A degree-' + POLY_DEGREE + ' polynomial memorized noise.'
+                : 'A pure exponential ignored the diffusion lag.';
+            verdict.className = (newTrainR2 > 0.85 && newValR2 > 0.85) ? 'val-verdict good' : 'val-verdict bad';
+            verdict.innerHTML = '<strong>Switched to Mechanistic Model</strong>' + wasNote + ' The 2-parameter mechanistic fit (D = ' + stratResult.D.toExponential(3) + ', \u03BC = ' + stratResult.muTrain.toFixed(5) + ') gives Train R\u00B2 = ' + fmtR2(newTrainR2) + ' and Val R\u00B2 = ' + fmtR2(newValR2) + ' \u2014 fewer parameters, better generalization. Occam\'s razor wins.';
+        }
+    }
+
+    // ── Time course chart ──
+    (function(){
+        const info = clearCanvas('c-ref-tc'); const ctx = info.ctx, w = info.w, h = info.h;
+        const a = chartArea(w, h);
+        const tMax = 52;
+        let allObs = trainData.map(d=>d.obs).concat(valData.map(d=>d.obs));
+        // Sample the active baseline curve and (if any) the strategy's predictions for axis scale
+        let curveMax = 0;
+        for (let t = 1; t <= tMax; t += 2) {
+            const y = predictFn(t); if (isFinite(y) && y > curveMax) curveMax = y;
+            if (stratResult) {
+                const yt = stratResult.predTrain(t), yv = stratResult.predVal(t);
+                if (isFinite(yt) && yt > curveMax) curveMax = yt;
+                if (isFinite(yv) && yv > curveMax) curveMax = yv;
+            }
+        }
+        let yMax = Math.max(...allObs, curveMax) * 1.15;
+
+        drawAxes(ctx, a, 'Time (hours)', 'Invaded Cells');
+        drawTicks(ctx, a, 0, tMax, 0, yMax);
+
+        // Original fit (dashed gray)
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath();
+        for (let t = 0; t <= tMax; t += 0.5) { const y = origPredTrain(t); const px = mapX(t,0,tMax,a), py = mapY(y,0,yMax,a); if (t===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+        ctx.stroke(); ctx.setLineDash([]);
+
+        // Refined fits (if selected)
+        if (stratResult) {
+            // Training fit (blue solid)
+            ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2.5; ctx.beginPath();
+            for (let t = 0; t <= tMax; t += 0.5) { const y = stratResult.predTrain(t); const px = mapX(t,0,tMax,a), py = mapY(y,0,yMax,a); if (t===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+            ctx.stroke();
+
+            // Validation fit (green solid — only if different from training)
+            if (stratResult.type !== 'pool') {
+                ctx.strokeStyle = '#059669'; ctx.lineWidth = 2.5; ctx.beginPath();
+                for (let t = 0; t <= tMax; t += 0.5) { const y = stratResult.predVal(t); const px = mapX(t,0,tMax,a), py = mapY(y,0,yMax,a); if (t===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+                ctx.stroke();
+            }
+        }
+
+        // Data points
+        for (const d of trainData) drawCircle(ctx, mapX(d.t,0,tMax,a), mapY(d.obs,0,yMax,a), 4, 'rgba(37,99,235,0.5)', '#2563eb');
+        for (const d of valData) drawSquare(ctx, mapX(d.t,0,tMax,a), mapY(d.obs,0,yMax,a), 4, 'rgba(220,38,38,0.6)', '#dc2626');
+
+        // Legend
+        const lx = a.l + 12, ly = a.t + 8; ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'left';
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(lx-6,ly+4); ctx.lineTo(lx+6,ly+4); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = '#64748b'; ctx.fillText('Original fit', lx+10, ly+8);
+        drawCircle(ctx, lx, ly+20, 3, '#2563eb', '#2563eb'); ctx.fillStyle = '#334155'; ctx.fillText('Training data', lx+10, ly+23);
+        drawSquare(ctx, lx, ly+34, 3, '#dc2626', '#dc2626'); ctx.fillStyle = '#334155'; ctx.fillText('Validation data', lx+10, ly+37);
+        if (stratResult) {
+            ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(lx-6,ly+50); ctx.lineTo(lx+6,ly+50); ctx.stroke(); ctx.fillStyle = '#334155'; ctx.fillText('Refined (train)', lx+10, ly+53);
+            if (stratResult.type !== 'pool') {
+                ctx.strokeStyle = '#059669'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(lx-6,ly+64); ctx.lineTo(lx+6,ly+64); ctx.stroke(); ctx.fillStyle = '#334155'; ctx.fillText('Refined (val)', lx+10, ly+67);
+            }
+        }
+    })();
+
+    // ── Residuals chart ──
+    (function(){
+        const info = clearCanvas('c-ref-res'); const ctx = info.ctx, w = info.w, h = info.h;
+        const a = chartArea(w, h);
+
+        // Compute residuals
+        const origRes = valData.map(d => d.obs - origPredVal(d.t));
+        const tArr = valData.map(d => d.t);
+        let newRes = origRes;
+        if (stratResult) newRes = valData.map(d => d.obs - stratResult.predVal(d.t));
+
+        const allRes = origRes.concat(newRes);
+        let rMax = 0; for (const v of allRes) if (Math.abs(v) > rMax) rMax = Math.abs(v);
+        rMax *= 1.3; if (rMax < 1) rMax = 1;
+        const tMax = Math.max(...tArr) * 1.1;
+
+        drawAxes(ctx, a, 'Time (h)', 'Validation Residual');
+        drawTicks(ctx, a, 0, tMax, -rMax, rMax);
+
+        // Zero line
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+        const zy = mapY(0, -rMax, rMax, a);
+        ctx.beginPath(); ctx.moveTo(a.l, zy); ctx.lineTo(a.r, zy); ctx.stroke(); ctx.setLineDash([]);
+
+        // Original residuals (gray)
+        for (let i = 0; i < origRes.length; i++) {
+            drawCircle(ctx, mapX(tArr[i],0,tMax,a), mapY(origRes[i],-rMax,rMax,a), 4, 'rgba(148,163,184,0.5)', '#94a3b8');
+        }
+
+        // Refined residuals (green)
+        if (stratResult) {
+            for (let i = 0; i < newRes.length; i++) {
+                drawCircle(ctx, mapX(tArr[i],0,tMax,a), mapY(newRes[i],-rMax,rMax,a), 4, 'rgba(5,150,105,0.6)', '#059669');
+            }
+        }
+
+        // Legend
+        const lx = a.r - 130, ly = a.t + 8; ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'left';
+        drawCircle(ctx, lx, ly+4, 3, '#94a3b8', '#94a3b8'); ctx.fillStyle = '#64748b'; ctx.fillText('Before (original)', lx+10, ly+8);
+        if (stratResult) { drawCircle(ctx, lx, ly+20, 3, '#059669', '#059669'); ctx.fillStyle = '#334155'; ctx.fillText('After (refined)', lx+10, ly+23); }
+    })();
+
+    // Linearized view
+    const refineLines = [];
+    if (stratResult) {
+        refineLines.push({ mu: stratResult.muTrain, color: '#2563eb', label: 'y = \u03BC_train\u00B7t (' + stratResult.muTrain.toFixed(4) + ')' });
+        if (stratResult.muVal !== stratResult.muTrain) {
+            refineLines.push({ mu: stratResult.muVal, color: '#059669', label: 'y = \u03BC_val\u00B7t (' + stratResult.muVal.toFixed(4) + ')' });
+        }
+    } else {
+        refineLines.push({ mu: fitMu, color: '#1e293b', label: 'y = \u03BC\u00B7t (slope = '+fitMu.toFixed(4)+')' });
+    }
+    const refineDatasets = [
+        { data: trainData, stroke: '#2563eb', fill: 'rgba(37,99,235,0.5)', shape: 'circle', name: 'Training', linD: stratResult ? stratResult.trainD : fitD },
+        { data: valData, stroke: '#dc2626', fill: 'rgba(220,38,38,0.6)', shape: 'square', name: 'Validation', linD: stratResult ? stratResult.D : fitD }
+    ];
+    drawLinearizedView({
+        canvasId: 'c-ref-lin', datasets: refineDatasets, lines: refineLines,
+        linD: stratResult ? stratResult.D : fitD, linL: TRUE_L, linN0: TRUE_N0
+    });
+}
+
+document.getElementById('btn-strat-refit').onclick = function(){ runStrategyFit('refit'); };
+document.getElementById('btn-strat-pool').onclick = function(){ runStrategyFit('pool'); };
+document.getElementById('btn-strat-shared').onclick = function(){ runStrategyFit('shared'); };
+document.getElementById('btn-strat-mech').onclick = function(){ runStrategyFit('mech'); };
+
+// ════════════════════════════════════════════════════════════════
+// RESPONSIVE: redraw active tab's plots on window resize / rotate
+// ════════════════════════════════════════════════════════════════
+// Canvases size themselves to their container via getBoundingClientRect,
+// so when the viewport changes we need to redraw the active tab. Debounced
+// via rAF to avoid thrashing while the user drags the window edge.
+let _resizeRAF = null;
+function scheduleResponsiveRedraw() {
+    if (_resizeRAF) cancelAnimationFrame(_resizeRAF);
+    _resizeRAF = requestAnimationFrame(() => {
+        _resizeRAF = null;
+        if (dataGenerated) refreshActiveTab();
+    });
+}
+window.addEventListener('resize', scheduleResponsiveRedraw);
+// iOS Safari quirk: orientationchange fires before layout settles; delay a bit.
+window.addEventListener('orientationchange', () => {
+    setTimeout(scheduleResponsiveRedraw, 200);
+});
+
+// ════════════════════════════════════════════════════════════════
+// INITIALIZATION
+// ════════════════════════════════════════════════════════════════
+window.addEventListener('load', function() {
+    generateAndFit();
+});
+</script>
+</body>
+</html>

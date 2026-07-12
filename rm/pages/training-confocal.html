@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confocal (Nikon AX-R) — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; <span>Prerequisite: <a href="/rm/pages/training-microscope-basics.html">Microscope basics</a> sign-off</span>
+        </div>
+        <h1 class="training-module-title">Confocal Microscopy — Nikon AX-R</h1>
+        <p class="training-module-subtitle">
+          Pinhole sectioning, resonant vs. galvo scan modes, lasers and detectors,
+          Nyquist Z-stacks, photobleaching budgets, and a printable session-plan
+          worksheet for the AX-R.
+        </p>
+      </header>
+
+      <nav class="tab-bar" role="tablist">
+        <button class="tab-btn active" data-tab="tab-pinhole"   role="tab" aria-selected="true">1. Pinhole</button>
+        <button class="tab-btn"        data-tab="tab-scan"      role="tab">2. Scan Modes</button>
+        <button class="tab-btn"        data-tab="tab-lasers"    role="tab">3. Lasers &amp; Detectors</button>
+        <button class="tab-btn"        data-tab="tab-zstack"    role="tab">4. Z-Stacks</button>
+        <button class="tab-btn"        data-tab="tab-bleach"    role="tab">5. Photobleaching</button>
+        <button class="tab-btn"        data-tab="tab-session"   role="tab">6. Session Worksheet</button>
+      </nav>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 1 — Pinhole / Optical Sectioning                       -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-pinhole" class="tab-content active" role="tabpanel">
+        <div class="background-section">
+          <h2>1. Why confocal: the pinhole</h2>
+          <p>
+            A widefield fluorescence image of a 200 μm spheroid is dominated
+            by out-of-focus blur — every plane above and below your focal
+            plane contributes signal. The confocal pinhole rejects that
+            out-of-plane light, leaving you with a clean optical section.
+            That's it. That's the whole reason this scope exists.
+          </p>
+
+          <h3>The Airy Unit (AU)</h3>
+          <p>
+            Pinhole diameter is measured in Airy Units. <strong>1 AU</strong>
+            is the diameter of the Airy disk projected to the pinhole plane —
+            it's the natural scale for "how much in-focus light to keep."
+          </p>
+          <div class="equation-box"><span class="lhs">section thickness</span> ≈ √[ (0.88 · λ_em / (n − √(n² − NA²)))² + (√2 · n · pinhole_AU / NA)² ]</div>
+          <p>
+            Don't memorize this — just hold the intuition: smaller pinhole →
+            thinner optical section <em>and</em> less light. The choice is a
+            real trade-off, not a single right answer.
+          </p>
+
+          <h3>Practical rule of thumb on the AX-R</h3>
+          <ul>
+            <li><strong>1 AU</strong> — the canonical "best of both worlds" setting. Use this unless you have a reason not to.</li>
+            <li><strong>&lt; 1 AU</strong> — thinner section, but you start losing real signal — usable only on bright samples.</li>
+            <li><strong>&gt; 1 AU</strong> — better SNR at the cost of axial resolution. Useful for dim live samples where you must collect more photons.</li>
+            <li><strong>Wide open</strong> — you've turned a confocal into a widefield. Sometimes intentional (rapid live screening); often a mistake.</li>
+          </ul>
+
+          <div class="worked-example">
+            <strong>Worked example.</strong> Imaging GFP (λ_em ≈ 510 nm) with
+            the 25×/1.1 water objective at 1 AU yields an optical section of
+            ~0.6 μm — about 10× thinner than the equivalent widefield image
+            of the same spheroid plane.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>The two canvases below show the same spheroid: widefield on the left, confocal on the right.</li>
+            <li>Start with pinhole = 1 AU. The right-hand panel should look like a clean optical section.</li>
+            <li>Drag the pinhole to 5 AU. The right-hand panel collapses toward the widefield look — you've widened past usefulness.</li>
+            <li>Drag the pinhole below 0.7 AU. The signal collapses — the section is thinner but you've discarded most of the photons.</li>
+            <li>Set pinhole = 1 AU on a final read and move on.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="ph-au">Pinhole diameter</label>
+              <input type="range" id="ph-au" min="0.3" max="5.0" step="0.1" value="1.0">
+              <div class="ctrl-readout"><span class="v" id="ph-au-out">1.0</span> AU</div>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">Optical section thickness</span><span class="value" id="ph-thick">— μm</span></div>
+              <div class="stat-row"><span class="label">Relative signal (vs 1 AU)</span><span class="value" id="ph-signal">— ×</span></div>
+              <div class="stat-row"><span class="label">Out-of-plane rejection</span><span class="value" id="ph-rejection">—</span></div>
+              <div class="stat-row"><span class="label">Verdict</span><span class="value" id="ph-status">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="chart-row">
+              <div class="canvas-wrap">
+                <div class="canvas-title">Widefield (no pinhole) — reference</div>
+                <canvas id="canvas-widefield" width="300" height="260"></canvas>
+              </div>
+              <div class="canvas-wrap">
+                <div class="canvas-title">Confocal at current pinhole</div>
+                <canvas id="canvas-confocal" width="300" height="260"></canvas>
+              </div>
+            </div>
+            <div class="val-verdict" id="ph-verdict" role="status" aria-live="polite">
+              Move the pinhole slider to see the trade-off.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 2 — Scan modes: resonant vs galvo                       -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-scan" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>2. Scan modes — resonant vs. galvo</h2>
+          <p>
+            The AX-R scans the laser beam across the sample with two mirrors.
+            "Galvo" mode drives them at slow, controlled angles for the
+            highest fidelity per pixel; "resonant" mode oscillates one mirror
+            at its mechanical resonance (~30 fps) for fast live imaging.
+            They are good at different problems.
+          </p>
+
+          <h3>The trade-off</h3>
+          <ul>
+            <li><strong>Galvo</strong> — long pixel dwell time → more photons per pixel → high SNR; slow (typically &lt; 1 fps for a 1024×1024 frame).</li>
+            <li><strong>Resonant</strong> — short pixel dwell → fewer photons → noisier individual frames; but you can run at 30+ fps and average many frames in software to recover SNR.</li>
+          </ul>
+
+          <h3>Frame averaging</h3>
+          <p>
+            Averaging N frames divides noise by √N. Resonant + N=16 averaging
+            is the lab's default for "looks like galvo but you can still see
+            live dynamics on the screen while you're acquiring."
+          </p>
+
+          <div class="worked-example">
+            <strong>Decision rule.</strong>
+            Fixed-cell archival 3-D Z-stack → <strong>galvo</strong>.
+            Live-cell dynamics where motion is faster than ~1 second per frame
+            → <strong>resonant</strong>. Anything in between → start resonant
+            with N=8 averaging and back off if the cells are dying.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Toggle between Galvo and Resonant — note how noisy the single-frame resonant view is.</li>
+            <li>Increase the averaging slider in Resonant mode and watch noise drop toward the Galvo image quality.</li>
+            <li>Note the per-frame time: even with N=16 averaging, resonant gets you ~0.5 s per averaged frame; galvo would be ~8 s for the same image.</li>
+            <li>Pick the mode you'd use for a 30-minute live-cell time-lapse with cells migrating ~1 μm/min. Then pick the mode for a 4-color fixed-spheroid Z-stack.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Mode:</span>
+          <button class="scen-btn scan-btn active" data-mode="galvo">Galvo (slow, clean)</button>
+          <button class="scen-btn scan-btn"        data-mode="resonant">Resonant (fast, noisy)</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="scan-avg">Frame averaging</label>
+              <input type="range" id="scan-avg" min="1" max="32" step="1" value="1">
+              <div class="ctrl-readout">N = <span class="v" id="scan-avg-out">1</span></div>
+            </div>
+            <div class="stats">
+              <h4>This config</h4>
+              <div class="stat-row"><span class="label">Scan mode</span><span class="value" id="scan-mode">galvo</span></div>
+              <div class="stat-row"><span class="label">Per-pixel dwell</span><span class="value" id="scan-dwell">—</span></div>
+              <div class="stat-row"><span class="label">Per averaged frame</span><span class="value" id="scan-time">— s</span></div>
+              <div class="stat-row"><span class="label">SNR (relative)</span><span class="value" id="scan-snr">— ×</span></div>
+              <div class="stat-row"><span class="label">Relative bleach/frame</span><span class="value" id="scan-bleach">— ×</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Single cell at current scan + averaging</div>
+              <canvas id="canvas-scan" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="scan-verdict" role="status" aria-live="polite">
+              Pick a mode and averaging to see the SNR / speed / bleach trade-off.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 3 — Lasers + Detectors                                  -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-lasers" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>3. Laser lines &amp; the spectral detector</h2>
+          <p>
+            The AX-R has a 4-line laser turret (405 / 488 / 561 / 640 nm) and
+            a tunable spectral detector. Each fluorophore in your sample
+            needs a laser to excite it and a detector window to collect its
+            emission. Overlapping emission bands cause <em>crosstalk</em> — a
+            second fluorophore's signal bleeding into your channel of
+            interest. Sequential acquisition (not all-at-once) is the
+            standard cure.
+          </p>
+
+          <h3>What couples with what</h3>
+          <ul>
+            <li><strong>405 nm</strong> → DAPI, Hoechst (nuclei)</li>
+            <li><strong>488 nm</strong> → GFP, Alexa-488, Phalloidin-488</li>
+            <li><strong>561 nm</strong> → mCherry, RFP, Alexa-568, mScarlet</li>
+            <li><strong>640 nm</strong> → Alexa-647, Cy5, mIFP</li>
+          </ul>
+
+          <h3>The crosstalk failure modes</h3>
+          <ul>
+            <li>DAPI (Em max ~460 nm) is broad — its tail leaks into the 488 detection window.</li>
+            <li>GFP (Em max ~510 nm) has a long red tail that bleeds into the 561 channel if you collect too wide a band.</li>
+            <li>mCherry (Em max ~610 nm) tails into far-red — usually less severe but watch it on bright samples.</li>
+          </ul>
+
+          <div class="worked-example">
+            <strong>Decision rule.</strong> Always acquire DAPI sequentially —
+            its blue emission is too broad to share a frame with 488. GFP +
+            mCherry can usually be acquired together if you keep the 488
+            collection window tight (500–540 nm). 488 + 640 are spectrally
+            separated enough to be safe simultaneous.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Toggle each fluorophore in the panel below. Note where each fluorophore's emission peak falls on the spectrum.</li>
+            <li>Enable DAPI + GFP simultaneously and look at the crosstalk warning.</li>
+            <li>Enable GFP + mCherry — the warning should fire if the collection bands overlap. Try narrowing the 488 collection window to fix it.</li>
+            <li>The standard lab 4-color spheroid (DAPI + Phalloidin-488 + Anti-Target-561 + Anti-Target2-640) is safe with sequential acquisition. Verify the warning panel agrees.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label>Fluorophores in sample</label>
+              <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="dye-dapi" checked> DAPI (Em ~460 nm)</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="dye-gfp"  checked> GFP / AF488 (Em ~510)</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="dye-mch"  checked> mCherry / AF568 (Em ~610)</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="dye-af647" checked> AF647 / Cy5 (Em ~670)</label>
+              </div>
+            </div>
+            <div class="ctrl-group">
+              <label for="acq-mode">Acquisition</label>
+              <select id="acq-mode">
+                <option value="seq" selected>Sequential (per-channel)</option>
+                <option value="sim">Simultaneous (all at once)</option>
+              </select>
+            </div>
+            <div class="stats">
+              <h4>Crosstalk check</h4>
+              <div class="stat-row"><span class="label">Worst-case pair</span><span class="value" id="ct-worst">—</span></div>
+              <div class="stat-row"><span class="label">Estimated bleed</span><span class="value" id="ct-bleed">— %</span></div>
+              <div class="stat-row"><span class="label">Status</span><span class="value" id="ct-status">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Emission spectra of enabled fluorophores</div>
+              <canvas id="canvas-spectra" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="laser-verdict" role="status" aria-live="polite">
+              Pick fluorophores and an acquisition mode to see whether your channels can coexist.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 4 — Z-Stacks (Nyquist in Z)                             -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-zstack" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>4. Z-stacks &amp; Nyquist in Z</h2>
+          <p>
+            Acquiring a Z-stack is the confocal's superpower — you build the
+            3-D volume one optical section at a time. The question is always:
+            <em>how thick should each step be?</em> Too thick and you alias;
+            too thin and you waste photons and time.
+          </p>
+
+          <h3>The Nyquist rule</h3>
+          <div class="equation-box"><span class="lhs">Δz_Nyquist</span> ≈ λ_em / (2 · NA² · n)</div>
+          <p>
+            For our 25×/1.1 water objective imaging GFP at 510 nm:
+            <code>Δz ≈ 510 / (2 · 1.21 · 1.33) ≈ 159 nm</code>. A 20 μm
+            spheroid needs <strong>~125 slices</strong> at Nyquist.
+          </p>
+
+          <h3>When to deviate</h3>
+          <ul>
+            <li><strong>Survey scan / live cell</strong> — 2× under-sample is fine; you halve the photon dose and the time.</li>
+            <li><strong>Deconvolution / quantitative</strong> — stay at Nyquist or slightly tighter; deconvolution can't recover what wasn't sampled.</li>
+            <li><strong>Going thinner than Nyquist</strong> — almost never useful; bigger file, longer scan, no new information.</li>
+          </ul>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Pick an objective (the AX-R workhorses are 25×/1.1 and 40×/1.3).</li>
+            <li>Pick a wavelength — GFP at 510 nm is the canonical reference.</li>
+            <li>Set a total stack depth (try 20 μm for a spheroid slab).</li>
+            <li>Toggle through Nyquist, 2× under, and 2× over sampling. Note the time / file size / slice-count consequences.</li>
+            <li>For the 200 μm spheroid Z-stack you defined in the V3.164 capstone, compute the slice count at Nyquist.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="z-obj">Objective</label>
+              <select id="z-obj">
+                <option value="25_110" selected>25× / NA 1.1 water (AX-R workhorse)</option>
+                <option value="40_130">40× / NA 1.3 oil</option>
+                <option value="60_140">60× / NA 1.4 oil</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="z-lambda">Emission λ</label>
+              <select id="z-lambda">
+                <option value="450">DAPI ~450 nm</option>
+                <option value="510" selected>GFP ~510 nm</option>
+                <option value="595">mCherry ~595 nm</option>
+                <option value="670">AF647 ~670 nm</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="z-depth">Total stack depth (μm)</label>
+              <input type="number" id="z-depth" min="5" max="500" step="5" value="20">
+            </div>
+            <div class="ctrl-group">
+              <label>Sampling</label>
+              <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="radio" name="z-samp" value="0.5"> 2× under (coarser)</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="radio" name="z-samp" value="1" checked> Nyquist</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="radio" name="z-samp" value="2"> 2× over (finer)</label>
+              </div>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">Δz Nyquist</span><span class="value" id="z-nyquist">— nm</span></div>
+              <div class="stat-row"><span class="label">Δz chosen</span><span class="value" id="z-step">— nm</span></div>
+              <div class="stat-row"><span class="label">Slice count</span><span class="value" id="z-count">—</span></div>
+              <div class="stat-row"><span class="label">Estimated scan time</span><span class="value" id="z-time">— s</span></div>
+              <div class="stat-row"><span class="label">Estimated file size</span><span class="value" id="z-size">— MB</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Z-stack sampling (XZ profile of a single bead)</div>
+              <canvas id="canvas-zstack" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="z-verdict" role="status" aria-live="polite">
+              Pick objective + wavelength + depth + sampling to see the result.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 5 — Photobleaching                                      -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-bleach" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>5. Photobleaching &amp; phototoxicity</h2>
+          <p>
+            Every photon you collect from a fluorophore costs you photons of
+            excitation, and many of those excitations destroy the dye
+            (bleaching) or damage the cell (phototoxicity). Phototoxicity
+            ≠ bleaching, but tracks it — if you're bleaching aggressively,
+            you're also irradiating the cells.
+          </p>
+
+          <h3>The dose model</h3>
+          <div class="equation-box"><span class="lhs">dose</span> ∝ laser_power × dwell_per_pixel × N_passes</div>
+          <p>
+            Bleaching falls off roughly exponentially with cumulative dose.
+            What matters is not "is this exposure dangerous" but "what is the
+            <em>total</em> dose by the time I'm done."
+          </p>
+
+          <h3>Live-cell tells</h3>
+          <ul>
+            <li>Membrane blebbing, retraction, rounding-up over time.</li>
+            <li>Stalled migration that resumes when you stop imaging.</li>
+            <li>Mitotic arrest — cells in mitosis at exposure are exquisitely sensitive.</li>
+            <li>The "looks fine now" trap — bright cells now ≠ alive 2 hours from now.</li>
+          </ul>
+
+          <div class="worked-example">
+            <strong>Practical workflow.</strong> Scan a sacrificial corner of
+            the sample first — burn through it at your planned dose to confirm
+            bleaching is acceptable. Favor lower laser + higher detector gain
+            (HV). Never assume the first frame's brightness is sustainable.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Start at the default dose (laser 10%, dwell 2.0 μs, 80 frames).</li>
+            <li>Watch the bleach curve. The viability badge tells you whether the cells would survive this dose.</li>
+            <li>Crank laser power to 50%. Watch viability fall off a cliff.</li>
+            <li>Drop laser to 5% and double the dwell time. Same total dose? Look at the curve.</li>
+            <li>For your real experiment, the question is always: what's the <em>minimum</em> dose that gives you usable SNR?</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="b-laser">Laser power (%)</label>
+              <input type="range" id="b-laser" min="1" max="100" step="1" value="10">
+              <div class="ctrl-readout"><span class="v" id="b-laser-out">10</span>%</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="b-dwell">Dwell time per pixel (μs)</label>
+              <input type="range" id="b-dwell" min="0.2" max="10" step="0.1" value="2.0">
+              <div class="ctrl-readout"><span class="v" id="b-dwell-out">2.0</span> μs</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="b-frames">Total frames in experiment</label>
+              <input type="range" id="b-frames" min="1" max="500" step="1" value="80">
+              <div class="ctrl-readout"><span class="v" id="b-frames-out">80</span> frames</div>
+            </div>
+            <div class="stats">
+              <h4>Estimated dose</h4>
+              <div class="stat-row"><span class="label">Relative dose</span><span class="value" id="b-dose">—</span></div>
+              <div class="stat-row"><span class="label">Final signal fraction</span><span class="value" id="b-signal">— %</span></div>
+              <div class="stat-row"><span class="label">Bleach half-life</span><span class="value" id="b-half">— frames</span></div>
+              <div class="stat-row"><span class="label">Viability</span><span class="value" id="b-viability">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Signal vs. frame (decay curve)</div>
+              <canvas id="canvas-bleach" width="600" height="260"></canvas>
+            </div>
+            <div class="val-verdict" id="bleach-verdict" role="status" aria-live="polite">
+              Adjust the dose controls to see how the signal and the cells respond.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 6 — Capstone: AX-R session worksheet                    -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-session" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>6. Capstone — AX-R session plan</h2>
+          <p>
+            <strong>Scenario:</strong> A 100 μm tumor spheroid, fixed and mounted,
+            stained with DAPI + Phalloidin-AF488 + Anti-Target-AF647. You're
+            collecting a full 3-D volume for a paper figure. Build a session
+            plan below and print it for your AX-R session.
+          </p>
+          <p>
+            This worksheet doesn't lock you into anything — it captures the
+            choices so you walk to the scope with a plan instead of fiddling
+            knobs at 9 PM the night before a deadline.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>Build the plan</h3>
+          <ol>
+            <li>Pick scan mode based on the live/fixed nature and the dose budget.</li>
+            <li>Pick pinhole based on signal level and section thickness need.</li>
+            <li>Pick lasers / sequential vs simultaneous to avoid crosstalk (Tab 3).</li>
+            <li>Pick Δz to meet Nyquist (or deliberately under-sample for survey).</li>
+            <li>Hit the photobleaching estimator and confirm the cumulative dose is survivable.</li>
+            <li>Print the resulting sheet and bring it to your session.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="se-scan">Scan mode</label>
+              <select id="se-scan">
+                <option value="">— pick one —</option>
+                <option value="galvo">Galvo</option>
+                <option value="resonant">Resonant (averaged)</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="se-pinhole">Pinhole (AU)</label>
+              <select id="se-pinhole">
+                <option value="">— pick one —</option>
+                <option value="0.5">0.5 AU (thin section, bright samples only)</option>
+                <option value="1.0" selected>1.0 AU (default)</option>
+                <option value="2.0">2.0 AU (more signal, thicker section)</option>
+                <option value="5.0">5.0 AU (~widefield)</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="se-acq">Acquisition</label>
+              <select id="se-acq">
+                <option value="">— pick one —</option>
+                <option value="seq">Sequential (per channel)</option>
+                <option value="sim">Simultaneous</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="se-dz">Z step (nm)</label>
+              <input type="number" id="se-dz" min="50" max="2000" step="10" value="200">
+              <div class="ctrl-readout">Nyquist for AX-R + GFP ≈ <span class="v">160 nm</span>; choose ≤ ~1.3× this for quantitative.</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="se-laser">Total laser dose (relative)</label>
+              <input type="range" id="se-laser" min="1" max="100" step="1" value="30">
+              <div class="ctrl-readout"><span class="v" id="se-laser-out">30</span> (combined power × dwell × frames)</div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="val-verdict" id="se-verdict" role="status" aria-live="polite">
+              Fill in the controls to see the per-choice critique.
+            </div>
+            <div class="signoff-sheet" id="se-signoff" style="display:none;">
+              <h3>AX-R session plan</h3>
+              <div class="signoff-row"><span class="label">Sample</span><span class="value">100 μm spheroid, DAPI + AF488 + AF647</span></div>
+              <div class="signoff-row"><span class="label">Scan mode</span><span class="value" id="ss2-scan">—</span></div>
+              <div class="signoff-row"><span class="label">Pinhole</span><span class="value" id="ss2-pinhole">—</span></div>
+              <div class="signoff-row"><span class="label">Acquisition</span><span class="value" id="ss2-acq">—</span></div>
+              <div class="signoff-row"><span class="label">Z step / slice count</span><span class="value" id="ss2-dz">—</span></div>
+              <div class="signoff-row"><span class="label">Dose budget</span><span class="value" id="ss2-dose">—</span></div>
+              <div class="signoff-row"><span class="label">Date</span><span class="value" id="ss2-date">—</span></div>
+              <div class="signoff-row"><span class="label">Trainee</span><span class="value">________________________</span></div>
+              <div class="signoff-pass" id="ss2-pass" style="display:none;">✅ Plan is internally consistent. Bring this to your AX-R session.</div>
+              <div class="signoff-fail" id="ss2-fail" style="display:none;">❌ Fix the critiques above before you book the scope.</div>
+              <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">Print this page (browser <kbd>Cmd/Ctrl + P</kbd>) and bring it to the AX-R.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight">
+          <strong>You finished the confocal training.</strong> Once you've
+          done a full session under supervision and produced a quantifiable
+          dataset, ask Alex to mark you cleared for independent AX-R use.
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-confocal.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "paper-compile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloud Run service that compiles a paper bundle to PDF via Tectonic.",
+  "main": "server.js",
+  "engines": { "node": "20" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "firebase-admin": "^12.5.0"
+  }
+}

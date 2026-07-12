@@ -53,6 +53,47 @@ service cloud.firestore {
       );
     }
 
+    // V3.212 — collaborator data-layer gate. Used by V3.211+ rule
+    // clauses to restrict collaborator access to collections their
+    // admin has explicitly granted via the page-allow matrix.
+    //
+    // isCollaborator() reads users/{uid} — the same doc isLabMember()
+    // and isAdmin() already read, so the get() is deduped within the
+    // same rule evaluation (no extra read cost).
+    //
+    // collabMay(coll) reads userPermissions/{uid}.allowedCollections,
+    // which admin-permissions.js denormalizes from allowedPageIds via
+    // the rm/js/page-collections.js mapping. 1 net new get() per
+    // evaluation. Non-collaborators short-circuit on !isCollaborator()
+    // so the userPermissions read only happens for collaborators.
+    //
+    // Both helpers are intentionally lightweight; V3.212 ships them
+    // alone (no rule clause uses them yet). V3.213/V3.214 add
+    // `&& collabMay('<coll>')` clauses to actual reads.
+    function isCollaborator() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.category == 'collaborator';
+    }
+
+    function collabMay(coll) {
+      return !isCollaborator() ||
+        (exists(/databases/$(database)/documents/userPermissions/$(request.auth.uid)) &&
+         coll in get(/databases/$(database)/documents/userPermissions/$(request.auth.uid)).data.get('allowedCollections', []));
+    }
+
+    // V3.243 — mentor relationship gate. Admin assigns mentors via the
+    // permissions page; the mentee's profile carries `mentor_uids: string[]`.
+    // Mentors get the same cross-user PMR access an admin has (read +
+    // comment + assign tasks; cannot edit the mentee's barriers / weekly
+    // entries / projects — the client enforces that via isReadOnlyView()).
+    // One get() per evaluation; only called from PMR rule blocks.
+    function isMentorOf(menteeUid) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(menteeUid)) &&
+        get(/databases/$(database)/documents/users/$(menteeUid)).data.get('mentor_uids', []).hasAny([request.auth.uid]);
+    }
+
     // Helper: check if the requesting user can write annotations/claims
     // (the broader "lab contributor" tier). Admins, full extension members,
     // AND edit-only guests on the labConfig/guestEditors allowlist all
@@ -70,10 +111,67 @@ service cloud.firestore {
       );
     }
 
-    // Users — public read (team page needs this), own profile or admin write
+    // V3.135 — first author of a paper item. Used by the items/{itemId}
+    // update rule for paper items: only first authors and admins may edit
+    // metadata or personnel on a paper. Returns false when the doc has no
+    // first_author_uids field, when the field is empty, or when the
+    // signed-in user's uid isn't in the array. Note: the Firestore `in`
+    // operator on a list returns false (rather than throwing) when the
+    // list is missing — but to be explicit, we still guard the existence
+    // and field-presence checks before the membership test.
+    function isFirstAuthor(itemId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/items/$(itemId)) &&
+        get(/databases/$(database)/documents/items/$(itemId)).data.first_author_uids != null &&
+        request.auth.uid in get(/databases/$(database)/documents/items/$(itemId)).data.first_author_uids;
+    }
+
+    // V3.302 — publish gate for public-site content (stories, newsPosts,
+    // projectPackages). Mirrors the client's Auth.canPublish(): only
+    // admins and editors may write status:'published'. Everyone else is
+    // limited to the review-flow statuses. Reads users/{uid} — the same
+    // doc isAdmin()/isLabMember() read, so the get() is deduped within a
+    // rule evaluation.
+    function canPublishContent() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'editor'];
+    }
+
+    // True when the written doc's status stays inside the non-public
+    // review flow. 'changes-requested' (V3.302) is set by admins on
+    // review but harmless for authors to carry through re-saves.
+    function statusIsUnpublished() {
+      return request.resource.data.get('status', 'draft') in ['draft', 'pending', 'changes-requested'];
+    }
+
+    // Users — public read (team page needs this), own profile or admin write.
+    //
+    // V3.304 — role hardening. `role` is the capability axis every gate in
+    // the system trusts (isAdmin, isLabMember, the RM overlay), and the old
+    // blanket owner-write let any signed-in user set role:'admin' on their
+    // own doc. Now that external teachers/students are invited in at scale,
+    // owners may no longer touch `role`:
+    //   - create must land as role 'guest' UNLESS the doc carries a valid
+    //     admin-issued inviteToken whose invitation grants that role (the
+    //     email/password register flow stamps inviteToken on the profile);
+    //   - update must keep `role` unchanged.
+    // `category` stays owner-writable on purpose — self-identifying as
+    // teacher/student grants no capabilities (those come from schedules
+    // ownership + enrollments membership).
     match /users/{userId} {
       allow read:  if true;
-      allow write: if request.auth.uid == userId || isAdmin();
+      allow create: if isAdmin()
+                    || (request.auth != null && request.auth.uid == userId
+                        && (request.resource.data.get('role', 'guest') == 'guest'
+                            || (request.resource.data.get('inviteToken', '') != ''
+                                && exists(/databases/$(database)/documents/invitations/$(request.resource.data.inviteToken))
+                                && get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteToken)).data.get('used', true) == false
+                                && get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteToken)).data.get('role', 'contributor') == request.resource.data.get('role', 'guest'))));
+      allow update: if isAdmin()
+                    || (request.auth != null && request.auth.uid == userId
+                        && request.resource.data.get('role', 'guest') == resource.data.get('role', 'guest'));
+      allow delete: if isAdmin()
+                    || (request.auth != null && request.auth.uid == userId);
 
       // Push notification tokens — owner only
       match /pushTokens/{tokenId} {
@@ -87,14 +185,19 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
-    // Stories — public reads for published, owner or admin for writes
+    // Stories — public reads for published, owner or admin for writes.
+    // V3.302: writing status:'published' requires canPublishContent();
+    // contributors are confined to draft/pending/changes-requested so the
+    // client-side review flow can't be bypassed with a direct write.
     match /stories/{storyId} {
       allow read: if resource.data.status == 'published'
                   || (request.auth != null && request.auth.uid == resource.data.authorUid)
                   || isAdmin();
-      allow create: if request.auth != null;
+      allow create: if request.auth != null &&
+                    (statusIsUnpublished() || canPublishContent());
       allow update: if request.auth != null &&
-                    (request.auth.uid == resource.data.authorUid || isAdmin());
+                    (request.auth.uid == resource.data.authorUid || isAdmin()) &&
+                    (statusIsUnpublished() || canPublishContent());
       allow delete: if request.auth != null &&
                     (request.auth.uid == resource.data.authorUid || isAdmin());
     }
@@ -127,14 +230,17 @@ service cloud.firestore {
                     && request.resource.data.registeredUid == request.auth.uid;
     }
 
-    // Project packages — public reads for published, owner or admin for writes
+    // Project packages — public reads for published, owner or admin for
+    // writes. V3.302: same publish gate as stories/newsPosts.
     match /projectPackages/{projectId} {
       allow read: if resource.data.status == 'published'
                   || (request.auth != null && request.auth.uid == resource.data.authorUid)
                   || isAdmin();
-      allow create: if request.auth != null;
+      allow create: if request.auth != null &&
+                    (statusIsUnpublished() || canPublishContent());
       allow update: if request.auth != null &&
-                    (request.auth.uid == resource.data.authorUid || isAdmin());
+                    (request.auth.uid == resource.data.authorUid || isAdmin()) &&
+                    (statusIsUnpublished() || canPublishContent());
       allow delete: if request.auth != null &&
                     (request.auth.uid == resource.data.authorUid || isAdmin());
     }
@@ -145,16 +251,34 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // News posts — public reads for published, owner or admin for writes
+    // News posts — public reads for published, owner or admin for writes.
+    // V3.302: same publish gate as stories.
     match /newsPosts/{postId} {
       allow read: if resource.data.status == 'published'
                   || (request.auth != null && request.auth.uid == resource.data.authorUid)
                   || isAdmin();
-      allow create: if request.auth != null;
+      allow create: if request.auth != null &&
+                    (statusIsUnpublished() || canPublishContent());
       allow update: if request.auth != null &&
-                    (request.auth.uid == resource.data.authorUid || isAdmin());
+                    (request.auth.uid == resource.data.authorUid || isAdmin()) &&
+                    (statusIsUnpublished() || canPublishContent());
       allow delete: if request.auth != null &&
                     (request.auth.uid == resource.data.authorUid || isAdmin());
+    }
+
+    // V3.301 — Saved visualization views (Data Visualizations section).
+    // Public read: view configs + poster URLs render on public pages
+    // (stories/news embeds, #/data gallery). Create by lab members
+    // (contributor+ via isLabMember(); guests blocked) with createdBy
+    // pinned to the caller; update/delete by creator or admin.
+    match /vizViews/{viewId} {
+      allow read:   if true;
+      allow create: if isLabMember()
+                    && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isLabMember()
+                    && (request.auth.uid == resource.data.createdBy || isAdmin());
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.createdBy || isAdmin());
     }
 
     // Comments — public read, authenticated create, own or admin delete
@@ -185,12 +309,80 @@ service cloud.firestore {
     }
 
     // Schedules — reusable schedule definitions (classes, events, reviews, etc.)
-    // Public read so schedule pages render; owner or admin manages lifecycle
+    // Public read so schedule pages render; owner, admin, or class admin
+    // manages lifecycle. Class admins are listed by email in
+    // `resource.data.classAdminEmails` (V3.247 — currently used by BME 295C
+    // to delegate roster/editing rights to two assistants without granting
+    // global admin role).
     match /schedules/{scheduleId} {
       allow read:  if true;
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null
-                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+      // V3.304 — teacher-class instances (kind:'teacher-class', provisioned
+      // by admin from a classRequest) pin the admin-granted fields: the
+      // owning teacher may edit their class but cannot expand grantedFolders,
+      // reassign ownership, or shed the kind marker. Docs without `kind`
+      // (the lab's own classes) short-circuit on the first clause and keep
+      // the old behavior exactly.
+      allow update: if request.auth != null
+                    && (isAdmin()
+                        || (request.auth.uid == resource.data.ownerUid
+                            && (resource.data.get('kind', '') != 'teacher-class'
+                                || (request.resource.data.get('kind', '') == 'teacher-class'
+                                    && request.resource.data.get('grantedFolders', []) == resource.data.get('grantedFolders', [])
+                                    && request.resource.data.ownerUid == resource.data.ownerUid)))
+                        || (request.auth.token.email != null
+                            && request.auth.token.email in resource.data.get('classAdminEmails', [])));
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.ownerUid
+                        || isAdmin()
+                        || (request.auth.token.email != null
+                            && request.auth.token.email in resource.data.get('classAdminEmails', [])));
+
+      // V3.244 — group response submissions for class-specific discussion
+      // assignments (BME 295C). Doc id is `${campus}-${groupNumber}-${speakerSlug}`.
+      // Public read so admin + classmates can see responses; any signed-in
+      // user can write. Client-side gates editing to the matching group
+      // members; this is acceptable trust for a 1-week summer course.
+      match /groupResponses/{responseId} {
+        allow read:  if true;
+        allow create, update: if request.auth != null;
+        allow delete: if isAdmin();
+      }
+
+      // V3.251 — Live Q&A chat for BME 295C. Any signed-in user can read
+      // + post; students cannot edit/delete their own posts after the
+      // fact (keeps the conversation honest + the rule simple). Admins
+      // (global or class admin via classAdminEmails) can mark questions
+      // answered or delete inappropriate messages.
+      match /classQA/{messageId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+                      && request.resource.data.authorUid == request.auth.uid;
+        allow update, delete: if request.auth != null
+                      && (isAdmin()
+                          || (request.auth.token.email != null
+                              && request.auth.token.email in get(/databases/$(database)/documents/schedules/$(scheduleId)).data.get('classAdminEmails', [])));
+      }
+
+      // V3.286 — end-of-course assessment, per-student doc keyed by uid.
+      // Stricter than groupResponses (which is publicly readable) because
+      // free-text feedback is sensitive. A student can read + write ONLY
+      // their own doc. Admins (global isAdmin OR class admin via
+      // classAdminEmails on the schedule doc) can read all docs to view
+      // the aggregated feedback; only global admin can delete.
+      // The `lastEditedBy == auth.uid` paranoid check on writes prevents
+      // spoofing the audit field.
+      match /assessments/{uid} {
+        allow read: if request.auth != null
+                    && (request.auth.uid == uid
+                        || isAdmin()
+                        || (request.auth.token.email != null
+                            && request.auth.token.email in get(/databases/$(database)/documents/schedules/$(scheduleId)).data.get('classAdminEmails', [])));
+        allow create, update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.lastEditedBy == request.auth.uid;
+        allow delete: if isAdmin();
+      }
     }
 
     // Participants — linked to a schedule via scheduleId field
@@ -221,6 +413,115 @@ service cloud.firestore {
       allow read:   if true;
       allow create: if request.auth != null;
       allow update, delete: if isAdmin();
+    }
+
+    // ── V3.304 — external teacher/student platform ──
+    //
+    // Teachers and students keep role:'guest' (RM stays sealed); all class
+    // capabilities flow from schedules.ownerUid + enrollments membership.
+
+    // Class requests — a teacher's application to run a class with the lab's
+    // modules. Teacher creates pending and may edit/withdraw while pending;
+    // admin decides (status flip + scheduleId stamp happen via admin panel).
+    match /classRequests/{requestId} {
+      allow read: if isAdmin()
+                  || (request.auth != null && resource.data.teacherUid == request.auth.uid);
+      allow create: if request.auth != null
+                    && request.resource.data.teacherUid == request.auth.uid
+                    && request.resource.data.status == 'pending';
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.teacherUid == request.auth.uid
+                        && resource.data.status == 'pending'
+                        && request.resource.data.status == 'pending'
+                        && request.resource.data.teacherUid == request.auth.uid);
+      allow delete: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.teacherUid == request.auth.uid
+                        && resource.data.status == 'pending');
+    }
+
+    // Join codes — doc id IS the code (6 chars). Codes cannot live on the
+    // public-read schedules doc, so they get their own lookup collection.
+    // `get` by exact code is the student enrollment path; `list` is
+    // owner/admin-only so codes stay secret.
+    match /joinCodes/{code} {
+      allow get: if request.auth != null;
+      allow list: if isAdmin()
+                  || (request.auth != null && resource.data.teacherUid == request.auth.uid);
+      allow create: if isAdmin()
+                    || (request.auth != null
+                        && request.resource.data.teacherUid == request.auth.uid
+                        && get(/databases/$(database)/documents/schedules/$(request.resource.data.scheduleId)).data.ownerUid == request.auth.uid);
+      allow update, delete: if isAdmin()
+                    || (request.auth != null && resource.data.teacherUid == request.auth.uid);
+    }
+
+    // Enrollments — one doc per (class, student); id MUST be
+    // `${scheduleId}_${studentUid}` so "am I enrolled" is a single get and
+    // students never need `list`. Create is self-service, gated on a live
+    // join code — this is the rules-only replacement for a Cloud Function.
+    // (The repeated get()s of the same joinCodes doc dedupe to one read.)
+    match /enrollments/{enrollmentId} {
+      allow read: if request.auth != null
+                  && (isAdmin()
+                      || resource.data.studentUid == request.auth.uid
+                      || resource.data.teacherUid == request.auth.uid);
+      allow create: if request.auth != null
+                    && request.resource.data.studentUid == request.auth.uid
+                    && enrollmentId == request.resource.data.scheduleId + '_' + request.auth.uid
+                    && request.resource.data.status == 'active'
+                    && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.active == true
+                    && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.scheduleId == request.resource.data.scheduleId
+                    && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.teacherUid == request.resource.data.teacherUid;
+      allow update: if isAdmin()
+                    || (request.auth != null && resource.data.teacherUid == request.auth.uid)
+                    || (request.auth != null
+                        && resource.data.studentUid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['status', 'studentName', 'updatedAt']));
+      allow delete: if isAdmin()
+                    || (request.auth != null && resource.data.teacherUid == request.auth.uid);
+    }
+
+    // Reviews — teacher/student testimonials, admin-moderated. Public reads
+    // only for approved docs (public queries must carry
+    // where('status','==','approved')); authors see their own; admin sees
+    // all. Create requires actual participation: the class's teacher OR an
+    // enrolled student. Only admin can approve/feature.
+    match /reviews/{reviewId} {
+      allow read: if resource.data.status == 'approved'
+                  || isAdmin()
+                  || (request.auth != null && resource.data.authorUid == request.auth.uid);
+      allow create: if request.auth != null
+                    && request.resource.data.authorUid == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.get('featured', false) == false
+                    && (get(/databases/$(database)/documents/schedules/$(request.resource.data.scheduleId)).data.ownerUid == request.auth.uid
+                        || exists(/databases/$(database)/documents/enrollments/$(request.resource.data.scheduleId + '_' + request.auth.uid)));
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.authorUid == request.auth.uid
+                        && resource.data.status == 'pending'
+                        && request.resource.data.status == 'pending'
+                        && request.resource.data.authorUid == request.auth.uid);
+      allow delete: if isAdmin()
+                    || (request.auth != null && resource.data.authorUid == request.auth.uid);
+    }
+
+    // Teacher public profiles — the featured-teacher cards on the team page.
+    // Separate from users/{uid} (owner-writable) so the approval flag can't
+    // be self-spoofed: owner writes are forced to draft/pending, ONLY admin
+    // lands status 'approved'. Editing an approved profile therefore pulls
+    // it off the team page until re-approved.
+    match /teacherProfiles/{uid} {
+      allow read: if resource.data.status == 'approved' || isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid)
+                    && request.resource.data.status in ['draft', 'pending'];
+      allow update: if isAdmin()
+                    || (isOwner(uid)
+                        && request.resource.data.status in ['draft', 'pending']);
+      allow delete: if isAdmin() || isOwner(uid);
     }
 
     // Huddle plans — any authenticated member can read, owner or admin manages
@@ -333,11 +634,14 @@ service cloud.firestore {
                          && request.auth.uid == userId;
     }
 
-    // Activity tracker entries — owner-only, OR admin if user opted in via shareWithAdmin flag
+    // Activity tracker entries — owner-only, OR admin (V3.160: PMR Activity block
+    // needs unconditional admin cross-user read; the legacy shareActivity opt-in
+    // stays as an OR for non-admin sharing flows that might be added later).
     match /trackerEntries/{userId}/entries/{entryId} {
       allow read:  if request.auth != null
                    && (request.auth.uid == userId
-                       || (isAdmin()
+                       || isAdmin()
+                       || (isLabMember()
                            && get(/databases/$(database)/documents/users/$(userId)).data.shareActivity == true));
       allow write: if request.auth != null
                    && request.auth.uid == userId;
@@ -495,6 +799,20 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Top-level paper doc (parent of yjs_snapshot / yjs_updates / annotations /
+    // blocks / snapshots / comments). Holds optional metadata such as
+    // `authorUids[]` so non-admin coauthors can read drafts they're on (e.g.
+    // PMR's paper-writing block queries `where('authorUids','array-contains',
+    // uid)`). Writes stay admin-only until the metadata sync from
+    // data/projects/papers.json lands.
+    match /papers/{paperId} {
+      allow read: if isAdmin()
+                  || (request.auth != null
+                      && resource.data.authorUids is list
+                      && request.auth.uid in resource.data.authorUids);
+      allow write: if isAdmin();
+    }
+
     // ResearchManagement library: shared paper annotations.
     //
     // Visibility model:
@@ -592,6 +910,31 @@ service cloud.firestore {
                                 || isAdmin());
     }
 
+    // V3.231 — Paper Export Workspace config + compile history.
+    //
+    // paperExports/{paperId} holds the shared compile configuration
+    // (templateId, addons[], style overrides). Any lab member can read so
+    // a coauthor seeing the paper also sees what journal it targets;
+    // lab contributors can write so coauthors can change journal /
+    // tweak knobs without round-tripping through admin.
+    //
+    // paperExports/{paperId}/compiles/{compileId} is the compile history
+    // (PDF URL, log, who triggered, when). Read-only to lab members for
+    // create/update — the Cloud Run service writes via Admin SDK and
+    // bypasses these rules. V3.232: lab contributors can DELETE compile
+    // records (to clean up old PDFs); the paired Storage rule allows the
+    // associated PDF to be deleted by the same role.
+    match /paperExports/{paperId} {
+      allow read:   if isLabMember();
+      allow write:  if isLabContributor();
+
+      match /compiles/{compileId} {
+        allow read:                 if isLabMember();
+        allow create, update:       if false;
+        allow delete:               if isLabContributor();
+      }
+    }
+
     // ResearchManagement claims (Phase 4) — claims attached to draft papers.
     // v1 ACL: any authenticated lab member can create; only the creator (or
     // admin) can edit/delete. Tighten to draft-author-only by populating
@@ -635,6 +978,13 @@ service cloud.firestore {
     // to ✓ when a paper is already in the library.
     match /paper_index/{hash} {
       allow read, write: if isExtensionMember();
+    }
+
+    // metadataCache — 30-day CrossRef/PubMed/arXiv lookup cache written by
+    // the libraryLookup Cloud Function (V3.308). The Admin SDK bypasses
+    // rules, so clients get no access at all.
+    match /metadataCache/{cacheKey} {
+      allow read, write: if false;
     }
 
     // labConfig/extensionMembers — the email allowlist itself. Anyone
@@ -711,12 +1061,58 @@ service cloud.firestore {
       // Lab members read all items. Anonymous + non-lab users may read an
       // item ONLY when meta.library.public == true — used by the public
       // share viewer at /pages/library-public.html (production deploy at
-      // /rm/pages/library-public.html). Writes still require lab membership.
+      // /rm/pages/library-public.html).
       allow read: if isLabMember()
         || (resource.data.meta != null
             && resource.data.meta.library != null
             && resource.data.meta.library.public == true);
-      allow write: if isLabMember();
+
+      // V3.135 — split write into create / update / delete to enforce
+      // paper-specific first-author rights:
+      //   (a) edit paper metadata        → first author OR admin
+      //   (b) add/remove personnel       → first author OR admin
+      //   (d) delete the paper           → admin only
+      //   (e) set/unset first authors    → admin only
+      // Non-paper items follow the previous lab-member rule unchanged.
+      // The (e) restriction is enforced for paper updates by requiring
+      // first_author_uids to be unchanged on any non-admin update — that
+      // way a first author can edit the paper but cannot promote a
+      // co-author or self-demote.
+      allow create: if isLabMember();
+      allow update: if isAdmin()
+        || (resource.data.type != 'paper' && isLabMember())
+        || (resource.data.type == 'paper'
+            && isFirstAuthor(itemId)
+            && request.resource.data.first_author_uids == resource.data.first_author_uids)
+        // V3.309 — lab members may update LIBRARY ENTRIES (papers imported
+        // into the shared library, which never have first authors) so the
+        // metadata editor / star toggle work for non-admins. Guards:
+        //   - first_author_uids untouched (via .get() — the key is
+        //     normally absent on library entries, and a plain == on a
+        //     missing field errors the clause false);
+        //   - type and is_library_entry pinned so the doc can't be
+        //     rewritten out of paper/library governance.
+        || (resource.data.type == 'paper'
+            && isLabMember()
+            && resource.data.meta.library.is_library_entry == true
+            && request.resource.data.type == 'paper'
+            && request.resource.data.meta.library.is_library_entry == true
+            && request.resource.data.get('first_author_uids', []) == resource.data.get('first_author_uids', []));
+      allow delete: if isAdmin()
+        || (resource.data.type != 'paper' && isLabMember());
+
+      // V3.206 — per-item "extras" subdoc. The list view doesn't need
+      // abstract / references / cited_by / tldr — they live here so the
+      // items.json read stays cheap. library-extras.js writes via
+      // .set({...}, {merge:true}) so any lab member who can read the
+      // parent can also enrich the extras (import-time SS fetch, ref
+      // parse, etc.). Delete cascades happen in the deletePaper Cloud
+      // Function, so this rule allows admin delete only.
+      match /details/{detailId} {
+        allow read: if isLabMember();
+        allow write: if isLabMember();
+        allow delete: if isAdmin();
+      }
     }
 
     match /importantPeople/{personId} {
@@ -729,6 +1125,61 @@ service cloud.firestore {
     match /people/{memberId} {
       allow read:  if isLabMember();
       allow write: if isAdmin();
+    }
+
+    // Protocols (V3.113) — protocols.io-style lab protocol authoring.
+    // Top-level `protocols` collection. Lab members read everything (or
+    // anyone reads a protocol whose status is 'published' — opt-in public
+    // share, used by Phase 5). Owner or admin writes the parent doc.
+    //
+    // Yjs CRDT subcollections — V1 lets ANY lab member read AND write so
+    // collaborative editing works lab-wide. The editor UI honors the
+    // `ownerUid` field for edit affordances; a future phase will add a
+    // `coauthor_uids[]` field and tighten these rules to owner+coauthors.
+    // This is intentionally MORE permissive than papers/{paperId}/yjs_*
+    // because protocols are a shared lab resource (papers are personal).
+    match /protocols/{protocolId} {
+      allow read: if (resource.data.status == 'published')
+                  || (request.auth != null && isLabMember());
+      allow create: if request.auth != null && isLabMember()
+                    && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if request.auth != null && isLabMember()
+                    && (request.auth.uid == resource.data.ownerUid || isAdmin());
+      allow delete: if isAdmin();
+
+      match /yjs_snapshot/{docId} {
+        allow read: if isLabMember();
+        allow write: if isLabMember();
+      }
+      match /yjs_updates/{seq} {
+        allow read: if isLabMember();
+        allow create: if isLabMember()
+                      && request.resource.data.authorUid == request.auth.uid;
+        allow update, delete: if isAdmin();
+      }
+      match /presence/{uid} {
+        allow read: if isLabMember();
+        allow create, update: if isLabMember() && request.auth.uid == uid;
+        allow delete: if isLabMember() && request.auth.uid == uid;
+      }
+
+      // V3.119 — version snapshots. Lab members read; only the protocol
+      // owner or admin can create a snapshot, and the writer's uid must
+      // match the snapshot_by_uid. Once written, snapshots are immutable
+      // (no edits, no merges) — they're the source of truth for
+      // historical-version views and fork-from-version reads. Admin may
+      // delete for cleanup.
+      match /versions/{vId} {
+        allow read: if (request.auth != null && isLabMember())
+                    || (get(/databases/$(database)/documents/protocols/$(protocolId)).data.status == 'published');
+        allow create: if request.auth != null
+                      && isLabMember()
+                      && request.resource.data.snapshot_by_uid == request.auth.uid
+                      && (request.auth.uid == get(/databases/$(database)/documents/protocols/$(protocolId)).data.ownerUid
+                          || isAdmin());
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
     }
 
     match /paperTemplates/{templateId} {
@@ -744,6 +1195,16 @@ service cloud.firestore {
     //      cross-user task assignment works without schema changes.
     //
     // Admins do NOT get a blanket read override — privacy is owner-controlled.
+    //
+    // Subcollections that ride this blanket rule (no extra match block needed):
+    //   tasks, buckets, pinnedBuckets, emailTasks, calendarDeadlines,
+    //   activityLedger, profile, yearReview, career, connections,
+    //   financeReceipts, financeTravel, financeProjects, libraryPrefs,
+    //   emailArchive, emailMessages, calendarArchive, calendarEvents, stats,
+    //   customWorkflows, cvData, notebook (Lab Notebook / ELN — V3.110; both
+    //   per-entry docs and the `_index` summary doc live in this
+    //   subcollection, owner-only by default, sharing reserved for Phase 3).
+    // pmr / tasks have explicit overrides below for cross-user collaboration.
 
     match /userData/{userId}/{document=**} {
       allow read:  if isOwner(userId) || isShared(resource.data);
@@ -765,7 +1226,30 @@ service cloud.firestore {
       allow read, write: if isOwner(userId)
                          || (resource != null && resource.data.researcher_uids != null
                              && request.auth.uid in resource.data.researcher_uids)
+                         || isMentorOf(userId)
                          || isAdmin();
+    }
+
+    // V3.157 — Per-PMR threaded comments. Powers the admin↔student
+    // conversation surface attached to every PMR section (barriers, weekly
+    // entries, project overview, paper-writing, discussion cards).
+    //
+    // Visibility model: the PMR is a 1:1 between the student and admin, so
+    // both parties read+write here. The wildcard `userData/{userId}/{**}`
+    // rule above would lock this to owner-only, so we override.
+    //
+    // Authorship is enforced — caller must stamp themselves as authorUid.
+    // Resolve / delete is owner-or-admin (anyone can resolve their own
+    // comment; admin can also clean up).
+    match /userData/{userId}/pmr/{periodId}/comments/{commentId} {
+      allow read:   if isAdmin() || isOwner(userId) || isMentorOf(userId)
+                    || (resource != null && resource.data.authorUid == request.auth.uid);
+      allow create: if (isAdmin() || isOwner(userId) || isMentorOf(userId))
+                    && request.resource.data.authorUid == request.auth.uid;
+      allow update: if request.auth != null
+                    && (resource.data.authorUid == request.auth.uid || isAdmin());
+      allow delete: if request.auth != null
+                    && (resource.data.authorUid == request.auth.uid || isAdmin());
     }
 
     match /userData/{userId}/tasks/{taskId} {
@@ -804,6 +1288,156 @@ service cloud.firestore {
                   && (resource.data.createdByUid == request.auth.uid
                       || resource.data.assignedToUid == request.auth.uid
                       || isAdmin());
+    }
+
+    // V3.313 — Task marketplace (FuturePlan 04, Workstream A). One
+    // lab-scope board carries every cross-user task flow:
+    //   kind 'offer'   = posted task anyone can claim (PI → board)
+    //   kind 'request' = "I need something to do" (member → PI/anyone)
+    //   kind 'handoff' = take-over/help ask on a specific task (→ teammate)
+    // Updates enforce the status *transition machine*, not free writes:
+    //   creator:  open→open (edit) · open→withdrawn · claimed/accepted→completed
+    //   claimant: open→claimed/accepted, stamping themselves, only when the
+    //             post is undirected (targetUid null) or directed at them
+    //   target:   open→declined
+    // Admins may create a post already 'accepted' — V3.317 routes the
+    // "Send to teammate" flow through here and the PI's direct-assign UX
+    // must not grow an approval step.
+    // V3.317 — true when a taskMarket update leaves the post's content
+    // fields exactly as they were. Used to lock claimant/target
+    // transitions to status-only changes (they may still stamp
+    // claimedByUid/claimedByName/claimed_at/marketTaskId/status). Reads
+    // request.resource + resource (rule globals), so no args needed.
+    function marketContentUnchanged() {
+      return request.resource.data.get('title', '') == resource.data.get('title', '')
+        && request.resource.data.get('description', '') == resource.data.get('description', '')
+        && request.resource.data.get('task_payload', {}) == resource.data.get('task_payload', {})
+        && request.resource.data.get('targetUid', null) == resource.data.get('targetUid', null)
+        && request.resource.data.get('source_ref', null) == resource.data.get('source_ref', null);
+    }
+
+    match /taskMarket/{postId} {
+      allow read: if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.createdByUid == request.auth.uid
+                    && (request.resource.data.status == 'open'
+                        || (isAdmin() && request.resource.data.status == 'accepted'));
+      // Non-creator (claimant / target) transitions may ONLY move status
+      // + stamp who claimed it — they must NOT rewrite the post's content.
+      // Without this a claimant could deface the board or inject text into
+      // the creator's "your post was claimed" push (the notification is
+      // built from title + claimedByName). The creator's own branch stays
+      // permissive (they own the post).
+      allow update: if isLabMember()
+                    && request.resource.data.createdByUid == resource.data.createdByUid
+                    && request.resource.data.kind == resource.data.kind
+                    && (
+                      (resource.data.createdByUid == request.auth.uid
+                       && ((resource.data.status == 'open'
+                            && request.resource.data.status in ['open', 'withdrawn'])
+                           || (resource.data.status in ['claimed', 'accepted']
+                               && request.resource.data.status == 'completed')))
+                      || (resource.data.status == 'open'
+                          && request.resource.data.status in ['claimed', 'accepted']
+                          && request.resource.data.claimedByUid == request.auth.uid
+                          && (resource.data.get('targetUid', null) == null
+                              || resource.data.targetUid == request.auth.uid)
+                          && marketContentUnchanged())
+                      || (resource.data.status == 'open'
+                          && request.resource.data.status == 'declined'
+                          && resource.data.get('targetUid', null) == request.auth.uid
+                          && marketContentUnchanged())
+                    );
+      allow delete: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.createdByUid == request.auth.uid);
+    }
+
+    // V3.178 — Grant workflow phase 1.
+    //
+    // biosketches/{uid}        — per-user NIH/NSF/DOD biosketch variants.
+    // biosketches/{uid}/variants/{vid} — individual tailored variants. Lab
+    //   members can read all variants (so a co-PI can review their PI's
+    //   biosketch before submission); only the owner writes their own.
+    // facilitiesDocs/{docId}   — auto-generated Facilities & Other
+    //   Resources documents pulled from inventory + equipment + people.
+    //   Lab members write (collaboratively maintained boilerplate);
+    //   creator or admin deletes.
+    //
+    // Reserved for V3.180: grantDrafts/{grantId} parent + Yjs subcoll.
+    // V3.178 only references `grantDraftIds[]` as a backref field —
+    // no draft writes happen yet.
+    match /biosketches/{userId} {
+      allow read:  if isLabMember();
+      allow write: if request.auth.uid == userId || isAdmin();
+      match /variants/{variantId} {
+        allow read: if isLabMember();
+        allow create, update: if request.auth.uid == userId;
+        allow delete: if request.auth.uid == userId || isAdmin();
+      }
+    }
+
+    match /facilitiesDocs/{docId} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isLabMember();
+      allow delete: if isAdmin()
+                    || resource.data.createdBy == request.auth.uid;
+    }
+
+    // V3.179 — Grant Writer (single-author, non-Yjs in V1).
+    // Each grant draft holds the section/block tree inline on the parent doc
+    // (grantDrafts/{id}.tree). The /budget/{year} subcollection holds per-
+    // project-year line-item budgets (Y1..Y5). Yjs subcollections
+    // (yjs_snapshot, yjs_updates, presence, comments) are RESERVED in this
+    // rule block so the V3.183 collab upgrade can land without a rules
+    // migration — they're commented out below.
+    match /grantDrafts/{grantId} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.createdBy == request.auth.uid;
+      // Lab-wide write so co-PIs and collaborators can edit. The grant doc
+      // itself stores `pi.uid` for ownership; admin override always wins.
+      allow update: if isLabMember();
+      allow delete: if isAdmin()
+                    || resource.data.createdBy == request.auth.uid;
+
+      // V3.180 — per-year budget docs (Y1..Y5). Same lab-write semantics as
+      // the parent draft.
+      match /budget/{year} {
+        allow read, write: if isLabMember();
+      }
+
+      // V3.188 — uploaded `.paper-overlay.md` files for this grant. Each
+      // overlay doc carries Storage refs + parsed metadata; lab members
+      // can re-import them into the paper reader to materialize highlights
+      // without checking out the sibling git repo. Doc id is the sha256
+      // of the file content for idempotent re-uploads.
+      match /overlays/{overlayId} {
+        allow read:   if isLabMember();
+        allow create: if isLabMember()
+                      && request.resource.data.uploadedBy == request.auth.uid;
+        allow update: if isLabMember();
+        allow delete: if isAdmin()
+                      || resource.data.uploadedBy == request.auth.uid;
+      }
+
+      // V3.183+ (reserved) — Yjs CRDT subcollections + per-block comments.
+      // match /yjs_snapshot/{docId}    { allow read, write: if isLabMember(); }
+      // match /yjs_updates/{seq}       { allow read: if isLabMember();
+      //                                  allow create: if isLabMember()
+      //                                                && request.resource.data.authorUid == request.auth.uid;
+      //                                  allow update, delete: if isAdmin(); }
+      // match /presence/{uid}          { allow read: if isLabMember();
+      //                                  allow create, update: if isLabMember() && request.auth.uid == uid;
+      //                                  allow delete: if isLabMember(); }
+      // match /comments/{commentId}    { allow read: if isLabMember();
+      //                                  allow create: if isLabMember()
+      //                                                && request.resource.data.authorUid == request.auth.uid;
+      //                                  allow update, delete: if request.auth != null
+      //                                                          && (resource.data.authorUid == request.auth.uid
+      //                                                              || isAdmin()); }
     }
   }
 }

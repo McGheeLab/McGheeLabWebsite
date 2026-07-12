@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microscope Basics — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; <span style="color:var(--red);">Required before first AX-R session</span>
+        </div>
+        <h1 class="training-module-title">Microscope Basics</h1>
+        <p class="training-module-subtitle">
+          Resolution, NA, Köhler, contrast mechanisms — the optical concepts you need before you touch a specific scope.
+          Capstone (Tab 5) is your sign-off sheet for first-time Nikon AX-R confocal access.
+        </p>
+      </header>
+
+      <nav class="tab-bar" role="tablist">
+        <button class="tab-btn active" data-tab="tab-resolution"  role="tab" aria-selected="true">1. Resolution</button>
+        <button class="tab-btn"        data-tab="tab-na"          role="tab">2. NA &amp; Objectives</button>
+        <button class="tab-btn"        data-tab="tab-kohler"      role="tab">3. Köhler Illumination</button>
+        <button class="tab-btn"        data-tab="tab-contrast"    role="tab">4. Contrast Mechanisms</button>
+        <button class="tab-btn"        data-tab="tab-capstone"    role="tab">5. Capstone Sign-off</button>
+      </nav>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- TAB 1 — Resolution & Diffraction Limit                          -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section id="tab-resolution" class="tab-content active" role="tabpanel">
+        <div class="background-section">
+          <h2>1. Resolution &amp; the diffraction limit</h2>
+          <p>
+            Imaging a packed tumor spheroid stained with DAPI on the AX-R, you'll
+            often need to know <em>how close two nuclei can be before they
+            merge into one blob</em>. That number is set by physics — diffraction —
+            not by how good your camera is.
+          </p>
+
+          <h3>Abbe's diffraction limit</h3>
+          <p>The smallest resolvable separation between two point sources is</p>
+          <div class="equation-box"><span class="lhs">d</span> = λ / (2 · NA)</div>
+          <p>
+            where <code>λ</code> is the emission wavelength and <code>NA</code> is the
+            numerical aperture of the objective. Smaller <code>d</code> means finer detail
+            — you want short λ and high NA.
+          </p>
+
+          <h3>The Rayleigh criterion</h3>
+          <p>
+            Two point sources are <em>resolvable</em> when the center of one Airy
+            disk falls on the first dark ring of the other. The interactive
+            below renders two Airy patterns at variable separation so you can
+            see the canonical "just-resolved" → "merged blob" transition.
+          </p>
+
+          <div class="worked-example">
+            <strong>Worked example.</strong> Imaging GFP (λ ≈ 510 nm) with a 60×/1.4
+            oil objective gives <code>d</code> ≈ 510 / (2 · 1.4) ≈ 182 nm. Two
+            nuclei closer than ~200 nm will appear as one — no matter how
+            much you zoom your camera in.
+          </div>
+
+          <h3>Why this matters for confocal</h3>
+          <p>
+            Pixel size on the camera and zoom-in in software do <strong>not</strong>
+            fix this — the limit is set before light ever reaches the sensor.
+            Choose objective + λ at acquisition time. By the time you're
+            processing in Fiji or Cell Tracker, the resolution is locked in.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Start with the <strong>488 nm / NA 1.4</strong> scenario.</li>
+            <li>Move the <em>Separation</em> slider toward 0 — find the point where the two Airy peaks merge into one. Note the verdict.</li>
+            <li>Switch to <strong>488 nm / NA 0.75</strong> (an air objective). Same separation now: does it still resolve?</li>
+            <li>Switch to <strong>405 nm / NA 1.4</strong> (DAPI imaging). Shorter λ — does the cutoff move?</li>
+            <li>Open Tab 2 when the resolution table makes sense; the NA → resolution mapping there will not surprise you.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Scenario:</span>
+          <button class="scen-btn active" data-scenario="488_140" data-lambda="510" data-na="1.4">488 nm / NA 1.4 (GFP oil)</button>
+          <button class="scen-btn"        data-scenario="488_075" data-lambda="510" data-na="0.75">488 nm / NA 0.75 (GFP air)</button>
+          <button class="scen-btn"        data-scenario="405_140" data-lambda="450" data-na="1.4">405 nm / NA 1.4 (DAPI oil)</button>
+          <button class="scen-btn"        data-scenario="640_110" data-lambda="670" data-na="1.1">640 nm / NA 1.1 (AF647 water)</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="res-sep">Source separation</label>
+              <input type="range" id="res-sep" min="50" max="800" step="10" value="300">
+              <div class="ctrl-readout">Δ = <span class="v" id="res-sep-out">300</span> nm</div>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">λ (emission)</span><span class="value" id="res-lambda">510 nm</span></div>
+              <div class="stat-row"><span class="label">NA</span><span class="value" id="res-na">1.40</span></div>
+              <div class="stat-row"><span class="label">Abbe limit d</span><span class="value" id="res-abbe">— nm</span></div>
+              <div class="stat-row"><span class="label">Status</span><span class="value" id="res-status">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Two Airy patterns, current separation</div>
+              <canvas id="canvas-airy" width="600" height="280"></canvas>
+            </div>
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">1-D intensity profile (sum across the y-axis)</div>
+              <canvas id="canvas-airy-profile" width="600" height="180"></canvas>
+            </div>
+            <div class="val-verdict" id="res-verdict" role="status" aria-live="polite">
+              Move the separation slider to see whether the two sources are resolvable.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- TAB 2 — Numerical Aperture, Magnification, Working Distance      -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section id="tab-na" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>2. Numerical aperture, magnification, working distance</h2>
+          <p>
+            Every objective is a compromise between four properties: resolution
+            (driven by NA), light gathering (also NA), depth of field
+            (inverse NA²), and working distance (how far above the sample the
+            front lens sits). You cannot have them all.
+          </p>
+
+          <h3>Numerical aperture</h3>
+          <div class="equation-box"><span class="lhs">NA</span> = n · sin(θ)</div>
+          <p>
+            <code>n</code> = refractive index of the immersion medium (air 1.00,
+            water 1.33, glycerol 1.47, oil 1.515), <code>θ</code> = half-angle
+            of the cone of light the objective can capture. Air objectives
+            cap at NA ≈ 0.95; water reaches ~1.2; oil reaches ~1.5.
+          </p>
+
+          <h3>How NA flows into everything else</h3>
+          <ul>
+            <li><strong>Resolution</strong> — Abbe (Tab 1): <code>d ≈ λ/(2·NA)</code>. Doubling NA halves <code>d</code>.</li>
+            <li><strong>Light-gathering</strong> — scales as NA². A NA 1.4 objective collects about <strong>3.5×</strong> the light of an NA 0.75.</li>
+            <li><strong>Depth of field</strong> — <code>DOF ≈ (λ·n)/NA² + (n·e)/(M·NA)</code> for a coarse rule. The NA² in the denominator means high-NA objectives produce paper-thin optical sections.</li>
+            <li><strong>Working distance</strong> — generally inverse to NA. The 60×/1.4 oil has WD ~0.13 mm; the 4×/0.13 has WD ~17 mm.</li>
+          </ul>
+
+          <div class="worked-example">
+            <strong>Worked example.</strong> Imaging a 200 μm spheroid: you want
+            to reach the equator. A 60×/1.4 oil objective has WD ~0.13 mm = 130 μm —
+            you literally <em>cannot</em> reach the equator. The 25×/1.1 water
+            objective on the AX-R (WD ~2 mm) does the job. NA dropped a bit,
+            but you actually get to the data.
+          </div>
+
+          <h3>The lab's objective inventory (most-used)</h3>
+          <p>Toggle the scenarios below to load each into the calculator.</p>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Cycle through every objective scenario. Note how resolution, DOF, light gathering, and WD shift together.</li>
+            <li>Find the objective that gives the smallest <code>d</code> at 488 nm.</li>
+            <li>Find the objective that lets you reach deepest into a thick sample (largest WD).</li>
+            <li>Convince yourself the "smallest <code>d</code>" and "deepest reach" answers are different objectives — there is no single best lens.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Objective:</span>
+          <button class="scen-btn obj-btn active" data-mag="4"  data-na="0.13" data-wd="17"   data-imm="air">4× / 0.13 (air)</button>
+          <button class="scen-btn obj-btn"        data-mag="20" data-na="0.75" data-wd="1.0"  data-imm="air">20× / 0.75 (air)</button>
+          <button class="scen-btn obj-btn"        data-mag="25" data-na="1.1"  data-wd="2.0"  data-imm="water">25× / 1.1 (water — AX-R)</button>
+          <button class="scen-btn obj-btn"        data-mag="40" data-na="1.3"  data-wd="0.20" data-imm="oil">40× / 1.3 (oil)</button>
+          <button class="scen-btn obj-btn"        data-mag="60" data-na="1.4"  data-wd="0.13" data-imm="oil">60× / 1.4 (oil)</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="na-lambda">Emission wavelength</label>
+              <select id="na-lambda">
+                <option value="450">DAPI / 405 → 450 nm</option>
+                <option value="510" selected>GFP / 488 → 510 nm</option>
+                <option value="595">mCherry / 561 → 595 nm</option>
+                <option value="670">AF647 / 640 → 670 nm</option>
+              </select>
+            </div>
+            <div class="stats">
+              <h4>This objective</h4>
+              <div class="stat-row"><span class="label">Magnification</span><span class="value" id="na-mag">4×</span></div>
+              <div class="stat-row"><span class="label">Numerical aperture</span><span class="value" id="na-naval">0.13</span></div>
+              <div class="stat-row"><span class="label">Immersion</span><span class="value" id="na-imm">air</span></div>
+              <div class="stat-row"><span class="label">Working distance</span><span class="value" id="na-wd">17 mm</span></div>
+              <div class="stat-row"><span class="label">XY resolution (d)</span><span class="value" id="na-res">— nm</span></div>
+              <div class="stat-row"><span class="label">Depth of field</span><span class="value" id="na-dof">— μm</span></div>
+              <div class="stat-row"><span class="label">Relative light gathering</span><span class="value" id="na-light">— ×</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Light cone (half-angle θ defines NA)</div>
+              <canvas id="canvas-cone" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="na-verdict" role="status" aria-live="polite">
+              Pick an objective and a wavelength to see what trade-offs you're making.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- TAB 3 — Köhler Illumination                                      -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section id="tab-kohler" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>3. Köhler illumination</h2>
+          <p>
+            A uniform image field — no hot spots, no shadow of the lamp filament —
+            requires that the lamp be <em>defocused</em> at the sample plane and
+            <em>focused</em> at the back focal plane of the objective. This is
+            Köhler illumination. Every well-aligned transmitted-light microscope
+            in the lab is set up this way. Mis-Köhler is the #1 cause of
+            "my brightfield images look weird" tickets.
+          </p>
+
+          <h3>The two diaphragms</h3>
+          <ul>
+            <li><strong>Field diaphragm</strong> — conjugate to the sample plane. Closing it shrinks the illuminated <em>area</em>. Used to set how much of the field is lit.</li>
+            <li><strong>Aperture diaphragm</strong> — conjugate to the back focal plane. Closing it shrinks the illumination <em>cone</em>. Used to trade contrast vs. resolution.</li>
+          </ul>
+
+          <h3>The alignment procedure</h3>
+          <ol>
+            <li>Put a sample in focus with a 10× objective.</li>
+            <li>Close the field diaphragm until you see its edges in the field of view.</li>
+            <li>Adjust the condenser height until the edges are <em>sharp</em>.</li>
+            <li>Re-center the field diaphragm with the condenser centering screws.</li>
+            <li>Open the field diaphragm until it just disappears from view.</li>
+            <li>Set the aperture diaphragm to ~80% of the back focal plane (look at the BFP via a Bertrand lens or by removing an eyepiece).</li>
+          </ol>
+
+          <div class="worked-example">
+            <strong>Quick gut check.</strong> If you can see the lamp filament as a
+            shadow in your image, you are not Köhler-aligned — the lamp is
+            focused at the sample plane instead of defocused. Adjust the
+            lamp collector or, on the Ti2-U LED engines, swap in the diffuser.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Toggle the <strong>Correct Köhler</strong> scenario — note the uniform field.</li>
+            <li>Toggle <strong>Field diaphragm too closed</strong> — see the vignette and how that bites into your usable area.</li>
+            <li>Toggle <strong>Aperture diaphragm too open</strong> — see contrast wash out; resolution is technically maxed but no one would call that image usable.</li>
+            <li>Toggle <strong>Lamp focused on sample</strong> — see the filament shadow superimposed on the image.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Alignment:</span>
+          <button class="scen-btn kohler-btn active" data-kohler="ok">Correct Köhler</button>
+          <button class="scen-btn kohler-btn"        data-kohler="field">Field diaphragm too closed</button>
+          <button class="scen-btn kohler-btn"        data-kohler="aperture">Aperture too open</button>
+          <button class="scen-btn kohler-btn"        data-kohler="lamp">Lamp focused on sample</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="stats">
+              <h4>Current state</h4>
+              <div class="stat-row"><span class="label">Field diaphragm</span><span class="value" id="kohler-field">—</span></div>
+              <div class="stat-row"><span class="label">Aperture diaphragm</span><span class="value" id="kohler-aperture">—</span></div>
+              <div class="stat-row"><span class="label">Lamp focus</span><span class="value" id="kohler-lamp">—</span></div>
+              <div class="stat-row"><span class="label">Field uniformity</span><span class="value" id="kohler-uniform">—</span></div>
+              <div class="stat-row"><span class="label">Contrast</span><span class="value" id="kohler-contrast">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">What you see through the eyepiece</div>
+              <canvas id="canvas-kohler" width="600" height="320"></canvas>
+            </div>
+            <div class="val-verdict" id="kohler-verdict" role="status" aria-live="polite">
+              Toggle scenarios to see each misalignment in turn.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- TAB 4 — Contrast Mechanisms                                      -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section id="tab-contrast" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>4. Contrast mechanisms</h2>
+          <p>
+            "I can't see anything" usually means you chose the wrong contrast
+            mechanism, not that there's nothing there. Different mechanisms are
+            sensitive to different things and cost you different amounts of light,
+            time, and sample-prep effort.
+          </p>
+
+          <h3>The four you'll use in this lab</h3>
+          <ul>
+            <li><strong>Brightfield (BF)</strong> — transmitted white light, sensitive to absorption. Unstained cells: nearly invisible. Stained tissue sections: excellent.</li>
+            <li><strong>Phase contrast</strong> — converts optical-path-length differences into amplitude. Live unstained cells become visible. Halo artifact around edges.</li>
+            <li><strong>DIC (Differential Interference Contrast)</strong> — gradient of optical path length, looks pseudo-3D. Live cells, label-free thickness mapping. Polarizers + Wollaston prisms — fiddly to set up.</li>
+            <li><strong>Fluorescence</strong> — only labeled molecules emit. High specificity, dark background. Costs you photons (= photobleach + phototoxicity).</li>
+          </ul>
+
+          <div class="worked-example">
+            <strong>When to choose what.</strong>
+            Live-cell time-lapse over hours, no labels → DIC or phase.
+            Fixed cells, one specific marker → fluorescence.
+            Live cells with a marker AND you want morphology → fluorescence + phase overlay.
+            Tissue section H&amp;E stain → brightfield.
+          </div>
+
+          <h3>The cost</h3>
+          <p>
+            Fluorescence is rarely "free" — every photon you collect requires
+            tens to hundreds of photons of excitation, and that excitation
+            bleaches the dye and can damage live cells. Phase / DIC are
+            "transmitted light" — basically no photodamage. If you can answer
+            the question without fluorescence, do that.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>The canvas below shows the same field of cultured cells. Cycle through the four modalities and note what becomes visible in each.</li>
+            <li>For the live-cell time-lapse experiment described in the worked example, which modality would you pick? Why?</li>
+            <li>For an unstained 6 μm tissue section, which modality is hopeless? Which is best?</li>
+            <li>Open Tab 5 when these trade-offs feel intuitive.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Modality:</span>
+          <button class="scen-btn contrast-btn active" data-contrast="bf">Brightfield</button>
+          <button class="scen-btn contrast-btn"        data-contrast="phase">Phase contrast</button>
+          <button class="scen-btn contrast-btn"        data-contrast="dic">DIC</button>
+          <button class="scen-btn contrast-btn"        data-contrast="fluor">Fluorescence</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="stats">
+              <h4>This modality</h4>
+              <div class="stat-row"><span class="label">Sensitive to</span><span class="value" id="contrast-sensitive">—</span></div>
+              <div class="stat-row"><span class="label">Photodamage</span><span class="value" id="contrast-damage">—</span></div>
+              <div class="stat-row"><span class="label">Specificity</span><span class="value" id="contrast-spec">—</span></div>
+              <div class="stat-row"><span class="label">Setup complexity</span><span class="value" id="contrast-setup">—</span></div>
+              <div class="stat-row"><span class="label">Available on</span><span class="value" id="contrast-scopes">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Same cells, current modality</div>
+              <canvas id="canvas-contrast" width="600" height="340"></canvas>
+            </div>
+            <div class="val-verdict" id="contrast-verdict" role="status" aria-live="polite">
+              Pick a modality to see what it does and does not show.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- TAB 5 — Capstone Sign-off Worksheet                              -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section id="tab-capstone" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>5. Capstone — first AX-R session sign-off</h2>
+          <p>
+            <strong>Scenario:</strong> A collaborator gives you a fixed, mounted,
+            multi-color slide of a 200 μm tumor spheroid stained with DAPI
+            (nuclei), Phalloidin-AF488 (actin), and an antibody-AF647 (your
+            target receptor). You want a 3-D, three-color image suitable for a
+            paper figure. Pick the right configuration below.
+          </p>
+          <p>
+            This is your gating worksheet. The configuration you pick has to
+            actually be safe and sensible — not just "any answer." When you've
+            built a passing config, the sheet prints a sign-off line for Alex
+            to initial.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>What you're picking</h3>
+          <ol>
+            <li><strong>Modality</strong> — what physically reaches the camera.</li>
+            <li><strong>Objective</strong> — magnification + NA + immersion + WD.</li>
+            <li><strong>Light source / lasers</strong> — which excitation lines are needed.</li>
+            <li><strong>Sampling</strong> — whether you'll meet Nyquist in XY.</li>
+          </ol>
+          <p style="margin-top:6px;font-size:13px;">If any choice triggers a <span style="color:var(--red);font-weight:700;">critical</span> verdict, the sheet won't sign off — fix it and retry.</p>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="cap-modality">Modality</label>
+              <select id="cap-modality">
+                <option value="">— pick one —</option>
+                <option value="brightfield">Brightfield</option>
+                <option value="phase">Phase contrast</option>
+                <option value="widefield">Widefield fluorescence</option>
+                <option value="confocal">Confocal fluorescence</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="cap-objective">Objective</label>
+              <select id="cap-objective">
+                <option value="">— pick one —</option>
+                <option value="4_013_air">4× / 0.13 (air, WD 17 mm)</option>
+                <option value="20_075_air">20× / 0.75 (air, WD 1.0 mm)</option>
+                <option value="25_110_water">25× / 1.1 (water, WD 2.0 mm)</option>
+                <option value="40_130_oil">40× / 1.3 (oil, WD 0.20 mm)</option>
+                <option value="60_140_oil">60× / 1.4 (oil, WD 0.13 mm)</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label>Lasers to enable</label>
+              <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="cap-laser-405"> 405 nm</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="cap-laser-488"> 488 nm</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="cap-laser-561"> 561 nm</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="cap-laser-640"> 640 nm</label>
+              </div>
+            </div>
+            <div class="ctrl-group">
+              <label for="cap-pixel">XY pixel size at sample (μm)</label>
+              <input type="number" id="cap-pixel" min="0.02" max="2" step="0.01" value="0.2">
+              <div class="ctrl-readout">Aim for ≤ <span class="v" id="cap-nyquist">— μm</span> to meet Nyquist for the chosen objective + λ.</div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="val-verdict" id="cap-verdict" role="status" aria-live="polite">
+              Fill in each control to see the per-choice critique.
+            </div>
+            <div class="signoff-sheet" id="cap-signoff" style="display:none;">
+              <h3>AX-R first-session sign-off</h3>
+              <div class="signoff-row"><span class="label">Modality</span><span class="value" id="ss-modality">—</span></div>
+              <div class="signoff-row"><span class="label">Objective</span><span class="value" id="ss-objective">—</span></div>
+              <div class="signoff-row"><span class="label">Lasers</span><span class="value" id="ss-lasers">—</span></div>
+              <div class="signoff-row"><span class="label">XY pixel size / Nyquist target</span><span class="value" id="ss-sampling">—</span></div>
+              <div class="signoff-row"><span class="label">Date completed</span><span class="value" id="ss-date">—</span></div>
+              <div class="signoff-row"><span class="label">Trainee</span><span class="value">________________________</span></div>
+              <div class="signoff-row"><span class="label">Supervisor (Alex or senior member)</span><span class="value">________________________</span></div>
+              <div class="signoff-pass" id="ss-pass" style="display:none;">✅ Configuration passes review — bring this sheet to your first AX-R session.</div>
+              <div class="signoff-fail" id="ss-fail" style="display:none;">❌ Fix the critiques above before this configuration is approved.</div>
+              <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+                Print this page (browser <kbd>Cmd/Ctrl + P</kbd>) and bring it to your AX-R training session.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight">
+          <strong>Once this passes</strong> — message Alex (or the senior lab
+          member responsible for the AX-R) to schedule your first hands-on
+          session. The V3.166 confocal training module covers what happens
+          during that session.
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-microscope-basics.js"></script>
+</body>
+</html>

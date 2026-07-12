@@ -38,11 +38,21 @@
   // pending edits: { type: 'user'|'workflow', key: <uid|workflowId>,
   //                  pageId: <id>, checked: bool }
   var pendingEdits = new Map();          // key = `${type}:${key}:${pageId}`
-  var initialState = { user: new Map(), workflow: new Map() };
-  // user → Set<pageId>; workflow → Set<pageId>
+  var initialState = { user: new Map(), workflow: new Map(), tracking: new Map(), mentor: new Map() };
+  // user → Set<pageId>; workflow → Set<pageId>; tracking → Map<slug, mode>;
+  // mentor → Map<menteeUid, Set<mentorUid>>
   // V3.79 — bulk-action state for the Users × Pages tab.
   var selectedUsers = new Set();         // uids ticked via row-select checkboxes
   var bulkPages = new Set();             // pageIds ticked in the bulk-action bar
+  // V3.228 — per-page tracking modes. Map<slug, 'tracked'|'never'|'admin'>.
+  // Persisted to labConfig/pageTracking.modes; missing slugs default to 'tracked'.
+  var trackingModes = new Map();
+  // V3.243 — mentor assignments. menteeUid → Set<mentorUid> (the current,
+  // pending-included view). Persisted to users/{menteeUid}.mentor_uids.
+  var mentorAssignments = new Map();
+  // Slugs whose row will be hard-skipped from rendering (page-time-tracker
+  // also hard-skips these regardless of stored mode).
+  var TRACKING_HARD_SKIP = { 'activity-overview': true };
 
   function setStatus(msg, kind) {
     var el = document.getElementById('perm-status');
@@ -59,7 +69,7 @@
 
     setStatus('Loading…');
     try {
-      await Promise.all([loadUsers(), loadDefaultWorkflows(), loadAllUserPermissions()]);
+      await Promise.all([loadUsers(), loadDefaultWorkflows(), loadAllUserPermissions(), loadTrackingConfig()]);
     } catch (err) {
       console.error('[admin-permissions] load failed:', err);
       setStatus('Load failed: ' + err.message, 'err');
@@ -71,6 +81,8 @@
     }
     renderUserGrid();
     renderWorkflowGrid();
+    renderTrackingList();
+    renderMentorList();
     wireActions();
     setStatus('');
   }
@@ -85,12 +97,17 @@
       // Exclude admins (they bypass the matrix) and pure-guest profiles
       // that haven't been promoted (they shouldn't appear yet anyway).
       if (data.role === 'admin') return;
+      var mentorUids = Array.isArray(data.mentor_uids) ? data.mentor_uids : [];
       users.push({
         uid: d.id,
         name: data.displayName || data.name || data.email || d.id.slice(0, 8),
         email: data.email || '',
         role: data.role || 'guest',
       });
+      // V3.243 — seed initial mentor state from the users/* read so the
+      // Mentors tab doesn't need an extra fetch.
+      initialState.mentor.set(d.id, new Set(mentorUids));
+      mentorAssignments.set(d.id, new Set(mentorUids));
     });
     sortUsers();
   }
@@ -477,6 +494,257 @@
     }
   }
 
+  /* ── V3.228 page tracking config ── */
+
+  /* Derive the page-time-tracker's slug from a page-registry href. The
+   * tracker keys its docs by location.pathname slug ('/rm/pages/foo.html'
+   * → 'foo', '/rm/index.html' → 'dashboard'), and is unaware of ?tab=…
+   * variants. So we collapse tab-suffixed registry entries (e.g.
+   * `activity-overview__tab__tracker`) into their base slug. */
+  function trackerSlugForHref(href) {
+    if (!href) return '';
+    if (href === '/rm/index.html' || href === '/rm/' || href === '/') return 'dashboard';
+    var m = href.match(/^\/rm\/pages\/([a-z0-9-]+)\.html/);
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  /* Walk PAGE_REGISTRY.list once, collapse to base slug, preserve first-
+   * occurrence label + group. Returns ordered array of
+   * { slug, label, group } — what the tracking tab renders. */
+  function distinctTrackingPages() {
+    var out = [];
+    var seen = new Set();
+    pages.forEach(function (p) {
+      var slug = trackerSlugForHref(p.href);
+      if (!slug) return;
+      if (TRACKING_HARD_SKIP[slug]) return;
+      if (seen.has(slug)) return;
+      seen.add(slug);
+      // For tab-suffixed registry entries, prefer the base label.
+      var label = p.id.indexOf('__tab__') >= 0
+        ? p.label.replace(/\s*[—–·]\s*.+$/, '').trim() || p.label
+        : p.label;
+      out.push({ slug: slug, label: label, group: p.group });
+    });
+    return out;
+  }
+
+  async function loadTrackingConfig() {
+    try {
+      var snap = await db().collection('labConfig').doc('pageTracking').get();
+      if (snap.exists) {
+        var data = snap.data() || {};
+        var modes = data.modes || {};
+        Object.keys(modes).forEach(function (slug) {
+          var m = modes[slug];
+          if (m === 'tracked' || m === 'never' || m === 'admin') {
+            trackingModes.set(slug, m);
+            initialState.tracking.set(slug, m);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('[admin-permissions] pageTracking read failed:', err.message);
+    }
+  }
+
+  function renderTrackingList() {
+    var host = document.getElementById('perm-tracking-list');
+    if (!host) return;
+    host.innerHTML = '';
+    var rows = distinctTrackingPages();
+    if (!rows.length) {
+      host.innerHTML = '<div class="perm-empty">No pages in the registry yet.</div>';
+      return;
+    }
+    var lastGroup = null;
+    rows.forEach(function (row) {
+      if (row.group !== lastGroup) {
+        var head = document.createElement('div');
+        head.className = 'perm-tracking-group-head';
+        head.textContent = row.group || '—';
+        host.appendChild(head);
+        lastGroup = row.group;
+      }
+      var r = document.createElement('div');
+      r.className = 'perm-tracking-row';
+      r.dataset.slug = row.slug;
+      var current = trackingModes.get(row.slug) || 'tracked';
+      r.innerHTML =
+        '<div class="perm-tracking-label">' +
+        '  <div class="perm-tracking-name">' + escHtml(row.label) + '</div>' +
+        '  <div class="perm-tracking-slug">' + escHtml(row.slug) + '</div>' +
+        '</div>' +
+        '<select class="perm-tracking-select" data-slug="' + escHtml(row.slug) + '">' +
+        '  <option value="tracked"' + (current === 'tracked' ? ' selected' : '') + '>Tracked</option>' +
+        '  <option value="never"'   + (current === 'never'   ? ' selected' : '') + '>Never</option>' +
+        '  <option value="admin"'   + (current === 'admin'   ? ' selected' : '') + '>Admin work</option>' +
+        '</select>';
+      r.querySelector('select').addEventListener('change', onTrackingChange);
+      host.appendChild(r);
+    });
+  }
+
+  function onTrackingChange(e) {
+    var slug = e.target.dataset.slug;
+    if (!slug) return;
+    var val = e.target.value;
+    var initial = initialState.tracking.get(slug) || 'tracked';
+    var key = 'tracking:' + slug;
+    if (val === initial) {
+      pendingEdits.delete(key);
+    } else {
+      pendingEdits.set(key, { type: 'tracking', slug: slug, mode: val });
+    }
+    trackingModes.set(slug, val);
+    var row = e.target.closest('.perm-tracking-row');
+    if (row) row.classList.toggle('is-changed', val !== initial);
+    updatePendingStatus();
+  }
+
+  /* ── V3.243 mentor assignments ── */
+
+  /* Render one row per non-admin lab member, showing their current mentor
+   * chips + an "Add mentor" select. Save persists to
+   * users/{menteeUid}.mentor_uids — see saveAll. */
+  function renderMentorList() {
+    var host = document.getElementById('perm-mentor-list');
+    if (!host) return;
+    host.innerHTML = '';
+    if (!users.length) {
+      host.innerHTML = '<div class="perm-empty">No non-admin users found.</div>';
+      return;
+    }
+    // Sort: same default as Users × Pages (role then name).
+    var ROLE_ORDER = ['pi', 'postdoc', 'phd', 'masters', 'undergrad', 'staff', 'collaborator', 'member', 'guest'];
+    var rank = function (role) {
+      var idx = ROLE_ORDER.indexOf((role || '').toLowerCase());
+      return idx >= 0 ? idx : ROLE_ORDER.length;
+    };
+    var ordered = users.slice().sort(function (a, b) {
+      var rA = rank(a.role), rB = rank(b.role);
+      if (rA !== rB) return rA - rB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    ordered.forEach(function (mentee) {
+      var row = document.createElement('div');
+      row.className = 'perm-mentor-row';
+      row.dataset.menteeUid = mentee.uid;
+      var current = mentorAssignments.get(mentee.uid) || new Set();
+      var initial = initialState.mentor.get(mentee.uid) || new Set();
+      if (!setEq(current, initial)) row.classList.add('is-changed');
+
+      var menteeBox = document.createElement('div');
+      menteeBox.className = 'perm-mentor-mentee';
+      var roleTag = mentee.role
+        ? '<span class="perm-role-tag perm-role-' + escHtml(mentee.role) + '">' + escHtml(mentee.role) + '</span>'
+        : '';
+      menteeBox.innerHTML =
+        '<div class="perm-mentor-name">' + escHtml(mentee.name) + ' ' + roleTag + '</div>' +
+        '<div class="perm-mentor-email">' + escHtml(mentee.email || mentee.uid) + '</div>';
+      row.appendChild(menteeBox);
+
+      var chips = document.createElement('div');
+      chips.className = 'perm-mentor-chips';
+      if (!current.size) {
+        var empty = document.createElement('span');
+        empty.className = 'perm-mentor-empty';
+        empty.textContent = 'no mentors assigned';
+        chips.appendChild(empty);
+      } else {
+        // Sort chips by name for stability.
+        var mentorRows = Array.from(current).map(function (uid) {
+          var u = users.find(function (x) { return x.uid === uid; });
+          return { uid: uid, name: u ? u.name : uid.slice(0, 8) };
+        }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+        mentorRows.forEach(function (m) {
+          var chip = document.createElement('span');
+          chip.className = 'perm-mentor-chip';
+          chip.innerHTML =
+            escHtml(m.name) +
+            ' <button type="button" class="perm-mentor-chip-x" ' +
+              'data-mentee-uid="' + escHtml(mentee.uid) + '" ' +
+              'data-mentor-uid="' + escHtml(m.uid) + '" ' +
+              'title="Remove mentor">×</button>';
+          chips.appendChild(chip);
+        });
+      }
+      row.appendChild(chips);
+
+      // Picker: every other non-admin user not already assigned + not the
+      // mentee themselves.
+      var sel = document.createElement('select');
+      sel.className = 'perm-mentor-add';
+      sel.dataset.menteeUid = mentee.uid;
+      sel.innerHTML = '<option value="">+ Add mentor…</option>';
+      users.forEach(function (candidate) {
+        if (candidate.uid === mentee.uid) return;
+        if (current.has(candidate.uid)) return;
+        var opt = document.createElement('option');
+        opt.value = candidate.uid;
+        opt.textContent = candidate.name + (candidate.role ? ' (' + candidate.role + ')' : '');
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', onMentorAdd);
+      row.appendChild(sel);
+
+      // Wire chip × buttons.
+      Array.prototype.forEach.call(chips.querySelectorAll('.perm-mentor-chip-x'), function (btn) {
+        btn.addEventListener('click', onMentorRemove);
+      });
+
+      host.appendChild(row);
+    });
+  }
+
+  function setEq(a, b) {
+    if (a.size !== b.size) return false;
+    var ok = true;
+    a.forEach(function (v) { if (!b.has(v)) ok = false; });
+    return ok;
+  }
+
+  function onMentorAdd(e) {
+    var menteeUid = e.target.dataset.menteeUid;
+    var mentorUid = e.target.value;
+    if (!menteeUid || !mentorUid) return;
+    var current = mentorAssignments.get(menteeUid) || new Set();
+    current.add(mentorUid);
+    mentorAssignments.set(menteeUid, current);
+    syncMentorPendingEdit(menteeUid);
+    renderMentorList();
+    updatePendingStatus();
+  }
+
+  function onMentorRemove(e) {
+    var menteeUid = e.target.dataset.menteeUid;
+    var mentorUid = e.target.dataset.mentorUid;
+    if (!menteeUid || !mentorUid) return;
+    var current = mentorAssignments.get(menteeUid) || new Set();
+    current.delete(mentorUid);
+    mentorAssignments.set(menteeUid, current);
+    syncMentorPendingEdit(menteeUid);
+    renderMentorList();
+    updatePendingStatus();
+  }
+
+  /* Recompute the single mentor-pending-edit row for this mentee. Empty if
+   * current matches initial (no edit), otherwise stash the final list. */
+  function syncMentorPendingEdit(menteeUid) {
+    var current = mentorAssignments.get(menteeUid) || new Set();
+    var initial = initialState.mentor.get(menteeUid) || new Set();
+    var key = 'mentor:' + menteeUid;
+    if (setEq(current, initial)) {
+      pendingEdits.delete(key);
+    } else {
+      pendingEdits.set(key, {
+        type: 'mentor',
+        key: menteeUid,
+        mentorUids: Array.from(current),
+      });
+    }
+  }
+
   /* ── change tracking ── */
 
   function onUserCellChange(e) {
@@ -646,6 +914,8 @@
     var userEdits = new Map();          // uid → Set<pageId> (final state)
     var anyWorkflowEdit = false;
 
+    var anyTrackingEdit = false;
+    var mentorEdits = new Map();        // menteeUid → mentorUids[] (final state)
     pendingEdits.forEach(function (edit) {
       if (edit.type === 'user') {
         var s = userEdits.get(edit.key);
@@ -663,16 +933,34 @@
         if (edit.checked) ids.add(edit.pageId);
         else ids.delete(edit.pageId);
         wf.pageIds = Array.from(ids);
+      } else if (edit.type === 'tracking') {
+        anyTrackingEdit = true;
+      } else if (edit.type === 'mentor') {
+        mentorEdits.set(edit.key, Array.isArray(edit.mentorUids) ? edit.mentorUids.slice() : []);
       }
     });
 
     try {
       // 1. User permissions: per-uid set/delete.
+      // V3.212 — also writes `allowedCollections`, denormalized from
+      // allowedPageIds via window.PAGE_COLLECTIONS.collectionsFor.
+      // firestore.rules' collabMay(coll) reads that array to enforce
+      // collaborator data access at the wire. Both fields are written
+      // atomically in the same .set({...}, {merge:true}) call so they
+      // can never drift.
       var userOps = [];
       userEdits.forEach(function (set, uid) {
         var ref = db().collection('userPermissions').doc(uid);
         if (set.size) {
-          userOps.push(ref.set({ allowedPageIds: Array.from(set), updatedAt: new Date() }, { merge: true }));
+          var pageIds = Array.from(set);
+          var allowedCollections = (window.PAGE_COLLECTIONS && window.PAGE_COLLECTIONS.collectionsFor)
+            ? window.PAGE_COLLECTIONS.collectionsFor(pageIds)
+            : [];
+          userOps.push(ref.set({
+            allowedPageIds: pageIds,
+            allowedCollections: allowedCollections,
+            updatedAt: new Date(),
+          }, { merge: true }));
         } else {
           userOps.push(ref.delete().catch(function () { /* ignore not-found */ }));
         }
@@ -709,6 +997,34 @@
         });
       }
 
+      // 3. V3.243 — mentor assignments. One write per changed mentee.
+      // Uses merge so adjacent fields on the users/{uid} profile aren't
+      // clobbered. firestore.rules' users/{uid} write rule already permits
+      // admin writes (line 132).
+      var mentorOps = [];
+      mentorEdits.forEach(function (mentorUids, menteeUid) {
+        mentorOps.push(db().collection('users').doc(menteeUid).set({
+          mentor_uids: mentorUids,
+          updatedAt: new Date(),
+        }, { merge: true }));
+      });
+      if (mentorOps.length) await Promise.all(mentorOps);
+
+      // 4. V3.228 — page tracking config. Write the full modes map so
+      // removed entries (admin flipped back to default) actually drop.
+      if (anyTrackingEdit) {
+        var modesOut = {};
+        trackingModes.forEach(function (mode, slug) {
+          if (mode && mode !== 'tracked') modesOut[slug] = mode;
+          // Note: 'tracked' is the default — omitting from the doc keeps
+          // it compact and means a missing slug also means tracked.
+        });
+        await db().collection('labConfig').doc('pageTracking').set({
+          modes: modesOut,
+          updatedAt: new Date(),
+        }, { merge: false });
+      }
+
       // Refresh initial state to match what we just saved.
       userEdits.forEach(function (set, uid) {
         if (set.size) initialState.user.set(uid, set);
@@ -717,6 +1033,20 @@
       defaultWorkflows.forEach(function (wf) {
         initialState.workflow.set(wf.id, new Set(wf.pageIds || []));
       });
+      if (anyTrackingEdit) {
+        initialState.tracking.clear();
+        trackingModes.forEach(function (mode, slug) {
+          if (mode && mode !== 'tracked') initialState.tracking.set(slug, mode);
+        });
+        document.querySelectorAll('.perm-tracking-row.is-changed')
+          .forEach(function (el) { el.classList.remove('is-changed'); });
+      }
+      if (mentorEdits.size) {
+        mentorEdits.forEach(function (mentorUids, menteeUid) {
+          initialState.mentor.set(menteeUid, new Set(mentorUids));
+        });
+        renderMentorList();
+      }
 
       pendingEdits.clear();
       document.querySelectorAll('.perm-cell-changed')
@@ -734,8 +1064,18 @@
   function revertAll() {
     if (!pendingEdits.size) return;
     pendingEdits.clear();
+    // V3.228 — also restore the in-memory tracking modes from initial state.
+    trackingModes.clear();
+    initialState.tracking.forEach(function (mode, slug) { trackingModes.set(slug, mode); });
+    // V3.243 — restore the in-memory mentor assignments from initial state.
+    mentorAssignments.clear();
+    initialState.mentor.forEach(function (set, menteeUid) {
+      mentorAssignments.set(menteeUid, new Set(set));
+    });
     renderUserGrid();
     renderWorkflowGrid();
+    renderTrackingList();
+    renderMentorList();
     setStatus('Reverted.', 'ok');
   }
 
@@ -773,11 +1113,70 @@
     }
   }
 
+  /* V3.212 — Walks every userPermissions/{uid} doc and re-derives
+   * `allowedCollections` from its current `allowedPageIds` via
+   * window.PAGE_COLLECTIONS.collectionsFor. Use after editing the
+   * pageId → collection map in page-collections.js so existing
+   * grants pick up the new mapping without forcing the admin to
+   * manually re-save every collaborator. Idempotent: docs whose
+   * computed value matches the stored value are skipped (no write). */
+  async function recomputeAllCollaboratorGrants() {
+    var btn = document.getElementById('perm-recompute-collections');
+    if (!btn) return;
+    if (!window.PAGE_COLLECTIONS || !window.PAGE_COLLECTIONS.collectionsFor) {
+      setStatus('Recompute failed: page-collections.js not loaded.', 'err');
+      return;
+    }
+    if (!confirm(
+      'Walk every userPermissions doc and re-derive allowedCollections '
+      + 'from allowedPageIds. Use this after editing the pageId → '
+      + 'collection map in page-collections.js. Continue?'
+    )) return;
+    btn.disabled = true;
+    setStatus('Recomputing…');
+    try {
+      var snap = await db().collection('userPermissions').get();
+      var ops = [];
+      var touched = 0, unchanged = 0, skipped = 0;
+      snap.forEach(function (d) {
+        var data = d.data() || {};
+        var pageIds = Array.isArray(data.allowedPageIds) ? data.allowedPageIds : [];
+        if (!pageIds.length) { skipped++; return; }
+        var computed = window.PAGE_COLLECTIONS.collectionsFor(pageIds);
+        var existing = Array.isArray(data.allowedCollections) ? data.allowedCollections.slice().sort() : [];
+        var same = computed.length === existing.length
+          && computed.every(function (c, i) { return c === existing[i]; });
+        if (same) { unchanged++; return; }
+        ops.push(d.ref.set({
+          allowedCollections: computed,
+          updatedAt: new Date(),
+        }, { merge: true }));
+        touched++;
+      });
+      await Promise.all(ops);
+      setStatus('Recomputed. touched=' + touched + ' unchanged=' + unchanged + ' skipped=' + skipped, 'ok');
+    } catch (err) {
+      console.error('[admin-permissions] recompute failed:', err);
+      setStatus('Recompute failed: ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function applySearchFilter(q) {
     q = (q || '').trim().toLowerCase();
-    var which = window.__PERM_TAB === 'workflows' ? 'perm-grid-workflows' : 'perm-grid-users';
-    var rows = document.querySelectorAll('#' + which + ' tbody tr');
-    rows.forEach(function (tr) {
+    var tab = window.__PERM_TAB;
+    if (tab === 'mentors') {
+      var rows = document.querySelectorAll('#perm-mentor-list .perm-mentor-row');
+      rows.forEach(function (row) {
+        var text = row.textContent.toLowerCase();
+        row.style.display = (!q || text.indexOf(q) >= 0) ? '' : 'none';
+      });
+      return;
+    }
+    var which = tab === 'workflows' ? 'perm-grid-workflows' : 'perm-grid-users';
+    var rowsGrid = document.querySelectorAll('#' + which + ' tbody tr');
+    rowsGrid.forEach(function (tr) {
       var text = tr.textContent.toLowerCase();
       tr.style.display = (!q || text.indexOf(q) >= 0) ? '' : 'none';
     });
@@ -788,6 +1187,8 @@
     document.getElementById('perm-revert').addEventListener('click', revertAll);
     var seedBtn = document.getElementById('perm-seed-defaults');
     if (seedBtn) seedBtn.addEventListener('click', seedDefaults);
+    var recompBtn = document.getElementById('perm-recompute-collections');
+    if (recompBtn) recompBtn.addEventListener('click', recomputeAllCollaboratorGrants);
     document.getElementById('perm-search').addEventListener('input', function (e) {
       applySearchFilter(e.target.value);
     });

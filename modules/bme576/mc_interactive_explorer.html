@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 10: Uncertainty & Error Propagation — Engineering Cancer Course</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.8rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 20px;border:none;background:none;font-size:.9rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+/* Flex column ordering: background → student-task → scenario-bar → panel.
+   HTML source order is preserved for screen readers. */
+.tab-content.active{display:flex;flex-direction:column}
+.tab-content > .background-section{order:1}
+.tab-content > .student-task{order:2;margin-top:0;margin-bottom:14px}
+.tab-content > .scenario-bar{order:3}
+.tab-content > .panel{order:4}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.btn{padding:7px 14px;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-secondary{background:#e2e8f0;color:#334155}.btn-secondary:hover{background:#cbd5e1}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+
+/* ── Stats ── */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}
+.stat-row .value{font-weight:600;color:#1e293b}
+.stat-row.highlight .value{color:#2563eb}
+.color-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+
+/* ── Chart rows ── */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chart-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row,.chart-row-3{grid-template-columns:1fr}}
+
+/* ── Per-tab scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.active-early{border-color:#15803d;color:#15803d;background:#f0fdf4}
+.scen-btn.active-late{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+.scen-btn.active-hill_mid{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.scen-btn.active-hill_sat{border-color:#7c3aed;color:#7c3aed;background:#f5f3ff}
+
+/* ── Verdict box ── */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+.val-verdict strong{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight box ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+
+/* ── Progress bar ── */
+.progress-bar{height:6px;background:#e2e8f0;border-radius:3px;margin:8px 0;overflow:hidden}
+.progress-bar .fill{height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:3px;transition:width .15s}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════════════════ RESPONSIVE / MOBILE ════════════════ */
+@media (max-width: 900px) { .panel{gap:12px} }
+
+@media (max-width: 640px) {
+    header{padding:16px 14px}
+    header h1{font-size:1.25rem;letter-spacing:-.3px}
+    header .subtitle{font-size:.76rem}
+    .tab-bar{padding:0 8px}
+    .tab-btn{padding:10px 10px;font-size:.76rem}
+    main{padding:10px 8px;max-width:100%}
+    .scenario-bar{padding:8px 10px;gap:6px;border-radius:8px}
+    .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+    .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+    .background-section{padding:16px 16px;margin-bottom:12px}
+    .background-section h2{font-size:1rem}
+    .background-section h3{font-size:.9rem}
+    .background-section p,.background-section li{font-size:.84rem}
+    .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+    .ctrl{padding:12px}
+    .ctrl h3{font-size:.78rem;letter-spacing:.3px}
+    .ctrl-group{margin-bottom:10px}
+    .ctrl-group label{font-size:.78rem}
+    .canvas-wrap{padding:8px}
+    .canvas-title{font-size:.68rem;letter-spacing:.3px}
+    .btn-row{gap:4px;flex-wrap:wrap}
+    .btn{padding:6px 12px;font-size:.76rem}
+    .student-task{padding:10px 14px;margin-top:10px}
+    .student-task li{font-size:.78rem;line-height:1.45}
+    .stats{padding:10px;font-size:.76rem}
+    .stat-row .label,.stat-row .value{font-size:.76rem}
+    .val-verdict,.insight{font-size:.8rem;padding:10px 12px}
+    footer{padding:14px;font-size:.7rem}
+}
+
+@media (max-width: 380px) {
+    .scen-btn{flex:1 1 100%;font-size:.76rem}
+    header h1{font-size:1.1rem}
+    .tab-btn{padding:8px 8px;font-size:.72rem}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Uncertainty &amp; Error Propagation</h1>
+  <p class="subtitle">Tumor Spheroid Growth and Drug Dose-Response &mdash; Module 10</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="foundations">1. Sources of Uncertainty</button>
+  <button class="tab-btn" data-tab="analytical">2. Partial-Derivative Method</button>
+  <button class="tab-btn" data-tab="mc">3. Monte Carlo Method</button>
+  <button class="tab-btn" data-tab="compare">4. Analytical vs Monte Carlo</button>
+  <button class="tab-btn" data-tab="capstone">5. Reducing Uncertainty</button>
+</div>
+
+<main>
+
+<!-- ════════════════ TAB 1: FOUNDATIONS ════════════════ -->
+<section id="tab-foundations" class="tab-content active">
+
+  <div class="background-section">
+    <h2>Background: Why Uncertainty Matters in In Vitro Cancer Models</h2>
+
+    <p>Every parameter you measure has uncertainty. Cell counts come from haemocytometers with operator-to-operator variation. Growth rates are inferred from noisy live-cell imaging. Drug IC<sub>50</sub> values are estimated from replicate dose-response wells. When you push these noisy parameters through a mathematical model, the noise <strong>propagates</strong> into the prediction. <em>How much</em> noise reaches the output, and <em>which</em> input parameter dominates that uncertainty, are the central questions of this module.</p>
+
+    <h3>Two Cancer Systems Used Throughout</h3>
+    <p>This explorer toggles between two canonical in vitro models:</p>
+    <div class="equation-box">
+      <p><strong>Gompertz tumor spheroid growth:</strong></p>
+      <p style="text-align:center">$$N(t) = K\,\exp\!\Bigl[\ln(N_0/K)\,e^{-r t}\Bigr]$$</p>
+      <p>where \(N_0\) is initial cell count, \(r\) is intrinsic growth rate (h<sup>-1</sup>), and \(K\) is carrying capacity. This describes 3D spheroid growth where proliferation slows as nutrient/oxygen become limiting.</p>
+      <p style="margin-top:10px"><strong>Hill drug dose-response:</strong></p>
+      <p style="text-align:center">$$E(C) = E_{\max}\,\dfrac{C^n}{\mathrm{EC}_{50}^n + C^n}$$</p>
+      <p>where \(E_{\max}\) is maximal effect, \(\mathrm{EC}_{50}\) is the half-maximal concentration, and \(n\) is the Hill coefficient. This is the standard model for cell viability assays.</p>
+    </div>
+
+    <h3>Two Methods to Propagate Uncertainty</h3>
+    <p><strong>Partial-derivative (analytical) method:</strong> Linearize the model around your best parameter estimate using a first-order Taylor expansion. Variance contributions add as squares of partial derivatives times input variances. Fast, gives a Gaussian approximation, can be wrong when the model is nonlinear or the inputs are large.</p>
+    <p><strong>Monte Carlo method:</strong> Sample parameter vectors from their distributions, run the model on each sample, look at the histogram of outputs. Captures the full nonlinear distribution &mdash; including skewness and heavy tails &mdash; at the cost of running the model thousands of times.</p>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">Four Scenarios You'll Compare</h3>
+      <p>Use the <strong>Scenario</strong> bar above the panel to switch between four cases. They are designed to expose distinct UQ phenomena:</p>
+      <ul>
+        <li><strong>Spheroid Early (t = 72 h):</strong> Gompertz at intermediate time. Mild nonlinearity; analytical and MC will agree closely. Growth-rate uncertainty \(\sigma_r\) dominates here because by 72 h the trajectory has multiplied initial-count uncertainty almost entirely away.</li>
+        <li><strong>Spheroid Late (t = 240 h):</strong> Same Gompertz biology, pushed to long time where the curve is approaching its plateau. Carrying-capacity uncertainty \(\sigma_K\) dominates &mdash; the spheroid is settling near \(K\), so variance in \(K\) maps almost one-to-one to variance in \(N(t)\). The local linearity in \(K\) means analytical and MC actually still agree well here.</li>
+        <li><strong>Hill at EC<sub>50</sub> (C = 5 µM):</strong> Drug response is on the steep middle of the curve. \(\sigma_{\mathrm{EC}_{50}}\) dominates because small horizontal shifts in EC<sub>50</sub> cause large vertical changes in effect &mdash; and this asymmetry produces a noticeably skewed output distribution. <strong>This is the canonical case where MC reveals what analytical hides.</strong></li>
+        <li><strong>Hill saturated (C = 50 µM):</strong> At high dose, \(E_{\max}\) dominates &mdash; \(\mathrm{EC}_{50}\) sensitivity collapses because the curve is flat there. Effect is bounded above by \(E_{\max}\), so the MC distribution is left-skewed and the analytical Gaussian incorrectly leaks past 1.0.</li>
+      </ul>
+    </div>
+
+    <div class="key-takeaways">
+      <ul>
+        <li>Uncertainty quantification (UQ) answers two questions: how big is the prediction error, and which input parameter is responsible?</li>
+        <li>The partial-derivative method is fast and gives an analytical Gaussian; Monte Carlo is general but expensive.</li>
+        <li>They agree when the model is locally linear and the inputs are small. They diverge in strongly nonlinear regimes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Click <strong>Spheroid Early</strong>. Note the cell count prediction with its &plusmn;2&sigma; band. The verdict reports the relative error and which parameter dominates.</li>
+      <li>Switch to <strong>Spheroid Late</strong>. Watch the band swell &mdash; long time amplifies parameter uncertainty exponentially. The dominant parameter changes too.</li>
+      <li>Switch to <strong>Hill at EC<sub>50</sub></strong>. The system flips from cell counts to fractional drug effect. All three parameters contribute roughly equally.</li>
+      <li>Switch to <strong>Hill saturated</strong>. Only \(E_{\max}\) contributes &mdash; the other two are invisible at this dose. <em>Where you measure determines what you can identify.</em></li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn active-early" data-scen="early" onclick="setScenario('early')">Spheroid Early (t=72h)</button>
+    <button class="scen-btn" data-scen="late" onclick="setScenario('late')">Spheroid Late (t=240h)</button>
+    <button class="scen-btn" data-scen="hill_mid" onclick="setScenario('hill_mid')">Hill at EC&#8325;&#8320;</button>
+    <button class="scen-btn" data-scen="hill_sat" onclick="setScenario('hill_sat')">Hill saturated</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Scenario Summary</h3>
+      <div class="stats">
+        <h4>Model</h4>
+        <div class="stat-row"><span class="label">Form</span><span class="value" id="st-f-model">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Evaluated at</span><span class="value" id="st-f-eval">&mdash;</span></div>
+        <h4 style="margin-top:8px">Parameters</h4>
+        <div class="stat-row"><span class="label" id="st-f-pn1">&mdash;</span><span class="value" id="st-f-pv1">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-f-pn2">&mdash;</span><span class="value" id="st-f-pv2">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-f-pn3">&mdash;</span><span class="value" id="st-f-pv3">&mdash;</span></div>
+        <h4 style="margin-top:8px">Uncertainties (&sigma;)</h4>
+        <div class="stat-row"><span class="label" id="st-f-sn1">&mdash;</span><span class="value" id="st-f-sv1">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-f-sn2">&mdash;</span><span class="value" id="st-f-sv2">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-f-sn3">&mdash;</span><span class="value" id="st-f-sv3">&mdash;</span></div>
+      </div>
+      <div class="stats" id="stats-foundations">
+        <h4>Prediction at Eval Point</h4>
+        <div class="stat-row highlight"><span class="label">Mean</span><span class="value" id="st-f-mean">&mdash;</span></div>
+        <div class="stat-row highlight"><span class="label">&plusmn;1&sigma; (analytical)</span><span class="value" id="st-f-sig">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Relative error</span><span class="value" id="st-f-rel">&mdash;</span></div>
+      </div>
+      <div id="verdict-foundations" class="val-verdict good" style="margin-top:12px"></div>
+    </div>
+
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title" id="title-f-curve">Model Output with &plusmn;2&sigma; Uncertainty Band</div>
+        <canvas id="c-f-curve" width="900" height="380"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Variance Contribution at Eval Point</div>
+        <canvas id="c-f-bar" width="900" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════ TAB 2: PARTIAL-DERIVATIVE METHOD ════════════════ -->
+<section id="tab-analytical" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: The Partial-Derivative (Delta) Method</h2>
+
+    <p>If you know your parameter estimate \(\hat{\boldsymbol{\theta}}\) and its variances \(\sigma_i^2\), and the parameters are uncorrelated, the propagated variance of any model output \(f(\boldsymbol{\theta})\) is given by a first-order Taylor expansion:</p>
+
+    <div class="equation-box">
+      <p style="text-align:center">$$\sigma_f^2 \;\approx\; \sum_{i=1}^{p}\!\left(\frac{\partial f}{\partial \theta_i}\right)^{\!2}\!\sigma_i^2$$</p>
+      <p>If parameters are correlated (covariance matrix \(\Sigma_\theta\)), the full form is \(\sigma_f^2 \approx \mathbf{J}^T\,\Sigma_\theta\,\mathbf{J}\) where \(\mathbf{J}=\nabla_{\boldsymbol{\theta}}f\). This module assumes independence; correlation is covered in Module 11 (calibration).</p>
+    </div>
+
+    <h3>Two Diagnostic Quantities You Can Compute Once You Have the Partials</h3>
+    <p><strong>Variance fraction</strong> \(\;f_i \;=\; (\partial f/\partial \theta_i)^2\,\sigma_i^2 \,/\, \sigma_f^2\;\). Fraction of total variance attributable to parameter \(i\). The parameter with the largest \(f_i\) is the one whose &sigma; you should reduce first.</p>
+    <p><strong>Sensitivity coefficient</strong> \(\;S_i \;=\; (\theta_i/f)\,\partial f/\partial \theta_i\;\). Dimensionless local sensitivity (% change in output per % change in parameter). <em>This is not the same as variance fraction.</em></p>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">Sensitivity &ne; Error Contribution</h3>
+      <p>A parameter can be highly sensitive (the output responds strongly to it) yet contribute almost nothing to prediction error if it is measured precisely. Conversely, a weakly sensitive parameter can dominate error if its &sigma; is large.</p>
+      <p>The interactive bar chart on this tab shows both quantities side-by-side. Compare the heights of the hollow bars (|sensitivity coefficient|) against the solid bars (variance fraction). Switch scenarios to see how the relative ordering changes &mdash; in some scenarios the rankings agree, in others they don't.</p>
+    </div>
+
+    <h3>How the Partial Derivatives are Computed Here</h3>
+    <p>For each scenario we evaluate \(\partial f/\partial \theta_i\) by central finite differences:</p>
+    <div class="equation-box">
+      <p style="text-align:center">$$\frac{\partial f}{\partial \theta_i} \;\approx\; \frac{f(\theta_i + h) - f(\theta_i - h)}{2h}, \quad h = \max(\epsilon,\;|\theta_i|\cdot 10^{-6})$$</p>
+      <p>Step size is parameter-relative to handle widely different scales (\(N_0\sim 10^3\) vs \(r\sim 10^{-2}\)).</p>
+    </div>
+
+    <div class="key-takeaways">
+      <ul>
+        <li>Variance fraction tells you which &sigma; to shrink. Sensitivity tells you which parameter the model cares about. They can disagree.</li>
+        <li>The partial-derivative method is exact if the model is linear over the range of input uncertainty &mdash; otherwise it is a first-order approximation.</li>
+        <li>Computing partials via finite differences with parameter-relative step size is the safest default.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Stay on <strong>Spheroid Early</strong>. Inspect the variance-fraction stacked area: at very early time almost all variance is from \(\sigma_{N_0}\); by \(t = 72\) h, growth-rate uncertainty \(\sigma_r\) has taken over.</li>
+      <li>Compare the two right-hand bars: <em>|sensitivity coefficient|</em> (hollow) vs <em>variance fraction</em> (solid). The two bars rank parameters differently when one parameter has small \(\sigma\) but large sensitivity, or vice versa.</li>
+      <li>Switch to <strong>Spheroid Late</strong>. The growth curve is now near plateau, so \(K\) sets the answer almost entirely &mdash; its variance fraction approaches 1.</li>
+      <li>Switch to <strong>Hill saturated</strong>. \(E_{\max}\) takes the bulk of variance; sensitivity to \(\mathrm{EC}_{50}\) collapses because the dose is past the steep transition. <em>Where you measure determines what you can identify.</em></li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn active-early" data-scen="early" onclick="setScenario('early')">Spheroid Early (t=72h)</button>
+    <button class="scen-btn" data-scen="late" onclick="setScenario('late')">Spheroid Late (t=240h)</button>
+    <button class="scen-btn" data-scen="hill_mid" onclick="setScenario('hill_mid')">Hill at EC&#8325;&#8320;</button>
+    <button class="scen-btn" data-scen="hill_sat" onclick="setScenario('hill_sat')">Hill saturated</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Analytical Output</h3>
+      <div class="stats">
+        <h4>At Eval Point</h4>
+        <div class="stat-row highlight"><span class="label">f(&theta;)</span><span class="value" id="st-a-f">&mdash;</span></div>
+        <div class="stat-row highlight"><span class="label">&sigma;<sub>f</sub></span><span class="value" id="st-a-sig">&mdash;</span></div>
+        <h4 style="margin-top:8px">Per-Parameter</h4>
+        <div class="stat-row"><span class="label" id="st-a-n1">&mdash;</span><span class="value" id="st-a-c1">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-a-n2">&mdash;</span><span class="value" id="st-a-c2">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-a-n3">&mdash;</span><span class="value" id="st-a-c3">&mdash;</span></div>
+        <h4 style="margin-top:8px">|Sens. Coeff.|</h4>
+        <div class="stat-row"><span class="label" id="st-a-sn1">&mdash;</span><span class="value" id="st-a-sv1">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-a-sn2">&mdash;</span><span class="value" id="st-a-sv2">&mdash;</span></div>
+        <div class="stat-row"><span class="label" id="st-a-sn3">&mdash;</span><span class="value" id="st-a-sv3">&mdash;</span></div>
+      </div>
+      <div id="verdict-analytical" class="val-verdict good" style="margin-top:12px"></div>
+    </div>
+
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Variance-Fraction Decomposition Across the Independent Variable</div>
+        <canvas id="c-a-stack" width="900" height="320"></canvas>
+      </div>
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">|Sensitivity| vs Variance Fraction (at Eval Point)</div>
+          <canvas id="c-a-bar" width="450" height="320"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Partial Derivatives &part;f/&part;&theta;<sub>i</sub> Across the Range</div>
+          <canvas id="c-a-partials" width="450" height="320"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════ TAB 3: MONTE CARLO METHOD ════════════════ -->
+<section id="tab-mc" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: How Monte Carlo Works, From the Ground Up</h2>
+
+    <p>So far you've heard about Monte Carlo as a way to push uncertainty through a model. This tab strips the method back to its bones. The core idea is simpler than it sounds: <strong>each measurement has a probability distribution describing its noise; if you resample those distributions and refit, you build up the distribution of the fitted parameters.</strong></p>
+
+    <h3>Cancer-Biology Setup &mdash; Doubling Time From a Growth Assay</h3>
+    <p>You imaged a tumor cell line at several time points and counted cells. Exponential growth means the natural log of the count is linear in time:</p>
+    <div class="equation-box">
+      <p style="text-align:center">$$\ln N(t) \;=\; \ln N_0 \;+\; k\,t, \qquad k \;=\; \frac{\ln 2}{T_d}$$</p>
+      <p>The slope \(k\) gives you the growth rate; \(T_d = \ln 2 / k\) is the doubling time. Each measurement \(y_i = \ln N(t_i)\) carries its own measurement noise.</p>
+    </div>
+
+    <h3>The Five-Step Monte Carlo Recipe</h3>
+    <ol>
+      <li>Collect noisy measurements \(y_i\) at known \(t_i\). Each comes with an assumed noise distribution.</li>
+      <li>Pick a per-point distribution: <strong>Normal</strong> (calibration noise), <strong>Uniform</strong> (bounded readout), or <strong>Log-normal</strong> (multiplicative dilution/counting errors &mdash; right-skewed).</li>
+      <li><strong>Resample</strong> each \(y_i\) from its distribution. This produces one perturbed dataset.</li>
+      <li><strong>Refit</strong> the line to that resampled dataset, recording the slope and intercept.</li>
+      <li>Repeat thousands of times. The histograms of slope and intercept <em>are</em> the parameter uncertainty.</li>
+    </ol>
+
+    <h3>Heteroscedasticity &mdash; When &sigma; Varies Across Points</h3>
+    <p>Real growth assays are not uniformly noisy. At high cell density, clumping, occlusion, and saturating fluorescence inflate measurement error. The <strong>Heteroscedastic</strong> toggle scales each point's &sigma; with its time value to mimic this. Watch how late-time noise propagates more strongly into the slope estimate &mdash; later points have more leverage on the fit.</p>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">What MC Reveals That a Single Fit Cannot</h3>
+      <p>One fit gives you a single line. MC gives you a <em>distribution</em> of lines. The width of the slope histogram <em>is</em> the uncertainty in the doubling time. If the histogram is symmetric, you can report \(\hat k \pm \sigma_k\). If it's skewed (e.g., from log-normal noise), you should report a 95% percentile-based CI instead &mdash; the asymmetry is real, and \(\pm\sigma\) misrepresents the upper tail.</p>
+    </div>
+
+    <div class="key-takeaways">
+      <ul>
+        <li>MC error propagation works by resampling noise on the data and refitting. No closed-form Jacobian required.</li>
+        <li>The shape of the per-point noise distribution maps directly to the shape of the parameter distribution.</li>
+        <li>Heteroscedastic noise gives later points more leverage; their distribution dominates the slope uncertainty.</li>
+        <li>Fewer points &times; bigger σ = wider parameter histogram. There is no free lunch.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Click <strong>Generate Data</strong>. A fresh dataset appears with error bars sized to the chosen &sigma;.</li>
+      <li>Click <strong>&#9654; Run</strong>. Faint red lines fill in the plot &mdash; each is one MC iteration's refit. The slope and intercept histograms below build up. The MC mean (colored dashed) should converge on the true value (black dashed).</li>
+      <li>Switch <strong>Error Distribution</strong> to <em>Log-normal</em>, then <em>Generate Data</em> and <em>Run</em> again. The slope histogram is now noticeably right-skewed; reporting &plusmn;&sigma; would understate the upper tail.</li>
+      <li>Toggle <strong>Heteroscedastic</strong> on. Late points now have larger error bars. Re-generate and run &mdash; the slope histogram widens because late points dominate the fit.</li>
+      <li>Drop <strong>Number of points</strong> to 4. Re-generate and run. The slope histogram balloons &mdash; fewer measurements means each point's noise has nowhere to average out.</li>
+    </ol>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Data Generation</h3>
+      <div class="ctrl-group"><label>Number of points <span id="v-mc3-n">8</span></label>
+        <input type="range" id="s-mc3-n" min="4" max="15" value="8"></div>
+      <div class="ctrl-group"><label>True slope k (h&#8315;&#185;) <span id="v-mc3-k">0.030</span></label>
+        <input type="range" id="s-mc3-k" min="0.005" max="0.10" step="0.005" value="0.030"></div>
+      <div class="ctrl-group"><label>True intercept ln N&#8320; <span id="v-mc3-b">3.00</span></label>
+        <input type="range" id="s-mc3-b" min="-2" max="6" step="0.5" value="3.00"></div>
+      <div class="ctrl-group"><label>Error distribution</label>
+        <select id="sel-mc3-dist" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:.85rem;background:#f8fafc">
+          <option value="normal">Normal (Gaussian)</option>
+          <option value="uniform">Uniform</option>
+          <option value="lognormal">Log-normal (right-skewed)</option>
+        </select></div>
+      <div class="ctrl-group"><label>Base &sigma; <span id="v-mc3-sig">0.30</span></label>
+        <input type="range" id="s-mc3-sig" min="0.05" max="1.50" step="0.05" value="0.30"></div>
+      <div class="ctrl-group" style="margin-top:6px"><label style="display:flex;align-items:center;gap:8px;font-weight:600;color:#334155;cursor:pointer">
+        <input type="checkbox" id="chk-mc3-het" style="width:16px;height:16px"> Heteroscedastic (&sigma; grows with t)
+      </label></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btn-mc3-gen">Generate Data</button>
+      </div>
+
+      <h3>Monte Carlo</h3>
+      <div class="ctrl-group"><label>Iterations <span id="v-mc3-mcn">3000</span></label>
+        <input type="range" id="s-mc3-mcn" min="100" max="50000" step="100" value="3000"></div>
+      <div class="ctrl-group"><label>Speed <span id="v-mc3-spd">25</span>/frame</label>
+        <input type="range" id="s-mc3-spd" min="1" max="500" step="1" value="25"></div>
+      <div class="btn-row">
+        <button class="btn btn-success" id="btn-mc3-run">&#9654; Run</button>
+        <button class="btn btn-warning" id="btn-mc3-pause" disabled>&#10074;&#10074; Pause</button>
+        <button class="btn btn-danger" id="btn-mc3-reset">&#8634; Reset</button>
+      </div>
+      <div class="progress-bar"><div class="fill" id="mc3-prog" style="width:0%"></div></div>
+
+      <div class="stats">
+        <h4>Progress</h4>
+        <div class="stat-row"><span class="label">Refits drawn</span><span class="value" id="st-mc3-iter">0 / 3000</span></div>
+        <h4 style="margin-top:8px">Slope k (this realization)</h4>
+        <div class="stat-row"><span class="label">Best fit k&#770;</span><span class="value" id="st-mc3-bs">&mdash;</span></div>
+        <div class="stat-row"><span class="label">True k</span><span class="value" id="st-mc3-st">&mdash;</span></div>
+        <h4 style="margin-top:8px">MC slope distribution</h4>
+        <div class="stat-row highlight"><span class="label">Mean</span><span class="value" id="st-mc3-sm">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Std dev</span><span class="value" id="st-mc3-ss">&mdash;</span></div>
+        <div class="stat-row"><span class="label">95% CI</span><span class="value" id="st-mc3-sci">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Skewness</span><span class="value" id="st-mc3-sk">&mdash;</span></div>
+        <h4 style="margin-top:8px">MC intercept distribution</h4>
+        <div class="stat-row highlight"><span class="label">Mean</span><span class="value" id="st-mc3-im">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Std dev</span><span class="value" id="st-mc3-is">&mdash;</span></div>
+        <div class="stat-row"><span class="label">95% CI</span><span class="value" id="st-mc3-ici">&mdash;</span></div>
+      </div>
+      <div id="verdict-mc" class="val-verdict good" style="margin-top:12px"></div>
+    </div>
+
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Data, Best Fit, and MC Ensemble of Refits</div>
+        <canvas id="c-mc3-main" width="900" height="380"></canvas>
+      </div>
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">Slope Distribution</div>
+          <canvas id="c-mc3-slope" width="450" height="240"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Intercept Distribution</div>
+          <canvas id="c-mc3-int" width="450" height="240"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════ TAB 4: ANALYTICAL VS MC ════════════════ -->
+<section id="tab-compare" class="tab-content">
+
+  <div class="background-section">
+    <h2>Background: When the Two Methods Agree (and When They Don't)</h2>
+
+    <p>The two methods agree exactly when:</p>
+    <ul>
+      <li>The model is linear in the parameters over the range of input variation, AND</li>
+      <li>The input distributions are Gaussian.</li>
+    </ul>
+    <p>They disagree when nonlinearity matters &mdash; specifically when the second derivative of \(f\) times \(\sigma\) is appreciable compared with the first derivative.</p>
+
+    <div class="equation-box">
+      <p><strong>Second-order Taylor correction (the term the delta method drops):</strong></p>
+      <p style="text-align:center">$$f(\boldsymbol{\theta}+\delta\boldsymbol{\theta}) \approx f(\boldsymbol{\theta}) + \mathbf{J}^T\delta\boldsymbol{\theta} + \tfrac{1}{2}\,\delta\boldsymbol{\theta}^T\,\mathbf{H}\,\delta\boldsymbol{\theta}$$</p>
+      <p>If \(\|\mathbf{H}\,\sigma\| \ll \|\mathbf{J}\|\), the linearization is fine. If not, the MC mean shifts away from \(f(\hat{\boldsymbol{\theta}})\) and the MC distribution becomes skewed. The Gompertz at long time is the canonical example: nested exponentials produce a multiplicative-like distribution.</p>
+    </div>
+
+    <h3>Three Diagnostics That Tell You Which Method to Trust</h3>
+    <ol>
+      <li><strong>&sigma;-ratio:</strong> if \(|\sigma_{\mathrm{MC}} - \sigma_{\mathrm{analytical}}| / \sigma_{\mathrm{analytical}} &gt; 10\%\), nonlinearity matters. Trust MC.</li>
+      <li><strong>Mean shift:</strong> if MC mean differs from \(f(\hat\theta)\) by more than \(\sigma/10\), the bias from second-order terms is real. Trust MC.</li>
+      <li><strong>Skewness:</strong> if \(|\mathrm{skew}| &gt; 0.3\), the output distribution is non-Gaussian. The analytical &plusmn;&sigma; band misrepresents both tails. Trust MC.</li>
+    </ol>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">Reading the Comparison Plot</h3>
+      <p>The histogram is the MC output distribution; the purple curve is the analytical Gaussian \(\mathcal{N}(f(\hat\theta), \sigma_{\mathrm{analytical}}^2)\). For <strong>Spheroid Early</strong> and <strong>Spheroid Late</strong> they overlap almost perfectly &mdash; the Gompertz dynamics are locally near-linear at both 72 h and the late-time plateau, so the analytical method works. For <strong>Hill at EC<sub>50</sub></strong> the histogram has a noticeable right tail the Gaussian can't capture; for <strong>Hill saturated</strong> the histogram is bounded above and left-skewed.</p>
+    </div>
+
+    <div class="key-takeaways">
+      <ul>
+        <li>If MC and analytical &sigma; agree within 10%, you can use the analytical method downstream &mdash; it is much faster.</li>
+        <li>If they disagree by more than 10%, or if skewness exceeds 0.3, report the MC distribution directly.</li>
+        <li>For decisions involving tail probabilities (failure rates, overshoot), always use MC.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On <strong>Spheroid Early</strong>, click <strong>&#9654; Run MC</strong>. The MC histogram and the analytical Gaussian (purple) sit on top of each other. &sigma;-ratio is near 1.00 and skewness is near zero.</li>
+      <li>Switch to <strong>Hill at EC<sub>50</sub></strong> and re-run. Now the Gaussian is too narrow under the right tail and too tall in the middle. Skewness climbs to about 0.5; the Q-Q plot bows away from the 1:1 line at both ends.</li>
+      <li>Inspect the &sigma;-comparison bar (right side). Each bar shows one method's &sigma;. Equal heights signal the analytical method is reliable; a large gap is a warning.</li>
+      <li>Switch to <strong>Hill saturated</strong>. The output is bounded (effect &le; E<sub>max</sub>) so the MC distribution is left-skewed and bounded above. The Gaussian leaks past 1.0, which is impossible.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn active-early" data-scen="early" onclick="setScenario('early')">Spheroid Early (t=72h)</button>
+    <button class="scen-btn" data-scen="late" onclick="setScenario('late')">Spheroid Late (t=240h)</button>
+    <button class="scen-btn" data-scen="hill_mid" onclick="setScenario('hill_mid')">Hill at EC&#8325;&#8320;</button>
+    <button class="scen-btn" data-scen="hill_sat" onclick="setScenario('hill_sat')">Hill saturated</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Monte Carlo Settings</h3>
+      <div class="ctrl-group"><label>Iterations <span id="v-cmp-n">10000</span></label>
+        <input type="range" id="s-cmp-n" min="500" max="100000" step="500" value="10000"></div>
+      <div class="btn-row">
+        <button class="btn btn-success" id="btn-cmp-run">&#9654; Run MC</button>
+        <button class="btn btn-danger" id="btn-cmp-reset">&#8634; Reset</button>
+      </div>
+      <div class="progress-bar"><div class="fill" id="cmp-prog" style="width:0%"></div></div>
+
+      <div class="stats">
+        <h4>Comparison</h4>
+        <div class="stat-row highlight"><span class="label">&sigma; ratio (MC/analytical)</span><span class="value" id="st-cmp-ratio">&mdash;</span></div>
+        <div class="stat-row"><span class="label">|&sigma; difference|</span><span class="value" id="st-cmp-diff">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Mean shift</span><span class="value" id="st-cmp-shift">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Skewness</span><span class="value" id="st-cmp-skew">&mdash;</span></div>
+        <h4 style="margin-top:8px">Verdict Threshold</h4>
+        <div class="stat-row"><span class="label">&sigma;-ratio gate</span><span class="value">&plusmn;10%</span></div>
+        <div class="stat-row"><span class="label">Skewness gate</span><span class="value">|skew| &lt; 0.3</span></div>
+      </div>
+      <div id="verdict-compare" class="val-verdict good" style="margin-top:12px"></div>
+    </div>
+
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">MC Histogram vs Analytical Gaussian</div>
+        <canvas id="c-cmp-hist" width="900" height="360"></canvas>
+      </div>
+      <div class="chart-row">
+        <div class="canvas-wrap">
+          <div class="canvas-title">&sigma; Comparison: MC vs Analytical</div>
+          <canvas id="c-cmp-sig" width="450" height="240"></canvas>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-title">Q-Q Plot: MC Sample Quantiles vs Gaussian Quantiles</div>
+          <canvas id="c-cmp-qq" width="450" height="240"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════ TAB 5: CAPSTONE ════════════════ -->
+<section id="tab-capstone" class="tab-content">
+
+  <div class="background-section">
+    <h2>Capstone: Use UQ to Plan Better Experiments</h2>
+
+    <p>The previous tabs taught you how to <em>measure</em> uncertainty. This tab uses that machinery to <em>reduce</em> it. The basic loop:</p>
+    <ol>
+      <li>Compute the variance fraction \(f_i\) for every parameter (Tab 2).</li>
+      <li>Identify the dominant parameter &mdash; the one with the largest \(f_i\).</li>
+      <li>Improve <em>that</em> measurement (more replicates, better instrument, longer counting time).</li>
+      <li>Recompute. The improvement in total &sigma; is bounded by the dominant fraction.</li>
+    </ol>
+
+    <div class="equation-box">
+      <p><strong>What halving the dominant &sigma; buys you:</strong></p>
+      <p style="text-align:center">$$\sigma_f^{\text{new}} = \sqrt{\sigma_f^2 - 0.75\,(\partial f/\partial \theta_d)^2\,\sigma_d^2} = \sigma_f\,\sqrt{1 - 0.75\,f_d}$$</p>
+      <p>If \(f_d = 0.80\) (one parameter takes 80% of variance), halving its &sigma; cuts total &sigma; to \(\sigma_f\sqrt{1-0.6}=0.63\,\sigma_f\) &mdash; a 37% improvement. If \(f_d = 0.30\), the same effort only gets you 12% improvement: it isn't worth shrinking that &sigma; alone &mdash; you have to attack the next-largest contributor too.</p>
+    </div>
+
+    <h3>The Practical Decision Tree</h3>
+    <ul>
+      <li><strong>One parameter dominates (&gt; 60% of variance):</strong> halve it. Do this first.</li>
+      <li><strong>Two parameters share dominance (&gt; 80% combined):</strong> halve both. Halving one is not enough.</li>
+      <li><strong>Variance is spread across all parameters:</strong> the model itself may need re-formulation, or you may need to redesign the experimental conditions (e.g., measure at a different concentration where one parameter dominates &mdash; see Hill saturated scenario).</li>
+    </ul>
+
+    <div class="worked-example">
+      <h3 style="margin-top:0">Synthesis Across Tabs 1&ndash;4</h3>
+      <p>You used Tab 1 to see the prediction with its band. Tab 2 told you which parameter to attack. Tab 3 confirmed the &sigma; from sampling. Tab 4 told you whether to trust the cheap analytical method or pay for MC. <strong>This tab</strong> closes the loop: it shows the prediction <em>after</em> the improved measurement, and quantifies the gain.</p>
+    </div>
+
+    <div class="key-takeaways">
+      <ul>
+        <li>UQ is not just diagnosis &mdash; it's a planning tool. Variance fraction tells you exactly where extra experimental effort buys the most.</li>
+        <li>Improvement is bounded: cutting all of &sigma;<sub>d</sub> still leaves \(\sigma_f\sqrt{1-f_d}\). You can never get below the sum of the other terms.</li>
+        <li>If variance is spread evenly, parameter precision isn't the limit &mdash; the model or the experimental design is.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On <strong>Spheroid Early</strong> click <strong>Halve dominant &sigma;</strong>. The "After" curve shows a tighter band; the verdict reports the % reduction.</li>
+      <li>On <strong>Spheroid Late</strong> the dominant parameter has switched to \(K\). Halving \(\sigma_K\) buys a much bigger fractional reduction here because \(f_K\) is close to 1.</li>
+      <li>Try <strong>Halve all &sigma;</strong>. Total &sigma; falls by exactly \(\sqrt{1/4} = 1/2\) for a linear model. For nonlinear models the relationship is nearly the same when MC and analytical agree.</li>
+      <li>Switch to <strong>Hill saturated</strong>. \(E_{\max}\) takes most of the variance &mdash; halving it is by far the most efficient action. Halving \(\sigma_{\mathrm{EC}_{50}}\) here would be largely wasted effort because the curve is flat at this dose.</li>
+      <li>Click <strong>Restore</strong> to return to baseline before switching scenarios.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn active-early" data-scen="early" onclick="setScenario('early')">Spheroid Early (t=72h)</button>
+    <button class="scen-btn" data-scen="late" onclick="setScenario('late')">Spheroid Late (t=240h)</button>
+    <button class="scen-btn" data-scen="hill_mid" onclick="setScenario('hill_mid')">Hill at EC&#8325;&#8320;</button>
+    <button class="scen-btn" data-scen="hill_sat" onclick="setScenario('hill_sat')">Hill saturated</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Remedy Action</h3>
+      <div class="btn-row">
+        <button class="btn btn-success" id="btn-cap-halve">Halve dominant &sigma;</button>
+        <button class="btn btn-primary" id="btn-cap-halveall">Halve all &sigma;</button>
+        <button class="btn btn-secondary" id="btn-cap-reset">Restore</button>
+      </div>
+
+      <div class="stats">
+        <h4>Before (Baseline)</h4>
+        <div class="stat-row"><span class="label">&sigma;<sub>f</sub></span><span class="value" id="st-cap-sig0">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Rel. error</span><span class="value" id="st-cap-rel0">&mdash;</span></div>
+        <div class="stat-row"><span class="label">Dominant param</span><span class="value" id="st-cap-dom">&mdash;</span></div>
+        <h4 style="margin-top:8px">After (Improved)</h4>
+        <div class="stat-row highlight"><span class="label">&sigma;<sub>f</sub></span><span class="value" id="st-cap-sig1">&mdash;</span></div>
+        <div class="stat-row highlight"><span class="label">Rel. error</span><span class="value" id="st-cap-rel1">&mdash;</span></div>
+        <div class="stat-row highlight"><span class="label">% reduction</span><span class="value" id="st-cap-red">&mdash;</span></div>
+      </div>
+      <div id="verdict-capstone" class="val-verdict good" style="margin-top:12px"></div>
+    </div>
+
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Prediction Bands: Before (gray) vs After (blue)</div>
+        <canvas id="c-cap-curve" width="900" height="360"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Variance Breakdown: Before vs After</div>
+        <canvas id="c-cap-bar" width="900" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>Engineering Cancer Course &mdash; Module 10: Uncertainty &amp; Error Propagation</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   MODULE 10: Uncertainty & Error Propagation
+   Tumor Spheroid Growth (Gompertz) and Drug Dose-Response (Hill)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ──────────── COLOR PALETTE ──────────── */
+const COL = {
+  N0: '#3b82f6', r: '#ef4444', K: '#10b981',
+  Emax: '#3b82f6', EC50: '#ef4444', nh: '#10b981',
+  line: '#1e3a5f', band: 'rgba(30,58,95,0.15)',
+  marker: '#f59e0b',
+  mc: 'rgba(59,130,246,0.55)', mcStroke: 'rgba(37,99,235,1)',
+  analytical: '#8b5cf6',
+  beforeBand: 'rgba(100,116,139,0.20)', beforeLine: '#475569',
+  afterBand: 'rgba(37,99,235,0.20)', afterLine: '#2563eb',
+  grid: '#e2e8f0', axis: '#64748b', text: '#1e293b'
+};
+const PARAM_COLORS = [COL.N0, COL.r, COL.K]; // index 0,1,2 reused for both models
+
+/* ──────────── MATH UTILITIES ──────────── */
+function randn() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function arrMean(a) { let s = 0; for (const v of a) s += v; return s / a.length; }
+function arrVar(a) { const m = arrMean(a); let s = 0; for (const v of a) s += (v - m) * (v - m); return s / Math.max(1, a.length - 1); }
+function arrStd(a) { return Math.sqrt(arrVar(a)); }
+function percentile(a, p) {
+  const s = a.slice().sort((x, y) => x - y);
+  const i = (s.length - 1) * p / 100;
+  const lo = Math.floor(i), hi = Math.ceil(i);
+  return s[lo] + (s[hi] - s[lo]) * (i - lo);
+}
+function skewness(a) {
+  const m = arrMean(a); let m2 = 0, m3 = 0;
+  for (const v of a) { const d = v - m; m2 += d * d; m3 += d * d * d; }
+  m2 /= a.length; m3 /= a.length;
+  return m2 > 0 ? m3 / Math.pow(m2, 1.5) : 0;
+}
+function normInv(p) {
+  // Acklam's inverse normal CDF
+  const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
+  const b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857];
+  const c = [-7.78489400243029e-03, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878];
+  const d = [7.78469570904146e-03, 0.32246712907004, 2.445134137143, 3.75440866190742];
+  const pLow = 0.02425, pHigh = 1 - pLow;
+  let q, r;
+  if (p < pLow) { q = Math.sqrt(-2 * Math.log(p)); return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+  if (p <= pHigh) { q = p - 0.5; r = q * q; return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1); }
+  q = Math.sqrt(-2 * Math.log(1 - p));
+  return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+}
+
+function fmt(v, dec) {
+  if (!isFinite(v)) return '—';
+  if (Math.abs(v) >= 1e6) return v.toExponential(dec === undefined ? 2 : dec);
+  if (Math.abs(v) >= 1000) return v.toLocaleString('en-US', {maximumFractionDigits: dec === undefined ? 0 : dec});
+  if (Math.abs(v) >= 1) return v.toFixed(dec === undefined ? 2 : dec);
+  if (Math.abs(v) >= 0.001) return v.toFixed(dec === undefined ? 4 : dec);
+  return v.toExponential(dec === undefined ? 2 : dec);
+}
+function pct(v, dec) { return (v * 100).toFixed(dec === undefined ? 1 : dec) + '%'; }
+
+function niceTicks(lo, hi, approxN) {
+  if (hi <= lo) return [lo];
+  const range = hi - lo;
+  const rough = range / Math.max(approxN, 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  let step;
+  if (rough / mag < 1.5) step = mag;
+  else if (rough / mag < 3.5) step = 2 * mag;
+  else if (rough / mag < 7.5) step = 5 * mag;
+  else step = 10 * mag;
+  const ticks = [];
+  let t = Math.ceil(lo / step) * step;
+  while (t <= hi + step * 0.001) { ticks.push(t); t += step; }
+  return ticks;
+}
+
+/* ──────────── MODELS ──────────── */
+function gompertz(p, t) {
+  const N0 = p[0], r = p[1], K = p[2];
+  if (N0 <= 0 || K <= 0) return 0;
+  return K * Math.exp(Math.log(N0 / K) * Math.exp(-r * t));
+}
+function hillFn(p, C) {
+  const Em = p[0], EC = p[1], n = p[2];
+  if (EC <= 0 || n <= 0 || C < 0) return 0;
+  const Cn = Math.pow(C, n), En = Math.pow(EC, n);
+  return Em * Cn / (En + Cn);
+}
+
+/* Returns f, sigma, partials, contributions, fractions, sensitivity coefficients. */
+function propagate(modelFn, params, sigmas) {
+  const n = params.length;
+  const f0 = modelFn(params);
+  const partials = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const h = Math.max(1e-8, Math.abs(params[i]) * 1e-6);
+    const pp = params.slice(); pp[i] += h;
+    const pm = params.slice(); pm[i] -= h;
+    partials[i] = (modelFn(pp) - modelFn(pm)) / (2 * h);
+  }
+  const contributions = new Array(n);
+  let totVar = 0;
+  for (let i = 0; i < n; i++) {
+    contributions[i] = partials[i] * partials[i] * sigmas[i] * sigmas[i];
+    totVar += contributions[i];
+  }
+  const fractions = contributions.map(c => totVar > 0 ? c / totVar : 0);
+  const sens = new Array(n);
+  for (let i = 0; i < n; i++) {
+    sens[i] = (f0 !== 0 && params[i] !== 0) ? (params[i] / f0) * partials[i] : 0;
+  }
+  return { f0, sigma: Math.sqrt(totVar), variance: totVar, partials, contributions, fractions, sens };
+}
+
+/* ──────────── SCENARIO DEFINITIONS ──────────── */
+const SCENARIOS = {
+  early: {
+    label: 'Spheroid Early (t = 72 h)',
+    model: 'gompertz',
+    fn: gompertz,
+    params: [1000, 0.020, 50000],
+    sigmas: [50, 0.003, 5000],
+    paramNames: ['N₀', 'r', 'K'],
+    paramUnits: ['cells', 'h⁻¹', 'cells'],
+    paramFmt: [v => fmt(v, 0), v => fmt(v, 3), v => fmt(v, 0)],
+    sigmaFmt: [v => fmt(v, 0), v => fmt(v, 4), v => fmt(v, 0)],
+    evalPoint: 72,
+    evalLabel: 't = 72 h',
+    xRange: [1, 300],
+    xLabel: 'Time (hours)',
+    yLabel: 'Cell count',
+    yUnit: 'cells',
+    isLogX: false,
+    nGrid: 200,
+    yMaxFloor: 10
+  },
+  late: {
+    label: 'Spheroid Late (t = 240 h)',
+    model: 'gompertz',
+    fn: gompertz,
+    params: [1000, 0.020, 50000],
+    sigmas: [50, 0.003, 5000],
+    paramNames: ['N₀', 'r', 'K'],
+    paramUnits: ['cells', 'h⁻¹', 'cells'],
+    paramFmt: [v => fmt(v, 0), v => fmt(v, 3), v => fmt(v, 0)],
+    sigmaFmt: [v => fmt(v, 0), v => fmt(v, 4), v => fmt(v, 0)],
+    evalPoint: 240,
+    evalLabel: 't = 240 h',
+    xRange: [1, 300],
+    xLabel: 'Time (hours)',
+    yLabel: 'Cell count',
+    yUnit: 'cells',
+    isLogX: false,
+    nGrid: 200,
+    yMaxFloor: 10
+  },
+  hill_mid: {
+    label: 'Hill at EC₅₀ (C = 5 µM)',
+    model: 'hill',
+    fn: hillFn,
+    params: [0.95, 5.0, 1.5],
+    sigmas: [0.05, 0.8, 0.30],
+    paramNames: ['Eₘₐₓ', 'EC₅₀', 'n'],
+    paramUnits: ['', 'µM', ''],
+    paramFmt: [v => fmt(v, 2), v => fmt(v, 2), v => fmt(v, 2)],
+    sigmaFmt: [v => fmt(v, 3), v => fmt(v, 3), v => fmt(v, 3)],
+    evalPoint: 5.0,
+    evalLabel: 'C = 5.0 µM',
+    xRange: [0.1, 316],
+    xLabel: 'Concentration (µM)',
+    yLabel: 'Fractional effect',
+    yUnit: '',
+    isLogX: true,
+    nGrid: 200,
+    yMaxFloor: 0.001
+  },
+  hill_sat: {
+    label: 'Hill saturated (C = 50 µM)',
+    model: 'hill',
+    fn: hillFn,
+    params: [0.95, 5.0, 1.5],
+    sigmas: [0.05, 0.8, 0.30],
+    paramNames: ['Eₘₐₓ', 'EC₅₀', 'n'],
+    paramUnits: ['', 'µM', ''],
+    paramFmt: [v => fmt(v, 2), v => fmt(v, 2), v => fmt(v, 2)],
+    sigmaFmt: [v => fmt(v, 3), v => fmt(v, 3), v => fmt(v, 3)],
+    evalPoint: 50.0,
+    evalLabel: 'C = 50 µM',
+    xRange: [0.1, 316],
+    xLabel: 'Concentration (µM)',
+    yLabel: 'Fractional effect',
+    yUnit: '',
+    isLogX: true,
+    nGrid: 200,
+    yMaxFloor: 0.001
+  }
+};
+
+/* ──────────── GLOBAL STATE ──────────── */
+let scenario = 'early';
+let activeTab = 'foundations';
+/* Tab 3 state — data-resampling MC for line fit */
+let mcState = {
+  running: false, animId: null, initialized: false,
+  xs: [], yClean: [], yObs: [], sigmas: [],
+  trueK: 0.030, trueB: 3.0, dist: 'normal', baseSig: 0.30, hetero: false,
+  bestK: 0, bestB: 0,
+  slopes: [], intercepts: [], iter: 0
+};
+let cmpState = { running: false, animId: null, samples: [], iter: 0, sumX: 0, sumX2: 0 };
+let capState = { mode: 'baseline' /* | 'halve_dom' | 'halve_all' */ };
+
+function currentScenario() { return SCENARIOS[scenario]; }
+function effectiveSigmas(spec) {
+  if (capState.mode === 'baseline') return spec.sigmas.slice();
+  if (capState.mode === 'halve_all') return spec.sigmas.map(s => s / 2);
+  if (capState.mode === 'halve_dom') {
+    const res = propagate(p => spec.fn(p, spec.evalPoint), spec.params, spec.sigmas);
+    const dom = res.fractions.indexOf(Math.max(...res.fractions));
+    const out = spec.sigmas.slice();
+    out[dom] = out[dom] / 2;
+    return out;
+  }
+  return spec.sigmas.slice();
+}
+
+/* ──────────── CANVAS / CHART HELPERS ──────────── */
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.width * (canvas.height / canvas.width);
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w, h };
+}
+
+class Chart {
+  constructor(ctx, w, h, m) {
+    this.ctx = ctx; this.W = w; this.H = h;
+    this.m = m || { l: 64, r: 20, t: 16, b: 44 };
+    this.pw = w - this.m.l - this.m.r;
+    this.ph = h - this.m.t - this.m.b;
+  }
+  setRange(xMin, xMax, yMin, yMax) { this.xMin = xMin; this.xMax = xMax; this.yMin = yMin; this.yMax = yMax; }
+  toX(v) { return this.m.l + (v - this.xMin) / (this.xMax - this.xMin) * this.pw; }
+  toY(v) { return this.m.t + this.ph - (v - this.yMin) / (this.yMax - this.yMin) * this.ph; }
+  toLogX(v) {
+    const lo = Math.log10(this.xMin), hi = Math.log10(this.xMax);
+    return this.m.l + (Math.log10(v) - lo) / (hi - lo) * this.pw;
+  }
+  drawGrid(xTicks, yTicks, logX) {
+    const c = this.ctx;
+    c.save(); c.strokeStyle = COL.grid; c.lineWidth = 1; c.setLineDash([3, 3]);
+    for (const t of xTicks) {
+      const x = logX ? this.toLogX(t) : this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.m.t + this.ph); c.stroke();
+    }
+    for (const t of yTicks) {
+      const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.m.l + this.pw, y); c.stroke();
+    }
+    c.restore();
+  }
+  drawAxes(xLabel, yLabel, xTicks, yTicks, logX) {
+    const c = this.ctx;
+    c.save();
+    c.strokeStyle = COL.axis; c.lineWidth = 1.5; c.setLineDash([]);
+    c.beginPath();
+    c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.m.t + this.ph);
+    c.lineTo(this.m.l + this.pw, this.m.t + this.ph);
+    c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px -apple-system,sans-serif'; c.textAlign = 'center';
+    for (const t of xTicks) {
+      const x = logX ? this.toLogX(t) : this.toX(t);
+      c.fillText(logX ? String(t) : fmt(t, 0), x, this.m.t + this.ph + 16);
+    }
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of yTicks) {
+      c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    }
+    c.fillStyle = COL.text; c.font = '12px -apple-system,sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    c.fillText(xLabel, this.m.l + this.pw / 2, this.m.t + this.ph + 28);
+    c.save();
+    c.translate(14, this.m.t + this.ph / 2);
+    c.rotate(-Math.PI / 2);
+    c.textBaseline = 'middle'; c.textAlign = 'center';
+    c.fillText(yLabel, 0, 0);
+    c.restore();
+    c.restore();
+  }
+  vLine(xVal, color, dash, logX) {
+    const c = this.ctx;
+    const x = logX ? this.toLogX(xVal) : this.toX(xVal);
+    c.save(); c.strokeStyle = color; c.lineWidth = 1.5;
+    if (dash) c.setLineDash(dash);
+    c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.m.t + this.ph); c.stroke();
+    c.restore();
+  }
+  drawLegend(items, x, y) {
+    const c = this.ctx;
+    c.save(); c.font = '11px -apple-system,sans-serif';
+    let cx = x;
+    for (const it of items) {
+      c.fillStyle = it.color; c.fillRect(cx, y - 5, 12, 10);
+      c.fillStyle = COL.text; cx += 16;
+      c.textAlign = 'left'; c.textBaseline = 'middle';
+      c.fillText(it.label, cx, y); cx += c.measureText(it.label).width + 14;
+    }
+    c.restore();
+  }
+}
+
+function drawLine(ctx, pts, color, lw, dash) {
+  if (pts.length < 2) return;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw || 2;
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.stroke(); ctx.restore();
+}
+function drawArea(ctx, top, bot, color) {
+  if (top.length < 2) return;
+  ctx.save(); ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]);
+  for (let i = 1; i < top.length; i++) ctx.lineTo(top[i][0], top[i][1]);
+  for (let i = bot.length - 1; i >= 0; i--) ctx.lineTo(bot[i][0], bot[i][1]);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function drawStackedArea(ctx, xPx, layers, colors, yBase, plotH) {
+  const n = xPx.length;
+  for (let L = layers.length - 1; L >= 0; L--) {
+    ctx.save(); ctx.fillStyle = colors[L]; ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    let cumTop = new Float64Array(n);
+    for (let j = 0; j < n; j++) for (let k = 0; k <= L; k++) cumTop[j] += layers[k][j];
+    ctx.moveTo(xPx[0], yBase - cumTop[0] * plotH);
+    for (let j = 1; j < n; j++) ctx.lineTo(xPx[j], yBase - cumTop[j] * plotH);
+    if (L === 0) {
+      ctx.lineTo(xPx[n - 1], yBase); ctx.lineTo(xPx[0], yBase);
+    } else {
+      let cumBot = new Float64Array(n);
+      for (let j = 0; j < n; j++) for (let k = 0; k < L; k++) cumBot[j] += layers[k][j];
+      for (let j = n - 1; j >= 0; j--) ctx.lineTo(xPx[j], yBase - cumBot[j] * plotH);
+    }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+}
+
+/* ──────────── X GRID HELPER (linear or log) ──────────── */
+function buildXGrid(spec) {
+  const n = spec.nGrid;
+  const xs = new Array(n);
+  if (spec.isLogX) {
+    const lo = Math.log10(spec.xRange[0]), hi = Math.log10(spec.xRange[1]);
+    for (let i = 0; i < n; i++) xs[i] = Math.pow(10, lo + (hi - lo) * i / (n - 1));
+  } else {
+    const lo = spec.xRange[0], hi = spec.xRange[1];
+    for (let i = 0; i < n; i++) xs[i] = lo + (hi - lo) * i / (n - 1);
+  }
+  return xs;
+}
+function xTicksFor(spec) {
+  if (spec.isLogX) return [0.1, 1, 10, 100, 316].filter(v => v >= spec.xRange[0] && v <= spec.xRange[1]);
+  return niceTicks(spec.xRange[0], spec.xRange[1], 6);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SCENARIO STATE MACHINE
+   ════════════════════════════════════════════════════════════════ */
+function setScenario(s) {
+  if (!SCENARIOS[s]) return;
+  scenario = s;
+  capState.mode = 'baseline';
+  /* Tab 3 is self-contained (its own data sandbox), so we do not reset it on scenario change.
+     Tab 4 still depends on scenario, so reset its accumulated MC state. */
+  resetCmp();
+  document.querySelectorAll('.scen-btn').forEach(btn => {
+    btn.classList.remove('active-early', 'active-late', 'active-hill_mid', 'active-hill_sat');
+    if (btn.dataset.scen === s) btn.classList.add('active-' + s);
+  });
+  refreshActiveTab();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TAB SWITCHING
+   ════════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    document.getElementById('tab-' + activeTab).classList.add('active');
+    refreshActiveTab();
+  });
+});
+
+function refreshActiveTab() {
+  if (activeTab === 'foundations') drawFoundations();
+  else if (activeTab === 'analytical') drawAnalytical();
+  else if (activeTab === 'mc') drawMCTab();
+  else if (activeTab === 'compare') drawCompareTab();
+  else if (activeTab === 'capstone') drawCapstone();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VERDICT GENERATOR
+   ════════════════════════════════════════════════════════════════ */
+function generateVerdict(tab, scen, metrics) {
+  const diag = {
+    early: ' Mild nonlinearity at intermediate time; analytical and MC agree closely. Growth-rate r dominates the variance once the curve has lifted off the initial condition.',
+    late: ' Long-time Gompertz approaches the carrying-capacity plateau, so K dominates the variance almost entirely. The plateau makes the output approximately linear in K, so the distribution stays nearly Gaussian — analytical and MC agree well here.',
+    hill_mid: ' Halfway up the Hill curve where the response is steepest, EC₅₀ uncertainty dominates and the output distribution is right-skewed — small horizontal shifts in EC₅₀ produce large nonlinear shifts in effect, the canonical failure case for the analytical Gaussian.',
+    hill_sat: ' At saturation, Eₘₐₓ dominates variance. Because effect is bounded above by Eₘₐₓ, the MC distribution is left-skewed — the analytical Gaussian leaks past 1.0, which is physically impossible.'
+  }[scen];
+
+  let body = '', kind = 'good';
+  if (tab === 'foundations') {
+    body = '<strong>' + SCENARIOS[scen].label + '</strong>' + diag + ' ' +
+      'Predicted ' + SCENARIOS[scen].yLabel.toLowerCase() + ' = ' + fmt(metrics.f0) + ' ' + SCENARIOS[scen].yUnit + ', ' +
+      '±1σ = ' + fmt(metrics.sigma) + ' (' + pct(metrics.sigma / Math.abs(metrics.f0)) + ' relative).';
+  } else if (tab === 'analytical') {
+    const dom = metrics.fractions.indexOf(Math.max(...metrics.fractions));
+    const sensIdx = metrics.sens.map(Math.abs).reduce((b, v, i, a) => v > a[b] ? i : b, 0);
+    const names = SCENARIOS[scen].paramNames;
+    body = '<strong>Variance fraction breakdown</strong>' + diag + ' ' +
+      'Dominant variance contributor: <strong>' + names[dom] + '</strong> (' + pct(metrics.fractions[dom]) + ' of σ²). ' +
+      'Highest absolute sensitivity: <strong>' + names[sensIdx] + '</strong>. ' +
+      (dom === sensIdx
+        ? 'Both diagnostics agree — this parameter is the natural target for tighter measurement.'
+        : 'Note that ' + names[sensIdx] + ' is most sensitive but does not dominate variance — its σ is small enough that ' + names[dom] + ' wins. Sensitivity ≠ error contribution.');
+    kind = (dom === sensIdx) ? 'good' : 'warn';
+  } else if (tab === 'mc') {
+    if (metrics.iter < 100) { body = '<strong>Run Monte Carlo</strong>Click ▶ Run to draw samples. The histogram and convergence plot will populate as iterations accumulate.'; kind = 'warn'; }
+    else {
+      body = '<strong>MC estimates after ' + metrics.iter.toLocaleString() + ' iterations</strong>' + diag + ' ' +
+        'MC mean = ' + fmt(metrics.mcMean) + ', MC σ = ' + fmt(metrics.mcSig) + '. ' +
+        'Skewness = ' + metrics.skew.toFixed(2) +
+        (Math.abs(metrics.skew) > 0.3 ? ' — distribution is non-Gaussian; trust MC over analytical here.' : ' — distribution is approximately symmetric.');
+      kind = Math.abs(metrics.skew) > 0.3 ? 'warn' : 'good';
+    }
+  } else if (tab === 'compare') {
+    if (metrics.iter < 100) { body = '<strong>Run Monte Carlo</strong>Click ▶ Run MC to compare against the analytical Gaussian.'; kind = 'warn'; }
+    else {
+      const ratio = metrics.mcSig / metrics.aSig;
+      const ratioOK = Math.abs(ratio - 1) < 0.10;
+      const skewOK = Math.abs(metrics.skew) < 0.3;
+      body = '<strong>Comparison verdict</strong>' + diag + ' ' +
+        'σ-ratio (MC/analytical) = ' + ratio.toFixed(3) + ' ' +
+        (ratioOK ? '✓ within 10%' : '✗ outside 10% — analytical underestimates') + '. ' +
+        'Skewness ' + metrics.skew.toFixed(2) + ' ' + (skewOK ? '✓' : '✗ non-Gaussian') + '. ' +
+        (ratioOK && skewOK
+          ? 'Analytical method is reliable here — use it for downstream pipelines.'
+          : 'Use MC for tail probabilities and confidence intervals; analytical method is misleading.');
+      kind = (ratioOK && skewOK) ? 'good' : 'bad';
+    }
+  } else if (tab === 'capstone') {
+    if (capState.mode === 'baseline') {
+      body = '<strong>Baseline state</strong>' + diag + ' Apply <em>Halve dominant σ</em> to target the variance leader, or <em>Halve all σ</em> to see the linear-regime upper bound.';
+    } else {
+      const reduction = 1 - metrics.sigAfter / metrics.sigBefore;
+      body = '<strong>' + (capState.mode === 'halve_dom' ? 'Halved dominant σ' : 'Halved all σ') + '</strong>' +
+        'Total σ reduced by <strong>' + pct(reduction) + '</strong> ' +
+        '(' + fmt(metrics.sigBefore) + ' → ' + fmt(metrics.sigAfter) + '). ' +
+        (capState.mode === 'halve_dom'
+          ? 'Targeting the dominant parameter (' + SCENARIOS[scen].paramNames[metrics.domIdx] + ') buys you ' + pct(reduction) + ' for halving one σ — efficient if dominance is concentrated.'
+          : 'Halving all σ uniformly gives the linear-regime upper bound. For nonlinear scenarios, MC may differ.');
+      kind = 'good';
+    }
+  }
+  return { kind, html: body };
+}
+
+function setVerdict(id, v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'val-verdict ' + v.kind;
+  el.innerHTML = v.html;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TAB 1: FOUNDATIONS
+   ════════════════════════════════════════════════════════════════ */
+function drawFoundations() {
+  const spec = currentScenario();
+  const sigs = effectiveSigmas(spec);
+
+  document.getElementById('st-f-model').textContent = spec.model === 'gompertz' ? 'Gompertz' : 'Hill';
+  document.getElementById('st-f-eval').textContent = spec.evalLabel;
+  for (let i = 0; i < 3; i++) {
+    document.getElementById('st-f-pn' + (i+1)).textContent = spec.paramNames[i] + (spec.paramUnits[i] ? ' (' + spec.paramUnits[i] + ')' : '');
+    document.getElementById('st-f-pv' + (i+1)).textContent = spec.paramFmt[i](spec.params[i]);
+    document.getElementById('st-f-sn' + (i+1)).textContent = 'σ_' + spec.paramNames[i];
+    document.getElementById('st-f-sv' + (i+1)).textContent = spec.sigmaFmt[i](sigs[i]);
+  }
+
+  const xs = buildXGrid(spec);
+  const ys = new Array(xs.length), sigArr = new Array(xs.length);
+  for (let i = 0; i < xs.length; i++) {
+    const x = xs[i];
+    const res = propagate(p => spec.fn(p, x), spec.params, sigs);
+    ys[i] = res.f0; sigArr[i] = res.sigma;
+  }
+
+  const resE = propagate(p => spec.fn(p, spec.evalPoint), spec.params, sigs);
+  document.getElementById('st-f-mean').textContent = fmt(resE.f0) + ' ' + spec.yUnit;
+  document.getElementById('st-f-sig').textContent = '± ' + fmt(resE.sigma) + ' ' + spec.yUnit;
+  document.getElementById('st-f-rel').textContent = pct(resE.sigma / Math.abs(resE.f0));
+
+  setVerdict('verdict-foundations', generateVerdict('foundations', scenario, resE));
+
+  document.getElementById('title-f-curve').textContent =
+    spec.model === 'gompertz'
+      ? 'Tumor Spheroid Growth with ±2σ Uncertainty Band'
+      : 'Drug Dose-Response with ±2σ Uncertainty Band';
+
+  /* ── Curve canvas ── */
+  const cvs = document.getElementById('c-f-curve');
+  const { ctx, w, h } = setupCanvas(cvs);
+  ctx.clearRect(0, 0, w, h);
+  let yMax = -Infinity, yMin = Infinity;
+  for (let i = 0; i < ys.length; i++) {
+    yMax = Math.max(yMax, ys[i] + 2 * sigArr[i]);
+    yMin = Math.min(yMin, Math.max(0, ys[i] - 2 * sigArr[i]));
+  }
+  yMax = Math.max(yMax * 1.08, spec.yMaxFloor);
+  yMin = Math.max(0, yMin * 0.92);
+  if (spec.model === 'hill') yMax = Math.min(yMax, 1.2);
+  const ch = new Chart(ctx, w, h, { l: 70, r: 20, t: 16, b: 44 });
+  ch.setRange(spec.xRange[0], spec.xRange[1], yMin, yMax);
+  const xTk = xTicksFor(spec);
+  const yTk = niceTicks(yMin, yMax, 5);
+  ch.drawGrid(xTk, yTk, spec.isLogX);
+  ch.drawAxes(spec.xLabel, spec.yLabel + (spec.yUnit ? ' (' + spec.yUnit + ')' : ''), xTk, yTk, spec.isLogX);
+
+  const tx = v => spec.isLogX ? ch.toLogX(v) : ch.toX(v);
+  const top = xs.map((x, i) => [tx(x), ch.toY(Math.min(yMax, ys[i] + 2 * sigArr[i]))]);
+  const bot = xs.map((x, i) => [tx(x), ch.toY(Math.max(yMin, ys[i] - 2 * sigArr[i]))]);
+  drawArea(ctx, top, bot, COL.band);
+  drawLine(ctx, xs.map((x, i) => [tx(x), ch.toY(ys[i])]), COL.line, 2.5);
+
+  const px = tx(spec.evalPoint);
+  ch.vLine(spec.evalPoint, COL.marker, [5, 4], spec.isLogX);
+  const py = ch.toY(resE.f0);
+  ctx.save(); ctx.fillStyle = COL.marker;
+  ctx.beginPath(); ctx.arc(px, py, 5, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = COL.marker; ctx.lineWidth = 2;
+  const eyTop = ch.toY(Math.min(yMax, resE.f0 + 2 * resE.sigma));
+  const eyBot = ch.toY(Math.max(yMin, resE.f0 - 2 * resE.sigma));
+  ctx.beginPath(); ctx.moveTo(px, eyTop); ctx.lineTo(px, eyBot); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px - 5, eyTop); ctx.lineTo(px + 5, eyTop); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px - 5, eyBot); ctx.lineTo(px + 5, eyBot); ctx.stroke();
+  ctx.restore();
+
+  ch.drawLegend([
+    { color: COL.line, label: 'Predicted ' + spec.yLabel.toLowerCase() },
+    { color: COL.band, label: '±2σ band' },
+    { color: COL.marker, label: spec.evalLabel }
+  ], ch.m.l + 10, ch.m.t + 14);
+
+  /* ── Variance contribution bar ── */
+  const cvs2 = document.getElementById('c-f-bar');
+  const { ctx: ctx2, w: w2, h: h2 } = setupCanvas(cvs2);
+  ctx2.clearRect(0, 0, w2, h2);
+  const barM = { l: 80, r: 30, t: 18, b: 28 };
+  const barW = w2 - barM.l - barM.r, barH = 28, barY = (h2 - barH) / 2;
+  let cumX = barM.l;
+  for (let i = 0; i < 3; i++) {
+    const segW = resE.fractions[i] * barW;
+    ctx2.fillStyle = PARAM_COLORS[i];
+    ctx2.fillRect(cumX, barY, segW, barH);
+    if (resE.fractions[i] > 0.06) {
+      ctx2.fillStyle = '#fff'; ctx2.font = 'bold 11px -apple-system,sans-serif';
+      ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+      ctx2.fillText(spec.paramNames[i] + ' ' + pct(resE.fractions[i]), cumX + segW / 2, barY + barH / 2);
+    }
+    cumX += segW;
+  }
+  ctx2.strokeStyle = '#cbd5e1'; ctx2.lineWidth = 1; ctx2.strokeRect(barM.l, barY, barW, barH);
+  ctx2.fillStyle = COL.axis; ctx2.font = '11px -apple-system,sans-serif';
+  ctx2.textAlign = 'right'; ctx2.textBaseline = 'middle';
+  ctx2.fillText('σ² fraction', barM.l - 8, barY + barH / 2);
+  ctx2.textAlign = 'left'; ctx2.fillText('0%', barM.l, barY + barH + 14);
+  ctx2.textAlign = 'right'; ctx2.fillText('100%', barM.l + barW, barY + barH + 14);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TAB 2: ANALYTICAL
+   ════════════════════════════════════════════════════════════════ */
+function drawAnalytical() {
+  const spec = currentScenario();
+  const sigs = effectiveSigmas(spec);
+
+  const xs = buildXGrid(spec);
+  const fracs = [new Array(xs.length), new Array(xs.length), new Array(xs.length)];
+  const partials = [new Array(xs.length), new Array(xs.length), new Array(xs.length)];
+  for (let i = 0; i < xs.length; i++) {
+    const x = xs[i];
+    const res = propagate(p => spec.fn(p, x), spec.params, sigs);
+    for (let k = 0; k < 3; k++) {
+      fracs[k][i] = res.fractions[k];
+      partials[k][i] = res.partials[k];
+    }
+  }
+
+  const resE = propagate(p => spec.fn(p, spec.evalPoint), spec.params, sigs);
+  document.getElementById('st-a-f').textContent = fmt(resE.f0) + ' ' + spec.yUnit;
+  document.getElementById('st-a-sig').textContent = '± ' + fmt(resE.sigma);
+  for (let i = 0; i < 3; i++) {
+    document.getElementById('st-a-n' + (i+1)).innerHTML = '<span class="color-dot" style="background:' + PARAM_COLORS[i] + '"></span>' + spec.paramNames[i] + ' (' + pct(resE.fractions[i]) + ')';
+    document.getElementById('st-a-c' + (i+1)).textContent = fmt(resE.contributions[i], 1);
+    document.getElementById('st-a-sn' + (i+1)).innerHTML = '<span class="color-dot" style="background:' + PARAM_COLORS[i] + '"></span>' + spec.paramNames[i];
+    document.getElementById('st-a-sv' + (i+1)).textContent = fmt(Math.abs(resE.sens[i]), 4);
+  }
+
+  setVerdict('verdict-analytical', generateVerdict('analytical', scenario, resE));
+
+  /* ── Stacked area ── */
+  const cvs = document.getElementById('c-a-stack');
+  const { ctx, w, h } = setupCanvas(cvs);
+  ctx.clearRect(0, 0, w, h);
+  const ch = new Chart(ctx, w, h, { l: 64, r: 20, t: 16, b: 44 });
+  ch.setRange(spec.xRange[0], spec.xRange[1], 0, 1);
+  const xTk = xTicksFor(spec);
+  ch.drawGrid(xTk, [0, 0.25, 0.5, 0.75, 1.0], spec.isLogX);
+  ch.drawAxes(spec.xLabel, 'σ² fraction', xTk, [0, 0.25, 0.5, 0.75, 1.0], spec.isLogX);
+  const xPx = xs.map(x => spec.isLogX ? ch.toLogX(x) : ch.toX(x));
+  drawStackedArea(ctx, xPx, fracs, PARAM_COLORS, ch.toY(0), ch.ph);
+  ch.vLine(spec.evalPoint, COL.marker, [5, 4], spec.isLogX);
+  ch.drawLegend([
+    { color: PARAM_COLORS[0], label: spec.paramNames[0] },
+    { color: PARAM_COLORS[1], label: spec.paramNames[1] },
+    { color: PARAM_COLORS[2], label: spec.paramNames[2] },
+    { color: COL.marker, label: spec.evalLabel }
+  ], ch.m.l + 10, ch.m.t + 12);
+
+  /* ── Sensitivity vs Variance bar ── */
+  const cvs2 = document.getElementById('c-a-bar');
+  const { ctx: ctx2, w: w2, h: h2 } = setupCanvas(cvs2);
+  ctx2.clearRect(0, 0, w2, h2);
+  const m = { l: 56, r: 16, t: 36, b: 50 };
+  const pw = w2 - m.l - m.r, ph = h2 - m.t - m.b;
+  const groupW = pw / 3, barW = groupW * 0.32, gap = groupW * 0.06;
+  const absSens = resE.sens.map(Math.abs);
+  const yScale = Math.max(Math.max(...absSens), Math.max(...resE.fractions), 0.01) * 1.18;
+  ctx2.save(); ctx2.strokeStyle = COL.grid; ctx2.lineWidth = 1; ctx2.setLineDash([3, 3]);
+  const tk = niceTicks(0, yScale, 5);
+  for (const t of tk) {
+    const y = m.t + ph - (t / yScale) * ph;
+    ctx2.beginPath(); ctx2.moveTo(m.l, y); ctx2.lineTo(m.l + pw, y); ctx2.stroke();
+    ctx2.fillStyle = COL.axis; ctx2.font = '10px -apple-system,sans-serif';
+    ctx2.textAlign = 'right'; ctx2.fillText(t.toFixed(2), m.l - 6, y + 3);
+  }
+  ctx2.restore();
+  ctx2.save(); ctx2.strokeStyle = COL.axis; ctx2.lineWidth = 1.5;
+  ctx2.beginPath(); ctx2.moveTo(m.l, m.t); ctx2.lineTo(m.l, m.t + ph); ctx2.lineTo(m.l + pw, m.t + ph); ctx2.stroke(); ctx2.restore();
+
+  for (let i = 0; i < 3; i++) {
+    const gx = m.l + groupW * i + groupW * 0.10;
+    const sH = (absSens[i] / yScale) * ph, sY = m.t + ph - sH;
+    ctx2.save(); ctx2.globalAlpha = 0.35; ctx2.fillStyle = PARAM_COLORS[i];
+    ctx2.fillRect(gx, sY, barW, sH); ctx2.restore();
+    ctx2.strokeStyle = PARAM_COLORS[i]; ctx2.lineWidth = 1.5; ctx2.strokeRect(gx, sY, barW, sH);
+    const fH = (resE.fractions[i] / yScale) * ph, fY = m.t + ph - fH;
+    ctx2.fillStyle = PARAM_COLORS[i]; ctx2.fillRect(gx + barW + gap, fY, barW, fH);
+    ctx2.fillStyle = COL.text; ctx2.font = 'bold 11px -apple-system,sans-serif'; ctx2.textAlign = 'center';
+    ctx2.fillText(spec.paramNames[i], gx + barW + gap / 2, m.t + ph + 16);
+    ctx2.font = '10px -apple-system,sans-serif'; ctx2.fillStyle = COL.axis;
+    ctx2.fillText(absSens[i].toFixed(3), gx + barW / 2, sY - 3);
+    ctx2.fillText(resE.fractions[i].toFixed(2), gx + barW + gap + barW / 2, fY - 3);
+  }
+  ctx2.save(); ctx2.font = '10px -apple-system,sans-serif';
+  ctx2.globalAlpha = 0.35; ctx2.fillStyle = '#666'; ctx2.fillRect(m.l + 6, 8, 12, 10); ctx2.globalAlpha = 1;
+  ctx2.strokeStyle = '#666'; ctx2.lineWidth = 1.5; ctx2.strokeRect(m.l + 6, 8, 12, 10);
+  ctx2.fillStyle = COL.text; ctx2.textAlign = 'left'; ctx2.textBaseline = 'middle';
+  ctx2.fillText('|Sensitivity|', m.l + 22, 13);
+  ctx2.fillStyle = '#666'; ctx2.fillRect(m.l + 110, 8, 12, 10);
+  ctx2.fillStyle = COL.text; ctx2.fillText('Variance fraction', m.l + 126, 13);
+  ctx2.restore();
+
+  /* ── Partials across range ── */
+  const cvs3 = document.getElementById('c-a-partials');
+  const { ctx: ctx3, w: w3, h: h3 } = setupCanvas(cvs3);
+  ctx3.clearRect(0, 0, w3, h3);
+  const normP = [0, 1, 2].map(k => {
+    const maxAbs = Math.max(...partials[k].map(Math.abs), 1e-12);
+    return partials[k].map(v => v / maxAbs);
+  });
+  const ch3 = new Chart(ctx3, w3, h3, { l: 56, r: 16, t: 16, b: 44 });
+  ch3.setRange(spec.xRange[0], spec.xRange[1], -1.05, 1.05);
+  const xTk3 = xTicksFor(spec);
+  ch3.drawGrid(xTk3, [-1, -0.5, 0, 0.5, 1], spec.isLogX);
+  ch3.drawAxes(spec.xLabel, '∂f/∂θᵢ (each normalized)', xTk3, [-1, -0.5, 0, 0.5, 1], spec.isLogX);
+  for (let k = 0; k < 3; k++) {
+    drawLine(ctx3, xs.map((x, i) => [spec.isLogX ? ch3.toLogX(x) : ch3.toX(x), ch3.toY(normP[k][i])]), PARAM_COLORS[k], 2);
+  }
+  ch3.vLine(spec.evalPoint, COL.marker, [5, 4], spec.isLogX);
+  ch3.drawLegend([
+    { color: PARAM_COLORS[0], label: '∂f/∂' + spec.paramNames[0] },
+    { color: PARAM_COLORS[1], label: '∂f/∂' + spec.paramNames[1] },
+    { color: PARAM_COLORS[2], label: '∂f/∂' + spec.paramNames[2] }
+  ], ch3.m.l + 10, ch3.m.t + 12);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TAB 3: MONTE CARLO
+   ════════════════════════════════════════════════════════════════ */
+/* Closed-form OLS line fit y = b + k*x */
+function linRegFit(xs, ys) {
+  const n = xs.length;
+  let sx = 0, sy = 0, sxy = 0, sx2 = 0;
+  for (let i = 0; i < n; i++) { sx += xs[i]; sy += ys[i]; sxy += xs[i] * ys[i]; sx2 += xs[i] * xs[i]; }
+  const denom = n * sx2 - sx * sx;
+  if (Math.abs(denom) < 1e-30) return { slope: 0, intercept: sy / n };
+  const slope = (n * sxy - sx * sy) / denom;
+  return { slope, intercept: (sy - slope * sx) / n };
+}
+
+/* Sample noise from Normal / Uniform / Lognormal, all with mean 0 and std = sigma. */
+function sampleNoise(dist, sigma) {
+  if (dist === 'normal') return sigma * randn();
+  if (dist === 'uniform') return sigma * Math.sqrt(3) * (Math.random() * 2 - 1);
+  if (dist === 'lognormal') {
+    const s = 0.5;
+    const z = randn();
+    const raw = Math.exp(s * z) - Math.exp(s * s / 2);
+    const rawStd = Math.sqrt(Math.exp(s * s) - 1) * Math.exp(s * s / 2);
+    return sigma * raw / rawStd;
+  }
+  return sigma * randn();
+}
+
+function mc3GenerateData() {
+  const n = +document.getElementById('s-mc3-n').value;
+  mcState.trueK = +document.getElementById('s-mc3-k').value;
+  mcState.trueB = +document.getElementById('s-mc3-b').value;
+  mcState.dist = document.getElementById('sel-mc3-dist').value;
+  mcState.baseSig = +document.getElementById('s-mc3-sig').value;
+  mcState.hetero = document.getElementById('chk-mc3-het').checked;
+  const xMax = 72; // hours
+  mcState.xs = new Array(n);
+  mcState.yClean = new Array(n);
+  mcState.sigmas = new Array(n);
+  mcState.yObs = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = xMax * i / Math.max(1, n - 1);
+    const y = mcState.trueB + mcState.trueK * x;
+    /* Heteroscedastic: σ grows from 1× baseSig at t=0 to 3× baseSig at t=xMax,
+       mimicking real growth assays where late-time counts (clumping/saturation)
+       are noisier than early ones. This clearly widens the slope distribution
+       relative to the homoscedastic case. */
+    const sig = mcState.hetero
+      ? mcState.baseSig * (1 + 2 * x / xMax)
+      : mcState.baseSig;
+    mcState.xs[i] = x;
+    mcState.yClean[i] = y;
+    mcState.sigmas[i] = sig;
+    mcState.yObs[i] = y + sampleNoise(mcState.dist, sig);
+  }
+  const fit = linRegFit(mcState.xs, mcState.yObs);
+  mcState.bestK = fit.slope;
+  mcState.bestB = fit.intercept;
+  mcState.initialized = true;
+  resetMC();
+  drawMCTab();
+}
+
+function resetMC() {
+  if (mcState.animId) cancelAnimationFrame(mcState.animId);
+  mcState.running = false;
+  mcState.animId = null;
+  mcState.slopes = [];
+  mcState.intercepts = [];
+  mcState.iter = 0;
+  const r = document.getElementById('btn-mc3-run'); if (r) r.disabled = false;
+  const p = document.getElementById('btn-mc3-pause'); if (p) p.disabled = true;
+  const prog = document.getElementById('mc3-prog'); if (prog) prog.style.width = '0%';
+}
+
+function stepMC() {
+  if (!mcState.running) return;
+  if (!mcState.initialized) { mc3GenerateData(); return; }
+  const totalN = +document.getElementById('s-mc3-mcn').value;
+  const batch = Math.min(+document.getElementById('s-mc3-spd').value, totalN - mcState.iter);
+  const n = mcState.xs.length;
+  const ys = new Array(n);
+  for (let b = 0; b < batch; b++) {
+    for (let i = 0; i < n; i++) {
+      ys[i] = mcState.yClean[i] + sampleNoise(mcState.dist, mcState.sigmas[i]);
+    }
+    const fit = linRegFit(mcState.xs, ys);
+    mcState.slopes.push(fit.slope);
+    mcState.intercepts.push(fit.intercept);
+    mcState.iter++;
+  }
+  document.getElementById('mc3-prog').style.width = (mcState.iter / totalN * 100) + '%';
+  drawMCTab();
+  if (mcState.iter >= totalN) {
+    mcState.running = false;
+    document.getElementById('btn-mc3-run').disabled = false;
+    document.getElementById('btn-mc3-pause').disabled = true;
+    return;
+  }
+  mcState.animId = requestAnimationFrame(stepMC);
+}
+
+function mc3GenerateVerdict() {
+  const distLabel = { normal: 'Normal', uniform: 'Uniform', lognormal: 'Log-normal' }[mcState.dist];
+  const heteroNote = mcState.hetero ? ' Heteroscedastic noise — late points dominate the slope estimate.' : '';
+  if (mcState.iter < 100) {
+    return { kind: 'warn', html: '<strong>Generate data, then ▶ Run</strong>The MC ensemble of refits and the slope/intercept distributions will populate as iterations accumulate. ' + distLabel + ' noise (σ = ' + fmt(mcState.baseSig) + ') is set on each of ' + mcState.xs.length + ' data points.' + heteroNote };
+  }
+  const sm = arrMean(mcState.slopes);
+  const ss = arrStd(mcState.slopes);
+  const skew = mcState.slopes.length > 30 ? skewness(mcState.slopes) : NaN;
+  let body = '<strong>Slope distribution after ' + mcState.iter.toLocaleString() + ' refits</strong>' +
+    distLabel + ' noise σ = ' + fmt(mcState.baseSig) + ' on ' + mcState.xs.length + ' points.' + heteroNote + ' ' +
+    'Slope mean = ' + fmt(sm, 4) + ' h⁻¹ (true ' + fmt(mcState.trueK, 4) + '), σ_k = ' + fmt(ss, 4) + '. ';
+  if (isFinite(skew) && Math.abs(skew) > 0.3) {
+    body += 'Skewness ' + skew.toFixed(2) + ' — distribution is non-Gaussian; report 95% CI rather than ±σ.';
+    return { kind: 'warn', html: body };
+  }
+  body += 'Distribution is approximately Gaussian; ±σ_k reporting is fine.';
+  return { kind: 'good', html: body };
+}
+
+function drawHistMc3(canvasId, values, trueVal, color, label) {
+  const cvs = document.getElementById(canvasId);
+  const { ctx, w, h } = setupCanvas(cvs);
+  ctx.clearRect(0, 0, w, h);
+  if (values.length < 2) {
+    ctx.fillStyle = COL.axis; ctx.font = '13px -apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Run MC to populate ' + label + ' histogram', w / 2, h / 2);
+    return;
+  }
+  const ch = new Chart(ctx, w, h, { l: 56, r: 16, t: 16, b: 44 });
+  const vMin = Math.min(...values), vMax = Math.max(...values);
+  const pad = Math.max((vMax - vMin) * 0.05, Math.abs(trueVal) * 0.01, 1e-6);
+  const lo = Math.min(vMin, trueVal) - pad;
+  const hi = Math.max(vMax, trueVal) + pad;
+  const nBins = 40;
+  const binW = (hi - lo) / nBins;
+  const bins = new Float64Array(nBins);
+  for (const v of values) {
+    const idx = Math.floor((v - lo) / binW);
+    if (idx >= 0 && idx < nBins) bins[idx]++;
+  }
+  const maxBin = Math.max(...bins, 1);
+  ch.setRange(lo, hi, 0, maxBin * 1.12);
+  const xTk = niceTicks(lo, hi, 5);
+  const yTk = niceTicks(0, maxBin * 1.12, 4);
+  ch.drawGrid(xTk, yTk);
+  ch.drawAxes(label, 'count', xTk, yTk);
+  ctx.save();
+  ctx.fillStyle = color + '60'; ctx.strokeStyle = color; ctx.lineWidth = 1;
+  for (let i = 0; i < nBins; i++) {
+    if (bins[i] > 0) {
+      const x = ch.toX(lo + i * binW), xr = ch.toX(lo + (i + 1) * binW);
+      const y = ch.toY(bins[i]); const yb = ch.toY(0);
+      ctx.fillRect(x, y, Math.max(1, xr - x - 1), yb - y);
+      ctx.strokeRect(x, y, Math.max(1, xr - x - 1), yb - y);
+    }
+  }
+  ctx.restore();
+  const mn = arrMean(values);
+  ch.vLine(mn, color, [4, 3]);
+  ch.vLine(trueVal, '#1e293b', [2, 3]);
+  ch.drawLegend([
+    { color: color, label: 'MC mean: ' + fmt(mn, 4) },
+    { color: '#1e293b', label: 'true: ' + fmt(trueVal, 4) }
+  ], ch.m.l + 10, ch.m.t + 12);
+}
+
+function drawMCTab() {
+  if (!mcState.initialized) {
+    mc3GenerateData();
+    return;
+  }
+
+  const totalN = +document.getElementById('s-mc3-mcn').value;
+  document.getElementById('st-mc3-iter').textContent = mcState.iter.toLocaleString() + ' / ' + totalN.toLocaleString();
+  document.getElementById('st-mc3-bs').textContent = fmt(mcState.bestK, 4) + ' h⁻¹';
+  document.getElementById('st-mc3-st').textContent = fmt(mcState.trueK, 4) + ' h⁻¹';
+
+  if (mcState.slopes.length > 1) {
+    const sm = arrMean(mcState.slopes), ss = arrStd(mcState.slopes);
+    const im = arrMean(mcState.intercepts), is_ = arrStd(mcState.intercepts);
+    document.getElementById('st-mc3-sm').textContent = fmt(sm, 4);
+    document.getElementById('st-mc3-ss').textContent = fmt(ss, 4);
+    document.getElementById('st-mc3-sci').textContent = '[' + fmt(percentile(mcState.slopes, 2.5), 4) + ', ' + fmt(percentile(mcState.slopes, 97.5), 4) + ']';
+    document.getElementById('st-mc3-sk').textContent = mcState.slopes.length > 30 ? skewness(mcState.slopes).toFixed(2) : '—';
+    document.getElementById('st-mc3-im').textContent = fmt(im, 3);
+    document.getElementById('st-mc3-is').textContent = fmt(is_, 3);
+    document.getElementById('st-mc3-ici').textContent = '[' + fmt(percentile(mcState.intercepts, 2.5), 3) + ', ' + fmt(percentile(mcState.intercepts, 97.5), 3) + ']';
+  } else {
+    ['st-mc3-sm', 'st-mc3-ss', 'st-mc3-sci', 'st-mc3-sk', 'st-mc3-im', 'st-mc3-is', 'st-mc3-ici'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = '—';
+    });
+  }
+
+  setVerdict('verdict-mc', mc3GenerateVerdict());
+
+  /* ── Main scatter + ensemble canvas ── */
+  const cvs = document.getElementById('c-mc3-main');
+  const { ctx, w, h } = setupCanvas(cvs);
+  ctx.clearRect(0, 0, w, h);
+  const xMax = 72;
+  let yLo = Infinity, yHi = -Infinity;
+  for (let i = 0; i < mcState.xs.length; i++) {
+    yLo = Math.min(yLo, mcState.yObs[i] - 2 * mcState.sigmas[i], mcState.yClean[i] - mcState.baseSig * 2);
+    yHi = Math.max(yHi, mcState.yObs[i] + 2 * mcState.sigmas[i], mcState.yClean[i] + mcState.baseSig * 2);
+  }
+  const ch = new Chart(ctx, w, h, { l: 60, r: 20, t: 16, b: 44 });
+  ch.setRange(0, xMax, yLo, yHi);
+  const xTk = niceTicks(0, xMax, 6);
+  const yTk = niceTicks(yLo, yHi, 5);
+  ch.drawGrid(xTk, yTk);
+  ch.drawAxes('Time (hours)', 'ln(cell count)', xTk, yTk);
+
+  /* MC ensemble: faint red lines */
+  if (mcState.slopes.length > 0) {
+    ctx.save();
+    const alpha = Math.max(0.005, 0.10 - mcState.slopes.length * 0.000005);
+    ctx.strokeStyle = 'rgba(239,68,68,' + alpha + ')';
+    ctx.lineWidth = 1;
+    const drawEvery = mcState.slopes.length > 2000 ? Math.ceil(mcState.slopes.length / 2000) : 1;
+    for (let i = 0; i < mcState.slopes.length; i += drawEvery) {
+      ctx.beginPath();
+      ctx.moveTo(ch.toX(0), ch.toY(mcState.intercepts[i]));
+      ctx.lineTo(ch.toX(xMax), ch.toY(mcState.intercepts[i] + mcState.slopes[i] * xMax));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* True line (dashed blue) */
+  ctx.save();
+  ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(ch.toX(0), ch.toY(mcState.trueB));
+  ctx.lineTo(ch.toX(xMax), ch.toY(mcState.trueB + mcState.trueK * xMax));
+  ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+
+  /* Best fit line (solid green) */
+  ctx.save();
+  ctx.strokeStyle = '#059669'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(ch.toX(0), ch.toY(mcState.bestB));
+  ctx.lineTo(ch.toX(xMax), ch.toY(mcState.bestB + mcState.bestK * xMax));
+  ctx.stroke(); ctx.restore();
+
+  /* Data points + error bars */
+  for (let i = 0; i < mcState.xs.length; i++) {
+    const x = mcState.xs[i], y = mcState.yObs[i], sig = mcState.sigmas[i];
+    const px = ch.toX(x), py = ch.toY(y);
+    ctx.save(); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5;
+    const eyTop = ch.toY(y + 2 * sig), eyBot = ch.toY(y - 2 * sig);
+    ctx.beginPath(); ctx.moveTo(px, eyTop); ctx.lineTo(px, eyBot); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px - 4, eyTop); ctx.lineTo(px + 4, eyTop); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px - 4, eyBot); ctx.lineTo(px + 4, eyBot); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath(); ctx.arc(px, py, 4, 0, 2 * Math.PI); ctx.fill();
+  }
+
+  ch.drawLegend([
+    { color: '#2563eb', label: 'True line' },
+    { color: '#059669', label: 'Best fit (one realization)' },
+    { color: 'rgba(239,68,68,0.5)', label: 'MC refit ensemble' }
+  ], ch.m.l + 10, ch.m.t + 14);
+
+  /* Histograms */
+  drawHistMc3('c-mc3-slope', mcState.slopes, mcState.trueK, '#2563eb', 'slope k (h⁻¹)');
+  drawHistMc3('c-mc3-int', mcState.intercepts, mcState.trueB, '#7c3aed', 'intercept ln N₀');
+}
+
+/* Slider readouts */
+document.getElementById('s-mc3-n').addEventListener('input', e => { document.getElementById('v-mc3-n').textContent = e.target.value; });
+document.getElementById('s-mc3-k').addEventListener('input', e => { document.getElementById('v-mc3-k').textContent = parseFloat(e.target.value).toFixed(3); });
+document.getElementById('s-mc3-b').addEventListener('input', e => { document.getElementById('v-mc3-b').textContent = parseFloat(e.target.value).toFixed(2); });
+document.getElementById('s-mc3-sig').addEventListener('input', e => { document.getElementById('v-mc3-sig').textContent = parseFloat(e.target.value).toFixed(2); });
+document.getElementById('s-mc3-mcn').addEventListener('input', e => { document.getElementById('v-mc3-mcn').textContent = e.target.value; });
+document.getElementById('s-mc3-spd').addEventListener('input', e => { document.getElementById('v-mc3-spd').textContent = e.target.value; });
+
+/* Buttons */
+document.getElementById('btn-mc3-gen').addEventListener('click', () => { mc3GenerateData(); });
+document.getElementById('btn-mc3-run').addEventListener('click', () => {
+  if (!mcState.initialized) mc3GenerateData();
+  if (mcState.iter >= +document.getElementById('s-mc3-mcn').value) resetMC();
+  mcState.running = true;
+  document.getElementById('btn-mc3-run').disabled = true;
+  document.getElementById('btn-mc3-pause').disabled = false;
+  mcState.animId = requestAnimationFrame(stepMC);
+});
+document.getElementById('btn-mc3-pause').addEventListener('click', () => {
+  mcState.running = false;
+  document.getElementById('btn-mc3-run').disabled = false;
+  document.getElementById('btn-mc3-pause').disabled = true;
+  if (mcState.animId) cancelAnimationFrame(mcState.animId);
+});
+document.getElementById('btn-mc3-reset').addEventListener('click', () => {
+  resetMC(); drawMCTab();
+});
+
+/* ════════════════════════════════════════════════════════════════
+   TAB 4: COMPARE
+   ════════════════════════════════════════════════════════════════ */
+function resetCmp() {
+  cmpState.running = false;
+  if (cmpState.animId) cancelAnimationFrame(cmpState.animId);
+  cmpState = { running: false, animId: null, samples: [], iter: 0, sumX: 0, sumX2: 0 };
+  const r = document.getElementById('btn-cmp-run'); if (r) r.disabled = false;
+  const prog = document.getElementById('cmp-prog'); if (prog) prog.style.width = '0%';
+}
+
+function stepCmp() {
+  if (!cmpState.running) return;
+  const spec = currentScenario();
+  const sigs = effectiveSigmas(spec);
+  const totalN = +document.getElementById('s-cmp-n').value;
+  const batch = Math.min(500, totalN - cmpState.iter);
+  for (let b = 0; b < batch; b++) {
+    const p = spec.params.map((v, i) => v + sigs[i] * randn());
+    let val = spec.fn(p, spec.evalPoint);
+    if (!isFinite(val)) val = spec.fn(spec.params, spec.evalPoint);
+    cmpState.samples.push(val);
+    cmpState.sumX += val; cmpState.sumX2 += val * val;
+    cmpState.iter++;
+  }
+  document.getElementById('cmp-prog').style.width = (cmpState.iter / totalN * 100) + '%';
+  drawCompareTab();
+  if (cmpState.iter >= totalN) {
+    cmpState.running = false;
+    document.getElementById('btn-cmp-run').disabled = false;
+    return;
+  }
+  cmpState.animId = requestAnimationFrame(stepCmp);
+}
+
+function drawCompareTab() {
+  const spec = currentScenario();
+  const sigs = effectiveSigmas(spec);
+  const analytical = propagate(p => spec.fn(p, spec.evalPoint), spec.params, sigs);
+
+  let mcMean = NaN, mcSig = NaN, skew = NaN;
+  if (cmpState.iter > 1) {
+    mcMean = cmpState.sumX / cmpState.iter;
+    mcSig = Math.sqrt(Math.max(0, cmpState.sumX2 / cmpState.iter - mcMean * mcMean));
+    if (cmpState.samples.length > 30) skew = skewness(cmpState.samples);
+  }
+
+  document.getElementById('st-cmp-ratio').textContent = isFinite(mcSig) ? (mcSig / Math.max(analytical.sigma, 1e-12)).toFixed(3) : '—';
+  document.getElementById('st-cmp-diff').textContent = isFinite(mcSig) ? pct(Math.abs(mcSig - analytical.sigma) / Math.max(analytical.sigma, 1e-12)) : '—';
+  document.getElementById('st-cmp-shift').textContent = isFinite(mcMean) ? fmt(mcMean - analytical.f0) : '—';
+  document.getElementById('st-cmp-skew').textContent = isFinite(skew) ? skew.toFixed(2) : '—';
+
+  setVerdict('verdict-compare', generateVerdict('compare', scenario, { iter: cmpState.iter, mcSig, aSig: analytical.sigma, skew }));
+
+  /* ── Histogram + Gaussian overlay ── */
+  const cvs = document.getElementById('c-cmp-hist');
+  const { ctx, w, h } = setupCanvas(cvs);
+  ctx.clearRect(0, 0, w, h);
+  const ch = new Chart(ctx, w, h, { l: 70, r: 20, t: 16, b: 44 });
+  const muA = analytical.f0, sigA = Math.max(analytical.sigma, 1e-10);
+  let lo, hi;
+  if (cmpState.samples.length > 50) {
+    const sMin = Math.min(...cmpState.samples), sMax = Math.max(...cmpState.samples);
+    lo = Math.min(sMin, muA - 4 * sigA);
+    hi = Math.max(sMax, muA + 4 * sigA);
+  } else {
+    lo = muA - 4.5 * sigA; hi = muA + 4.5 * sigA;
+  }
+  const nBins = 50;
+  const binW = (hi - lo) / nBins;
+  const bins = new Float64Array(nBins);
+  for (const v of cmpState.samples) {
+    const idx = Math.floor((v - lo) / binW);
+    if (idx >= 0 && idx < nBins) bins[idx]++;
+  }
+  const total = cmpState.samples.length || 1;
+  const density = Array.from(bins).map(b => b / (total * binW));
+  const maxDens = Math.max(...density, 1e-12);
+  const gaussMax = 1 / (sigA * Math.sqrt(2 * Math.PI));
+  const yMax = Math.max(maxDens, gaussMax) * 1.18;
+
+  ch.setRange(lo, hi, 0, yMax);
+  const xTk = niceTicks(lo, hi, 6); const yTk = niceTicks(0, yMax, 4);
+  ch.drawGrid(xTk, yTk);
+  ch.drawAxes(spec.yLabel + (spec.yUnit ? ' (' + spec.yUnit + ')' : ''), 'Density', xTk, yTk);
+
+  ctx.save(); ctx.fillStyle = COL.mc;
+  for (let i = 0; i < nBins; i++) {
+    if (density[i] > 0) {
+      const x = ch.toX(lo + i * binW), xr = ch.toX(lo + (i + 1) * binW);
+      const y = ch.toY(density[i]), yb = ch.toY(0);
+      ctx.fillRect(x, y, Math.max(1, xr - x - 1), yb - y);
+    }
+  }
+  ctx.restore();
+  const gPts = [];
+  for (let i = 0; i <= 200; i++) {
+    const x = lo + (hi - lo) * i / 200;
+    const y = (1 / (sigA * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * ((x - muA) / sigA) ** 2);
+    gPts.push([ch.toX(x), ch.toY(y)]);
+  }
+  drawLine(ctx, gPts, COL.analytical, 2.5, [6, 4]);
+  ch.vLine(muA, COL.line, [5, 4]);
+  if (isFinite(mcMean)) ch.vLine(mcMean, '#dc2626', [3, 3]);
+  ch.drawLegend([
+    { color: COL.mc, label: 'MC histogram' },
+    { color: COL.analytical, label: 'Analytical Gaussian' },
+    { color: COL.line, label: 'Analytical mean' },
+    { color: '#dc2626', label: 'MC mean' }
+  ], ch.m.l + 10, ch.m.t + 12);
+
+  /* ── σ comparison bar ── */
+  const cvs2 = document.getElementById('c-cmp-sig');
+  const { ctx: ctx2, w: w2, h: h2 } = setupCanvas(cvs2);
+  ctx2.clearRect(0, 0, w2, h2);
+  const m = { l: 56, r: 16, t: 24, b: 50 };
+  const pw2 = w2 - m.l - m.r, ph2 = h2 - m.t - m.b;
+  const yMax2 = Math.max(sigA, isFinite(mcSig) ? mcSig : sigA) * 1.30;
+  ctx2.save(); ctx2.strokeStyle = COL.grid; ctx2.lineWidth = 1; ctx2.setLineDash([3, 3]);
+  const tk = niceTicks(0, yMax2, 4);
+  for (const t of tk) {
+    const y = m.t + ph2 - (t / yMax2) * ph2;
+    ctx2.beginPath(); ctx2.moveTo(m.l, y); ctx2.lineTo(m.l + pw2, y); ctx2.stroke();
+    ctx2.fillStyle = COL.axis; ctx2.font = '10px -apple-system,sans-serif';
+    ctx2.textAlign = 'right'; ctx2.fillText(fmt(t), m.l - 6, y + 3);
+  }
+  ctx2.restore();
+  ctx2.save(); ctx2.strokeStyle = COL.axis; ctx2.lineWidth = 1.5;
+  ctx2.beginPath(); ctx2.moveTo(m.l, m.t); ctx2.lineTo(m.l, m.t + ph2); ctx2.lineTo(m.l + pw2, m.t + ph2); ctx2.stroke(); ctx2.restore();
+  const bw = pw2 * 0.30;
+  const x1 = m.l + pw2 * 0.20;
+  const h1 = (sigA / yMax2) * ph2;
+  ctx2.fillStyle = COL.analytical; ctx2.fillRect(x1, m.t + ph2 - h1, bw, h1);
+  const x2 = m.l + pw2 * 0.55;
+  const h2b = isFinite(mcSig) ? (mcSig / yMax2) * ph2 : 0;
+  ctx2.fillStyle = COL.mcStroke; ctx2.fillRect(x2, m.t + ph2 - h2b, bw, h2b);
+  ctx2.fillStyle = COL.text; ctx2.font = 'bold 11px -apple-system,sans-serif'; ctx2.textAlign = 'center';
+  ctx2.fillText('Analytical', x1 + bw / 2, m.t + ph2 + 16);
+  ctx2.fillText('MC', x2 + bw / 2, m.t + ph2 + 16);
+  ctx2.font = '10px -apple-system,sans-serif'; ctx2.fillStyle = COL.axis;
+  ctx2.fillText(fmt(sigA), x1 + bw / 2, m.t + ph2 - h1 - 4);
+  if (isFinite(mcSig)) ctx2.fillText(fmt(mcSig), x2 + bw / 2, m.t + ph2 - h2b - 4);
+
+  /* ── Q-Q plot ── */
+  const cvs3 = document.getElementById('c-cmp-qq');
+  const { ctx: ctx3, w: w3, h: h3 } = setupCanvas(cvs3);
+  ctx3.clearRect(0, 0, w3, h3);
+  if (cmpState.samples.length > 30) {
+    const sorted = cmpState.samples.slice().sort((a, b) => a - b);
+    const N = sorted.length;
+    const qx = [], qy = [];
+    const nQ = Math.min(200, N);
+    for (let i = 0; i < nQ; i++) {
+      const p = (i + 0.5) / nQ;
+      const idx = Math.min(N - 1, Math.floor(p * N));
+      qx.push(normInv(p) * sigA + muA);
+      qy.push(sorted[idx]);
+    }
+    const lo3 = Math.min(...qx, ...qy), hi3 = Math.max(...qx, ...qy);
+    const ch3 = new Chart(ctx3, w3, h3, { l: 56, r: 16, t: 16, b: 44 });
+    ch3.setRange(lo3, hi3, lo3, hi3);
+    const tk3 = niceTicks(lo3, hi3, 5);
+    ch3.drawGrid(tk3, tk3);
+    ch3.drawAxes('Theoretical Gaussian quantile', 'MC sample quantile', tk3, tk3);
+    ctx3.save(); ctx3.strokeStyle = COL.line; ctx3.lineWidth = 1.5; ctx3.setLineDash([6, 4]);
+    ctx3.beginPath(); ctx3.moveTo(ch3.toX(lo3), ch3.toY(lo3)); ctx3.lineTo(ch3.toX(hi3), ch3.toY(hi3)); ctx3.stroke();
+    ctx3.restore();
+    ctx3.save(); ctx3.fillStyle = COL.mcStroke;
+    for (let i = 0; i < qx.length; i++) {
+      ctx3.beginPath(); ctx3.arc(ch3.toX(qx[i]), ch3.toY(qy[i]), 2.5, 0, 2 * Math.PI); ctx3.fill();
+    }
+    ctx3.restore();
+    ch3.drawLegend([{ color: COL.mcStroke, label: 'MC sample quantiles' }, { color: COL.line, label: 'Gaussian (1:1)' }],
+      ch3.m.l + 10, ch3.m.t + 12);
+  } else {
+    ctx3.fillStyle = COL.axis; ctx3.font = '13px -apple-system,sans-serif';
+    ctx3.textAlign = 'center'; ctx3.fillText('Run MC to populate Q-Q plot', w3 / 2, h3 / 2);
+  }
+}
+
+document.getElementById('btn-cmp-run').addEventListener('click', () => {
+  if (cmpState.iter === 0) { cmpState.samples = []; cmpState.sumX = 0; cmpState.sumX2 = 0; }
+  cmpState.running = true;
+  document.getElementById('btn-cmp-run').disabled = true;
+  cmpState.animId = requestAnimationFrame(stepCmp);
+});
+document.getElementById('btn-cmp-reset').addEventListener('click', () => { resetCmp(); drawCompareTab(); });
+document.getElementById('s-cmp-n').addEventListener('input', e => { document.getElementById('v-cmp-n').textContent = e.target.value; });
+
+/* ════════════════════════════════════════════════════════════════
+   TAB 5: CAPSTONE
+   ════════════════════════════════════════════════════════════════ */
+function drawCapstone() {
+  const spec = currentScenario();
+  const sigsBefore = spec.sigmas.slice();
+  const sigsAfter = effectiveSigmas(spec);
+
+  const xs = buildXGrid(spec);
+  const yBef = new Array(xs.length), sigBef = new Array(xs.length);
+  const yAft = new Array(xs.length), sigAft = new Array(xs.length);
+  for (let i = 0; i < xs.length; i++) {
+    const r1 = propagate(p => spec.fn(p, xs[i]), spec.params, sigsBefore);
+    const r2 = propagate(p => spec.fn(p, xs[i]), spec.params, sigsAfter);
+    yBef[i] = r1.f0; sigBef[i] = r1.sigma;
+    yAft[i] = r2.f0; sigAft[i] = r2.sigma;
+  }
+
+  const resBef = propagate(p => spec.fn(p, spec.evalPoint), spec.params, sigsBefore);
+  const resAft = propagate(p => spec.fn(p, spec.evalPoint), spec.params, sigsAfter);
+  const domIdx = resBef.fractions.indexOf(Math.max(...resBef.fractions));
+
+  document.getElementById('st-cap-sig0').textContent = '± ' + fmt(resBef.sigma);
+  document.getElementById('st-cap-rel0').textContent = pct(resBef.sigma / Math.abs(resBef.f0));
+  document.getElementById('st-cap-dom').textContent = spec.paramNames[domIdx] + ' (' + pct(resBef.fractions[domIdx]) + ')';
+  document.getElementById('st-cap-sig1').textContent = '± ' + fmt(resAft.sigma);
+  document.getElementById('st-cap-rel1').textContent = pct(resAft.sigma / Math.abs(resAft.f0));
+  const reduction = 1 - resAft.sigma / Math.max(1e-12, resBef.sigma);
+  document.getElementById('st-cap-red').textContent = pct(Math.max(0, reduction));
+
+  setVerdict('verdict-capstone', generateVerdict('capstone', scenario, {
+    sigBefore: resBef.sigma, sigAfter: resAft.sigma, domIdx
+  }));
+
+  /* ── Curve before vs after ── */
+  const cvs = document.getElementById('c-cap-curve');
+  const { ctx, w, h } = setupCanvas(cvs);
+  ctx.clearRect(0, 0, w, h);
+  let yMax = -Infinity, yMin = Infinity;
+  for (let i = 0; i < xs.length; i++) {
+    yMax = Math.max(yMax, yBef[i] + 2 * sigBef[i]);
+    yMin = Math.min(yMin, Math.max(0, yBef[i] - 2 * sigBef[i]));
+  }
+  yMax = Math.max(yMax * 1.08, spec.yMaxFloor);
+  yMin = Math.max(0, yMin * 0.92);
+  if (spec.model === 'hill') yMax = Math.min(yMax, 1.2);
+  const ch = new Chart(ctx, w, h, { l: 70, r: 20, t: 16, b: 44 });
+  ch.setRange(spec.xRange[0], spec.xRange[1], yMin, yMax);
+  const xTk = xTicksFor(spec); const yTk = niceTicks(yMin, yMax, 5);
+  ch.drawGrid(xTk, yTk, spec.isLogX);
+  ch.drawAxes(spec.xLabel, spec.yLabel + (spec.yUnit ? ' (' + spec.yUnit + ')' : ''), xTk, yTk, spec.isLogX);
+
+  const tx = v => spec.isLogX ? ch.toLogX(v) : ch.toX(v);
+  const topB = xs.map((x, i) => [tx(x), ch.toY(Math.min(yMax, yBef[i] + 2 * sigBef[i]))]);
+  const botB = xs.map((x, i) => [tx(x), ch.toY(Math.max(yMin, yBef[i] - 2 * sigBef[i]))]);
+  drawArea(ctx, topB, botB, COL.beforeBand);
+  const topA = xs.map((x, i) => [tx(x), ch.toY(Math.min(yMax, yAft[i] + 2 * sigAft[i]))]);
+  const botA = xs.map((x, i) => [tx(x), ch.toY(Math.max(yMin, yAft[i] - 2 * sigAft[i]))]);
+  drawArea(ctx, topA, botA, COL.afterBand);
+  drawLine(ctx, xs.map((x, i) => [tx(x), ch.toY(yBef[i])]), COL.beforeLine, 2);
+  drawLine(ctx, xs.map((x, i) => [tx(x), ch.toY(yAft[i])]), COL.afterLine, 2);
+  ch.vLine(spec.evalPoint, COL.marker, [5, 4], spec.isLogX);
+  ch.drawLegend([
+    { color: COL.beforeBand, label: 'Before ±2σ' },
+    { color: COL.afterBand, label: 'After ±2σ' },
+    { color: COL.marker, label: spec.evalLabel }
+  ], ch.m.l + 10, ch.m.t + 12);
+
+  /* ── Variance breakdown bars ── */
+  const cvs2 = document.getElementById('c-cap-bar');
+  const { ctx: ctx2, w: w2, h: h2 } = setupCanvas(cvs2);
+  ctx2.clearRect(0, 0, w2, h2);
+  const barM = { l: 80, r: 30, t: 16, b: 16 };
+  const barW = w2 - barM.l - barM.r, barH = 22;
+  function drawSegBar(label, fracs, yTop) {
+    let cumX = barM.l;
+    for (let i = 0; i < 3; i++) {
+      const segW = fracs[i] * barW;
+      ctx2.fillStyle = PARAM_COLORS[i];
+      ctx2.fillRect(cumX, yTop, segW, barH);
+      if (fracs[i] > 0.06) {
+        ctx2.fillStyle = '#fff'; ctx2.font = 'bold 11px -apple-system,sans-serif';
+        ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+        ctx2.fillText(spec.paramNames[i] + ' ' + pct(fracs[i]), cumX + segW / 2, yTop + barH / 2);
+      }
+      cumX += segW;
+    }
+    ctx2.strokeStyle = '#cbd5e1'; ctx2.lineWidth = 1; ctx2.strokeRect(barM.l, yTop, barW, barH);
+    ctx2.fillStyle = COL.axis; ctx2.font = '11px -apple-system,sans-serif';
+    ctx2.textAlign = 'right'; ctx2.textBaseline = 'middle';
+    ctx2.fillText(label, barM.l - 8, yTop + barH / 2);
+  }
+  drawSegBar('Before', resBef.fractions, barM.t + 10);
+  drawSegBar('After', resAft.fractions, barM.t + 10 + barH + 18);
+}
+
+document.getElementById('btn-cap-halve').addEventListener('click', () => {
+  capState.mode = 'halve_dom';
+  drawCapstone();
+});
+document.getElementById('btn-cap-halveall').addEventListener('click', () => {
+  capState.mode = 'halve_all';
+  drawCapstone();
+});
+document.getElementById('btn-cap-reset').addEventListener('click', () => {
+  capState.mode = 'baseline';
+  drawCapstone();
+});
+
+/* ════════════════════════════════════════════════════════════════
+   INITIALIZATION + RESIZE
+   ════════════════════════════════════════════════════════════════ */
+function scheduleResponsiveRedraw() {
+  let t = null;
+  return () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => { refreshActiveTab(); }, 60);
+  };
+}
+const onResize = scheduleResponsiveRedraw();
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    setScenario('early');
+  }, 80);
+});
+</script>
+</body>
+</html>

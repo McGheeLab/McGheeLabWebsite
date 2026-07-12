@@ -155,7 +155,7 @@
         'activity-overview__tab__timeline',
         'activity-overview__tab__email',
         'scheduler',
-        'sharing',
+        'task-market',
         'pmr',
       ],
     },

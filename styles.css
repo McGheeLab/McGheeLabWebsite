@@ -673,6 +673,13 @@ svg{
 /* Team grids use auto-fill so cards stay consistent size even with fewer items */
 .team-grid{ grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
 
+/* V3.312 — alumni subsection headers (grouped by prior category) */
+.alumni-subheader{
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+  margin: clamp(14px, 2.5vw, 24px) 0 10px;
+  opacity: .85;
+}
+
 /* Two-column media layout: text + image/video */
 .media{
   display: grid;
@@ -1534,4 +1541,4064 @@ body.apps-env .group-sheet { display: none !important; }
   .pwa-toast {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   }
+}
+
+/* =========================================
+   IMAGE LIGHTBOX (zoom / pan)
+   Appears when a user clicks an image on the Research Stories or News feeds.
+   ========================================= */
+#stories-feed img:not(.story-feed-avatar):not(.story-team-photo),
+#news-feed img:not(.story-feed-avatar):not(.story-team-photo) {
+  cursor: zoom-in;
+}
+
+.img-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: img-lightbox-in 120ms ease-out;
+}
+.img-lightbox[hidden] { display: none; }
+body.img-lightbox-open { overflow: hidden; }
+
+.img-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.img-lightbox-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.img-lightbox-img {
+  max-width: 95vw;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform-origin: center center;
+  transition: transform 80ms ease-out;
+  will-change: transform;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.img-lightbox-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(20, 24, 34, 0.85);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.img-lightbox-close:hover { background: rgba(40, 46, 60, 0.95); }
+
+.img-lightbox-controls {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(20, 24, 34, 0.85);
+  padding: 6px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.img-lightbox-btn {
+  min-width: 44px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.img-lightbox-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.img-lightbox-btn:active { background: rgba(255, 255, 255, 0.22); }
+
+@keyframes img-lightbox-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .img-lightbox { animation: none; }
+  .img-lightbox-img { transition: none; }
+}
+
+/* =========================================
+   NEWS FEED FILTER BAR
+   ========================================= */
+#news-filter-bar {
+  margin-bottom: 16px;
+}
+.news-filter-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--surface, #121620);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius, 12px);
+  box-shadow: var(--shadow, 0 10px 30px rgba(0,0,0,.25));
+}
+.news-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.news-filter-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted, #a8b3c7);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.news-filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.news-filter-chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--surface-2, #1a2030);
+  color: var(--text, #eef2f7);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.news-filter-chip:hover { background: rgba(91, 174, 209, 0.12); }
+.news-filter-chip.active {
+  background: var(--accent, #5baed1);
+  border-color: var(--accent, #5baed1);
+  color: #0b0d12;
+  font-weight: 600;
+}
+.news-filter-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--surface-2, #1a2030);
+  color: var(--text, #eef2f7);
+  font-size: 0.9rem;
+  min-width: 160px;
+}
+.news-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.news-filter-toggle input { accent-color: var(--accent, #5baed1); }
+.news-filter-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.news-filter-count {
+  font-size: 0.85rem;
+  color: var(--muted, #a8b3c7);
+}
+.news-filter-clear {
+  background: none;
+  border: none;
+  color: var(--link, #7cc4ff);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+.news-filter-clear:hover { text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .news-filter-meta { width: 100%; margin-left: 0; justify-content: space-between; }
+  .news-filter-select { flex: 1; min-width: 0; }
+}
+
+/* ====================================================================
+   BME 295C class page (V3.244) — class-builder section components.
+   Namespace: .cb295-*
+   ==================================================================== */
+
+/* ---- Check-in button strip (V3.244 rev) --------------------------- */
+.cb295-checkin-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgba(91, 174, 209, 0.06);
+  border: 1px solid rgba(91, 174, 209, 0.25);
+  border-radius: 10px;
+  padding: .85rem 1.1rem;
+  flex-wrap: wrap;
+}
+.cb295-checkin-strip-text { display: flex; flex-direction: column; gap: .15rem; }
+.cb295-checkin-strip-text strong { font-size: 1rem; color: #5baed1; }
+.cb295-checkin-strip-text .muted-text { font-size: .85rem; }
+.cb295-checkin-strip-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.cb295-checkin-strip-norostermatch { border-color: rgba(240,184,110,.35); background: rgba(240,184,110,.06); }
+.cb295-checkin-strip-norostermatch strong { color: #f0b86e; }
+
+/* ---- Bio-edit modal ----------------------------------------------- */
+.cb295-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9000;
+  padding: 1rem;
+  overflow-y: auto;
+}
+.cb295-modal {
+  position: relative;
+  background: #131922;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  max-width: 640px;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.5rem 1.5rem 1rem;
+  box-shadow: 0 24px 64px rgba(0,0,0,.4);
+}
+.cb295-modal h3 { margin: 0 0 1rem; color: #5baed1; }
+.cb295-modal-close {
+  position: absolute;
+  top: .5rem; right: .65rem;
+  background: transparent;
+  border: none;
+  color: var(--muted, #a8b3c7);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: .25rem .5rem;
+}
+.cb295-modal-close:hover { color: var(--text, #eef2f7); }
+.cb295-modal-prealloc {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: .5rem;
+  background: rgba(255,255,255,.03);
+  padding: .75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: .85rem;
+}
+.cb295-modal-prealloc > div { display: flex; flex-direction: column; gap: 1px; }
+.cb295-modal-prealloc span { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
+.cb295-modal-body .form-group { margin-bottom: .75rem; }
+.cb295-modal-body textarea {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  color: var(--text, #eef2f7);
+  padding: .5rem .65rem;
+  font: inherit;
+  resize: vertical;
+}
+.cb295-modal-footer {
+  display: flex; justify-content: flex-end;
+  gap: .5rem;
+  margin-top: 1rem;
+  padding-top: .75rem;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+
+/* ---- Manual add-student modal (V3.249) -------------------------- */
+.cb295-add-student-form .form-group { margin-bottom: .75rem; }
+.cb295-add-student-form .form-group label {
+  display: block;
+  font-size: .8rem;
+  color: var(--muted, #a8b3c7);
+  margin-bottom: .25rem;
+}
+.cb295-add-student-form input,
+.cb295-add-student-form select {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  color: var(--text, #eef2f7);
+  padding: .5rem .65rem;
+  font: inherit;
+}
+.cb295-add-student-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+@media (max-width: 480px) {
+  .cb295-add-student-row { grid-template-columns: 1fr; }
+}
+
+/* Per-row remove button on the roster table */
+.cb295-roster-remove {
+  padding: .15rem .55rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ---- Standalone enrollment page (#/classes/bme295c/enroll) ------- */
+.cb295-enroll {
+  min-height: 60vh;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+.cb295-enroll-back {
+  align-self: flex-start;
+  color: #5baed1;
+  text-decoration: none;
+  font-size: .85rem;
+  margin-bottom: 1.5rem;
+}
+.cb295-enroll-back:hover { text-decoration: underline; }
+.cb295-enroll-card {
+  width: 100%;
+  max-width: 520px;
+  background: rgba(91,174,209,.06);
+  border: 1px solid rgba(91,174,209,.25);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+}
+.cb295-enroll-card h2 { margin: 0 0 .75rem; color: #5baed1; font-size: 1.4rem; }
+.cb295-enroll-card p { margin: .5rem 0; }
+.cb295-enroll-cta { display: inline-block; margin-top: 1rem; }
+.cb295-profile-photo {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+.cb295-photo-frame {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255,255,255,.06);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.cb295-photo-frame img { width: 100%; height: 100%; object-fit: cover; }
+.cb295-photo-placeholder { font-size: .75rem; color: var(--muted, #a8b3c7); text-align: center; padding: 0 .25rem; }
+.cb295-photo-status { font-size: .75rem; }
+.cb295-profile-status { font-size: .75rem; margin: 0; }
+.cb295-admin-note {
+  background: rgba(255,200,100,0.08);
+  border-left: 3px solid #f0b86e;
+  padding: .5rem .75rem;
+  margin-bottom: .75rem;
+  border-radius: 4px;
+  font-size: .85rem;
+}
+
+/* ---- Syllabus body ------------------------------------------------- */
+.cb295-syllabus section { margin-bottom: 1.5rem; }
+.cb295-syllabus h3 { color: #5baed1; margin: 0 0 .65rem; font-size: 1.05rem; }
+.cb295-syl-keyfacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .75rem;
+  margin: 1rem 0;
+}
+.cb295-syl-keyfacts > div {
+  background: rgba(255,255,255,.04);
+  padding: .65rem .85rem;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.cb295-syl-keyfacts span { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+.cb295-syl-keyfacts strong { font-size: .95rem; margin-top: .15rem; }
+.cb295-loc-grid,
+.cb295-instructor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: .75rem;
+}
+.cb295-loc-card,
+.cb295-instructor-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px;
+  padding: .85rem;
+}
+.cb295-loc-card h4,
+.cb295-instructor-card h4 { margin: 0 0 .35rem; font-size: 1rem; }
+.cb295-loc-card p,
+.cb295-instructor-card p { margin: .15rem 0; }
+.cb295-loc-building { font-weight: 500; }
+/* V3.266 — instructor card photo on the syllabus */
+.cb295-instructor-card-photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto .5rem;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+}
+.cb295-instructor-card-photo-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-instructor-bio-text {
+  margin-top: .5rem;
+  padding-top: .5rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+  color: rgba(255,255,255,.85);
+  line-height: 1.5;
+}
+/* V3.266 — bio block on the instructor info modal */
+.cb295-profile-view-bio {
+  margin-top: .75rem;
+  padding-top: .75rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+  font-size: .9rem;
+  line-height: 1.5;
+}
+
+/* V3.262 — prominent location links (syllabus + schedule top bar) */
+.cb295-loc-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: .65rem;
+}
+/* V3.276 — small italic line under the parking buttons, e.g.
+ * "Daily max: $9 at either garage." */
+.cb295-loc-parkingnote {
+  margin: .4rem 0 0;
+  font-size: .8rem;
+  font-style: italic;
+}
+.cb295-locbar-parkingnote {
+  display: block;
+  font-size: .72rem;
+  font-style: italic;
+  margin-top: 1px;
+}
+.cb295-loc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .4rem .7rem;
+  background: rgba(91,174,209,.12);
+  border: 1px solid rgba(91,174,209,.4);
+  border-radius: 5px;
+  color: #5baed1 !important;
+  font-size: .85rem;
+  font-weight: 500;
+  text-decoration: none !important;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.cb295-loc-link:hover {
+  background: rgba(91,174,209,.25);
+  border-color: rgba(91,174,209,.6);
+}
+.cb295-loc-link-parking {
+  background: rgba(255, 213, 79, .12);
+  border-color: rgba(255, 213, 79, .4);
+  color: #ffd54f !important;
+}
+.cb295-loc-link-parking:hover {
+  background: rgba(255, 213, 79, .25);
+  border-color: rgba(255, 213, 79, .6);
+}
+
+/* V3.262 — schedule top bar: compact campus → links cards */
+.cb295-locbar {
+  margin-bottom: 1.25rem;
+}
+.cb295-locbar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: .75rem;
+}
+.cb295-locbar-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+  border-left: 4px solid #5baed1;
+  border-radius: 6px;
+  padding: .55rem .75rem;
+}
+.cb295-locbar-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cb295-locbar-text strong { font-size: .95rem; }
+.cb295-locbar-text .muted-text { font-size: .8rem; }
+.cb295-locbar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.cb295-locbar-links .cb295-loc-link {
+  padding: .3rem .55rem;
+  font-size: .8rem;
+}
+
+.cb295-bullet-list { margin: .5rem 0 0 1.1rem; padding: 0; }
+.cb295-bullet-list li { margin: .25rem 0; }
+.cb295-policy {
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  padding: .5rem .75rem;
+  margin: .35rem 0;
+}
+.cb295-policy summary { cursor: pointer; font-weight: 500; }
+.cb295-policy[open] summary { margin-bottom: .35rem; }
+
+/* ---- Schedule body ------------------------------------------------- */
+.cb295-day-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .5rem;
+  margin-top: 1rem;
+}
+@media (max-width: 900px) {
+  .cb295-day-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; }
+}
+.cb295-day-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px;
+  padding: .65rem;
+  min-width: 0;
+}
+.cb295-day-header {
+  display: flex; align-items: baseline; gap: .5rem;
+  margin-bottom: .5rem;
+  padding-bottom: .35rem;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.cb295-day-list { list-style: none; padding: 0; margin: 0; font-size: .8rem; }
+.cb295-day-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: .35rem 0;
+  border-top: 1px solid rgba(255,255,255,.05);
+}
+.cb295-day-row:first-child { border-top: none; }
+.cb295-day-time { font-variant-numeric: tabular-nums; color: var(--muted, #a8b3c7); font-size: .72rem; }
+.cb295-day-topic { line-height: 1.25; }
+.cb295-day-row-talk .cb295-day-topic { font-weight: 500; }
+.cb295-day-row-tour .cb295-day-topic { font-style: italic; }
+.cb295-day-row-discussion .cb295-day-topic { color: var(--muted, #a8b3c7); }
+.cb295-day-campus { font-size: .7rem; color: var(--muted, #a8b3c7); }
+@media (min-width: 901px) {
+  .cb295-day-row { display: grid; grid-template-columns: 56px 1fr; gap: .35rem .5rem; align-items: baseline; }
+  .cb295-day-row .cb295-day-campus { grid-column: 2; }
+}
+
+.cb295-speaker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.cb295-speaker-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: .85rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  padding: .85rem;
+}
+.cb295-speaker-photo { width: 96px; height: 96px; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,.2); }
+.cb295-speaker-photo img { width: 100%; height: 100%; object-fit: cover; }
+.cb295-speaker-body h3 { margin: 0 0 .15rem; font-size: 1rem; }
+.cb295-speaker-title { margin: 0 0 .5rem; font-size: .8rem; line-height: 1.3; }
+.cb295-speaker-meta { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 .5rem; }
+.cb295-tag {
+  display: inline-block;
+  background: rgba(91,174,209,.15);
+  color: #5baed1;
+  font-size: .7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.cb295-tag-campus { background: rgba(240, 184, 110, .15); color: #f0b86e; }
+.cb295-talk-title { font-size: .95rem; margin: .25rem 0; }
+.cb295-abstract { margin-top: .35rem; font-size: .85rem; }
+.cb295-abstract summary { cursor: pointer; color: #5baed1; }
+.cb295-abstract p { margin: .5rem 0; }
+.cb295-labtour { margin: .5rem 0 0; font-size: .8rem; }
+
+/* ---- Discussion modules ------------------------------------------ */
+.cb295-modules { display: flex; flex-direction: column; gap: .65rem; }
+.cb295-mod-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* V3.272 — talk-video embed slot above the abstract on each speaker's
+ * Learning Modules card. 16:9 aspect ratio; iframe is positioned
+ * absolutely to fill the box. Hidden entirely when no video is set. */
+.cb295-mod-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 0 1rem;
+}
+.cb295-mod-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* V3.272 — Talk videos admin panel rows */
+.cb295-speaker-video-hint {
+  background: rgba(91, 174, 209, .06);
+  border-left: 3px solid rgba(91, 174, 209, .35);
+  border-radius: 4px;
+  padding: .55rem .75rem;
+  font-size: .8rem;
+  margin: 0 0 .85rem;
+  line-height: 1.45;
+}
+.cb295-speaker-video-row {
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  padding: .55rem .75rem;
+  margin-bottom: .5rem;
+}
+.cb295-speaker-video-row-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .4rem;
+  flex-wrap: wrap;
+}
+.cb295-speaker-video-row-head strong { font-size: .9rem; }
+.cb295-speaker-video-row-head .muted-text { font-size: .75rem; }
+.cb295-speaker-video-row-form {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.cb295-speaker-video-input {
+  flex: 1 1 280px;
+  min-width: 0;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px;
+  color: var(--text, #eef2f7);
+  padding: .35rem .5rem;
+  font: inherit;
+  font-size: .85rem;
+}
+.cb295-speaker-video-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  background: rgba(255,255,255,.06);
+  color: var(--muted, #a8b3c7);
+  margin-left: auto;
+}
+.cb295-speaker-video-pill-yt {
+  background: rgba(255, 0, 0, .22);
+  color: #ff6e6e;
+}
+.cb295-speaker-video-open {
+  font-size: .75rem;
+  color: #5baed1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.cb295-speaker-video-open:hover { text-decoration: underline; }
+.cb295-mod-card[open] { border-color: rgba(91,174,209,.35); }
+
+/* V3.269 — discussion-gate visual states. The base `.cb295-mod-card`
+ * already lives above; these modifiers paint the card edge + badges. */
+.cb295-mod-card-state-pending { border-color: rgba(255,255,255,.07); }
+.cb295-mod-card-next-up {
+  border-left: 4px solid #5baed1;
+  background: rgba(91,174,209,.06);
+}
+.cb295-mod-card-state-open { border-color: rgba(102, 211, 154, .35); }
+.cb295-mod-card-state-open[open] { border-color: rgba(102, 211, 154, .55); }
+.cb295-mod-card-locked {
+  opacity: .55;
+}
+.cb295-mod-card-locked .cb295-mod-card-locked-badge,
+.cb295-mod-card-state-open .cb295-mod-card-open-badge,
+.cb295-mod-card-next-up .cb295-mod-card-nextup-badge {
+  display: inline-block;
+  margin-left: .5rem;
+  padding: 1px 7px;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.cb295-mod-card-nextup-badge {
+  background: rgba(91, 174, 209, .25);
+  color: #5baed1;
+}
+.cb295-mod-card-open-badge {
+  background: rgba(102, 211, 154, .25);
+  color: #66d39a;
+}
+.cb295-mod-card-locked-badge {
+  background: rgba(255, 152, 0, .25);
+  color: #ffb74d;
+}
+
+/* V3.282 — pending callout replaces the prompts list entirely for
+ * students when the discussion gate is still pending. Admin viewers
+ * keep seeing prompts (with a small "admin preview — pending" tag) so
+ * they can review content while the talk is still pending. */
+.cb295-mod-pending-callout {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .75rem 1rem;
+  margin: .35rem 0 0;
+  background: rgba(255, 213, 79, .08);
+  border: 1px dashed rgba(255, 213, 79, .35);
+  border-radius: 6px;
+  color: #ffd54f;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+.cb295-mod-pending-callout strong { color: #ffe082; }
+.cb295-mod-pending-preview-tag {
+  display: inline-block;
+  margin-left: .5rem;
+  padding: 1px 7px;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  background: rgba(255, 213, 79, .2);
+  color: #ffd54f;
+  vertical-align: middle;
+}
+.cb295-response-pending-strip,
+.cb295-response-locked-strip,
+.cb295-response-no-group-strip {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .55rem .75rem;
+  border-radius: 6px;
+  font-size: .85rem;
+  margin: 0;
+}
+/* V3.285 — visible "no group assigned" callout for signed-in students
+   whose dailyGroups[day] is null. Replaces the silent fall-through to
+   the generic "sign in to participate" message that pre-V3.285 made
+   admin's missing auto-assign look like a student-side error. */
+.cb295-response-no-group-strip {
+  background: rgba(126, 87, 194, .12);
+  border: 1px solid rgba(126, 87, 194, .4);
+  color: #b39ddb;
+}
+.cb295-response-no-group-strip strong { color: #d1c4e9; }
+
+/* V3.285 — flash the submit button red for 6s when saveBmeGroupResponsePrompts
+   hits an early-return drop reason. Pair with the .cb295-response-status
+   text update so the student sees BOTH (button colour change + status
+   line) — pre-V3.285 they saw neither. */
+.cb295-response-submit.cb295-response-submit-failed,
+.cb295-assess-submit.cb295-response-submit-failed {
+  animation: cb295-submit-failed-flash 1.2s ease-out infinite alternate;
+  background: rgba(239, 83, 80, .25) !important;
+  border-color: rgba(239, 83, 80, .6) !important;
+  color: #ef9a9a !important;
+}
+@keyframes cb295-submit-failed-flash {
+  from { box-shadow: 0 0 0 0 rgba(239, 83, 80, .0); }
+  to   { box-shadow: 0 0 0 6px rgba(239, 83, 80, .15); }
+}
+
+/* V3.286 — Course assessment form. Reuses the dashboard-panel visual
+   cadence + extends the .cb295-response-pending/locked-strip callouts
+   for assessment's closed/locked states. Star + pick visuals borrow
+   from the V3.280 gradebook stars + V3.281 alertness pick buttons. */
+.cb295-assess-panel {
+  padding: 1rem 1.25rem;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  margin: 0 0 1rem;
+}
+.cb295-assess-head h3 {
+  margin: 0 0 .25rem;
+  font-size: 1.1rem;
+}
+.cb295-assess-head p {
+  margin: 0 0 .75rem;
+  font-size: .85rem;
+}
+.cb295-assess-panel-signedout,
+.cb295-assess-panel-norow {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+.cb295-assess-closed-strip {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .75rem 1rem;
+  border-radius: 6px;
+  font-size: .9rem;
+  background: rgba(255, 213, 79, .1);
+  border: 1px solid rgba(255, 213, 79, .35);
+  color: #ffd54f;
+  margin: 1rem 0;
+}
+.cb295-assess-closed-strip strong { color: #ffe082; }
+.cb295-assess-locked-strip {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .75rem 1rem;
+  border-radius: 6px;
+  font-size: .9rem;
+  background: rgba(255, 152, 0, .08);
+  border: 1px solid rgba(255, 152, 0, .35);
+  color: #ffb74d;
+  margin: .5rem 0 1rem;
+}
+.cb295-assess-locked-strip strong { color: #ffcc80; }
+
+.cb295-assess-course {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.cb295-assess-q {
+  display: grid;
+  gap: .5rem;
+}
+.cb295-assess-q-label {
+  font-size: .92rem;
+  font-weight: 500;
+  color: var(--text, #e8eaf6);
+}
+
+/* 1-5 star row (re-themed gradebook stars, larger + 5 instead of 3) */
+.cb295-assess-star-row {
+  display: inline-flex;
+  align-items: center;
+  gap: .15rem;
+}
+.cb295-assess-star {
+  background: transparent;
+  border: 0;
+  padding: .15rem .25rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: rgba(255,255,255,.25);
+  cursor: pointer;
+  letter-spacing: -.4em;        /* visually collapse the empty/half mix */
+  transition: color .12s ease;
+}
+.cb295-assess-star::first-letter { letter-spacing: 0; }
+.cb295-assess-star:hover,
+.cb295-assess-star-on {
+  color: #ffd54f;
+}
+.cb295-assess-star:disabled { cursor: default; opacity: .7; }
+.cb295-assess-star-clear,
+.cb295-assess-speaker-star-clear {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 4px;
+  padding: 0 .35rem;
+  margin-left: .25rem;
+  font-size: .85rem;
+  color: rgba(255,255,255,.55);
+  cursor: pointer;
+}
+.cb295-assess-star-clear:hover,
+.cb295-assess-speaker-star-clear:hover {
+  border-color: rgba(239,83,80,.5);
+  color: #ef9a9a;
+}
+
+/* 3-way pick row (re-themed alertness buttons) */
+.cb295-assess-pick-row {
+  display: inline-flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+.cb295-assess-pick-btn {
+  padding: .35rem .75rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.7);
+  cursor: pointer;
+  font-size: .85rem;
+  transition: background .12s ease, border-color .12s ease;
+}
+.cb295-assess-pick-btn:hover { background: rgba(255,255,255,.08); }
+.cb295-assess-pick-btn-active {
+  background: rgba(91, 174, 209, .2);
+  border-color: rgba(91, 174, 209, .55);
+  color: #5baed1;
+}
+.cb295-assess-pick-btn:disabled { cursor: default; opacity: .7; }
+
+/* Free-text inputs */
+.cb295-assess-textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  padding: .5rem .65rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.12);
+  color: var(--text, #e8eaf6);
+  font: inherit;
+  font-size: .9rem;
+}
+.cb295-assess-textarea:focus {
+  outline: none;
+  border-color: rgba(91, 174, 209, .55);
+}
+.cb295-assess-readonly-text {
+  padding: .4rem .65rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,.02);
+  border: 1px dashed rgba(255,255,255,.1);
+  font-size: .9rem;
+  color: rgba(255,255,255,.85);
+  white-space: pre-wrap;
+}
+
+/* Per-speaker block */
+.cb295-assess-speakers {
+  margin-top: 1.25rem;
+  padding-top: .75rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.cb295-assess-speakers summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .95rem;
+  padding: .25rem 0;
+}
+.cb295-assess-speakers summary::-webkit-details-marker { display: none; }
+.cb295-assess-speaker-day-group {
+  margin-top: .75rem;
+}
+.cb295-assess-speaker-day-head {
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: rgba(255,255,255,.55);
+  margin: .5rem 0 .35rem;
+}
+.cb295-assess-speaker-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) auto minmax(0, 2fr);
+  gap: .5rem .75rem;
+  align-items: center;
+  padding: .35rem 0;
+  border-bottom: 1px dashed rgba(255,255,255,.06);
+}
+.cb295-assess-speaker-row:last-child { border-bottom: 0; }
+.cb295-assess-speaker-name {
+  font-size: .9rem;
+  font-weight: 500;
+}
+.cb295-assess-speaker-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: .1rem;
+}
+.cb295-assess-speaker-star {
+  background: transparent;
+  border: 0;
+  padding: .1rem .15rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: rgba(255,255,255,.25);
+  cursor: pointer;
+  letter-spacing: -.4em;
+}
+.cb295-assess-speaker-star::first-letter { letter-spacing: 0; }
+.cb295-assess-speaker-star:hover,
+.cb295-assess-speaker-star-on { color: #ffd54f; }
+.cb295-assess-speaker-star:disabled { cursor: default; opacity: .7; }
+.cb295-assess-speaker-comment {
+  width: 100%;
+  padding: .35rem .55rem;
+  border-radius: 5px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.1);
+  color: var(--text, #e8eaf6);
+  font: inherit;
+  font-size: .85rem;
+}
+.cb295-assess-speaker-comment:focus {
+  outline: none;
+  border-color: rgba(91, 174, 209, .55);
+}
+
+/* Footer: anonymous toggle + submit */
+.cb295-assess-footer {
+  margin-top: 1.25rem;
+  padding-top: .85rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.cb295-assess-anon-row {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.cb295-assess-anon-hint {
+  font-size: .75rem;
+  margin-left: .25rem;
+}
+.cb295-assess-submit-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.cb295-assess-submit {
+  align-self: flex-start;
+}
+.cb295-assess-status {
+  font-size: .8rem;
+}
+.cb295-assess-disclaimer {
+  margin: 0;
+  font-size: .75rem;
+}
+
+/* Mobile reflow for per-speaker rows */
+@media (max-width: 720px) {
+  .cb295-assess-speaker-row {
+    grid-template-columns: 1fr;
+    gap: .25rem;
+  }
+}
+
+/* V3.286 — admin dashboard panels for the course assessment. Four
+   stacked cards: gate + summary, course-level histograms, free-text
+   grouped list, per-speaker results. */
+.cb295-assess-gate-row {
+  display: flex;
+  gap: .5rem;
+  margin: .5rem 0 .35rem;
+  flex-wrap: wrap;
+}
+.cb295-assess-gate-stats {
+  display: flex;
+  gap: .35rem .75rem;
+  flex-wrap: wrap;
+  font-size: .85rem;
+  margin: .25rem 0 .5rem;
+}
+.cb295-assess-gate-actions {
+  display: flex;
+  gap: .5rem;
+  margin-top: .35rem;
+}
+
+.cb295-assess-hist-q {
+  margin: .5rem 0;
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding-top: .5rem;
+}
+.cb295-assess-hist-q:first-of-type { border-top: 0; padding-top: 0; }
+.cb295-assess-hist-q summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  font-size: .9rem;
+}
+.cb295-assess-hist-q summary::-webkit-details-marker { display: none; }
+.cb295-assess-hist {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  margin-top: .4rem;
+}
+.cb295-assess-hist-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 4fr 40px;
+  gap: .5rem;
+  align-items: center;
+  font-size: .85rem;
+}
+.cb295-assess-hist-label {
+  color: rgba(255,255,255,.7);
+  letter-spacing: -.2em;
+}
+.cb295-assess-hist-label::first-letter { letter-spacing: 0; }
+.cb295-assess-hist-bar-wrap {
+  height: 12px;
+  background: rgba(255,255,255,.04);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+.cb295-assess-hist-bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(91,174,209,.45), rgba(91,174,209,.85));
+  border-radius: 3px;
+}
+.cb295-assess-hist-count {
+  text-align: right;
+  color: rgba(255,255,255,.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.cb295-assess-ft-q {
+  margin: .5rem 0;
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding-top: .5rem;
+}
+.cb295-assess-ft-q:first-of-type { border-top: 0; padding-top: 0; }
+.cb295-assess-ft-q summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .9rem;
+}
+.cb295-assess-ft-q summary::-webkit-details-marker { display: none; }
+.cb295-assess-ft-row {
+  margin: .5rem 0 .25rem;
+  padding: .5rem .75rem;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 5px;
+}
+.cb295-assess-ft-row-anon {
+  border-style: dashed;
+  border-color: rgba(255,196,0,.3);
+}
+.cb295-assess-ft-text {
+  margin: 0 0 .25rem;
+  font-size: .9rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.cb295-assess-ft-byline {
+  margin: 0;
+  font-size: .75rem;
+  text-align: right;
+}
+
+.cb295-assess-spk-day-group {
+  margin-top: .75rem;
+}
+.cb295-assess-spk-day-head {
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: rgba(255,255,255,.55);
+  margin: .5rem 0 .35rem;
+}
+.cb295-assess-spk-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto minmax(0, 2.5fr);
+  gap: .5rem .75rem;
+  padding: .55rem 0;
+  border-bottom: 1px dashed rgba(255,255,255,.06);
+  align-items: start;
+}
+.cb295-assess-spk-row:last-child { border-bottom: 0; }
+.cb295-assess-spk-name { font-size: .9rem; padding-top: .2rem; }
+.cb295-assess-spk-mean {
+  font-size: .85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .15rem;
+}
+.cb295-assess-spk-stars {
+  color: #ffd54f;
+  letter-spacing: -.2em;
+}
+.cb295-assess-spk-stars::first-letter { letter-spacing: 0; }
+.cb295-assess-spk-comments {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.cb295-assess-spk-comment {
+  padding: .35rem .55rem;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 5px;
+  font-size: .82rem;
+}
+.cb295-assess-spk-comment-anon {
+  border-style: dashed;
+  border-color: rgba(255,196,0,.3);
+}
+.cb295-assess-spk-comment p { margin: 0; }
+.cb295-assess-spk-comment-by {
+  font-size: .72rem;
+  margin-top: .2rem;
+  text-align: right;
+}
+.cb295-assess-spk-rest summary {
+  cursor: pointer;
+  font-size: .8rem;
+}
+@media (max-width: 720px) {
+  .cb295-assess-spk-row {
+    grid-template-columns: 1fr;
+  }
+}
+.cb295-response-pending-strip {
+  background: rgba(255, 213, 79, .1);
+  border: 1px solid rgba(255, 213, 79, .35);
+  color: #ffd54f;
+}
+.cb295-response-pending-strip strong { color: #ffe082; }
+.cb295-response-locked-strip {
+  background: rgba(255, 152, 0, .08);
+  border: 1px solid rgba(255, 152, 0, .35);
+  color: #ffb74d;
+}
+.cb295-response-locked-strip strong { color: #ffcc80; }
+.cb295-discussion-input-locked {
+  background: rgba(255,255,255,.02);
+  border: 1px dashed rgba(255,255,255,.1);
+  border-radius: 4px;
+  padding: .35rem .5rem;
+  opacity: .7;
+}
+
+/* V3.269 — admin pill + button on the live monitor row header + the
+ * standalone Discussion Gates panel. */
+.cb295-discgate-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.cb295-discgate-pill-pending {
+  background: rgba(255,255,255,.06);
+  color: var(--muted, #a8b3c7);
+}
+.cb295-discgate-pill-open {
+  background: rgba(102, 211, 154, .22);
+  color: #66d39a;
+}
+.cb295-discgate-pill-locked {
+  background: rgba(255, 152, 0, .22);
+  color: #ffb74d;
+}
+.cb295-monitor-rowhead-gate {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  margin-top: .15rem;
+}
+.cb295-discgate-row-btn { font-size: .7rem; padding: .15rem .55rem; }
+
+/* V3.269 — Discussion gates dashboard card */
+.cb295-discgate-panel { /* uses base .cb295-dash-card */ }
+
+/* V3.279 — Daily attendance card */
+.cb295-att-panel { /* uses base .cb295-dash-card */ }
+.cb295-att-day {
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 6px;
+  margin-bottom: .5rem;
+  overflow: hidden;
+}
+.cb295-att-day[open] { border-color: rgba(91,174,209,.3); }
+.cb295-att-day-today {
+  border-left: 4px solid #5baed1;
+}
+.cb295-att-day-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+  padding: .55rem .75rem;
+  cursor: pointer;
+  flex-wrap: wrap;
+  list-style: none;
+}
+.cb295-att-day-summary::-webkit-details-marker { display: none; }
+.cb295-att-day-summary::before {
+  content: "▸";
+  font-size: .8rem;
+  color: var(--muted, #a8b3c7);
+  transition: transform 80ms ease;
+}
+.cb295-att-day[open] .cb295-att-day-summary::before { transform: rotate(90deg); }
+.cb295-att-day-label { font-weight: 600; flex: 1 1 auto; }
+.cb295-att-today-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 3px;
+  background: rgba(91, 174, 209, .25);
+  color: #5baed1;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  margin-left: .35rem;
+}
+.cb295-att-status {
+  font-size: .75rem;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+.cb295-att-status-empty {
+  background: rgba(255,255,255,.04);
+  color: var(--muted, #a8b3c7);
+  font-style: italic;
+}
+.cb295-att-status-recorded {
+  background: rgba(102, 211, 154, .15);
+  color: #66d39a;
+}
+
+.cb295-att-day-body {
+  padding: .35rem .75rem .75rem;
+}
+.cb295-att-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: .65rem;
+}
+.cb295-att-checklist h5 {
+  margin: 0 0 .35rem;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-att-students {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.cb295-att-student {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .15rem .35rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: .85rem;
+  user-select: none;
+}
+.cb295-att-student:hover { background: rgba(255,255,255,.04); }
+.cb295-att-student input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+.cb295-att-student-absent {
+  opacity: .5;
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,.3);
+}
+/* V3.281 — student row: checkbox+name on the left, alertness picker on
+ * the right. Same row height as the original `.cb295-att-student` so
+ * the bulk Mark-all toggles still feel snappy. */
+.cb295-att-student-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .15rem .35rem;
+  border-radius: 3px;
+}
+.cb295-att-student-row:hover { background: rgba(255,255,255,.04); }
+.cb295-att-student-row .cb295-att-student {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+}
+.cb295-att-student-row .cb295-att-student:hover { background: transparent; }
+.cb295-att-student-row-absent .cb295-att-student span {
+  opacity: .55;
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,.3);
+}
+.cb295-att-alert-row {
+  display: inline-flex;
+  gap: .2rem;
+  flex: 0 0 auto;
+}
+.cb295-att-alert-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  color: var(--text, #eef2f7);
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 600;
+  padding: 0;
+}
+.cb295-att-alert-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.18);
+}
+.cb295-att-alert-btn:disabled {
+  opacity: .25;
+  cursor: not-allowed;
+}
+.cb295-att-alert-btn-active {
+  background: rgba(91, 174, 209, .25);
+  border-color: rgba(91, 174, 209, .55);
+  color: #5baed1;
+}
+.cb295-att-alert-clear {
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--muted, #a8b3c7);
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .85rem;
+  padding: 0;
+  line-height: 1;
+}
+.cb295-att-alert-clear:hover {
+  background: rgba(255,255,255,.05);
+  color: var(--text, #eef2f7);
+}
+
+/* V3.281 — per-day alertness section inside the gradebook detail
+ * modal (replaces the V3.280 per-talk picker). One row per course
+ * day with present/absent state + 3-button picker. */
+.cb295-gradebook-modal-alertness {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.cb295-gradebook-modal-alert-day {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: .55rem;
+  padding: .4rem .55rem;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 5px;
+  font-size: .85rem;
+}
+.cb295-gradebook-modal-alert-day strong { font-size: .9rem; }
+.cb295-gradebook-modal-alert-day .muted-text { font-size: .75rem; }
+
+/* V3.283 — Grade discussions by group admin panel */
+.cb295-grade-disc-panel { /* uses base .cb295-dash-card */ }
+.cb295-grade-disc-speaker {
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 6px;
+  margin-bottom: .5rem;
+  overflow: hidden;
+}
+.cb295-grade-disc-speaker[open] {
+  border-color: rgba(91, 174, 209, .3);
+}
+.cb295-grade-disc-speaker-today {
+  border-left: 4px solid #5baed1;
+}
+.cb295-grade-disc-summary {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .55rem .75rem;
+  cursor: pointer;
+  flex-wrap: wrap;
+  list-style: none;
+}
+.cb295-grade-disc-summary::-webkit-details-marker { display: none; }
+.cb295-grade-disc-summary::before {
+  content: "▸";
+  font-size: .8rem;
+  color: var(--muted, #a8b3c7);
+  transition: transform 80ms ease;
+}
+.cb295-grade-disc-speaker[open] .cb295-grade-disc-summary::before { transform: rotate(90deg); }
+.cb295-grade-disc-summary strong { flex: 0 0 auto; font-size: .95rem; }
+.cb295-grade-disc-summary .muted-text { font-size: .8rem; }
+.cb295-grade-disc-summary .muted-text:last-child { margin-left: auto; }
+
+.cb295-grade-disc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  padding: .25rem .55rem .65rem;
+}
+.cb295-grade-disc-row {
+  display: grid;
+  grid-template-columns: 44px 110px 1fr auto auto;
+  align-items: center;
+  gap: .65rem;
+  padding: .35rem .55rem;
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 5px;
+  font-size: .85rem;
+}
+.cb295-grade-disc-row:hover { background: rgba(91,174,209,.05); }
+.cb295-grade-disc-label {
+  font-weight: 700;
+  text-align: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: .8rem;
+}
+.cb295-grade-disc-label-tucson {
+  background: rgba(91,174,209,.18);
+  color: #5baed1;
+}
+.cb295-grade-disc-label-phoenix {
+  background: rgba(255, 213, 79, .18);
+  color: #ffd54f;
+}
+.cb295-grade-disc-status { display: inline-flex; align-items: center; }
+.cb295-grade-disc-meta {
+  font-size: .75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cb295-grade-disc-stars {
+  display: inline-flex;
+  gap: .2rem;
+}
+.cb295-grade-disc-view {
+  padding: .15rem .55rem;
+  font-size: .7rem;
+}
+
+@media (max-width: 720px) {
+  .cb295-grade-disc-row {
+    grid-template-columns: 44px 1fr;
+    gap: .35rem;
+  }
+  .cb295-grade-disc-status,
+  .cb295-grade-disc-meta {
+    grid-column: 2;
+  }
+  .cb295-grade-disc-stars,
+  .cb295-grade-disc-view {
+    grid-column: 1 / -1;
+    justify-self: flex-start;
+  }
+}
+.cb295-att-day-actions {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: .5rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+/* V3.280 — Gradebook admin panel */
+.cb295-gradebook-panel { /* uses base .cb295-dash-card */ }
+.cb295-gradebook-weights {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .5rem .65rem;
+  margin: 0 0 .85rem;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  font-size: .85rem;
+}
+.cb295-gradebook-weights label {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-gradebook-weight-input {
+  width: 50px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 4px;
+  color: var(--text, #eef2f7);
+  padding: .2rem .35rem;
+  font: inherit;
+  font-size: .85rem;
+  text-align: center;
+}
+.cb295-gradebook-weight-sum {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(102, 211, 154, .15);
+  color: #66d39a;
+  font-weight: 600;
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+}
+.cb295-gradebook-weight-sum-bad {
+  background: rgba(244, 67, 54, .15);
+  color: #ff8a80;
+}
+.cb295-gradebook-export-btn { margin-left: auto; }
+
+.cb295-gradebook-tablewrap { overflow-x: auto; }
+.cb295-gradebook-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+.cb295-gradebook-table th,
+.cb295-gradebook-table td {
+  padding: .45rem .55rem;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  text-align: left;
+}
+.cb295-gradebook-table th {
+  font-weight: 500;
+  color: var(--muted, #a8b3c7);
+  text-transform: uppercase;
+  font-size: .7rem;
+  letter-spacing: .05em;
+}
+.cb295-gradebook-row-clickable { cursor: pointer; transition: background 80ms ease; }
+.cb295-gradebook-row-clickable:hover { background: rgba(91, 174, 209, .06); }
+.cb295-gradebook-cell-name { font-weight: 500; }
+
+.cb295-gradebook-pill {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+}
+.cb295-gradebook-pill-ok  { background: rgba(102, 211, 154, .25); color: #66d39a; }
+.cb295-gradebook-pill-mid { background: rgba(255, 213, 79, .25);  color: #ffd54f; }
+.cb295-gradebook-pill-low { background: rgba(244, 67, 54, .25);   color: #ff8a80; }
+
+/* V3.281 — inline alertness matrix CSS removed alongside the JS render
+ * + handler. Alertness lives on the Daily Attendance panel now; see
+ * `.cb295-att-alert-row` / `-btn` / `-clear` higher up + `.cb295-gradebook-modal-alert-day` below. */
+
+/* Per-student detail modal */
+.cb295-gradebook-modal { max-width: 760px; }
+.cb295-gradebook-modal-header {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: .85rem;
+  align-items: center;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  margin-bottom: .85rem;
+}
+.cb295-gradebook-modal-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255,255,255,.05);
+}
+.cb295-gradebook-modal-avatar img,
+.cb295-gradebook-modal-avatar .cb295-mate-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+img.cb295-gradebook-modal-avatar img { display: block; }
+.cb295-gradebook-modal-composite {
+  margin: .15rem 0 0;
+  display: flex;
+  gap: 1rem;
+  font-size: .85rem;
+}
+.cb295-gradebook-modal-composite strong { font-size: 1.1rem; color: #5baed1; }
+
+.cb295-gradebook-modal-excused {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.cb295-gradebook-modal-day {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .35rem .55rem;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 5px;
+  background: rgba(255,255,255,.02);
+  font-size: .8rem;
+  cursor: pointer;
+  user-select: none;
+}
+.cb295-gradebook-modal-day .muted-text { font-size: .7rem; }
+
+.cb295-gradebook-modal-talk {
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  padding: .55rem .75rem;
+  margin-bottom: .55rem;
+  background: rgba(255,255,255,.02);
+}
+.cb295-gradebook-modal-talk-head {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  margin-bottom: .35rem;
+}
+.cb295-gradebook-modal-talk-head strong { font-size: .9rem; }
+.cb295-gradebook-modal-talk-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .85rem;
+  font-size: .8rem;
+  margin: .25rem 0;
+}
+.cb295-gradebook-stars,
+.cb295-gradebook-alert-btns {
+  display: inline-flex;
+  gap: .2rem;
+  margin-left: .35rem;
+}
+.cb295-gradebook-star,
+.cb295-gradebook-alert-btn {
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  color: var(--text, #eef2f7);
+  padding: .15rem .55rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .75rem;
+}
+.cb295-gradebook-star:hover,
+.cb295-gradebook-alert-btn:hover {
+  background: rgba(255,255,255,.1);
+}
+.cb295-gradebook-star-on {
+  background: rgba(255, 213, 79, .25);
+  border-color: rgba(255, 213, 79, .5);
+  color: #ffd54f;
+}
+.cb295-gradebook-alert-btn-active {
+  background: rgba(91, 174, 209, .25);
+  border-color: rgba(91, 174, 209, .55);
+  color: #5baed1;
+}
+.cb295-gradebook-star-clear,
+.cb295-gradebook-alert-clear {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--muted, #a8b3c7);
+  padding: .15rem .4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .7rem;
+  margin-left: .2rem;
+}
+.cb295-gradebook-star-clear:hover,
+.cb295-gradebook-alert-clear:hover {
+  background: rgba(255,255,255,.05);
+  color: var(--text, #eef2f7);
+}
+.cb295-gradebook-comment {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 5px;
+  color: var(--text, #eef2f7);
+  padding: .5rem .6rem;
+  font: inherit;
+  resize: vertical;
+}
+.cb295-discgate-callout {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .55rem;
+  padding: .65rem .85rem;
+  border-radius: 6px;
+  margin: 0 0 .9rem;
+  font-size: .9rem;
+}
+.cb295-discgate-callout-nextup {
+  background: rgba(91, 174, 209, .12);
+  border: 1px solid rgba(91, 174, 209, .35);
+}
+.cb295-discgate-callout-live {
+  background: rgba(102, 211, 154, .12);
+  border: 1px solid rgba(102, 211, 154, .4);
+}
+.cb295-discgate-callout-done {
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.cb295-discgate-callout-label {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-discgate-callout-btn { margin-left: auto; }
+.cb295-discgate-rows {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.cb295-discgate-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: .6rem;
+  padding: .45rem .65rem;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 5px;
+}
+.cb295-discgate-row[data-state="open"] {
+  border-color: rgba(102, 211, 154, .35);
+}
+.cb295-discgate-row[data-state="locked"] {
+  border-color: rgba(255, 152, 0, .35);
+  opacity: .8;
+}
+.cb295-discgate-row-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cb295-discgate-row-info strong { font-size: .9rem; }
+.cb295-discgate-row-info .muted-text { font-size: .75rem; }
+.cb295-discgate-row-actions {
+  display: flex;
+  gap: .35rem;
+}
+@media (max-width: 520px) {
+  .cb295-discgate-row { grid-template-columns: 1fr; }
+  .cb295-discgate-row-actions { justify-content: flex-start; }
+}
+.cb295-mod-summary {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: .85rem;
+  padding: .75rem 1rem;
+  cursor: pointer;
+  align-items: center;
+}
+.cb295-mod-summary::-webkit-details-marker { display: none; }
+.cb295-mod-photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+.cb295-mod-summary-body { display: flex; flex-direction: column; gap: 1px; }
+.cb295-mod-summary-body strong { font-size: 1rem; }
+.cb295-mod-summary-body .muted-text { font-size: .75rem; }
+.cb295-mod-talk { font-size: .85rem; font-style: italic; margin-top: .15rem; }
+.cb295-mod-body { padding: 0 1rem 1rem; }
+.cb295-mod-abstract { font-size: .85rem; line-height: 1.45; margin: 0 0 .75rem; }
+.cb295-mod-body h4 { margin: .75rem 0 .5rem; font-size: .95rem; color: #5baed1; }
+.cb295-discussion-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .65rem; }
+.cb295-discussion-item {
+  background: rgba(255,255,255,.03);
+  border-left: 3px solid rgba(91,174,209,.45);
+  padding: .5rem .75rem;
+  border-radius: 4px;
+}
+.cb295-discussion-prompt { margin: 0; font-weight: 500; }
+/* V3.253 — per-discussion-point edit box, co-located with its prompt. */
+.cb295-discussion-input {
+  margin-top: .55rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.cb295-discussion-input .cb295-response-text-input {
+  width: 100%;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 5px;
+  color: var(--text, #eef2f7);
+  padding: .5rem .65rem;
+  font: inherit;
+  resize: vertical;
+  min-height: 56px;
+}
+.cb295-discussion-input .cb295-response-text-input:focus {
+  outline: none;
+  border-color: rgba(91,174,209,.55);
+  background: rgba(91,174,209,.05);
+}
+.cb295-discussion-input .cb295-response-wordcount-per {
+  align-self: flex-end;
+  font-size: .7rem;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-discussion-input-readonly .cb295-response-text {
+  background: rgba(255,255,255,.03);
+  border-left: 2px solid rgba(255,255,255,.12);
+  padding: .35rem .55rem;
+  border-radius: 3px;
+  font-size: .9rem;
+}
+.cb295-discussion-num {
+  display: inline-block;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(91,174,209,.2);
+  color: #5baed1;
+  text-align: center;
+  font-size: .75rem;
+  line-height: 22px;
+  margin-right: .5rem;
+  font-weight: 600;
+}
+.cb295-discussion-dig {
+  margin-top: .35rem;
+  font-size: .85rem;
+}
+.cb295-discussion-dig summary { cursor: pointer; color: var(--muted, #a8b3c7); }
+.cb295-discussion-dig ul { margin: .35rem 0 0 1.2rem; padding: 0; }
+.cb295-discussion-dig li { margin: .25rem 0; }
+
+/* ---- Modules intro + group banner -------------------------------- */
+.cb295-modules-intro {
+  background: rgba(255,255,255,.03);
+  border-left: 3px solid #5baed1;
+  padding: .6rem .85rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: .85rem;
+  line-height: 1.5;
+}
+.cb295-group-banner {
+  background: rgba(91,174,209,.08);
+  border: 1px solid rgba(91,174,209,.3);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+.cb295-group-banner-empty {
+  background: rgba(255,255,255,.03);
+  border-color: rgba(255,255,255,.1);
+  font-size: .85rem;
+  color: var(--muted, #a8b3c7);
+  text-align: center;
+  padding: 1rem;
+}
+.cb295-group-banner-header {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: .75rem;
+  margin-bottom: .65rem;
+  flex-wrap: wrap;
+}
+.cb295-group-banner-header strong { color: #5baed1; font-size: 1rem; }
+.cb295-group-banner-foot {
+  font-size: .8rem;
+  margin: .65rem 0 0;
+}
+/* V3.255 — inline link-styled button. Used in the banner footer where
+ * we want a button (because the click routes via JS to switch tabs)
+ * but want it to read as a link. */
+.cb295-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: #5baed1;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.cb295-link-btn:hover { color: #7cc3df; }
+.cb295-group-confirmed {
+  color: #6dd693;
+  font-size: .85rem;
+  font-weight: 500;
+}
+.cb295-mate-self { background: rgba(91,174,209,.08); border-radius: 6px; padding: .25rem .35rem; }
+.cb295-mate-you { color: var(--muted, #a8b3c7); font-weight: 400; font-size: .75rem; }
+.cb295-mate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: .5rem;
+}
+.cb295-mate {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .85rem;
+}
+.cb295-mate-photo {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600;
+  color: var(--muted, #a8b3c7);
+}
+/* V3.260 — an <img> with .cb295-mate-photo would inherit `display: flex`
+ * from the rule above and collapse to zero size. Force block so the
+ * actual bitmap renders. The initials chip (a `<div>`) keeps flex
+ * centering. */
+img.cb295-mate-photo { display: block; }
+.cb295-mate-name { display: flex; flex-direction: column; line-height: 1.2; }
+.cb295-mate-interest { font-size: .7rem; }
+
+/* ---- Group response box (per speaker card) ---------------------- */
+.cb295-response {
+  margin-top: 1rem;
+  background: rgba(109, 214, 147, .05);
+  border: 1px solid rgba(109, 214, 147, .2);
+  border-radius: 8px;
+  padding: .85rem;
+}
+.cb295-response-submitted {
+  background: rgba(109, 214, 147, .1);
+  border-color: rgba(109, 214, 147, .45);
+}
+.cb295-response-readonly {
+  background: rgba(255,255,255,.03);
+  border-color: rgba(255,255,255,.07);
+}
+.cb295-response-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: .5rem;
+}
+.cb295-response h4 { margin: 0; color: #6dd693; font-size: .95rem; }
+.cb295-response-target { font-size: .75rem; }
+.cb295-response-text-input {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  color: var(--text, #eef2f7);
+  padding: .55rem .65rem;
+  font: inherit;
+  resize: vertical;
+  min-height: 5em;
+}
+.cb295-response-text {
+  background: rgba(255,255,255,.04);
+  padding: .55rem .65rem;
+  border-radius: 6px;
+  line-height: 1.5;
+}
+.cb295-response-footer {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin-top: .5rem;
+  flex-wrap: wrap;
+}
+.cb295-response-wordcount {
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-response-status {
+  font-size: .75rem;
+  flex: 1;
+  min-width: 0;
+}
+.cb295-response-submit { white-space: nowrap; }
+.cb295-response-meta { font-size: .75rem; margin: .35rem 0 0; }
+
+/* ---- Admin roster table ------------------------------------------ */
+.cb295-roster-toolbar {
+  display: flex; gap: .5rem; align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: .75rem;
+}
+.cb295-roster-tablewrap { overflow-x: auto; }
+.cb295-roster-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+.cb295-roster-table th,
+.cb295-roster-table td {
+  text-align: left;
+  padding: .4rem .5rem;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.cb295-roster-table th {
+  font-weight: 500;
+  color: var(--muted, #a8b3c7);
+  text-transform: uppercase;
+  font-size: .7rem;
+  letter-spacing: .05em;
+}
+.cb295-roster-num { color: var(--muted, #a8b3c7); width: 30px; }
+/* V3.253 — give each editable field room. The badge + action columns
+ * (signed-in / bio / pic / resp / view-as / remove) hold their own
+ * narrow widths via .cb295-roster-badge-col, so these stretchy ones
+ * can take the remaining space comfortably. */
+.cb295-roster-table td:nth-child(3) { /* Student ID */
+  min-width: 110px;
+  white-space: nowrap;
+}
+.cb295-roster-email,
+.cb295-roster-campus,
+.cb295-roster-highschool,
+.cb295-roster-daily {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px;
+  color: var(--text, #eef2f7);
+  padding: .35rem .55rem;
+  font: inherit;
+  width: 100%;
+}
+.cb295-roster-email { min-width: 220px; }
+.cb295-roster-campus { min-width: 110px; }
+.cb295-roster-highschool { min-width: 180px; }
+.cb295-roster-daily-cell { min-width: 230px; }
+
+/* V3.277 — collapsed Student ID / Email / Campus / High School cell.
+ * `<details>` expands inline; summary shows the campus chip so the
+ * T/P split is visible at a glance without expanding. */
+.cb295-roster-extras-cell {
+  min-width: 110px;
+  max-width: 280px;
+}
+.cb295-roster-extras { font-size: .8rem; }
+.cb295-roster-extras > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  cursor: pointer;
+  list-style: none;
+  padding: .15rem .35rem;
+  border-radius: 4px;
+  user-select: none;
+}
+.cb295-roster-extras > summary::-webkit-details-marker { display: none; }
+.cb295-roster-extras > summary::before {
+  content: "▸";
+  font-size: .7rem;
+  color: var(--muted, #a8b3c7);
+  transition: transform 80ms ease;
+}
+.cb295-roster-extras[open] > summary::before { transform: rotate(90deg); }
+.cb295-roster-extras > summary:hover {
+  background: rgba(255,255,255,.05);
+}
+.cb295-roster-extras-summary-hint {
+  font-size: .7rem;
+  color: var(--muted, #a8b3c7);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.cb295-roster-extras-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: .7rem;
+  font-weight: 700;
+  border-radius: 4px;
+  background: rgba(255,255,255,.06);
+  color: var(--muted, #a8b3c7);
+}
+.cb295-roster-extras-chip-tucson  { background: rgba(91, 174, 209, .25); color: #5baed1; }
+.cb295-roster-extras-chip-phoenix { background: rgba(255, 213, 79, .25); color: #ffd54f; }
+.cb295-roster-extras-chip-none    { color: rgba(255,255,255,.3); }
+/* V3.284 — override arrow chip surfaces V3.272 campus override directly
+   in the roster panel so admin can reconcile roster vs live-monitor. */
+.cb295-roster-extras-chip-override {
+  width: auto;
+  padding: 0 .4rem;
+  margin-left: 2px;
+  border: 1px dashed rgba(255, 196, 0, .5);
+}
+
+.cb295-roster-extras-body {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .35rem .55rem;
+  margin-top: .4rem;
+  padding: .45rem .55rem;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 5px;
+}
+.cb295-roster-extras-field {
+  display: contents;
+}
+.cb295-roster-extras-field > span:first-child {
+  font-size: .65rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+  align-self: center;
+}
+.cb295-roster-extras-field input,
+.cb295-roster-extras-field select {
+  min-width: 160px;
+  /* Inputs in the extras body match the existing roster-table input
+   * styling (see .cb295-roster-email etc. above). */
+}
+.cb295-roster-daily-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(40px, 1fr));
+  gap: .3rem;
+}
+.cb295-roster-daily {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  padding: .25rem .25rem;
+}
+.cb295-roster-toolbar-sep {
+  display: inline-block;
+  width: 1px; height: 1.2rem;
+  background: rgba(255,255,255,.15);
+  margin: 0 .25rem;
+}
+.cb295-roster-clear-test {
+  background: rgba(255, 152, 0, .15);
+  border-color: rgba(255, 152, 0, .4);
+  color: #ffcc80;
+}
+.cb295-roster-test-row { background: rgba(255, 152, 0, .07); }
+
+/* V3.278 — row highlight for students who have a matching users/{uid}
+ * doc (i.e. have signed in at least once). Green-tinted background +
+ * left accent so the admin can scan signed-in vs. not-signed-in students
+ * at a glance, without staring at the small "In" badge column. */
+tr.cb295-roster-row-signedin {
+  background: rgba(102, 211, 154, .07);
+  box-shadow: inset 3px 0 0 rgba(102, 211, 154, .55);
+}
+tr.cb295-roster-row-signedin.cb295-roster-test-row {
+  /* When a row is both test-injected AND signed-in, fold the two
+   * tints — keep the test amber as the dominant background, but
+   * preserve the green left-accent. */
+  background: rgba(255, 152, 0, .07);
+  box-shadow: inset 3px 0 0 rgba(102, 211, 154, .55);
+}
+.cb295-roster-signedin-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 3px;
+  background: rgba(102, 211, 154, .18);
+  color: #66d39a;
+  font-weight: 700;
+  font-size: .7rem;
+  letter-spacing: .02em;
+  vertical-align: baseline;
+}
+.cb295-roster-test-tag {
+  display: inline-block;
+  background: rgba(255, 152, 0, .25);
+  color: #ffd180;
+  font-size: .65rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: .35rem;
+  vertical-align: middle;
+}
+
+/* ---- Daily-rotation banner strip + chips ------------------------ */
+.cb295-group-banner-daily .cb295-group-banner-focus-label { color: #5baed1; font-size: 1rem; }
+.cb295-rotation-strip {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  margin: .75rem 0 .25rem;
+}
+.cb295-rotation-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: .35rem .55rem;
+  min-width: 56px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  background: rgba(255,255,255,.03);
+  color: var(--text, #eef2f7);
+  cursor: pointer;
+  font: inherit;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.cb295-rotation-chip:hover { background: rgba(255,255,255,.08); }
+.cb295-rotation-chip-focus {
+  border-color: rgba(91,174,209,.55);
+  background: rgba(91,174,209,.12);
+}
+.cb295-rotation-chip-today {
+  box-shadow: 0 0 0 1px rgba(91,174,209,.35) inset;
+}
+.cb295-rotation-chip-day {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-rotation-chip-group {
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--text, #eef2f7);
+}
+
+/* ---- Daily-group chips in the bio modal -------------------------- */
+.cb295-modal-prealloc-daily {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.cb295-daily-chips {
+  display: flex;
+  gap: .3rem;
+  flex-wrap: wrap;
+}
+.cb295-daily-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .25rem;
+  padding: .15rem .45rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  font-size: .8rem;
+}
+.cb295-daily-chip-today {
+  border-color: rgba(91,174,209,.55);
+  background: rgba(91,174,209,.12);
+}
+.cb295-daily-chip-day {
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-size: .7rem;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-daily-chip-num { font-weight: 600; }
+
+/* ---- Class admins panel (V3.247) -------------------------------- */
+.cb295-classadmins {
+  border: 1px solid rgba(91,174,209,.25);
+  background: rgba(91,174,209,.05);
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  margin-bottom: 1rem;
+}
+.cb295-classadmins-header {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  margin-bottom: .5rem;
+}
+.cb295-classadmins-header strong { color: #5baed1; font-size: .95rem; }
+.cb295-classadmin-list {
+  list-style: none;
+  margin: 0 0 .5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.cb295-classadmin-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .35rem .5rem;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  font-size: .85rem;
+}
+.cb295-classadmin-owner {
+  background: rgba(91,174,209,.1);
+  border-color: rgba(91,174,209,.25);
+}
+.cb295-classadmin-email { flex: 1 1 auto; min-width: 0; word-break: break-all; }
+.cb295-classadmin-tag {
+  background: rgba(91,174,209,.25);
+  color: #cce6f0;
+  font-size: .65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.cb295-classadmin-copy-ok {
+  background: rgba(40, 167, 69, .25) !important;
+  border-color: rgba(40, 167, 69, .5) !important;
+  color: #b6f0c3 !important;
+}
+.cb295-classadmin-add {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: .5rem 0 .35rem;
+}
+.cb295-classadmin-add input[type="email"] {
+  flex: 1 1 220px;
+  min-width: 180px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 4px;
+  color: var(--text, #eef2f7);
+  padding: .35rem .5rem;
+  font: inherit;
+}
+.cb295-classadmin-hint {
+  font-size: .75rem;
+  margin: 0;
+}
+.cb295-admin-note-classadmin {
+  border-left: 3px solid #5baed1;
+  background: rgba(91,174,209,.08);
+  padding: .5rem .75rem;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+/* ---- Live Q&A chat (V3.251) ------------------------------------- */
+/* V3.252 — two-column shell with members sidebar on the left. */
+.cb295-chat-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+.cb295-chat-members {
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px;
+  padding: .6rem .55rem;
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.cb295-chat-members-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 .25rem;
+}
+.cb295-chat-members-header h4 {
+  margin: 0;
+  color: #5baed1;
+  font-size: .9rem;
+}
+.cb295-chat-members-group h5 {
+  margin: 0 0 .25rem;
+  padding: 0 .25rem;
+  font-size: .65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-chat-members-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cb295-chat-member {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: .45rem;
+  width: 100%;
+  padding: .3rem .35rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text, #eef2f7);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.cb295-chat-member:hover {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.08);
+}
+.cb295-chat-member-self {
+  background: rgba(91,174,209,.10);
+  border-color: rgba(91,174,209,.3);
+}
+.cb295-chat-member-instructor .cb295-chat-member-avatar {
+  background: rgba(255, 213, 79, .25);
+  color: #ffd54f;
+}
+.cb295-chat-member-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(91, 174, 209, .25);
+  color: #5baed1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+img.cb295-chat-member-avatar-img {
+  /* V3.260 — override the parent class's display:flex; an <img> with
+   * flex layout collapses to zero size + drops the bitmap. block + cover
+   * is what we actually want for a 28×28 circular avatar. */
+  display: block;
+  object-fit: cover;
+  padding: 0;
+}
+.cb295-chat-member-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.cb295-chat-member-name {
+  font-size: .85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cb295-chat-member-you {
+  font-size: .65rem;
+  color: #5baed1;
+  margin-left: 2px;
+  font-weight: 400;
+}
+.cb295-chat-member-meta {
+  font-size: .65rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cb295-chat-member-campus {
+  background: rgba(255,255,255,.06);
+  font-size: .6rem;
+  font-weight: 700;
+  color: var(--muted, #a8b3c7);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+@media (max-width: 720px) {
+  .cb295-chat-shell { grid-template-columns: 1fr; }
+  .cb295-chat-members { max-height: 220px; }
+}
+
+.cb295-chat {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.cb295-chat-header h3 { margin: 0; color: #5baed1; font-size: 1.05rem; }
+.cb295-chat-header-sub { margin: .25rem 0 0; font-size: .85rem; }
+.cb295-chat-live { color: #ffd54f; }
+.cb295-chat-feed {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+  border-radius: 8px;
+  padding: .75rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.cb295-chat-empty {
+  margin: 0;
+  padding: 1rem 0;
+  text-align: center;
+  font-size: .9rem;
+}
+
+.cb295-chat-msg {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: .55rem;
+  align-items: flex-start;
+  padding: .55rem .65rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,.03);
+  border-left: 3px solid rgba(255,255,255,.12);
+  transition: background 100ms ease;
+}
+.cb295-chat-msg-message { border-left-color: #5baed1; }
+.cb295-chat-msg-raised_hand {
+  border-left-color: #ffd54f;
+  background: rgba(255, 213, 79, .06);
+}
+.cb295-chat-msg-answered {
+  opacity: .55;
+}
+.cb295-chat-msg-answered .cb295-chat-msg-text {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,.35);
+}
+.cb295-chat-msg-icon {
+  font-size: 1.1rem;
+  line-height: 1.4;
+  text-align: center;
+}
+/* V3.261 — photo-as-icon variant. Same 32×32-ish footprint as the
+ * emoji icon so message-bubble grid layout doesn't shift. */
+img.cb295-chat-msg-icon-photo {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255,255,255,.05);
+}
+
+/* V3.261 — Instructor editing card (admin dashboard) */
+.cb295-instructor-edit {
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  padding: .65rem .75rem;
+  margin-bottom: .65rem;
+  /* V3.266 — two-column layout: photo column on the left, fields on the right. */
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: .9rem;
+  align-items: start;
+}
+@media (max-width: 520px) {
+  .cb295-instructor-edit { grid-template-columns: 1fr; }
+}
+/* V3.266 — photo upload column */
+.cb295-instructor-edit-photo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .35rem;
+}
+.cb295-instructor-photo-frame {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cb295-instructor-photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cb295-instructor-photo-placeholder {
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-instructor-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cb295-instructor-photo-status { min-height: 1em; text-align: center; }
+/* V3.266 — bio textarea spans the field grid */
+.cb295-instructor-bio-group { grid-column: 1 / -1; }
+.cb295-instructor-bio {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px;
+  color: var(--text, #eef2f7);
+  padding: .45rem .6rem;
+  font: inherit;
+  resize: vertical;
+  min-height: 60px;
+}
+.cb295-instructor-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .55rem;
+}
+.cb295-instructor-edit-fields .form-group { margin: 0; }
+.cb295-instructor-edit-fields label {
+  display: block;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+  margin-bottom: .2rem;
+}
+.cb295-instructor-field {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px;
+  color: var(--text, #eef2f7);
+  padding: .35rem .5rem;
+  font: inherit;
+}
+.cb295-instructor-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin-top: .25rem;
+}
+.cb295-chat-msg-body { min-width: 0; }
+.cb295-chat-msg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .4rem;
+  font-size: .85rem;
+}
+.cb295-chat-msg-meta strong { color: var(--text, #eef2f7); }
+.cb295-chat-msg-anon-tag {
+  font-size: .7rem;
+  font-style: italic;
+}
+.cb295-chat-msg-time { font-size: .7rem; }
+.cb295-chat-msg-speaker-badge {
+  display: inline-block;
+  font-size: .65rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(91,174,209,.18);
+  color: #5baed1;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.cb295-chat-msg-answered-tag {
+  display: inline-block;
+  font-size: .65rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(102, 211, 154, .22);
+  color: #66d39a;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.cb295-chat-msg-text {
+  margin-top: .15rem;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+.cb295-chat-msg-controls {
+  display: flex;
+  gap: .35rem;
+  margin-top: .35rem;
+}
+.cb295-chat-mark-answered {
+  font-size: .7rem;
+  padding: .15rem .5rem;
+}
+.cb295-chat-delete {
+  font-size: .9rem;
+  line-height: 1;
+  padding: .15rem .45rem;
+}
+
+.cb295-chat-input-area {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+  border-radius: 8px;
+  padding: .65rem .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.cb295-chat-input-area-signedout { text-align: center; }
+.cb295-chat-input-area-signedout p { margin: 0 0 .5rem; }
+.cb295-chat-input {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  color: var(--text, #eef2f7);
+  padding: .5rem .65rem;
+  font: inherit;
+  resize: vertical;
+  min-height: 2.5rem;
+}
+.cb295-chat-anon-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .85rem;
+  color: var(--muted, #a8b3c7);
+  cursor: pointer;
+  user-select: none;
+}
+.cb295-chat-anon-row input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+.cb295-chat-actions {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.cb295-chat-send-question {
+  background: rgba(255, 213, 79, .18);
+  border-color: rgba(255, 213, 79, .5);
+  color: #ffd54f;
+}
+.cb295-chat-send-question:hover { background: rgba(255, 213, 79, .3); }
+.cb295-chat-hint {
+  margin: 0;
+  font-size: .7rem;
+}
+.cb295-chat-hint kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: .75rem;
+}
+
+/* ---- Clickable author + mentions (V3.251 cont.) ----------------- */
+.cb295-chat-author-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--text, #eef2f7);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.cb295-chat-author-link:hover { text-decoration: underline; color: #5baed1; }
+.cb295-chat-mention {
+  display: inline-block;
+  padding: 0 4px;
+  margin: 0 1px;
+  border-radius: 3px;
+  background: rgba(91, 174, 209, .18);
+  color: #5baed1;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cb295-chat-mention:hover { background: rgba(91, 174, 209, .35); }
+.cb295-chat-msg-mention-me {
+  background: rgba(255, 213, 79, .12);
+  border-left-color: #ffd54f;
+  box-shadow: inset 3px 0 0 #ffd54f;
+}
+
+/* @-mention autocomplete dropdown */
+.cb295-chat-input-wrap {
+  position: relative;
+}
+.cb295-chat-mention-dropdown {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  background: #161b24;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  z-index: 50;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.cb295-chat-mention-dropdown[hidden] { display: none; }
+.cb295-chat-mention-item {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: .35rem .55rem;
+  border-radius: 4px;
+  color: var(--text, #eef2f7);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.cb295-chat-mention-item strong { color: #5baed1; }
+.cb295-chat-mention-item:hover,
+.cb295-chat-mention-item-active {
+  background: rgba(91, 174, 209, .18);
+}
+
+/* ---- Profile-view modal (V3.251) -------------------------------- */
+.cb295-profile-view-modal { max-width: 480px; }
+.cb295-profile-view-body {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.cb295-profile-view-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255,255,255,.04);
+}
+.cb295-profile-view-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cb295-profile-view-photo .cb295-mate-photo {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+.cb295-profile-view-fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: .75rem;
+  row-gap: .35rem;
+  font-size: .85rem;
+}
+.cb295-profile-view-fields dt {
+  color: var(--muted, #a8b3c7);
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  align-self: start;
+  padding-top: 2px;
+}
+.cb295-profile-view-fields dd {
+  margin: 0;
+  word-break: break-word;
+}
+@media (max-width: 520px) {
+  .cb295-profile-view-body { grid-template-columns: 1fr; }
+  .cb295-profile-view-photo { width: 80px; height: 80px; }
+}
+
+/* ---- Per-prompt response blocks + soft banner (V3.251) ---------- */
+.cb295-response-banner {
+  background: rgba(91, 174, 209, .08);
+  border: 1px solid rgba(91, 174, 209, .25);
+  border-radius: 6px;
+  padding: .5rem .65rem;
+  margin: .5rem 0 .75rem;
+  font-size: .85rem;
+  line-height: 1.45;
+}
+.cb295-response-prompt-block {
+  margin: .5rem 0 .9rem;
+}
+.cb295-response-prompt-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: .25rem;
+  color: var(--text, #eef2f7);
+  font-size: .88rem;
+}
+.cb295-response-text-input {
+  width: 100%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  color: var(--text, #eef2f7);
+  padding: .55rem .65rem;
+  font: inherit;
+  resize: vertical;
+  min-height: 64px;
+}
+.cb295-response-text-input:focus {
+  outline: none;
+  border-color: rgba(91,174,209,.55);
+  background: rgba(91,174,209,.05);
+}
+.cb295-response-wordcount-per {
+  display: inline-block;
+  font-size: .72rem;
+  color: var(--muted, #a8b3c7);
+  margin-top: .2rem;
+}
+.cb295-response-prompt-readonly .cb295-response-text {
+  background: rgba(255,255,255,.03);
+  border-left: 3px solid rgba(255,255,255,.12);
+  padding: .4rem .6rem;
+  border-radius: 4px;
+  margin-top: .25rem;
+}
+
+/* ---- Syllabus fee notice (V3.264) ------------------------------ */
+.cb295-fee-notice {
+  background: rgba(255, 152, 0, .1);
+  border: 1px solid rgba(255, 152, 0, .45);
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: .75rem .9rem;
+  margin-bottom: 1rem;
+}
+.cb295-fee-notice-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  color: #ffab40;
+  margin-bottom: .35rem;
+}
+.cb295-fee-notice-header strong { font-size: 1rem; }
+.cb295-fee-notice-icon { font-size: 1.1rem; line-height: 1; }
+.cb295-fee-notice p {
+  margin: 0 0 .5rem;
+  font-size: .9rem;
+  line-height: 1.5;
+}
+.cb295-fee-notice-steps {
+  margin: .25rem 0 0;
+  padding-left: 1.25rem;
+  font-size: .9rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.cb295-fee-notice-steps li { line-height: 1.45; }
+.cb295-fee-notice-steps a { color: #5baed1; }
+
+/* ---- Attendance modal (V3.251) --------------------------------- */
+.cb295-att-body { padding: 0 .25rem; }
+.cb295-att-warning {
+  background: rgba(255, 152, 0, .12);
+  border: 1px solid rgba(255, 152, 0, .35);
+  border-radius: 5px;
+  padding: .5rem .65rem;
+  font-size: .85rem;
+  margin: 0 0 .65rem;
+}
+.cb295-att-list {
+  list-style: none;
+  margin: 0 0 .65rem;
+  padding: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px;
+}
+.cb295-att-list li {
+  padding: .4rem .6rem;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.cb295-att-list li:last-child { border-bottom: none; }
+.cb295-att-list label {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ---- Roster row completion badges (V3.251) --------------------- */
+.cb295-roster-badge-col {
+  width: 48px;
+  text-align: center;
+  white-space: nowrap;
+}
+.cb295-roster-badge-loading {
+  color: rgba(255,255,255,.25);
+  font-size: .85rem;
+}
+.cb295-roster-badge-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* ---- Live discussion monitor (V3.251) -------------------------- */
+.cb295-live-dot {
+  display: inline-block;
+  margin-left: .35rem;
+  font-size: .7rem;
+  color: #66d39a;
+  vertical-align: middle;
+  animation: cb295-live-pulse 2.4s ease-in-out infinite;
+}
+@keyframes cb295-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .3; }
+}
+.cb295-monitor-campus {
+  margin-bottom: 1rem;
+}
+.cb295-monitor-campus-title {
+  margin: .5rem 0 .35rem;
+  font-size: .9rem;
+  color: var(--muted, #a8b3c7);
+  font-weight: 500;
+}
+.cb295-monitor-grid {
+  border-collapse: separate;
+  border-spacing: 4px;
+  font-size: .75rem;
+}
+.cb295-monitor-grid th,
+.cb295-monitor-grid td {
+  padding: .25rem .35rem;
+  vertical-align: middle;
+}
+.cb295-monitor-rowhead {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted, #a8b3c7);
+  font-size: .75rem;
+  white-space: nowrap;
+  background: transparent;
+}
+.cb295-monitor-colhead {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-start;
+  font-weight: 500;
+}
+.cb295-monitor-colhead-day {
+  font-size: .65rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-monitor-colhead-name {
+  font-size: .72rem;
+  color: var(--text, #eef2f7);
+  white-space: nowrap;
+}
+
+/* V3.263 — group column headers (T1, T2, …, P1, P2, …) on the flipped
+ * monitor grid. Tucson columns blue-tinted, Phoenix amber-tinted. */
+.cb295-monitor-grouphead {
+  font-weight: 700;
+  font-size: .8rem;
+  text-align: center;
+  padding: .35rem .5rem;
+  border-radius: 5px;
+  letter-spacing: .03em;
+}
+.cb295-monitor-grouphead-tucson {
+  background: rgba(91,174,209,.15);
+  color: #5baed1;
+}
+.cb295-monitor-grouphead-phoenix {
+  background: rgba(255,213,79,.15);
+  color: #ffd54f;
+}
+.cb295-monitor-grouphead-newcampus {
+  border-left: 3px solid rgba(255,255,255,.18);
+  padding-left: .75rem;
+  margin-left: 4px;
+}
+.cb295-monitor-cell-newcampus {
+  border-left: 3px solid rgba(255,255,255,.18);
+}
+
+/* V3.284 — orphan drafts surfacing block. Read-only list of response docs
+   whose docId doesn't match any current (campus × group × speaker) for
+   any roster student — typically pre-V3.284 saves stranded by the day-
+   name + campus-override routing bugs. Each row gives admin View + Copy
+   text so the writing can be recovered into the correct cell. */
+.cb295-orphan-block {
+  margin-top: 1rem;
+  padding: .75rem;
+  border: 1px dashed rgba(255, 196, 0, .4);
+  border-radius: 8px;
+  background: rgba(255, 196, 0, .04);
+}
+.cb295-orphan-block summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  font-size: .85rem;
+}
+.cb295-orphan-block summary::-webkit-details-marker { display: none; }
+.cb295-orphan-rows {
+  margin-top: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.cb295-orphan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  gap: .5rem;
+  align-items: center;
+  padding: .4rem .6rem;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px;
+  font-size: .8rem;
+}
+.cb295-orphan-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .75rem;
+  color: rgba(255,255,255,.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cb295-orphan-meta { font-size: .72rem; }
+
+/* V3.263 — row header for the flipped layout (speaker name + day). */
+.cb295-monitor-rowhead-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-start;
+}
+.cb295-monitor-rowhead-day {
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-monitor-rowhead-name {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text, #eef2f7);
+  white-space: nowrap;
+}
+/* V3.267 — keep the <td> as a real table cell so the flipped grid
+ * (lectures × T1..Pn) lays out as a proper rectangular table. Earlier
+ * the cell had `display: flex` directly on the <td>, which broke table
+ * layout in Chromium and made all cells stack vertically. The flex
+ * column lives on a child .cb295-monitor-cell-inner instead. */
+.cb295-monitor-cell {
+  min-width: 80px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+  cursor: pointer;
+  padding: .25rem .35rem !important;
+  vertical-align: middle;
+  text-align: center;
+  transition: transform 80ms ease, border-color 80ms ease;
+}
+.cb295-monitor-cell:hover {
+  border-color: rgba(91,174,209,.55);
+}
+.cb295-monitor-cell-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: center;
+}
+.cb295-monitor-cell-empty { background: rgba(255,255,255,.02); color: var(--muted, #a8b3c7); }
+.cb295-monitor-cell-draft {
+  background: rgba(255, 195, 0, .07);
+  border-color: rgba(255, 195, 0, .35);
+}
+.cb295-monitor-cell-submitted {
+  background: rgba(102, 211, 154, .1);
+  border-color: rgba(102, 211, 154, .45);
+}
+.cb295-monitor-words {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #eef2f7);
+}
+.cb295-monitor-status {
+  font-size: .7rem;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-monitor-cell-submitted .cb295-monitor-status { color: #66d39a; }
+.cb295-monitor-cell-draft .cb295-monitor-status { color: #ffd54f; }
+.cb295-monitor-attendance {
+  font-size: .7rem;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-monitor-when {
+  font-size: .65rem;
+  color: rgba(255,255,255,.4);
+  font-variant-numeric: tabular-nums;
+}
+.cb295-monitor-modal-prompt {
+  margin-bottom: .85rem;
+}
+.cb295-monitor-modal-attendance {
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding-top: .75rem;
+  margin-top: .75rem;
+}
+.cb295-monitor-modal-attendance h4 {
+  margin: 0 0 .35rem;
+  font-size: .85rem;
+  color: #5baed1;
+}
+.cb295-monitor-modal-attendance p {
+  margin: .2rem 0;
+  font-size: .85rem;
+}
+
+/* ---- Test mode banner + card (V3.250) --------------------------- */
+.cb295-testmode-banner {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .65rem .85rem;
+  margin-bottom: .75rem;
+  background: rgba(244, 67, 54, .14);
+  border: 1px solid rgba(244, 67, 54, .45);
+  color: #ff8a80;
+  border-radius: 6px;
+  font-size: .9rem;
+}
+.cb295-testmode-banner-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.cb295-testmode-banner-text strong { color: #ffab91; }
+
+.cb295-testmode-card-on {
+  border-color: rgba(244, 67, 54, .45);
+  background: rgba(244, 67, 54, .06);
+}
+.cb295-testmode-pill {
+  display: inline-block;
+  margin-left: .35rem;
+  padding: 1px 8px;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  background: rgba(244, 67, 54, .25);
+  color: #ff8a80;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+.cb295-testmode-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .5rem;
+  margin: .5rem 0 .75rem;
+}
+.cb295-testmode-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: .4rem .55rem;
+  background: rgba(255,255,255,.03);
+  border-radius: 4px;
+  font-size: .85rem;
+}
+.cb295-testmode-stats span:first-child {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-testmode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .35rem;
+}
+.cb295-testmode-wipe {
+  background: rgba(244, 67, 54, .22);
+  border-color: rgba(244, 67, 54, .55);
+  color: #ff8a80;
+}
+.cb295-testmode-wipe:hover { background: rgba(244, 67, 54, .35); }
+.cb295-testmode-hint {
+  font-size: .75rem;
+  margin: .5rem 0 0;
+  line-height: 1.45;
+}
+
+/* ---- View-as toolbar (V3.248) ----------------------------------- */
+.cb295-viewas {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  padding: .5rem .75rem;
+  margin-bottom: .75rem;
+  background: rgba(255, 195, 0, .08);
+  border: 1px solid rgba(255, 195, 0, .25);
+  border-radius: 6px;
+  font-size: .85rem;
+}
+.cb295-viewas-label {
+  font-weight: 600;
+  color: #ffd54f;
+  margin-right: .25rem;
+}
+.cb295-viewas-btn {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--text, #eef2f7);
+  padding: .25rem .75rem;
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.cb295-viewas-btn:hover { background: rgba(255,255,255,.12); }
+.cb295-viewas-btn-active {
+  background: rgba(255, 195, 0, .25);
+  border-color: rgba(255, 195, 0, .55);
+  color: #ffd54f;
+}
+.cb295-viewas-student {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--text, #eef2f7);
+  padding: .25rem .35rem;
+  border-radius: 4px;
+  font: inherit;
+  min-width: 180px;
+}
+.cb295-viewas-student[disabled] { opacity: .5; }
+.cb295-viewas-note {
+  margin-left: auto;
+  font-size: .75rem;
+}
+
+/* ---- Admin-only tab badge --------------------------------------- */
+.cb-tab-admin-tag {
+  display: inline-block;
+  margin-left: .35rem;
+  padding: 1px 6px;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  background: rgba(255, 195, 0, .25);
+  color: #ffd54f;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+/* ---- Admin Dashboard (V3.248) ----------------------------------- */
+.cb295-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.cb295-dash-loading {
+  padding: .5rem .75rem;
+  background: rgba(91,174,209,.08);
+  border-left: 3px solid #5baed1;
+  border-radius: 4px;
+  font-size: .85rem;
+}
+.cb295-dash-card {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+}
+.cb295-dash-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .5rem;
+  margin-bottom: .75rem;
+}
+.cb295-dash-card-header h3 {
+  margin: 0;
+  color: #5baed1;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.cb295-dash-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: .5rem .75rem;
+}
+.cb295-dash-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: .35rem .5rem;
+  background: rgba(255,255,255,.03);
+  border-radius: 4px;
+  font-size: .85rem;
+}
+.cb295-dash-meta-label {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted, #a8b3c7);
+}
+.cb295-dash-meta-val { word-break: break-word; }
+.cb295-dash-inspector {
+  margin-top: .75rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding-top: .5rem;
+}
+.cb295-dash-inspector summary {
+  cursor: pointer;
+  font-size: .8rem;
+  color: var(--muted, #a8b3c7);
+  user-select: none;
+}
+.cb295-dash-pre {
+  background: rgba(0,0,0,.3);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 4px;
+  padding: .5rem .75rem;
+  margin-top: .5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .75rem;
+  white-space: pre;
+  overflow-x: auto;
+  max-height: 320px;
+}
+
+.cb295-dash-tablewrap { overflow-x: auto; }
+.cb295-dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+.cb295-dash-table th,
+.cb295-dash-table td {
+  text-align: left;
+  padding: .4rem .55rem;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  white-space: nowrap;
+}
+.cb295-dash-table th {
+  font-weight: 500;
+  color: var(--muted, #a8b3c7);
+  text-transform: uppercase;
+  font-size: .7rem;
+  letter-spacing: .05em;
+}
+.cb295-dash-table tbody tr:hover { background: rgba(255,255,255,.03); }
+.cb295-dash-yes { color: #66d39a; font-weight: 700; }
+.cb295-dash-no { color: rgba(255,255,255,.35); }
+
+.cb295-dash-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.cb295-dash-activity-item {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: .75rem;
+  align-items: baseline;
+  padding: .35rem .5rem;
+  background: rgba(255,255,255,.02);
+  border-left: 3px solid rgba(255,255,255,.12);
+  border-radius: 4px;
+  font-size: .85rem;
+}
+.cb295-dash-activity-profile { border-left-color: #5baed1; }
+.cb295-dash-activity-response { border-left-color: #66d39a; }
+.cb295-dash-activity-schedule { border-left-color: #ffd54f; }
+.cb295-dash-activity-time {
+  font-size: .75rem;
+  color: var(--muted, #a8b3c7);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Mobile (< 640px) -------------------------------------------- */
+@media (max-width: 640px) {
+  .cb295-checkin {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+  .cb295-speaker-card { grid-template-columns: 64px 1fr; }
+  .cb295-speaker-photo { width: 64px; height: 64px; }
+  .cb295-mod-summary { grid-template-columns: 44px 1fr; }
+  .cb295-mod-photo { width: 44px; height: 44px; }
+  .cb295-viewas-note { width: 100%; margin-left: 0; }
+}
+
+/* =====================================================================
+   DATA VISUALIZATIONS (V3.301)
+   Gallery (#/data), full viewer (#/data/{vizId}), and the poster-until-
+   visible embeds rendered inside story/news sections.
+   ===================================================================== */
+
+/* Gateway card on the Research page */
+.viz-gateway-card{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid rgba(124,196,255,.25);
+  background: linear-gradient(135deg, rgba(91,174,209,.12), var(--surface));
+}
+.viz-gateway-card:hover{ border-color: var(--accent); }
+.viz-gateway-icon{ font-size: 1.9rem; line-height: 1; }
+.viz-gateway-text{ display: flex; flex-direction: column; gap: 2px; }
+.viz-gateway-text strong{ font-size: 1.05rem; }
+.viz-gateway-text span{ color: var(--muted); font-size: .92rem; }
+
+/* Gallery grid */
+.viz-gallery{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+.viz-gallery-card{ padding: 0; overflow: hidden; }
+.viz-gallery-link{ display: block; text-decoration: none; color: var(--text); }
+/* Image-forward: the preview fills the whole card; title rides as an
+   overlaid caption over a bottom scrim so it stays legible on any image. */
+.viz-gallery-thumb{
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #070b12;
+  overflow: hidden;
+}
+.viz-gallery-thumb img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .35s ease;
+}
+.viz-gallery-card:hover .viz-gallery-thumb img{ transform: scale(1.04); }
+.viz-gallery-thumb-placeholder{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 3rem;
+  background: linear-gradient(135deg, #0a1220, #12203a);
+}
+/* Badge sits top-right on gallery cards so it never collides with the
+   bottom title caption (the global .viz-embed-badge is bottom-right). */
+.viz-gallery-thumb .viz-embed-badge{ top: 10px; bottom: auto; }
+.viz-gallery-caption{
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 28px 14px 12px;
+  background: linear-gradient(to top, rgba(7,11,18,.88) 0%, rgba(7,11,18,.55) 55%, transparent 100%);
+}
+.viz-gallery-caption h3{
+  margin: 0;
+  font-size: 1.05rem;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+
+/* Full viewer page */
+.viz-viewer-section{ padding: 0; }
+.viz-viewer-bar{
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  flex: 0 0 auto;
+}
+.viz-back-link{ color: var(--link); text-decoration: none; font-size: .92rem; white-space: nowrap; }
+.viz-back-link:hover{ text-decoration: underline; }
+.viz-viewer-title{ font-size: 1rem; }
+.viz-save-controls{ display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.viz-save-controls input[type="text"]{
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: .9rem;
+  min-width: 170px;
+}
+.viz-save-btn{ padding: 6px 14px; font-size: .9rem; }
+.viz-save-status{ color: var(--muted); font-size: .85rem; }
+/* The base display rules above out-specify the `hidden` attribute's UA
+   display:none, so restore it explicitly — otherwise the Save box shows for
+   logged-out visitors and the empty saved-views strip leaves a gap. */
+.viz-save-controls[hidden],
+.viz-views-strip[hidden]{ display: none !important; }
+
+/* Saved-views strip */
+.viz-views-strip{
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px;
+  overflow-x: auto;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  -webkit-overflow-scrolling: touch;
+  flex: 0 0 auto;
+}
+.viz-view-thumb{
+  position: relative;
+  flex: 0 0 auto;
+  width: 120px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #070b12;
+}
+.viz-view-thumb:hover{ border-color: rgba(124,196,255,.5); }
+.viz-view-thumb.active{ border-color: var(--accent); }
+.viz-view-thumb img{ width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; }
+.viz-view-thumb .viz-gallery-thumb-placeholder{ aspect-ratio: 16 / 10; font-size: 1.6rem; }
+.viz-view-name{
+  display: block;
+  padding: 4px 6px;
+  font-size: .75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.viz-view-delete{
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,.6);
+  color: #fff;
+  font-size: .8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.viz-view-delete:hover{ background: #c0392b; }
+
+/* Viewer iframe fills the viewport under the header + bars */
+.viz-frame-wrap{ height: calc(100vh - var(--banner-height) - 120px); min-height: 420px; }
+.viz-frame{ width: 100%; height: 100%; border: 0; display: block; background: #070b12; }
+
+/* Embeds in story/news sections: poster now, live iframe when visible.
+   The overlay <a> owns every click; the iframe never gets pointer events. */
+.viz-embed{
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: #070b12;
+}
+.viz-embed-poster{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity .4s ease;
+}
+.viz-embed-frame{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+.viz-embed.viz-live .viz-embed-frame{ opacity: 1; }
+.viz-embed.viz-live .viz-embed-poster{ opacity: 0; }
+.viz-embed-overlay{
+  position: absolute;
+  inset: 0;
+  display: block;
+  cursor: pointer;
+  text-decoration: none;
+}
+.viz-embed-badge{
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .75rem;
+  color: #eafffd;
+  background: rgba(7,11,18,.75);
+  border: 1px solid rgba(49,208,198,.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.viz-embed-overlay:hover .viz-embed-badge{ background: rgba(49,208,198,.85); color: #04121a; }
+
+@media (max-width: 640px){
+  .viz-save-controls{ margin-left: 0; width: 100%; }
+  .viz-save-controls input[type="text"]{ flex: 1; min-width: 0; }
+}
+
+/* Mobile full-viewer: lock the page to a fixed flex column that fills exactly
+   from below the banner to the screen bottom, and hide the SPA bottom tab bar
+   on this route so it doesn't cover the viewer's own bottom quick-links. The
+   iframe (flex:1) takes all remaining space; the bar + strip take their
+   natural height. Matches the .bottom-tabs breakpoint (767px). */
+@media (max-width: 767px){
+  body.data-viewer-env .bottom-tabs{ display: none !important; }
+  body.data-viewer-env .group-sheet{ display: none !important; }
+  .viz-viewer-section{
+    position: fixed;
+    top: var(--banner-height);
+    left: 0; right: 0; bottom: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .viz-frame-wrap{ flex: 1 1 auto; min-height: 0; height: auto; }
+  /* Keep the back link + title on one row: flex-basis:0 (not auto) stops the
+     title's content width from forcing a wrap, so it shrinks + ellipsizes
+     instead. The save controls still wrap to their own row (width:100%). */
+  .viz-back-link{ flex: 0 0 auto; }
+  .viz-viewer-title{ flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* =========================================
+   V3.304) TEACHER CLASSES (external teachers & students)
+   - tc- prefix. Dashboards, class-page gate, join code,
+     reviews strip, featured-teachers section.
+   ========================================= */
+.tc-muted{ color: var(--muted); font-size: .9rem; }
+
+/* Status chips (request / review / profile states) */
+.tc-chip{
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: .75rem; font-weight: 600; letter-spacing: .02em;
+}
+.tc-chip-pending { background: rgba(240,190,70,.15);  color: #f0be46; border: 1px solid rgba(240,190,70,.4); }
+.tc-chip-approved{ background: rgba(90,200,130,.15);  color: #5ac882; border: 1px solid rgba(90,200,130,.4); }
+.tc-chip-denied  { background: rgba(235,105,105,.15); color: #eb6969; border: 1px solid rgba(235,105,105,.4); }
+.tc-chip-draft   { background: rgba(168,179,199,.15); color: var(--muted); border: 1px solid rgba(168,179,199,.4); }
+
+/* Join-code entry (dashboards + class-page gate) */
+.tc-join-form{ display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.tc-join-form input{
+  width: 9ch; text-transform: uppercase; letter-spacing: .25em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.1rem; text-align: center;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid rgba(168,179,199,.3); border-radius: 8px; padding: .5rem;
+}
+
+/* Teacher dashboard: per-class block */
+.tc-class-block{
+  border: 1px solid rgba(168,179,199,.2); border-radius: var(--radius);
+  padding: .9rem 1rem; margin: .75rem 0;
+}
+.tc-class-head{ display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.tc-toggle{ font-size: .85rem; color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; }
+.tc-code-box{ display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: .5rem 0; }
+.tc-code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.6rem; font-weight: 700; letter-spacing: .3em;
+  background: var(--surface-2); border: 1px dashed rgba(124,196,255,.5);
+  border-radius: 8px; padding: .3rem .8rem; color: var(--link);
+}
+.tc-code-hint{ margin: .2rem 0 .6rem; }
+.tc-roster-table{ width: 100%; border-collapse: collapse; font-size: .9rem; }
+.tc-roster-table td{ padding: .35rem .5rem; border-top: 1px solid rgba(168,179,199,.15); }
+.tc-btn-row{ display: flex; gap: .5rem; flex-wrap: wrap; }
+.tc-form-row{ display: flex; gap: .75rem; }
+.tc-form-row .form-group{ flex: 1; }
+.tc-folder-list{ display: flex; flex-direction: column; gap: .35rem; }
+.tc-folder-option{ display: flex; align-items: center; gap: .5rem; font-size: .95rem; }
+.tc-request-row{
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .5rem 0; border-bottom: 1px solid rgba(168,179,199,.15);
+}
+
+/* Review widgets */
+.tc-star-input{ display: flex; gap: .15rem; margin: .4rem 0; }
+.tc-star-btn{
+  background: none; border: none; font-size: 1.5rem; cursor: pointer;
+  color: rgba(168,179,199,.35); padding: 0 .1rem; line-height: 1;
+}
+.tc-star-btn.on{ color: #f0be46; }
+.tc-stars{ color: #f0be46; letter-spacing: .1em; }
+.tc-review-row{ padding: .5rem 0; border-bottom: 1px solid rgba(168,179,199,.15); }
+
+/* Class page gate + owner strip */
+.tc-gate-card{ max-width: 480px; margin: 1rem auto; text-align: center; padding: 1rem; }
+.tc-gate-card .tc-join-form{ justify-content: center; margin-top: .75rem; }
+.tc-owner-strip{
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .75rem; flex-wrap: wrap; padding: .7rem 1rem;
+}
+
+/* Class-page module list */
+.tc-module-list{ display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.tc-module-item{
+  display: flex; align-items: center; gap: .75rem;
+  padding: .7rem .9rem; border-radius: var(--radius);
+  background: var(--surface-2); color: var(--text); text-decoration: none;
+  border: 1px solid rgba(168,179,199,.15);
+  transition: border-color .15s ease, transform .15s ease;
+}
+.tc-module-item:hover{ border-color: var(--accent); transform: translateX(2px); }
+.tc-module-num{
+  flex: 0 0 auto; width: 1.8rem; height: 1.8rem; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(91,174,209,.15); color: var(--accent); font-weight: 700; font-size: .85rem;
+}
+.tc-module-title{ flex: 1; }
+.tc-module-arrow{ color: var(--muted); }
+
+/* Classes-page reviews strip */
+.tc-reviews-grid{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem; margin-top: .75rem;
+}
+.tc-review-quote{
+  background: var(--surface-2); border-radius: var(--radius); padding: .9rem 1rem;
+  border: 1px solid rgba(168,179,199,.15);
+}
+.tc-review-quote p{ margin: .4rem 0; font-style: italic; }
+.tc-review-byline{ display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .85rem; }
+
+/* Team-page featured teachers */
+.tc-teachers-section{ margin-top: 2rem; }
+.tc-teacher-card{ text-align: center; }
+.tc-teacher-photo img{
+  width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin: 0 auto .5rem;
+}
+.tc-teacher-photo .photo-placeholder{
+  width: 120px; height: 120px; border-radius: 50%; margin: 0 auto .5rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--muted); font-size: 2.2rem;
+}
+.tc-teacher-school{ color: var(--muted); font-size: .9rem; margin: .2rem 0 .5rem; }
+.tc-teacher-quote{
+  margin: .6rem 0 0; padding: .5rem .75rem; border-left: 3px solid var(--accent);
+  background: rgba(91,174,209,.07); font-size: .85rem; text-align: left;
+}
+.tc-teacher-quote footer{ color: var(--muted); margin-top: .25rem; }
+
+@media (max-width: 640px){
+  .tc-form-row{ flex-direction: column; gap: 0; }
+  .tc-class-head{ flex-direction: column; align-items: flex-start; }
+  .tc-roster-table td:nth-child(3){ display: none; } /* joined-date column */
 }

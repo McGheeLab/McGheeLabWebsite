@@ -1655,7 +1655,7 @@ window.McgheeLab = window.McgheeLab || {};
             <div class="chat-settings-row" style="margin-top:.5rem">
               <select class="app-input" id="chat-add-admin-select" style="flex:1">
                 <option value="">Add a chat admin...</option>
-                ${_allUsers.filter(u => !(_config?.chatAdmins || []).includes(u.uid) && u.role !== 'guest').map(u =>
+                ${_allUsers.filter(u => !(_config?.chatAdmins || []).includes(u.uid) && LAB_USERS.isVisible(u)).map(u =>
                   `<option value="${u.uid}">${escHTML(u.name || u.displayName || u.email)}</option>`
                 ).join('')}
               </select>

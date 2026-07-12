@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 2: Plasma Treatment — Surface Functionalization Foundations</title>
+<style>
+  /* ===== worksheet house style (print-first, self-contained) ===== */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .blank.w{min-width:160px}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .circle{color:#334155}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Surface Functionalization Foundations · Lesson 2 Worksheet</div>
+  <h1>Plasma Treatment — Energizing Gas to Rewrite a Surface</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="02-plasma-treatment.html"><b>02-plasma-treatment.html</b></a> and keep it next to this
+  worksheet. Each experiment below uses one tab of the lesson. <b>Predict first</b> (before you
+  touch the sliders!), then run the experiment, record your data, and explain what you saw.
+  Use the <b>Scenario</b> buttons to jump to a preset, the <b>Controls</b> sliders to explore,
+  and read your numbers from the <b>stats panel</b> (under the sliders) and the <b>verdict box</b>
+  (below the plots).
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>Why Pump Down First</h2>
+  <p class="goal">Goal: see why thinning the gas gives free electrons a long enough runway to make a plasma — and why there's a sweet spot.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">As you pump the chamber down (lower the pressure), the electron's mean free path λ will…
+  &nbsp;☐ get shorter &nbsp; ☐ get longer &nbsp; ☐ stay the same</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click the <b>Ambient (760 Torr)</b> scenario. Read the <b>Mean free path λ</b> and the
+    <b>Energy per run (30 V/mm)</b> stats.</li>
+    <li>Click <b>Process gas (0.3 Torr)</b>, then <b>Base pressure (10⁻⁴ Torr)</b>, filling in the
+    table each time. Watch the electron's path go from a frantic zig-zag to long straight runs.</li>
+    <li>Drag the <b>Pressure</b> slider by hand and find the shaded plasma process window
+    (0.01–1 Torr) on the λ-vs-pressure plot.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Scenario (Pressure)</th><th>Mean free path λ</th><th>vs. ambient (× longer)</th><th>Energy per run (eV)</th></tr>
+    <tr><td class="lab">Ambient (760 Torr)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Process gas (0.3 Torr)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Base pressure (10⁻⁴ Torr)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>The marked process window (0.01–1 Torr) is about <span class="blank"></span> orders of
+  magnitude below ambient. At base pressure the runway is huge, but the problem now is that there
+  are &nbsp;☐ too few molecules to ionize &nbsp; ☐ too many molecules &nbsp; ☐ no electric field.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Using your table, explain why a <em>thinner</em> gas lets a modest electric field push an
+  electron to bond-breaking energy (name the two things energy depends on):</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Pumping down does <em>two</em> separate jobs at once. What are they?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>Striking a Plasma</h2>
+  <p class="goal">Goal: map the Paschen curve — find the breakdown voltage at a few p·d values and locate the easiest place to strike a plasma.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">The breakdown voltage V_b is <em>lowest</em> (easiest to strike) when the
+  pressure × gap product p·d is… &nbsp;☐ very small &nbsp; ☐ in the middle (~1 Torr·cm) &nbsp; ☐ very large</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Below breakdown</b>. Slowly raise the <b>RF voltage</b> slider (50–1500 V) until
+    the verdict reads <b>Plasma STRUCK</b>. Note the <b>Applied V</b> where it strikes and compare
+    with the <b>Breakdown V_b</b> stat.</li>
+    <li>Keep the <b>Electrode gap</b> at 10 mm. Set the <b>Pressure</b> slider to each value in the
+    table and record the <b>p × d</b> (Torr·cm) and <b>Breakdown V_b</b> stats.</li>
+    <li>Click <b>At the Paschen minimum</b> and read V_b. Then click <b>Over-pressured
+    (hard to ignite)</b> and watch the plasma go dark.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Pressure (Torr)</th><td>0.1</td><td>0.3</td><td>1</td><td>3</td><td>10</td></tr>
+    <tr><th class="lab">p × d (Torr·cm)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><th class="lab">Breakdown V_b (V)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>The lowest V_b in your table is about <span class="blank"></span> V, at p·d ≈
+  <span class="blank"></span> Torr·cm. The verdict flipped to <b>Plasma STRUCK</b> once the
+  Applied V rose above the stat labeled <span class="blank w"></span>.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. The Paschen curve is a <b>U shape</b>. In one sentence each, say why V_b climbs at
+  <em>high</em> p·d and why it climbs again at <em>low</em> p·d:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Why does a plasma cleaner pump down and then backfill to ~0.1–1 Torr with a few-cm gap?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Plasma Colors</h2>
+  <p class="goal">Goal: learn that each gas glows its own color — a line-emission fingerprint — and that power changes brightness, not the lines.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Turning the <b>RF power</b> up will change the plasma's…
+  &nbsp;☐ brightness only &nbsp; ☐ line positions only &nbsp; ☐ both</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Use the <b>Process gas</b> selector to step through all five gases: O₂, Air, N₂, Argon,
+    Helium. For each one, read the <b>Apparent color</b>, <b>Strongest line (nm)</b>, and
+    <b>Photon energy (eV)</b> stats and fill in the table.</li>
+    <li>Watch both the chamber glow and the barcode of emission lines underneath as you switch.</li>
+    <li>Pick one gas and drag <b>RF power</b> up and down. Watch what changes and what stays put.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Process gas</th><th>Apparent color</th><th>Strongest line (nm)</th><th>Photon energy (eV)</th></tr>
+    <tr><td class="lab">O₂</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Air</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">N₂</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Argon</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Helium</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Two gases that look nearly identical: <span class="blank"></span> and <span class="blank"></span>.
+  When you changed RF power, the line positions &nbsp;☐ moved &nbsp; ☐ stayed put.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Air and N₂ look almost the same. Why? (What is air mostly made of?)</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Lightning is a plasma of air. Using your table, what color would you expect it to be, and why?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Level Up: Gas → Chemistry</h2>
+  <p class="goal">Goal: prove the process gas sets the surface chemistry — O₂ makes –OH, N₂ makes –NH₂, CO₂ makes –COO⁻ — and watch the contact angle fall as coverage grows.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Which gas will make the surface <b>most</b> water-loving (smallest contact angle)?
+  &nbsp;☐ O₂ → hydroxyl &nbsp; ☐ N₂ → amine &nbsp; ☐ CO₂ → carboxyl</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>O₂ → hydroxyl</b>. Drag <b>Treatment time</b> from 0 to 120 s and watch the groups
+    accumulate while the contact-angle curve dives. Fill in the O₂ row (keep RF power at 50).</li>
+    <li>Click <b>N₂ → amine</b>, then <b>CO₂ → carboxyl</b>, at the same time and power. Record the
+    <b>Grafted group</b>, <b>Coverage %</b>, <b>Contact angle</b>, and <b>Rate constant τ</b> stats
+    for each.</li>
+    <li>On O₂, halve the <b>RF power</b> and see how much longer you must treat to reach the same
+    coverage.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Scenario</th><th>Grafted group</th><th>Coverage %</th><th>Contact angle (°)</th><th>Rate constant τ</th></tr>
+    <tr><td class="lab">O₂ → hydroxyl</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">N₂ → amine</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">CO₂ → carboxyl</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>The most hydrophilic surface (smallest contact angle) came from <span class="blank"></span>.
+  As treatment time grows the contact angle &nbsp;☐ rises &nbsp; ☐ falls &nbsp; ☐ holds steady.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Match the gas to the group it grafts: O₂ → <span class="blank"></span>,
+  N₂ → <span class="blank"></span>, CO₂ → <span class="blank"></span>.
+  <span class="hint">(the named group is dominant, not the only one)</span></p>
+  <p>2. If you treat a surface today but don't use it for a week, why is the effect weaker
+  ("hydrophobic recovery")?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — put it together</h2>
+  <p>1. In three sentences, tell the story of a plasma treatment from start to finish. Use all of
+  these words: <b>pump down</b>, <b>Paschen minimum</b>, <b>process gas</b>, <b>–OH</b>,
+  <b>silane</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+  <p>2. <b>Challenge (optional):</b> a photon's energy from its wavelength is
+  E = 1240 / λ (eV·nm). Nitrogen's second-positive band sits near λ = 337 nm.
+  Estimate its photon energy: E ≈ <span class="blank"></span> eV.
+  <span class="hint">(Is that visible light or UV? Compare with your Tab 3 numbers.)</span></p>
+  <p>3. Next lesson preview: an O₂ plasma leaves a surface covered in –OH groups. Lesson 3 brushes
+  <b>silanes</b> onto exactly those –OH handles. Why would you run the plasma <em>right before</em>
+  the silane step instead of the week before?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Surface Functionalization Foundations · Worksheet 2 of 4</footer>
+</body>
+</html>

@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scattering, Index Matching &amp; Metamaterials — Optics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Optics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    /* ===== self-check component ===== */
+    .self-check{background:#faf5ff;border:1px solid #d8b4fe;border-radius:10px;padding:14px 16px;margin:16px 0}
+    .self-check::before{content:"Check yourself";display:block;font-weight:700;color:#7c3aed;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+    .self-check .sc-q{font-weight:600;color:#1e3a5f;margin-bottom:10px}
+    .self-check .sc-opt{display:block;width:100%;text-align:left;border:1px solid #cbd5e1;background:#fff;
+      color:#1e293b;padding:9px 12px;border-radius:8px;margin-bottom:7px;cursor:pointer;font-size:.9rem;font-family:inherit}
+    .self-check .sc-opt:hover{background:#f5f3ff;border-color:#a78bfa}
+    .self-check .sc-opt.correct{background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:600}
+    .self-check .sc-opt.wrong{background:#fef2f2;border-color:#dc2626;color:#b91c1c}
+    .self-check .sc-opt.dimmed{opacity:.55}
+    .self-check .sc-feedback{font-size:.88rem;margin-top:6px;min-height:1.2em;color:#475569}
+    .self-check .sc-feedback.correct{color:#15803d}
+    .self-check .sc-feedback.wrong{color:#b91c1c}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Scattering, Index Matching &amp; Metamaterials</h1>
+  <p class="subtitle">Optics Foundations · Lesson 4 of 5 — Milk, fog, and skin all look cloudy for
+  the <em>same</em> reason: every time light crosses a boundary where the material's density
+  changes, it gets nudged off course. Match that mismatch away and things turn clear; engineer the
+  mismatch on purpose and you can bend light with a flat surface.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="scatter">1 · Why Things Look Cloudy</button>
+  <button class="tab-btn" data-tab="clearing">2 · Index Matching Clears It</button>
+  <button class="tab-btn" data-tab="layers">3 · Scattering Through Layers</button>
+  <button class="tab-btn" data-tab="meta">4 · Level Up: Rayleigh &amp; Metalenses</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: scatter -->
+<section id="tab-scatter" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: light gets nudged at every index mismatch</h2>
+    <p>Light travels in a straight line — until it hits a boundary where the material suddenly gets
+    denser or thinner. We measure that "optical density" with the <b>refractive index</b> \(n\)
+    (water is \(n=1.33\), glass \(n\approx1.5\), air \(n=1.0\)). Whenever light crosses a spot where
+    \(n\) <em>jumps</em>, part of it gets deflected off to the side. We call that deflection
+    <b>scattering</b>.</p>
+    <p>One tiny particle — a single fat droplet in milk, one water droplet in fog, one cell in
+    tissue — barely bends the beam. But a real cloudy substance is packed with <em>millions</em> of
+    them. Each crossing kicks the light in a slightly different random direction, and after enough
+    kicks the beam is completely scrambled. That is why you cannot see through milk or fog: the light
+    still gets through, but it has been randomized into a useless haze. The photons that make it
+    straight through <em>without</em> being scattered are called <b>ballistic</b> photons, and their
+    fraction shrinks the way any survivor-count shrinks — exponentially. This is the
+    <b>Beer–Lambert law</b>:</p>
+    <div class="equation-box">
+      $$ T \;=\; e^{-\mu_s L}, \qquad \ell \;=\; \frac{1}{\mu_s} $$
+    </div>
+    <p>Here \(T\) is the fraction of light that survives straight through, \(L\) is how far it
+    travels, and \(\mu_s\) (the <b>scattering coefficient</b>, units 1/length) counts how strongly
+    the medium scatters. Its inverse \(\ell = 1/\mu_s\) is the <b>mean free path</b> — the average
+    distance a photon flies before its next collision. Two things crank \(\mu_s\) up: <b>more
+    scatterers per volume</b> (density), and a <b>bigger index mismatch</b> \(\Delta n\) at each one.
+    In fact the strength of each bounce grows with \(\Delta n^2\), so \(\mu_s \propto
+    \text{density}\times\Delta n^{2}\). Squeeze the particles together or make them optically very
+    different from their surroundings, and the medium turns opaque.</p>
+    <div class="worked-example">
+      <p>Suppose a foggy sample has \(\mu_s = 2\ \text{mm}^{-1}\). The mean free path is
+      \(\ell = 1/\mu_s = 0.5\ \text{mm}\) — light averages just half a millimetre between bounces.
+      Send a beam \(L = 2\ \text{mm}\) deep and the ballistic survivors are
+      \(T = e^{-\mu_s L} = e^{-(2)(2)} = e^{-4} \approx 0.018\) — under 2% get through un-scattered.
+      Double the particle density and \(\mu_s\) doubles to \(4\ \text{mm}^{-1}\); now
+      \(T=e^{-8}\approx0.0003\), essentially opaque. The exponent is what kills you.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Scattering happens at every refractive-index mismatch \(\Delta n\); one particle is
+        weak, millions randomize the beam into haze.</li>
+        <li>Ballistic (un-scattered) transmission follows Beer–Lambert: \(T=e^{-\mu_s L}\).</li>
+        <li>Mean free path \(\ell = 1/\mu_s\) is the average flight between collisions.</li>
+        <li>\(\mu_s\) rises with scatterer density and with \(\Delta n^{2}\) — pack them tight or
+        make them optically very different and it goes opaque.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Scatterer density</b> from few to many. Watch the photon paths pick up more and
+      more random kinks, and the ballistic-transmission stat plunge.</li>
+      <li>Now drag the <b>Index mismatch</b> \(\Delta n\) up from 0. At \(\Delta n=0\) the light
+      sails straight through even a crowded medium — no mismatch, no scattering. Small \(\Delta n\)
+      changes have an outsized effect because \(\mu_s\propto\Delta n^{2}\).</li>
+      <li>Read the <b>mean free path</b> \(\ell\). When \(\ell\) drops below the sample width, most
+      photons bounce at least once and the transmitted image on the right blurs away.</li>
+      <li>Click <b>Clear water</b>, <b>Foggy</b>, and <b>Milk</b> and watch the verdict march from
+      "see straight through" to "opaque."</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="scatter" data-scen="water" onclick="setScen('scatter','water')">Clear water</button>
+    <button class="scen-btn" data-tab="scatter" data-scen="fog" onclick="setScen('scatter','fog')">Foggy</button>
+    <button class="scen-btn" data-tab="scatter" data-scen="milk" onclick="setScen('scatter','milk')">Milk</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Scatterer density <span id="v-scatter-density">many</span></label>
+        <input type="range" id="s-scatter-density" min="0" max="100" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Index mismatch Δn <span id="v-scatter-dn">0.02</span></label>
+        <input type="range" id="s-scatter-dn" min="0" max="0.3" step="0.005" value="0.02">
+      </div>
+      <div class="stats" id="st-scatter"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">A beam entering a cloud of scatterers — photon paths deflect at each one</div>
+        <canvas id="cv-scatter" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">The image you would see through the sample — ballistic light carries the picture</div>
+        <canvas id="cv-scatter2" width="640" height="150"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-scatter"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="b">
+    <p class="sc-q">You double the number of scattering particles in a sample. What happens to the ballistic (straight-through) transmission \(T=e^{-\mu_s L}\)?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="No — doubling density doubles μs, but T = e^(−μsL) drops exponentially, not by half. It falls much faster than 2×.">It drops to exactly half</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Right. Doubling density doubles μs, and T squares (e^(−2μsL) = (e^(−μsL))²). A dim beam becomes far dimmer — exponential, not linear.">It drops far more than half — it gets squared</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="No — more particles means more scattering, so fewer photons make it straight through. Transmission can only fall.">It stays the same</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: clearing -->
+<section id="tab-clearing" class="tab-content">
+  <div class="background-section">
+    <h2>Background: erase the mismatch and the cloudiness vanishes</h2>
+    <p>Here is the beautiful consequence of "scattering lives at the index mismatch." The strength of
+    each scattering event scales with the <em>square</em> of the difference in refractive index
+    between a particle and the fluid around it:</p>
+    <div class="equation-box">
+      $$ \text{scattering strength} \;\propto\; \big(n_{\text{particle}} - n_{\text{medium}}\big)^{2}
+         \;=\; \Delta n^{2} $$
+    </div>
+    <p>Read that carefully: if you can make \(n_{\text{medium}}\) equal \(n_{\text{particle}}\), then
+    \(\Delta n = 0\), the scattering strength goes to <b>zero</b>, and the object becomes
+    <em>transparent</em> even though nothing about the object itself changed. The light no longer
+    "sees" any boundaries to bounce off of, so it travels straight and you can suddenly image deep
+    inside. This trick is called <b>optical clearing</b>. You soak a sample — a chunk of tissue, a
+    pile of glass beads — in a fluid whose index is tuned to match the sample's own material
+    (\(n_{\text{obj}}\approx1.45\) for many biological tissues). Watch clear glass beads
+    <em>disappear</em> when you drop them into oil of the same index; the beads are still there, but
+    with \(\Delta n=0\) they scatter no light.</p>
+    <p>This is exactly how modern tissue-clearing methods (CLARITY, Scale, and others) let
+    microscopes see through a whole mouse brain: they replace the watery, mismatched interior with an
+    index-matched medium so the tissue turns glass-clear and light penetrates millimetres instead of
+    micrometres. Over-shoot the match — make the medium <em>more</em> dense than the object — and
+    \(\Delta n\) grows again (now with the opposite sign), so the haze comes back.</p>
+    <div class="worked-example">
+      <p>A tissue sample has \(n_{\text{obj}}=1.45\). In plain water (\(n_{\text{med}}=1.33\)) the
+      mismatch is \(\Delta n = 0.12\), so scattering strength \(\propto (0.12)^2 = 0.0144\) — cloudy.
+      Swap in a clearing agent at \(n_{\text{med}}=1.45\): now \(\Delta n = 0\) and scattering
+      \(\propto 0 \) — transparent. Land just short at \(n_{\text{med}}=1.44\) and
+      \(\Delta n = 0.01\), scattering \(\propto (0.01)^2 = 0.0001\) — that is <b>144× weaker</b> than
+      water, because the strength went with \(\Delta n^{2}\), not \(\Delta n\). Getting close pays
+      off enormously.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Scattering strength \(\propto (n_{\text{obj}}-n_{\text{med}})^{2}\), so it vanishes at a
+        perfect index match.</li>
+        <li>Optical clearing soaks a sample in an index-matched fluid to make it transparent without
+        altering the object itself.</li>
+        <li>Because the law is quadratic, halving \(\Delta n\) cuts scattering to a quarter — getting
+        close matters a lot.</li>
+        <li>Over-matching (medium denser than the object) re-introduces a mismatch and the haze
+        returns.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start in <b>Water</b>: the medium index sits well below the object, the surrounding fluid
+      is milky, and the internal structure is hidden.</li>
+      <li>Drag <b>Medium index</b> \(n_{\text{med}}\) up toward the object's \(n_{\text{obj}}\).
+      Watch the haze thin and the hidden internal pattern sharpen as \(\Delta n\to0\).</li>
+      <li>Hit the exact match (\(\Delta n=0\)): the sample turns clear and the imaging-depth stat
+      shoots up. Read "relative scattering" — it reads 0 at the match.</li>
+      <li>Keep dragging past the match (<b>Over-matched</b>). \(\Delta n\) grows negative, scattering
+      returns, and the sample clouds over again. Matching is a sweet spot, not "more is better."</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="clearing" data-scen="water" onclick="setScen('clearing','water')">Water (mismatched)</button>
+    <button class="scen-btn" data-tab="clearing" data-scen="matched" onclick="setScen('clearing','matched')">Matched clearing agent</button>
+    <button class="scen-btn" data-tab="clearing" data-scen="over" onclick="setScen('clearing','over')">Over-matched</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Medium index n<sub>med</sub> <span id="v-clearing-nmed">1.33</span></label>
+        <input type="range" id="s-clearing-nmed" min="1.33" max="1.55" step="0.005" value="1.33">
+      </div>
+      <div class="ctrl-group">
+        <label>Object index n<sub>obj</sub> <span id="v-clearing-nobj">1.45</span></label>
+        <input type="range" id="s-clearing-nobj" min="1.40" max="1.50" step="0.005" value="1.45">
+      </div>
+      <div class="stats" id="st-clearing"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">A sample submerged in fluid — internal structure appears as the index matches</div>
+        <canvas id="cv-clearing" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Relative scattering ∝ Δn² and how deep you can image</div>
+        <canvas id="cv-clearing2" width="640" height="160"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-clearing"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="c">
+    <p class="sc-q">Glass beads (\(n=1.52\)) look milky-white in water (\(n=1.33\)). You pour in oil of \(n=1.52\) and the beads vanish. Why?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="No — the beads don't dissolve or change; they're physically still there. Look for an optical reason.">The oil dissolves the glass beads</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Backwards — the oil raises the medium index to match the glass, so it becomes harder to tell them apart, not easier.">The oil makes the beads absorb all the light</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="Correct. With n_med = n_obj, Δn = 0, so scattering ∝ Δn² = 0. Light passes the boundaries without bending — the beads become invisible.">Δn = 0, so scattering strength ∝ Δn² drops to zero — no boundaries to scatter off</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: layers -->
+<section id="tab-layers" class="tab-content">
+  <div class="background-section">
+    <h2>Background: real samples are stacks, and blur piles up layer by layer</h2>
+    <p>Nothing real is one uniform block. Skin, for instance, is a sandwich: the dry outer
+    <em>stratum corneum</em>, then the living <em>epidermis</em>, then the <em>dermis</em> packed
+    with collagen, then fat below. Each of those layers has a slightly different refractive index, so
+    every interface between them is a little index mismatch — another chance to scatter. And critically,
+    the blur does not reset at each layer; it <b>accumulates</b>. A point of light that is a touch
+    fuzzy after layer 1 gets fuzzier still crossing layer 2, and so on.</p>
+    <p>We track this with the total optical thickness, the sum of \(\mu_s L\) over the stack. Each
+    identical layer adds the same amount, so \(N\) layers give a total \(N\,\mu_s L\), and the
+    ballistic transmission is \(T = e^{-N\mu_s L}\) — the exponent grows with depth. The width of the
+    blurred spot (the <b>point-spread</b>) widens with every layer too, roughly as
+    \(\sqrt{N}\) because the random sideways kicks add up like a random walk:</p>
+    <div class="equation-box">
+      $$ \tau_{\text{total}} = N\,\mu_s L, \qquad
+         T = e^{-N\mu_s L}, \qquad
+         w_{\text{blur}} \;\propto\; \sqrt{N} $$
+    </div>
+    <p>The practical upshot: you can resolve two nearby dots only while the blur \(w_{\text{blur}}\)
+    stays smaller than the gap between them. Through one thin surface layer, two points look like two
+    points. Add layer after layer and their fuzzy halos swell until they merge into one smudge — the
+    depth at which you can no longer tell them apart. This accumulation is why every deep-tissue
+    imaging method fights so hard against scattering, and why clearing the sample (Tab 2) is such a
+    big deal: drop each layer's \(\Delta n\) and the whole stack's blur collapses at once.</p>
+    <div class="worked-example">
+      <p>Take a layer with \(\mu_s L = 0.5\) of optical thickness. One layer transmits
+      \(T=e^{-0.5}\approx0.61\) ballistically and blurs a point only a little. Stack
+      \(N=6\) such layers (like skin): total \(\tau = 6\times0.5 = 3\), so \(T=e^{-3}\approx0.05\) —
+      only 5% of light travels straight — and the blur width has grown by \(\sqrt{6}\approx2.4\times\).
+      Two dots that were clearly separate at the surface now overlap. Go to \(N=12\) and
+      \(T=e^{-6}\approx0.0025\): the image is essentially a uniform glow.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Real samples are stacks of layers; every interface adds another index mismatch and more
+        scattering.</li>
+        <li>Optical thickness adds up: \(\tau_{\text{total}} = N\,\mu_s L\), and \(T=e^{-N\mu_s L}\)
+        falls fast with depth.</li>
+        <li>Blur width grows about like \(\sqrt{N}\) — a random walk of sideways kicks.</li>
+        <li>You can resolve two points only while the blur stays smaller than their spacing; past
+        that depth they merge.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set <b>Number of layers</b> to 1. The two target dots on the right are sharp and clearly
+      separate — one thin surface layer barely blurs them.</li>
+      <li>Drag the layer count up. Watch the point-spread halos on the dots swell and the ballistic
+      transmission stat fall as \(e^{-N\mu_s L}\).</li>
+      <li>Find the depth where the two halos merge into one blob: the "resolve two points?" stat
+      flips to No. That is the deepest you could image here.</li>
+      <li>Now raise <b>Per-layer mismatch</b> \(\Delta n\). Higher mismatch means each layer blurs
+      more, so you lose the two dots after <em>fewer</em> layers. Try <b>Deep tissue</b>.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="layers" data-scen="surface" onclick="setScen('layers','surface')">1 layer (surface)</button>
+    <button class="scen-btn" data-tab="layers" data-scen="skin" onclick="setScen('layers','skin')">Skin (several)</button>
+    <button class="scen-btn" data-tab="layers" data-scen="deep" onclick="setScen('layers','deep')">Deep tissue</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Number of layers <span id="v-layers-n">1</span></label>
+        <input type="range" id="s-layers-n" min="1" max="8" step="1" value="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Per-layer mismatch Δn <span id="v-layers-dn">0.04</span></label>
+        <input type="range" id="s-layers-dn" min="0.01" max="0.15" step="0.005" value="0.04">
+      </div>
+      <div class="stats" id="st-layers"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">A point source imaged through N stacked layers — blur accumulates with depth</div>
+        <canvas id="cv-layers" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Two target dots as seen at this depth — can you still resolve them?</div>
+        <canvas id="cv-layers2" width="640" height="150"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-layers"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="a">
+    <p class="sc-q">Going from 2 layers to 8 layers (each the same), which grows <em>faster</em>: the total optical thickness \(N\mu_s L\), or the blur width \(w\propto\sqrt{N}\)?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="Right. Optical thickness scales with N (2→8 is 4×), while blur scales with √N (√2→√8 is 2×). The exponential loss of ballistic light outruns the blur growth.">Optical thickness — it scales with N (4×) vs blur's √N (2×)</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="No — blur goes as √N, which grows slower than N. Here blur grows 2× while thickness grows 4×.">The blur width — it scales faster than thickness</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="No — they scale differently: thickness ∝ N and blur ∝ √N, so they can't grow at the same rate.">They grow at the same rate</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: meta -->
+<section id="tab-meta" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: Rayleigh scattering, and bending light with a flat surface</h2>
+    <p>We now sharpen "scattering" into real physics — and then flip it: instead of fighting random
+    scattering, we <em>engineer</em> it to steer light on purpose.</p>
+    <p><b>(A) Rayleigh scattering — why the sky is blue.</b> When the scatterers are much smaller than
+    the wavelength (\(d\ll\lambda\): air molecules, tiny density fluctuations), the scattered
+    intensity depends ferociously on wavelength. Lord Rayleigh showed the scattering cross-section
+    goes as</p>
+    <div class="equation-box">
+      $$ \sigma \;\propto\; \frac{(n-1)^2\,d^{6}}{\lambda^{4}}
+         \qquad\Longrightarrow\qquad
+         I_{\text{scatter}} \;\propto\; \frac{1}{\lambda^{4}} $$
+    </div>
+    <p>That \(1/\lambda^{4}\) is dramatic. Short (blue) wavelengths scatter far more than long (red)
+    ones, so sunlight's blue is flung all across the sky and reaches your eye from every direction —
+    a blue dome. At sunset the light skims a long path through the atmosphere; the blue is scattered
+    away before it reaches you, leaving the reds and oranges to come straight through. Same law, both
+    effects.</p>
+    <p><b>(B) Metasurfaces — bending light with a flat surface.</b> A normal lens is curved so that
+    glass makes light in the middle lag behind light at the edges, reshaping the wavefront. A
+    <b>metasurface</b> does the same job with a <em>flat</em> array of engineered sub-wavelength
+    pillars (nano-antennas), each imprinting a chosen <b>phase shift</b> \(\varphi(x)\) on the light
+    passing through it. Arrange a phase <em>gradient</em> \(d\varphi/dx\) across the surface and the
+    beam bends, obeying the <b>generalized Snell's law</b>:</p>
+    <div class="equation-box">
+      $$ n_2\sin\theta_t - n_1\sin\theta_i \;=\; \frac{\lambda_0}{2\pi}\,\frac{d\varphi}{dx} $$
+    </div>
+    <p>For light hitting a flat metasurface head-on in air (\(\theta_i=0,\ n_1=n_2=1\)) this
+    simplifies to \(\sin\theta_t = \dfrac{\lambda_0}{2\pi}\dfrac{d\varphi}{dx}\): the steering angle
+    is set entirely by how fast the phase changes across the surface. Make the phase profile increase
+    toward the edges in just the right curved shape,
+    \(\varphi(r) = -\dfrac{2\pi}{\lambda}\big(\sqrt{r^2+f^2}-f\big)\), and the flat surface focuses
+    parallel rays to a point a distance \(f\) away — a <b>flat metalens</b> that replaces a bulky
+    curved one.</p>
+    <div class="worked-example">
+      <p><b>Blue sky.</b> Compare blue (450 nm) to red (700 nm). Rayleigh scattering
+      \(\propto 1/\lambda^4\), so the ratio is
+      \(\left(\dfrac{\lambda_{\text{red}}}{\lambda_{\text{blue}}}\right)^4
+      = \left(\dfrac{700}{450}\right)^4 = (1.556)^4 \approx 5.85\). Blue light scatters almost
+      <b>6× more</b> than red — that surplus of scattered blue, arriving from all over the sky, is
+      the color you see overhead.</p>
+      <p><b>Beam steering.</b> Want to bend a \(\lambda_0=500\ \text{nm}\) beam to
+      \(\theta_t=30^\circ\) at normal incidence? You need
+      \(\dfrac{d\varphi}{dx}=\dfrac{2\pi}{\lambda_0}\sin\theta_t
+      = \dfrac{2\pi}{500\,\text{nm}}(0.5) = \dfrac{\pi}{500}\ \text{rad/nm}\) — a full \(2\pi\) of
+      phase every 1000 nm across the surface. That is why the pillars must be sub-wavelength: you
+      have to fit a smooth phase ramp into a space smaller than \(\lambda\).</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Rayleigh scattering (\(d\ll\lambda\)) goes as \(1/\lambda^{4}\); blue scatters ~5.85×
+        more than red → blue sky, red sunset.</li>
+        <li>A metasurface imprints a designed phase \(\varphi(x)\); a phase gradient steers a beam
+        via the generalized Snell's law.</li>
+        <li>Normal incidence in air: \(\sin\theta_t = (\lambda_0/2\pi)\,d\varphi/dx\) — clamp the
+        argument to \([-1,1]\) (beyond that the beam can't be steered).</li>
+        <li>A radial phase \(\varphi(r)=-\tfrac{2\pi}{\lambda}(\sqrt{r^2+f^2}-f)\) makes a flat
+        surface focus like a lens — no curvature needed.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>In the Rayleigh plot, drag <b>Wavelength</b> across the visible. Watch the \(1/\lambda^4\)
+      curve rocket up toward blue. Read the <b>blue/red ratio</b> stat — it sits near 5.85.</li>
+      <li>Switch the metasurface to <b>Steer</b> mode and drag <b>Phase gradient</b> \(d\varphi/dx\).
+      The outgoing beam swings to the angle \(\theta_t\) from the generalized Snell's law; push it
+      hard enough and the argument hits 1 (\(\theta_t=90^\circ\)) and can go no further.</li>
+      <li>Switch to <b>Focus</b> mode: the flat surface's radial phase profile bends parallel rays to
+      a focal point. Compare the flat metalens to the bulky curved lens doing the same job.</li>
+      <li>Try the presets: <b>Blue sky</b>, <b>Steer 30°</b>, and <b>Metalens focus</b>.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="meta" data-scen="sky" onclick="setScen('meta','sky')">Blue sky</button>
+    <button class="scen-btn" data-tab="meta" data-scen="steer" onclick="setScen('meta','steer')">Steer 30°</button>
+    <button class="scen-btn" data-tab="meta" data-scen="focus" onclick="setScen('meta','focus')">Metalens focus</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Wavelength λ <span id="v-meta-lam">450 nm</span></label>
+        <input type="range" id="s-meta-lam" min="400" max="700" step="1" value="450">
+      </div>
+      <div class="ctrl-group">
+        <label>Metasurface mode <span id="v-meta-mode">steer</span></label>
+        <input type="range" id="s-meta-mode" min="0" max="1" step="1" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Phase gradient dφ/dx <span id="v-meta-grad">0.60</span></label>
+        <input type="range" id="s-meta-grad" min="0" max="1.2" step="0.01" value="0.60">
+      </div>
+      <div class="stats" id="st-meta"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Rayleigh scattering intensity ∝ 1/λ⁴ — blue vs red across the visible</div>
+        <canvas id="cv-meta" width="640" height="250"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">A flat metasurface (pillars set the phase) vs a bulky curved lens</div>
+        <canvas id="cv-meta2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-meta"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="b">
+    <p class="sc-q"><b>Challenge.</b> Violet light is about 400 nm, deep red about 700 nm. By the Rayleigh law \(I\propto1/\lambda^4\), how many times more strongly does violet scatter than red?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="That's just the ratio of the wavelengths (700/400 ≈ 1.75). Rayleigh goes as the 4th power, not the 1st — you have to raise it to the 4th.">About 1.75× more</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Correct. (700/400)⁴ = (1.75)⁴ ≈ 9.4. Violet scatters roughly 9× more than red — the 4th-power law makes short wavelengths dominate the sky's glow.">About 9.4× more — (700/400)⁴</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="Too big — that would be (700/400)⁸ or so. The Rayleigh exponent is 4, not 8. Raise the ratio to the 4th power: about 9.4×.">About 90× more</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>C. F. Bohren &amp; D. R. Huffman, <i>Absorption and Scattering of Light by Small Particles</i>,
+    Wiley (1983) — scattering coefficient, cross-sections, and the Rayleigh (\(1/\lambda^4\)) regime
+    for small particles.</li>
+    <li>E. Hecht, <i>Optics</i>, 5th ed., Pearson (2017) — refractive index, scattering, and the wave
+    picture of light–matter interaction.</li>
+    <li>N. Yu &amp; F. Capasso, "Flat optics with designer metasurfaces," <i>Nature Materials</i> 13,
+    139–150 (2014) — phase-gradient metasurfaces and flat (metalens) optics.</li>
+    <li>N. Yu, P. Genevet, M. A. Kats, F. Aieta, J.-P. Tetienne, F. Capasso &amp; Z. Gaburro, "Light
+    Propagation with Phase Discontinuities: Generalized Laws of Reflection and Refraction,"
+    <i>Science</i> 334, 333–337 (2011) — the generalized Snell's law.</li>
+    <li>D. S. Richardson &amp; J. W. Lichtman, "Clarifying Tissue Clearing," <i>Cell</i> 162, 246–257
+    (2015) — optical clearing and index matching for deep-tissue imaging.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Optics Foundations · Lesson 4 of 5 — Next: putting it together — imaging,
+resolution, and the microscopes that beat scattering.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; }
+  }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* wavelength (nm) -> visible RGB (Bruton). Returns 'rgb(...)' or 'rgba(...)'. */
+function wavelengthRGB(nm, alpha){
+  let r=0,g=0,b=0;
+  if (nm>=380 && nm<440){ r=-(nm-440)/60; b=1; }
+  else if (nm<490){ g=(nm-440)/50; b=1; }
+  else if (nm<510){ g=1; b=-(nm-510)/20; }
+  else if (nm<580){ r=(nm-510)/70; g=1; }
+  else if (nm<645){ r=1; g=-(nm-645)/65; }
+  else if (nm<=780){ r=1; }
+  let f=1;
+  if (nm<420) f=0.3+0.7*(nm-380)/40;
+  else if (nm>700) f=0.3+0.7*(780-nm)/80;
+  const G=0.8;
+  const ch=v=>Math.round(255*Math.pow(Math.max(0,Math.min(1,v))*Math.max(0,f),G));
+  return alpha!=null ? `rgba(${ch(r)},${ch(g)},${ch(b)},${alpha})` : `rgb(${ch(r)},${ch(g)},${ch(b)})`;
+}
+
+function wireSelfChecks(){
+  document.querySelectorAll('.self-check').forEach(block => {
+    const ans = block.dataset.answer;
+    const fb = block.querySelector('.sc-feedback');
+    block.querySelectorAll('.sc-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const chosen = opt.dataset.opt;
+        const correct = chosen === ans;
+        block.querySelectorAll('.sc-opt').forEach(o => {
+          o.classList.remove('correct','wrong','dimmed');
+          if (o.dataset.opt === ans) o.classList.add('correct');
+          else if (o === opt) o.classList.add('wrong');
+          else o.classList.add('dimmed');
+        });
+        const explain = opt.getAttribute('data-explain-' + chosen) || '';
+        fb.textContent = (correct ? '✓ ' : '✗ ') + explain;
+        fb.className = 'sc-feedback ' + (correct ? 'correct' : 'wrong');
+      });
+    });
+  });
+}
+
+/* ================================================================
+   PER-MODULE CODE — Optics Lesson 4: Scattering, Index Matching & Metamaterials
+   ================================================================ */
+
+let activeTab = 'scatter';
+const scen = { scatter:'water', clearing:'water', layers:'surface', meta:'sky' };
+
+/* physical scale constants for the sims */
+const SAMPLE_L = 3.0;        // sample depth used by tabs 1 & 3 (mm), for T=exp(-mu*L)
+const MU_MAX   = 6.0;        // mu_s (1/mm) at max density & max Δn in Tab 1
+
+const FMT = {
+  'scatter-density': v => v < 20 ? 'few' : v < 55 ? 'some' : v < 85 ? 'many' : 'packed',
+  'scatter-dn':      v => fmt(v,3),
+  'clearing-nmed':   v => fmt(v,3),
+  'clearing-nobj':   v => fmt(v,3),
+  'layers-n':        v => Math.round(v) + (Math.round(v)===1?' layer':' layers'),
+  'layers-dn':       v => fmt(v,3),
+  'meta-lam':        v => fmt(v,0) + ' nm',
+  'meta-mode':       v => (+v===0 ? 'steer' : 'focus'),
+  'meta-grad':       v => fmt(v,2)
+};
+
+const SCEN = {
+  scatter: {
+    water: { 's-scatter-density': 22, 's-scatter-dn': 0.01 },
+    fog:   { 's-scatter-density': 60, 's-scatter-dn': 0.08 },
+    milk:  { 's-scatter-density': 92, 's-scatter-dn': 0.20 }
+  },
+  clearing: {
+    water:   { 's-clearing-nmed': 1.33, 's-clearing-nobj': 1.45 },
+    matched: { 's-clearing-nmed': 1.45, 's-clearing-nobj': 1.45 },
+    over:    { 's-clearing-nmed': 1.53, 's-clearing-nobj': 1.45 }
+  },
+  layers: {
+    surface: { 's-layers-n': 1, 's-layers-dn': 0.04 },
+    skin:    { 's-layers-n': 4, 's-layers-dn': 0.05 },
+    deep:    { 's-layers-n': 8, 's-layers-dn': 0.09 }
+  },
+  meta: {
+    sky:   { 's-meta-lam': 450, 's-meta-mode': 0, 's-meta-grad': 0.60 },
+    steer: { 's-meta-lam': 500, 's-meta-mode': 0, 's-meta-grad': 0.60 },
+    focus: { 's-meta-lam': 550, 's-meta-mode': 1, 's-meta-grad': 0.60 }
+  }
+};
+
+function fmtFor(key,v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){ const key=sl.id.slice(2); const out=document.getElementById('v-'+key);
+  if(out) out.textContent = fmtFor(key, parseFloat(sl.value)); }
+function wireAll(){ document.querySelectorAll('input[type=range]').forEach(sl=>{
+  updateReadout(sl); sl.addEventListener('input',()=>{ updateReadout(sl); refreshActiveTab(); }); }); }
+function presetSlider(id,v){ const sl=document.getElementById(id); if(!sl) return; sl.value=v; updateReadout(sl); }
+function setScen(tab,s){ scen[tab]=s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`).forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  const p=SCEN[tab]&&SCEN[tab][s]; if(p) for(const [id,v] of Object.entries(p)) presetSlider(id,v);
+  refreshActiveTab(); }
+function refreshActiveTab(){ try{ const f=DRAW[activeTab]; if(f) f(); }
+  catch(e){ console.error('draw error in tab',activeTab,e); } }
+
+/* animation */
+let animId=null, animT=0;
+const ANIMATED = { scatter:true, clearing:false, layers:false, meta:false };
+function tick(){ animT += 1/60; refreshActiveTab(); animId=requestAnimationFrame(tick); }
+function startAnim(){ if(!animId && ANIMATED[activeTab]) animId=requestAnimationFrame(tick); }
+function stopAnim(){ if(animId){ cancelAnimationFrame(animId); animId=null; } }
+
+/* ---- seeded scatterer field for Tab 1 (built once, reused every frame) ---- */
+let _scatField = null;
+function scatterField(){
+  if (_scatField) return _scatField;
+  const rng = mulberry32(1234);
+  const pts = [];
+  for (let i=0;i<120;i++){ pts.push({ fx: rng(), fy: rng(), ph: rng()*6.28, jit: rng() }); }
+  _scatField = pts; return pts;
+}
+/* seeded per-photon deflection table for Tab 1 (built once) */
+let _photonSeeds = null;
+function photonSeeds(){
+  if (_photonSeeds) return _photonSeeds;
+  const rng = mulberry32(9001);
+  const rows = [];
+  for (let p=0;p<11;p++){ const kicks=[]; for(let k=0;k<40;k++) kicks.push((rng()-0.5)*2);
+    rows.push({ y0: rng(), kicks }); }
+  _photonSeeds = rows; return rows;
+}
+
+/* =========================================================
+   TAB 1: scatter (ANIMATED)
+   ========================================================= */
+function muScatter(densFrac, dn){
+  // μs ∝ density · Δn²  ; normalized so max density & Δn≈0.3 → ~MU_MAX (1/mm)
+  return MU_MAX * densFrac * (dn*dn) / (0.30*0.30);
+}
+function drawScatter(){
+  const dens = num('s-scatter-density');        // 0..100
+  const dn   = num('s-scatter-dn');             // 0..0.3
+  const densFrac = dens/100;
+  const mu = muScatter(densFrac, dn);           // 1/mm
+  const T  = Math.exp(-mu * SAMPLE_L);          // ballistic transmission
+  const mfp = mu > 1e-6 ? 1/mu : Infinity;      // mean free path (mm)
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-scatter'));
+  const x0 = 40, x1 = w-24, topY = 26, botY = h-26;
+  // medium box
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(x0, topY, x1-x0, botY-topY);
+  ctx.strokeStyle = COL.grid; ctx.strokeRect(x0, topY, x1-x0, botY-topY);
+  caption(ctx, (x0+x1)/2, topY-8, 'medium packed with scatterers', COL.axis);
+
+  // scatterers (seeded positions; small breathing so it feels alive)
+  const field = scatterField();
+  const nShow = Math.round(6 + densFrac*114);
+  ctx.fillStyle = 'rgba(37,99,235,0.35)';
+  for (let i=0;i<nShow;i++){ const p=field[i];
+    const px = x0 + 10 + p.fx*(x1-x0-20);
+    const py = topY + 10 + p.fy*(botY-topY-20) + Math.sin(animT*1.2 + p.ph)*1.5*p.jit;
+    const r = 1.6 + p.jit*1.8;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, 7); ctx.fill();
+  }
+
+  // photon paths: start at left, random-walk sideways with kicks that scale with mu
+  const seeds = photonSeeds();
+  const midY = (topY+botY)/2;
+  const spanY = (botY-topY);
+  // kick spread grows with density and Δn (i.e., with mu); cap so it stays legible
+  const kickAmp = Math.min(28, 2 + mu * 5.2);
+  const advance = (x1 - (x0+8)) / 40;            // px per step across 40 segments
+  let deepestBallistic = 0;                       // fraction of width traveled w/o strong deflection proxy
+  for (let pI=0; pI<seeds.length; pI++){
+    const s = seeds[pI];
+    const yStart = topY + 18 + s.y0*(spanY-36);
+    let px = x0+8, py = yStart, vy = 0;
+    const phase = pI * 0.55;
+    ctx.beginPath(); ctx.moveTo(px, py);
+    let straight = true;
+    for (let k=0;k<40;k++){
+      // kick this segment; animate which kicks are "active" by phase so paths shimmer
+      const active = 0.5 + 0.5*Math.sin(animT*0.8 + phase + k*0.3);
+      const kick = s.kicks[k] * kickAmp * active * 0.5;
+      vy = vy*0.6 + kick;                         // some momentum
+      px += advance; py += vy;
+      // reflect off the medium walls
+      if (py < topY+6){ py = topY+6; vy = Math.abs(vy)*0.5; }
+      if (py > botY-6){ py = botY-6; vy = -Math.abs(vy)*0.5; }
+      if (Math.abs(vy) > 3) straight = false;
+      ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = straight ? 'rgba(217,119,6,0.9)' : 'rgba(148,163,184,0.6)';
+    ctx.lineWidth = straight ? 2.2 : 1.3;
+    ctx.stroke();
+    if (straight) deepestBallistic++;
+  }
+  // incoming beam arrow
+  arrow(ctx, 6, midY, x0+6, midY, COL.ink, 2.4);
+  caption(ctx, x0+2, topY-8, '', COL.axis);
+  ctx.textAlign='left';
+  ctx.fillStyle=COL.ink; ctx.font='bold 12px sans-serif';
+  ctx.fillText('beam in', 6, midY-8);
+
+  // ---- second canvas: transmitted image sharpness ----
+  const c2 = setupCanvas(document.getElementById('cv-scatter2'));
+  const cx=c2.ctx, cw=c2.w, chh=c2.h;
+  // draw a simple "target" (three vertical bars) blurred by an amount tied to (1-T)
+  const blur = (1 - T);                            // 0 sharp .. 1 fully hazy
+  const bx0=20, bw=cw-40, by=20, bh=chh-40;
+  // background
+  cx.fillStyle = '#0f172a'; cx.fillRect(bx0, by, bw, bh);
+  // three bars whose contrast fades and edges soften with blur
+  const contrast = Math.max(0.05, T);             // ballistic light carries contrast
+  const barW = bw/7;
+  for (let i=0;i<3;i++){
+    const cxx = bx0 + bw*(0.25 + i*0.25);
+    // soft edge: draw several translucent copies to fake a gaussian blur
+    const spread = 2 + blur*26;
+    for (let s=-3;s<=3;s++){
+      const a = contrast * Math.exp(-(s*s)/2) / 2.2;
+      cx.fillStyle = `rgba(226,232,240,${a})`;
+      cx.fillRect(cxx - barW/2 + s*spread/3, by+8, barW, bh-16);
+    }
+  }
+  cx.strokeStyle=COL.grid; cx.strokeRect(bx0, by, bw, bh);
+  cx.fillStyle = blur<0.4 ? COL.good : blur<0.9 ? COL.warn : COL.bad;
+  cx.font='bold 12px sans-serif'; cx.textAlign='left';
+  cx.fillText(blur<0.4 ? 'image: sharp' : blur<0.9 ? 'image: hazy' : 'image: lost in haze', bx0+6, by+bh+16);
+
+  setStat('st-scatter', [
+    { label:'Scatterer density', value: FMT['scatter-density'](dens) },
+    { label:'Index mismatch Δn', value: fmt(dn,3) },
+    { label:'Scattering coeff μs', value: fmt(mu,2)+' mm⁻¹' },
+    { label:'Mean free path ℓ = 1/μs', value: isFinite(mfp)? fmt(mfp,2)+' mm' : '∞' },
+    { label:'Ballistic transmission T', value: (T*100 < 0.1 ? '<0.1' : fmt(T*100,1))+' %', highlight:true }
+  ]);
+  if (T > 0.5)
+    setVerdict('vd-scatter','good','Clear — you can see straight through.',
+      'μs = '+fmt(mu,2)+' mm⁻¹ gives a mean free path of '+(isFinite(mfp)?fmt(mfp,2):'∞')+' mm, longer than the '+SAMPLE_L+' mm sample. '+fmt(T*100,0)+'% of the light travels straight and carries a crisp image. Either few scatterers, a tiny Δn, or both.');
+  else if (T > 0.03)
+    setVerdict('vd-scatter','warn','Hazy — the beam is getting scrambled.',
+      'μs has climbed to '+fmt(mu,2)+' mm⁻¹ (ℓ = '+fmt(mfp,2)+' mm). Only '+fmt(T*100,1)+'% of photons cross without a deflection, so edges soften into haze — think fog or a thin glass of milk.');
+  else
+    setVerdict('vd-scatter','bad','Opaque — essentially no straight-through light.',
+      'With μs = '+fmt(mu,2)+' mm⁻¹ the mean free path ('+fmt(mfp,2)+' mm) is far shorter than the sample, so almost every photon is scattered many times. Ballistic transmission is '+(T*100<0.1?'<0.1':fmt(T*100,1))+'% — the image is destroyed. This is milk. Remember: μs ∝ density·Δn².');
+}
+
+/* =========================================================
+   TAB 2: clearing (static)
+   ========================================================= */
+/* seeded internal-structure dots for the sample (built once) */
+let _tissueDots = null;
+function tissueDots(){
+  if (_tissueDots) return _tissueDots;
+  const rng = mulberry32(555);
+  const d = [];
+  for (let i=0;i<90;i++){ d.push({ fx: rng(), fy: rng(), r: 1.4+rng()*2.6, hue: rng() }); }
+  _tissueDots = d; return d;
+}
+function drawClearing(){
+  const nmed = num('s-clearing-nmed');
+  const nobj = num('s-clearing-nobj');
+  const dn = nobj - nmed;                       // signed mismatch
+  const relScat = (dn*dn) / (0.12*0.12);        // relative to water baseline (Δn=0.12 → 1.0)
+  // haze grows with |Δn|; clarity when Δn→0
+  const haze = Math.min(1, Math.abs(dn)/0.12);  // 0 clear .. 1 (water) .. >1 clipped
+  // imaging depth grows sharply as scattering falls (∝ 1/μs ∝ 1/Δn²), capped
+  const depth = Math.min(6, 0.15 / (dn*dn + 0.0025));  // mm, finite even at match
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-clearing'));
+  const bx0=30, by0=24, bw=w-60, bh=h-48;
+  // fluid bath — tint slightly milky with haze
+  const milk = 0.10 + haze*0.55;
+  ctx.fillStyle = `rgba(203,213,225,${milk})`;
+  ctx.fillRect(bx0, by0, bw, bh);
+  ctx.fillStyle = '#0f172a'; ctx.globalAlpha = 0.04; ctx.fillRect(bx0,by0,bw,bh); ctx.globalAlpha=1;
+  ctx.strokeStyle=COL.grid; ctx.strokeRect(bx0, by0, bw, bh);
+  caption(ctx, (bx0+bw/2), by0-8, 'sample submerged in index-matching fluid', COL.axis);
+
+  // the object: a rounded blob with internal structure that shows through when clear
+  const ox = bx0 + bw*0.5, oy = by0 + bh*0.5, orx = bw*0.30, ory = bh*0.34;
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(ox, oy, orx, ory, 0, 0, 7); ctx.clip();
+  // object body faint
+  ctx.fillStyle = 'rgba(148,163,184,0.30)'; ctx.fillRect(bx0,by0,bw,bh);
+  // internal structure dots — visibility scales with clarity (1-haze)
+  const clarity = 1 - haze;
+  const dots = tissueDots();
+  for (const dd of dots){
+    const px = ox - orx + dd.fx*2*orx;
+    const py = oy - ory + dd.fy*2*ory;
+    const a = 0.15 + 0.8*Math.max(0,clarity);
+    ctx.fillStyle = dd.hue<0.5 ? `rgba(37,99,235,${a})` : `rgba(139,92,246,${a})`;
+    ctx.beginPath(); ctx.arc(px, py, dd.r, 0, 7); ctx.fill();
+  }
+  // a milky veil over the object when mismatched
+  ctx.fillStyle = `rgba(241,245,249,${haze*0.75})`;
+  ctx.fillRect(bx0,by0,bw,bh);
+  ctx.restore();
+  // object outline
+  ctx.strokeStyle = Math.abs(dn)<0.008 ? 'rgba(22,163,74,0.7)' : 'rgba(100,116,139,0.7)';
+  ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(ox, oy, orx, ory, 0, 0, 7); ctx.stroke();
+  caption(ctx, ox, oy+ory+18, Math.abs(dn)<0.008 ? 'CLEAR — internal structure visible' : 'hazy — interior hidden',
+          Math.abs(dn)<0.008?COL.good:COL.axis, true);
+
+  // ---- second canvas: relative scattering ∝ Δn² curve + marker + depth bar ----
+  const c2 = setupCanvas(document.getElementById('cv-clearing2'));
+  const cx=c2.ctx, cw=c2.w, chh=c2.h;
+  const ch=new Chart(cx,cw,chh,{l:56,r:150,t:14,b:34});
+  ch.setRange(-0.15, 0.15, 0, 1.6);
+  ch.grid(); ch.axes('Δn = n_obj − n_med','rel. scattering');
+  const curve=[]; for(let x=-0.15;x<=0.15;x+=0.005) curve.push([x,(x*x)/(0.12*0.12)]);
+  ch.plot(curve, COL.bad, 2.4);
+  ch.vLine(0, COL.good, [4,4]);
+  ch.dot(dn, Math.min(1.55,relScat), COL.accent, 6);
+  caption(cx, ch.toX(0), ch.toY(1.6)-2, 'match', COL.good, true);
+  // imaging-depth bar
+  const barX=cw-120, barTop=30, barBot=chh-30, barW=26;
+  cx.strokeStyle=COL.grid; cx.strokeRect(barX, barTop, barW, barBot-barTop);
+  const fillH=(barBot-barTop)*Math.min(1,depth/6);
+  cx.fillStyle=COL.teal; cx.fillRect(barX, barBot-fillH, barW, fillH);
+  cx.fillStyle=COL.ink; cx.font='bold 11px sans-serif'; cx.textAlign='center';
+  cx.fillText('imaging', barX+barW/2, barTop-14);
+  cx.fillText('depth', barX+barW/2, barTop-3);
+  cx.fillText(fmt(depth,2)+' mm', barX+barW/2, barBot+14);
+
+  setStat('st-clearing', [
+    { label:'Medium index n_med', value: fmt(nmed,3) },
+    { label:'Object index n_obj', value: fmt(nobj,3) },
+    { label:'Mismatch Δn', value: fmt(dn,3) },
+    { label:'Rel. scattering ∝ Δn²', value: fmt(relScat,2)+'×' },
+    { label:'Imaging depth', value: fmt(depth,2)+' mm', highlight:true }
+  ]);
+  if (Math.abs(dn) < 0.008)
+    setVerdict('vd-clearing','good','Index-matched — the sample turned transparent.',
+      'n_med = '+fmt(nmed,3)+' ≈ n_obj = '+fmt(nobj,3)+', so Δn ≈ 0 and scattering ∝ Δn² collapses to near zero. Light no longer bends at the boundaries and you can image '+fmt(depth,2)+' mm deep. This is optical clearing.');
+  else if (dn > 0)
+    setVerdict('vd-clearing','warn','Under-matched — the medium is still too thin.',
+      'Δn = '+fmt(dn,3)+' (object denser than fluid). Scattering is '+fmt(relScat,2)+'× the water baseline. Raise n_med toward '+fmt(nobj,3)+'; because the law is quadratic, closing the last bit of Δn buys a big jump in clarity.');
+  else
+    setVerdict('vd-clearing','warn','Over-matched — you overshot the index.',
+      'Δn = '+fmt(dn,3)+' (fluid now denser than the object). The mismatch has flipped sign but Δn² is back up, so the haze returns. Matching is a sweet spot — back n_med down toward '+fmt(nobj,3)+'.');
+}
+
+/* =========================================================
+   TAB 3: layers (static)
+   ========================================================= */
+function drawLayers(){
+  const N = Math.round(num('s-layers-n'));      // 1..8
+  const dn = num('s-layers-dn');                // per-layer Δn
+  const muL = 0.9 * (dn*dn)/(0.05*0.05) * 0.15; // per-layer optical thickness μsL (tuned)
+  const tau = N * muL;                          // cumulative optical thickness
+  const T = Math.exp(-tau);                     // ballistic transmission
+  // blur width grows ~ sqrt(N) and with per-layer Δn
+  const blurW = 6 * Math.sqrt(N) * (dn/0.05);   // px (point-spread half-width proxy)
+  const dotGap = 46;                            // px between the two target dots
+  const resolved = (2*blurW) < dotGap;          // Rayleigh-ish: separated if halos don't merge
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-layers'));
+  const x0=40, x1=w-24, topY=20, botY=h-24;
+  const stackW = x1-x0;
+  // draw N stacked layers as vertical bands with alternating tints
+  for (let i=0;i<N;i++){
+    const lx0 = x0 + stackW*(i/N), lw = stackW/N;
+    ctx.fillStyle = i%2 ? 'rgba(37,99,235,0.07)' : 'rgba(148,163,184,0.12)';
+    ctx.fillRect(lx0, topY, lw, botY-topY);
+    ctx.strokeStyle = 'rgba(148,163,184,0.5)';
+    drawLine(ctx, lx0, topY, lx0, botY, 'rgba(148,163,184,0.5)', 1, [3,3]);
+  }
+  ctx.strokeStyle=COL.grid; ctx.strokeRect(x0, topY, stackW, botY-topY);
+  caption(ctx, (x0+x1)/2, topY-6, N+(N===1?' layer':' stacked layers')+' — interfaces marked', COL.axis);
+
+  // point source on the left; rays fan out a little more at each interface (accumulating blur)
+  const srcY = (topY+botY)/2;
+  ctx.fillStyle=COL.orange; ctx.beginPath(); ctx.arc(x0-14, srcY, 5, 0, 7); ctx.fill();
+  caption(ctx, x0-14, srcY-10, 'point', COL.ink);
+  // draw a central ray plus spreading envelope
+  const rays = 7;
+  for (let r=0;r<rays;r++){
+    const frac = rays===1?0:(r/(rays-1)-0.5); // -0.5..0.5
+    ctx.beginPath();
+    let px=x0, py=srcY;
+    ctx.moveTo(px,py);
+    for (let i=1;i<=N;i++){
+      const lx = x0 + stackW*(i/N);
+      // sideways spread accumulates like random walk: sqrt(i)
+      const spread = blurW*2*frac*Math.sqrt(i)/Math.sqrt(Math.max(1,N));
+      ctx.lineTo(lx, srcY + spread);
+    }
+    const a = 0.15 + 0.35*(1-Math.abs(frac)*1.6);
+    ctx.strokeStyle=`rgba(217,119,6,${Math.max(0.08,a)})`;
+    ctx.lineWidth = r===Math.floor(rays/2)?2.2:1.2;
+    ctx.stroke();
+  }
+  // blurred spot at exit
+  const exitX=x1-2, halo=Math.max(3,blurW);
+  const g=ctx.createRadialGradient(exitX,srcY,1,exitX,srcY,halo*2);
+  g.addColorStop(0,'rgba(217,119,6,0.9)'); g.addColorStop(1,'rgba(217,119,6,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(exitX, srcY, halo*2, 0, 7); ctx.fill();
+  caption(ctx, exitX-24, botY-6, 'exit spot', COL.axis);
+
+  // ---- second canvas: two target dots seen at this depth ----
+  const c2 = setupCanvas(document.getElementById('cv-layers2'));
+  const cx=c2.ctx, cw=c2.w, chh=c2.h;
+  cx.fillStyle='#0f172a'; cx.fillRect(0,0,cw,chh);
+  const cyy=chh/2, cxx=cw/2;
+  // two gaussian blobs separated by dotGap, each with half-width blurW
+  const sigma=Math.max(3,blurW);
+  const peak=Math.max(0.12,T);                  // dimmer as fewer ballistic photons
+  for (const sgn of [-1,1]){
+    const c0=cxx+sgn*dotGap/2;
+    for (let s=-4;s<=4;s++){
+      const a = peak*Math.exp(-(s*s)/2)/2.4;
+      cx.fillStyle=`rgba(226,232,240,${a})`;
+      cx.beginPath(); cx.arc(c0, cyy, sigma*(1+Math.abs(s)*0.35), 0, 7); cx.fill();
+    }
+  }
+  cx.strokeStyle=COL.grid; cx.strokeRect(0.5,0.5,cw-1,chh-1);
+  cx.font='bold 12px sans-serif'; cx.textAlign='left';
+  cx.fillStyle = resolved?COL.good:COL.bad;
+  cx.fillText(resolved? 'two points RESOLVED' : 'points MERGED — unresolvable', 10, chh-10);
+
+  setStat('st-layers', [
+    { label:'Layers N', value: N+'' },
+    { label:'Per-layer Δn', value: fmt(dn,3) },
+    { label:'Cumulative μs·L', value: fmt(tau,2) },
+    { label:'Ballistic transmission T', value: (T*100<0.1?'<0.1':fmt(T*100,1))+' %' },
+    { label:'Resolve two points?', value: resolved?'yes':'no', highlight:true }
+  ]);
+  if (N<=1 || (resolved && T>0.4))
+    setVerdict('vd-layers','good','Sharp — the surface layer barely blurs the image.',
+      'With '+N+(N===1?' layer':' layers')+' the cumulative optical thickness is only '+fmt(tau,2)+' (T = '+fmt(T*100,0)+'%). The two target dots stay clearly separated — you are imaging near the surface where scattering has not piled up.');
+  else if (resolved)
+    setVerdict('vd-layers','warn','Getting fuzzy — blur is accumulating with depth.',
+      N+' layers give τ = '+fmt(tau,2)+', so only '+fmt(T*100,1)+'% of light is ballistic and the point-spread has widened ~√'+N+' = '+fmt(Math.sqrt(N),1)+'×. The dots are still (barely) separable, but you are near the limit.');
+  else
+    setVerdict('vd-layers','bad','Unresolvable — the two points have merged.',
+      'After '+N+' layers τ = '+fmt(tau,2)+' and the blur ('+fmt(blurW,0)+' px half-width) now exceeds the '+dotGap+' px spacing, so the halos overlap into one smudge. This is the depth limit — clearing the sample (lower each Δn) is what pushes it back.');
+}
+
+/* =========================================================
+   TAB 4: meta (static)
+   ========================================================= */
+function drawMeta(){
+  const lam = num('s-meta-lam');                // nm
+  const mode = +num('s-meta-mode');             // 0 steer, 1 focus
+  const grad = num('s-meta-grad');              // dφ/dx in units of (2π/λ0)·(1/µm) — abstracted
+  // Rayleigh: relative intensity ∝ 1/λ^4, normalize to λ=550
+  const rel = Math.pow(550/lam, 4);
+  const ratioBR = Math.pow(700/450, 4);         // blue/red reference ratio ≈ 5.85
+  // generalized Snell at normal incidence in air: sinθt = (λ0/2π)·dφ/dx
+  // we let "grad" already be sinθt directly for slider intuition (0..1.2 → clamp)
+  const sinT = Math.min(1, Math.max(-1, grad));
+  const thetaT = Math.asin(sinT) * 180/Math.PI; // degrees
+  const clamped = grad > 1;
+  // effective focal length for focus mode (arbitrary units scaled to canvas)
+  const fEff = 1.0 / Math.max(0.15, grad);      // larger gradient → shorter focus
+
+  // ---- canvas 1: Rayleigh 1/λ^4 plot ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-meta'));
+  const ch=new Chart(ctx,w,h,{l:58,r:16,t:16,b:36});
+  ch.setRange(400,700,0,Math.pow(550/400,4)*1.05);
+  ch.grid(); ch.axes('wavelength λ (nm)','rel. scattering ∝ 1/λ⁴');
+  const curve=[]; for(let x=400;x<=700;x+=2) curve.push([x, Math.pow(550/x,4)]);
+  ch.plot(curve, COL.accent, 2.6);
+  // colored spectrum strip along the bottom of the plot
+  for (let nm=400; nm<=700; nm+=2){ ctx.fillStyle=wavelengthRGB(nm,0.9);
+    ctx.fillRect(ch.toX(nm), ch.toY(0)-8, Math.max(1,ch.toX(nm+2)-ch.toX(nm)), 8); }
+  // mark blue 450 and red 700
+  ch.vLine(450, COL.axis, [4,4]); ch.vLine(700, COL.axis, [4,4]);
+  ch.dot(lam, Math.pow(550/lam,4), wavelengthRGB(lam), 6);
+  caption(ctx, ch.toX(450), ch.toY(Math.pow(550/450,4))-8, 'blue', '#2563eb', true);
+  caption(ctx, ch.toX(680), ch.toY(Math.pow(550/700,4))-8, 'red', '#dc2626', true);
+
+  // ---- canvas 2: metasurface vs curved lens ----
+  const c2 = setupCanvas(document.getElementById('cv-meta2'));
+  const cx=c2.ctx, cw=c2.w, chh=c2.h;
+  const rgb = wavelengthRGB(lam);
+  // left half: flat metasurface; right half divider
+  const midX = cw*0.5;
+  drawLine(cx, midX, 12, midX, chh-12, COL.grid, 1, [4,4]);
+  caption(cx, cw*0.25, 16, 'flat metasurface', COL.ink);
+  caption(cx, cw*0.75, 16, 'bulky curved lens (same job)', COL.ink);
+
+  // --- metasurface (left) ---
+  const surfX = cw*0.28;                          // vertical surface line
+  const sy0=32, sy1=chh-24, cyc=(sy0+sy1)/2;
+  drawLine(cx, surfX, sy0, surfX, sy1, COL.ink, 2.5);
+  // pillars of varying height encoding phase φ(x)
+  const nP=9;
+  for (let i=0;i<nP;i++){
+    const yy = sy0 + (i+0.5)/nP*(sy1-sy0);
+    let ph;
+    if (mode===0){ ph = (i/nP); }                 // linear ramp for steering
+    else { const rr=(yy-cyc)/((sy1-sy0)/2); ph = 1-Math.abs(rr); } // peaked for focusing
+    const ph2 = 4 + ph*14;
+    cx.fillStyle='rgba(37,99,235,0.75)';
+    cx.fillRect(surfX-ph2, yy-3, ph2, 6);
+  }
+  caption(cx, surfX-10, sy1+16, 'pillars = phase φ(x)', COL.axis);
+  // incoming parallel rays from left
+  for (let i=0;i<5;i++){ const yy=sy0+ (i+0.5)/5*(sy1-sy0);
+    drawLine(cx, 12, yy, surfX, yy, 'rgba(148,163,184,0.7)', 1.4); }
+  // outgoing rays
+  if (mode===0){
+    // steer: all rays leave at angle thetaT
+    const ang = Math.asin(sinT);
+    for (let i=0;i<5;i++){ const yy=sy0+ (i+0.5)/5*(sy1-sy0);
+      const ex=midX-8; const ey = yy + (ex-surfX)*Math.tan(ang);
+      drawLine(cx, surfX, yy, ex, Math.max(sy0-20,Math.min(sy1+20,ey)), rgb, 2); }
+    caption(cx, (surfX+midX)/2, sy0+8, 'θt = '+fmt(thetaT,0)+'°', rgb, true);
+  } else {
+    // focus: rays converge to a focal point
+    const fx = surfX + (midX-8-surfX)*Math.min(1, 0.55/Math.max(0.2,grad)+0.25);
+    for (let i=0;i<5;i++){ const yy=sy0+ (i+0.5)/5*(sy1-sy0);
+      drawLine(cx, surfX, yy, fx, cyc, rgb, 2); }
+    cx.fillStyle=COL.bad; cx.beginPath(); cx.arc(fx, cyc, 4, 0, 7); cx.fill();
+    caption(cx, fx, cyc-10, 'focus f', COL.bad, true);
+  }
+
+  // --- curved lens (right) for comparison ---
+  const lensX = cw*0.72, lcy=(sy0+sy1)/2;
+  cx.strokeStyle=COL.muted; cx.lineWidth=2.5;
+  cx.beginPath(); cx.ellipse(lensX, lcy, 12, (sy1-sy0)/2*0.8, 0, 0, 7); cx.stroke();
+  cx.fillStyle='rgba(148,163,184,0.18)'; cx.fill();
+  for (let i=0;i<5;i++){ const yy=lcy + ((i-2)/2)*((sy1-sy0)/2*0.7);
+    drawLine(cx, midX+8, yy, lensX, yy, 'rgba(148,163,184,0.7)', 1.4); }
+  const lf = lensX + 60;
+  for (let i=0;i<5;i++){ const yy=lcy + ((i-2)/2)*((sy1-sy0)/2*0.7);
+    drawLine(cx, lensX, yy, lf, lcy, rgb, 2); }
+  cx.fillStyle=COL.bad; cx.beginPath(); cx.arc(lf, lcy, 4, 0, 7); cx.fill();
+  caption(cx, lensX, sy1+16, 'thick glass', COL.axis);
+
+  setStat('st-meta', [
+    { label:'Wavelength λ', value: fmt(lam,0)+' nm' },
+    { label:'Rel. Rayleigh ∝ 1/λ⁴', value: fmt(rel,2)+'× (vs 550 nm)' },
+    { label:'Blue/red ratio (450/700)', value: fmt(ratioBR,2)+'×', highlight: mode!==0 ? false : false },
+    { label:'Phase gradient dφ/dx', value: fmt(grad,2) },
+    { label:'Steering angle θt', value: clamped? '90° (clamped)' : fmt(thetaT,1)+'°' },
+    { label: mode===0?'Mode':'Effective focus', value: mode===0?'steer':'focus (f↓ as dφ/dx↑)', highlight:true }
+  ]);
+  if (mode===0){
+    if (clamped)
+      setVerdict('vd-meta','warn','Beam bent to the limit — sinθt clamped at 1.',
+        'The generalized Snell law sinθt = (λ0/2π)·dφ/dx has driven sinθt past 1, so the beam is steered to a full 90° and can go no further. Meanwhile at λ = '+fmt(lam,0)+' nm the Rayleigh scattering is '+fmt(rel,2)+'× the green baseline — and blue (450) scatters '+fmt(ratioBR,2)+'× more than red (700), which is why the sky overhead is blue.');
+    else
+      setVerdict('vd-meta','good','Flat surface, steered beam — no curvature needed.',
+        'A phase gradient of '+fmt(grad,2)+' steers the beam to θt = '+fmt(thetaT,1)+'° via sinθt = (λ0/2π)·dφ/dx. And on the Rayleigh plot: shorter wavelengths scatter as 1/λ⁴, so blue (450 nm) scatters '+fmt(ratioBR,2)+'× more than red (700 nm) — the reason the daytime sky is blue and sunsets red.');
+  } else {
+    setVerdict('vd-meta','good','A flat metalens focuses without a curved surface.',
+      'Here the radial phase φ(r) = −(2π/λ)(√(r²+f²)−f) bends the parallel rays to a focal point — the same result as the bulky glass lens on the right, from a surface just a wavelength thick. A steeper phase gradient (dφ/dx = '+fmt(grad,2)+') gives a shorter focal length. This is the metalens idea from flat optics.');
+  }
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { scatter: drawScatter, clearing: drawClearing, layers: drawLayers, meta: drawMeta };
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec) sec.classList.add('active');
+    refreshActiveTab(); startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) stopAnim(); else startAnim(); });
+wireAll(); wireSelfChecks(); refreshActiveTab(); startAnim();
+</script>
+</body>
+</html>

@@ -127,9 +127,9 @@ body {
 
 /* ---- Page shell ---- */
 .page {
-  max-width: 1200px;
+  max-width: var(--page-max-w);
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--page-pad-desktop);
 }
 .page-title {
   font-size: 22px;
@@ -323,7 +323,7 @@ body {
   padding: 24px;
   width: 90%;
   max-width: 560px;
-  max-height: 85vh;
+  max-height: calc(85vh - var(--safe-top) - var(--safe-bottom));
   overflow-y: auto;
   box-shadow: 0 8px 30px rgba(0,0,0,0.2);
 }
@@ -874,6 +874,41 @@ body {
   font-size: 12px;
 }
 
+/* V3.133 — first-author marking on paper personnel chips. Star toggle is
+ * rendered before the name; gold when active, gray hollow when not. The
+ * chip itself gets a subtle gold tint when the personnel entry is a
+ * first author so the row pops at a glance. */
+.personnel-chip.first-author {
+  background: #fffbeb;
+  border-color: #fbbf24;
+}
+.first-author-star {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #f59e0b;
+  user-select: none;
+}
+.first-author-star.off {
+  color: #d1d5db;
+}
+.first-author-star:hover {
+  filter: brightness(0.95);
+}
+
+/* V3.126 — Project Members chip. Shares the personnel-chip layout but
+ * uses a tinted background to distinguish "lab member with project
+ * access (canonical projects collection)" from "personnel for human
+ * attribution (legacy items.personnel field)". */
+.member-chip {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+.member-chip .remove-link { color: #1e40af; opacity: .55; }
+.member-chip .remove-link:hover { color: #dc2626; opacity: 1; }
+
 /* Funding summary */
 .funding-account-row {
   display: flex;
@@ -975,12 +1010,51 @@ body {
   display: block;
 }
 
-/* ---- Responsive ---- */
+/* ---- Responsive — V3.233 standardized on two breakpoints
+       (640px phone, 1024px tablet-and-below). Page-specific CSS files
+       still carry their own breakpoints; they migrate as their pages
+       are touched in Phase 3. ---- */
+@media (max-width: 1024px) {
+  .page { padding: var(--page-pad-tablet); }
+}
 @media (max-width: 640px) {
-  .page { padding: 16px; }
+  .page { padding: var(--page-pad-mobile); }
   .card-grid { grid-template-columns: 1fr; }
-  .top-nav { padding: 0 12px; }
   .item-card-header { flex-direction: column; align-items: flex-start; }
+
+  /* Top nav: shrink padding, hide label text so only icons show. The
+     icon + label split is enforced in js/nav.js — every link wraps its
+     human-readable label in <span class="nav-label">. */
+  .top-nav { padding: 0 var(--sp-3); gap: var(--sp-1); }
+  .top-nav .brand { font-size: var(--fs-base); margin-right: var(--sp-2); }
+  .top-nav .nav-label { display: none; }
+  .top-nav a { padding: var(--sp-2); }
+  .top-nav .nav-dropdown-trigger { padding: var(--sp-2); }
+
+  /* Dropdown menus become bottom sheets on phone — anchored to the
+     viewport bottom edge, full width, padded for the iOS home indicator. */
+  .nav-dropdown.open .dropdown-menu {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+    min-width: 0;
+    padding: var(--sp-2) 0 calc(var(--safe-bottom) + var(--sp-2));
+    z-index: var(--z-drawer);
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .dropdown-menu a {
+    padding: var(--sp-3) var(--sp-4);
+    min-height: var(--tap-min-compact);
+    display: flex;
+    align-items: center;
+  }
 }
 
 /* ---- Shared inbox / year-review grid (yr-shared) ---- */
@@ -1009,6 +1083,38 @@ body {
 .yr-line .col-meta{color:#4b5563;font-size:12px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yr-line .col-stars{display:flex;justify-content:flex-end;align-items:center;gap:6px}
 .yr-line .col-actions{display:flex;justify-content:flex-end;gap:8px}
+
+/* V3.237 — Phone layout for .yr-line. The desktop 7-col grid
+ * (select / caret / date / main / meta / stars / actions) overflows
+ * a 390px screen by ~280px. At ≤640px we collapse to a 2-row card:
+ *   Row 1: select + main (title + sub) + actions
+ *   Row 2: date + meta + stars (secondary info under main)
+ * Caret is removed (the expand-to-detail interaction is already
+ * served by tapping anywhere on the row). Title is allowed to wrap
+ * to 2 lines instead of ellipsis — more useful than truncating.
+ */
+@media (max-width: 640px) {
+  .yr-line {
+    grid-template-columns: var(--tap-min-compact) 1fr auto;
+    grid-template-areas:
+      "select main  actions"
+      ".      date  stars"
+      ".      meta  meta";
+    column-gap: var(--sp-2);
+    row-gap: var(--sp-1);
+    padding: var(--sp-2) var(--sp-3);
+    align-items: start;
+  }
+  .yr-line .col-caret  { display: none; }
+  .yr-line .col-select { grid-area: select; align-self: center; padding-top: 2px; }
+  .yr-line .col-date   { grid-area: date; font-size: 11px; }
+  .yr-line .col-main   { grid-area: main; }
+  .yr-line .col-main .title { white-space: normal; overflow: visible; }
+  .yr-line .col-main .sub   { white-space: normal; overflow: visible; }
+  .yr-line .col-meta   { grid-area: meta; text-align: left; white-space: normal; overflow: visible; }
+  .yr-line .col-stars  { grid-area: stars; justify-content: flex-start; }
+  .yr-line .col-actions{ grid-area: actions; align-self: center; gap: var(--sp-1); }
+}
 
 .yr-detail{padding:12px 16px;background:#fafafa;border-top:1px solid #f1f5f9;font-size:12px}
 .yr-detail .section{margin-bottom:8px}
@@ -1073,6 +1179,35 @@ body {
 .ch-line .col-meta{color:#4b5563;font-size:12px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ch-line .col-stars{display:flex;justify-content:flex-end;align-items:center}
 .ch-line .col-actions{display:flex;justify-content:flex-end;gap:8px}
+
+/* V3.237 — Phone layout for .ch-line. The desktop 6-col grid
+ * (date / cat / main / meta / stars / actions) overflows phones.
+ * At ≤640px collapse to:
+ *   Row 1: main (title + sub) + actions
+ *   Row 2: date + meta + stars (secondary info under the title)
+ *   Row 3: cat chip (spans full width)
+ */
+@media (max-width: 640px) {
+  .ch-line {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      "main main  actions"
+      "date meta  stars"
+      "cat  cat   cat";
+    column-gap: var(--sp-2);
+    row-gap: var(--sp-1);
+    padding: var(--sp-2) var(--sp-3);
+    align-items: start;
+  }
+  .ch-line .col-date    { grid-area: date; font-size: 11px; }
+  .ch-line .col-cat     { grid-area: cat; }
+  .ch-line .col-main    { grid-area: main; }
+  .ch-line .col-main .title { white-space: normal; overflow: visible; }
+  .ch-line .col-main .sub   { white-space: normal; overflow: visible; }
+  .ch-line .col-meta    { grid-area: meta; text-align: left; white-space: normal; overflow: visible; font-size: 11px; }
+  .ch-line .col-stars   { grid-area: stars; justify-content: flex-end; }
+  .ch-line .col-actions { grid-area: actions; align-self: center; gap: var(--sp-1); }
+}
 
 .ch-detail{padding:12px 16px;background:#fafafa;border-top:1px solid #f1f5f9;font-size:12px}
 .ch-detail .label{color:#6b7280;text-transform:uppercase;letter-spacing:.4px;font-size:10px;margin-bottom:3px}
@@ -1310,7 +1445,7 @@ body {
 .focus-actionbar .btn-primary{background:#2563eb;border-color:#2563eb}
 .focus-actionbar .btn:disabled{opacity:.4;cursor:not-allowed}
 
-@media (max-width:720px){
+@media (max-width:640px){
   .focus-row-head{grid-template-columns:1fr;gap:2px}
   .focus-row-head .rel-meta{text-align:left}
 }
@@ -1320,7 +1455,7 @@ body {
 
 /* Pin picker modal */
 .pin-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000}
-.pin-modal{background:#fff;border-radius:12px;max-width:560px;width:90%;max-height:80vh;display:flex;flex-direction:column;padding:16px;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.pin-modal{background:#fff;border-radius:12px;max-width:560px;width:90%;max-height:calc(80vh - var(--safe-top) - var(--safe-bottom));display:flex;flex-direction:column;padding:16px;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .pin-modal-head{display:flex;align-items:center;justify-content:space-between}
 .pin-modal-head h3{margin:0;font-size:16px}
 .pin-modal-foot{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid #f3f4f6}
@@ -1370,7 +1505,7 @@ body {
 .arc-body{padding:6px 14px 14px 34px;background:#fafafa;font-size:12px;color:#374151;display:flex;flex-direction:column;gap:6px}
 .arc-desc{color:#4b5563;line-height:1.4;padding:6px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;white-space:pre-wrap}
 .arc-notes,.arc-src{color:#6b7280}
-@media (max-width:720px){
+@media (max-width:640px){
   .arc-row{grid-template-columns:14px 1fr 70px}
   .arc-date,.arc-sub{display:none}
 }
@@ -1397,9 +1532,29 @@ body {
 .buk-search-row input{flex:1;padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px}
 .buk-search-row .hint{color:#9ca3af;font-size:11px}
 
-.buk-proj-head{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px}
+.buk-proj-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px}
 .buk-proj-head h2{margin:0;font-size:18px;font-weight:600}
 .buk-proj-head .buk-rollup{margin-left:auto;color:#6b7280;font-size:12px;font-variant-numeric:tabular-nums}
+
+/* V3.129 — associated category chips row */
+.tb-cat-chips{flex-basis:100%;display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding-top:6px;border-top:1px dashed #e5e7eb;margin-top:4px}
+.tb-cat-chips-label{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+.tb-cat-chip{padding:3px 10px;border-radius:11px;border:1px solid #d1d5db;font-size:11px;font-weight:600;cursor:pointer;transition:background-color .12s,color .12s}
+.tb-cat-chip:hover{filter:brightness(.95)}
+
+/* V3.129 — suggested-from-category panel */
+.tb-suggested{margin-top:8px;border:1px solid #cffafe;background:#f0fdfa}
+.tb-suggested-head{background:#ecfeff}
+.tb-suggested-head:hover{background:#cffafe}
+.tb-suggested-body{background:#fff}
+.tb-suggested-empty{padding:12px;text-align:center;color:#9ca3af;font-size:12px;font-style:italic}
+.tb-suggested-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;border:1px solid transparent}
+.tb-suggested-row + .tb-suggested-row{border-top:1px solid #f3f4f6}
+.tb-suggested-row:hover{background:#f9fafb}
+.tb-suggested-main{flex:1;overflow:hidden}
+.tb-suggested-title{font-size:13px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-suggested-crumb{font-size:11px;color:#9ca3af;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-suggested-meta{display:flex;align-items:center;gap:6px;flex-shrink:0}
 
 .buk-accordion{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
 .buk-accordion + .buk-accordion{margin-top:8px}
@@ -1460,7 +1615,7 @@ body {
 .buk-pin-menu .pin-opt:hover{background:#eff6ff}
 .buk-pin-menu .pin-group{font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:#9ca3af;padding:6px 10px 2px}
 
-@media (max-width:860px){
+@media (max-width:1024px){
   .buk-layout{grid-template-columns:1fr}
   .buk-layout.has-detail{grid-template-columns:1fr}
   .buk-proj-col{position:static;max-height:none}
@@ -1579,6 +1734,10 @@ body {
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   margin-top:6px;
 }
+/* V3.135 — read-only badge shown when a non-first-author non-admin views a paper. */
+.item-hero-readonly{
+  font-size:11px;color:#9ca3af;font-style:italic;
+}
 .item-focus-body .item-section{
   margin:8px 22px;
   border:1px solid var(--border);
@@ -1648,9 +1807,50 @@ body {
 .inbox-open{color:#9ca3af;text-decoration:none;font-size:14px;flex-shrink:0;padding:0 4px}
 .inbox-open:hover{color:#1e40af}
 
-@media (max-width:720px){
-  .inbox-crumb{display:none}
-  .inbox-meta{max-width:none}
+/* V3.238 — Phone layout for .inbox-row (tasks inbox / archive / lab-tasks
+ * lists). Desktop is a flex-row with checkbox + dot + main(title+crumb) +
+ * meta chips + open-link. At ≤640px:
+ *   Row 1: checkbox | dot | main (title + crumb) | open-link
+ *   Row 2: meta chips (under main, left-aligned)
+ * Tap target growth: checkbox 14→20px, row padding bumps to var(--sp-3),
+ * open-link gets a real tap area. Crumb (previously hidden on phone)
+ * shows again — it carries project/bucket context that's useful when
+ * scanning the list. Title drops ellipsis truncation and wraps to 2 lines. */
+@media (max-width:640px){
+  .inbox-row{
+    display:grid;
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas:
+      "check dot main open"
+      ".     .   meta meta";
+    column-gap: var(--sp-2);
+    row-gap: var(--sp-1);
+    padding: var(--sp-3);
+    align-items: start;
+  }
+  .inbox-row input[type=checkbox]{
+    grid-area: check;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+  }
+  .inbox-dot{ grid-area: dot; align-self: center; }
+  .inbox-main{ grid-area: main; }
+  .inbox-title{ white-space: normal; overflow: visible; }
+  .inbox-crumb{ display: block; white-space: normal; overflow: visible; }
+  .inbox-meta{
+    grid-area: meta;
+    justify-content: flex-start;
+    max-width: 100%;
+  }
+  .inbox-open{
+    grid-area: open;
+    align-self: center;
+    padding: var(--sp-1) var(--sp-2);
+    min-width: 28px;
+    text-align: center;
+    font-size: 16px;
+  }
 }
 .inbox-month{padding:8px 14px;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:#f9fafb;border-bottom:1px solid #e5e7eb}
 .inbox-cat-filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
@@ -1761,9 +1961,7 @@ body {
 .lp-meta-val a{color:#6366f1;text-decoration:none}
 .lp-meta-val a:hover{text-decoration:underline}
 .lp-meta-val code{background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:11px}
-.lp-abstract{margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px}
 .lp-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;font-weight:600;margin-bottom:4px}
-.lp-abstract-body{font-size:12px;line-height:1.5;color:#374151}
 
 /* Citations panel (paper-citations.js) — left-sidebar list of inline
  * citations on the currently visible page, with hover-to-flash on the PDF
@@ -1803,6 +2001,29 @@ body {
 .lp-cite-open:hover{background:#bfdbfe;color:#1e3a8a}
 .lp-cite-add.lp-cite-added{background:#dcfce7;color:#166534;border-color:#86efac;cursor:default}
 .lp-cite-unmatched{font-size:10px;color:#9ca3af;font-style:italic}
+
+/* Cited-by panel (V3.106) — sits in the slot vacated by the abstract.
+   Visually parallel to .lp-cite-* but flatter (no expand/collapse —
+   each row's title and venue render in full inline). */
+.lp-cited-by{font-size:11px}
+.lp-cb-list{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow:auto}
+.lp-cb-empty{font-size:11px;color:#9ca3af;font-style:italic;padding:4px 0}
+.lp-cb-empty.lp-cb-error{color:#b91c1c;font-style:normal}
+.lp-cb-row{border:1px solid #e5e7eb;border-radius:6px;background:#fff;padding:6px 8px;display:flex;flex-direction:column;gap:2px;transition:background .12s,border-color .12s}
+.lp-cb-row:hover{background:#f0f9ff;border-color:#7dd3fc}
+.lp-cb-row-head{display:flex;align-items:center;gap:6px}
+.lp-cb-author{font-weight:600;color:#111827;font-size:11px}
+.lp-cb-doi{margin-left:auto;color:#6b7280;text-decoration:none;font-size:11px;padding:0 4px;border-radius:3px}
+.lp-cb-doi:hover{background:#e0f2fe;color:#0369a1}
+.lp-cb-title{color:#374151;font-size:11px;line-height:1.35}
+.lp-cb-venue{color:#6b7280;font-size:10px;font-style:italic}
+.lp-cb-actions{margin-top:3px;display:flex;gap:6px;flex-wrap:wrap}
+.lp-cb-action{font-size:10px;padding:3px 9px;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block}
+.lp-cb-action:hover{background:#ddd6fe;color:#5b21b6}
+a.lp-cb-action[href*="library-paper"]{background:#dbeafe;color:#1e3a8a;border-color:#bfdbfe}
+a.lp-cb-action[href*="library-paper"]:hover{background:#bfdbfe;color:#1e3a8a}
+.lp-cb-add.lp-cb-added{background:#dcfce7;color:#166534;border-color:#86efac;cursor:default}
+
 .pv-cite-overlay{}
 .pv-cite-flash{transition:opacity .12s}
 
@@ -1949,6 +2170,44 @@ body {
 .lp-status{font-size:10px;color:#9ca3af;margin-top:4px;min-height:1em}
 .lp-status.error{color:#dc2626}
 .lp-viewer{flex:1;overflow:auto;background:#374151;padding:14px;display:flex;flex-direction:column;align-items:center;gap:12px}
+
+/* ---- Paper tabs (V3.294) ---- */
+/* Strip of open papers at the top of .lp-main. Each visited paper keeps a
+ * live .lp-viewer-pane inside #lp-viewer-host; only the active pane shows,
+ * so switching tabs is instant and preserves per-tab scroll + zoom. */
+.lp-tabs{display:flex;align-items:stretch;gap:2px;background:#1f2937;border-bottom:1px solid #111827;
+  padding:4px 4px 0;overflow-x:auto;overflow-y:hidden;flex-shrink:0;scrollbar-width:thin}
+.lp-tabs:empty{display:none}
+.lp-tabs::-webkit-scrollbar{height:6px}
+.lp-tabs::-webkit-scrollbar-thumb{background:#4b5563;border-radius:3px}
+.lp-tab{display:inline-flex;align-items:center;gap:6px;max-width:220px;min-width:90px;
+  padding:6px 8px 6px 11px;background:#374151;color:#cbd5e1;border:1px solid #111827;border-bottom:none;
+  border-radius:7px 7px 0 0;font-size:12px;line-height:1.2;cursor:pointer;white-space:nowrap;
+  position:relative;top:1px;flex:0 0 auto;transition:background .12s,color .12s}
+.lp-tab:hover{background:#3f4a5a;color:#f1f5f9}
+.lp-tab.is-active{background:#374151;color:#fff;border-color:#111827;font-weight:600;top:0;
+  box-shadow:0 -2px 0 0 #6366f1 inset}
+.lp-tab-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
+.lp-tab-close{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border:none;border-radius:50%;background:transparent;color:inherit;
+  font-size:14px;line-height:1;cursor:pointer;opacity:.6;padding:0}
+.lp-tab-close:hover{background:rgba(255,255,255,0.18);opacity:1}
+.lp-tab-new{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  width:28px;padding:6px 0;margin-left:2px;background:transparent;color:#94a3b8;border:none;
+  border-radius:7px 7px 0 0;font-size:16px;line-height:1;cursor:pointer;align-self:center}
+.lp-tab-new:hover{background:#3f4a5a;color:#f1f5f9}
+
+/* Viewer host holds the per-tab panes; only the active one is visible. The
+ * active pane also carries .lp-viewer (scroll + page layout) + id=lp-viewer. */
+.lp-viewer-host{flex:1;position:relative;overflow:hidden;background:#374151}
+.lp-viewer-pane{position:absolute;inset:0}
+.lp-viewer-pane:not(.is-active){display:none}
+
+/* Empty state when no paper is open (all tabs closed). */
+.lp-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;color:#9ca3af;background:#374151;text-align:center;padding:24px}
+.lp-empty a{color:#a5b4fc}
+
 .pv-page-wrap{position:relative;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.35);margin-bottom:0}
 .pv-canvas{display:block}
 /* Text layer is rendered by pdf.js but native selection is disabled — we
@@ -1962,7 +2221,7 @@ body {
 .pv-sel-rect{position:absolute;background-color:rgba(99,102,241,0.32);mix-blend-mode:multiply;border-radius:1px}
 .pv-overlay{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none}
 
-@media (max-width:880px){
+@media (max-width:1024px){
   .lp-split{grid-template-columns:1fr;height:auto}
   .lp-side{position:static;max-height:none}
   .lp-main{height:80vh}
@@ -2147,7 +2406,7 @@ body {
 
 /* ---- Evidence-tag dialog (Phase 4) ---- */
 .ev-backdrop{position:fixed;inset:0;background:rgba(17,24,39,0.55);display:flex;align-items:center;justify-content:center;z-index:9500}
-.ev-modal{width:480px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;background:#fff;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.35)}
+.ev-modal{width:480px;max-width:92vw;max-height:calc(88vh - var(--safe-top) - var(--safe-bottom));display:flex;flex-direction:column;background:#fff;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.35)}
 .ev-modal-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #e5e7eb}
 .ev-modal-title{font-size:14px;font-weight:600;color:#111827}
 .ev-modal-close{background:none;border:none;font-size:20px;color:#6b7280;cursor:pointer;line-height:1;padding:0;width:24px;height:24px}
@@ -2213,10 +2472,54 @@ body {
 .lit-review-hint{font-size:11px;color:#9ca3af}
 .lit-review-hint code{font-family:ui-monospace,monospace;background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:10px}
 
-@media (max-width:880px){
+@media (max-width:1024px){
   .lp-split-3{grid-template-columns:1fr;height:auto}
   .lp-annotations{position:static;max-height:none}
   .lp-resizer{display:none}
+}
+
+/* V3.235 — Library-paper phone view: drawers + full-viewport PDF.
+ * Reuses the .rm-mobile-drawer-* pattern at the bottom of this file.
+ * The lp-side and lp-annotations panels also carry rm-mobile-drawer-left
+ * / rm-mobile-drawer-right classes so they fly off-screen by default. A
+ * small .lp-mobile-bar at the top of .lp-main hosts the two toggle
+ * buttons. */
+.lp-mobile-bar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: #fff;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  flex-shrink: 0;
+}
+.lp-mobile-bar .lp-mobile-title {
+  flex: 1 1 auto;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text, #1f2937);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 640px) {
+  .lp-mobile-bar { display: flex; }
+  .lp-page { padding: 0; max-width: none; }
+  .lp-split.lp-split-3 {
+    grid-template-columns: 1fr;
+    height: calc(100vh - 56px - var(--safe-top));
+    gap: 0;
+  }
+  .lp-main {
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  /* In-drawer collapse buttons (‹›) are pointless on phone — drawers
+   * are toggled from the external .lp-mobile-bar instead. */
+  .lp-collapse-btn,
+  .lp-expand-btn { display: none; }
 }
 
 /* Runtime gating — hide UI that depends on local server.py when deployed at
@@ -2226,3 +2529,255 @@ body {
    on the static deploy. */
 body[data-runtime="deploy"] .local-only { display: none !important; }
 body[data-runtime="deploy"] .admin-local-only { display: none !important; }
+
+/* V3.234 — External Links (Synology integration, Phase 1).
+   Shared "🔗 Linked files" block rendered on lab notebook entries, task
+   project buckets, project / item cards, and paper drafts via
+   EXTERNAL_LINKS.mount in rm/js/external-links.js. */
+.ext-links{display:block;margin:10px 0;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;font-size:13px}
+.ext-links-header{display:flex;align-items:center}
+.ext-links-toggle{flex:1;display:flex;align-items:center;gap:8px;background:transparent;border:0;padding:8px 10px;cursor:pointer;font-size:13px;color:#374151;text-align:left}
+.ext-links-toggle:hover{background:#f3f4f6;border-top-left-radius:8px;border-top-right-radius:8px}
+.ext-links-caret{font-size:10px;color:#9ca3af;width:10px;display:inline-block}
+.ext-links-title{font-weight:600}
+.ext-links-count{color:#6b7280;font-size:12px}
+.ext-links-body{padding:6px 10px 10px;border-top:1px solid #eef0f3}
+.ext-links-empty{color:#9ca3af;font-size:12px;padding:4px 0}
+.ext-links-list{list-style:none;margin:0;padding:0}
+.ext-links-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed #eef0f3}
+.ext-links-row:last-child{border-bottom:0}
+.ext-links-link{flex:1;display:flex;flex-direction:column;text-decoration:none;color:inherit;min-width:0}
+.ext-links-link:hover .ext-links-label{text-decoration:underline}
+.ext-links-label{color:#1f2937;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ext-links-url{color:#6b7280;font-size:11px;font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ext-links-vpn{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:4px;padding:1px 6px;font-size:10px;white-space:nowrap;cursor:help}
+.ext-links-del{background:transparent;border:0;color:#9ca3af;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.ext-links-del:hover{color:#dc2626;background:#fef2f2}
+.ext-links-form{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #eef0f3}
+.ext-links-input-url{flex:1 1 240px;min-width:180px;padding:5px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace}
+.ext-links-input-label{flex:1 1 160px;min-width:120px;padding:5px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px}
+.ext-links-private{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#6b7280;white-space:nowrap;cursor:pointer}
+.ext-links-add{background:#1f2937;color:#fff;border:0;border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+.ext-links-add:hover{background:#111827}
+
+/* Paper-editor topbar variant — popover surfaced by a topbar button. */
+.ext-links-popover{position:absolute;z-index:200;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:8px;min-width:380px;max-width:520px}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * V3.235 — Mobile side-drawer pattern (Phase 3 of mobile compatibility)
+ *
+ * Reusable opt-in pattern for pages with side context menus that
+ * would overshadow a phone-sized screen. Mark the container with
+ * `.rm-mobile-drawer-host` and the left/right panels with
+ * `.rm-mobile-drawer-left` / `.rm-mobile-drawer-right`. Open state is
+ * driven by a `data-drawer="left|right"` attribute on the host.
+ *
+ * At ≥641px (tablet + desktop) the drawer classes are inert — panels
+ * stay in their natural flow. At ≤640px they slide off-screen until
+ * activated; the toggle buttons stay anchored in the page's topbar.
+ *
+ * Adopters (V3.235):
+ *   - paper-builder editor: `.pe-page` host, `.pe-sidebar` left,
+ *     `.pe-comments-pane` right.
+ *   - library-paper reader: `.lp-split-3` host, `.lp-side` left,
+ *     `.lp-annotations` right.
+ * ───────────────────────────────────────────────────────────────────── */
+
+/* Backdrop element is injected by the page's JS into the drawer host. */
+.rm-mobile-drawer-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: calc(var(--z-drawer) - 1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease-out;
+}
+
+/* Toggle buttons — used by pages that surface drawer triggers from a
+ * topbar/header. Style is neutral so individual pages can override. */
+.rm-mobile-drawer-toggle {
+  display: none;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius, 8px);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text, #1f2937);
+  cursor: pointer;
+  min-height: var(--tap-min-compact);
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.rm-mobile-drawer-toggle:hover { background: var(--bg, #f5f6fa); }
+.rm-mobile-drawer-toggle .rm-mobile-drawer-toggle-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 16px;
+  text-align: center;
+}
+.rm-mobile-drawer-toggle[data-empty="1"] .rm-mobile-drawer-toggle-badge {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* Toggle buttons become visible on phone. */
+  .rm-mobile-drawer-toggle { display: inline-flex; align-items: center; }
+
+  /* Drawer panels: fixed off-screen until host gets data-drawer. */
+  .rm-mobile-drawer-host .rm-mobile-drawer-left,
+  .rm-mobile-drawer-host .rm-mobile-drawer-right {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 85vw;
+    max-width: 360px;
+    min-width: 0;
+    max-height: none;
+    z-index: var(--z-drawer);
+    background: var(--surface, #fff);
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.18);
+    transition: transform 0.22s ease-out;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Pad for iOS notch / home indicator. */
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    /* Defeat any inline width / margin that desktop styles set. */
+    flex: none;
+    margin: 0;
+    border-radius: 0;
+  }
+  .rm-mobile-drawer-host .rm-mobile-drawer-left {
+    left: 0;
+    transform: translateX(-100%);
+    border-right: 1px solid var(--border, #e5e7eb);
+  }
+  .rm-mobile-drawer-host .rm-mobile-drawer-right {
+    right: 0;
+    transform: translateX(100%);
+    border-left: 1px solid var(--border, #e5e7eb);
+  }
+  .rm-mobile-drawer-host[data-drawer="left"] .rm-mobile-drawer-left,
+  .rm-mobile-drawer-host[data-drawer="right"] .rm-mobile-drawer-right {
+    transform: translateX(0);
+  }
+
+  /* Backdrop visible while any drawer is open. */
+  .rm-mobile-drawer-host[data-drawer] .rm-mobile-drawer-backdrop {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Lock body scroll while a drawer is open — prevents the page behind
+   * from scrolling under the user's drawer-internal scroll. */
+  body.rm-mobile-drawer-locked {
+    overflow: hidden;
+    /* iOS Safari needs position fixed to fully arrest scroll. JS sets
+     * the matching top: -<scrollY>px when locking. */
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * V3.240 — Desktop-only interstitial (Phase 4 of mobile compatibility)
+ *
+ * Pages that fundamentally need a wide screen (split-view,
+ * workflow-shell, admin tools, financial dashboards, grant + CV
+ * editors, lab-tasks) opt in via `<body class="rm-desktop-only">` and
+ * load /rm/js/desktop-only-guard.js. At ≤640px the guard injects a
+ * full-screen card explaining the page is desktop-first plus a
+ * "Try anyway" escape hatch that dismisses for the session.
+ *
+ * The overlay element itself is only injected on phone, so the CSS
+ * styles a phone-only surface; no media query needed on the rules.
+ * ───────────────────────────────────────────────────────────────────── */
+.rm-desktop-only-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.92);
+  z-index: var(--z-modal, 1000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  padding-top: calc(var(--sp-4) + var(--safe-top));
+  padding-bottom: calc(var(--sp-4) + var(--safe-bottom));
+  animation: rm-desktop-only-fade-in 0.2s ease-out;
+}
+@keyframes rm-desktop-only-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.rm-desktop-only-card {
+  background: var(--surface, #fff);
+  border-radius: 14px;
+  max-width: 360px;
+  width: 100%;
+  padding: var(--sp-6) var(--sp-5);
+  text-align: center;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.3);
+}
+.rm-desktop-only-icon {
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: var(--sp-3);
+}
+.rm-desktop-only-title {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  margin: 0 0 var(--sp-2);
+  color: var(--text, #1f2937);
+}
+.rm-desktop-only-body {
+  font-size: var(--fs-sm);
+  color: var(--text-muted, #6b7280);
+  margin: 0 0 var(--sp-4);
+  line-height: 1.5;
+}
+.rm-desktop-only-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.rm-desktop-only-btn {
+  padding: var(--sp-3);
+  border-radius: 8px;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  text-decoration: none;
+  min-height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  touch-action: manipulation;
+}
+.rm-desktop-only-btn-primary {
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border: 1px solid var(--primary, #2563eb);
+}
+.rm-desktop-only-btn-primary:hover {
+  background: var(--primary-hover, #1d4ed8);
+  border-color: var(--primary-hover, #1d4ed8);
+}
+.rm-desktop-only-btn-secondary {
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border: 1px solid var(--border, #e1e4e8);
+}
+.rm-desktop-only-btn-secondary:hover {
+  background: var(--bg, #f5f6fa);
+  color: var(--text, #1f2937);
+}

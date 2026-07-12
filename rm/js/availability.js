@@ -320,7 +320,7 @@ function formatAvailability(prefs, dayResults) {
 // ---- Event fetch ----
 
 async function availFetchEvents(daysAheadHint) {
-  // Server returns events in the next N days. Pad so the user can browse
+  // Windowed pull from per-user calendarEvents. Pad so the user can browse
   // ahead without a refetch.
   const days = Math.max(60, Math.min(180, (daysAheadHint || 14) + 30));
   if (AVAIL_STATE.events && AVAIL_STATE.events_fetched_for_days >= days) {
@@ -329,11 +329,31 @@ async function availFetchEvents(daysAheadHint) {
   AVAIL_STATE.loading = true;
   AVAIL_STATE.error = null;
   try {
-    const res = await fetch(`/api/calendar/outlook-events?days=${days}`);
-    if (!res.ok) throw new Error(`server ${res.status}`);
-    const result = await res.json();
-    if (result.error) throw new Error(result.error);
-    AVAIL_STATE.events = result.events || [];
+    const me = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
+    if (!me || !firebridge.db) throw new Error('not signed in');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minIso = today.toISOString().slice(0, 10);
+    const maxIso = new Date(Date.now() + days * 86400_000).toISOString().slice(0, 10);
+    const snap = await firebridge.db()
+      .collection('userData').doc(me.uid).collection('calendarEvents')
+      .where('start_at', '>=', minIso)
+      .where('start_at', '<', maxIso)
+      .orderBy('start_at', 'asc')
+      .limit(1200)
+      .get();
+    AVAIL_STATE.events = snap.docs.map(d => {
+      const x = d.data();
+      return {
+        id: d.id,
+        title: x.summary || '(No title)',
+        start: x.start_at || '',
+        end: x.end_at || '',
+        all_day: !!x.all_day,
+        location: x.location || '',
+        recurring: !!x.recurring_event_id,
+      };
+    });
     AVAIL_STATE.events_fetched_for_days = days;
     return AVAIL_STATE.events;
   } catch (err) {

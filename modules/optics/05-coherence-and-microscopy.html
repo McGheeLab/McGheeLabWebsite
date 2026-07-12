@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coherence, Interference &amp; the Microscope — Optics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Optics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    /* ===== self-check component ===== */
+    .self-check{background:#faf5ff;border:1px solid #d8b4fe;border-radius:10px;padding:14px 16px;margin:16px 0}
+    .self-check::before{content:"Check yourself";display:block;font-weight:700;color:#7c3aed;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+    .self-check .sc-q{font-weight:600;color:#1e3a5f;margin-bottom:10px}
+    .self-check .sc-opt{display:block;width:100%;text-align:left;border:1px solid #cbd5e1;background:#fff;
+      color:#1e293b;padding:9px 12px;border-radius:8px;margin-bottom:7px;cursor:pointer;font-size:.9rem;font-family:inherit}
+    .self-check .sc-opt:hover{background:#f5f3ff;border-color:#a78bfa}
+    .self-check .sc-opt.correct{background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:600}
+    .self-check .sc-opt.wrong{background:#fef2f2;border-color:#dc2626;color:#b91c1c}
+    .self-check .sc-opt.dimmed{opacity:.55}
+    .self-check .sc-feedback{font-size:.88rem;margin-top:6px;min-height:1.2em;color:#475569}
+    .self-check .sc-feedback.correct{color:#15803d}
+    .self-check .sc-feedback.wrong{color:#b91c1c}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Coherence, Interference &amp; the Microscope</h1>
+  <p class="subtitle">Optics Foundations · Lesson 5 of 5 — Two ordinary bulbs never make stripes,
+  but two laser beams paint crisp bright-and-dark bands. Those interference patterns encode the
+  finest detail light can carry — and set the hard limit on the smallest thing a microscope can ever
+  resolve. This is where Lessons 1–4 land: how we actually see the very small.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="meet">1 · When Light Meets Light</button>
+  <button class="tab-btn" data-tab="slit">2 · Interference Encodes Detail</button>
+  <button class="tab-btn" data-tab="path">3 · Light's Path Through a Microscope</button>
+  <button class="tab-btn" data-tab="resolution">4 · Level Up: The Resolution Limit</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: meet -->
+<section id="tab-meet" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: coherent light interferes, ordinary light just adds up</h2>
+    <p>Shine two flashlights on the same wall and you get one brighter patch — never a set of stripes.
+    Yet two beams split from a single <b>laser</b> overlap into a striking pattern of bright and dark
+    bands. The difference is a property called <b>coherence</b>: whether the waves keep a
+    <em>steady, predictable relationship</em> with one another.</p>
+    <p>Light is a wave (Lesson 1). When two waves cross, their heights add at every point —
+    <b>superposition</b>. Where crest lands on crest, they reinforce into a bigger crest:
+    <b>constructive interference</b>, a bright spot. Where crest lands on trough, they cancel:
+    <b>destructive interference</b>, a dark spot. The deciding factor is the <b>phase difference</b> —
+    how far one wave's crests are shifted relative to the other's.</p>
+    <p>A laser is <b>coherent</b>: its waves march in lockstep, so the phase difference between two
+    beams stays <em>fixed</em>. The bright and dark spots sit still, and you see a stable
+    interference pattern. Two ordinary bulbs are <b>incoherent</b>: each atom emits its own little
+    wavetrain at a random, ever-shifting phase, billions of times a second. The bright and dark spots
+    still form — but they jump to new positions faster than your eye (or a camera) can catch, so they
+    average out to smooth, uniform brightness. The stripes are washed away.</p>
+    <div class="equation-box">
+      $$ \text{constructive (bright): } \Delta = m\lambda \qquad
+         \text{destructive (dark): } \Delta = \left(m+\tfrac{1}{2}\right)\lambda \qquad m=0,\pm1,\pm2,\dots $$
+    </div>
+    <p>Here \(\Delta\) is the <b>path difference</b> — the extra distance one wave travels to reach a
+    point compared with the other. A whole number of wavelengths and the two arrive in step (bright);
+    a half-wavelength off and they arrive opposed (dark). Coherence is simply what makes this bookkeeping
+    hold still long enough to see.</p>
+    <div class="worked-example">
+      <p>Two coherent sources sit 10&nbsp;µm apart, emitting \(\lambda = 500\ \text{nm}\) light. At a
+      point straight ahead (equidistant from both), the path difference is \(\Delta = 0\) — a whole
+      number of wavelengths (\(m=0\)), so it is <b>bright</b>. Step sideways until one source is exactly
+      \(250\ \text{nm} = \lambda/2\) farther than the other: now \(\Delta = \lambda/2\), the waves cancel,
+      and that spot is <b>dark</b>. Keep stepping and bright and dark alternate — a fixed fringe pattern.
+      Make the sources incoherent and that same geometry produces only a uniform glow: the fringes are
+      still "there" instant by instant, but their positions scramble and blur to nothing.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Waves add by superposition: crest+crest = bright, crest+trough = dark.</li>
+        <li>Bright when path difference \(\Delta=m\lambda\); dark when \(\Delta=(m+\tfrac12)\lambda\).</li>
+        <li><b>Coherent</b> light (a laser) holds a fixed phase relationship → a stable, visible fringe pattern.</li>
+        <li><b>Incoherent</b> light (bulbs) has random, shifting phase → fringes wash out to uniform brightness.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on <b>Laser (coherent)</b>. Watch the expanding wavefronts from the two sources
+      overlap into a fixed lattice of bright and dark bands.</li>
+      <li>Drag <b>Source separation</b>. Closer sources spread the bright bands apart; farther sources
+      pack more, finer bands into the field.</li>
+      <li>Switch to <b>Lamp (incoherent)</b>. The rings still expand, but now the pattern flickers and
+      re-scrambles every frame — averaged over time it is just uniform brightness. Read the
+      <b>fringe visibility</b> stat collapse toward zero.</li>
+      <li>Flip back and forth. Same geometry, same wavelength — only coherence decides whether you see
+      crisp stripes or a featureless glow.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="meet" data-scen="laser" onclick="setScen('meet','laser')">Laser (coherent)</button>
+    <button class="scen-btn" data-tab="meet" data-scen="lamp" onclick="setScen('meet','lamp')">Lamp (incoherent)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Source separation <span id="v-meet-sep">6.0 µm</span></label>
+        <input type="range" id="s-meet-sep" min="2" max="14" step="0.1" value="6">
+      </div>
+      <div class="ctrl-group">
+        <label>Coherent source? <span id="v-meet-coh">yes</span></label>
+        <input type="range" id="s-meet-coh" min="0" max="1" step="1" value="1">
+      </div>
+      <div class="stats" id="st-meet"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Two sources emitting circular wavefronts — where crests meet, light adds</div>
+        <canvas id="cv-meet" width="640" height="340"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-meet"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="b">
+    <p class="sc-q">Two ordinary desk lamps illuminate the same wall. Why don't you see interference stripes?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="No — the waves do cross and interfere at every instant. The issue is that the pattern won't hold still.">Their light waves are too weak to interfere</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Right. The lamps are incoherent: their relative phase jumps randomly billions of times a second, so the fringes shift faster than you can see and average to uniform brightness.">They're incoherent — the phase between them scrambles, so the fringes average out</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="No — light from two lamps has essentially the same speed. Coherence, not speed, is what's missing.">Their light travels at different speeds</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: slit -->
+<section id="tab-slit" class="tab-content">
+  <div class="background-section">
+    <h2>Background: two slits turn fine structure into a wide pattern</h2>
+    <p>Thomas Young's classic experiment makes interference impossible to miss. Send coherent light
+    through <b>two narrow slits</b> a distance \(d\) apart. Each slit acts as a fresh source of
+    spreading waves, and on a screen a distance \(L\) away they overlap into a row of evenly spaced
+    <b>bright fringes</b>. A bright fringe appears wherever the two paths differ by a whole number of
+    wavelengths.</p>
+    <p>Working out the geometry for a screen far away (\(L \gg d\)) gives a beautifully simple spacing
+    between neighboring bright fringes:</p>
+    <div class="equation-box">
+      $$ \Delta y \;=\; \frac{\lambda L}{d}
+         \qquad\text{and along the screen}\qquad
+         I(y) \;=\; I_0\,\cos^2\!\left(\frac{\pi\, d\, y}{\lambda L}\right) $$
+    </div>
+    <p>Read that spacing carefully, because it is the seed of everything in Tab 4. The fringe spacing
+    \(\Delta y\) is <b>inversely</b> proportional to the slit separation \(d\): push the slits
+    <em>closer together</em> and the pattern spreads <em>wider apart</em>. It is also proportional to
+    \(\lambda\): <em>redder</em> (longer-wavelength) light spreads wider than blue. So a piece of
+    <b>fine</b> structure (small \(d\)) throws a <b>coarse, wide</b> interference pattern, while
+    coarse structure (large \(d\)) throws a fine, tightly-packed one. Fine detail and wide diffraction
+    are two sides of one coin — remember that when we ask how small a microscope can see.</p>
+    <div class="worked-example">
+      <p>Green laser light, \(\lambda = 532\ \text{nm}\), passes through slits \(d = 0.10\ \text{mm}\)
+      apart onto a screen \(L = 2.0\ \text{m}\) away. The fringe spacing is
+      \(\Delta y = \lambda L / d = (532\times10^{-9})(2.0)/(1.0\times10^{-4}) = 1.06\times10^{-2}\ \text{m}
+      \approx 10.6\ \text{mm}\) — a centimetre between bright bands, easily seen across a room. Halve the
+      slit spacing to \(d = 0.05\ \text{mm}\) and the fringes double to \(\approx 21\ \text{mm}\) apart.
+      Swap to a red laser (\(\lambda = 660\ \text{nm}\)) and they widen again, to
+      \(\approx 13.2\ \text{mm}\) at the original spacing.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Two coherent slits produce evenly spaced bright fringes: \(\Delta y = \lambda L / d\).</li>
+        <li>Fringe intensity follows \(I(y) = I_0\cos^2(\pi d y / \lambda L)\).</li>
+        <li>Smaller slit spacing \(d\) → <b>wider</b> fringes; longer \(\lambda\) → wider fringes.</li>
+        <li>Fine structure ↔ wide pattern: this inverse link is the origin of the diffraction limit (Tab 4).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Slit separation</b> \(d\). As the slits close up, watch the bright bands on the
+      screen fan <em>apart</em> — the inverse relationship in action.</li>
+      <li>Drag <b>Wavelength</b> \(\lambda\) from blue to red. The whole pattern stretches wider as the
+      color reddens, and the fringes recolor with it.</li>
+      <li>Slide <b>Screen distance</b> \(L\) out. Farther screen → proportionally wider spacing (the
+      pattern just fans out over a longer throw).</li>
+      <li>Confirm the <b>fringe spacing</b> stat always equals \(\lambda L / d\), and check it against
+      the two canvases: the plotted \(\cos^2\) peaks sit exactly \(\Delta y\) apart.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="slit" data-scen="wide" onclick="setScen('slit','wide')">Wide slits</button>
+    <button class="scen-btn" data-tab="slit" data-scen="narrow" onclick="setScen('slit','narrow')">Narrow slits</button>
+    <button class="scen-btn" data-tab="slit" data-scen="red" onclick="setScen('slit','red')">Red vs blue</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Slit separation d <span id="v-slit-d">0.10 mm</span></label>
+        <input type="range" id="s-slit-d" min="0.03" max="0.30" step="0.005" value="0.10">
+      </div>
+      <div class="ctrl-group">
+        <label>Wavelength λ <span id="v-slit-lam">532 nm</span></label>
+        <input type="range" id="s-slit-lam" min="400" max="700" step="1" value="532">
+      </div>
+      <div class="ctrl-group">
+        <label>Screen distance L <span id="v-slit-L">2.0 m</span></label>
+        <input type="range" id="s-slit-L" min="1.0" max="4.0" step="0.1" value="2.0">
+      </div>
+      <div class="stats" id="st-slit"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Light through two slits fans out to the screen</div>
+        <canvas id="cv-slit" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Intensity on the screen — I(y) = I₀·cos²(πdy/λL)</div>
+        <canvas id="cv-slit2" width="640" height="220"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-slit"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="a">
+    <p class="sc-q">You move the two slits <b>closer together</b> (smaller \(d\)), keeping \(\lambda\) and \(L\) fixed. What happens to the bright fringes on the screen?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="Correct. Δy = λL/d, so shrinking d in the denominator makes the spacing larger — the fringes spread apart. Fine structure ↔ wide pattern.">They spread farther apart</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="No — that would be a direct relationship, but Δy = λL/d is inverse. Smaller d gives larger spacing.">They pack closer together</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="No — only λ sets the color of the fringes here. Changing d changes their spacing, not their color.">They stay the same but turn bluer</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: path -->
+<section id="tab-path" class="tab-content">
+  <div class="background-section">
+    <h2>Background: how light actually travels through a microscope</h2>
+    <p>A compound microscope is just a well-organized path for light. In a modern
+    <b>widefield</b> instrument: a lamp <b>illuminates</b> the sample; light scattered or emitted by a
+    point in the sample is <b>collected by the objective lens</b>; the objective (with a
+    <b>tube lens</b> behind it) forms a magnified image at the camera or eyepiece. Trace one point of
+    the sample and every ray it sends into the objective is bent back together to a single point in
+    the image — that is what "in focus" means.</p>
+    <p>The single most important number for the objective is its <b>numerical aperture</b>, \(NA\).
+    The objective can only gather the cone of light that falls within its rim; \(\theta\) is the
+    half-angle of that cone. With the sample sitting in a medium of refractive index \(n\),</p>
+    <div class="equation-box">
+      $$ NA \;=\; n\,\sin\theta \qquad\Longrightarrow\qquad \theta \;=\; \arcsin\!\left(\frac{NA}{n}\right) $$
+    </div>
+    <p>A wider collection cone (larger \(\theta\), larger \(NA\)) scoops up more of the light — and,
+    crucially, more of the steeply-angled rays that carry the sample's fine detail. In air the index
+    is \(n=1\), which caps \(NA\) below 1 (about 0.95 in practice). To go higher, high-power objectives
+    are designed to look through a drop of <b>immersion oil</b> (\(n\approx1.515\)) between lens and
+    coverslip; that raises the ceiling to \(NA\approx1.4\). Magnification only enlarges the image —
+    it is \(NA\) that decides how much real information the objective captures. In Tab 4 we will see
+    that \(NA\) sets the resolution outright.</p>
+    <div class="worked-example">
+      <p>A "10×" air objective has \(NA=0.30\). Its collection half-angle is
+      \(\theta = \arcsin(0.30/1) = 17.5^\circ\) — a fairly narrow cone. A "60×" oil objective has
+      \(NA=1.40\) with \(n=1.515\): \(\theta = \arcsin(1.40/1.515) = \arcsin(0.924) = 67.5^\circ\) — a
+      cone nearly two-thirds of the way to grazing, gulping far more light and far more fine detail.
+      Now defocus by moving the sample off the objective's focal plane: the rays from a point no longer
+      reconverge on the image plane. Instead of a sharp point they land as a spread-out blur, and the
+      image goes soft — even though the very same objective is being used.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Light path: illumination → sample → objective → tube lens → image (camera/eye).</li>
+        <li>The objective collects a cone of light set by its numerical aperture \(NA=n\sin\theta\).</li>
+        <li>Higher \(NA\) = wider cone = more light and more fine detail captured; oil (\(n\approx1.515\)) beats air (\(n=1\)).</li>
+        <li>In focus: a sample point maps to an image point. Off focus: its rays miss the image plane and blur.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on <b>Low-NA (10×)</b>. Note the narrow collection cone the objective accepts from the
+      sample point, and the sharp image where the rays reconverge.</li>
+      <li>Switch to <b>High-NA oil (60×)</b>. The cone flares much wider — the objective is now
+      gathering steeply-angled rays it could not reach before. Watch the collection half-angle stat
+      climb toward 68°.</li>
+      <li>Drag the <b>Sample focus</b> slider off zero (or pick <b>Out of focus</b>). The rays no longer
+      meet at the image plane; they cross before or after it and paint a blur instead of a point.</li>
+      <li>Nudge <b>Magnification</b> and confirm it changes image size but not the cone — it is
+      \(NA\), not magnification, that governs how much light gets in.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="path" data-scen="low" onclick="setScen('path','low')">Low-NA (10×)</button>
+    <button class="scen-btn" data-tab="path" data-scen="oil" onclick="setScen('path','oil')">High-NA oil (60×)</button>
+    <button class="scen-btn" data-tab="path" data-scen="defocus" onclick="setScen('path','defocus')">Out of focus</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Objective magnification <span id="v-path-mag">10×</span></label>
+        <input type="range" id="s-path-mag" min="4" max="100" step="1" value="10">
+      </div>
+      <div class="ctrl-group">
+        <label>Numerical aperture NA <span id="v-path-na">0.30</span></label>
+        <input type="range" id="s-path-na" min="0.10" max="1.40" step="0.01" value="0.30">
+      </div>
+      <div class="ctrl-group">
+        <label>Sample focus offset <span id="v-path-focus">0.0 µm</span></label>
+        <input type="range" id="s-path-focus" min="-6" max="6" step="0.1" value="0">
+      </div>
+      <div class="stats" id="st-path"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Ray path: sample point → objective (cone set by NA) → tube lens → image</div>
+        <canvas id="cv-path" width="640" height="320"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-path"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="c">
+    <p class="sc-q">Two objectives are both labeled "40×". One has \(NA=0.65\) (air), the other \(NA=1.30\) (oil). Which gathers more of the sample's fine detail, and why?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="No — they share the same magnification (40×), so that can't be the tiebreaker. Look at NA.">They're identical — same 40× means same detail</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Backwards. A larger NA means a wider collection cone, so the NA=1.30 oil lens captures more, not less.">The NA=0.65 air lens, because a smaller cone is sharper</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="Right. NA = n·sinθ sets the collection cone. NA=1.30 opens a much wider cone and captures more of the steeply-angled rays that carry fine detail.">The NA=1.30 oil lens — higher NA means a wider cone that captures more detail</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: resolution -->
+<section id="tab-resolution" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: the diffraction limit — lamp vs laser, widefield vs confocal</h2>
+    <p>Now the payoff. Because of diffraction, a lens can never image a point <em>as</em> a point.
+    Even a perfect objective smears every point of the sample into a small blob of light called the
+    <b>Airy disk</b> — a bright central spot ringed by faint halos. This blob is the microscope's
+    <b>point-spread function</b> (PSF), and it is the fundamental unit of blur that all real images
+    are built from. Its angular radius (first dark ring) for an aperture of diameter \(D\) is
+    \(1.22\,\lambda/D\).</p>
+    <p>Two nearby points each make their own Airy disk. As you bring them together, the disks overlap
+    and eventually merge into one indistinguishable blob. The classic <b>Rayleigh criterion</b> calls
+    them <em>just resolved</em> when the center of one disk falls on the first dark ring of the other —
+    which leaves a shallow dip (about 26% below the peaks) in the combined brightness. In terms of the
+    objective's \(NA\) this is:</p>
+    <div class="equation-box">
+      $$ d_{\text{Rayleigh}} \;=\; \frac{0.61\,\lambda}{NA}
+         \qquad\qquad
+         d_{\text{Abbe}} \;=\; \frac{\lambda}{2\,NA} $$
+    </div>
+    <p>Both say the same thing: resolution improves (\(d\) shrinks) with <b>shorter wavelength</b> and
+    <b>higher \(NA\)</b>. The Abbe form is slightly more optimistic than Rayleigh; both are of order
+    \(\lambda/2\) and neither can be beaten by a conventional lens. Tie it back to Tab 2: fine detail
+    is carried by finely-spaced fringes — high <em>spatial frequencies</em> — and those correspond to
+    the most steeply-angled rays. A lens with limited \(NA\) simply cannot collect the steepest rays,
+    so it drops the finest detail. <b>Resolution is a question of which fringe spacings the lens can
+    still gather.</b></p>
+    <p>How you illuminate matters too. A <b>widefield</b> microscope floods the sample with
+    <b>incoherent</b> lamp light and images everything at once. A <b>confocal</b> microscope instead
+    scans a focused <b>coherent laser</b> spot across the sample and places a <b>pinhole</b> in front
+    of the detector that blocks light from everywhere except the focal point. Rejecting out-of-focus
+    light both <b>optically sections</b> (you get clean slices through a thick specimen) and sharpens
+    the effective PSF, improving lateral resolution by a factor of about \(1/\sqrt{2}\approx0.72\) in
+    the ideal (vanishingly small pinhole) case. Confocal does <em>not</em> smash the diffraction limit
+    outright — it refines it.</p>
+    <div class="equation-box">
+      $$ d_{\text{confocal}} \;\approx\; \frac{1}{\sqrt{2}}\; d_{\text{Rayleigh}}
+         \;=\; \frac{0.61\,\lambda}{\sqrt{2}\,NA}\;\approx\;\frac{0.43\,\lambda}{NA} $$
+    </div>
+    <div class="worked-example">
+      <p>Green fluorescence, \(\lambda = 510\ \text{nm}\), through an oil objective with \(NA=1.4\).
+      Widefield Rayleigh limit: \(d = 0.61\lambda/NA = 0.61\times510/1.4 = 311.1/1.4 \approx 222\ \text{nm}\).
+      The Abbe estimate is \(\lambda/(2\,NA) = 510/2.8 \approx 182\ \text{nm}\). Switch to confocal:
+      \(d_{\text{conf}} \approx 222/\sqrt{2} \approx 160\ \text{nm}\). So two labeled structures 180&nbsp;nm
+      apart are unresolved in a naïve reading of Abbe but sit right at the widefield Rayleigh edge — and
+      become comfortably resolved on the confocal, which also strips away the blur from other focal planes.
+      Drop to blue excitation (\(\lambda = 405\ \text{nm}\)) and Rayleigh falls to \(0.61\times405/1.4 \approx 176\ \text{nm}\):
+      shorter wavelength buys resolution.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A point images as an <b>Airy disk</b> (the PSF); its size is set by \(\lambda\) and \(NA\).</li>
+        <li>Two points are just resolved at \(d_{\text{Rayleigh}} = 0.61\lambda/NA\); Abbe gives \(\lambda/(2NA)\).</li>
+        <li>Resolution improves with shorter \(\lambda\) and higher \(NA\) — never beyond ~\(\lambda/2\) for a normal lens.</li>
+        <li><b>Confocal</b> adds a pinhole: optical sectioning + ~\(\times0.72\) sharper lateral PSF. It refines, not defeats, the limit.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set <b>Two-point separation</b> large and watch two clean Airy disks with a deep dark valley
+      between them — clearly two objects.</li>
+      <li>Slide them together. As the separation drops through \(d_{\text{Rayleigh}} = 0.61\lambda/NA\),
+      the dip between the peaks fills in; below it the pair merges into a single blob. Watch the
+      <b>resolved?</b> verdict flip.</li>
+      <li>Raise <b>NA</b> or lower <b>λ</b> and the Rayleigh limit shrinks — two points that were merged
+      snap back into being resolvable. This is why we reach for high-NA oil and shorter wavelengths.</li>
+      <li>Switch to <b>Confocal</b>. Each PSF narrows by ~×0.72 and the same two points resolve at a
+      tighter separation. Compare the Rayleigh line-profile dip in widefield vs confocal.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="resolution" data-scen="wf" onclick="setScen('resolution','wf')">Widefield (lamp)</button>
+    <button class="scen-btn" data-tab="resolution" data-scen="conf" onclick="setScen('resolution','conf')">Confocal (laser)</button>
+    <button class="scen-btn" data-tab="resolution" data-scen="merged" onclick="setScen('resolution','merged')">Below the limit</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Wavelength λ <span id="v-resolution-lam">510 nm</span></label>
+        <input type="range" id="s-resolution-lam" min="400" max="700" step="1" value="510">
+      </div>
+      <div class="ctrl-group">
+        <label>Numerical aperture NA <span id="v-resolution-na">1.40</span></label>
+        <input type="range" id="s-resolution-na" min="0.20" max="1.40" step="0.01" value="1.40">
+      </div>
+      <div class="ctrl-group">
+        <label>Two-point separation <span id="v-resolution-sep">260 nm</span></label>
+        <input type="range" id="s-resolution-sep" min="60" max="600" step="1" value="260">
+      </div>
+      <div class="ctrl-group">
+        <label>Confocal? <span id="v-resolution-conf">no</span></label>
+        <input type="range" id="s-resolution-conf" min="0" max="1" step="1" value="0">
+      </div>
+      <div class="stats" id="st-resolution"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Two point sources → two Airy-disk PSFs (confocal narrows each)</div>
+        <canvas id="cv-resolution" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Summed intensity profile — the resolvable dip appears or vanishes</div>
+        <canvas id="cv-resolution2" width="640" height="220"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-resolution"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="c">
+    <p class="sc-q"><b>Challenge.</b> You image with red excitation \(\lambda = 640\ \text{nm}\) on an oil objective \(NA = 1.30\). Your two labeled points are 260&nbsp;nm apart. Compute the widefield Rayleigh limit and decide what to do to resolve them.</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="Check the arithmetic: 0.61×640/1.30 = 390.4/1.30 ≈ 300 nm, which is larger than 260 nm — so they are NOT resolved. Something must change.">d ≈ 300 nm; the points are already resolved, do nothing</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="The Rayleigh limit is right (≈300 nm > 260 nm, unresolved), but a longer wavelength makes d larger and worse. You need shorter λ or higher NA, or confocal.">d ≈ 300 nm; switch to a longer wavelength to resolve them</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="Correct. d = 0.61×640/1.30 ≈ 300 nm > 260 nm, so widefield can't split them. Going confocal shrinks it to ≈300/√2 ≈ 212 nm < 260 nm, and shorter λ or higher NA would help too.">d ≈ 300 nm (&gt; 260 nm, unresolved); go confocal (≈212 nm) or use shorter λ / higher NA</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>E. Hecht, <i>Optics</i>, 5th ed., Pearson (2017) — coherence, superposition, Young's double
+    slit (\(\Delta y=\lambda L/d\)), diffraction and the Rayleigh criterion.</li>
+    <li>M. Born &amp; E. Wolf, <i>Principles of Optics</i>, 7th ed., Cambridge (1999) — the Airy pattern,
+    resolving power, and the theory of partial coherence.</li>
+    <li>J. W. Goodman, <i>Introduction to Fourier Optics</i>, 4th ed., W. H. Freeman (2017) — the
+    point-spread function and spatial-frequency (transfer-function) view of resolution.</li>
+    <li>D. B. Murphy &amp; M. W. Davidson, <i>Fundamentals of Light Microscopy and Electronic Imaging</i>,
+    2nd ed., Wiley (2012) — the microscope light path, numerical aperture \(NA=n\sin\theta\), and Abbe's
+    limit \(\lambda/2NA\).</li>
+    <li>J. B. Pawley (ed.), <i>Handbook of Biological Confocal Microscopy</i>, 3rd ed., Springer (2006)
+    — pinhole optical sectioning and the \(\sim1/\sqrt{2}\) confocal resolution improvement.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Optics Foundations · Lesson 5 of 5 — the finale. From a single wave, to atoms and
+color, to lenses and light's ultimate limit: this is how we see the very small.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; }
+  }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* wavelength (nm) -> visible RGB (Bruton). Returns 'rgb(...)' or 'rgba(...)'. */
+function wavelengthRGB(nm, alpha){
+  let r=0,g=0,b=0;
+  if (nm>=380 && nm<440){ r=-(nm-440)/60; b=1; }
+  else if (nm<490){ g=(nm-440)/50; b=1; }
+  else if (nm<510){ g=1; b=-(nm-510)/20; }
+  else if (nm<580){ r=(nm-510)/70; g=1; }
+  else if (nm<645){ r=1; g=-(nm-645)/65; }
+  else if (nm<=780){ r=1; }
+  let f=1;
+  if (nm<420) f=0.3+0.7*(nm-380)/40;
+  else if (nm>700) f=0.3+0.7*(780-nm)/80;
+  const G=0.8;
+  const ch=v=>Math.round(255*Math.pow(Math.max(0,Math.min(1,v))*Math.max(0,f),G));
+  return alpha!=null ? `rgba(${ch(r)},${ch(g)},${ch(b)},${alpha})` : `rgb(${ch(r)},${ch(g)},${ch(b)})`;
+}
+
+function wireSelfChecks(){
+  document.querySelectorAll('.self-check').forEach(block => {
+    const ans = block.dataset.answer;
+    const fb = block.querySelector('.sc-feedback');
+    block.querySelectorAll('.sc-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const chosen = opt.dataset.opt;
+        const correct = chosen === ans;
+        block.querySelectorAll('.sc-opt').forEach(o => {
+          o.classList.remove('correct','wrong','dimmed');
+          if (o.dataset.opt === ans) o.classList.add('correct');
+          else if (o === opt) o.classList.add('wrong');
+          else o.classList.add('dimmed');
+        });
+        const explain = opt.getAttribute('data-explain-' + chosen) || '';
+        fb.textContent = (correct ? '✓ ' : '✗ ') + explain;
+        fb.className = 'sc-feedback ' + (correct ? 'correct' : 'wrong');
+      });
+    });
+  });
+}
+
+/* ================================================================
+   PER-MODULE CODE — Optics Lesson 5: Coherence, Interference & the Microscope
+   ================================================================ */
+const AIRY = 0.61;          // Rayleigh factor: d = 0.61·λ/NA
+const CONF = 1/Math.SQRT2;  // confocal lateral improvement ≈ 0.707
+
+let activeTab = 'meet';
+const scen = { meet:'laser', slit:'wide', path:'low', resolution:'wf' };
+
+function colorName(nm){
+  if (nm < 400) return 'ultraviolet';
+  if (nm < 450) return 'violet';
+  if (nm < 490) return 'blue';
+  if (nm < 560) return 'green';
+  if (nm < 590) return 'yellow';
+  if (nm < 635) return 'orange';
+  if (nm <= 750) return 'red';
+  return 'infrared';
+}
+
+const FMT = {
+  'meet-sep':       v => fmt(v,1) + ' µm',
+  'meet-coh':       v => (v>=0.5 ? 'yes' : 'no'),
+  'slit-d':         v => fmt(v,3) + ' mm',
+  'slit-lam':       v => fmt(v,0) + ' nm',
+  'slit-L':         v => fmt(v,1) + ' m',
+  'path-mag':       v => fmt(v,0) + '×',
+  'path-na':        v => fmt(v,2) + '',
+  'path-focus':     v => fmt(v,1) + ' µm',
+  'resolution-lam': v => fmt(v,0) + ' nm',
+  'resolution-na':  v => fmt(v,2) + '',
+  'resolution-sep': v => fmt(v,0) + ' nm',
+  'resolution-conf':v => (v>=0.5 ? 'yes' : 'no')
+};
+
+const SCEN = {
+  meet: {
+    laser: { 's-meet-coh': 1 },
+    lamp:  { 's-meet-coh': 0 }
+  },
+  slit: {
+    wide:   { 's-slit-d': 0.16, 's-slit-lam': 532, 's-slit-L': 2.0 },
+    narrow: { 's-slit-d': 0.05, 's-slit-lam': 532, 's-slit-L': 2.0 },
+    red:    { 's-slit-d': 0.10, 's-slit-lam': 660, 's-slit-L': 2.0 }
+  },
+  path: {
+    low:     { 's-path-mag': 10, 's-path-na': 0.30, 's-path-focus': 0 },
+    oil:     { 's-path-mag': 60, 's-path-na': 1.40, 's-path-focus': 0 },
+    defocus: { 's-path-mag': 40, 's-path-na': 0.75, 's-path-focus': 3.5 }
+  },
+  resolution: {
+    wf:     { 's-resolution-lam': 510, 's-resolution-na': 1.40, 's-resolution-sep': 260, 's-resolution-conf': 0 },
+    conf:   { 's-resolution-lam': 510, 's-resolution-na': 1.40, 's-resolution-sep': 260, 's-resolution-conf': 1 },
+    merged: { 's-resolution-lam': 640, 's-resolution-na': 0.60, 's-resolution-sep': 260, 's-resolution-conf': 0 }
+  }
+};
+
+function fmtFor(key,v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){ const key=sl.id.slice(2); const out=document.getElementById('v-'+key);
+  if(out) out.textContent = fmtFor(key, parseFloat(sl.value)); }
+function wireAll(){ document.querySelectorAll('input[type=range]').forEach(sl=>{
+  updateReadout(sl); sl.addEventListener('input',()=>{ updateReadout(sl); refreshActiveTab(); }); }); }
+function presetSlider(id,v){ const sl=document.getElementById(id); if(!sl) return; sl.value=v; updateReadout(sl); }
+function setScen(tab,s){ scen[tab]=s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`).forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  const p=SCEN[tab]&&SCEN[tab][s]; if(p) for(const [id,v] of Object.entries(p)) presetSlider(id,v);
+  refreshActiveTab(); }
+function refreshActiveTab(){ try{ const f=DRAW[activeTab]; if(f) f(); }
+  catch(e){ console.error('draw error in tab',activeTab,e); } }
+
+/* animation */
+let animId=null, animT=0;
+const ANIMATED = { meet:true, slit:false, path:false, resolution:false };
+function tick(){ animT += 1/60; refreshActiveTab(); animId=requestAnimationFrame(tick); }
+function startAnim(){ if(!animId && ANIMATED[activeTab]) animId=requestAnimationFrame(tick); }
+function stopAnim(){ if(animId){ cancelAnimationFrame(animId); animId=null; } }
+
+/* ---------------- TAB 1: meet (ANIMATED) ---------------- */
+function drawMeet(){
+  const sepUm = num('s-meet-sep');
+  const coherent = num('s-meet-coh') >= 0.5;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-meet'));
+  const cx = 70;                              // sources sit near left edge
+  const midY = h/2;
+  const pxPerUm = 12;                         // vertical scale for separation
+  const sepPx = Math.min(sepUm*pxPerUm, h*0.6);
+  const s1y = midY - sepPx/2, s2y = midY + sepPx/2;
+
+  const lamPx = 26;                           // spatial wavelength in px
+  const k = 2*Math.PI/lamPx;
+  const phase = animT*3.4;
+  // incoherent: random relative phase for source 2, reseeded each frame
+  let relPhase = 0;
+  if (!coherent){ _rng = mulberry32((Math.floor(animT*60)) >>> 0); relPhase = _rng()*2*Math.PI; }
+
+  // ---- render the interference field as an image ----
+  const img = ctx.createImageData(w, h);
+  const data = img.data;
+  const step = 2;                             // coarse grid for speed, fill blocks
+  let vis = 0;                                // running fringe contrast estimate
+  const sampleRow = Math.round(midY);
+  let rowMin = 2, rowMax = -2;
+  for (let py=0; py<h; py+=step){
+    for (let px=0; px<w; px+=step){
+      const d1 = Math.hypot(px-cx, py-s1y);
+      const d2 = Math.hypot(px-cx, py-s2y);
+      // two circular waves add; amplitude ~ cos of phase (ignore 1/r falloff for clarity)
+      const a1 = Math.cos(k*d1 - phase);
+      const a2 = Math.cos(k*d2 - phase + relPhase);
+      const amp = (a1 + a2) * 0.5;            // -1..1
+      const inten = amp*amp;                  // 0..1
+      if (py>=sampleRow-1 && py<=sampleRow+1){ if(inten<rowMin) rowMin=inten; if(inten>rowMax) rowMax=inten; }
+      // color: cyan-white glow scaled by intensity
+      const r = Math.round(40 + 90*inten);
+      const g = Math.round(70 + 170*inten);
+      const b = Math.round(120 + 135*inten);
+      for (let yy=py; yy<py+step && yy<h; yy++){
+        for (let xx=px; xx<px+step && xx<w; xx++){
+          const idx = (yy*w+xx)*4;
+          data[idx]=r; data[idx+1]=g; data[idx+2]=b; data[idx+3]=255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  vis = (rowMax+rowMin)>1e-6 ? (rowMax-rowMin)/(rowMax+rowMin) : 0;
+
+  // sources marked on top
+  for (const [sy,lbl] of [[s1y,'S₁'],[s2y,'S₂']]){
+    ctx.fillStyle = coherent ? '#f8fafc' : '#fde68a';
+    ctx.beginPath(); ctx.arc(cx, sy, 6, 0, 7); ctx.fill();
+    ctx.strokeStyle = COL.ink; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle = '#f8fafc'; ctx.font='bold 12px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(lbl, cx-10, sy);
+  }
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillStyle='#f8fafc'; ctx.font='bold 13px sans-serif';
+  ctx.fillText(coherent ? 'COHERENT — fixed phase → stable fringes'
+                        : 'INCOHERENT — random phase → washes out', 14, h-14);
+
+  setStat('st-meet', [
+    { label:'Source separation', value: fmt(sepUm,1)+' µm' },
+    { label:'Coherent?', value: coherent ? 'yes (laser)' : 'no (lamp)' },
+    { label:'Phase relationship', value: coherent ? 'fixed' : 'random, shifting' },
+    { label:'Fringe visibility', value: coherent ? 'high (~1.0)' : 'low (~0, averaged)', highlight:true }
+  ]);
+  if (coherent)
+    setVerdict('vd-meet','good','Crisp, stable interference fringes.',
+      'The two beams keep a fixed phase, so crest-meets-crest (bright) and crest-meets-trough (dark) lock into place. Wider source separation packs more fringes into the field; closer sources spread them apart. This standing pattern is only possible with coherent light.');
+  else
+    setVerdict('vd-meet','warn','Fringes present each instant — but washed out on average.',
+      'Each frame the relative phase jumps to a new random value, so the bright/dark bands leap around. A real eye or camera integrates over millions of these snapshots and sees only smooth, uniform brightness. Incoherent light cannot hold a fringe pattern still.');
+}
+
+/* ---------------- TAB 2: slit (static) ---------------- */
+function drawSlit(){
+  const d_mm = num('s-slit-d');              // slit separation, mm
+  const lam_nm = num('s-slit-lam');          // wavelength, nm
+  const L_m = num('s-slit-L');               // screen distance, m
+  const d = d_mm*1e-3;                        // m
+  const lam = lam_nm*1e-9;                    // m
+  const dy = lam*L_m/d;                       // fringe spacing, m
+  const dy_mm = dy*1e3;
+  const rgb = wavelengthRGB(lam_nm);
+
+  // ---- canvas 1: geometry (slits -> screen) ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-slit'));
+  const slitX = 70, screenX = w-60, midY = h/2;
+  // slit plate
+  const sepPx = Math.min(70, 14 + d_mm*260);   // visual separation of the two slits
+  const a1 = midY - sepPx/2, a2 = midY + sepPx/2;
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(slitX-6, 20, 12, (a1-6)-20);
+  ctx.fillRect(slitX-6, a1+6, 12, (a2-6)-(a1+6));
+  ctx.fillRect(slitX-6, a2+6, 12, (h-20)-(a2+6));
+  ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(slitX,a1,3,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(slitX,a2,3,0,7); ctx.fill();
+  caption(ctx, slitX, 16, 'two slits (d apart)', COL.axis);
+  // incoming plane-wave hints
+  for (let yy=30; yy<h-20; yy+=16){ drawLine(ctx, 12, yy, slitX-8, yy, wavelengthRGB(lam_nm,0.35), 1.4); }
+  // screen
+  drawLine(ctx, screenX, 18, screenX, h-16, COL.axis, 3);
+  caption(ctx, screenX, 14, 'screen (L away)', COL.axis);
+  // rays from each slit fanning to a few bright-fringe positions
+  const yScale = 900;                          // px per metre of screen position (visual)
+  for (let m=-2; m<=2; m++){
+    const ypos = m*dy*yScale;                  // px offset on screen
+    const sy = midY - ypos;
+    if (sy<20 || sy>h-16) continue;
+    drawLine(ctx, slitX, a1, screenX, sy, wavelengthRGB(lam_nm,0.55), 1.3);
+    drawLine(ctx, slitX, a2, screenX, sy, wavelengthRGB(lam_nm,0.55), 1.3);
+    ctx.fillStyle = rgb; ctx.beginPath(); ctx.arc(screenX, sy, m===0?5:3.5, 0, 7); ctx.fill();
+  }
+  caption(ctx, (slitX+screenX)/2, h-6, 'each bright fringe: paths differ by a whole number of λ', COL.axis);
+
+  // ---- canvas 2: intensity on screen ----
+  const c2 = setupCanvas(document.getElementById('cv-slit2'));
+  const cx2 = c2.ctx, cw = c2.w, chh = c2.h;
+  const ch = new Chart(cx2, cw, chh, {l:46, r:16, t:16, b:34});
+  const yspan = 24;                            // mm shown on screen (±)
+  ch.setRange(-yspan, yspan, 0, 1.08);
+  ch.grid(); ch.axes('position on screen y (mm)', 'intensity');
+  // colored intensity curve I = cos^2(pi d y / (lam L))
+  const pts = [];
+  for (let px=0; px<=200; px++){
+    const y_mm = -yspan + (px/200)*2*yspan;
+    const y = y_mm*1e-3;
+    const arg = Math.PI*d*y/(lam*L_m);
+    const I = Math.cos(arg)*Math.cos(arg);
+    pts.push([y_mm, I]);
+  }
+  ch.plot(pts, rgb, 2.6);
+  // mark the fringe spacing between the central and first bright peak
+  if (dy_mm < yspan){
+    cx2.save(); cx2.strokeStyle = COL.ink; cx2.lineWidth=1; cx2.setLineDash([4,3]);
+    cx2.beginPath(); cx2.moveTo(ch.toX(0), ch.toY(1.02)); cx2.lineTo(ch.toX(dy_mm), ch.toY(1.02)); cx2.stroke();
+    cx2.restore();
+    arrow(cx2, ch.toX(0), ch.toY(1.02), ch.toX(dy_mm), ch.toY(1.02), COL.ink, 1.3);
+    arrow(cx2, ch.toX(dy_mm), ch.toY(1.02), ch.toX(0), ch.toY(1.02), COL.ink, 1.3);
+    caption(cx2, ch.toX(dy_mm/2), ch.toY(1.02)-4, 'Δy = '+fmt(dy_mm,2)+' mm', COL.ink, true);
+  }
+
+  setStat('st-slit', [
+    { label:'Slit separation d', value: fmt(d_mm,3)+' mm' },
+    { label:'Wavelength λ', value: fmt(lam_nm,0)+' nm ('+colorName(lam_nm)+')' },
+    { label:'Screen distance L', value: fmt(L_m,1)+' m' },
+    { label:'Fringe spacing Δy = λL/d', value: fmt(dy_mm,2)+' mm', highlight:true }
+  ]);
+  let cls, note;
+  if (dy_mm > 18){ cls='warn'; note='very wide fringes — the tiny slit spacing throws a broad pattern.'; }
+  else if (dy_mm < 3){ cls='warn'; note='tightly packed fringes — the large slit spacing crowds them together.'; }
+  else { cls='good'; note='a clean, easily-measured fringe pattern.'; }
+  setVerdict('vd-slit', cls, 'Δy = λL/d = '+fmt(dy_mm,2)+' mm — '+note,
+    'Spacing grows with λ ('+fmt(lam_nm,0)+' nm) and L ('+fmt(L_m,1)+' m) but shrinks as d ('+fmt(d_mm,3)+' mm) grows. Fine structure (small d) → wide pattern; that inverse trade is exactly what limits how small a lens can resolve (next: the microscope).');
+}
+
+/* ---------------- TAB 3: path (static) ---------------- */
+function drawPath(){
+  const mag = num('s-path-mag');
+  const NA = num('s-path-na');
+  const focus = num('s-path-focus');          // µm off the focal plane
+  const nMed = NA > 0.95 ? 1.515 : 1.0;       // oil if NA demands it
+  const ratio = Math.min(0.999, NA/nMed);
+  const theta = Math.asin(ratio);             // collection half-angle (rad)
+  const thetaDeg = theta*180/Math.PI;
+  const inFocus = Math.abs(focus) < 0.3;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-path'));
+  const axisY = h/2;
+  const sampleX = 70, objX = 240, tubeX = 430, imgX = w-40;
+  // optical axis
+  drawLine(ctx, 30, axisY, w-20, axisY, COL.grid, 1.5);
+  // ---- sample point (shifted vertically to fake defocus) ----
+  const defPx = focus*7;                       // vertical shift proxy for defocus
+  const srcY = axisY + defPx;
+  ctx.fillStyle = COL.orange; ctx.beginPath(); ctx.arc(sampleX, srcY, 6, 0, 7); ctx.fill();
+  caption(ctx, sampleX, srcY - 14, 'sample point', COL.ink, true);
+  caption(ctx, sampleX, h-10, 'illumination →', COL.axis);
+  // objective lens glyph
+  const objHalf = 78;
+  drawLens(ctx, objX, axisY, objHalf, COL.accent);
+  caption(ctx, objX, axisY - objHalf - 8, 'objective', COL.ink, true);
+  caption(ctx, objX, axisY + objHalf + 16, 'NA = '+fmt(NA,2)+' (n='+fmt(nMed,3)+')', COL.axis);
+  // tube lens glyph
+  const tubeHalf = 60;
+  drawLens(ctx, tubeX, axisY, tubeHalf, COL.teal);
+  caption(ctx, tubeX, axisY - tubeHalf - 8, 'tube lens', COL.ink, true);
+  // image plane
+  drawLine(ctx, imgX, axisY-70, imgX, axisY+70, COL.axis, 3);
+  caption(ctx, imgX, axisY-78, 'image plane', COL.ink, true);
+
+  // ---- collection cone: rays from the sample point into the objective aperture ----
+  // objective aperture half-height maps to the collection angle
+  const apHalf = objHalf*0.9;
+  const nRays = 7;
+  for (let i=0;i<nRays;i++){
+    const frac = nRays===1?0 : (i/(nRays-1))*2-1;   // -1..1
+    const apY = axisY + frac*apHalf;                // where ray hits objective
+    // ray from sample to aperture point
+    drawLine(ctx, sampleX, srcY, objX, apY, wavelengthRGB(520,0.5), 1.3);
+    // after objective: bend toward tube lens; if in focus all cross image plane at one point,
+    // if defocused they converge before/after the image plane (spread out)
+    let imgY;
+    if (inFocus){
+      imgY = axisY - frac*40;                      // clean inverted point at image plane
+      drawLine(ctx, objX, apY, tubeX, axisY - frac*20, wavelengthRGB(520,0.5), 1.3);
+      drawLine(ctx, tubeX, axisY - frac*20, imgX, imgY, wavelengthRGB(520,0.5), 1.3);
+    } else {
+      // defocus: rays cross short of / beyond the image plane -> blur disc on image plane
+      const cross = imgX - Math.sign(focus||1)*Math.abs(focus)*10; // crossing x
+      const conv = axisY - frac*24;
+      drawLine(ctx, objX, apY, tubeX, conv, wavelengthRGB(520,0.5), 1.3);
+      // continue past tube lens toward a crossing point, then read where it is at imgX
+      const crossY = axisY - defPx*0.4;
+      const t = (imgX - tubeX)/((cross - tubeX)||1);
+      imgY = conv + (crossY - conv)*t;
+      drawLine(ctx, tubeX, conv, imgX, imgY, wavelengthRGB(520,0.5), 1.3);
+    }
+  }
+  // half-angle arc at the objective
+  ctx.save(); ctx.strokeStyle=COL.bad; ctx.lineWidth=1.6; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.arc(sampleX, srcY, 46, -theta*Math.sign(1), theta); ctx.stroke(); ctx.restore();
+  caption(ctx, sampleX+66, srcY - 30, 'θ = '+fmt(thetaDeg,0)+'°', COL.bad, true);
+  // image spot indicator
+  if (inFocus){
+    ctx.fillStyle=COL.good; ctx.beginPath(); ctx.arc(imgX, axisY, 5, 0, 7); ctx.fill();
+    caption(ctx, imgX, axisY+90, 'sharp point', COL.good, true);
+  } else {
+    ctx.fillStyle='rgba(220,38,38,0.35)'; ctx.beginPath();
+    ctx.arc(imgX, axisY, 4+Math.abs(defPx)*0.6, 0, 7); ctx.fill();
+    caption(ctx, imgX, axisY+90, 'blur', COL.bad, true);
+  }
+
+  setStat('st-path', [
+    { label:'Magnification', value: fmt(mag,0)+'×' },
+    { label:'Numerical aperture', value: fmt(NA,2)+(nMed>1.0?' (oil)':' (air)') },
+    { label:'Collection half-angle θ', value: fmt(thetaDeg,0)+'°' },
+    { label:'Focus offset', value: fmt(focus,1)+' µm' },
+    { label:'Image', value: inFocus ? 'in focus' : 'blurred', highlight:true }
+  ]);
+  if (!inFocus)
+    setVerdict('vd-path','bad','Out of focus — the point smears into a blur.',
+      'The sample sits '+fmt(focus,1)+' µm off the objective\'s focal plane, so the collected rays no longer reconverge on the image plane. They cross before or after it and paint a spread-out disc instead of a point. Bring the focus offset to zero to sharpen.');
+  else if (NA >= 0.95)
+    setVerdict('vd-path','good','In focus, wide cone — a high-NA oil objective.',
+      'With NA = '+fmt(NA,2)+' through oil (n='+fmt(nMed,3)+'), the collection half-angle is '+fmt(thetaDeg,0)+'° — a broad cone gathering steeply-angled rays that carry the finest detail. Magnification ('+fmt(mag,0)+'×) sets image size, but this wide NA is what captures information.');
+  else
+    setVerdict('vd-path','good','In focus, narrow cone — a modest-NA air objective.',
+      'NA = '+fmt(NA,2)+' in air gives a '+fmt(thetaDeg,0)+'° collection cone. The rays reconverge cleanly to a point at the image plane. Raise NA (or switch to oil) to open the cone and gather more of the fine detail — as the next tab makes quantitative.');
+}
+/* small biconvex lens glyph */
+function drawLens(ctx, x, y, half, color){
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=2.4; ctx.fillStyle='rgba(37,99,235,0.06)';
+  const bulge = half*0.34;
+  ctx.beginPath();
+  ctx.moveTo(x, y-half);
+  ctx.quadraticCurveTo(x+bulge, y, x, y+half);
+  ctx.quadraticCurveTo(x-bulge, y, x, y-half);
+  ctx.fill(); ctx.stroke(); ctx.restore();
+}
+
+/* ---------------- TAB 4: resolution (static) ---------------- */
+/* Airy-like PSF using a Gaussian approximation scaled to the Rayleigh radius. */
+function psf(x, x0, rRayleigh){
+  // FWHM ≈ 0.51·λ/NA ≈ 0.84·rRayleigh; sigma = FWHM/2.355
+  const sigma = 0.84*rRayleigh/2.3548;
+  const dx = (x-x0)/sigma;
+  return Math.exp(-0.5*dx*dx);
+}
+
+function drawResolution(){
+  const lam = num('s-resolution-lam');       // nm
+  const NA = num('s-resolution-na');
+  const sep = num('s-resolution-sep');       // nm
+  const confocal = num('s-resolution-conf') >= 0.5;
+  const NAs = Math.max(NA, 1e-3);
+  let dRay = AIRY*lam/NAs;                    // Rayleigh limit (nm)
+  const dAbbe = lam/(2*NAs);                  // Abbe limit (nm)
+  const rEff = confocal ? dRay*CONF : dRay;   // effective resolution radius used for PSF width
+  const dLimit = rEff;                        // the separation that counts as "just resolved"
+  const rgb = wavelengthRGB(lam);
+  const resolved = sep >= dLimit;
+  const atLimit = Math.abs(sep - dLimit) < 0.08*dLimit;
+
+  const span = Math.max(700, sep*1.8, dRay*3.2);   // nm shown across the field (±span/2)
+  const x1p = sep/2, x2p = -sep/2;                  // point positions (nm)
+
+  // ---- canvas 1: two PSF blobs (2D-ish rendering) ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-resolution'));
+  const midY = h/2;
+  const nmToPx = w/span;
+  const cxpx = w/2;
+  const img = ctx.createImageData(w, h);
+  const data = img.data;
+  const base = wavelengthRGB(lam).match(/\d+/g).map(Number);  // hoist: color is invariant per redraw
+  const b0=base[0], b1=base[1], b2=base[2];
+  const step = 2;                                    // coarse blocks keep the slider responsive
+  for (let py=0; py<h; py+=step){
+    const ynm = (py - midY)/nmToPx;                  // vertical nm from center
+    for (let px=0; px<w; px+=step){
+      const xnm = (px - cxpx)/nmToPx;
+      const r1 = Math.hypot(xnm - x1p, ynm);
+      const r2 = Math.hypot(xnm - x2p, ynm);
+      const I = Math.min(1, psf(r1,0,rEff) + psf(r2,0,rEff));
+      const r = Math.round(b0*I), g = Math.round(b1*I), b = Math.round(b2*I);
+      for (let yy=py; yy<py+step && yy<h; yy++){
+        for (let xx=px; xx<px+step && xx<w; xx++){
+          const idx = (yy*w+xx)*4;
+          data[idx]=r; data[idx+1]=g; data[idx+2]=b; data[idx+3]=255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  // mark the two true point positions
+  for (const xp of [x1p, x2p]){
+    const sx = cxpx + xp*nmToPx;
+    ctx.strokeStyle='#f8fafc'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.arc(sx, midY, 3, 0, 7); ctx.stroke();
+  }
+  // scale bar for dRay
+  const barPx = dRay*nmToPx;
+  drawLine(ctx, 16, h-18, 16+barPx, h-18, '#f8fafc', 3);
+  ctx.fillStyle='#f8fafc'; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillText('Rayleigh d = '+fmt(dRay,0)+' nm', 16, h-24);
+  ctx.fillText(confocal ? 'CONFOCAL — PSF ×0.72' : 'WIDEFIELD', w-140, 20);
+
+  // ---- canvas 2: summed line profile along the axis through both points ----
+  const c2 = setupCanvas(document.getElementById('cv-resolution2'));
+  const cx2 = c2.ctx, cw = c2.w, chh = c2.h;
+  const ch = new Chart(cx2, cw, chh, {l:46, r:16, t:16, b:34});
+  ch.setRange(-span/2, span/2, 0, 2.1);
+  ch.grid(); ch.axes('position (nm)', 'intensity');
+  const p1=[], p2=[], psum=[];
+  for (let i=0;i<=220;i++){
+    const x = -span/2 + (i/220)*span;
+    const a = psf(x, x1p, rEff), b = psf(x, x2p, rEff);
+    p1.push([x,a]); p2.push([x,b]); psum.push([x,a+b]);
+  }
+  ch.plot(p1, wavelengthRGB(lam,0.4), 1.4, [4,3]);
+  ch.plot(p2, wavelengthRGB(lam,0.4), 1.4, [4,3]);
+  ch.plot(psum, rgb, 2.8);
+  // dip check: intensity at the midpoint vs the peaks
+  const peak = psf(0,0,rEff)*2 - 0; // rough; use actual sum at a peak location
+  const sumAtPeak = psf(x1p,x1p,rEff) + psf(x1p,x2p,rEff);
+  const sumAtMid  = psf(0,x1p,rEff) + psf(0,x2p,rEff);
+  const dipFrac = sumAtPeak>1e-6 ? (sumAtPeak - sumAtMid)/sumAtPeak : 0;
+  // annotate the valley
+  ch.dot(0, sumAtMid, resolved?COL.good:COL.bad, 4);
+  caption(cx2, ch.toX(0), ch.toY(sumAtMid)+ (dipFrac>0.02?18:-8),
+    resolved ? 'dip '+fmt(dipFrac*100,0)+'% → two peaks' : 'no dip → merged', resolved?COL.good:COL.bad, true);
+
+  setStat('st-resolution', [
+    { label:'Wavelength λ', value: fmt(lam,0)+' nm ('+colorName(lam)+')' },
+    { label:'Numerical aperture NA', value: fmt(NA,2) },
+    { label:'Rayleigh d = 0.61λ/NA', value: fmt(dRay,0)+' nm' },
+    { label:'Abbe λ/(2·NA)', value: fmt(dAbbe,0)+' nm' },
+    { label:'Mode / effective limit', value: (confocal?'confocal ':'widefield ')+fmt(dLimit,0)+' nm' },
+    { label:'Point separation', value: fmt(sep,0)+' nm' },
+    { label:'Resolved?', value: resolved ? (atLimit?'at the limit':'yes') : 'no — merged', highlight:true }
+  ]);
+  if (resolved && !atLimit)
+    setVerdict('vd-resolution','good','Resolved — two distinct points.',
+      'Separation '+fmt(sep,0)+' nm exceeds the '+(confocal?'confocal ':'widefield ')+'limit of '+fmt(dLimit,0)+' nm, so a clear valley ('+fmt(dipFrac*100,0)+'% dip) separates the peaks. '+(confocal?'The confocal pinhole has shrunk each PSF by ×0.72 and rejected out-of-focus haze.':'Raise NA or shorten λ to resolve even finer detail — or switch to confocal.'));
+  else if (atLimit)
+    setVerdict('vd-resolution','warn','Right at the Rayleigh limit.',
+      'Separation '+fmt(sep,0)+' nm ≈ the '+(confocal?'confocal ':'widefield ')+'limit '+fmt(dLimit,0)+' nm: the peaks are just barely distinguishable, with the classic ~26% Rayleigh dip. Any closer and they blur into one. '+(confocal?'':'Confocal (×0.72) or higher NA would give margin.'));
+  else
+    setVerdict('vd-resolution','bad','Blurred into one — below the limit.',
+      'Separation '+fmt(sep,0)+' nm is smaller than the '+(confocal?'confocal ':'widefield ')+'limit '+fmt(dLimit,0)+' nm, so the two Airy disks merge into a single blob with no dip. '+(confocal?'Even confocal can\'t split these — you\'d need shorter λ, higher NA, or super-resolution.':'Switch to confocal (÷√2 ≈ '+fmt(dRay*CONF,0)+' nm), raise NA, or use a shorter wavelength.'));
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { meet: drawMeet, slit: drawSlit, path: drawPath, resolution: drawResolution };
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec) sec.classList.add('active');
+    refreshActiveTab(); startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) stopAnim(); else startAnim(); });
+wireAll(); wireSelfChecks(); refreshActiveTab(); startAnim();
+</script>
+</body>
+</html>

@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atoms as Springs — Solid Mechanics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Atoms as Springs — Why Materials Stretch</h1>
+  <p class="subtitle">Solid Mechanics Foundations · Lesson 1 of 5 — Every solid you have ever
+  bent, stretched, or squeezed is a crowd of atoms connected by bonds that behave like tiny
+  springs. Pull the bond and find out for yourself.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="bond">1 · Two Atoms, One Bond</button>
+  <button class="tab-btn" data-tab="hooke">2 · The Bond Is a Spring</button>
+  <button class="tab-btn" data-tab="chain">3 · From Bonds to a Real Spring</button>
+  <button class="tab-btn" data-tab="lj">4 · Level Up: Lennard-Jones</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: bond -->
+<section id="tab-bond" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: Two atoms, one invisible tug-of-war</h2>
+    <p>Grab a rubber band and stretch it. Something pulls back. Squeeze a tennis ball. Something
+    pushes back. Where do those forces actually come from? Zoom in far enough — past the rubber,
+    past the molecules — and you find pairs of atoms playing a tug-of-war.</p>
+    <p>Every pair of neighboring atoms has a <b>natural spacing</b>, which we call
+    \(r_0\) ("r-zero"). Push the atoms closer than \(r_0\) and their electron clouds start to
+    overlap — they <b>repel</b>, hard. Pull them farther apart than \(r_0\) and the attraction
+    between them takes over — they <b>pull back together</b>. Right at \(r_0\), the push and the
+    pull balance perfectly and the force is zero. The atoms just sit there, happy.</p>
+    <div class="equation-box">
+      $$ F(r) \;=\; \begin{cases} \text{push apart} & r < r_0 \;\;(\text{too close})\\[2pt]
+      0 & r = r_0 \;\;(\text{natural spacing})\\[2pt]
+      \text{pull together} & r > r_0 \;\;(\text{too far}) \end{cases} $$
+    </div>
+    <p>That is the entire secret of solid mechanics. When you stretch a solid, you are pulling
+    billions of atom pairs slightly past \(r_0\), and all of them tug back at once. When you
+    squeeze it, you push them slightly inside \(r_0\) and they all shove back. One important
+    catch: the pull-back has a <b>limit</b>. Stretch a bond far enough and the attraction fades
+    away — the bond effectively breaks. That's why things snap.</p>
+    <div class="worked-example">
+      <p>In copper, neighboring atoms sit about \(r_0 \approx 0.256\ \text{nm}\) apart
+      (a nanometer is a billionth of a meter). A 1&nbsp;cm copper cube is therefore about
+      \(0.01\ \text{m} \div 2.56\times10^{-10}\ \text{m} \approx 3.9\times10^{7}\) atoms across —
+      roughly 39 million atoms in a row. Squeeze that cube by 0.1% and <em>each bond</em> shortens
+      by only 0.1% of \(r_0\), about 0.00026&nbsp;nm — a distance thousands of times smaller than
+      an atom. Tiny motions, but 39 million of them add up to something you can see.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Atoms have a natural spacing \(r_0\): closer → they repel, farther → they attract.</li>
+        <li>Stretching or squeezing a solid means nudging billions of bonds away from \(r_0\).</li>
+        <li>The attraction has a limit — pull far enough and the bond lets go. That's fracture.</li>
+        <li>Everyday forces are the sum of unimaginably many tiny atomic tugs.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Separation</b> slowly from far left to far right. Watch the arrows flip from
+      red (pushing apart) to green (pulling together).</li>
+      <li>Find the exact spot where the arrows vanish. Check the plot — where does the curve
+      cross zero?</li>
+      <li>Keep stretching past 1.11&nbsp;×&nbsp;r₀. Notice the pull-back gets <em>weaker</em>,
+      not stronger. What would that mean for a material being torn apart?</li>
+      <li>Raise <b>Bond strength</b>. Does the natural spacing move, or just the strength of the tug?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="bond" data-scen="squeeze" onclick="setScen('bond','squeeze')">Squeezed</button>
+    <button class="scen-btn on" data-tab="bond" data-scen="relax" onclick="setScen('bond','relax')">Natural spacing</button>
+    <button class="scen-btn" data-tab="bond" data-scen="stretch" onclick="setScen('bond','stretch')">Gently stretched</button>
+    <button class="scen-btn" data-tab="bond" data-scen="break" onclick="setScen('bond','break')">Nearly broken</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Separation <span id="v-bond-r">1.00</span></label>
+        <input type="range" id="s-bond-r" min="0.88" max="2.0" step="0.005" value="1.0">
+      </div>
+      <div class="ctrl-group">
+        <label>Bond strength <span id="v-bond-eps">1.0</span></label>
+        <input type="range" id="s-bond-eps" min="0.5" max="2" step="0.05" value="1.0">
+      </div>
+      <div class="stats" id="st-bond"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The two atoms (dashed circles = natural spacing)</div>
+        <canvas id="cv-bond" width="640" height="230"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Force between the atoms vs. separation</div>
+        <canvas id="cv-bond2" width="640" height="290"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-bond"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: hooke -->
+<section id="tab-hooke" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Zoom in and the curve becomes a spring</h2>
+    <p>In Tab 1 the force curve was clearly bent — steep on the squeeze side, drooping on the
+    stretch side. So how can we get away with calling a bond a "spring"? Because of a trick that
+    shows up all over physics: <b>zoom in close enough to any smooth curve and it looks like a
+    straight line.</b></p>
+    <p>For small nudges around the natural spacing \(r_0\), the pull-back force is simply
+    proportional to how far you moved. Double the stretch, double the force. That linear rule is
+    <b>Hooke's law</b>, written down by Robert Hooke in 1678 as <em>"ut tensio, sic vis"</em> —
+    "as the extension, so the force":</p>
+    <div class="equation-box">
+      $$ F \;=\; -\,k\,x \qquad \text{where } x = r - r_0 $$
+    </div>
+    <p>Here \(x\) is the displacement away from natural spacing, \(k\) is the <b>stiffness</b>
+    (in newtons per meter — how many newtons of pull-back you get per meter of stretch), and the
+    minus sign says the force always points back toward home. Stiff bond → big \(k\) → the same
+    stretch produces more force.</p>
+    <p>But Hooke's law is an <em>approximation</em>, and the sim below lets you catch it failing.
+    The real bond is <b>asymmetric</b>: it fights harder when squeezed than when stretched.
+    For truly small wiggles — a few <em>tenths</em> of a percent of \(r_0\) — the straight line
+    is nearly perfect, and that's exactly the regime ordinary solids live in: bend a steel ruler
+    as far as you dare and its bonds stretch well under 0.5%. Push to a few percent and the
+    mismatch grows surprisingly fast. That lopsidedness is real physics, not a flaw — it is the
+    reason solids expand when heated (the atoms' thermal wiggle gains more room on the stretch
+    side than it loses on the squeeze side).</p>
+    <div class="worked-example">
+      <p>A single metallic bond has a stiffness around \(k \approx 20\ \text{N/m}\). Stretch it by
+      1% of \(r_0\): with \(r_0 \approx 0.25\ \text{nm}\), that's
+      \(x = 2.5\times10^{-12}\ \text{m}\). Hooke's law gives
+      \(F = kx = 20 \times 2.5\times10^{-12} = 5\times10^{-11}\ \text{N} = 50\ \text{pN}\)
+      (piconewtons). That is the actual scale of force an atomic force microscope measures when
+      it probes single bonds.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Near \(r_0\), the bond force is linear: \(F = -kx\). That's Hooke's law.</li>
+        <li>\(k\) is the bond's stiffness — pull-back force per unit of stretch.</li>
+        <li>Hooke's law is a small-stretch approximation; the real bond is stiffer in
+        compression and softer in tension.</li>
+        <li>Everyday elastic behavior lives in the small-stretch regime where Hooke is excellent.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start at a 0.6% stretch window — realistic for a loaded solid. Can you even tell the
+      straight Hooke line and the true curve apart inside the shaded band?</li>
+      <li>Widen the window step by step (the plot zooms with you). At what stretch does the
+      verdict flip to "noticeably off"? To "failed"?</li>
+      <li>Look at the two sides of the window: which side does the straight line miss by more,
+      squeeze or stretch? Which is the true curve steeper on?</li>
+      <li>Increase bond stiffness. Does the <em>percent</em> error at a given window change?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="hooke" data-scen="tiny" onclick="setScen('hooke','tiny')">Realistic wiggle (0.6%)</button>
+    <button class="scen-btn" data-tab="hooke" data-scen="moderate" onclick="setScen('hooke','moderate')">Moderate (3%)</button>
+    <button class="scen-btn" data-tab="hooke" data-scen="big" onclick="setScen('hooke','big')">Big stretch (30%)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Stretch window ± <span id="v-hooke-amp">0.6</span></label>
+        <input type="range" id="s-hooke-amp" min="0.2" max="34" step="0.2" value="0.6">
+      </div>
+      <div class="ctrl-group">
+        <label>Bond stiffness <span id="v-hooke-eps">1.0</span></label>
+        <input type="range" id="s-hooke-eps" min="0.5" max="2" step="0.05" value="1.0">
+      </div>
+      <div class="stats" id="st-hooke"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The bond, stretched to the window edge</div>
+        <canvas id="cv-hooke" width="640" height="150"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">True bond force vs. Hooke's straight line (shaded = your window)</div>
+        <canvas id="cv-hooke2" width="640" height="300"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-hooke"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: chain -->
+<section id="tab-chain" class="tab-content">
+  <div class="background-section">
+    <h2>Background: A metal spring is just atoms getting too far apart</h2>
+    <p>Here's the punchline of this lesson: <b>a coil spring from the hardware store doesn't
+    contain any special "springy" ingredient.</b> It's ordinary steel — a huge 3-D lattice of
+    atoms. When you stretch the coil, metal atoms all along the wire get pulled slightly too far
+    apart (and pushed slightly too close on the inside of each bend), and every one of those
+    bonds tugs back. The spring you hold is billions of atomic springs, wired together.</p>
+    <p>So how do billions of tiny stiff springs combine into one big soft one? Two rules:</p>
+    <p><b>Springs in series share the stretch.</b> A chain of \(N\) bonds pulled end-to-end puts
+    the same force through every bond, and each bond stretches a little — so the total stretch is
+    \(N\) times bigger for the same force. Longer chain → softer.
+    <b>Springs in parallel share the load.</b> \(M\) chains side by side split the force between
+    them, so each stretches less. Fatter bundle → stiffer.</p>
+    <div class="equation-box">
+      $$ k_{\text{series}} = \frac{k_{\text{bond}}}{N_{\text{bonds}}} \qquad
+         k_{\text{parallel}} = M\,k_{\text{chain}} \qquad\Rightarrow\qquad
+         k_{\text{total}} = k_{\text{bond}}\,\frac{M}{N_{\text{bonds}}} $$
+    </div>
+    <p>This explains, with no new physics, why a long thin wire is floppy and a short fat block
+    of the <em>same material</em> is rigid. Same atoms, same bonds — different wiring. Hold that
+    thought: in Lesson 4 it becomes the reason engineers invented <em>stress</em> and
+    <em>strain</em>.</p>
+    <p><b>Here is the picture to carry with you.</b> The coil spring in your hand, the springy
+    steel of a paperclip, the bounce of a diving board — none of them contain a special
+    ingredient. Each is nothing but a crowd of atomic bonds, and <em>every one of those bonds is
+    a tiny spring</em>. Drag the <b>Pull</b> slider below and watch the whole lattice light up:
+    each little spring is color-coded by how much force it is carrying, from cool blue (relaxed)
+    to hot red (heavily loaded). They all load up <em>together</em>, each carrying its share, and
+    those shares add up to the force you feel. That glowing bundle of atomic springs, working in
+    concert, <em>is</em> the spring you hold.</p>
+    <div class="worked-example">
+      <p>Take \(k_{\text{bond}} = 20\ \text{N/m}\) and \(r_0 = 0.25\ \text{nm}\). A single
+      1-cm-long chain of atoms has \(N = 0.01 / 0.25\times10^{-9} = 4\times10^{7}\) bonds, so
+      \(k_{\text{chain}} = 20 / 4\times10^{7} = 5\times10^{-7}\ \text{N/m}\) — so floppy that a
+      10&nbsp;mg fly (weight \(\approx 10^{-4}\ \text{N}\)) would stretch it 200 meters!
+      But a real 1-cm wire with a 1&nbsp;mm² cross-section contains about
+      \(10^{-6}/(0.25\times10^{-9})^2 = 1.6\times10^{13}\) parallel chains, giving
+      \(k = 1.6\times10^{13} \times 5\times10^{-7} \approx 8\times10^{6}\ \text{N/m}\) —
+      a very stiff wire. Both answers come from the same 20&nbsp;N/m bond.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A "spring" is just geometry that lets many atomic bonds stretch a lot in total.</li>
+        <li>Series bonds share the stretch: \(N\) bonds in a row are \(N\) times softer.</li>
+        <li>Parallel chains share the load: \(M\) chains side by side are \(M\) times stiffer.</li>
+        <li>Object stiffness \(k_{\text{total}} = k_{\text{bond}} M/N\) depends on shape, not
+        just material — a clue that force vs. displacement alone can't describe a material.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Pull</b> from zero to full. Every atomic spring warms from blue to red at once —
+      that's all of them sharing the load. Note how the <em>force per atomic spring</em> stat and
+      the total force climb together.</li>
+      <li>Now add <b>chains in parallel</b>. Watch the colors: each spring stays the <em>same</em>
+      shade, but there are more of them — so the total force grows while each spring's job is
+      unchanged. Parallel springs add up.</li>
+      <li>Lengthen the chain (more <b>atoms per chain</b>) at a fixed pull. The springs cool toward
+      blue — with more bonds sharing the same total stretch, each one stretches (and pulls) less.
+      That's why long chains are floppy.</li>
+      <li>Compare "Long thin wire" and "Short fat block" at the same pull. Same bonds, same colors
+      rule — but how different is the total force and the object stiffness (highlighted stat)?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="chain" data-scen="wire" onclick="setScen('chain','wire')">Long thin wire</button>
+    <button class="scen-btn" data-tab="chain" data-scen="block" onclick="setScen('chain','block')">Short fat block</button>
+    <button class="scen-btn" data-tab="chain" data-scen="single" onclick="setScen('chain','single')">Single chain</button>
+    <button class="scen-btn" data-tab="chain" data-scen="pull" onclick="setScen('chain','pull')">Pull it hard</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Atoms per chain <span id="v-chain-n">12</span></label>
+        <input type="range" id="s-chain-n" min="3" max="40" step="1" value="12">
+      </div>
+      <div class="ctrl-group">
+        <label>Chains in parallel <span id="v-chain-m">4</span></label>
+        <input type="range" id="s-chain-m" min="1" max="30" step="1" value="4">
+      </div>
+      <div class="ctrl-group">
+        <label>Bond stiffness <span id="v-chain-k">20</span></label>
+        <input type="range" id="s-chain-k" min="5" max="100" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Pull (stretch the whole spring) <span id="v-chain-D">8</span></label>
+        <input type="range" id="s-chain-D" min="0" max="20" step="0.5" value="8">
+      </div>
+      <div class="stats" id="st-chain"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The atomic springs — color = force each one carries</div>
+        <canvas id="cv-chain" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Force vs. total stretch — slope is the stiffness; dot = your pull</div>
+        <canvas id="cv-chain2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-chain"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: lj -->
+<section id="tab-lj" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: the energy valley a bond lives in</h2>
+    <p><b>Start with a picture, no math.</b> Imagine a marble resting in the bottom of a bowl.
+    Nudge it up either side and it rolls back down to the bottom; the bottom is where it's happy.
+    Two bonded atoms live in a bowl exactly like this — except the bowl is made of
+    <b>energy</b>, not glass. We call the height of the bowl at each separation the bond's
+    <b>potential energy</b> \(U\): it's simply how much energy is stored when the two atoms sit a
+    distance \(r\) apart. Low spots are comfortable (little stored energy); high spots are
+    expensive (you had to do work to get there).</p>
+    <p>This energy bowl is lopsided. Squeeze the atoms closer than they like and the wall shoots
+    up almost vertically — it's brutally expensive to shove electron clouds into each other.
+    Pull them apart and the ground rises too, but gently, eventually flattening into a plateau:
+    once they're far enough apart the atoms barely feel each other, and it costs nothing more to
+    separate them fully. The <b>bottom of the valley</b> is the natural spacing \(r_0\) — where
+    the atoms rest with nothing pushing or pulling. The <b>depth</b> of the valley is the
+    <b>bond energy</b>: how much energy you'd have to pour in to lift the atoms out of the bowl
+    and break the bond for good.</p>
+    <p><b>Where does force come from? Just the slope.</b> Think of the marble again: on a hill it
+    always gets pushed <em>downhill</em>, and the steeper the hill, the harder the push. The bond
+    force is the same idea — it always points toward the bottom of the energy valley, and it's
+    strongest where the valley walls are steepest. Right at the bottom the ground is flat, so
+    there's no push at all: that's why the force is zero at \(r_0\). Steep wall → strong force;
+    flat plateau → no force. You now understand the whole force curve without a single equation:
+    <em>force is which way the energy slopes and how steeply.</em></p>
+    <p>The standard formula for this energy bowl is the <b>Lennard-Jones potential</b>
+    (Lennard-Jones, 1924). It just adds the two effects we described — a fierce short-range push
+    and a gentle long-range pull — using two knobs: \(\varepsilon\) (epsilon) sets how
+    <b>deep</b> the valley is (the bond energy), and \(\sigma\) (sigma) sets the atom's
+    <b>size</b> (where the bowl sits):</p>
+    <div class="equation-box">
+      $$ U(r) = 4\varepsilon\left[\left(\frac{\sigma}{r}\right)^{12}
+        - \left(\frac{\sigma}{r}\right)^{6}\right] $$
+    </div>
+    <p>The \(\left(\sigma/r\right)^{12}\) term is the steep repulsive wall (it blows up when
+    \(r\) gets small); the \(-\left(\sigma/r\right)^{6}\) term is the gentle van der Waals
+    attraction that pulls the bowl down. Drag the <b>Separation</b> slider and watch the marble's
+    height trace out the valley on the left plot, while the force (the slope) shows on the right.</p>
+    <div class="equation-box">
+      <p style="font-weight:700;color:#8b5cf6;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Advanced · needs calculus (skip it — the marble picture already gave you the answer)</p>
+      <p style="margin:4px 0">"How steeply the energy slopes" has an exact name in calculus: the
+      <b>derivative</b> \(dU/dr\), the slope of the \(U\)-versus-\(r\) curve. Force is the
+      <b>negative</b> of that slope (negative because the push is <em>downhill</em>, toward lower
+      energy):</p>
+      $$ F(r) = -\frac{dU}{dr} = \frac{24\varepsilon}{r}\left[2\left(\frac{\sigma}{r}\right)^{12}
+        - \left(\frac{\sigma}{r}\right)^{6}\right] $$
+      <p style="margin:4px 0">Setting this to zero gives the flat bottom of the valley — the
+      natural spacing \(r_0 = 2^{1/6}\sigma \approx 1.122\,\sigma\). And the bond
+      <b>stiffness</b> from Tab 2 is how sharply the valley curves at its bottom — the
+      <b>second derivative</b> (the slope of the slope):
+      \(k = \left.\dfrac{d^2U}{dr^2}\right|_{r_0}
+      = \dfrac{144}{2^{4/3}}\dfrac{\varepsilon}{\sigma^2} \approx 57.15\,\dfrac{\varepsilon}{\sigma^2}\).</p>
+    </div>
+    <p><b>Back to plain language.</b> A deep, narrow valley snaps the atoms back hard the moment
+    they move — that's a <b>stiff</b> bond. A shallow, broad valley barely resists — a <b>soft</b>
+    bond. The tightness of the valley bottom is exactly the spring constant \(k\) you met in
+    Tab 2. And stitching many such bonds into a cube (Tab 3's series/parallel argument) gives the
+    whole material's <b>Young's modulus</b> (defined properly in Lesson 4):
+    \(E \approx k/r_0\) — a back-of-the-envelope estimate that lands remarkably close.</p>
+    <div class="worked-example">
+      <p>Solid argon (the textbook Lennard-Jones solid; parameters from Kittel):
+      \(\varepsilon = 0.0104\ \text{eV} = 1.67\times10^{-21}\ \text{J}\),
+      \(\sigma = 0.340\ \text{nm}\). Then
+      \(r_0 = 1.122 \times 0.340 = 0.381\ \text{nm}\), and
+      \(k = 57.15 \times 1.67\times10^{-21} / (3.40\times10^{-10})^2 \approx 0.82\ \text{N/m}\).
+      Estimate the modulus: \(E \approx k/r_0 = 0.82 / 3.81\times10^{-10} \approx
+      2.2\times10^{9}\ \text{Pa} \approx 2\ \text{GPa}\) — the right order of magnitude for solid
+      argon, and about 100× softer than steel. Weak, shallow wells → soft solids; deep, stiff
+      wells (metallic, covalent bonds) → moduli of 100–1000&nbsp;GPa.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A bond lives in an energy "valley" \(U(r)\): the bottom is the resting spacing \(r_0\),
+        the depth is the bond energy.</li>
+        <li>Force = which way the valley slopes and how steeply (flat bottom → zero force). In
+        calculus that slope is \(F = -dU/dr\).</li>
+        <li>How sharply the valley curves at the bottom = the bond stiffness \(k\) from Tab 2
+        (calculus: the second derivative, \(k \approx 57.15\,\varepsilon/\sigma^2\)).</li>
+        <li>Deep, narrow valley → stiff bond; shallow, broad → soft. And \(E \approx k/r_0\) links
+        one bond to the whole material's stiffness.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On the argon preset, read off \(k\) and the modulus estimate in the stats. Compare to
+      steel (\(E \approx 200\) GPa).</li>
+      <li>Switch to the "metal-like" preset. Which parameter change did more to stiffen the bond:
+      deeper well (\(\varepsilon\)) or smaller atom (\(\sigma\))? Test each alone.</li>
+      <li>Drag the separation slider and watch both curves: confirm the force is zero exactly at
+      the bottom of the energy well.</li>
+      <li>Find the separation of steepest <em>downhill</em> energy — that's the maximum pull the
+      bond can ever supply. What happens to the force beyond it?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="lj" data-scen="argon" onclick="setScen('lj','argon')">Argon (weak, van der Waals)</button>
+    <button class="scen-btn" data-tab="lj" data-scen="metal" onclick="setScen('lj','metal')">Metal-like (deep well)</button>
+    <button class="scen-btn" data-tab="lj" data-scen="stretched" onclick="setScen('lj','stretched')">Stretched past the peak</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Well depth ε <span id="v-lj-eps">10.4</span></label>
+        <input type="range" id="s-lj-eps" min="5" max="500" step="0.1" value="10.4">
+      </div>
+      <div class="ctrl-group">
+        <label>Size σ <span id="v-lj-sig">0.340</span></label>
+        <input type="range" id="s-lj-sig" min="0.20" max="0.45" step="0.005" value="0.34">
+      </div>
+      <div class="ctrl-group">
+        <label>Separation <span id="v-lj-r">1.00</span></label>
+        <input type="range" id="s-lj-r" min="0.90" max="2.0" step="0.005" value="1.0">
+      </div>
+      <div class="stats" id="st-lj"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Potential energy U(r) — the well</div>
+        <canvas id="cv-lj" width="640" height="270"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Force F(r) = −dU/dr, with Hooke tangent at r₀ (dashed)</div>
+        <canvas id="cv-lj2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-lj"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>J. E. Jones (Lennard-Jones), "On the Determination of Molecular Fields. II. From the
+    Equation of State of a Gas," <i>Proc. R. Soc. Lond. A</i> <b>106</b>, 463–477 (1924).
+    DOI: 10.1098/rspa.1924.0082.</li>
+    <li>C. Kittel, <i>Introduction to Solid State Physics</i>, 8th ed., Wiley (2005) — Ch. 3
+    (crystal binding; Lennard-Jones parameters for solid argon: ε = 0.0104 eV, σ = 0.340 nm).</li>
+    <li>W. D. Callister &amp; D. G. Rethwisch, <i>Materials Science and Engineering: An
+    Introduction</i>, 10th ed., Wiley (2018) — Ch. 2 (atomic bonding) and Ch. 6 (elastic
+    behavior; E–bonding-curve connection).</li>
+    <li>M. F. Ashby &amp; D. R. H. Jones, <i>Engineering Materials 1</i>, 4th ed.,
+    Butterworth-Heinemann (2012) — chapters on atomic bonding and the physical origin of
+    Young's modulus (E ≈ k/r₀ estimate).</li>
+    <li>R. Hooke, <i>Lectures de Potentia Restitutiva, or Of Spring</i> (1678) — "ut tensio,
+    sic vis."</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Lesson 1 of 5 — Next: grains, and why metals
+bend before they break.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 1: Atoms as Springs
+   ================================================================ */
+
+/* --- physics: dimensionless Lennard-Jones (x = r/σ; U in ε, F in ε/σ) --- */
+const X0 = Math.pow(2, 1 / 6);                 // r0/σ = 1.1225
+const K_LJ = 144 / Math.pow(2, 4 / 3);         // U''(r0) in ε/σ² = 57.146
+function ljU(x){ const a = Math.pow(1 / x, 6); return 4 * (a * a - a); }
+function ljF(x){ const a = Math.pow(1 / x, 6); return 24 * (2 * a * a - a) / x; } // + = repulsive
+
+/* --- control state --- */
+let activeTab = 'bond';
+const scen = { bond: 'relax', hooke: 'tiny', chain: 'wire', lj: 'argon' };
+
+const FMT = {
+  'bond-r':   v => fmt(v, 2) + ' × r₀',
+  'bond-eps': v => fmt(v, 2) + '×',
+  'hooke-amp': v => fmt(v, 1) + '% of r₀',
+  'hooke-eps': v => fmt(v, 2) + '×',
+  'chain-n': v => fmt(v, 0) + ' atoms',
+  'chain-m': v => fmt(v, 0),
+  'chain-k': v => fmt(v, 0) + ' N/m',
+  'chain-D': v => fmt(v, 1) + ' mm',
+  'lj-eps': v => fmt(v, 1) + ' meV',
+  'lj-sig': v => fmt(v, 3) + ' nm',
+  'lj-r':   v => fmt(v, 2) + ' × r₀'
+};
+
+const SCEN = {
+  bond: {
+    squeeze: { 's-bond-r': 0.92 },
+    relax:   { 's-bond-r': 1.00 },
+    stretch: { 's-bond-r': 1.07 },
+    break:   { 's-bond-r': 1.55 }
+  },
+  hooke: {
+    tiny:     { 's-hooke-amp': 0.6 },
+    moderate: { 's-hooke-amp': 3 },
+    big:      { 's-hooke-amp': 30 }
+  },
+  chain: {
+    wire:   { 's-chain-n': 40, 's-chain-m': 2,  's-chain-k': 20, 's-chain-D': 8 },
+    block:  { 's-chain-n': 5,  's-chain-m': 30, 's-chain-k': 20, 's-chain-D': 8 },
+    single: { 's-chain-n': 12, 's-chain-m': 1,  's-chain-k': 20, 's-chain-D': 8 },
+    pull:   { 's-chain-n': 12, 's-chain-m': 6,  's-chain-k': 20, 's-chain-D': 20 }
+  },
+  lj: {
+    argon:     { 's-lj-eps': 10.4, 's-lj-sig': 0.34, 's-lj-r': 1.0 },
+    metal:     { 's-lj-eps': 400,  's-lj-sig': 0.26, 's-lj-r': 1.0 },
+    stretched: { 's-lj-eps': 10.4, 's-lj-sig': 0.34, 's-lj-r': 1.3 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- small shared drawing bits --- */
+function drawAtom(ctx, x, y, r, color){
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.15, x, y, r);
+  g.addColorStop(0, '#dbeafe'); g.addColorStop(1, color);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,58,95,.35)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* ---------------- TAB 1: bond ---------------- */
+function drawBond(){
+  const rr = num('s-bond-r'), em = num('s-bond-eps');
+  const f = em * ljF(rr * X0);   // ε/σ units, + = repulsive
+
+  // physical picture
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-bond'));
+  const cy = h / 2 + 14, R = 24, restPx = 130, sepPx = rr * restPx;
+  const ax = w / 2 - sepPx / 2, bx = w / 2 + sepPx / 2;
+
+  // ghost circles at rest positions
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = COL.muted; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(w / 2 - restPx / 2, cy, R, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(w / 2 + restPx / 2, cy, R, 0, 7); ctx.stroke();
+  ctx.restore();
+
+  springGlyph(ctx, ax + R, cy, bx - R, cy, 7, 6, COL.muted, 1.5);
+  drawAtom(ctx, ax, cy, R, COL.accent);
+  drawAtom(ctx, bx, cy, R, COL.orange);
+
+  const mag = Math.min(80, Math.sqrt(Math.abs(f)) * 30);
+  if (Math.abs(f) > 0.02) {
+    const yA = cy - R - 20;
+    if (f > 0) { // repel: forces point away from each other
+      arrow(ctx, ax, yA, ax - mag, yA, COL.bad, 3);
+      arrow(ctx, bx, yA, bx + mag, yA, COL.bad, 3);
+      caption(ctx, w / 2, yA - 10, 'pushing apart', COL.bad, true);
+    } else {     // attract: forces point toward each other
+      arrow(ctx, ax - mag, yA, ax, yA, COL.good, 3);
+      arrow(ctx, bx + mag, yA, bx, yA, COL.good, 3);
+      caption(ctx, w / 2, yA - 10, 'pulling back together', COL.good, true);
+    }
+  } else {
+    caption(ctx, w / 2, cy - R - 30, 'balanced — no force', COL.axis, true);
+  }
+  caption(ctx, w / 2, cy + R + 28, 'r = ' + fmt(rr, 2) + ' × r₀', COL.ink, true);
+
+  // force–separation plot (fixed range so the strength slider visibly
+  // rescales the curve; baseline shown for comparison when strength ≠ 1)
+  const c2 = setupCanvas(document.getElementById('cv-bond2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const yLo = -5, yHi = 10;
+  ch.setRange(0.88, 2.0, yLo, yHi);
+  ch.grid(); ch.axes('separation r / r₀', 'force (+ = push apart)');
+  ch.hLine(0, COL.axis, [3, 3]);
+  ch.vLine(1, COL.muted);
+  const pts = [], ptsBase = [];
+  for (let x = 0.88; x <= 2.001; x += 0.004) {
+    pts.push([x, em * ljF(x * X0)]);
+    ptsBase.push([x, ljF(x * X0)]);
+  }
+  if (Math.abs(em - 1) > 0.01) ch.plot(ptsBase, COL.muted, 1.5, [4, 4]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.vLine(1.109, COL.warn, [2, 4]);
+  const fClamped = Math.max(yLo, Math.min(yHi, f));
+  ch.dot(rr, fClamped, Math.abs(f) < 0.02 ? COL.axis : (f > 0 ? COL.bad : COL.good), 6);
+  if (f > yHi) caption(c2.ctx, ch.toX(rr), ch.toY(yHi) + 24,
+    '↑ off scale (' + fmt(f, 0) + ')', COL.bad, true);
+  ch.legend([{ label: 'bond force', color: COL.accent },
+             { label: 'strongest pull (1.11 r₀)', color: COL.warn, dash: [2, 4] }]);
+
+  const regime = rr < 0.97 ? 'repulsive' : rr <= 1.03 ? 'balanced' :
+                 rr <= 1.11 ? 'attractive (spring-like)' : rr <= 1.5 ? 'weakening' : 'broken';
+  setStat('st-bond', [
+    { label: 'Separation', value: fmt(rr, 2) + ' × r₀' },
+    { label: 'Force', value: fmt(f, 2) + ' ε/σ', highlight: true },
+    { label: 'Regime', value: regime },
+    { label: 'Strongest pull at', value: '1.11 × r₀' }
+  ]);
+
+  if (rr < 0.97)
+    setVerdict('vd-bond', 'bad', 'Squeezed — strong repulsion.',
+      'The electron clouds are overlapping and shoving the atoms apart. Notice how fast the force grows: squeezing a solid is much harder than stretching it.');
+  else if (rr <= 1.03)
+    setVerdict('vd-bond', 'good', 'At the natural spacing r₀.',
+      'Push and pull balance; the force is zero. Every atom in an unloaded solid sits at (or jiggles around) this spot.');
+  else if (rr <= 1.11)
+    setVerdict('vd-bond', 'good', 'Stretched — the bond pulls back like a spring.',
+      'The farther you pull, the harder it tugs back. This is the regime where the material behaves elastically.');
+  else if (rr <= 1.5)
+    setVerdict('vd-bond', 'warn', 'Past the strongest pull — the bond is weakening.',
+      'You crossed 1.11 × r₀, the peak of the attraction. Pulling farther now gives you LESS resistance — the bond is on its way to failure.');
+  else
+    setVerdict('vd-bond', 'bad', 'Effectively broken.',
+      'The attraction has faded to almost nothing. The atoms no longer act connected — at the material scale, this is a fracture surface.');
+}
+
+/* ---------------- TAB 2: hooke ---------------- */
+function drawHooke(){
+  const amp = num('s-hooke-amp'), em = num('s-hooke-eps');
+  const kRed = K_LJ * X0 * em;                            // dT/ds, s in fractions of r0, T in ε/σ
+  const Ttrue = s => -em * ljF((1 + s) * X0);             // restoring (pull-back) force, + when stretched
+  const Thooke = s => kRed * s;
+
+  // physical picture: wall–spring–atom at +amp
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-hooke'));
+  const cy = h / 2 + 6, R = 18, x0px = 90, restLen = 300, s = amp / 100;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(x0px - 26, cy - 44, 10, 88);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(x0px - 26, cy - 44, 10, 88);
+  const xAtom = x0px + restLen * (1 + s);
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = COL.muted;
+  ctx.beginPath(); ctx.arc(x0px + restLen, cy, R, 0, 7); ctx.stroke(); ctx.restore();
+  springGlyph(ctx, x0px - 16, cy, xAtom - R, cy, 10, 7, COL.ink, 2);
+  drawAtom(ctx, xAtom, cy, R, COL.accent);
+  arrow(ctx, xAtom + R + 4, cy, xAtom + R + 4 + Math.min(60, 14 + amp * 1.4), cy, COL.warn, 3);
+  caption(ctx, x0px + restLen, cy - R - 12, 'rest', COL.muted);
+  caption(ctx, xAtom, cy + R + 20, '+' + fmt(amp, 1) + '% stretch', COL.ink, true);
+
+  // plot: true vs Hooke — the plot ZOOMS with the window, so a tiny window
+  // shows the zoomed-in view where the curve genuinely looks straight
+  const c2 = setupCanvas(document.getElementById('cv-hooke2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const sMax = Math.min(Math.max(2.5 * amp, 1), 36) / 100;
+  const yAbs = 3 * Math.abs(Thooke(amp / 100));
+  ch.setRange(-sMax * 100, sMax * 100, -yAbs, yAbs);
+  ch.band(-amp, amp, 'rgba(37,99,235,0.08)');
+  ch.grid(); ch.axes('displacement from r₀  (% of r₀)', 'pull-back force (ε/σ)');
+  ch.hLine(0, COL.axis, [3, 3]); ch.vLine(0, COL.axis, [3, 3]);
+  const ptsT = [], ptsH = [];
+  for (let sv = -sMax; sv <= sMax + 1e-9; sv += sMax / 220) {
+    ptsT.push([sv * 100, Ttrue(sv)]); ptsH.push([sv * 100, Thooke(sv)]);
+  }
+  ch.plot(ptsH, COL.orange, 2, [6, 4]);
+  ch.plot(ptsT, COL.accent, 2.5);
+  ch.dot(amp, Ttrue(amp / 100), COL.accent, 5);
+  ch.dot(amp, Thooke(amp / 100), COL.orange, 5);
+  ch.dot(-amp, Ttrue(-amp / 100), COL.accent, 5);
+  ch.dot(-amp, Thooke(-amp / 100), COL.orange, 5);
+  ch.legend([{ label: 'true bond force', color: COL.accent },
+             { label: 'Hooke  F = −kx', color: COL.orange, dash: [6, 4] }]);
+
+  const errP = Math.abs(Ttrue(amp / 100) - Thooke(amp / 100)) / Math.abs(Thooke(amp / 100)) * 100;
+  const errM = Math.abs(Ttrue(-amp / 100) - Thooke(-amp / 100)) / Math.abs(Thooke(amp / 100)) * 100;
+  const err = Math.max(errP, errM);
+  const errTxt = e => e > 200 ? '> 200 %' : fmt(e, 1) + ' %';
+  setStat('st-hooke', [
+    { label: 'Stiffness k', value: fmt(kRed, 1) + ' ε/σ per r₀' },
+    { label: 'Window', value: '± ' + fmt(amp, 1) + '% of r₀' },
+    { label: 'Error (stretch side)', value: errTxt(errP) },
+    { label: 'Error (squeeze side)', value: errTxt(errM) },
+    { label: 'Worst error', value: errTxt(err), highlight: true }
+  ]);
+
+  if (err < 8)
+    setVerdict('vd-hooke', 'good', 'Hooke\'s law is an excellent approximation here.',
+      'Inside your ±' + fmt(amp, 1) + '% window, the straight line and the true curve are nearly indistinguishable (worst error ' + fmt(err, 1) + '%). This is the regime where real solids operate elastically — their bonds rarely stretch past a few tenths of a percent.');
+  else if (err < 40)
+    setVerdict('vd-hooke', 'warn', 'Hooke is noticeably off.',
+      'The worst mismatch in your window is ' + fmt(err, 1) + '%. Look closely: the real bond is stiffer than the line when squeezed and softer when stretched — the well is asymmetric. Real solids only reach these bond stretches near defects and crack tips.');
+  else
+    setVerdict('vd-hooke', 'bad', 'Hooke\'s law has failed.',
+      'At ±' + fmt(amp, 1) + '% the straight line misses by ' + (err > 200 ? 'hundreds of percent' : fmt(err, 0) + '%') + '. On the stretch side the true force is even bending back down toward zero — the bond is heading for failure, and no spring model can describe that.');
+}
+
+/* ---------------- TAB 3: chain ---------------- */
+/* force→color: blue (relaxed) → amber → red (heavily loaded); t in [0,1] */
+function forceColor(t){
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[59, 130, 246], [245, 158, 11], [220, 38, 38]]; // blue, amber, red
+  const seg = t < 0.5 ? 0 : 1, f = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+  const a = stops[seg], b = stops[seg + 1];
+  const c = i => Math.round(a[i] + (b[i] - a[i]) * f);
+  return `rgb(${c(0)},${c(1)},${c(2)})`;
+}
+
+function drawChain(){
+  const n = num('s-chain-n'), m = num('s-chain-m'), k = num('s-chain-k'), D = num('s-chain-D');
+  const bonds = n - 1;
+  const kEff = k * m / bonds;              // N/m — stiffness of the whole object
+  const Dm = D / 1000;                     // m — total stretch you pulled
+  const Ftot = kEff * Dm;                  // N — total force you feel
+  const fBond = k * Dm / bonds;            // N — force in EACH atomic spring (= Ftot / m)
+  const F_REF = 0.04;                      // N — ~force of one bond in a short chain at full pull
+  const t = fBond / F_REF;                 // color intensity
+
+  // ---- canvas 1: the colored atomic springs ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-chain'));
+  const rowsShown = Math.min(m, 10);
+  const top = 30, bot = h - 64;            // leave a strip at the bottom for the colorbar
+  const rowGap = rowsShown > 1 ? (bot - top) / (rowsShown - 1) : 0;
+  const xL = 52, xR = w - 96;
+  // fixed wall (left) + moving pull bar (right), nudged by the pull for a live feel
+  const pull = 8 + (D / 20) * 26;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(xL - 22, top - 16, 10, (bot - top) + 32);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(xL - 22, top - 16, 10, (bot - top) + 32);
+  const dx = (xR - xL) / bonds, sc = forceColor(t);
+  for (let r = 0; r < rowsShown; r++) {
+    const y = rowsShown > 1 ? top + r * rowGap : (top + bot) / 2;
+    for (let i = 0; i < bonds; i++) {
+      const x1 = xL + i * dx, x2 = xL + (i + 1) * dx;
+      if (dx > 22) springGlyph(ctx, x1 + 4, y, x2 - 4, y, 4, 4, sc, 2);
+      else drawLine(ctx, x1, y, x2, y, sc, 2);
+    }
+    for (let i = 0; i <= bonds; i++) {
+      ctx.fillStyle = COL.ink;
+      ctx.beginPath(); ctx.arc(xL + i * dx, y, Math.min(4.5, dx * 0.22 + 1.5), 0, 7); ctx.fill();
+    }
+  }
+  // moving pull bar + arrow, colored by load
+  ctx.fillStyle = '#94a3b8'; ctx.fillRect(xR + pull, top - 16, 8, (bot - top) + 32);
+  arrow(ctx, xR + pull + 12, (top + bot) / 2, xR + pull + 54, (top + bot) / 2, sc, 4);
+  caption(ctx, xR + pull + 33, (top + bot) / 2 - 12, 'F = ' + fmt(Ftot, 3) + ' N', COL.ink, true);
+  const chainsTxt = m > rowsShown ? ('showing 10 of ' + m + ' parallel chains') :
+    (m + (m > 1 ? ' parallel chains × ' : ' chain × ') + bonds + ' springs, all sharing the pull');
+  caption(ctx, (xL + xR) / 2, top - 20, chainsTxt, COL.muted);
+
+  // colorbar legend (blue→red) with the current load marked
+  const barX = 60, barW = w - 200, barY = h - 34, barH = 12;
+  const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  for (let s = 0; s <= 1.0001; s += 0.1) grad.addColorStop(Math.min(s, 1), forceColor(s));
+  ctx.fillStyle = grad; ctx.fillRect(barX, barY, barW, barH);
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, barH);
+  const mx = barX + Math.max(0, Math.min(1, t)) * barW;
+  ctx.fillStyle = COL.ink;
+  ctx.beginPath(); ctx.moveTo(mx, barY - 5); ctx.lineTo(mx - 5, barY - 12); ctx.lineTo(mx + 5, barY - 12); ctx.closePath(); ctx.fill();
+  ctx.font = '11px sans-serif'; ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';  ctx.fillText('relaxed', barX + 4, barY + barH / 2);
+  ctx.textAlign = 'right'; ctx.fillText('heavily loaded', barX + barW - 4, barY + barH / 2);
+  ctx.fillStyle = COL.ink; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle'; ctx.fillText('force in each atomic spring', barX + barW + 8, barY + barH / 2);
+  ctx.textBaseline = 'alphabetic';
+
+  // ---- canvas 2: force vs total stretch (dot = your pull) ----
+  const c2 = setupCanvas(document.getElementById('cv-chain2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const kChain = k / bonds;                 // one chain, same length
+  const xMax = Math.max(2.2 / Math.min(kEff, kChain) * 1000, D * 1.15, 1);  // mm
+  const yMax = Math.max(2, Ftot * 1.2);
+  ch.setRange(0, xMax, 0, yMax);
+  ch.grid(); ch.axes('total stretch (mm)', 'force (N)');
+  ch.plot([[0, 0], [xMax, kChain * xMax / 1000]], COL.orange, 2, [6, 4]);
+  ch.plot([[0, 0], [xMax, k * xMax / 1000]], COL.muted, 1.5, [2, 3]);
+  ch.plot([[0, 0], [xMax, kEff * xMax / 1000]], COL.accent, 3);
+  ch.vLine(D, COL.muted, [3, 3]);
+  ch.dot(D, Ftot, forceColor(t), 6);
+  ch.legend([{ label: 'your object', color: COL.accent },
+             { label: '1 chain', color: COL.orange, dash: [6, 4] },
+             { label: '1 bond', color: COL.muted, dash: [2, 3] }]);
+
+  setStat('st-chain', [
+    { label: 'Bonds in series', value: fmt(bonds, 0) },
+    { label: 'Chains in parallel', value: fmt(m, 0) },
+    { label: 'k of object', value: fmt(kEff, 2) + ' N/m', highlight: true },
+    { label: 'You pulled', value: fmt(D, 1) + ' mm' },
+    { label: 'Force per atomic spring', value: fmt(fBond * 1000, 2) + ' mN' },
+    { label: 'Total force (× ' + m + ' chains)', value: fmt(Ftot, 3) + ' N' }
+  ]);
+
+  const ratio = kEff / k;
+  if (D < 0.01)
+    setVerdict('vd-chain', '', 'Relaxed — every spring is blue.',
+      'Nothing is pulling yet, so no bond carries any force. Drag the Pull slider and watch all ' + fmt(bonds * m, 0) + ' atomic springs warm up at once.');
+  else if (t > 0.85)
+    setVerdict('vd-chain', 'warn', 'Springs glowing red — heavily loaded.',
+      'Each of the ' + m + ' chains carries ' + fmt(fBond * 1000, 2) + ' mN, and those shares add to ' + fmt(Ftot, 3) + ' N total. Push much further and the bonds would leave the Hooke regime (Tab 2) and start to fail.');
+  else if (ratio >= 1)
+    setVerdict('vd-chain', 'good', 'Stiff bundle — many springs, short chains.',
+      'Every one of the ' + m + ' parallel chains pulls with the same ' + fmt(fBond * 1000, 2) + ' mN; together they make ' + fmt(Ftot, 3) + ' N. Object stiffness is ' + fmt(ratio, 1) + '× a single bond: k = k_bond × M/N.');
+  else
+    setVerdict('vd-chain', 'good', 'Every atomic spring is carrying its share.',
+      'Each spring pulls with ' + fmt(fBond * 1000, 2) + ' mN; the ' + m + ' parallel chains add up to ' + fmt(Ftot, 3) + ' N. Lengthen the chain and each spring cools (shares less stretch); add chains and the total grows while each spring’s job stays the same. This glowing bundle IS the spring.');
+}
+
+/* ---------------- TAB 4: lj ---------------- */
+function drawLJ(){
+  const epsMeV = num('s-lj-eps'), sig = num('s-lj-sig'), rr = num('s-lj-r');
+  const epsJ = epsMeV * 1.602e-22;          // J
+  const sigM = sig * 1e-9;                  // m
+  const r0nm = X0 * sig;                    // nm
+  const kNm = K_LJ * epsJ / (sigM * sigM);  // N/m
+  const Egpa = kNm / (r0nm * 1e-9) / 1e9;   // GPa
+  const rnm = rr * r0nm;
+  const x = rr * X0;                        // r/σ
+  const UmeV = epsMeV * ljU(x);
+  const FpN = (epsJ / sigM) * ljF(x) / 1e-12;
+  const FScale = (epsJ / sigM) / 1e-12;     // pN per (ε/σ)
+
+  // energy well
+  const c1 = setupCanvas(document.getElementById('cv-lj'));
+  const ch1 = new Chart(c1.ctx, c1.w, c1.h);
+  const rA = 0.93 * sig, rB = 2.1 * r0nm;
+  ch1.setRange(rA, rB, -epsMeV * 1.15, epsMeV * 1.4);
+  ch1.grid(); ch1.axes('separation r (nm)', 'U (meV)');
+  ch1.hLine(0, COL.axis, [3, 3]);
+  ch1.hLine(-epsMeV, COL.warn, [2, 4]);
+  const ptsU = [];
+  for (let r = rA; r <= rB; r += (rB - rA) / 400) ptsU.push([r, epsMeV * ljU(r / sig)]);
+  ch1.plot(ptsU, COL.accent, 2.5);
+  ch1.vLine(r0nm, COL.muted);
+  ch1.dot(rnm, UmeV, COL.purple, 6);
+  ch1.legend([{ label: 'U(r)', color: COL.accent },
+              { label: 'well depth −ε', color: COL.warn, dash: [2, 4] }]);
+
+  // force curve + Hooke tangent
+  const c2 = setupCanvas(document.getElementById('cv-lj2'));
+  const ch2 = new Chart(c2.ctx, c2.w, c2.h);
+  ch2.setRange(rA, rB, -3 * FScale, 6 * FScale);
+  ch2.grid(); ch2.axes('separation r (nm)', 'F (pN, + = push apart)');
+  ch2.hLine(0, COL.axis, [3, 3]);
+  const ptsF = [], ptsL = [];
+  for (let r = rA; r <= rB; r += (rB - rA) / 400) {
+    ptsF.push([r, (epsJ / sigM) * ljF(r / sig) / 1e-12]);
+    ptsL.push([r, -kNm * (r - r0nm) * 1e-9 / 1e-12]);
+  }
+  ch2.plot(ptsL, COL.orange, 2, [6, 4]);
+  ch2.plot(ptsF, COL.accent, 2.5);
+  ch2.vLine(r0nm, COL.muted);
+  ch2.dot(rnm, FpN, COL.purple, 6);
+  ch2.legend([{ label: 'F = −dU/dr', color: COL.accent },
+              { label: 'Hooke tangent, slope −k', color: COL.orange, dash: [6, 4] }]);
+
+  setStat('st-lj', [
+    { label: 'r₀ = 1.122 σ', value: fmt(r0nm, 3) + ' nm' },
+    { label: 'Bond energy ε', value: fmt(epsMeV, 1) + ' meV' },
+    { label: 'Stiffness k', value: fmt(kNm, 2) + ' N/m', highlight: true },
+    { label: 'E ≈ k/r₀', value: fmt(Egpa, 1) + ' GPa' },
+    { label: 'F at current r', value: fmt(FpN, 1) + ' pN' }
+  ]);
+
+  if (rr >= 0.97 && rr <= 1.05)
+    setVerdict('vd-lj', 'good', 'Sitting in the well bottom — Hooke territory.',
+      'k = ' + fmt(kNm, 2) + ' N/m gives a modulus estimate E ≈ k/r₀ = ' + fmt(Egpa, 1) + ' GPa. Compare: solid argon ~2 GPa, steel ~200 GPa, diamond ~1100 GPa. Deeper/narrower wells → stiffer materials.');
+  else if (rr < 0.97)
+    setVerdict('vd-lj', 'warn', 'On the repulsive wall.',
+      'U(r) climbs almost vertically here — the r⁻¹² term. This is why solids are so hard to compress: the energy cost of overlap is enormous.');
+  else if (rr <= 1.35)
+    setVerdict('vd-lj', 'warn', 'Anharmonic zone — the tangent line is drifting off.',
+      'The true force (blue) is falling below the Hooke tangent (orange): the bond is softer than linear out here. You\'re between the well bottom and the point of maximum pull at 1.11 r₀ ≈ ' + fmt(1.109 * r0nm, 3) + ' nm.');
+  else
+    setVerdict('vd-lj', 'bad', 'Beyond the pull limit — the bond has essentially let go.',
+      'F has decayed toward zero and U has flattened: separating the atoms further costs almost no additional energy. The pair is unbound for practical purposes — this is bond rupture.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { bond: drawBond, hooke: drawHooke, chain: drawChain, lj: drawLJ };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+</script>
+</body>
+</html>

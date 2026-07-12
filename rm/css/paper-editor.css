@@ -124,6 +124,17 @@
 .pe-savestate-saved  { color: #047857; }
 .pe-savestate-err    { color: #b91c1c; }
 
+/* V3.235 — Phone: tighten the topbar so it doesn't push the title input
+ * off-screen with the new ☰ Outline + 💬 Comments toggles. The base
+ * `.pe-topbar` already has flex-wrap, so when the four buttons + title
+ * compete for room the title input drops to a second row. */
+@media (max-width: 640px) {
+  .pe-topbar { gap: 8px; padding: 8px 12px; }
+  .pe-topbar .pe-title-input { min-width: 0; font-size: 15px; }
+  .pe-topbar .pe-savestate { min-width: 0; }
+  .pe-topbar .pe-back { font-size: 12px; }
+}
+
 .pe-readonly-banner {
   background: #fffbeb; border-bottom: 1px solid #fde68a;
   padding: 8px 16px; font-size: 13px; color: #92400e;
@@ -150,6 +161,75 @@
   display: inline-flex; align-items: center; gap: 2px;
   margin-left: 4px;
 }
+
+/* V3.217 — soft section lock badge.
+ *
+ * Visible to both the holder ("You") and everyone else ("Locked by
+ * Alex"). The block wrapper gains `data-locked="self"` or
+ * `data-locked="other"` so the body styling can react: locked-by-other
+ * dims the prose, draws a left accent in the holder's color (passed
+ * via `--pe-lock-color`), and the click-toast handler in JS surfaces
+ * the holder name on attempted clicks. The 30s stale-presence check in
+ * paper-yjs.js means a holder who walks away from a tab eventually
+ * frees the lock without any manual intervention. */
+.pe-block-lock-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-left: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  color: #4b5563;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.pe-block-lock-badge[hidden] { display: none; }
+.pe-block-lock-badge.pe-block-lock-self {
+  background: rgba(34, 197, 94, 0.10);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #166534;
+}
+.pe-block-lock-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pe-block-lock-name { font-weight: 600; }
+.pe-block[data-locked="other"] {
+  border-left: 3px solid var(--pe-lock-color, #9ca3af);
+  background: #fafafa;
+}
+.pe-block[data-locked="other"] .pe-block-content {
+  cursor: not-allowed;
+  color: #4b5563;
+}
+.pe-block[data-locked="other"] .pe-skeleton-bullet {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+/* V3.220 — `.pe-block[data-locked="self"]` styling lives entirely in
+ * the later V3.218/V3.219 block (outline + border-left in the holder's
+ * presence color). The V3.217 first-cut green box-shadow is removed
+ * here to avoid a double-ring (green inner glow + holder-color outline)
+ * that ships when both rules apply at the same cascade level. */
+
+/* V3.217 — transient toast surfaced when a non-holder clicks into a
+ * locked-by-other block. Positioned near the click and auto-hides
+ * after ~1.8s. */
+.pe-lock-toast {
+  position: absolute;
+  z-index: 4300;
+  background: rgba(15, 23, 42, 0.94);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+}
+.pe-lock-toast[hidden] { display: none; }
 .pe-invite-btn {
   font-size: 12px; padding: 4px 10px;
 }
@@ -158,15 +238,111 @@
   display: flex; flex: 1; min-height: 0;
 }
 
-/* Sidebar — outline of sections */
+/* Sidebar — outline of sections + (V3.197) current-paragraph skeleton mirror */
 .pe-sidebar {
   width: 240px; min-width: 220px; max-width: 280px;
   background: #f9fafb; border-right: 1px solid #e5e7eb;
-  padding: 12px 0; overflow-y: auto;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
 }
 .pe-sidebar-title {
   font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
   color: #6b7280; padding: 0 16px 8px; font-weight: 600;
+}
+
+/* V3.197 — sidebar tab nav. Two tabs ("Outline" / "Paragraph") that
+ * persist their active state via localStorage `rm_paper_sidebar_tab`. */
+.pe-sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  position: sticky; top: 0; z-index: 1;
+}
+.pe-sidebar-tab {
+  flex: 1 1 50%;
+  background: transparent;
+  border: 0;
+  padding: 10px 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: background 80ms, color 80ms, border-color 80ms;
+}
+.pe-sidebar-tab:hover:not(.active) {
+  background: #f3f4f6;
+  color: #374151;
+}
+.pe-sidebar-tab.active {
+  color: #1d4ed8;
+  border-bottom-color: #2563eb;
+  background: #eff6ff;
+}
+.pe-sidebar-tab-content {
+  padding: 8px 0;
+  flex: 1 1 auto;
+}
+.pe-sidebar-tab-content[hidden] { display: none; }
+
+.pe-sidebar-empty {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  padding: 14px 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+.pe-sidebar-skel-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  font-weight: 700;
+  padding: 4px 16px 6px;
+}
+.pe-sidebar-skel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pe-sidebar-skel-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 5px 12px 5px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #374151;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.pe-sidebar-skel-item:hover {
+  background: #f3f4f6;
+  border-left-color: #93c5fd;
+}
+.pe-sidebar-skel-item-claim {
+  background: #fffbeb;
+}
+.pe-sidebar-skel-item-claim:hover {
+  background: #fef3c7;
+}
+.pe-sidebar-skel-flag {
+  color: #f59e0b;
+  font-size: 12px;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+.pe-sidebar-skel-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+}
+.pe-sidebar-skel-empty-bullet {
+  color: #9ca3af;
+  font-style: italic;
 }
 .pe-sidebar-list { list-style: none; margin: 0; padding: 0; }
 .pe-sidebar-item {
@@ -389,8 +565,165 @@
 .pe-tbl-small-btn { background: #fff; border: 1px solid #d1d5db; }
 .pe-tbl-small-btn:hover { background: #eff6ff; }
 
+/* ── Figure block (V3.102) ── */
+.pe-block-figure .pe-figure-preview {
+  margin: 8px 0 6px;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  text-align: center;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pe-block-figure .pe-figure-img {
+  max-width: 100%;
+  max-height: 480px;
+  display: block;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.pe-block-figure .pe-figure-empty {
+  font-size: 13px;
+  color: #6b7280;
+  font-style: italic;
+}
+.pe-block-figure .pe-figure-uploadrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.pe-block-figure .pe-figure-upload-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pe-block-figure .pe-figure-upload-btn:hover:not(:disabled) { background: #eff6ff; }
+.pe-block-figure .pe-figure-upload-btn:disabled {
+  opacity: 0.5; cursor: not-allowed;
+}
+.pe-block-figure .pe-figure-uploadstatus {
+  font-size: 12px;
+  color: #6b7280;
+}
+.pe-block-figure .pe-figure-layout {
+  margin: 4px 0 8px;
+  font-size: 12px;
+}
+.pe-block-figure .pe-figure-layout > summary {
+  cursor: pointer;
+  color: #4b5563;
+  user-select: none;
+  padding: 2px 0;
+}
+.pe-block-figure .pe-figure-layout > summary:hover { color: #111827; }
+.pe-block-figure .pe-figure-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 14px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+.pe-block-figure .pe-figure-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pe-block-figure .pe-figure-field > span {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pe-block-figure .pe-figure-field input[type="text"],
+.pe-block-figure .pe-figure-field select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pe-block-figure .pe-figure-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-block-figure .pe-figure-caption-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+.pe-block-figure .pe-figure-caption {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 8px 10px;
+  min-height: 28px;
+}
+.pe-block-figure .pe-figure-caption:focus { border-color: #93c5fd; outline: none; }
+.pe-block-figure .pe-figure-rawtex {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.pe-block-figure .pe-figure-rawtex > summary {
+  cursor: pointer; color: #6b7280;
+}
+.pe-block-figure .pe-figure-rawtex pre {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 8px 10px;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
 /* ── Inventory popover (reuses .pe-cite-popover styles) ── */
 .pe-inv-popover { z-index: 2001; }
+
+/* V3.108 — kind badge so the user can tell reagents (chemical) from
+ * equipment (item) at a glance in the inventory popover. */
+.pe-inv-kind-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.pe-inv-kind-badge.pe-inv-kind-chemical {
+  background: #fef3c7; color: #92400e; border: 1px solid #fde68a;
+}
+.pe-inv-kind-badge.pe-inv-kind-item {
+  background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe;
+}
+.pe-cite-pop-row .pe-inv-name {
+  vertical-align: middle;
+}
 
 /* ── Comments pane + per-block button ── */
 .pe-comments-pane {
@@ -411,6 +744,153 @@
   padding: 6px 14px; font-size: 11px; color: #6b7280;
   border-bottom: 1px solid #e5e7eb; background: #fff;
 }
+
+/* V3.204 — comments-pane filter dropdown ("This paragraph" / "Paragraphs in view"). */
+.pe-comments-filterbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  font-size: 11px; color: #6b7280;
+}
+.pe-comments-filterbar label {
+  text-transform: uppercase; letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.pe-comments-filterbar select {
+  flex: 1 1 auto;
+  font-size: 12px; padding: 3px 6px;
+  border: 1px solid #d1d5db; border-radius: 4px;
+  background: #fff; color: #1f2937;
+}
+.pe-comments-filterbar select:focus { outline: none; border-color: #2563eb; }
+
+/* V3.204 — anchor preview shows the highlighted snippet the comment
+ * will be tied to (between the filter bar and the comment list). */
+.pe-comments-anchor-preview {
+  padding: 8px 14px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  font-size: 12px; line-height: 1.4;
+  display: flex; align-items: flex-start; gap: 6px;
+}
+.pe-comments-anchor-preview[hidden] { display: none; }
+.pe-comments-anchor-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: #92400e;
+  flex-shrink: 0;
+}
+.pe-comments-anchor-snippet {
+  flex: 1 1 auto; color: #78350f;
+  font-style: italic;
+}
+.pe-comments-anchor-clear {
+  background: transparent; border: 0; cursor: pointer;
+  color: #92400e; font-size: 14px; line-height: 1;
+  padding: 0 4px;
+}
+.pe-comments-anchor-clear:hover { color: #78350f; }
+
+/* V3.204 — anchor snippet on a comment card. Sits above the meta
+ * row to indicate "this comment is on this specific text". */
+.pe-comment-anchor-snippet {
+  padding: 6px 8px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 3px;
+  font-size: 12px; font-style: italic;
+  color: #78350f; line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+/* V3.204 — scope label + block header for view-mode comments. */
+.pe-comments-scope-label {
+  font-size: 11px; color: #6b7280; font-style: italic;
+  padding: 4px 0 8px;
+  border-bottom: 1px dashed #e5e7eb;
+  margin-bottom: 6px;
+}
+.pe-comments-block-header {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.04em; font-weight: 700; color: #2563eb;
+  padding: 8px 0 4px;
+  cursor: pointer;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 4px;
+}
+.pe-comments-block-header:first-of-type {
+  border-top: 0; margin-top: 0;
+}
+.pe-comments-block-header:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* V3.204 — floating "💬 Comment" button that follows the text
+ * selection. Position-absolute so it lays over the editor. */
+.pe-comment-floating-btn {
+  position: absolute;
+  z-index: 4200;
+  background: #2563eb;
+  color: #fff;
+  border: 1px solid #1d4ed8;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+.pe-comment-floating-btn:hover {
+  background: #1d4ed8;
+}
+.pe-comment-floating-btn[hidden] { display: none; }
+
+/* V3.216 — in-body highlight on commented text spans. Backed by the
+ * V3.204 (anchorStart, anchorEnd) fields on each comment doc; injected
+ * by `applyCommentHighlightsToBlock` after every full-HTML render of
+ * a paragraph body. Open comments tint the span amber; resolved-only
+ * spans get a thin underline so the prose stays clean while still
+ * surfacing historical context. */
+.pe-comment-highlight {
+  background-color: rgba(252, 211, 77, 0.40);
+  border-bottom: 1px solid rgba(217, 119, 6, 0.45);
+  border-radius: 2px;
+  /* V3.219 — highlights are no longer click-to-filter; cursor stays as
+   * text-caret so the writer can place the caret inside a highlighted
+   * span like any other prose. The hover-glow + comment-card link still
+   * fire via the V3.218 mouseover handler. */
+  cursor: text;
+  transition: background-color 0.12s ease;
+}
+.pe-comment-highlight:hover {
+  background-color: rgba(252, 211, 77, 0.70);
+}
+.pe-comment-highlight-resolved {
+  border-bottom: 1px dotted rgba(107, 114, 128, 0.55);
+  cursor: text;
+}
+.pe-comment-highlight-resolved:hover {
+  border-bottom-color: rgba(55, 65, 81, 0.9);
+  background-color: rgba(229, 231, 235, 0.5);
+}
+
+/* V3.216 — anchor-scope chip rendered above the comments list when a
+ * highlight click narrows the list. */
+.pe-comments-anchor-scope {
+  display: flex; align-items: center; gap: 6px;
+  font-style: normal; color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.pe-comments-scope-clear {
+  margin-left: auto;
+  background: transparent; border: 0; cursor: pointer;
+  color: #92400e; font-size: 14px; line-height: 1;
+  padding: 0 4px;
+}
+.pe-comments-scope-clear:hover { color: #78350f; }
 .pe-comments-list {
   flex: 1; overflow-y: auto;
   padding: 10px 14px;
@@ -443,9 +923,35 @@
 }
 .pe-comment-action:hover { color: #2563eb; }
 .pe-comment-action-danger:hover { color: #b91c1c; }
-.pe-comments-composer {
+/* V3.211 — composer is now wrapped in a labeled .pe-comments-new
+ * section that includes the anchor preview directly above the textarea,
+ * so the highlighted snippet visually belongs to the "new comment"
+ * being authored. The user can highlight while the pane is open and
+ * keep typing in the same textbox without ever clicking the floating
+ * button. */
+.pe-comments-new {
   border-top: 1px solid #e5e7eb;
-  padding: 10px 14px;
+  background: #fff;
+  display: flex; flex-direction: column;
+  flex-shrink: 0;
+}
+.pe-comments-new-title {
+  padding: 8px 14px 4px;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: #6b7280;
+}
+.pe-comments-new .pe-comments-anchor-preview {
+  margin: 0 14px 6px;
+  border-radius: 4px;
+  border: 1px solid #fde68a;
+}
+.pe-comments-new .pe-comments-anchor-preview[hidden] {
+  display: none;
+}
+.pe-comments-composer {
+  border-top: 0;
+  padding: 4px 14px 10px;
   background: #fff;
   display: flex; flex-direction: column; gap: 6px;
 }
@@ -495,7 +1001,39 @@
   border-bottom: 1px solid #f3f4f6;
   display: flex; flex-direction: column; gap: 2px;
 }
+/* V3.157 — when the row contains a checkbox (citation popover only —
+ * the V3.108 inventory popover reuses .pe-cite-pop-row but doesn't
+ * mount the check element), flip to a horizontal layout so the
+ * checkbox sits left of the body. */
+.pe-cite-pop-row:has(.pe-cite-pop-row-check) {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
 .pe-cite-pop-row:hover, .pe-cite-pop-row.active { background: #eff6ff; }
+/* V3.157 — checkbox column on the left of each row. */
+.pe-cite-pop-row-check {
+  flex: 0 0 18px;
+  width: 18px; height: 18px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  background: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; line-height: 1; color: #2563eb; font-weight: 700;
+  margin-top: 1px;
+}
+.pe-cite-pop-row.checked .pe-cite-pop-row-check {
+  background: #2563eb; border-color: #2563eb; color: #fff;
+}
+.pe-cite-pop-row.checked {
+  background: #eff6ff;
+}
+.pe-cite-pop-row.checked.active {
+  background: #dbeafe;
+}
+.pe-cite-pop-row-body {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
 .pe-cite-pop-key {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px; color: #4338ca; font-weight: 600;
@@ -508,6 +1046,164 @@
 .pe-cite-pop-empty {
   padding: 14px 12px; font-size: 13px; color: #6b7280;
 }
+/* V3.157 — selected-bar shows currently-checked keys at the top of
+ * the list as small dismissable chips. */
+.pe-cite-pop-selected-bar {
+  padding: 6px 12px; border-bottom: 1px solid #e5e7eb;
+  background: #fffbeb;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.pe-cite-pop-selected-bar[hidden] { display: none; }
+
+/* V3.192 — claim-context section. Shows the claims linked to the
+ * paragraph the popover was opened from, with each claim's linked
+ * citations + expandable highlight evidence. Renders ABOVE the search
+ * results so the user sees the work they've already done first. */
+.pe-cite-pop-claims {
+  padding: 6px 12px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f0f9ff;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.pe-cite-pop-claims[hidden] { display: none; }
+.pe-cite-pop-claims-header {
+  font-size: 11px; color: #075985; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 4px 0 6px;
+}
+.pe-cite-pop-claims-loading {
+  font-size: 12px; color: #6b7280; font-style: italic; padding: 8px 0;
+}
+.pe-cite-pop-claim-card {
+  background: #fff; border: 1px solid #bae6fd;
+  border-radius: 5px;
+  padding: 6px 8px; margin-bottom: 6px;
+}
+.pe-cite-pop-claim-statement {
+  font-size: 12px; font-weight: 600; color: #0c4a6e;
+  padding-bottom: 4px;
+  display: flex; align-items: center; gap: 6px;
+}
+.pe-cite-pop-claim-status {
+  font-size: 9px; padding: 1px 6px; border-radius: 999px;
+  background: #e0f2fe; color: #075985;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  margin-left: auto;
+}
+.pe-cite-pop-claim-status-supported { background: #dcfce7; color: #166534; }
+.pe-cite-pop-claim-status-contested { background: #fee2e2; color: #991b1b; }
+.pe-cite-pop-claim-status-disproven { background: #fef3c7; color: #78350f; }
+.pe-cite-pop-claim-empty {
+  font-size: 12px; color: #6b7280; font-style: italic; padding: 4px 0;
+}
+.pe-cite-pop-claim-paper {
+  border-top: 1px dashed #e5e7eb;
+  padding: 4px 0;
+}
+.pe-cite-pop-claim-paper:first-of-type { border-top: 0; }
+.pe-cite-pop-claim-paper-head {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 3px 0;
+}
+.pe-cite-pop-claim-paper-head:hover { background: #eff6ff; }
+.pe-cite-pop-claim-paper.checked .pe-cite-pop-claim-paper-head { background: #dbeafe; }
+.pe-cite-pop-claim-paper-meta { flex: 1 1 auto; min-width: 0; }
+.pe-cite-pop-claim-stance {
+  display: inline-flex; gap: 4px; align-items: center;
+  font-size: 10px;
+}
+.pe-cite-pop-claim-stance-for {
+  background: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 3px;
+  font-weight: 600;
+}
+.pe-cite-pop-claim-stance-against {
+  background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 3px;
+  font-weight: 600; margin-left: 2px;
+}
+.pe-cite-pop-claim-expand {
+  background: transparent; border: 0; cursor: pointer;
+  color: #2563eb; font-size: 11px; padding: 2px 4px;
+  border-radius: 3px;
+}
+.pe-cite-pop-claim-expand:hover { background: #dbeafe; }
+.pe-cite-pop-claim-evidence {
+  margin: 4px 0 4px 26px;
+  border-left: 2px solid #93c5fd;
+  padding: 2px 0 2px 8px;
+}
+.pe-cite-pop-claim-evrow {
+  padding: 4px 0;
+  font-size: 12px;
+}
+.pe-cite-pop-claim-evrow + .pe-cite-pop-claim-evrow {
+  border-top: 1px dashed #e5e7eb;
+  margin-top: 4px;
+}
+.pe-cite-pop-claim-evrow-stance {
+  display: inline-block;
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px; border-radius: 3px;
+  margin-right: 6px;
+}
+.pe-cite-pop-claim-evrow-for .pe-cite-pop-claim-evrow-stance {
+  background: #dcfce7; color: #166534;
+}
+.pe-cite-pop-claim-evrow-against .pe-cite-pop-claim-evrow-stance {
+  background: #fee2e2; color: #991b1b;
+}
+.pe-cite-pop-claim-evrow-text {
+  color: #374151; font-style: italic; line-height: 1.4;
+  display: inline;
+}
+.pe-cite-pop-claim-evrow-comment {
+  color: #4b5563; font-size: 11px;
+  margin-top: 2px; padding-left: 4px;
+  border-left: 2px solid #d1d5db;
+}
+.pe-cite-pop-selected-label {
+  font-size: 11px; color: #92400e; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.pe-cite-pop-selected-chip {
+  background: #fde68a; border: 1px solid #f59e0b; color: #78350f;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  cursor: pointer;
+}
+.pe-cite-pop-selected-chip:hover {
+  background: #fcd34d; border-color: #d97706;
+}
+/* V3.157 — popover footer (commit / cancel / remove buttons). */
+.pe-cite-pop-foot {
+  padding: 8px 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex; align-items: center; gap: 8px;
+}
+.pe-cite-pop-foot-spacer { flex: 1 1 auto; }
+.pe-cite-pop-commit, .pe-cite-pop-cancel, .pe-cite-pop-remove {
+  font-size: 12px; padding: 5px 12px;
+  border: 1px solid #d1d5db; border-radius: 5px;
+  background: #fff; color: #374151;
+  cursor: pointer;
+}
+.pe-cite-pop-commit {
+  background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600;
+}
+.pe-cite-pop-commit:hover:not(:disabled) {
+  background: #1d4ed8; border-color: #1d4ed8;
+}
+.pe-cite-pop-commit:disabled {
+  background: #d1d5db; border-color: #d1d5db; color: #6b7280; cursor: not-allowed;
+}
+.pe-cite-pop-cancel:hover { background: #f3f4f6; }
+.pe-cite-pop-remove {
+  background: #fef2f2; border-color: #fecaca; color: #b91c1c;
+}
+.pe-cite-pop-remove:hover { background: #fee2e2; border-color: #f87171; }
+.pe-cite-pop-remove[hidden] { display: none; }
 .pe-cite-pop-hint {
   padding: 6px 12px; font-size: 11px; color: #9ca3af;
   border-top: 1px solid #e5e7eb; background: #f9fafb;
@@ -515,6 +1211,14 @@
 .pe-cite-pop-hint kbd {
   background: #fff; border: 1px solid #d1d5db; border-radius: 3px;
   padding: 0 4px; font-size: 10px; font-family: inherit;
+}
+/* V3.157 — clickable rendered citation group. Hover signals editability. */
+.pe-cite-group {
+  cursor: pointer;
+}
+.pe-cite-group:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 3px;
 }
 .pe-block-content.skeleton {
   font-style: italic;
@@ -526,6 +1230,1694 @@
 .pe-block-content[contenteditable="false"] {
   background: #f9fafb;
   cursor: default;
+}
+
+/* ── Rich-text toolbar above paragraph bodies (V3.107) ──
+ *
+ * Mounted by paper-blocks.js' buildRichToolbar(). Visibility is tied to
+ * the body view (skeleton view hides .pe-paragraph-body-wrap entirely).
+ * Buttons use mousedown.preventDefault to keep the caret in the body
+ * across the click. */
+.pe-paragraph-body-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.pe-rich-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 2px 0 4px;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 4px;
+  user-select: none;
+}
+.pe-rich-toolbar-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  min-width: 22px;
+  height: 22px;
+}
+.pe-rich-toolbar-btn:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.pe-rich-toolbar-btn.pe-rt-bold   { font-family: inherit; font-weight: 700; }
+.pe-rich-toolbar-btn.pe-rt-italic { font-family: inherit; font-style: italic; font-weight: 600; }
+.pe-rich-toolbar-btn.pe-rt-sub    { font-family: inherit; }
+.pe-rich-toolbar-btn.pe-rt-sup    { font-family: inherit; }
+.pe-rich-toolbar-btn.pe-rt-code   { font-size: 11px; }
+
+/* Sensible defaults for the rendered markdown tokens inside a paragraph
+ * body. The browser's native styles already cover most of this — these
+ * overrides just keep code spans visually distinct in an authoring view. */
+.pe-block-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  background: #f3f4f6;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid #e5e7eb;
+}
+
+/* ── Equations: panel + chips + context menu + picker (V3.109) ──
+ *
+ * The Equations system has four distinct surfaces:
+ *   1. Topbar toggle button (`.pe-eq-toggle-btn`)
+ *   2. Slide-out panel listing the inline library + numbered eqs
+ *   3. Right-click context menu over paragraph bodies
+ *   4. Picker popover (positioned at click point)
+ * Plus block-level UI: numbered toggle + label input + number badge.
+ * Plus paragraph-text chips: [!eqi:] (inline KaTeX) and [!eqr:] (Eq. n).
+ */
+
+/* Topbar toggle. */
+.pe-eq-toggle-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #4b5563;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.pe-eq-toggle-btn:hover { background: #eff6ff; color: #1d4ed8; }
+
+/* Slide-out panel — right-anchored, similar to claim-detail panel. */
+.pe-equations-pane {
+  position: fixed;
+  top: 0; right: 0;
+  height: 100%; width: 380px;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  box-shadow: -8px 0 20px rgba(0,0,0,0.08);
+  z-index: 3500;
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.pe-equations-pane[hidden] { display: none; }
+.pe-equations-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+.pe-equations-title {
+  font-size: 14px; font-weight: 600; color: #111827;
+}
+.pe-equations-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.pe-equations-section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.pe-equations-section-title {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: #6b7280;
+}
+.pe-equations-section-hint {
+  font-size: 10px; color: #9ca3af; font-style: italic;
+}
+.pe-equations-add-btn {
+  font-size: 11px; padding: 3px 8px;
+  background: #fff; border: 1px solid #d1d5db; border-radius: 3px;
+  cursor: pointer; color: #1d4ed8;
+}
+.pe-equations-add-btn:hover { background: #eff6ff; border-color: #93c5fd; }
+.pe-equations-empty {
+  font-size: 12px; color: #9ca3af; font-style: italic;
+  padding: 8px 0;
+}
+
+/* Library row. */
+.pe-eq-library-row {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+.pe-eq-library-row-head {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
+.pe-eq-library-name {
+  flex: 1 1 auto;
+  font-size: 13px; padding: 4px 6px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  background: #fff;
+}
+.pe-eq-library-name:focus { border-color: #93c5fd; outline: none; }
+.pe-eq-library-row-actions { display: flex; gap: 4px; }
+.pe-eq-library-insert-btn {
+  font-size: 11px; padding: 3px 8px;
+  background: #fff; border: 1px solid #d1d5db; border-radius: 3px;
+  color: #1d4ed8; cursor: pointer;
+}
+.pe-eq-library-insert-btn:hover { background: #eff6ff; border-color: #93c5fd; }
+.pe-eq-library-srclabel {
+  font-size: 10px; color: #6b7280; text-transform: uppercase;
+  letter-spacing: 0.04em; margin-bottom: 2px;
+}
+.pe-eq-library-src {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 6px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  background: #fff; resize: vertical;
+  box-sizing: border-box;
+}
+.pe-eq-library-src:focus { border-color: #93c5fd; outline: none; }
+.pe-eq-library-preview {
+  margin-top: 6px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #f3f4f6; border-radius: 3px;
+  font-size: 14px;
+  text-align: center;
+  min-height: 24px;
+}
+.pe-eq-library-preview-empty {
+  color: #9ca3af; font-style: italic; font-size: 12px;
+}
+
+/* Numbered equation row. */
+.pe-eq-numbered-row {
+  display: flex; flex-direction: column;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms;
+}
+.pe-eq-numbered-row:hover { background: #eff6ff; border-color: #bfdbfe; }
+.pe-eq-numbered-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
+}
+.pe-eq-numbered-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; color: #6b7280;
+}
+.pe-eq-numbered-preview {
+  font-size: 14px;
+  padding: 6px;
+  background: #fff; border-radius: 3px;
+  text-align: center;
+  min-height: 24px;
+}
+.pe-eq-numbered-preview-empty {
+  color: #9ca3af; font-style: italic; font-size: 12px;
+}
+
+/* Block-flash on click-to-scroll. */
+@keyframes pe-block-flash-anim {
+  0%   { background: #fef3c7; }
+  100% { background: transparent; }
+}
+.pe-block.pe-block-flash {
+  animation: pe-block-flash-anim 1200ms ease-out;
+}
+
+/* Number badge on a numbered equation block. */
+.pe-eq-num-badge {
+  background: #ede9fe; color: #5b21b6;
+  border: 1px solid #ddd6fe;
+  font-size: 11px; font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+/* Equation block toolbar additions: numbered checkbox + label input. */
+.pe-eq-num-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: #4b5563;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.pe-eq-num-toggle input[type="checkbox"] {
+  margin: 0;
+}
+.pe-eq-label-input {
+  font-size: 11px; padding: 2px 6px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  background: #fff;
+  width: 110px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-eq-label-input:focus { border-color: #93c5fd; outline: none; }
+
+/* Context menu (right-click on paragraph body). */
+.pe-eq-context-menu {
+  position: fixed;
+  z-index: 4000;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  min-width: 220px;
+}
+.pe-eq-context-menu-item {
+  display: block; width: 100%;
+  background: transparent; border: none;
+  padding: 6px 12px;
+  text-align: left;
+  font-size: 13px; color: #1f2937;
+  cursor: pointer;
+}
+.pe-eq-context-menu-item:hover { background: #eff6ff; color: #1d4ed8; }
+
+/* Picker popover. */
+.pe-eq-picker {
+  position: fixed;
+  z-index: 4100;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+  padding: 8px;
+  min-width: 320px;
+  max-width: 420px;
+  max-height: 60vh;
+  display: flex; flex-direction: column;
+}
+.pe-eq-picker-title {
+  font-size: 11px; font-weight: 600; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.pe-eq-picker-search {
+  width: 100%; box-sizing: border-box;
+  font-size: 13px; padding: 5px 8px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  margin-bottom: 6px;
+}
+.pe-eq-picker-search:focus { border-color: #93c5fd; outline: none; }
+.pe-eq-picker-list {
+  overflow-y: auto;
+  max-height: 320px;
+}
+.pe-eq-picker-row {
+  display: block; width: 100%;
+  background: #fff; border: 1px solid transparent;
+  border-radius: 3px;
+  text-align: left;
+  padding: 6px 8px;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+.pe-eq-picker-row:hover, .pe-eq-picker-row.active {
+  background: #eff6ff; border-color: #bfdbfe;
+}
+.pe-eq-picker-row-name {
+  font-size: 12px; color: #111827; font-weight: 500;
+  margin-bottom: 2px;
+}
+.pe-eq-picker-row-preview {
+  font-size: 14px;
+  padding: 4px 0;
+  text-align: center;
+}
+.pe-eq-picker-empty,
+.pe-eq-picker-empty-tex {
+  color: #9ca3af; font-style: italic; font-size: 12px;
+  padding: 8px 4px;
+}
+.pe-eq-picker-hint {
+  font-size: 10px; color: #9ca3af;
+  padding-top: 4px;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 4px;
+}
+
+/* Inline-library equation chip in paragraph render. */
+.pe-eqi-chip {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+.pe-eqi-chip:hover { background: #fef3c7; border-color: #fde68a; }
+.pe-eqi-chip-unknown {
+  background: #fee2e2; border-color: #fecaca;
+  color: #991b1b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+.pe-eqi-chip-empty {
+  background: #f3f4f6; border: 1px dashed #d1d5db;
+  color: #9ca3af; font-style: italic;
+  font-size: 11px;
+}
+
+/* Numbered-reference chip (Eq. N). */
+.pe-eqref-chip {
+  display: inline-block;
+  background: #ede9fe; color: #5b21b6;
+  border: 1px solid #ddd6fe;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 0.92em;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pe-eqref-chip:hover { background: #ddd6fe; }
+.pe-eqref-chip-unknown {
+  background: #fee2e2; color: #991b1b;
+  border-color: #fecaca;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  cursor: not-allowed;
+}
+
+/* ── Tabbed pane (V3.115) ─────────────────────────────────────────────
+ *
+ * Refactor of the V3.109 .pe-equations-pane into a four-tab container.
+ * The old .pe-equations-pane class is kept on the same element for
+ * back-compat (CSS rules above keep applying); .pe-tabbed-pane is a
+ * cosmetic alias.
+ */
+.pe-tabbed-pane {
+  /* All structural styling inherited from .pe-equations-pane. */
+}
+.pe-tab-nav {
+  display: flex;
+  gap: 2px;
+  padding: 6px 10px 0;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pe-tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  border-bottom: 2px solid transparent;
+}
+.pe-tab-btn:hover { background: #fff; color: #1d4ed8; }
+.pe-tab-btn.active {
+  background: #fff;
+  color: #111827;
+  border-color: #e5e7eb;
+  border-bottom-color: #fff;
+  font-weight: 500;
+}
+.pe-tab-content {
+  /* Inactive tabs are display:none via JS; padding lives on the
+   * inner sections. */
+}
+.pe-tab-placeholder {
+  padding: 20px;
+  font-size: 13px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* ── Figures tab — figure rows ───────────────────────────────────── */
+.pe-fig-row {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+.pe-fig-row-left {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.pe-fig-row-right {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pe-fig-thumb {
+  width: 96px;
+  height: 72px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.pe-fig-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+.pe-fig-thumb-empty {
+  font-size: 10px;
+  color: #9ca3af;
+  font-style: italic;
+}
+.pe-fig-num-badge {
+  background: #fef3c7; color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-fig-caption-preview {
+  font-size: 12px; color: #1f2937; line-height: 1.4;
+}
+.pe-fig-caption-preview-empty {
+  color: #9ca3af; font-style: italic;
+}
+.pe-fig-field-label {
+  font-size: 10px; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+.pe-fig-label-row {
+  display: flex; align-items: center; gap: 4px;
+}
+.pe-fig-label-input {
+  flex: 1 1 auto;
+  font-size: 11px; padding: 3px 6px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-fig-label-input:focus { border-color: #93c5fd; outline: none; }
+.pe-fig-checkbox-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #4b5563;
+}
+.pe-fig-subfigs {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+}
+.pe-fig-subfig-chips {
+  display: inline-flex; flex-wrap: wrap; gap: 4px;
+}
+.pe-fig-subfig-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: #fef3c7; color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 11px; font-weight: 600;
+  padding: 1px 4px 1px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-fig-subfig-chip-x {
+  background: transparent; border: none;
+  color: #92400e; cursor: pointer;
+  padding: 0 2px;
+  font-size: 12px; line-height: 1;
+}
+.pe-fig-subfig-chip-x:hover { color: #b45309; }
+.pe-fig-subfig-add {
+  background: #fff; border: 1px dashed #d1d5db; border-radius: 3px;
+  font-size: 10px; padding: 2px 6px;
+  color: #6b7280; cursor: pointer;
+}
+.pe-fig-subfig-add:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.pe-fig-row-actions {
+  display: flex; gap: 4px;
+  margin-top: 4px;
+}
+
+/* Picker row variants for figure thumbnails. */
+.pe-eq-picker-figthumb {
+  display: block;
+  max-width: 100%;
+  max-height: 80px;
+  margin: 4px auto;
+  border-radius: 2px;
+}
+.pe-eq-picker-figthumb-empty {
+  color: #9ca3af;
+  font-size: 11px;
+  font-style: italic;
+}
+.pe-eq-picker-figcap {
+  font-size: 11px; color: #6b7280;
+  margin-top: 4px; line-height: 1.3;
+}
+
+/* Figure reference chip in paragraph render. */
+.pe-figref-chip {
+  display: inline-block;
+  background: #fef3c7; color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 0.92em;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pe-figref-chip:hover { background: #fde68a; }
+.pe-figref-chip-unknown {
+  background: #fee2e2; color: #991b1b;
+  border-color: #fecaca;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  cursor: not-allowed;
+}
+.pe-figref-chip-panel-unknown {
+  /* Panel suffix is unknown — show the panel half faded so the writer
+   * notices the typo without losing the underlying number. */
+  text-decoration: underline dotted #b91c1c;
+}
+
+/* ── V3.120 — pill-tab bar + global toolbar + Tables tab ──────────── */
+
+/* Pill tabs always visible at the top of the editor. No icons —
+ * text-only labels. Active pill (= active tab in the open slide-out)
+ * is highlighted blue. */
+.pe-pillbar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px 6px;
+  background: #ffffff;
+  border-bottom: 1px solid #f3f4f6;
+}
+.pe-pill {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #4b5563;
+  padding: 5px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms, box-shadow 100ms;
+}
+.pe-pill:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.pe-pill.active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.25);
+}
+
+/* Global toolbar below the pills — three sectioned groups
+ * (FORMAT / INLINE / REFERENCE), each with a small uppercase sublabel
+ * floating above the buttons, separated by a vertical divider. */
+.pe-global-toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 6px 16px 8px;
+  background: linear-gradient(to bottom, #fafafa 0%, #f5f5f4 100%);
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.02);
+}
+.pe-gt-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px;
+}
+.pe-gt-group:first-child { padding-left: 0; }
+.pe-gt-group:last-child  { padding-right: 0; }
+.pe-gt-group-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  padding-left: 2px;
+  user-select: none;
+}
+.pe-gt-group-row {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.pe-gt-divider {
+  display: inline-block;
+  width: 1px;
+  background: #e5e7eb;
+  margin: 14px 0 0;
+  align-self: stretch;
+}
+.pe-gt-btn {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 4px 9px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #374151;
+  cursor: pointer;
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  min-width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 80ms, color 80ms, border-color 80ms, transform 60ms;
+}
+.pe-gt-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+.pe-gt-btn:active {
+  transform: translateY(1px);
+}
+.pe-gt-bold   { font-family: inherit; font-weight: 700; }
+.pe-gt-italic { font-family: inherit; font-style: italic; font-weight: 600; }
+.pe-gt-sub, .pe-gt-sup { font-family: inherit; }
+.pe-gt-code   { font-size: 11px; }
+.pe-gt-ref {
+  font-family: inherit;
+  padding: 4px 11px;
+  font-weight: 500;
+}
+/* The Inline group's buttons get a slight tint to differentiate from
+ * Reference group buttons — they create chips that *render the thing
+ * itself*, not pointers to it. */
+.pe-gt-group-inline .pe-gt-btn {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.pe-gt-group-inline .pe-gt-btn:hover {
+  background: #fde68a;
+  border-color: #fbbf24;
+  color: #78350f;
+}
+/* Reference buttons stay white but get a subtle blue accent on hover
+ * (matches the picker UI for cross-references). */
+.pe-gt-group-reference .pe-gt-btn:hover {
+  background: #dbeafe;
+  border-color: #60a5fa;
+  color: #1e40af;
+}
+
+/* The slide-out pane now reuses the pillbar for tab switching, so its
+ * internal V3.115 tab nav is hidden. */
+.pe-tabbed-pane .pe-tab-nav { display: none; }
+
+/* Tables tab — row layout (V3.120). */
+.pe-tab-row {
+  display: flex; flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+.pe-tab-row-head {
+  display: flex; align-items: center; gap: 8px;
+}
+.pe-tab-num-badge {
+  background: #d1fae5; color: #065f46;
+  border: 1px solid #a7f3d0;
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-tab-schema {
+  font-size: 11px;
+  color: #6b7280;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-tab-caption-preview {
+  font-size: 12px; color: #1f2937; line-height: 1.4;
+}
+.pe-tab-caption-preview-empty {
+  color: #9ca3af; font-style: italic;
+}
+
+/* Table block — styling toolbar (booktabs / header / per-column align). */
+.pe-table-stylebar {
+  display: flex; flex-wrap: wrap;
+  align-items: center; gap: 12px;
+  padding: 4px 8px 6px;
+  background: #f9fafb;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 12px;
+}
+.pe-table-style-cb {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: #4b5563;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+.pe-table-style-label {
+  font-size: 11px; color: #6b7280; text-transform: uppercase;
+  letter-spacing: 0.04em; margin-right: 4px;
+}
+.pe-table-align-wrap {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.pe-table-align-col {
+  display: inline-flex;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pe-table-align-btn {
+  background: #fff;
+  border: none;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-right: 1px solid #d1d5db;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-table-align-btn:last-child { border-right: none; }
+.pe-table-align-btn:hover { background: #eff6ff; color: #1d4ed8; }
+.pe-table-align-btn.active {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+/* Table caption editor below the grid. */
+.pe-table-caption-label {
+  font-size: 10px; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-top: 8px; padding: 0 4px;
+}
+.pe-table-caption {
+  margin: 4px 4px 6px;
+  padding: 6px 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  min-height: 28px;
+}
+.pe-table-caption:focus { border-color: #93c5fd; outline: none; }
+
+/* Table reference chip in paragraph render. */
+.pe-tabref-chip {
+  display: inline-block;
+  background: #d1fae5; color: #065f46;
+  border: 1px solid #a7f3d0;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 0.92em;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pe-tabref-chip:hover { background: #a7f3d0; }
+.pe-tabref-chip-unknown {
+  background: #fee2e2; color: #991b1b;
+  border-color: #fecaca;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  cursor: not-allowed;
+}
+
+/* ── References tab (V3.122) ──────────────────────────────────────── */
+.pe-ref-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  margin-bottom: 8px;
+}
+.pe-ref-search-input:focus { border-color: #93c5fd; outline: none; }
+
+.pe-ref-row {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+.pe-ref-row-head {
+  display: flex; align-items: center; gap: 8px;
+}
+.pe-ref-status {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-ref-status-cited {
+  background: #d1fae5; color: #065f46; border-color: #a7f3d0;
+}
+.pe-ref-status-linked {
+  background: #fef3c7; color: #92400e; border-color: #fde68a;
+}
+.pe-ref-status-library {
+  background: #f3f4f6; color: #4b5563; border-color: #e5e7eb;
+}
+.pe-ref-status-unknown {
+  background: #fee2e2; color: #991b1b; border-color: #fecaca;
+}
+.pe-ref-row-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #6b7280;
+}
+.pe-ref-row-title {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 500;
+  text-decoration: none;
+  line-height: 1.3;
+}
+.pe-ref-row-title:hover { color: #1d4ed8; text-decoration: underline; }
+.pe-ref-row-meta {
+  font-size: 11px; color: #6b7280;
+}
+.pe-ref-row-actions {
+  display: flex; gap: 4px;
+  margin-top: 4px;
+}
+.pe-ref-row-unknown {
+  border-style: dashed;
+}
+
+/* ── V3.124 — pane polish ─────────────────────────────────────────── */
+
+/* Resize handle on the left edge of the slide-out pane. */
+.pe-pane-resize-handle {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 5px;
+  cursor: ew-resize;
+  background: transparent;
+  z-index: 1;
+}
+.pe-pane-resize-handle:hover {
+  background: linear-gradient(to right, transparent 40%, #93c5fd 50%, transparent 60%);
+}
+body.pe-pane-resizing {
+  cursor: ew-resize;
+  user-select: none;
+}
+body.pe-pane-resizing iframe { pointer-events: none; }
+
+/* V3.124 — collapsible details sections. Reuses .pe-equations-section
+ * styles but adds a chevron via the summary's marker pseudo. */
+details.pe-equations-collapsible {
+  /* Base padding/spacing inherited from .pe-equations-section. */
+}
+details.pe-equations-collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  padding-right: 16px;
+}
+details.pe-equations-collapsible > summary::-webkit-details-marker { display: none; }
+details.pe-equations-collapsible > summary::after {
+  content: '▾';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  transition: transform 100ms;
+  color: #9ca3af;
+  font-size: 10px;
+}
+details.pe-equations-collapsible:not([open]) > summary::after {
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+/* V3.124 — Equations tab single + Equation button row. */
+.pe-equations-tab-add-row {
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* V3.124 — equation creation modal: type radio group. */
+.pe-eq-create-type-wrap {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.pe-eq-create-type-radio {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: #1f2937;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.pe-eq-create-type-radio:hover { background: #f9fafb; }
+.pe-eq-create-type-radio input { margin: 0; }
+
+/* V3.124 — "+ Add to library" pill replaces the V3.122 unknown badge. */
+.pe-ref-status-add-to-library {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.pe-ref-status-add-to-library:hover {
+  background: #fecaca;
+}
+
+/* ── V3.125 — block reorder + inline + Add inserter ──────────────── */
+
+/* + Add button between blocks. Compact, hover-only emphasis. */
+.pe-block-inserter {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 1px dashed transparent;
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 0;
+  margin: 1px 0;
+  cursor: pointer;
+  border-radius: 3px;
+  text-align: center;
+  transition: background 80ms, color 80ms, border-color 80ms;
+  opacity: 0.5;
+}
+.pe-block-inserter:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  opacity: 1;
+}
+
+/* Block inserter menu — small popover anchored at the + Add button. */
+.pe-block-inserter-menu {
+  position: fixed;
+  z-index: 4000;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  min-width: 180px;
+}
+.pe-block-inserter-item {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  text-align: left;
+  font-size: 13px;
+  color: #1f2937;
+  cursor: pointer;
+}
+.pe-block-inserter-item:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.pe-block-inserter-item.disabled {
+  color: #d1d5db;
+  cursor: not-allowed;
+}
+.pe-block-inserter-item.disabled:hover {
+  background: transparent;
+  color: #d1d5db;
+}
+
+/* Up / down arrow buttons in block toolbars. */
+.pe-block-arrow-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-block-arrow-btn:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+/* Drag affordance on the existing `⋮⋮` handle. */
+.pe-block-handle {
+  cursor: grab;
+}
+.pe-block-handle:active {
+  cursor: grabbing;
+}
+.pe-block.is-drag-source {
+  opacity: 0.5;
+}
+.pe-block.is-drop-target {
+  outline: 2px dashed #1d4ed8;
+  outline-offset: 2px;
+}
+
+/* "Edit in panel" link button on doc-side figure / table block toolbars. */
+.pe-edit-in-panel-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #1d4ed8;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+.pe-edit-in-panel-btn:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  text-decoration: underline;
+}
+
+/* ── V3.127 — preview-only doc-side figure / table blocks ──────────
+ *
+ * The full editor moved to the panel's Figures / Tables tab. Doc-side
+ * blocks now show ONLY the rendered output (image/grid + caption). All
+ * inline editor controls (upload, layout, caption editor, label input,
+ * grid +Row/+Col, alignment toolbar) are hidden via these selectors —
+ * the JS that creates them is unchanged for back-compat. The
+ * Edit-in-panel ↗ link is the only interactive entry point. */
+.pe-figure-preview-only .pe-eq-num-toggle,
+.pe-figure-preview-only .pe-eq-label-input,
+.pe-figure-preview-only .pe-figure-uploadrow,
+.pe-figure-preview-only .pe-figure-layout,
+.pe-figure-preview-only .pe-figure-caption-label,
+.pe-figure-preview-only .pe-figure-rawtex {
+  display: none !important;
+}
+.pe-figure-preview-only .pe-figure-caption {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  cursor: default;
+}
+
+.pe-table-preview-only .pe-eq-num-toggle,
+.pe-table-preview-only .pe-eq-label-input,
+.pe-table-preview-only .pe-table-stylebar,
+.pe-table-preview-only .pe-table-caption-label {
+  display: none !important;
+}
+.pe-table-preview-only .pe-table-caption {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  cursor: default;
+}
+.pe-table-preview-only .pe-grid-cell {
+  cursor: default;
+}
+
+/* Panel-side full editors expanded inside <details>. */
+.pe-fig-editor,
+.pe-tab-editor {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+.pe-fig-editor > summary,
+.pe-tab-editor > summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  user-select: none;
+  margin-bottom: 6px;
+}
+.pe-fig-editor-body,
+.pe-tab-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pe-fig-editor-body .pe-figure-uploadrow {
+  margin: 0;
+}
+.pe-fig-editor-body .pe-figure-caption {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-height: 28px;
+}
+.pe-fig-editor-body .pe-figure-layout-grid {
+  margin-top: 0;
+  padding: 6px 8px;
+}
+.pe-tab-editor-body .pe-table-stylebar {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.pe-tab-editor-body .pe-grid-table {
+  font-size: 12px;
+}
+.pe-tab-editor-body .pe-table-caption {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* ── V3.131 — Figures panel redesign ──────────────────────────────
+ *
+ * Streamlined Figures-tab row with four sections in user-task order:
+ * header (thumbnail + label/numbered + actions) → caption editor →
+ * sub-panels → collapsed Layout/upload. The redundant V3.115 caption
+ * preview is gone.
+ */
+.pe-fig-row-v131 {
+  /* Override V3.115 .pe-fig-row flex-row layout — V3.131 stacks
+   * vertically with discrete sections. */
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* Header: thumbnail + identity + actions. */
+.pe-fig-row-header {
+  display: grid;
+  grid-template-columns: 156px 1fr auto;
+  gap: 14px;
+  align-items: stretch;
+}
+.pe-fig-thumb-large {
+  width: 156px;
+  height: 110px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.pe-fig-thumb-large img {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+.pe-fig-thumb-empty-hint {
+  color: #9ca3af;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Fig. N badge overlay on thumbnail. */
+.pe-fig-num-badge-overlay {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(31, 41, 55, 0.85);
+  color: #fef3c7;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Identity column: label input + numbered toggle. */
+.pe-fig-id-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+.pe-fig-label-input-large {
+  font-size: 14px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pe-fig-label-input-large:focus {
+  border-color: #93c5fd;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+.pe-fig-numbered-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+}
+.pe-fig-numbered-toggle input { margin: 0; }
+
+/* Actions column: stacked buttons. */
+.pe-fig-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  justify-content: center;
+}
+.pe-fig-action-btn {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  color: #1f2937;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pe-fig-action-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+.pe-fig-action-primary {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+.pe-fig-action-primary:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
+}
+.pe-fig-action-danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+.pe-fig-action-danger:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #991b1b;
+}
+
+/* Sections (Caption, Sub-panels, Layout). */
+.pe-fig-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pe-fig-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+.pe-fig-section-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+  margin-bottom: 2px;
+}
+
+/* Caption editor — full-width prominent box. */
+.pe-fig-caption-editor {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 36px;
+}
+.pe-fig-caption-editor:focus {
+  background: #fff;
+  border-color: #93c5fd;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+/* Sub-panel chip styling refresh. */
+.pe-fig-row-v131 .pe-fig-subfigs {
+  align-items: center;
+  gap: 6px;
+}
+.pe-fig-row-v131 .pe-fig-subfigs > .pe-fig-field-label { display: none; }
+.pe-fig-row-v131 .pe-fig-subfig-chips { gap: 6px; }
+.pe-fig-row-v131 .pe-fig-subfig-chip {
+  font-size: 12px;
+  padding: 3px 6px 3px 10px;
+  border-radius: 4px;
+}
+.pe-fig-row-v131 .pe-fig-subfig-chip-x {
+  font-size: 14px;
+  padding: 0 4px;
+  margin-left: 2px;
+}
+.pe-fig-row-v131 .pe-fig-subfig-add {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+/* Layout disclosure (collapsed by default). */
+.pe-fig-layout-details {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 10px;
+}
+.pe-fig-layout-summary {
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  padding-right: 16px;
+}
+.pe-fig-layout-summary::-webkit-details-marker { display: none; }
+.pe-fig-layout-summary::after {
+  content: '▾';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  transition: transform 100ms;
+  color: #9ca3af;
+  font-size: 10px;
+}
+.pe-fig-layout-details:not([open]) .pe-fig-layout-summary::after {
+  transform: translateY(-50%) rotate(-90deg);
+}
+.pe-fig-layout-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.pe-fig-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pe-fig-upload-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.pe-fig-upload-btn:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.pe-fig-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pe-fig-upload-status {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+}
+.pe-fig-layout-grid-v131 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+/* ── Skeleton outline (V3.104) ─────────────────────────────────────
+ *
+ * The skeleton was promoted from a flat Y.Text to a Y.Array<Y.Map>
+ * outline. Each bullet (`.pe-skeleton-item`) lays out as a flex row:
+ * marker | bullet (flex:1) | flag-or-pill. Indent is applied via
+ * inline padding-left on the row (set by JS per item.depth) so we
+ * don't need nested ULs.
+ */
+.pe-skeleton-outline {
+  white-space: normal;            /* override pe-block-content pre-wrap */
+  padding: 6px 4px 6px 4px;       /* tighter than the legacy textbox */
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px dashed #cbd5e1;
+  font-style: normal;             /* italic only on bullet text below */
+  color: #1f2937;
+}
+.pe-skeleton-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 1px 0;
+  padding-right: 4px;
+  position: relative;
+}
+.pe-skeleton-item:hover {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+.pe-skeleton-marker {
+  flex: 0 0 auto;
+  width: 16px; text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.55;
+  user-select: none;
+}
+.pe-skeleton-bullet {
+  flex: 1 1 auto;
+  font-style: italic;
+  color: #475569;
+  line-height: 1.5;
+  outline: none;
+  padding: 0 2px;
+  min-height: 1.4em;
+  word-wrap: break-word;
+}
+.pe-skeleton-bullet:focus {
+  background: #fff;
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}
+.pe-skeleton-bullet[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: #cbd5e1; pointer-events: none;
+  font-style: italic;
+}
+.pe-skeleton-flag-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  opacity: 0;             /* hidden until the row is hovered */
+  transition: opacity 100ms;
+}
+.pe-skeleton-item:hover .pe-skeleton-flag-btn,
+.pe-skeleton-bullet:focus + .pe-skeleton-flag-btn,
+.pe-skeleton-flag-btn:focus {
+  opacity: 1;
+}
+.pe-skeleton-flag-btn:hover {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #b45309;
+}
+
+/* Claim status pill on flagged bullets. */
+.pe-claim-pill {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-style: normal;
+  text-transform: lowercase;
+  white-space: nowrap;
+  user-select: none;
+}
+.pe-claim-pill[data-status="developing"] {
+  background: #fef3c7; border-color: #fde68a; color: #92400e;
+}
+.pe-claim-pill[data-status="needs-more-evidence"] {
+  background: #fee2e2; border-color: #fecaca; color: #991b1b;
+}
+.pe-claim-pill[data-status="supported"] {
+  background: #d1fae5; border-color: #a7f3d0; color: #065f46;
+}
+.pe-claim-pill[data-status="abandoned"] {
+  background: #f3f4f6; border-color: #e5e7eb; color: #6b7280;
+  text-decoration: line-through;
+}
+.pe-claim-pill[data-status="loading"],
+.pe-claim-pill[data-status="unknown"] {
+  background: #f3f4f6; border-color: #e5e7eb; color: #9ca3af;
+}
+.pe-claim-pill:hover { filter: brightness(0.97); }
+
+/* ── Flag-as-claim modal ── */
+.pe-claim-flag-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 4000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.pe-claim-flag-modal-card {
+  width: 100%; max-width: 520px;
+  background: #fff; border-radius: 8px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.pe-claim-flag-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pe-claim-flag-modal-head h3 {
+  margin: 0; font-size: 16px; color: #111827;
+}
+.pe-claim-flag-modal-body {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.pe-claim-flag-modal-body label {
+  font-size: 12px; color: #4b5563; font-weight: 600;
+}
+.pe-claim-flag-hint {
+  margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;
+}
+.pe-claim-flag-statement {
+  font-size: 14px; padding: 8px 10px;
+  border: 1px solid #d1d5db; border-radius: 4px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 56px;
+}
+.pe-claim-flag-statement:focus {
+  border-color: #93c5fd; outline: none;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+.pe-claim-flag-status {
+  font-size: 13px; padding: 6px 10px;
+  border: 1px solid #d1d5db; border-radius: 4px;
+  background: #fff;
+}
+.pe-claim-flag-err {
+  font-size: 13px; color: #b91c1c;
+  padding: 6px 10px;
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px;
+}
+.pe-claim-flag-modal-foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+/* ── Claim detail slide-out panel ── */
+.pe-claim-detail-panel {
+  position: fixed;
+  top: 0; right: 0;
+  height: 100%; width: 360px;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  box-shadow: -8px 0 20px rgba(0,0,0,0.08);
+  z-index: 3500;
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.pe-claim-detail-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+.pe-claim-detail-title {
+  font-size: 14px; font-weight: 600; color: #111827;
+}
+.pe-claim-detail-loading {
+  padding: 20px; color: #9ca3af; font-size: 13px;
+}
+.pe-claim-detail-stmt {
+  padding: 12px 14px; font-size: 14px; color: #1f2937; line-height: 1.5;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pe-claim-detail-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.pe-claim-detail-heading {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #6b7280; margin-bottom: 6px;
+}
+.pe-claim-detail-heading-for { color: #065f46; }
+.pe-claim-detail-heading-against { color: #991b1b; }
+.pe-claim-detail-empty {
+  font-size: 13px; color: #9ca3af; font-style: italic;
+}
+.pe-claim-detail-evidence {
+  display: block;
+  font-size: 12px; padding: 4px 6px; margin: 2px 0;
+  border-radius: 3px;
+  background: #f9fafb; color: #1f2937;
+  text-decoration: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-claim-detail-evidence:hover {
+  background: #eff6ff; color: #1d4ed8;
+}
+.pe-claim-detail-status-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px;
+  font-size: 12px; color: #4b5563;
+}
+.pe-claim-detail-status-row select {
+  font-size: 12px; padding: 4px 8px;
+  border: 1px solid #d1d5db; border-radius: 4px;
+  background: #fff;
 }
 
 .pe-add-block {
@@ -565,3 +2957,453 @@
   font-size: 14px;
 }
 .form-hint { display: block; font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+/* ─────────────────────────────────────────────────────────────────
+   V3.132 — panel-first authoring (unplaced libraries + doc-side
+   picker into the panel). Adds:
+   - unplaced badge variants on figure/table thumbnails
+   - .pe-place-picker (panel "Place at end of section…" popover)
+   - .pe-doc-picker (doc-side + Add → Figure/Table/Equation popover)
+   ───────────────────────────────────────────────────────────────── */
+
+/* Unplaced badge variants on the thumbnail/head pills. */
+.pe-fig-num-badge-overlay.pe-fig-num-badge-unplaced,
+.pe-tab-num-badge.pe-tab-num-badge-unplaced {
+  background: rgba(120, 53, 15, 0.85);
+  color: #fef3c7;
+}
+
+/* Make unplaced rows visually distinct (left-side accent bar). */
+.pe-fig-row-unplaced,
+.pe-tab-row-unplaced {
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+}
+
+/* Place-in-section picker (panel side). */
+.pe-place-picker {
+  position: fixed;
+  z-index: 950;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+  min-width: 240px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 6px;
+}
+.pe-place-picker-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 8px 4px;
+}
+.pe-place-picker-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pe-place-picker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #1f2937;
+  cursor: pointer;
+}
+.pe-place-picker-row:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+.pe-place-picker-row-meta {
+  font-size: 11px;
+  color: #6b7280;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-place-picker-empty {
+  font-size: 12px;
+  color: #6b7280;
+  padding: 12px;
+  font-style: italic;
+}
+
+/* Doc-side picker (+ Add → Figure / Table / Equation). */
+.pe-doc-picker {
+  position: fixed;
+  z-index: 950;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  min-width: 360px;
+  max-width: 480px;
+  max-height: 70vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.pe-doc-picker-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 12px 4px;
+}
+.pe-doc-picker-search {
+  margin: 4px 12px 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+}
+.pe-doc-picker-rows {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pe-doc-picker-section-head {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 8px 2px;
+}
+.pe-doc-picker-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  grid-column-gap: 8px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font: inherit;
+  color: #1f2937;
+}
+.pe-doc-picker-row:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+.pe-doc-picker-row-new {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #047857;
+  margin-bottom: 4px;
+}
+.pe-doc-picker-row-new:hover {
+  background: #dcfce7;
+}
+.pe-doc-picker-row-badge {
+  grid-row: 1 / 3;
+  align-self: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: #f3f4f6;
+  color: #4b5563;
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.pe-doc-picker-row-new .pe-doc-picker-row-badge {
+  display: none;
+}
+.pe-doc-picker-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pe-doc-picker-row-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pe-doc-picker-empty {
+  font-size: 13px;
+  color: #6b7280;
+  padding: 12px;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ─── V3.216 — anchored comment highlights on paragraph bodies ──── */
+.pe-comment-highlight {
+  background-color: rgba(252, 211, 77, 0.35);
+  border-radius: 2px;
+  padding: 0 1px;
+  /* V3.219 — highlights are no longer clickable; cursor stays as
+   * default text-caret so the writer can place the caret inside a
+   * highlighted span like any other prose. Hover still glows + the
+   * delegated mouseover handler still links the panel card. */
+  cursor: text;
+  transition: background-color 0.12s ease;
+}
+.pe-comment-highlight:hover {
+  background-color: rgba(252, 211, 77, 0.65);
+}
+.pe-comment-highlight-resolved {
+  border-bottom: 1px dotted rgba(107, 114, 128, 0.6);
+  cursor: text;
+  transition: border-bottom-color 0.12s ease;
+}
+.pe-comment-highlight-resolved:hover {
+  border-bottom-color: rgba(107, 114, 128, 1);
+  border-bottom-style: solid;
+}
+/* When the anchor-scope filter is active, surface a chip above the
+ * results making the narrow scope obvious + clearable. */
+.pe-comments-anchor-scope {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  color: #78350f;
+  font-style: normal;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.pe-comments-scope-clear {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.pe-comments-scope-clear:hover { color: #78350f; }
+
+/* ─── V3.217 — soft section lock badge + non-holder treatment ─── */
+.pe-block-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  user-select: none;
+}
+.pe-block-lock-badge[hidden] { display: none; }
+.pe-block-lock-badge.pe-block-lock-self {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+.pe-block-lock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+.pe-block-lock-name {
+  white-space: nowrap;
+}
+/* A locked-by-other block dims the editable surfaces, shows a
+ * not-allowed cursor, and gets a left-edge color accent matching
+ * the holder's presence color (set inline via `--pe-lock-color`). */
+.pe-block[data-locked="other"] {
+  background-color: #fafafa;
+  border-left: 3px solid var(--pe-lock-color, #f59e0b);
+  position: relative;
+}
+.pe-block[data-locked="other"] .pe-block-content,
+.pe-block[data-locked="other"] .pe-skeleton-bullet {
+  cursor: not-allowed;
+  background-color: rgba(0, 0, 0, 0.015);
+}
+/* V3.218 — self-held lock paints a ring around the whole block so the
+ * holder can see at a glance which block they own. V3.219 — ring uses
+ * the holder's presence color via `--pe-lock-color` (the same hue
+ * rendered in the lock-dot and presence-row avatar). V3.221 — switched
+ * from `outline` to `box-shadow`-based ring + recolored full border
+ * because `outline` was being suppressed by an ancestor's stacking
+ * context in production, making the feature look "broken." Box-shadow
+ * is universally rendered and `border-color` (instead of just
+ * `border-left`) flips all four edges so the change is unmistakable.
+ * `!important` on `border-color` defeats the base `.pe-block`'s
+ * `border: 1px solid #e5e7eb` longhand without having to rewrite the
+ * base rule. */
+.pe-block[data-locked="self"] {
+  border-color: var(--pe-lock-color, #9ca3af) !important;
+  box-shadow: 0 0 0 3px var(--pe-lock-color, #9ca3af) !important;
+}
+.pe-block-lock-badge.pe-block-lock-self {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: var(--pe-lock-color, #d1d5db);
+  color: #111827;
+}
+/* Floating toast that surfaces who holds the lock when a non-holder
+ * clicks into the body. Auto-hides after ~1.8s. */
+.pe-lock-toast {
+  position: absolute;
+  z-index: 4400;
+  background: #1f2937;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.pe-lock-toast[hidden] { display: none; }
+
+/* ─── V3.218 — comment ↔ highlight two-way hover glow ─── */
+.pe-comment-highlight.pe-comment-highlight-hover,
+.pe-comment-highlight-resolved.pe-comment-highlight-hover {
+  background-color: rgba(252, 211, 77, 0.85);
+  outline: 2px solid #f59e0b;
+  outline-offset: 1px;
+  border-bottom-color: transparent;
+}
+.pe-comment.pe-comment-anchor-hover {
+  outline: 2px solid #f59e0b;
+  outline-offset: 1px;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+
+/* ─── V3.223 / V3.224 — Coauthors popover. Reuses the citation-picker
+ * shell (`.pe-cite-popover` + `.pe-cite-pop-*` row primitives) so the
+ * picker visually matches the references picker. Overrides below are
+ * for the per-row layout extras (avatar + role select). */
+.pe-coauthor-pop-hint {
+  padding: 6px 12px 8px;
+  font-size: 11px;
+  color: #6b7280;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pe-coauthor-popover .pe-coauthor-pop-list {
+  max-height: 420px;
+}
+/* Per-row horizontal layout (avatar | name/email | role select) — the
+ * base `.pe-cite-pop-row` is column-flex so we flip it back to row. */
+.pe-coauthor-row.pe-cite-pop-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.pe-coauthor-row[data-role="first"]    { background: #fffbeb; }
+.pe-coauthor-row[data-role="cofirst"]  { background: #fefce8; }
+.pe-coauthor-row[data-role="coauthor"] { background: #f0fdf4; }
+.pe-coauthor-row[data-role="first"]:hover,
+.pe-coauthor-row[data-role="cofirst"]:hover,
+.pe-coauthor-row[data-role="coauthor"]:hover {
+  /* Keep the tinted background on hover; base `.pe-cite-pop-row:hover`
+   * would otherwise repaint to plain blue. */
+  filter: brightness(0.97);
+}
+.pe-coauthor-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.pe-coauthor-role {
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pe-coauthor-role:focus { outline: none; border-color: #2563eb; }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * V3.235 — Paper-builder editor phone view (Phase 3 of mobile compat).
+ *
+ * The desktop editor uses a 3-column flex layout: 240px sidebar +
+ * flex main + 320px comments pane. On phone (≤640px) both side panels
+ * fly off-screen via the shared .rm-mobile-drawer-* pattern in
+ * style.css; toggle buttons live in .pe-topbar. paper-editor.js wires
+ * the host (.pe-page) + drawer classes (.pe-sidebar, .pe-comments-pane)
+ * at editor-mode attach time so the pattern is dormant in list mode.
+ * ───────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .pe-topbar {
+    padding: var(--sp-2) var(--sp-3);
+    gap: var(--sp-2);
+  }
+  .pe-back { font-size: var(--fs-xs); }
+  .pe-title-input {
+    font-size: var(--fs-md);
+    min-width: 0;
+    flex: 1 1 100%;
+    order: 3;  /* push title onto its own row, after the drawer toggles */
+  }
+  .pe-savestate {
+    font-size: var(--fs-xs);
+    min-width: 0;
+  }
+  .pe-topbar .rm-mobile-drawer-toggle {
+    font-size: var(--fs-xs);
+    padding: var(--sp-1) var(--sp-2);
+    min-height: var(--tap-min-compact);
+  }
+
+  /* Collapse the in-main viewfilter bar so its selects + labels wrap. */
+  .pe-viewfilter-bar {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
+  }
+  .pe-viewfilter-bar select { font-size: var(--fs-sm); }
+
+  /* Drawer overrides: defeat the desktop fixed widths so panels span
+   * the drawer width. The shared pattern in style.css sets
+   * width: 85vw + max-width: 360px. Comments pane needs
+   * overflow: hidden so its inner cards-list flex column scrolls. */
+  .pe-page.rm-mobile-drawer-host .pe-sidebar {
+    width: 85vw;
+    max-width: 360px;
+    min-width: 0;
+  }
+  .pe-page.rm-mobile-drawer-host .pe-comments-pane {
+    width: 85vw;
+    max-width: 360px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+
+

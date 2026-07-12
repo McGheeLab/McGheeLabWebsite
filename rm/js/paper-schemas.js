@@ -123,14 +123,101 @@
     };
   }
 
+  /* V3.104 — skeleton bullet items. Per-paragraph skeleton is now an
+   * outline (Y.Array<Y.Map>) rather than a flat Y.Text. Depth caps at 3
+   * to keep the UI manageable; deeper structure suggests the paragraph
+   * should split. claim_id is null until the bullet is explicitly flagged
+   * as a claim — most bullets stay null. */
+  var MAX_SKELETON_DEPTH = 3;
+
+  function newSkeletonItem(opts) {
+    opts = opts || {};
+    var d = (typeof opts.depth === 'number') ? opts.depth : 0;
+    if (d < 0) d = 0;
+    if (d > MAX_SKELETON_DEPTH) d = MAX_SKELETON_DEPTH;
+    return {
+      id: shortId('sk-'),
+      depth: d,
+      text: opts.text || '',
+      claim_id: opts.claim_id || null,
+    };
+  }
+
   function newParagraph() {
     return {
       id: shortId('p-'),
       kind: 'paragraph',
       status: 'draft',
+      // Legacy field kept for one release as rollback safety. New blocks
+      // also seed skeleton_items with one empty depth-0 bullet; renderers
+      // prefer skeleton_items when non-empty.
       skeleton: '',
+      skeleton_items: [newSkeletonItem()],
       body: '',
       attrs: {},
+    };
+  }
+
+  /* V3.109 — inline equation library entry. Each library entry is a
+   * named, reusable inline equation that can be inserted into paragraph
+   * text via the right-click "Insert inline equation" picker. Display /
+   * numbered equations remain block-level and live in section.children
+   * — they don't go through the library. */
+  var MAX_EQ_LABEL_LENGTH = 64;
+
+  function newEquationLibraryEntry(opts) {
+    opts = opts || {};
+    /* V3.124 — type categorizes the entry as inline (small one-liner
+     * for in-prose use) vs main (longer / important; intended to be
+     * inserted as a numbered display block). Both types are
+     * insertable inline; main entries also surface an "Insert as
+     * block" action. */
+    return {
+      id: shortId('eq-'),
+      name: opts.name || '',
+      latex: opts.latex || '',
+      type: opts.type === 'main' ? 'main' : 'inline',
+    };
+  }
+
+  /* V3.102 — figure block factory. `body` holds the caption (Y.Text once
+   * hydrated into Yjs). attrs.* carry the Storage pointer + LaTeX render
+   * options. Defaults match the most common single-column journal layout.
+   *
+   * V3.115 — figures auto-number unless the writer suppresses (numbered=false
+   * for inline-only demonstrative figures). subfigures is a free-text list
+   * of panel labels (A/B/C/i/ii/…) that drive the [!fig:label:A] reference
+   * picker; each entry hydrates into a Y.Map so concurrent additions merge. */
+  var MAX_SUBFIGURES = 12;
+
+  function newFigure() {
+    return {
+      id: shortId('p-'),
+      kind: 'figure',
+      status: 'draft',
+      skeleton: '',
+      body: '',
+      attrs: {
+        storage_path: '',
+        download_url: '',
+        hash: '',
+        mime: '',
+        width: '\\linewidth',
+        placement: 'H',
+        centering: true,
+        label: '',
+        alt: '',
+        numbered: true,        // V3.115
+        subfigures: [],        // V3.115 — array of {id, label}; hydrates to Y.Array<Y.Map>
+      },
+    };
+  }
+
+  function newSubfigure(opts) {
+    opts = opts || {};
+    return {
+      id: shortId('sf-'),
+      label: opts.label || '',
     };
   }
 
@@ -190,9 +277,16 @@
     PAPER_BLOCK_KINDS: PAPER_BLOCK_KINDS,
     BLOCK_STATUSES: BLOCK_STATUSES,
     PAPER_TEMPLATES: PAPER_TEMPLATES,
+    MAX_SKELETON_DEPTH: MAX_SKELETON_DEPTH,
+    MAX_EQ_LABEL_LENGTH: MAX_EQ_LABEL_LENGTH,
+    MAX_SUBFIGURES: MAX_SUBFIGURES,
     shortId: shortId,
     newSection: newSection,
     newParagraph: newParagraph,
+    newFigure: newFigure,
+    newSubfigure: newSubfigure,
+    newSkeletonItem: newSkeletonItem,
+    newEquationLibraryEntry: newEquationLibraryEntry,
     newTree: newTree,
     normalizeTree: normalizeTree,
     styleFor: styleFor,

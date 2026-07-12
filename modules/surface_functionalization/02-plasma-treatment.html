@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plasma Treatment — Surface Functionalization Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Surface Functionalization Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Plasma Treatment — Energizing Gas to Rewrite a Surface</h1>
+  <p class="subtitle">Surface Functionalization Foundations · Lesson 2 of 4 — Lightning, neon
+  signs, and the aurora are all the same thing: gas so energized it comes apart into ions and
+  free electrons. Put that in a box, and you can repaint the chemistry of any surface.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="pumpfirst">1 · Why Pump Down First</button>
+  <button class="tab-btn" data-tab="ignite">2 · Striking a Plasma</button>
+  <button class="tab-btn" data-tab="color">3 · Plasma Colors</button>
+  <button class="tab-btn" data-tab="chemistry">4 · Level Up: Gas → Chemistry</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: pumpfirst -->
+<section id="tab-pumpfirst" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: Empty the room before the party</h2>
+    <p>Lesson 1 ended with a bare surface in a vacuum chamber. Plasma treatment starts exactly
+    there — and for <b>two</b> separate reasons, both of which live in this tab.</p>
+    <p><b>Reason 1: the surface must be bare.</b> You already know this one. In room air the
+    surface wears a multilayer film of water and stray molecules. Any treatment applied through
+    that film treats the film, not the surface. Pumping down strips it off.</p>
+    <p><b>Reason 2: a thin gas is dramatically easier to energize.</b> This is the new idea.
+    A plasma is made by accelerating free electrons until they hit gas molecules hard enough to
+    knock more electrons loose. The key word is <em>accelerating</em>: an electron in an electric
+    field speeds up only between collisions. Its runway is the <b>mean free path</b> \(\lambda\)
+    from Lesson 1:</p>
+    <div class="equation-box">
+      $$ \lambda = \frac{k_B T}{\sqrt{2}\,\pi d^2 P}
+      \qquad\qquad E_{\text{gained}} \approx e\,E_{\text{field}}\,\lambda $$
+    </div>
+    <p>At atmospheric pressure \(\lambda \approx 68\) nm — the electron barely gets moving before
+    something is in the way, so almost no energy builds up per hop. Drop the pressure a
+    thousand-fold and each runway is a thousand times longer: the same modest electric field now
+    accelerates electrons to bond-breaking, atom-ionizing energies. That's why your plasma
+    cleaner first pumps down to its base pressure, then <b>leaks a little process gas back in</b>
+    (typically to ~0.1–1 Torr): you want <em>few</em> molecules, but not <em>zero</em> — the gas
+    is the raw material for the plasma.</p>
+    <p>So there is a sweet spot. Too much gas: electrons can't gain speed between collisions.
+    Too little gas: nothing to ionize and no way to sustain the reaction. The next tab turns this
+    trade-off into a famous curve.</p>
+    <div class="worked-example">
+      <p>A benchtop plasma cleaner runs at \(P = 0.3\) Torr and room temperature. Mean free path:
+      $$\lambda = \frac{(1.38\times10^{-23})(300)}{\sqrt2\,\pi\,(3.7\times10^{-10})^2\,(0.3\times133)}
+      \approx 0.17\ \text{mm}.$$
+      That's ~2,500× longer than at ambient (68 nm). With a field of ~30 V/mm between the
+      electrodes, an electron gains ~5 eV per free flight — comfortably above the ~12–16 eV
+      ionization energies of O₂ and N₂ after a few lucky hops, instead of the ~0.002 eV it would
+      manage per hop at atmospheric pressure.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Pump-down does two jobs: bares the surface (Lesson 1) and lengthens electron runways.</li>
+        <li>Electrons gain energy ∝ field × mean free path; long λ = energetic electrons.</li>
+        <li>After reaching base pressure, a <em>little</em> process gas is bled back in —
+        the gas is the ingredient, ~0.1–1 Torr is the typical window.</li>
+        <li>Too much gas or too little gas both kill the plasma. Sweet spot in between.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>At ambient pressure, look at the electron's path between the plates: a frantic zig-zag
+      of tiny hops. Read λ in the stats.</li>
+      <li>Pump down slowly. Watch the crowd thin and the electron's runs straighten and lengthen.</li>
+      <li>Find the marked process window (0.01–1 Torr) on the plot. How many orders of magnitude
+      below ambient is it?</li>
+      <li>Keep pumping to 10⁻⁴ Torr. The runway is now enormous — but count the molecules left
+      on screen. What's going to be the problem when we try to make a plasma here?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="pumpfirst" data-scen="ambient" onclick="setScen('pumpfirst','ambient')">Ambient (760 Torr)</button>
+    <button class="scen-btn" data-tab="pumpfirst" data-scen="process" onclick="setScen('pumpfirst','process')">Process gas (0.3 Torr)</button>
+    <button class="scen-btn" data-tab="pumpfirst" data-scen="base" onclick="setScen('pumpfirst','base')">Base pressure (10⁻⁴ Torr)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Pressure <span id="v-pumpfirst-logP">760 Torr</span></label>
+        <input type="range" id="s-pumpfirst-logP" min="-4" max="2.881" step="0.02" value="2.881">
+      </div>
+      <div class="stats" id="st-pumpfirst"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">One electron's path between the electrodes — hops = collisions</div>
+        <canvas id="cv-pumpfirst" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Mean free path vs. pressure (shaded = plasma process window)</div>
+        <canvas id="cv-pumpfirst2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-pumpfirst"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: ignite -->
+<section id="tab-ignite" class="tab-content">
+  <div class="background-section">
+    <h2>Background: The electron avalanche — how gas catches fire without burning</h2>
+    <p>Here's the recipe. Between two electrodes, an oscillating <b>radio-frequency (RF)</b>
+    voltage creates an electric field. A few stray free electrons always exist in any gas (cosmic
+    rays knock them loose). The field grabs these electrons and slams them back and forth. If an
+    electron picks up enough energy before its next collision — more than the gas's
+    <b>ionization energy</b> (~12–16 eV for air gases) — the collision doesn't just bounce:
+    it <b>knocks another electron out of the molecule</b>, leaving behind a positive ion.</p>
+    <p>Now there are two electrons. The field accelerates both. They ionize two more molecules:
+    four electrons. Then eight, sixteen... an <b>avalanche</b>. Within microseconds the gas is a
+    glowing soup of positive ions, free electrons, excited molecules, and reactive fragments
+    (radicals). That soup is a <b>plasma</b> — often called the fourth state of matter. The RF
+    field keeps pumping energy in, collisions keep re-supplying electrons, and the plasma
+    sustains itself as long as the power stays on.</p>
+    <p><b>Level up — the Paschen curve.</b> How much voltage does it take to strike the plasma?
+    In 1889 Friedrich Paschen measured it and found the breakdown voltage \(V_b\) depends on the
+    <em>product</em> of pressure and electrode gap, \(p\cdot d\):</p>
+    <div class="equation-box">
+      $$ V_b \;=\; \frac{B\,(pd)}{\ln\!\big(A\,(pd)\big) \;-\;
+      \ln\!\Big[\ln\!\big(1 + \tfrac{1}{\gamma_{se}}\big)\Big]}
+      \qquad \text{(air: } A\!\approx\!15\ \tfrac{1}{\text{cm·Torr}},\;
+      B\!\approx\!365\ \tfrac{\text{V}}{\text{cm·Torr}}\text{)} $$
+    </div>
+    <p>The curve is a <b>U shape</b>. On the right (high \(pd\)): too many molecules, short
+    runways, electrons never reach ionizing energy — voltage must rise to compensate. On the left
+    (low \(pd\)): plenty of runway but so few molecules that an electron crosses the whole gap
+    without meeting one — again more voltage needed. The bottom of the U, near
+    \(pd \approx 1\) Torr·cm and \(V_b \approx 300\) V for air, is the easiest place in the
+    universe to make a plasma. This is exactly why your cleaner backfills to ~0.1–1 Torr with a
+    few-centimeter electrode gap: it parks itself at the bottom of the Paschen curve.</p>
+    <div class="worked-example">
+      <p>Air, electrode gap \(d = 1\) cm, \(\gamma_{se} = 0.01\) so
+      \(\ln[\ln(1+1/\gamma_{se})] = \ln[\ln(101)] = 1.53\).<br>
+      At \(p = 1\) Torr: \(pd = 1\) Torr·cm →
+      \(V_b = \dfrac{365 \times 1}{\ln(15) - 1.53} = \dfrac{365}{2.71 - 1.53} \approx 310\ \text{V}.\)<br>
+      At \(p = 10\) Torr: \(pd = 10\) →
+      \(V_b = \dfrac{3650}{\ln(150) - 1.53} = \dfrac{3650}{3.48} \approx 1050\ \text{V}\) —
+      ten times the pressure needs three times the voltage. And at atmospheric pressure with a
+      1 m gap (a lightning-ish \(pd\)), \(V_b\) runs to <em>megavolts</em> — which is why only
+      thunderstorms can strike plasma in open air.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>RF fields accelerate free electrons; above the ionization energy each collision
+        frees another electron → avalanche → self-sustaining plasma.</li>
+        <li>Plasma = ions + free electrons + radicals + light. The fourth state of matter.</li>
+        <li>Breakdown depends on pressure × gap (Paschen): a U-shaped curve with a minimum
+        near ~1 Torr·cm, ~300 V for air.</li>
+        <li>Plasma cleaners operate at the bottom of the U — that's the whole point of the
+        pump-down-then-backfill ritual.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start below breakdown and slowly raise <b>RF voltage</b>. Watch the seed electrons
+      wander harmlessly — until the avalanche catches. Note the voltage where it strikes and
+      compare with V_b in the stats.</li>
+      <li>Click "At the Paschen minimum." Now raise the <b>pressure</b> tenfold and watch the
+      plasma die. Check where your operating point moved on the curve.</li>
+      <li>Lower pressure far below the minimum instead. The plasma dies again — but for the
+      opposite reason. Explain the difference in one sentence each.</li>
+      <li>At fixed pressure, widen the <b>electrode gap</b>. Which way does the operating point
+      slide? Can you re-strike the plasma by changing the gap alone?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="ignite" data-scen="below" onclick="setScen('ignite','below')">Below breakdown</button>
+    <button class="scen-btn" data-tab="ignite" data-scen="minimum" onclick="setScen('ignite','minimum')">At the Paschen minimum</button>
+    <button class="scen-btn" data-tab="ignite" data-scen="overp" onclick="setScen('ignite','overp')">Over-pressured (hard to ignite)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>RF voltage <span id="v-ignite-V">150</span></label>
+        <input type="range" id="s-ignite-V" min="50" max="1500" step="10" value="150">
+      </div>
+      <div class="ctrl-group">
+        <label>Pressure <span id="v-ignite-logP">0.8 Torr</span></label>
+        <input type="range" id="s-ignite-logP" min="-3" max="1.5" step="0.02" value="-0.08">
+      </div>
+      <div class="ctrl-group">
+        <label>Electrode gap <span id="v-ignite-gap">10</span></label>
+        <input type="range" id="s-ignite-gap" min="2" max="40" step="1" value="10">
+      </div>
+      <div class="stats" id="st-ignite"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Between the RF electrodes — electrons (purple), ions (+), neutrals (gray)</div>
+        <canvas id="cv-ignite" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Paschen curve — breakdown voltage vs. pressure × gap</div>
+        <canvas id="cv-ignite2" width="640" height="280"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-ignite"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: color -->
+<section id="tab-color" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Every gas glows its own color — plasma is a fingerprint</h2>
+    <p>Why does a plasma glow at all? In the avalanche, plenty of collisions aren't hard enough
+    to ionize a molecule — instead they kick one of its electrons up to a higher energy level,
+    like nudging a marble onto a shelf. A nanosecond later the electron falls back down, and the
+    energy difference leaves as a single flash of light — a <b>photon</b>. Because each gas has
+    its own unique set of shelves, it can only emit photons of specific energies — specific
+    <b>colors</b>. Not a rainbow: a barcode. Physicists call it a <b>line emission spectrum</b>,
+    and it is literally a fingerprint of the gas.</p>
+    <p>You already know these fingerprints by sight. Neon signs glow red-orange because those are
+    neon's lines. The aurora is green and red — oxygen's lines, painted by charged particles from
+    the sun striking the upper atmosphere. And <b>lightning</b> is a plasma of air: nitrogen's
+    violet-blue bands and red system blend into the white-purple flash of a storm. Different
+    flashes can look white, violet, even reddish depending on how hot the channel gets and how
+    much of each gas is glowing — the color of lightning is the chemistry of the sky.</p>
+    <p>In the lab this is more than pretty: engineers eyeball (or measure with a spectrometer)
+    the plasma's color to confirm <em>which gas is actually glowing</em>. An air leak in your
+    oxygen plasma shifts the color — the plasma tattles on your vacuum system. In this sim, the
+    line positions and colors are <b>representative</b>: real spectra are dense with lines and
+    their balance shifts with pressure and power, so treat the glow you see as the gas's typical
+    look, not an exact rendering.</p>
+    <div class="worked-example">
+      <p>A photon's energy sets its wavelength: \(E = hc/\lambda\), with
+      \(hc = 1240\ \text{eV·nm}\). Nitrogen's famous "second positive" band emits near
+      \(\lambda = 337\) nm: \(E = 1240/337 \approx 3.7\) eV — just past violet into the UV
+      (that band tans your skin as it tans arc-welders'). Helium's brightest visible line at
+      588 nm carries \(1240/588 \approx 2.1\) eV — yellow. Same physics, different shelves,
+      different colors.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Plasma light = electrons falling back down fixed energy levels → discrete emission
+        lines, unique to each gas.</li>
+        <li>Neon signs, aurora, and lightning are all line emission from plasmas — lightning's
+        white-purple is glowing N₂/O₂.</li>
+        <li>Plasma color is a working diagnostic: the wrong color means the wrong gas (or a leak).</li>
+        <li>The colors here are representative — real spectra shift in balance with pressure
+        and power.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Step through all five gases and watch both the chamber glow and the barcode of lines
+      underneath. Which gases look similar? Which could you never confuse?</li>
+      <li>Nitrogen and air look nearly alike — why would that be? (What is air mostly made of?)</li>
+      <li>Turn the power up and down. Brightness changes — but do the line <em>positions</em>
+      move? Why not?</li>
+      <li>Your oxygen plasma at work suddenly turns pinkish-purple. Using the fingerprints
+      you've just seen, diagnose the problem.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="color" data-scen="o2" onclick="setScen('color','o2')">O₂</button>
+    <button class="scen-btn" data-tab="color" data-scen="air" onclick="setScen('color','air')">Air</button>
+    <button class="scen-btn" data-tab="color" data-scen="n2" onclick="setScen('color','n2')">N₂</button>
+    <button class="scen-btn" data-tab="color" data-scen="ar" onclick="setScen('color','ar')">Argon</button>
+    <button class="scen-btn" data-tab="color" data-scen="he" onclick="setScen('color','he')">Helium</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Process gas <span id="v-color-gas">O₂</span></label>
+        <input type="range" id="s-color-gas" min="0" max="4" step="1" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>RF power <span id="v-color-power">60</span></label>
+        <input type="range" id="s-color-power" min="10" max="100" step="1" value="60">
+      </div>
+      <div class="stats" id="st-color"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The glowing chamber (inset: lightning is a plasma of air)</div>
+        <canvas id="cv-color" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Representative emission lines — the gas's barcode</div>
+        <canvas id="cv-color2" width="640" height="240"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-color"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: chemistry -->
+<section id="tab-chemistry" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: Choose the gas, choose the chemistry</h2>
+    <p>Everything so far — vacuum, avalanche, glow — was setup. Here is the payoff. A plasma is
+    not just light and ions: it is a factory of <b>reactive fragments</b>. Electron impacts crack
+    O₂ into single oxygen atoms (radicals), tear H off molecules, and produce charged shards that
+    slam into your sample. When these fragments hit the bare surface from Lesson 1 — all those
+    hungry dangling bonds — they don't bounce. They <b>graft on</b>, becoming permanent chemical
+    handles on the surface. Which handles? That depends entirely on which gas you fed the plasma:</p>
+    <p style="margin-left:16px">
+      · <b>Oxygen plasma → hydroxyl (–OH) groups</b> (plus some C=O and –COOH on polymers).
+      Highly polar, highly reactive, extremely water-loving. The workhorse: it also burns off
+      organic contamination. This –OH-covered surface is exactly what Lesson 3's silanes need.<br>
+      · <b>Nitrogen (or ammonia) plasma → amine (–NH₂) groups.</b> Mildly basic, chemically
+      handy — proteins and DNA can be coupled to amines, so this is biology's favorite handle.<br>
+      · <b>Carbon-dioxide plasma → carboxyl (–COO⁻) groups.</b> Acidic, negatively charged in
+      water — good for grabbing positively charged molecules and for further coupling chemistry.
+    </p>
+    <p>The result is measured with a water droplet. A polar, group-covered surface pulls water
+    flat (small <b>contact angle</b>); an untreated plastic repels it into beads (~100°).
+    Watch the angle plummet as coverage grows in the sim. Two honest caveats: a plasma grafts a
+    <em>distribution</em> of groups — the ones named are dominant, not exclusive; and the effect
+    <b>fades</b> over hours-to-days as polymer chains rotate their new polar groups away from the
+    surface ("hydrophobic recovery") — which is why you treat <em>right before</em> the next step,
+    not the week before.</p>
+    <div class="worked-example">
+      <p>PDMS (the soft silicone of microfluidic chips) starts at a water contact angle of
+      ~105–110°. Sixty seconds of O₂ plasma drops it below ~20° — water spreads into a sheet —
+      and decorates it with silanol (Si–OH) groups. Press two treated PDMS slabs together and the
+      –OH groups condense into Si–O–Si bonds: an <em>irreversible weld</em>, no glue. That single
+      trick — plasma-activated bonding — is how most microfluidic devices on Earth are assembled.
+      Left on the bench instead, the same surface drifts back above 90° within a day or two:
+      hydrophobic recovery in action.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Plasma radicals graft functional groups onto the bare surface's dangling bonds.</li>
+        <li>O₂ → –OH (reactive, hydrophilic); N₂ → –NH₂ (bio-coupling); CO₂ → –COO⁻ (charged,
+        acidic).</li>
+        <li>Coverage grows with treatment time and power; contact angle falls with coverage.</li>
+        <li>Named groups are dominant, not exclusive — plasma chemistry is a distribution.</li>
+        <li>The effect fades (hydrophobic recovery): treat, then use the surface promptly.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Run an O₂ treatment: drag <b>Treatment time</b> from 0 to 120 s and watch –OH groups
+      accumulate while the contact angle curve dives. When has the surface effectively saturated?</li>
+      <li>Switch gases at the same time and power. Compare the three final contact angles and
+      the three grafted groups.</li>
+      <li>Halve the <b>RF power</b>. How much longer must you treat to reach the same coverage?</li>
+      <li>Design choice: you need to covalently attach a protein next week. Which gas do you run,
+      and — given hydrophobic recovery — <em>when</em> do you run it?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="chemistry" data-scen="o2" onclick="setScen('chemistry','o2')">O₂ → hydroxyl</button>
+    <button class="scen-btn" data-tab="chemistry" data-scen="n2" onclick="setScen('chemistry','n2')">N₂ → amine</button>
+    <button class="scen-btn" data-tab="chemistry" data-scen="co2" onclick="setScen('chemistry','co2')">CO₂ → carboxyl</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Process gas <span id="v-chemistry-gas">O₂</span></label>
+        <input type="range" id="s-chemistry-gas" min="0" max="2" step="1" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Treatment time <span id="v-chemistry-time">60</span></label>
+        <input type="range" id="s-chemistry-time" min="0" max="120" step="1" value="60">
+      </div>
+      <div class="ctrl-group">
+        <label>RF power <span id="v-chemistry-power">50</span></label>
+        <input type="range" id="s-chemistry-power" min="10" max="100" step="1" value="50">
+      </div>
+      <div class="stats" id="st-chemistry"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Radicals bombarding the surface — groups grafting on (live)</div>
+        <canvas id="cv-chemistry" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Water contact angle vs. treatment time, by process gas</div>
+        <canvas id="cv-chemistry2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-chemistry"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>M. A. Lieberman &amp; A. J. Lichtenberg, <i>Principles of Plasma Discharges and Materials
+    Processing</i>, 2nd ed., Wiley (2005). DOI: 10.1002/0471724254 — Ch. 1–2 (discharge physics),
+    Ch. 14 (breakdown; Paschen coefficients for air).</li>
+    <li>P. K. Chu, J. Y. Chen, L. P. Wang &amp; N. Huang, "Plasma-surface modification of
+    biomaterials," <i>Materials Science and Engineering: R</i> <b>36</b>, 143–206 (2002).
+    DOI: 10.1016/S0927-796X(02)00004-9 — grafted groups by process gas (O₂ → OH, N₂/NH₃ → NH₂,
+    CO₂ → COOH), hydrophobic recovery.</li>
+    <li>F. Paschen, "Ueber die zum Funkenübergang in Luft, Wasserstoff und Kohlensäure bei
+    verschiedenen Drucken erforderliche Potentialdifferenz," <i>Annalen der Physik</i>
+    <b>273</b>, 69–96 (1889). DOI: 10.1002/andp.18892730505.</li>
+    <li>D. C. Duffy, J. C. McDonald, O. J. A. Schueller &amp; G. M. Whitesides, "Rapid
+    Prototyping of Microfluidic Systems in Poly(dimethylsiloxane)," <i>Anal. Chem.</i>
+    <b>70</b>, 4974–4984 (1998). DOI: 10.1021/ac980656z — O₂-plasma activation and PDMS bonding.</li>
+    <li>NIST Atomic Spectra Database, https://physics.nist.gov/asd — emission line positions
+    (representative lines used in the spectrum panel).</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Surface Functionalization Foundations · Lesson 2 of 4 — Next: silanes,
+the molecular paint you brush onto those fresh –OH groups.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl, xtickFmt, ytickFmt){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(xtickFmt ? xtickFmt(t) : fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(ytickFmt ? ytickFmt(t) : fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+function drawAtom(ctx, x, y, r, color){
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.15, x, y, r);
+  g.addColorStop(0, '#dbeafe'); g.addColorStop(1, color);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,58,95,.35)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 2: Plasma Treatment
+   ================================================================ */
+
+/* --- shared physics --- */
+const KB = 1.380649e-23, DMOL = 3.7e-10;
+function meanFreePath(Ptorr, T){ const P = Ptorr * 133.322;
+  return KB * T / (Math.SQRT2 * Math.PI * DMOL * DMOL * P); }
+
+/* Paschen (air-like): A cm⁻¹Torr⁻¹, B V/(cm·Torr), γse secondary emission */
+const PA_A = 15, PA_B = 365, PA_G = Math.log(Math.log(1 + 1 / 0.01)); // = 1.5272
+function paschenV(pdTorrCm){
+  const den = Math.log(PA_A * pdTorrCm) - PA_G;
+  return den > 0.02 ? PA_B * pdTorrCm / den : Infinity;
+}
+
+/* wavelength (nm, 380–780) → CSS rgb string, standard approximation */
+function wlToRGB(wl){
+  let r = 0, g = 0, b = 0;
+  if (wl < 440)      { r = -(wl - 440) / 60; b = 1; }
+  else if (wl < 490) { g = (wl - 440) / 50; b = 1; }
+  else if (wl < 510) { g = 1; b = -(wl - 510) / 20; }
+  else if (wl < 580) { r = (wl - 510) / 70; g = 1; }
+  else if (wl < 645) { r = 1; g = -(wl - 645) / 65; }
+  else               { r = 1; }
+  let f = 1;
+  if (wl < 420) f = 0.3 + 0.7 * (wl - 380) / 40;
+  else if (wl > 700) f = 0.3 + 0.7 * (780 - wl) / 80;
+  const q = x => Math.round(255 * Math.pow(Math.max(0, x * f), 0.8));
+  return `rgb(${q(r)},${q(g)},${q(b)})`;
+}
+
+/* gas fingerprints — REPRESENTATIVE visible lines [nm, relative intensity] */
+const GASES = [
+  { key: 'o2',  name: 'O₂',  look: 'pale gray-blue',
+    glow: [175, 195, 225],
+    lines: [[391,0.25],[437,0.3],[533,0.3],[616,0.4],[700,0.35],[777,0.9]],
+    note: 'faint pale glow — the strongest atomic-O lines (777, 845 nm) sit at the near-IR edge' },
+  { key: 'air', name: 'Air', look: 'pink-purple (lightning!)',
+    glow: [215, 160, 220],
+    lines: [[380,0.5],[406,0.55],[427,0.75],[600,0.35],[650,0.55],[670,0.45],[750,0.35],[777,0.3]],
+    note: 'nitrogen dominates: violet bands + red system = the white-purple of lightning' },
+  { key: 'n2',  name: 'N₂',  look: 'pink-lilac',
+    glow: [225, 165, 235],
+    lines: [[380,0.55],[406,0.6],[427,0.8],[600,0.4],[650,0.6],[670,0.5],[750,0.4]],
+    note: 'second-positive violet bands + first-positive red bands blend to pink-lilac' },
+  { key: 'ar',  name: 'Argon', look: 'lavender-violet',
+    glow: [190, 160, 240],
+    lines: [[420,0.4],[434,0.3],[476,0.3],[697,0.5],[707,0.5],[739,0.4],[751,0.6],[764,0.8],[772,0.5]],
+    note: 'blue-violet ion lines + strong deep-red neutral lines = lavender' },
+  { key: 'he',  name: 'Helium', look: 'peach-white',
+    glow: [255, 205, 185],
+    lines: [[447,0.4],[502,0.4],[588,1.0],[668,0.6],[707,0.5]],
+    note: 'bright yellow 588 nm line + red and blue companions = pinkish white' }
+];
+
+/* plasma-chemistry table for tab 4 */
+const CHEM = [
+  { name: 'O₂',  group: '–OH',   groupFull: 'hydroxyl',  col: COL.teal,
+    radCol: '#dc2626', rad: 'O·', theta1: 20,
+    story: 'polar, highly reactive, extremely hydrophilic — and the anchor Lesson 3\'s silanes bind to' },
+  { name: 'N₂',  group: '–NH₂',  groupFull: 'amine',     col: COL.purple,
+    radCol: '#8b5cf6', rad: 'N·', theta1: 45,
+    story: 'mildly basic and couple-able — the go-to handle for attaching proteins and DNA' },
+  { name: 'CO₂', group: '–COO⁻', groupFull: 'carboxyl',  col: COL.orange,
+    radCol: '#f59e0b', rad: 'CO·', theta1: 38,
+    story: 'acidic and negatively charged in water — electrostatic grab plus coupling chemistry' }
+];
+const THETA0 = 100;   // untreated polymer contact angle, degrees
+
+/* --- control state --- */
+let activeTab = 'pumpfirst';
+const scen = { pumpfirst: 'ambient', ignite: 'below', color: 'o2', chemistry: 'o2' };
+
+const fmtTorr = v => { const P = Math.pow(10, v);
+  return (P >= 1 ? fmt(P, P >= 10 ? 0 : 1) : P.toExponential(0)) + ' Torr'; };
+
+const FMT = {
+  'pumpfirst-logP': fmtTorr,
+  'ignite-V':    v => fmt(v, 0) + ' V',
+  'ignite-logP': fmtTorr,
+  'ignite-gap':  v => fmt(v, 0) + ' mm',
+  'color-gas':   v => GASES[Math.round(v)].name,
+  'color-power': v => fmt(v, 0) + ' %',
+  'chemistry-gas':   v => CHEM[Math.round(v)].name,
+  'chemistry-time':  v => fmt(v, 0) + ' s',
+  'chemistry-power': v => fmt(v, 0) + ' %'
+};
+
+const SCEN = {
+  pumpfirst: {
+    ambient: { 's-pumpfirst-logP': 2.881 },
+    process: { 's-pumpfirst-logP': -0.523 },
+    base:    { 's-pumpfirst-logP': -4 }
+  },
+  ignite: {
+    below:   { 's-ignite-V': 150,  's-ignite-logP': -0.08, 's-ignite-gap': 10 },
+    minimum: { 's-ignite-V': 400,  's-ignite-logP': -0.08, 's-ignite-gap': 10 },
+    overp:   { 's-ignite-V': 600,  's-ignite-logP': 1,     's-ignite-gap': 10 }
+  },
+  color: {
+    o2:  { 's-color-gas': 0 }, air: { 's-color-gas': 1 }, n2: { 's-color-gas': 2 },
+    ar:  { 's-color-gas': 3 }, he:  { 's-color-gas': 4 }
+  },
+  chemistry: {
+    o2:  { 's-chemistry-gas': 0, 's-chemistry-time': 60, 's-chemistry-power': 50 },
+    n2:  { 's-chemistry-gas': 1, 's-chemistry-time': 60, 's-chemistry-power': 50 },
+    co2: { 's-chemistry-gas': 2, 's-chemistry-time': 60, 's-chemistry-power': 50 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation plumbing (TFM pattern) --- */
+const ANIMATED = new Set(['ignite', 'color', 'chemistry']);
+let rafId = null, animClock = 0;
+function animLoop(ts){
+  animClock = (ts || 0) / 1000;
+  if (ANIMATED.has(activeTab)) {
+    try { DRAW[activeTab](); } catch (e) { console.error(e); }
+    rafId = requestAnimationFrame(animLoop);
+  } else rafId = null;
+}
+function startAnim(){ if (ANIMATED.has(activeTab) && rafId == null) rafId = requestAnimationFrame(animLoop); }
+function stopAnim(){ if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; } }
+
+/* fixed seeded particle attributes */
+const GAS_P = (() => { const rng = mulberry32(21), a = [];
+  for (let i = 0; i < 110; i++) a.push({ x: rng(), y: rng(), wig: 4 + rng() * 9,
+    w1: 0.5 + rng() * 1.3, w2: 0.4 + rng() * 1.1, ph: rng() * 7 });
+  return a; })();
+const ELEC_P = (() => { const rng = mulberry32(31), a = [];
+  for (let i = 0; i < 60; i++) a.push({ x: rng(), y: rng(), ph: rng() * 7, sp: 0.5 + rng() });
+  return a; })();
+const ION_P = (() => { const rng = mulberry32(41), a = [];
+  for (let i = 0; i < 30; i++) a.push({ x: rng(), y: rng(), ph: rng() * 7 });
+  return a; })();
+
+/* ---------------- TAB 1: pumpfirst ---------------- */
+function drawPumpfirst(){
+  const logP = num('s-pumpfirst-logP');
+  const P = Math.pow(10, logP), T = 300;
+  const lam = meanFreePath(P, T);
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-pumpfirst'));
+  // electrodes left & right
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(10, 14, 12, h - 28); ctx.fillRect(w - 22, 14, 12, h - 28);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(10, 14, 12, h - 28); ctx.strokeRect(w - 22, 14, 12, h - 28);
+  caption(ctx, 16, 12, '−', COL.ink, true); caption(ctx, w - 16, 12, '+', COL.ink, true);
+  // gas molecules (count log-mapped)
+  const nGas = Math.round(110 * Math.pow(Math.max(0, (logP + 6) / 8.9), 3));
+  for (let i = 0; i < Math.min(nGas, 110); i++) {
+    const p = GAS_P[i];
+    drawAtom(ctx, 30 + p.x * (w - 64), 22 + p.y * (h - 44), 4, '#94a3b8');
+  }
+  // one electron's zig-zag path: display hop length maps log-P → px
+  const hopPx = Math.max(6, Math.min(220, 6 + (2.881 - logP) * 34));
+  const rng = mulberry32(87);
+  let ex = 34, ey = h / 2, pdir = 0;
+  ctx.save(); ctx.strokeStyle = COL.purple; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ex, ey);
+  let guard = 0;
+  while (ex < w - 40 && guard++ < 200) {
+    const ang = (rng() - 0.5) * (hopPx > 100 ? 0.5 : 1.9);
+    const L = hopPx * (0.6 + rng() * 0.8);
+    ex += Math.cos(ang) * L; ey += Math.sin(ang) * L * 0.8;
+    ey = Math.max(26, Math.min(h - 26, ey));
+    ctx.lineTo(Math.min(ex, w - 40), ey);
+  }
+  ctx.stroke(); ctx.restore();
+  ctx.fillStyle = COL.purple;
+  ctx.beginPath(); ctx.arc(Math.min(ex, w - 40), ey, 5, 0, 7); ctx.fill();
+  caption(ctx, w / 2, h - 8, hopPx < 15 ? 'short frantic hops — no energy builds up' :
+    hopPx < 90 ? 'longer runs — the electron accelerates between hits' :
+    'clear flight — huge energy per run, but almost nothing left to hit', COL.ink, true);
+
+  /* plot: λ vs P */
+  const c2 = setupCanvas(document.getElementById('cv-pumpfirst2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 62, r: 14, t: 12, b: 36 });
+  ch.setRange(-4, 3, -8, 0);
+  ch.band(Math.log10(0.01), Math.log10(1), 'rgba(22,163,74,0.10)');
+  ch.grid();
+  ch.axes('pressure (Torr)', 'mean free path (m)',
+    t => Number.isInteger(t) ? '10^' + fmt(t, 0) : '',
+    t => Number.isInteger(t) ? '10^' + fmt(t, 0) : '');
+  const pts = [];
+  for (let lp = -4; lp <= 3.001; lp += 0.1) pts.push([lp, Math.log10(meanFreePath(Math.pow(10, lp), T))]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(logP, Math.log10(lam), COL.bad, 6);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.good; c2.ctx.font = 'bold 10px sans-serif';
+  c2.ctx.textAlign = 'center';
+  c2.ctx.fillText('process window', (ch.toX(-2) + ch.toX(0)) / 2, ch.toY(-0.6));
+  c2.ctx.restore();
+  ch.legend([{ label: 'λ = k_BT / (√2 π d² P)', color: COL.accent }]);
+
+  const lamTxt = lam < 1e-6 ? fmt(lam * 1e9, 0) + ' nm' :
+                 lam < 1e-3 ? fmt(lam * 1e6, 0) + ' µm' :
+                 lam < 1    ? fmt(lam * 1e3, 1) + ' mm' : fmt(lam, 1) + ' m';
+  setStat('st-pumpfirst', [
+    { label: 'Pressure', value: fmtTorr(logP) },
+    { label: 'Mean free path λ', value: lamTxt, highlight: true },
+    { label: 'vs. ambient', value: fmt(lam / meanFreePath(760, T), 0) + '× longer' },
+    { label: 'Energy per run (30 V/mm)', value: fmt(30000 * lam, lam > 1e-4 ? 1 : 3) + ' eV' }
+  ]);
+
+  if (logP > 1.5)
+    setVerdict('vd-pumpfirst', 'bad', 'Too crowded — electrons can\'t get up to speed.',
+      'λ = ' + lamTxt + ': an electron collides after gaining only ~' + fmt(30000 * lam * 1000, 1) + ' meV — hopelessly short of the ~12–16 eV needed to ionize O₂ or N₂. No field you can safely apply will strike a plasma here.');
+  else if (logP > -2.3)
+    setVerdict('vd-pumpfirst', 'good', 'In the process window — long runways AND enough gas.',
+      'λ = ' + lamTxt + ' gives electrons room to reach ionizing energy, and there are still plenty of molecules to ionize. This is where plasma cleaners live: pump down, then bleed process gas back to right about here.');
+  else
+    setVerdict('vd-pumpfirst', 'warn', 'Almost nothing left to ionize.',
+      'Runways are enormous (λ = ' + lamTxt + ') — but count the molecules on screen. An avalanche needs a chain of collisions, and the chain has nowhere to go. This is base pressure: great for a bare surface, useless for a plasma. Bleed some gas back in.');
+}
+
+/* ---------------- TAB 2: ignite (animated) ---------------- */
+function drawIgnite(){
+  const V = num('s-ignite-V'), logP = num('s-ignite-logP'), gapMm = num('s-ignite-gap');
+  const P = Math.pow(10, logP), pd = P * gapMm / 10;   // Torr·cm
+  const Vb = paschenV(pd);
+  const struck = isFinite(Vb) && V >= Vb;
+  const over = isFinite(Vb) ? V / Vb : 0;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-ignite'));
+  const ex0 = 40, ex1 = w - 40, eyT = 34, eyB = h - 44;
+  // glow when struck
+  if (struck) {
+    const g = ctx.createRadialGradient(w / 2, (eyT + eyB) / 2, 20, w / 2, (eyT + eyB) / 2, w / 2.2);
+    const br = 0.25 + 0.35 * Math.min(1, over - 0.6) + 0.05 * Math.sin(animClock * 9);
+    g.addColorStop(0, 'rgba(200,160,235,' + fmt(Math.min(0.75, br), 2) + ')');
+    g.addColorStop(1, 'rgba(200,160,235,0)');
+    ctx.fillStyle = g; ctx.fillRect(ex0, eyT, ex1 - ex0, eyB - eyT);
+  }
+  // electrodes (horizontal plates top & bottom) + RF symbol
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(ex0, eyT - 12, ex1 - ex0, 12); ctx.fillRect(ex0, eyB, ex1 - ex0, 12);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(ex0, eyT - 12, ex1 - ex0, 12); ctx.strokeRect(ex0, eyB, ex1 - ex0, 12);
+  // RF sine icon
+  ctx.save(); ctx.strokeStyle = COL.accent; ctx.lineWidth = 2; ctx.beginPath();
+  for (let i = 0; i <= 30; i++) {
+    const x = 8 + i, y = 16 + Math.sin(i / 30 * Math.PI * 2 + animClock * 12) * 7;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke(); ctx.restore();
+  caption(ctx, 58, 20, 'RF', COL.accent, true);
+  // neutrals
+  const nGas = Math.round(90 * Math.pow(Math.max(0, (logP + 3) / 4.5), 2));
+  for (let i = 0; i < Math.min(nGas, 90); i++) {
+    const p = GAS_P[i];
+    drawAtom(ctx, ex0 + 10 + p.x * (ex1 - ex0 - 20),
+      eyT + 8 + p.y * (eyB - eyT - 16) + Math.sin(animClock * p.w1 + p.ph) * 3, 3.8, '#94a3b8');
+  }
+  // electrons + ions
+  const rfPh = Math.sin(animClock * 10);
+  if (struck) {
+    const nE = Math.min(60, Math.round(12 + over * 28));
+    for (let i = 0; i < nE; i++) {
+      const p = ELEC_P[i];
+      const x = ex0 + 12 + ((p.x + animClock * 0.05 * p.sp) % 1) * (ex1 - ex0 - 24);
+      const y = eyT + 12 + p.y * (eyB - eyT - 24) + rfPh * 14 * p.sp;
+      ctx.fillStyle = COL.purple; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill();
+    }
+    const nI = Math.min(30, Math.round(6 + over * 14));
+    for (let i = 0; i < nI; i++) {
+      const p = ION_P[i];
+      const x = ex0 + 14 + p.x * (ex1 - ex0 - 28);
+      const y = eyT + 12 + p.y * (eyB - eyT - 24) - rfPh * 3;
+      drawAtom(ctx, x, y, 4.5, COL.orange);
+      caption(ctx, x, y + 3, '+', '#7c2d12', true);
+    }
+    caption(ctx, w / 2, h - 10, 'PLASMA — avalanche self-sustaining (ions +, electrons ·, glow = photons)', COL.purple, true);
+  } else {
+    // a few seed electrons wobbling, no avalanche
+    for (let i = 0; i < 4; i++) {
+      const p = ELEC_P[i];
+      const x = ex0 + 12 + p.x * (ex1 - ex0 - 24) + Math.sin(animClock * 1.5 + p.ph) * 10;
+      const y = eyT + 12 + p.y * (eyB - eyT - 24) + rfPh * 10;
+      ctx.fillStyle = COL.purple; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill();
+    }
+    caption(ctx, w / 2, h - 10, 'below breakdown — seed electrons jiggle but the avalanche never catches', COL.axis, true);
+  }
+
+  /* Paschen plot: x = log10(pd), y = V */
+  const c2 = setupCanvas(document.getElementById('cv-ignite2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 62, r: 14, t: 12, b: 36 });
+  ch.setRange(-1, 2, 0, 2000);
+  ch.grid();
+  ch.axes('pressure × gap (Torr·cm)', 'voltage (V)',
+    t => Number.isInteger(t) ? (t === 0 ? '1' : t === 1 ? '10' : t === 2 ? '100' : '0.1') : '');
+  const pts = [];
+  for (let lx = -1; lx <= 2.001; lx += 0.01) {
+    const vb = paschenV(Math.pow(10, lx));
+    pts.push([lx, isFinite(vb) ? vb : NaN]);
+  }
+  // shade the discharge region (above the curve)
+  c2.ctx.save(); c2.ctx.beginPath(); ch.clipPlot(); c2.ctx.clip();
+  c2.ctx.fillStyle = 'rgba(139,92,246,0.10)';
+  c2.ctx.beginPath();
+  let started = false;
+  for (const p of pts) { if (!isFinite(p[1])) continue;
+    const x = ch.toX(p[0]), y = ch.toY(Math.min(p[1], 2000));
+    if (!started) { c2.ctx.moveTo(x, y); started = true; } else c2.ctx.lineTo(x, y); }
+  c2.ctx.lineTo(ch.toX(2), ch.toY(2000)); c2.ctx.lineTo(ch.toX(-1), ch.toY(2000));
+  c2.ctx.closePath(); c2.ctx.fill(); c2.ctx.restore();
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(Math.log10(pd), Math.min(V, 2000), struck ? COL.purple : COL.bad, 7);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.purple; c2.ctx.font = 'bold 11px sans-serif';
+  c2.ctx.textAlign = 'center'; c2.ctx.fillText('DISCHARGE (plasma)', ch.toX(0.9), ch.toY(1750));
+  c2.ctx.fillStyle = COL.axis; c2.ctx.fillText('no discharge', ch.toX(0.6), ch.toY(120));
+  c2.ctx.restore();
+  ch.legend([{ label: 'Paschen V_b (air)', color: COL.accent }]);
+
+  setStat('st-ignite', [
+    { label: 'p × d', value: fmt(pd, 2) + ' Torr·cm' },
+    { label: 'Breakdown V_b', value: isFinite(Vb) ? fmt(Vb, 0) + ' V' : '∞ (too thin)' },
+    { label: 'Applied V', value: fmt(V, 0) + ' V' },
+    { label: struck ? 'Plasma' : 'Status', value: struck ? 'STRUCK 🟣' : 'dark', highlight: true }
+  ]);
+
+  if (struck)
+    setVerdict('vd-ignite', 'good', 'Plasma struck — the avalanche sustains itself.',
+      'V = ' + fmt(V, 0) + ' V exceeds V_b = ' + fmt(Vb, 0) + ' V at your p·d = ' + fmt(pd, 2) + ' Torr·cm. Each electron ionizes at least one molecule per transit, so every lost electron is replaced: the discharge is self-sustaining. The glow is excited molecules relaxing — next tab decodes its color.');
+  else if (!isFinite(Vb))
+    setVerdict('vd-ignite', 'bad', 'Gas too thin — electrons cross the gap without colliding.',
+      'At p·d = ' + fmt(pd, 2) + ' Torr·cm, an electron flies electrode-to-electrode meeting almost nothing. However hard you push, the avalanche chain has no links. You are LEFT of the Paschen minimum: add gas (or widen the gap) to re-enter the U.');
+  else if (pd > 3)
+    setVerdict('vd-ignite', 'bad', 'Over-pressured — runways too short (need ' + fmt(Vb, 0) + ' V).',
+      'You are RIGHT of the Paschen minimum: collisions come so fast that electrons never reach ionizing energy, so breakdown demands ' + fmt(Vb, 0) + ' V. Rather than brute-force the voltage, do what the pros do: pump down toward p·d ≈ 1 Torr·cm.');
+  else
+    setVerdict('vd-ignite', 'warn', 'Dark — below breakdown (need ' + fmt(Vb, 0) + ' V, applying ' + fmt(V, 0) + ' V).',
+      'You are near the bottom of the Paschen U — the cheapest place to ignite — but still under the curve. Electrons gain energy yet lose it before multiplying faster than they\'re lost. Nudge the voltage up and watch it catch.');
+}
+
+/* ---------------- TAB 3: color (animated glow) ---------------- */
+function drawColor(){
+  const gi = Math.round(num('s-color-gas')), pw = num('s-color-power') / 100;
+  const G = GASES[gi];
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-color'));
+  // chamber
+  const cx0 = 14, cx1 = w - 170, cy0 = 14, cy1 = h - 16;
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 2.5; ctx.strokeRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+  // glow: layered radial gradients with gentle flicker
+  const [gr, gg, gb] = G.glow;
+  const flick = 1 + 0.06 * Math.sin(animClock * 7) + 0.04 * Math.sin(animClock * 17 + 1);
+  const bright = Math.min(1, (0.25 + 0.75 * pw) * flick);
+  const gcx = (cx0 + cx1) / 2, gcy = (cy0 + cy1) / 2;
+  for (const [rad, alpha] of [[0.55, 0.85], [0.8, 0.45], [1.05, 0.22]]) {
+    const g = ctx.createRadialGradient(gcx, gcy, 8, gcx, gcy, (cx1 - cx0) * rad / 2);
+    g.addColorStop(0, `rgba(${gr},${gg},${gb},${fmt(alpha * bright, 2)})`);
+    g.addColorStop(1, `rgba(${gr},${gg},${gb},0)`);
+    ctx.fillStyle = g; ctx.fillRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+  }
+  // drifting bright motes
+  const rngM = mulberry32(61);
+  for (let i = 0; i < 14; i++) {
+    const bx = cx0 + 16 + rngM() * (cx1 - cx0 - 32);
+    const by = cy0 + 14 + ((rngM() * (cy1 - cy0 - 28)) + animClock * (8 + rngM() * 14)) % (cy1 - cy0 - 28);
+    ctx.fillStyle = `rgba(255,255,255,${fmt(0.25 * bright * (0.5 + rngM()), 2)})`;
+    ctx.beginPath(); ctx.arc(bx, by, 1.6, 0, 7); ctx.fill();
+  }
+  // electrodes
+  ctx.fillStyle = '#475569'; ctx.fillRect(cx0 + 8, cy0 + 6, cx1 - cx0 - 16, 7);
+  ctx.fillRect(cx0 + 8, cy1 - 13, cx1 - cx0 - 16, 7);
+  caption(ctx, (cx0 + cx1) / 2, cy1 + 0.5, '', COL.axis);
+  ctx.save(); ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(G.name + ' plasma — ' + G.look, (cx0 + cx1) / 2, cy0 + 30); ctx.restore();
+  // lightning inset
+  const lx0 = cx1 + 12, lx1 = w - 12, ly0 = 14, ly1 = h - 46;
+  ctx.fillStyle = '#1e293b'; ctx.fillRect(lx0, ly0, lx1 - lx0, ly1 - ly0);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(lx0, ly0, lx1 - lx0, ly1 - ly0);
+  const midx = (lx0 + lx1) / 2;
+  const bolt = [[midx + 8, ly0 + 8], [midx - 10, ly0 + 52], [midx + 2, ly0 + 56],
+                [midx - 14, ly0 + 105], [midx + 6, ly0 + 66], [midx - 6, ly0 + 62],
+                [midx + 12, ly0 + 14]];
+  const flash = 0.75 + 0.25 * Math.sin(animClock * 3.1);
+  ctx.save();
+  ctx.shadowColor = 'rgba(216,180,254,0.9)'; ctx.shadowBlur = 12 * flash;
+  ctx.fillStyle = `rgba(237,233,254,${fmt(flash, 2)})`;
+  ctx.beginPath(); ctx.moveTo(bolt[0][0], bolt[0][1]);
+  for (const p of bolt) ctx.lineTo(p[0], p[1]);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.fillStyle = '#cbd5e1'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('lightning =', midx, ly1 + 12); ctx.fillText('N₂/O₂ plasma', midx, ly1 + 24); ctx.restore();
+
+  /* spectrum barcode */
+  const c2 = setupCanvas(document.getElementById('cv-color2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 44, r: 14, t: 12, b: 40 });
+  ch.setRange(380, 780, 0, 1.1);
+  // dark spectrum backdrop
+  c2.ctx.fillStyle = '#0f172a';
+  c2.ctx.fillRect(ch.m.l, ch.m.t, c2.w - ch.m.l - ch.m.r, c2.h - ch.m.t - ch.m.b);
+  // rainbow reference strip along the bottom
+  for (let wl = 380; wl < 780; wl += 2) {
+    c2.ctx.fillStyle = wlToRGB(wl);
+    c2.ctx.fillRect(ch.toX(wl), c2.h - ch.m.b + 2, ch.toX(wl + 2) - ch.toX(wl) + 0.5, 7);
+  }
+  // emission lines
+  for (const [wl, inten] of G.lines) {
+    if (wl > 780) continue;
+    const x = ch.toX(wl);
+    c2.ctx.save();
+    c2.ctx.shadowColor = wlToRGB(wl); c2.ctx.shadowBlur = 6;
+    c2.ctx.strokeStyle = wlToRGB(wl); c2.ctx.lineWidth = 3;
+    c2.ctx.beginPath(); c2.ctx.moveTo(x, ch.toY(0)); c2.ctx.lineTo(x, ch.toY(inten * (0.5 + 0.5 * pw)));
+    c2.ctx.stroke(); c2.ctx.restore();
+  }
+  c2.ctx.save(); c2.ctx.strokeStyle = COL.axis; c2.ctx.lineWidth = 1.5;
+  c2.ctx.strokeRect(ch.m.l, ch.m.t, c2.w - ch.m.l - ch.m.r, c2.h - ch.m.t - ch.m.b);
+  c2.ctx.fillStyle = COL.axis; c2.ctx.font = '11px sans-serif'; c2.ctx.textAlign = 'center';
+  for (const t of [400, 500, 600, 700]) c2.ctx.fillText(t + ' nm', ch.toX(t), c2.h - ch.m.b + 21);
+  c2.ctx.font = 'bold 12px sans-serif'; c2.ctx.fillStyle = COL.ink;
+  c2.ctx.fillText('wavelength', (ch.m.l + c2.w - ch.m.r) / 2, c2.h - 4);
+  c2.ctx.restore();
+
+  const strongest = G.lines.reduce((a, b) => (b[1] > a[1] ? b : a));
+  setStat('st-color', [
+    { label: 'Gas', value: G.name },
+    { label: 'Apparent color', value: G.look, highlight: true },
+    { label: 'Strongest line', value: fmt(strongest[0], 0) + ' nm' },
+    { label: 'Photon energy', value: fmt(1240 / strongest[0], 2) + ' eV' }
+  ]);
+
+  setVerdict('vd-color', 'good', G.name + ' glows ' + G.look + '.',
+    'Why: ' + G.note + '. Line positions are fixed by the gas\'s energy levels — power changes the brightness, never the barcode. (Colors here are representative; real spectra shift in balance with pressure and power.) In the next tab, the same choice of gas decides the surface chemistry.');
+}
+
+/* ---------------- TAB 4: chemistry (animated) ---------------- */
+/* droplet as a circular cap: clip above the surface line */
+function drawDroplet(ctx, cx, surfY, R, thetaDeg, fill, stroke){
+  const th = thetaDeg * Math.PI / 180;
+  const cyc = surfY + R * Math.cos(th);       // canvas y grows downward
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - R - 4, surfY - 2 * R - 4, 2 * R + 8, 2 * R + 2); ctx.clip();
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.arc(cx, cyc, R, 0, 7); ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+  ctx.restore();
+}
+
+const RAD_P = (() => { const rng = mulberry32(71), a = [];
+  for (let i = 0; i < 40; i++) a.push({ x: rng(), ph: rng(), sp: 0.7 + rng() * 0.8, wig: rng() * 10 });
+  return a; })();
+
+function drawChemistry(){
+  const gi = Math.round(num('s-chemistry-gas'));
+  const tSec = num('s-chemistry-time'), pw = num('s-chemistry-power');
+  const C = CHEM[gi];
+  const tau = 20 * 50 / pw;                       // s — faster at higher power
+  const cov = 1 - Math.exp(-tSec / tau);          // 0..1
+  const angle = THETA0 - (THETA0 - C.theta1) * cov;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-chemistry'));
+  const surfY = h - 60;
+  // faint plasma glow above
+  const g = ctx.createLinearGradient(0, 0, 0, surfY);
+  g.addColorStop(0, 'rgba(139,92,246,' + fmt(0.10 + pw / 100 * 0.16, 2) + ')');
+  g.addColorStop(1, 'rgba(139,92,246,0.02)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, surfY);
+  // solid
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY, w, h - surfY);
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.5);
+  caption(ctx, 84, h - 14, 'polymer surface', COL.ink, true);
+  // radicals raining down (count ∝ power); wrap vertically
+  const nR = Math.round(6 + pw / 100 * 26);
+  for (let i = 0; i < nR; i++) {
+    const p = RAD_P[i % RAD_P.length];
+    const x = 12 + p.x * (w - 160) + Math.sin(animClock * 1.3 + p.ph * 7) * p.wig;
+    const y = 10 + ((p.ph * 200 + animClock * 70 * p.sp) % (surfY - 26));
+    ctx.fillStyle = C.radCol; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 7); ctx.fill();
+    caption(ctx, x + 11, y + 3, C.rad, C.radCol);
+  }
+  // grafted groups: slots across the surface fill with coverage
+  const slots = 16, gsp = (w - 170) / slots;
+  const nGraft = Math.round(cov * slots);
+  for (let i = 0; i < slots; i++) {
+    const x = 16 + i * gsp + gsp / 2;
+    if (i < nGraft) {
+      drawLine(ctx, x, surfY, x, surfY - 16, C.col, 2.5);
+      ctx.save(); ctx.fillStyle = C.col; ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center'; ctx.fillText(C.group, x, surfY - 21); ctx.restore();
+    } else {
+      drawLine(ctx, x, surfY, x, surfY - 7, '#94a3b8', 2, [2, 2]);
+    }
+  }
+  // droplet inset at right showing the current contact angle
+  const dropX = w - 74, R = 34;
+  drawLine(ctx, w - 140, surfY, w, surfY, COL.axis, 1.5);
+  drawDroplet(ctx, dropX, surfY, R, Math.max(angle, 8), 'rgba(37,99,235,0.45)', COL.accent);
+  caption(ctx, dropX, surfY + 16, 'θ = ' + fmt(angle, 0) + '°', COL.ink, true);
+  caption(ctx, dropX, surfY + 30, 'water test drop', COL.axis);
+
+  /* plot: contact angle vs time for all three gases */
+  const c2 = setupCanvas(document.getElementById('cv-chemistry2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 120, 0, 110);
+  ch.grid(); ch.axes('treatment time (s)', 'water contact angle (°)');
+  ch.hLine(90, COL.muted, [4, 4]);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.muted; c2.ctx.font = '10px sans-serif';
+  c2.ctx.textAlign = 'left'; c2.ctx.fillText('hydrophobic above 90°', ch.toX(2), ch.toY(90) - 4);
+  c2.ctx.restore();
+  CHEM.forEach((cc, i) => {
+    const pts = [];
+    for (let t = 0; t <= 120; t += 1)
+      pts.push([t, THETA0 - (THETA0 - cc.theta1) * (1 - Math.exp(-t / tau))]);
+    ch.plot(pts, cc.col, i === gi ? 3 : 1.5, i === gi ? null : [5, 4]);
+  });
+  ch.dot(tSec, angle, C.col, 6);
+  ch.legend(CHEM.map((cc, i) => ({ label: cc.name + ' → ' + cc.group, color: cc.col,
+    dash: i === gi ? null : [5, 4] })));
+
+  setStat('st-chemistry', [
+    { label: 'Process gas', value: C.name },
+    { label: 'Grafted group', value: C.group + ' (' + C.groupFull + ')' },
+    { label: 'Coverage', value: fmt(cov * 100, 0) + ' %', highlight: true },
+    { label: 'Contact angle', value: fmt(angle, 0) + '°' },
+    { label: 'Rate constant τ', value: fmt(tau, 0) + ' s' }
+  ]);
+
+  if (tSec === 0)
+    setVerdict('vd-chemistry', '', 'Untreated — a bare (but hungry) polymer.',
+      'Contact angle ' + fmt(THETA0, 0) + '°: water beads up. Start the treatment and watch ' + C.name + ' radicals graft ' + C.group + ' groups onto the dangling bonds.');
+  else if (cov < 0.6)
+    setVerdict('vd-chemistry', 'warn', 'Partial coverage — ' + fmt(cov * 100, 0) + '% of sites grafted.',
+      C.name + ' plasma is installing ' + C.group + ' (' + C.groupFull + ') groups: ' + C.story + '. The contact angle has dropped to ' + fmt(angle, 0) + '° and is still falling. More time or more power will finish the job.');
+  else
+    setVerdict('vd-chemistry', 'good', 'Saturated: a ' + C.group + '-functionalized surface (θ ≈ ' + fmt(angle, 0) + '°).',
+      C.story.charAt(0).toUpperCase() + C.story.slice(1) + '. Remember the two caveats: the grafted layer is a distribution (other groups ride along), and hydrophobic recovery will erode this in hours-to-days — use the surface soon.' + (gi === 0 ? ' Those fresh –OH groups are exactly the anchor Lesson 3 needs.' : ''));
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { pumpfirst: drawPumpfirst, ignite: drawIgnite, color: drawColor, chemistry: drawChemistry };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

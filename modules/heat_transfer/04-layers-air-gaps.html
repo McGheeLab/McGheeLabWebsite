@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Layers, Air Gaps &amp; Insulation — Heat Transfer Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Heat Transfer Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Layers, Air Gaps &amp; Insulation — Boundaries Inside Boundaries</h1>
+  <p class="subtitle">Heat Transfer Foundations · Lesson 4 of 6 — A puffy winter jacket is mostly
+  <em>nothing</em>: feathers holding millions of tiny pockets of trapped air. So why does a bag of
+  nothing keep you warmer than a solid sheet of metal ever could? Stack some walls and find out.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="series">1 · Two Layers, One Wall</button>
+  <button class="tab-btn" data-tab="air">2 · The Air Gap</button>
+  <button class="tab-btn" data-tab="voids">3 · Foams &amp; Fluff</button>
+  <button class="tab-btn" data-tab="levelup">4 · Level Up: R-Value Networks</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: series -->
+<section id="tab-series" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: boundaries inside boundaries</h2>
+    <p>In Lesson 3 you pushed heat through one wall. Real walls are almost never one material:
+    a house wall is brick, then foam, then plasterboard; a coffee mug is ceramic, then glaze; a
+    double-pane window is glass–air–glass. When heat has to cross <b>two layers in a row</b>, it
+    must fight through the first, <em>then</em> the second — the difficulties don't average out,
+    they <b>add up</b>.</p>
+    <p>Each layer has a <b>thermal resistance</b>: \(R = L/k\), where \(L\) is the layer's
+    thickness (in meters) and \(k\) is its thermal conductivity (in W/m·K — how easily that
+    material passes the jiggle along, from Lesson 1). Big \(R\) means "hard to cross." For layers
+    stacked in series, the same heat flow \(q\) (in watts) must pass through every layer, so:</p>
+    <div class="equation-box">
+      $$ R_{\text{tot}} = R_1 + R_2 = \frac{L_1}{k_1} + \frac{L_2}{k_2}
+      \qquad\qquad q = \frac{A\,\Delta T}{R_{\text{tot}}} $$
+    </div>
+    <p>Here \(\Delta T\) is the total temperature difference across the wall (hot side minus cold
+    side, in kelvin) and \(A\) is the wall area (m²; the sim uses 1&nbsp;m²). Now the beautiful
+    part: since the same \(q\) crosses both layers, each layer's share of the temperature drop is
+    proportional to its resistance — \(\Delta T_i = q\,R_i\). Plot temperature across the wall and
+    you get a <b>staircase</b>: a steep ramp across the hard-to-cross layer, a nearly flat shelf
+    across the easy one. <b>The worst conductor eats almost the whole temperature drop</b> — and
+    that layer is doing essentially all the insulating. The chain is only as slow as its slowest
+    link.</p>
+    <div class="worked-example">
+      <p>Brick + foam wall, 1&nbsp;m², inside 20&nbsp;°C, outside −5&nbsp;°C (\(\Delta T = 25\) K).
+      Brick: \(k_1 = 0.72\) W/m·K, \(L_1 = 0.10\) m → \(R_1 = 0.10/0.72 = 0.139\) m²K/W.
+      Foam: \(k_2 = 0.035\) W/m·K, \(L_2 = 0.05\) m → \(R_2 = 0.05/0.035 = 1.43\) m²K/W.
+      Total \(R = 1.57\) m²K/W, so \(q = 25/1.57 \approx 16\) W. The foam, though half as thick,
+      holds \(1.43/1.57 = 91\%\) of the temperature drop: the brick–foam interface sits at
+      \(20 - 16\times0.139 \approx 17.8\) °C — the brick barely notices winter. Remove the foam
+      and \(q\) jumps to \(25/0.139 \approx 180\) W.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Layers in series: resistances add, \(R_{\text{tot}} = \sum L_i/k_i\), and the same
+        \(q\) crosses every layer.</li>
+        <li>Each layer's temperature drop is proportional to its resistance: \(\Delta T_i = qR_i\).
+        The profile is a staircase, steep where \(R\) is big.</li>
+        <li>The highest-resistance layer dominates — one good insulating layer does nearly all
+        the work.</li>
+        <li>Adding a conductive layer (metal, glass) barely changes anything; its \(R\) is a
+        rounding error.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on <b>Brick + foam</b>. Look at the temperature staircase: which layer is steep?
+      Check the stats — what fraction of the 25 K drop does the foam carry?</li>
+      <li>Drag <b>Layer 2 conductivity</b> up toward brick's value. Watch the staircase flatten
+      into one straight ramp and \(q\) climb.</li>
+      <li>Switch to <b>Copper + steel</b>. Both resistances are microscopic — read \(q\) in the
+      stats. Why do metal walls make terrible houses?</li>
+      <li>On <b>Glass + glass</b>, double Layer 2's thickness. Does \(q\) halve? (It shouldn't —
+      only \(R_2\) doubled, not \(R_{\text{tot}}\). Predict the new \(q\) before you look.)</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="series" data-scen="brickfoam" onclick="setScen('series','brickfoam')">Brick + foam</button>
+    <button class="scen-btn" data-tab="series" data-scen="glassglass" onclick="setScen('series','glassglass')">Glass + glass</button>
+    <button class="scen-btn" data-tab="series" data-scen="coppersteel" onclick="setScen('series','coppersteel')">Copper + steel</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Layer 1 conductivity k₁ <span id="v-series-k1">0.72</span></label>
+        <input type="range" id="s-series-k1" min="-1.9" max="2.62" step="0.01" value="-0.14">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 1 thickness L₁ <span id="v-series-l1">100</span></label>
+        <input type="range" id="s-series-l1" min="1" max="200" step="1" value="100">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 2 conductivity k₂ <span id="v-series-k2">0.035</span></label>
+        <input type="range" id="s-series-k2" min="-1.9" max="2.62" step="0.01" value="-1.46">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 2 thickness L₂ <span id="v-series-l2">50</span></label>
+        <input type="range" id="s-series-l2" min="1" max="200" step="1" value="50">
+      </div>
+      <div class="stats" id="st-series"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The composite wall and its temperature staircase (20 °C inside, −5 °C outside)</div>
+        <canvas id="cv-series" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Who does the insulating? Resistance of each layer</div>
+        <canvas id="cv-series2" width="640" height="200"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-series"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: air -->
+<section id="tab-air" class="tab-content">
+  <div class="background-section">
+    <h2>Background: air — terrible conductor, great insulator</h2>
+    <p>Here is the number that explains jackets, thermoses, and double glazing: still air has
+    \(k_{\text{air}} = 0.026\) W/m·K. Compare copper's 401 — air conducts about <b>15,000×
+    worse than copper</b>, and about 6× worse than wood. Air molecules are far apart, so the
+    atomic jiggle from Lesson 1 gets handed on only during rare collisions. A layer of air is one
+    of the best thermal barriers you can buy, and it's free.</p>
+    <p>So why not build walls with huge air cavities? Because the number above has a catch:
+    it holds only if the air <b>stands still</b>. Air is a fluid. In a wide gap, the air touching
+    the warm side heats up, expands, becomes lighter, and rises; air on the cold side sinks. A
+    slow <b>circulation loop</b> forms — natural convection — and now the air physically
+    <em>carries</em> hot molecules across the gap instead of waiting for collision-by-collision
+    handoff. In a narrow gap, friction against the two walls smothers the loop before it can
+    start; past a critical width the loop wins. We summarize this with an effective conductivity:</p>
+    <div class="equation-box">
+      $$ k_{\text{eff}} = \mathrm{Nu}\cdot k_{\text{air}} \qquad
+      R_{\text{gap}} = \frac{d}{k_{\text{eff}}} \qquad
+      \mathrm{Nu} \approx 1 \text{ (still, narrow gap)}, \quad \mathrm{Nu} > 1 \text{ (circulating)} $$
+    </div>
+    <p>Here \(d\) is the gap width (m) and \(\mathrm{Nu}\) (the <b>Nusselt number</b>) is the
+    "convection multiplier": how many times worse the gap performs than perfectly still air. In
+    real enclosures the switch is set by the Rayleigh number (a balance of buoyancy vs. friction),
+    which grows like \(d^3\) — the sim below uses a <b>qualitative threshold model</b> with the
+    loop switching on near \(d \approx 15\) mm, faithful in trend, not a design correlation. Real
+    gaps also exchange heat by radiation (Lesson 6), which is why handbook air-space values are
+    lower than the pure-conduction numbers here.</p>
+    <div class="worked-example">
+      <p>A 12&nbsp;mm gap of <em>still</em> air: \(R = d/k = 0.012/0.026 \approx 0.46\) m²K/W.
+      The same 12&nbsp;mm of copper: \(0.012/401 = 3.0\times10^{-5}\) m²K/W — the air layer
+      resists about 15,400× more. Now widen the gap to 40&nbsp;mm hoping for
+      \(0.040/0.026 = 1.54\): the circulation loop switches on, \(\mathrm{Nu}\) climbs to several,
+      and the effective resistance <em>falls back</em> toward ~0.2 m²K/W. More air, less
+      insulation. The sweet spot for a vertical air gap is roughly 10–20&nbsp;mm.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Still air is a superb insulator: \(k = 0.026\) W/m·K, ~15,000× worse a conductor
+        than copper.</li>
+        <li>Air only stays still in a <em>narrow</em> gap; wide gaps grow a convection loop that
+        ferries heat across.</li>
+        <li>\(R_{\text{gap}} = d/(\mathrm{Nu}\,k_{\text{air}})\): resistance rises with width,
+        then convection (\(\mathrm{Nu}>1\)) claws it back. There is an optimum width.</li>
+        <li>Filling the gap with foam kills convection permanently — that's the entire job of
+        insulation: keep the air, stop the motion.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on <b>Thin trapped gap</b> (6 mm). The air particles just quiver in place — no
+      loop. Watch \(R_{\text{gap}}\) in the stats as you nudge the width up 1 mm at a time.</li>
+      <li>Keep widening past ~15 mm. The circulation loop appears and speeds up. Find the gap
+      width where \(R_{\text{gap}}\) peaks on the curve — that's the design sweet spot.</li>
+      <li>Go to <b>Wide cavity</b> (40 mm). More air than ever, yet check the verdict — where did
+      the resistance go?</li>
+      <li>Click <b>Foam-filled</b>. The loop dies. Compare \(R_{\text{gap}}\) at 40 mm foam vs.
+      40 mm open air — same width, wildly different wall.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="air" data-scen="thin" onclick="setScen('air','thin')">Thin trapped gap</button>
+    <button class="scen-btn" data-tab="air" data-scen="wide" onclick="setScen('air','wide')">Wide cavity</button>
+    <button class="scen-btn" data-tab="air" data-scen="foam" onclick="setScen('air','foam')">Foam-filled</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Gap width d <span id="v-air-gap">6</span></label>
+        <input type="range" id="s-air-gap" min="2" max="50" step="1" value="6">
+      </div>
+      <div class="ctrl-group">
+        <label>ΔT across wall <span id="v-air-dt">20</span></label>
+        <input type="range" id="s-air-dt" min="5" max="40" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Gap fill <span id="v-air-fill">still air</span></label>
+        <input type="range" id="s-air-fill" min="0" max="1" step="1" value="0">
+      </div>
+      <div class="stats" id="st-air"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Inside the gap (hot pane left, cold pane right) — watch for the loop</div>
+        <canvas id="cv-air" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Gap resistance vs. gap width — the rise-then-fall of an air gap</div>
+        <canvas id="cv-air2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-air"></div>
+    </div>
+  </div>
+</section>
+<!-- ============================================================ TAB 3: voids -->
+<section id="tab-voids" class="tab-content">
+  <div class="background-section">
+    <h2>Background: millions of tiny boundaries — foams and fluff</h2>
+    <p>Tab 2 left us with a problem: air is a wonderful insulator, but only in gaps too narrow to
+    let it circulate. So here's the engineering trick behind almost every insulation ever made:
+    <b>chop one big air gap into millions of tiny ones.</b> A foam, a fiberglass batt, a down
+    jacket — each is a flimsy solid skeleton whose only real job is to hold air pockets so small
+    that convection can never start inside them. The material is mostly nothing; the nothing is
+    the insulation.</p>
+    <p>Two numbers describe such a material. <b>Porosity</b> \(\phi\) (phi) is the fraction of the
+    volume that is air (a fiberglass batt is ~95%+ air). <b>Pore size</b> \(d\) is how big each
+    trapped pocket is. Heat crossing the material must thread a maze: through slow air pockets,
+    across countless solid–air interfaces, along skinny solid struts. The exact effective
+    conductivity \(k_{\text{eff}}\) depends on the maze's geometry, but two clean limits bracket
+    it — layers of solid and air stacked <em>along</em> the heat flow (parallel, best case for
+    conduction) or <em>across</em> it (series, worst case):</p>
+    <div class="equation-box">
+      $$ k_{\parallel} = \phi\,k_{\text{air}} + (1-\phi)\,k_s \qquad
+         k_{\perp} = \left(\frac{\phi}{k_{\text{air}}} + \frac{1-\phi}{k_s}\right)^{-1} \qquad
+         k_{\text{eff}} \approx \sqrt{k_{\parallel}\,k_{\perp}} $$
+    </div>
+    <p>Here \(k_s\) is the conductivity of the solid skeleton (glass fiber, polystyrene…) and
+    \(k_{\text{air}} = 0.026\) W/m·K. The geometric-mean blend in the last step is an honest
+    <b>estimate, not a law</b> — real foams land between the two bounds, and ours simply picks the
+    middle. Pore size sneaks in twice at the extremes: pores wider than ~10&nbsp;mm start to
+    convect (Tab 2's loop, in miniature), while pores <em>smaller than about 100 nanometers</em> —
+    aerogel territory — are narrower than the average distance an air molecule flies between
+    collisions, so the trapped gas conducts even worse than free air. That's how aerogel reaches
+    \(k \approx 0.015\) W/m·K, <em>below</em> still air itself.</p>
+    <div class="worked-example">
+      <p>Fiberglass batt: glass skeleton \(k_s = 1.0\) W/m·K, porosity \(\phi = 0.95\), pores
+      ~0.1&nbsp;mm (no convection, no nano effects, so the pocket air keeps
+      \(k_{\text{air}} = 0.026\)). Bounds: \(k_{\parallel} = 0.95(0.026) + 0.05(1.0) = 0.0747\);
+      \(k_{\perp} = (0.95/0.026 + 0.05/1.0)^{-1} = (36.6+0.05)^{-1} = 0.0273\) W/m·K. Estimate:
+      \(k_{\text{eff}} \approx \sqrt{0.0747 \times 0.0273} \approx 0.045\) W/m·K — the measured
+      value is ~0.04, so the simple blend lands close. A 100&nbsp;mm batt gives
+      \(R = 0.1/0.045 \approx 2.2\) m²K/W; the same 100&nbsp;mm of <em>solid</em> glass gives
+      only 0.10. Being 95% nothing made the wall 22× better.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Insulation = a solid skeleton whose job is to trap air in pockets too small to
+        convect. Down, foam, fiberglass, and double glazing are all the same trick.</li>
+        <li>Porosity \(\phi\) sets how close \(k_{\text{eff}}\) gets to \(k_{\text{air}}\); the
+        skeleton's \(k_s\) matters surprisingly little once \(\phi\) is high.</li>
+        <li>Series/parallel bounds bracket the truth; our geometric-mean blend is an estimate,
+        not a design value.</li>
+        <li>Pore size has sweet spots: &gt;10 mm pores convect (bad); &lt;100 nm pores choke gas
+        conduction below still air (aerogel's superpower).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on <b>Fiberglass batt</b>. Drag <b>Porosity</b> from 0% to 95% and watch the
+      cross-section fill with pockets while \(k_{\text{eff}}\) collapses toward air's 0.026.</li>
+      <li>At 95% porosity, drag <b>Skeleton conductivity</b> from glass (1.0) up to copper (401).
+      A 400× worse skeleton — how much does \(k_{\text{eff}}\) actually rise? Why so tame?
+      (Look at which bound moves.)</li>
+      <li>Click <b>Aerogel</b> and watch the pore-size readout drop to nanometers. Check the
+      stats: the pocket air now conducts <em>worse</em> than 0.026 — and \(k_{\text{eff}}\) dips
+      below still air.</li>
+      <li>Drag <b>Pore size</b> all the way up past 10 mm. The verdict flips: your "insulation"
+      has become a stack of convecting cavities.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="voids" data-scen="fiberglass" onclick="setScen('voids','fiberglass')">Fiberglass batt</button>
+    <button class="scen-btn" data-tab="voids" data-scen="eps" onclick="setScen('voids','eps')">EPS foam</button>
+    <button class="scen-btn" data-tab="voids" data-scen="aerogel" onclick="setScen('voids','aerogel')">Aerogel</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Porosity φ (air fraction) <span id="v-voids-por">95</span></label>
+        <input type="range" id="s-voids-por" min="0" max="95" step="1" value="95">
+      </div>
+      <div class="ctrl-group">
+        <label>Pore size d <span id="v-voids-pore">100 µm</span></label>
+        <input type="range" id="s-voids-pore" min="-4" max="1.3" step="0.02" value="-1">
+      </div>
+      <div class="ctrl-group">
+        <label>Skeleton conductivity k_s <span id="v-voids-ks">1.0</span></label>
+        <input type="range" id="s-voids-ks" min="-1" max="2.61" step="0.01" value="0">
+      </div>
+      <div class="stats" id="st-voids"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cross-section: solid skeleton (tan) + trapped air pockets (blue), heat flowing left → right</div>
+        <canvas id="cv-voids" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Effective conductivity vs. porosity — bounds (dashed) and the blend estimate (solid), log scale</div>
+        <canvas id="cv-voids2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-voids"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: levelup -->
+<section id="tab-levelup" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: resistance networks, U-values, and the R-value on the package</h2>
+    <p>Time to assemble the whole toolkit. A real wall is a <b>series resistance network</b>:
+    every layer contributes \(L_i/(k_i A)\), and — as you learned the hard way in Lesson 3 — the
+    thin films of nearly-still air clinging to each <em>surface</em> contribute resistances of
+    their own. For a wall of area \(A\) (m²) separating temperatures \(T_{\text{in}}\) and
+    \(T_{\text{out}}\):</p>
+    <div class="equation-box">
+      $$ q = \frac{T_{\text{in}} - T_{\text{out}}}{R_{\text{tot}}}, \qquad
+      R_{\text{tot}} = \underbrace{\frac{1}{h_{\text{in}}A}}_{\text{inside film}}
+      + \sum_i \frac{L_i}{k_i A}
+      + \underbrace{\frac{1}{h_{\text{out}}A}}_{\text{outside film}} $$
+    </div>
+    <p>Here \(h_{\text{in}}\) and \(h_{\text{out}}\) are the surface heat-transfer coefficients
+    (W/m²K — properly introduced in Lesson 5; for now the films are a fixed
+    0.17&nbsp;m²K/W of area-specific resistance, a typical still-indoor + outdoor pair). Working
+    per square meter (\(A = 1\) m²), engineers compress the whole network into two ratings.
+    The <b>U-value</b> (or U-factor), \(U = 1/R''_{\text{tot}}\) in W/m²K, is the heat a window
+    or wall leaks per square meter per kelvin — lower is better. Insulation packaging instead
+    quotes the <b>R-value</b>; in US units (ft²·°F·hr/BTU) it is 5.678× the SI value, so
+    "R-13" fiberglass means \(R_{\text{SI}} \approx 13/5.678 \approx 2.3\) m²K/W (often written
+    RSI&nbsp;2.3). Same physics, different unit costume.</p>
+    <p>The interface temperatures fall straight out of the network: walking from the warm side,
+    each element drops \(\Delta T_i = q R_i\), giving the staircase you've been reading all
+    lesson — now with two extra small steps at the surfaces where the films live. Build any
+    three-layer wall below and the sim solves the full chain.</p>
+    <div class="worked-example">
+      <p><b>Single pane vs. double pane</b>, 1&nbsp;m² of window, \(\Delta T = 20\) K, films
+      totaling 0.17&nbsp;m²K/W. <em>Single pane:</em> 4&nbsp;mm glass (\(k = 1.0\)) adds
+      \(0.004/1.0 = 0.004\), so \(R'' = 0.17 + 0.004 = 0.174\) m²K/W and
+      \(q = 20/0.174 \approx 115\) W (\(U \approx 5.7\) W/m²K) — Lesson 3's answer. <em>Double
+      pane:</em> two 4&nbsp;mm panes (\(2 \times 0.004 = 0.008\)) + a 12&nbsp;mm still-air gap
+      (\(0.012/0.026 \approx 0.46\)) + the same films:
+      \(R'' \approx 0.17 + 0.008 + 0.46 \approx 0.64\) m²K/W, so
+      \(q \approx 20/0.64 \approx 31\) W (\(U \approx 1.6\)). A <b>~4× improvement</b>, and the
+      glass contributes barely 1% of it — the upgrade you pay for is a 12&nbsp;mm sliver of
+      trapped air.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>\(R_{\text{tot}} = 1/(h_{\text{in}}A) + \sum L_i/(k_i A) + 1/(h_{\text{out}}A)\):
+        layers AND surface films, all in series, one \(q\) through everything.</li>
+        <li>\(U = 1/R''_{\text{tot}}\) (W/m²K) rates whole assemblies; US package R-value is
+        \(5.678 \times\) the SI R-value (R-13 ≈ RSI 2.3).</li>
+        <li>Interface temperatures come from \(\Delta T_i = qR_i\) — the staircase is the
+        network, drawn.</li>
+        <li>The double-pane window wins ~4× over single glass, and essentially all of the win is
+        one thin layer of still air.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load <b>Single pane</b>, then <b>Double pane</b>. Confirm the worked example live:
+      q ≈ 115 W drops to ≈ 31 W, U from ≈5.7 to ≈1.6. Which resistor in the chain grew?</li>
+      <li>On <b>Double pane</b>, slide the middle layer's thickness from 12 mm up to 50 mm.
+      q keeps (slowly) falling here — but the verdict warns you: in a real window Tab 2's
+      convection loop would eat the gain past ~20 mm.</li>
+      <li>Build the <b>Insulated stud wall</b> and read its US R-value in the stats. Where does
+      the brick–insulation interface temperature sit on a −5 °C day (ΔT = 25)?</li>
+      <li>Load <b>Steel box</b>. The metal contributes ~nothing; the films do all the insulating
+      — note that q is still lower than you might fear. Now swap one steel layer to aerogel and
+      watch the network transform.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="levelup" data-scen="singlepane" onclick="setScen('levelup','singlepane')">Single pane</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="doublepane" onclick="setScen('levelup','doublepane')">Double pane</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="studwall" onclick="setScen('levelup','studwall')">Insulated stud wall</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="metalbox" onclick="setScen('levelup','metalbox')">Steel box</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls — build a wall (3 slots)</h3>
+      <div class="ctrl-group">
+        <label>Layer 1 material <span id="v-levelup-m1">glass</span></label>
+        <input type="range" id="s-levelup-m1" min="0" max="8" step="1" value="2">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 1 thickness <span id="v-levelup-l1">4</span></label>
+        <input type="range" id="s-levelup-l1" min="0" max="200" step="1" value="4">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 2 material <span id="v-levelup-m2">still air</span></label>
+        <input type="range" id="s-levelup-m2" min="0" max="8" step="1" value="5">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 2 thickness <span id="v-levelup-l2">0</span></label>
+        <input type="range" id="s-levelup-l2" min="0" max="200" step="1" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 3 material <span id="v-levelup-m3">glass</span></label>
+        <input type="range" id="s-levelup-m3" min="0" max="8" step="1" value="2">
+      </div>
+      <div class="ctrl-group">
+        <label>Layer 3 thickness <span id="v-levelup-l3">0</span></label>
+        <input type="range" id="s-levelup-l3" min="0" max="200" step="1" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>ΔT across assembly <span id="v-levelup-dt">20</span></label>
+        <input type="range" id="s-levelup-dt" min="5" max="40" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Surface films <span id="v-levelup-films">on</span></label>
+        <input type="range" id="s-levelup-films" min="0" max="1" step="1" value="1">
+      </div>
+      <div class="stats" id="st-levelup"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The assembly: wall cross-section, temperature staircase, and the resistor chain underneath</div>
+        <canvas id="cv-levelup" width="640" height="360"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-levelup"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>T. L. Bergman, A. S. Lavine, F. P. Incropera &amp; D. P. DeWitt,
+    <i>Fundamentals of Heat and Mass Transfer</i>, 7th ed., Wiley (2011) — Ch. 3 (composite
+    walls, series thermal resistances, contact resistance) and Ch. 9 (free convection in
+    enclosures; onset of circulation in vertical cavities).</li>
+    <li>Y. A. Çengel &amp; A. J. Ghajar, <i>Heat and Mass Transfer: Fundamentals and
+    Applications</i>, 5th ed., McGraw-Hill (2015) — Ch. 3 (thermal resistance networks, R-value
+    and U-factor of building assemblies, single- vs. double-pane window examples; conductivity
+    tables for building materials).</li>
+    <li>ASHRAE, <i>ASHRAE Handbook — Fundamentals</i>, ASHRAE, Atlanta — Ch. 25–26 (design
+    thermal resistances of plane air spaces vs. gap width, surface-film resistances, R-values of
+    insulation materials).</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Lesson 4 of 6 — Next: fins and moving air —
+engineering heat away on purpose.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 4: Layers, Air Gaps & Insulation
+   ================================================================ */
+
+/* --- physics constants & synthetic models --- */
+const K_AIR = 0.026;                       // W/m·K, still air
+const LAMBDA_AIR = 6.8e-5;                 // mm — air mean free path (~68 nm)
+// Qualitative convection-onset model for a vertical air gap (trend-faithful,
+// NOT a design correlation): Nu = 1 below ~15 mm, then grows with width.
+function nuGap(dmm){ return dmm <= 15 ? 1 : 1 + Math.pow((dmm - 15) / 8, 1.6); }
+// Knudsen suppression of gas conduction in tiny pores (d in mm).
+function kGasPore(dmm){ return K_AIR / (1 + 3 * LAMBDA_AIR / dmm); }
+// Series/parallel bounds + geometric-mean blend for porous media.
+function kPorous(phi, ks, kg){
+  const kpar = phi * kg + (1 - phi) * ks;
+  const kser = 1 / (phi / kg + (1 - phi) / ks);
+  return { kpar, kser, kest: Math.sqrt(kpar * kser) };
+}
+// course-standard energy/temperature color map (t in [0,1], cold -> hot).
+// Each tab normalizes t over ITS OWN temperature span (coldest face = 0,
+// hottest face = 1) so the full blue→red range is always in play.
+function energyColor(t){
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[37,99,235],[147,197,253],[248,250,252],[251,146,60],[220,38,38]];
+  const x = t*(stops.length-1), i = Math.min(stops.length-2, Math.floor(x)), f = x-i;
+  const c = stops[i].map((v,j)=>Math.round(v+(stops[i+1][j]-v)*f));
+  return `rgb(${c[0]},${c[1]},${c[2]}`+`)`;
+}
+
+/* --- "before" ghosts: LAST holds each tab's most recent outputs; the first
+   slider input after a draw freezes it into GHOST so old-vs-new is visible.
+   Scenario presses clear the ghost (fresh baseline). --- */
+const LAST = {}, GHOST = {};
+function snapGhost(tab){ if (!GHOST[tab] && LAST[tab]) GHOST[tab] = LAST[tab]; }
+// big outcome number drawn directly on a canvas
+function bigOut(ctx, x, y, text, color){
+  ctx.save(); ctx.fillStyle = color || COL.ink; ctx.font = 'bold 21px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 5; ctx.lineJoin = 'round';
+  ctx.strokeText(text, x, y); ctx.fillText(text, x, y); ctx.restore();
+}
+function ghostLabel(ctx, x, y, text){
+  ctx.save(); ctx.fillStyle = COL.muted; ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+  ctx.strokeText(text, x, y); ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* --- levelup material catalog (index = slider value) --- */
+const MATS = [
+  { name: 'copper',     k: 401,   col: '#d97706' },
+  { name: 'steel',      k: 45,    col: '#94a3b8' },
+  { name: 'glass',      k: 1.0,   col: '#bfdbfe' },
+  { name: 'brick',      k: 0.72,  col: '#c2703d' },
+  { name: 'wood',       k: 0.15,  col: '#a16207' },
+  { name: 'still air',  k: 0.026, col: '#e0f2fe' },
+  { name: 'fiberglass', k: 0.04,  col: '#f9a8d4' },
+  { name: 'EPS foam',   k: 0.035, col: '#f1f5f9' },
+  { name: 'aerogel',    k: 0.015, col: '#ccfbf1' }
+];
+const R_FILMS = 0.17;                      // m²K/W — combined surface films (Lesson 3)
+
+/* --- control state --- */
+let activeTab = 'series';
+const scen = { series: 'brickfoam', air: 'thin', voids: 'fiberglass', levelup: 'singlepane' };
+
+const fmtK = v => { const k = Math.pow(10, v);
+  return (k < 0.1 ? fmt(k, 3) : k < 10 ? fmt(k, 2) : fmt(k, 0)) + ' W/m·K'; };
+const fmtPore = v => { const d = Math.pow(10, v);
+  return d < 0.001 ? fmt(d * 1e6, 0) + ' nm' : d < 1 ? fmt(d * 1000, 0) + ' µm' : fmt(d, 1) + ' mm'; };
+const fmtMat = v => MATS[Math.round(v)].name;
+
+const FMT = {
+  'series-k1': fmtK,
+  'series-l1': v => fmt(v, 0) + ' mm',
+  'series-k2': fmtK,
+  'series-l2': v => fmt(v, 0) + ' mm',
+  'air-gap':   v => fmt(v, 0) + ' mm',
+  'air-dt':    v => fmt(v, 0) + ' K',
+  'air-fill':  v => v > 0.5 ? 'foam' : 'still air',
+  'voids-por':  v => fmt(v, 0) + ' %',
+  'voids-pore': fmtPore,
+  'voids-ks':   fmtK,
+  'levelup-m1': fmtMat,
+  'levelup-l1': v => v === 0 ? 'off' : fmt(v, 0) + ' mm',
+  'levelup-m2': fmtMat,
+  'levelup-l2': v => v === 0 ? 'off' : fmt(v, 0) + ' mm',
+  'levelup-m3': fmtMat,
+  'levelup-l3': v => v === 0 ? 'off' : fmt(v, 0) + ' mm',
+  'levelup-dt': v => fmt(v, 0) + ' K',
+  'levelup-films': v => v > 0.5 ? 'on' : 'off'
+};
+
+const SCEN = {
+  series: {
+    brickfoam:   { 's-series-k1': -0.14, 's-series-l1': 100, 's-series-k2': -1.46, 's-series-l2': 50 },
+    glassglass:  { 's-series-k1': 0,     's-series-l1': 4,   's-series-k2': 0,     's-series-l2': 4 },
+    coppersteel: { 's-series-k1': 2.60,  's-series-l1': 100, 's-series-k2': 1.65,  's-series-l2': 100 }
+  },
+  air: {
+    thin: { 's-air-gap': 6,  's-air-dt': 20, 's-air-fill': 0 },
+    wide: { 's-air-gap': 40, 's-air-dt': 20, 's-air-fill': 0 },
+    foam: { 's-air-gap': 40, 's-air-dt': 20, 's-air-fill': 1 }
+  },
+  voids: {
+    fiberglass: { 's-voids-por': 95, 's-voids-pore': -1,    's-voids-ks': 0 },
+    eps:        { 's-voids-por': 95, 's-voids-pore': -0.82, 's-voids-ks': -0.8 },
+    aerogel:    { 's-voids-por': 95, 's-voids-pore': -3.7,  's-voids-ks': 0 }
+  },
+  levelup: {
+    singlepane: { 's-levelup-m1': 2, 's-levelup-l1': 4,   's-levelup-m2': 5, 's-levelup-l2': 0,
+                  's-levelup-m3': 2, 's-levelup-l3': 0,   's-levelup-dt': 20, 's-levelup-films': 1 },
+    doublepane: { 's-levelup-m1': 2, 's-levelup-l1': 4,   's-levelup-m2': 5, 's-levelup-l2': 12,
+                  's-levelup-m3': 2, 's-levelup-l3': 4,   's-levelup-dt': 20, 's-levelup-films': 1 },
+    studwall:   { 's-levelup-m1': 3, 's-levelup-l1': 100, 's-levelup-m2': 6, 's-levelup-l2': 90,
+                  's-levelup-m3': 4, 's-levelup-l3': 12,  's-levelup-dt': 25, 's-levelup-films': 1 },
+    metalbox:   { 's-levelup-m1': 1, 's-levelup-l1': 3,   's-levelup-m2': 1, 's-levelup-l2': 3,
+                  's-levelup-m3': 1, 's-levelup-l3': 3,   's-levelup-dt': 20, 's-levelup-films': 1 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => {
+      snapGhost(sl.id.slice(2).split('-')[0]);   // freeze the "before" state on first tweak
+      updateReadout(sl); refreshActiveTab();
+    });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  GHOST[tab] = null; LAST[tab] = null;           // scenario = fresh baseline, drop ghosts
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation pattern (house standard for this course) --- */
+let animId = null, animT = 0;
+const ANIMATED = { air: true };
+function tick(){ animT += 1 / 60; refreshActiveTab(); animId = requestAnimationFrame(tick); }
+function startAnim(){ if (!animId && ANIMATED[activeTab]) animId = requestAnimationFrame(tick); }
+function stopAnim(){ if (animId) { cancelAnimationFrame(animId); animId = null; } }
+
+/* --- small shared drawing bits --- */
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+// zigzag resistor symbol between (x1,y) and (x2,y)
+function resistorGlyph(ctx, x1, x2, y, color, width = 2){
+  const L = x2 - x1, lead = Math.min(10, L * 0.15), n = 6,
+    seg = (L - 2 * lead) / n, amp = 7;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 + lead, y);
+  for (let i = 1; i <= n; i++)
+    ctx.lineTo(x1 + lead + seg * i - seg / 2, y + (i % 2 ? -amp : amp));
+  ctx.lineTo(x2 - lead, y); ctx.lineTo(x2, y); ctx.stroke(); ctx.restore();
+}
+// crude material color from conductivity (metal gray → masonry tan → insulator pink)
+function kColor(k){
+  return k >= 10 ? '#cbd5e1' : k >= 0.4 ? '#d9a066' : k >= 0.08 ? '#c9a86a' : '#f6c6dd';
+}
+
+/* ---------------- TAB 1: series ---------------- */
+function drawSeries(){
+  const k1 = Math.pow(10, num('s-series-k1')), L1 = num('s-series-l1') / 1000;
+  const k2 = Math.pow(10, num('s-series-k2')), L2 = num('s-series-l2') / 1000;
+  const Th = 20, Tc = -5, dT = Th - Tc;               // °C, A = 1 m²
+  const R1 = L1 / k1, R2 = L2 / k2, Rt = R1 + R2;
+  const q = dT / Rt, Tif = Th - q * R1;
+  const share1 = R1 / Rt, share2 = R2 / Rt;
+
+  // ---- canvas 1: the wall + temperature staircase ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-series'));
+  const xw0 = 150, xw1 = 500, top = 42, bot = h - 46;
+  const wallW = xw1 - xw0, w1 = wallW * L1 / (L1 + L2), xI = xw0 + w1;
+  // ambient zones
+  ctx.fillStyle = 'rgba(239,68,68,0.07)'; ctx.fillRect(0, top, xw0, bot - top);
+  ctx.fillStyle = 'rgba(37,99,235,0.07)'; ctx.fillRect(xw1, top, w - xw1, bot - top);
+  // layers
+  ctx.fillStyle = kColor(k1); ctx.fillRect(xw0, top, w1, bot - top);
+  ctx.fillStyle = kColor(k2); ctx.fillRect(xI, top, wallW - w1, bot - top);
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+  ctx.strokeRect(xw0, top, w1, bot - top); ctx.strokeRect(xI, top, wallW - w1, bot - top);
+  caption(ctx, xw0 / 2, top + 18, 'inside 20 °C', COL.bad, true);
+  caption(ctx, (xw1 + w) / 2, top + 18, 'outside −5 °C', COL.accent, true);
+  caption(ctx, xw0 + w1 / 2, bot + 16, 'layer 1 · k=' + fmt(k1, k1 < 0.1 ? 3 : 2), COL.ink, true);
+  caption(ctx, xI + (wallW - w1) / 2, bot + 16, 'layer 2 · k=' + fmt(k2, k2 < 0.1 ? 3 : 2), COL.ink, true);
+  // atom lattice: each atom colored by its LOCAL temperature from the staircase
+  // (t normalized over this tab's span: Tc → 0, Th → 1). The color barely tilts
+  // across a conductor and plunges across an insulator — the staircase, in atoms.
+  const TofX = x => x <= xI ? Th - (Th - Tif) * (x - xw0) / Math.max(1, w1)
+                            : Tif - (Tif - Tc) * (x - xI) / Math.max(1, wallW - w1);
+  for (let ax = xw0 + 9; ax < xw1 - 4; ax += 17)
+    for (let ay = top + 12; ay < bot - 6; ay += 19) {
+      ctx.fillStyle = energyColor((TofX(ax) - Tc) / dT);
+      ctx.beginPath(); ctx.arc(ax, ay, 6, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,58,95,.25)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  // temperature staircase over the wall
+  const yOfT = T => bot - (T - (Tc - 4)) / ((Th + 4) - (Tc - 4)) * (bot - top);
+  ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 3; ctx.beginPath();
+  ctx.moveTo(xw0 - 60, yOfT(Th)); ctx.lineTo(xw0, yOfT(Th));
+  ctx.lineTo(xI, yOfT(Tif)); ctx.lineTo(xw1, yOfT(Tc));
+  ctx.lineTo(xw1 + 60, yOfT(Tc)); ctx.stroke(); ctx.restore();
+  for (const [x, T] of [[xw0, Th], [xI, Tif], [xw1, Tc]]) {
+    ctx.fillStyle = tempColor((T - Tc) / dT);
+    ctx.beginPath(); ctx.arc(x, yOfT(T), 5, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    caption(ctx, x, yOfT(T) - 10, fmt(T, 1) + ' °C', COL.ink, true);
+  }
+  arrow(ctx, xw0 - 95, (top + bot) / 2, xw0 - 45, (top + bot) / 2, COL.bad, 3);
+  caption(ctx, xw0 - 70, (top + bot) / 2 + 20, 'q', COL.bad, true);
+
+  // headline + "before" ghost (frozen on first slider tweak, cleared by scenarios)
+  if (GHOST.series) {
+    const g = GHOST.series, gI = xw0 + wallW * g.w1frac;
+    ctx.save(); ctx.strokeStyle = COL.muted; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(xw0 - 60, yOfT(Th)); ctx.lineTo(xw0, yOfT(Th));
+    ctx.lineTo(gI, yOfT(g.Tif)); ctx.lineTo(xw1, yOfT(Tc)); ctx.lineTo(xw1 + 60, yOfT(Tc));
+    ctx.stroke(); ctx.restore();
+    ghostLabel(ctx, xw0 + 8, top + 6, 'before: q = ' + fmt(g.q, g.q > 100 ? 0 : 1) + ' W');
+  }
+  bigOut(ctx, xw0 + 8, top + (GHOST.series ? 22 : 6), 'q = ' + fmt(q, q > 100 ? 0 : 1) + ' W/m²',
+    q > 300 ? COL.bad : COL.ink);
+  LAST.series = { q, Tif, w1frac: w1 / wallW };
+
+  // ---- canvas 2: who does the insulating? ----
+  const c2 = setupCanvas(document.getElementById('cv-series2'));
+  const bx = 170, bw = c2.w - bx - 90, rMax = Math.max(R1, R2) || 1;
+  [['Layer 1', R1, share1, kColor(k1), 60], ['Layer 2', R2, share2, kColor(k2), 120]]
+  .forEach(([lab, R, sh, col, y]) => {
+    const len = Math.max(2, R / rMax * bw);
+    c2.ctx.fillStyle = col; c2.ctx.fillRect(bx, y - 16, len, 32);
+    c2.ctx.strokeStyle = COL.axis; c2.ctx.strokeRect(bx, y - 16, len, 32);
+    c2.ctx.save(); c2.ctx.fillStyle = COL.ink; c2.ctx.font = 'bold 12px sans-serif';
+    c2.ctx.textAlign = 'right'; c2.ctx.textBaseline = 'middle';
+    c2.ctx.fillText(lab, bx - 10, y); c2.ctx.textAlign = 'left';
+    c2.ctx.fillText(fmt(R, R < 0.01 ? 4 : 3) + ' m²K/W  ·  ' + fmt(sh * 100, 0) + '% of ΔT',
+      bx + len + 8, y); c2.ctx.restore();
+  });
+  caption(c2.ctx, c2.w / 2, 24, 'thermal resistance R = L/k of each layer (bar length ∝ R)', COL.axis);
+
+  setStat('st-series', [
+    { label: 'R₁ = L₁/k₁', value: fmt(R1, R1 < 0.01 ? 4 : 3) + ' m²K/W' },
+    { label: 'R₂ = L₂/k₂', value: fmt(R2, R2 < 0.01 ? 4 : 3) + ' m²K/W' },
+    { label: 'R total', value: fmt(Rt, Rt < 0.01 ? 4 : 3) + ' m²K/W', highlight: true },
+    { label: 'Heat flow q (1 m²)', value: fmt(q, q > 100 ? 0 : 1) + ' W' },
+    { label: 'Interface temp', value: fmt(Tif, 1) + ' °C' },
+    { label: 'ΔT held by layer 2', value: fmt(share2 * 100, 0) + ' %' }
+  ]);
+
+  if (Rt < 0.02)
+    setVerdict('vd-series', 'bad', 'Practically no wall at all.',
+      'Both layers are conductors, so R total is ' + fmt(Rt, 4) + ' m²K/W and ' + fmt(q, 0) +
+      ' W pours through every square meter. The staircase is one shallow ramp — nothing in this wall pushes back. Metal walls need insulation, always.');
+  else if (Math.max(share1, share2) >= 0.75)
+    setVerdict('vd-series', 'good', 'One layer is doing almost all the work.',
+      'Layer ' + (share1 > share2 ? '1' : '2') + ' holds ' + fmt(Math.max(share1, share2) * 100, 0) +
+      '% of the temperature drop — see how the staircase plunges across it and barely tilts across the other layer. The series chain is only as good as its best resistor, and only as fast as its slowest link.');
+  else if (Rt < 0.3)
+    setVerdict('vd-series', 'warn', 'A mediocre team.',
+      'Neither layer has much resistance (R total = ' + fmt(Rt, 3) + ' m²K/W), so ' + fmt(q, 0) +
+      ' W/m² still gets through. The drops are shared, but sharing a small total isn\'t insulation — add one high-R layer and watch everything change.');
+  else
+    setVerdict('vd-series', 'good', 'A balanced series wall.',
+      'The two layers split the ' + fmt(dT, 0) + ' K drop ' + fmt(share1 * 100, 0) + '% / ' +
+      fmt(share2 * 100, 0) + '%, in exact proportion to their resistances (ΔTᵢ = qRᵢ). Total R = ' +
+      fmt(Rt, 2) + ' m²K/W keeps q down to ' + fmt(q, 1) + ' W per square meter.');
+}
+
+/* ---------------- TAB 2: air (ANIMATED) ---------------- */
+// seeded particle phases — stable across frames, no Math.random() per frame
+const AIR_P = (() => {
+  const r = mulberry32(7), a = [];
+  for (let i = 0; i < 46; i++)
+    a.push({ u: r(), v: r(), ph: r() * Math.PI * 2, sp: 0.6 + 0.8 * r() });
+  return a;
+})();
+const FOAM_SPECK = (() => {
+  const r = mulberry32(19), a = [];
+  for (let i = 0; i < 260; i++) a.push({ x: r(), y: r(), s: 1.5 + 3 * r() });
+  return a;
+})();
+
+function drawAir(){
+  const d = num('s-air-gap'), dt = num('s-air-dt'), foam = num('s-air-fill') > 0.5;
+  const Nu = foam ? 1 : nuGap(d);
+  const keff = foam ? 0.035 : Nu * K_AIR;
+  const Rgap = (d / 1000) / keff, Rstill = (d / 1000) / K_AIR;
+  const q = dt / Rgap;
+  const loopM = foam ? 0 : Math.max(0, Math.min(1, (d - 15) / 6)); // 0 = still, 1 = full loop
+
+  // ---- canvas 1: inside the gap ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-air'));
+  const top = 26, bot = h - 34, gw = 70 + d * 7, gx = (w - gw) / 2;
+  // panes
+  ctx.fillStyle = tempColor(0.92); ctx.fillRect(gx - 26, top, 26, bot - top);
+  ctx.fillStyle = tempColor(0.08); ctx.fillRect(gx + gw, top, 26, bot - top);
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+  ctx.strokeRect(gx - 26, top, 26, bot - top); ctx.strokeRect(gx + gw, top, 26, bot - top);
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(gx, top, gw, bot - top);
+  ctx.strokeStyle = COL.grid; ctx.strokeRect(gx, top, gw, bot - top);
+  caption(ctx, gx - 13, top - 8, 'hot', COL.bad, true);
+  caption(ctx, gx + gw + 13, top - 8, 'cold', COL.accent, true);
+  caption(ctx, w / 2, bot + 24, 'gap width d = ' + fmt(d, 0) + ' mm' +
+    (foam ? ' — filled with foam' : ''), COL.ink, true);
+
+  if (foam) {
+    for (const s of FOAM_SPECK) {
+      ctx.fillStyle = 'rgba(148,163,184,0.45)';
+      ctx.beginPath(); ctx.arc(gx + 4 + s.x * (gw - 8), top + 4 + s.y * (bot - top - 8), s.s, 0, 7);
+      ctx.fill();
+    }
+    caption(ctx, w / 2, (top + bot) / 2, 'foam: air trapped, loop impossible', COL.ink, true);
+  } else {
+    // circulation ellipse geometry
+    const cx = gx + gw / 2, cy = (top + bot) / 2,
+      rx = gw / 2 - 12, ry = (bot - top) / 2 - 14;
+    const loopHz = 0.02 + 0.06 * Math.min(4, Nu - 1);
+    for (const p of AIR_P) {
+      // still-air home position (grid-free, seeded)
+      const hx = gx + 8 + p.u * (gw - 16), hy = top + 10 + p.v * (bot - top - 20);
+      const jx = 2.4 * Math.sin(animT * 2.6 * p.sp + p.ph),
+            jy = 2.4 * Math.cos(animT * 2.1 * p.sp + p.ph * 1.7);
+      // loop position: down the cold side, up the hot side
+      const th = 2 * Math.PI * ((p.u + animT * loopHz * p.sp) % 1);
+      const rf = 0.35 + 0.6 * p.v;
+      const lx = cx + rx * rf * Math.cos(th), ly = cy + ry * rf * Math.sin(th);
+      const px = (1 - loopM) * (hx + jx) + loopM * (lx + jx * 0.4);
+      const py = (1 - loopM) * (hy + jy) + loopM * (ly + jy * 0.4);
+      ctx.fillStyle = tempColor(1 - (px - gx) / gw);
+      ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill();
+    }
+    if (loopM > 0.05) {
+      // loop guide arrows (up on the hot side, down on the cold side)
+      ctx.save(); ctx.globalAlpha = 0.35 + 0.5 * loopM;
+      ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.8, ry * 0.8, 0, 0, 2 * Math.PI); ctx.stroke();
+      ctx.setLineDash([]);
+      arrow(ctx, cx - rx * 0.8, cy + 14, cx - rx * 0.8, cy - 14, COL.bad, 2.5);
+      arrow(ctx, cx + rx * 0.8, cy - 14, cx + rx * 0.8, cy + 14, COL.accent, 2.5);
+      ctx.restore();
+      caption(ctx, cx, top + 16, 'circulation loop — Nu ≈ ' + fmt(Nu, 1), COL.warn, true);
+    } else {
+      caption(ctx, cx, top + 16, 'still air — molecules only jiggle in place', COL.good, true);
+    }
+  }
+
+  // headline + "before" ghost
+  if (GHOST.air)
+    ghostLabel(ctx, 8, 26, 'before: R = ' + fmt(GHOST.air.R, 2) + ' m²K/W · q = ' + fmt(GHOST.air.q, 1) + ' W');
+  bigOut(ctx, 8, GHOST.air ? 42 : 26, 'R = ' + fmt(Rgap, 2) + ' m²K/W · q = ' + fmt(q, 1) + ' W',
+    !foam && d > 25 ? COL.bad : COL.ink);
+  LAST.air = { d, R: Rgap, q };
+
+  // ---- canvas 2: R vs gap width ----
+  const c2 = setupCanvas(document.getElementById('cv-air2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(2, 50, 0, 1.5);
+  ch.grid(); ch.axes('gap width d (mm)', 'R of gap (m²K/W)');
+  const pStill = [], pEff = [], pFoam = [];
+  for (let x = 2; x <= 50.001; x += 0.5) {
+    pStill.push([x, (x / 1000) / K_AIR]);
+    pEff.push([x, (x / 1000) / (nuGap(x) * K_AIR)]);
+    pFoam.push([x, (x / 1000) / 0.035]);
+  }
+  ch.plot(pStill, COL.muted, 1.5, [4, 4]);
+  ch.plot(pFoam, COL.teal, 2, [2, 3]);
+  ch.plot(pEff, COL.accent, 2.5);
+  ch.vLine(15, COL.warn, [2, 4]);
+  if (GHOST.air) ch.dot(GHOST.air.d, GHOST.air.R, COL.muted, 4);
+  ch.dot(d, Rgap, foam ? COL.teal : COL.accent, 6);
+  ch.legend([{ label: 'real air gap', color: COL.accent },
+             { label: 'if air stayed still', color: COL.muted, dash: [4, 4] },
+             { label: 'foam-filled', color: COL.teal, dash: [2, 3] }]);
+
+  setStat('st-air', [
+    { label: 'Fill', value: foam ? 'EPS foam (k = 0.035)' : 'air (k = 0.026)' },
+    { label: 'Convection multiplier Nu', value: foam ? '1 (locked)' : fmt(Nu, 2) },
+    { label: 'Effective k', value: fmt(keff, 3) + ' W/m·K' },
+    { label: 'R of gap', value: fmt(Rgap, 3) + ' m²K/W', highlight: true },
+    { label: 'q through gap (1 m²)', value: fmt(q, 1) + ' W' },
+    { label: 'R if perfectly still', value: fmt(Rstill, 3) + ' m²K/W' }
+  ]);
+
+  if (foam)
+    setVerdict('vd-air', 'good', 'Foam: the loop is dead, permanently.',
+      'The skeleton pins the air in place, so R keeps growing with width: ' + fmt(Rgap, 2) +
+      ' m²K/W at ' + fmt(d, 0) + ' mm, and only ' + fmt(q, 1) + ' W/m² leaks through. Foam\'s k (0.035) is slightly worse than still air\'s 0.026 — the price of the skeleton — but it never convects. That trade is Tab 3\'s whole story.');
+  else if (d <= 15)
+    setVerdict('vd-air', 'good', 'Narrow gap — the air is trapped and still.',
+      'Friction against the panes smothers any circulation, so the gap performs at the full still-air value: R = ' + fmt(Rgap, 2) +
+      ' m²K/W. Every extra millimeter of width still buys more resistance — you are climbing the rising part of the curve.');
+  else if (d <= 25)
+    setVerdict('vd-air', 'warn', 'The loop is waking up.',
+      'Past ~15 mm, buoyancy beats friction and a slow circulation loop starts ferrying warm air across (Nu = ' + fmt(Nu, 2) +
+      '). R is near its peak — widening the gap from here buys almost nothing, and soon costs. The practical sweet spot is roughly 10–20 mm.');
+  else
+    setVerdict('vd-air', 'bad', 'Wide cavity — convection has ruined it.',
+      'A vigorous loop (Nu ≈ ' + fmt(Nu, 1) + ') now carries heat bodily across the cavity. R has fallen to ' + fmt(Rgap, 2) +
+      ' m²K/W — a still gap this wide would give ' + fmt(Rstill, 2) + '. More air, less insulation: kill the motion (foam!) or go back to ~15 mm.');
+}
+
+/* the physical pictures call this name for local-temperature tints */
+const tempColor = energyColor;
+
+/* ---------------- TAB 3: voids ---------------- */
+// seeded pore field — stable across redraws
+const VOID_PORES = (() => {
+  const r = mulberry32(31), a = [];
+  for (let i = 0; i < 240; i++) a.push({ x: r(), y: r(), s: 0.55 + 0.9 * r() });
+  return a;
+})();
+
+function drawVoids(){
+  const phi = num('s-voids-por') / 100;
+  const poreExp = num('s-voids-pore');
+  const dmm = Math.pow(10, poreExp);             // pore size, mm
+  const ks = Math.pow(10, num('s-voids-ks'));
+  const kg0 = kGasPore(dmm);                     // Knudsen-suppressed pocket-air k
+  const conv = dmm > 15 ? nuGap(dmm) : 1;        // huge pores start to convect
+  const kg = kg0 * conv;
+  const { kpar, kser, kest } = kPorous(phi, ks, kg);
+  const R100 = 0.1 / kest;                       // R of a 100 mm blanket
+
+  // ---- canvas 1: cross-section, heat flowing left → right; every element is
+  // tinted by its LOCAL temperature (t: hot face = 1, cold face = 0) ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-voids'));
+  const x0 = 100, x1 = w - 100, top = 30, bot = h - 40, cy = (top + bot) / 2;
+  ctx.fillStyle = kColor(ks); ctx.fillRect(x0, top, x1 - x0, bot - top);
+  const grad = ctx.createLinearGradient(x0, 0, x1, 0);
+  grad.addColorStop(0, 'rgba(220,38,38,0.30)'); grad.addColorStop(1, 'rgba(37,99,235,0.30)');
+  ctx.fillStyle = grad; ctx.fillRect(x0, top, x1 - x0, bot - top);
+  // pores: count ∝ porosity; drawn size tracks the pore slider (display-clamped)
+  const nP = Math.round(240 * phi / 0.95);
+  const rP = Math.max(2.5, Math.min(15, 3 + 2.4 * (poreExp + 4)));
+  for (let i = 0; i < nP; i++) {
+    const p = VOID_PORES[i];
+    const px = x0 + 10 + p.x * (x1 - x0 - 20), py = top + 10 + p.y * (bot - top - 20);
+    const t = 1 - (px - x0) / (x1 - x0);         // local temperature, 1 = hot face
+    ctx.beginPath(); ctx.arc(px, py, rP * p.s, 0, 7);
+    ctx.fillStyle = '#f8fafc'; ctx.fill();
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = energyColor(t); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = 'rgba(30,58,95,.22)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5; ctx.strokeRect(x0, top, x1 - x0, bot - top);
+  arrow(ctx, x0 - 78, cy, x0 - 8, cy, COL.bad, 3);
+  arrow(ctx, x1 + 8, cy, x1 + 78, cy, COL.accent, 3);
+  caption(ctx, x0 - 43, cy - 12, 'heat in', COL.bad, true);
+  caption(ctx, x1 + 43, cy - 12, 'heat out', COL.accent, true);
+  caption(ctx, (x0 + x1) / 2, bot + 24, 'porosity ' + fmt(phi * 100, 0) + '% · pores ' +
+    fmtPore(poreExp) + ' · skeleton k = ' + (ks < 0.1 ? fmt(ks, 3) : fmt(ks, 2)), COL.ink, true);
+  if (GHOST.voids)
+    ghostLabel(ctx, x0 + 8, top + 6, 'before: k_eff = ' + fmt(GHOST.voids.k, 3) + ' W/m·K');
+  bigOut(ctx, x0 + 8, top + (GHOST.voids ? 22 : 6), 'k_eff ≈ ' + fmt(kest, 3) + ' W/m·K',
+    kest <= K_AIR ? COL.good : kest < 0.08 ? COL.ink : COL.bad);
+
+  // ---- canvas 2: k_eff vs porosity, log₁₀ y — bounds bracket the estimate ----
+  const c2 = setupCanvas(document.getElementById('cv-voids2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const yLo = -2.1, yHi = Math.max(0.4, Math.log10(ks) + 0.25);
+  ch.setRange(0, 95, yLo, yHi);
+  ch.grid(); ch.axes('porosity φ (%)', 'log₁₀ k_eff (W/m·K)');
+  const pPar = [], pSer = [], pEst = [];
+  for (let f = 0; f <= 95.01; f += 1) {
+    const b = kPorous(f / 100, ks, kg);
+    pPar.push([f, Math.log10(b.kpar)]);
+    pSer.push([f, Math.log10(b.kser)]);
+    pEst.push([f, Math.log10(b.kest)]);
+  }
+  ch.hLine(Math.log10(K_AIR), COL.teal, [2, 4]);
+  ch.plot(pPar, COL.muted, 1.5, [5, 4]);
+  ch.plot(pSer, COL.muted, 1.5, [5, 4]);
+  ch.plot(pEst, COL.accent, 2.5);
+  if (GHOST.voids) ch.dot(GHOST.voids.phi, Math.log10(GHOST.voids.k), COL.muted, 4);
+  ch.dot(phi * 100, Math.log10(kest), COL.accent, 6);
+  ch.legend([{ label: 'blend estimate', color: COL.accent },
+             { label: 'series/parallel bounds', color: COL.muted, dash: [5, 4] },
+             { label: 'still air 0.026', color: COL.teal, dash: [2, 4] }]);
+  LAST.voids = { k: kest, phi: phi * 100 };
+
+  setStat('st-voids', [
+    { label: 'Pocket-air k (Knudsen)', value: fmt(kg0, 3) + ' W/m·K' },
+    { label: 'Pore convection ×', value: conv > 1 ? fmt(conv, 2) : '1 (still)' },
+    { label: 'k∥ (best case)', value: fmt(kpar, 3) + ' W/m·K' },
+    { label: 'k⊥ (worst case)', value: fmt(kser, 3) + ' W/m·K' },
+    { label: 'k_eff estimate', value: fmt(kest, 3) + ' W/m·K', highlight: true },
+    { label: 'R of a 100 mm blanket', value: fmt(R100, 1) + ' m²K/W' }
+  ]);
+
+  if (dmm > 15)
+    setVerdict('vd-voids', 'bad', 'Pores this big are little convecting cavities.',
+      'At ' + fmt(dmm, 1) + ' mm each pocket runs Tab 2\'s circulation loop in miniature (×' + fmt(conv, 1) +
+      ' on the pocket air), so the "insulation" is quietly ferrying heat inside itself. Real insulations keep pores below a millimeter precisely to make this impossible.');
+  else if (dmm > 8)
+    setVerdict('vd-voids', 'warn', 'Right at the edge of convecting.',
+      'Pockets of ' + fmt(dmm, 1) + ' mm are still (just) too small to circulate, so k_eff = ' + fmt(kest, 3) +
+      ' holds — but you are one slider-nudge from Tab 2\'s loop waking up inside every pore. Downhill (smaller) is the safe direction.');
+  else if (kg0 < K_AIR * 0.85)
+    setVerdict('vd-voids', 'good', 'Aerogel territory — the trapped gas beats free air.',
+      'Pores of ' + fmtPore(poreExp) + ' are narrower than an air molecule\'s mean free path (~68 nm), so molecules hit walls before they hit each other: the pocket gas conducts only ' + fmt(kg0, 3) +
+      ' W/m·K, below still air\'s 0.026. That Knudsen suppression is how aerogels reach k ≈ 0.015 — with a skeleton wispier than our simple blend assumes.');
+  else if (phi >= 0.8)
+    setVerdict('vd-voids', 'good', 'A proper insulation: mostly nothing, and the nothing is trapped.',
+      'At φ = ' + fmt(phi * 100, 0) + '% the blend estimate is k_eff ≈ ' + fmt(kest, 3) +
+      ' W/m·K — a 100 mm blanket gives R ≈ ' + fmt(R100, 1) + ' m²K/W. Notice the skeleton\'s k barely matters now: heat has no continuous solid highway left, and the air does the insulating.');
+  else if (phi >= 0.4)
+    setVerdict('vd-voids', 'warn', 'Half skeleton, half air — the solid is still a highway.',
+      'With φ = ' + fmt(phi * 100, 0) + '% the parallel (best-conduction) bound is dragged up by solid paths: k_eff ≈ ' + fmt(kest, 3) +
+      ' W/m·K. Insulation quality really begins when the solid stops percolating — keep pushing porosity up and watch the curve dive.');
+  else
+    setVerdict('vd-voids', 'bad', 'Barely porous — this is mostly just the solid.',
+      'At φ = ' + fmt(phi * 100, 0) + '% you have a slightly holey block of skeleton (k_eff ≈ ' + fmt(kest, 3) +
+      ' W/m·K). The few pockets interrupt almost nothing. Compare: the same material at 95% porosity would sit near ' + fmt(kPorous(0.95, ks, kg).kest, 3) + ' W/m·K.');
+}
+
+/* ---------------- TAB 4: levelup ---------------- */
+const R_FILM_IN = 0.12, R_FILM_OUT = 0.05;       // m²K/W — typical still-indoor / outdoor pair
+
+function drawLevelup(){
+  const mats = [1, 2, 3].map(i => MATS[Math.round(num('s-levelup-m' + i))]);
+  const Lmm  = [1, 2, 3].map(i => num('s-levelup-l' + i));
+  const dt = num('s-levelup-dt'), films = num('s-levelup-films') > 0.5;
+  const Tin = 20, Tout = Tin - dt;
+
+  // assemble the series chain (films + active layers)
+  const chain = [];
+  if (films) chain.push({ name: 'inside film', R: R_FILM_IN, film: true });
+  for (let i = 0; i < 3; i++) if (Lmm[i] > 0)
+    chain.push({ name: mats[i].name, R: (Lmm[i] / 1000) / mats[i].k,
+                 k: mats[i].k, L: Lmm[i], col: kColor(mats[i].k) });
+  if (films) chain.push({ name: 'outside film', R: R_FILM_OUT, film: true });
+  const solids = chain.filter(l => !l.film);
+  const Rt = Math.max(1e-4, chain.reduce((s, l) => s + l.R, 0));
+  const q = dt / Rt, U = 1 / Rt, Rus = Rt * 5.678;
+  const airGapTooWide = solids.some(l => l.name === 'still air' && l.L > 20);
+
+  // ---- canvas: wall + staircase above, resistor chain below ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-levelup'));
+  const top = 46, wallBot = 210, chainY = h - 78;
+  const xw0 = 165, xw1 = 485, wallW = xw1 - xw0, filmW = films ? 30 : 0;
+  const Lsum = Math.max(0.5, solids.reduce((s, l) => s + l.L, 0));
+
+  // ambient zones + face labels
+  ctx.fillStyle = 'rgba(239,68,68,0.07)'; ctx.fillRect(0, top, xw0 - filmW, wallBot - top);
+  ctx.fillStyle = 'rgba(37,99,235,0.07)'; ctx.fillRect(xw1 + filmW, top, w - xw1 - filmW, wallBot - top);
+  caption(ctx, (xw0 - filmW) / 2, top + 16, 'inside ' + fmt(Tin, 0) + ' °C', COL.bad, true);
+  caption(ctx, (xw1 + filmW + w) / 2, top + 16, 'outside ' + fmt(Tout, 0) + ' °C', COL.accent, true);
+
+  // films: fuzzy translucent air layers hugging the faces, with sparse slow atoms
+  if (films) {
+    for (const [fx, fw2] of [[xw0 - filmW, filmW], [xw1, filmW]]) {
+      ctx.fillStyle = 'rgba(147,197,253,0.30)'; ctx.fillRect(fx, top, fw2, wallBot - top);
+      for (let i = 0; i < 9; i++) {
+        const p = VOID_PORES[i + (fx < xw0 ? 0 : 9)];
+        ctx.fillStyle = 'rgba(96,165,250,0.55)';
+        ctx.beginPath(); ctx.arc(fx + 5 + p.x * (fw2 - 10), top + 8 + p.y * (wallBot - top - 16), 3, 0, 7); ctx.fill();
+      }
+    }
+  }
+
+  // solid layers to scale, geometry recorded for the staircase + resistor chain
+  let x = xw0;
+  const spans = [];                              // x-span of every chain element
+  if (films) spans.push({ x0: xw0 - filmW, x1: xw0 });
+  for (const l of solids) {
+    const lw = wallW * l.L / Lsum;
+    ctx.fillStyle = l.col; ctx.fillRect(x, top, lw, wallBot - top);
+    ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.2; ctx.strokeRect(x, top, lw, wallBot - top);
+    if (lw > 34) caption(ctx, x + lw / 2, wallBot + 15, l.name + ' · ' + fmt(l.L, 0) + ' mm', COL.ink);
+    spans.push({ x0: x, x1: x + lw });
+    x += lw;
+  }
+  if (films) spans.push({ x0: xw1, x1: xw1 + filmW });
+  if (!solids.length) {
+    ctx.save(); ctx.setLineDash([6, 5]); ctx.strokeStyle = COL.muted;
+    ctx.strokeRect(xw0, top, wallW, wallBot - top); ctx.restore();
+    caption(ctx, (xw0 + xw1) / 2, (top + wallBot) / 2, 'no layers! (films only)', COL.bad, true);
+  }
+
+  // temperature staircase: ΔTᵢ = qRᵢ across each element
+  const yOfT = T => wallBot - 14 - (T - (Tout - 2)) / ((Tin + 2) - (Tout - 2)) * (wallBot - top - 28);
+  let T = Tin;
+  const pts = [[Math.max(6, xw0 - filmW - 55), yOfT(T)], [xw0 - filmW, yOfT(T)]];
+  const nodes = [{ x: xw0 - filmW, T }];
+  chain.forEach((l, i) => {
+    T -= q * l.R;
+    pts.push([spans[i].x1, yOfT(T)]);
+    nodes.push({ x: spans[i].x1, T });
+  });
+  pts.push([Math.min(w - 6, xw1 + filmW + 55), yOfT(T)]);
+  if (GHOST.levelup && GHOST.levelup.pts) {
+    ctx.save(); ctx.strokeStyle = COL.muted; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); GHOST.levelup.pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+    ctx.stroke(); ctx.restore();
+  }
+  ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 3; ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  ctx.stroke(); ctx.restore();
+  nodes.forEach((n, i) => {
+    ctx.fillStyle = energyColor((n.T - Tout) / Math.max(1e-6, Tin - Tout));
+    ctx.beginPath(); ctx.arc(n.x, yOfT(n.T), 4.5, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+    if (i > 0 && i < nodes.length - 0 && chain.length <= 5)
+      caption(ctx, n.x, yOfT(n.T) + (i % 2 ? 20 : -10), fmt(n.T, 1) + '°', COL.ink, true);
+  });
+
+  // resistor chain, aligned element-by-element under the wall
+  const cx0 = spans.length ? spans[0].x0 - 40 : xw0 - 40,
+        cx1 = spans.length ? spans[spans.length - 1].x1 + 40 : xw1 + 40;
+  drawLine(ctx, cx0, chainY, spans.length ? spans[0].x0 : xw0, chainY, COL.ink, 2);
+  chain.forEach((l, i) => {
+    const s = spans[i];
+    resistorGlyph(ctx, s.x0, s.x1, chainY, l.film ? COL.teal : COL.ink, 2);
+    if (i < chain.length - 1) drawLine(ctx, s.x1, chainY, spans[i + 1].x0, chainY, COL.ink, 2);
+    const shr = l.R / Rt;
+    if (s.x1 - s.x0 > 30 || shr > 0.2) {
+      caption(ctx, (s.x0 + s.x1) / 2, chainY + 24, fmt(l.R, l.R < 0.01 ? 4 : 2), l.film ? COL.teal : COL.ink);
+      caption(ctx, (s.x0 + s.x1) / 2, chainY - 14, fmt(shr * 100, 0) + '%', COL.warn, shr > 0.5);
+    }
+  });
+  drawLine(ctx, spans.length ? spans[spans.length - 1].x1 : xw1, chainY, cx1, chainY, COL.ink, 2);
+  caption(ctx, (cx0 + cx1) / 2, chainY + 44,
+    'the same wall as a series circuit — R in m²K/W, orange % = share of ΔT held', COL.axis);
+
+  // headline + ghost label
+  if (GHOST.levelup)
+    ghostLabel(ctx, 10, 24, 'before: q = ' + fmt(GHOST.levelup.q, GHOST.levelup.q >= 100 ? 0 : 1) +
+      ' W · U = ' + fmt(GHOST.levelup.U, 1));
+  bigOut(ctx, 10, GHOST.levelup ? 40 : 24,
+    'q = ' + fmt(q, q >= 100 ? 0 : 1) + ' W · U = ' + fmt(U, U >= 10 ? 0 : 1) + ' W/m²K',
+    q > 300 ? COL.bad : q < 40 ? COL.good : COL.ink);
+  LAST.levelup = { q, U, pts };
+
+  const rows = chain.map(l => ({
+    label: (l.film ? '· ' : '') + l.name + (l.film ? '' : ' (' + fmt(l.L, 0) + ' mm)'),
+    value: fmt(l.R, l.R < 0.01 ? 4 : 2) + ' m²K/W'
+  }));
+  rows.push({ label: 'R″ total', value: fmt(Rt, 2) + ' m²K/W', highlight: true });
+  rows.push({ label: 'U-value', value: fmt(U, 2) + ' W/m²K' });
+  rows.push({ label: 'US R-value', value: 'R-' + fmt(Rus, 1) });
+  rows.push({ label: 'q (1 m², ΔT = ' + fmt(dt, 0) + ' K)', value: fmt(q, 1) + ' W' });
+  setStat('st-levelup', rows);
+
+  if (!solids.length)
+    setVerdict('vd-levelup', 'bad', 'There is no wall.',
+      films ? 'Only the two surface films (0.17 m²K/W) stand between inside and outside, yet even they hold q to ' +
+        fmt(q, 0) + ' W — the air clinging to surfaces really is the ever-present free insulation. Add a layer.'
+      : 'No layers, no films — nothing resists. Slide a thickness up or switch the films on.');
+  else if (!films && Rt < 0.05)
+    setVerdict('vd-levelup', 'bad', 'Bare conductors, no films — a wide-open door.',
+      'R″ = ' + fmt(Rt, 3) + ' m²K/W lets ' + fmt(q, 0) + ' W through every square meter. Switch the films on and watch even this wall improve dramatically — then note that real design never gets to ignore them.');
+  else if (solids.every(l => l.k >= 10))
+    setVerdict('vd-levelup', 'warn', 'A metal box: the films are doing all the insulating.',
+      'The metal contributes ' + fmt(chain.filter(l => !l.film).reduce((s, l) => s + l.R, 0), 4) +
+      ' of the ' + fmt(Rt, 2) + ' m²K/W — effectively nothing. Yet q = ' + fmt(q, 0) +
+      ' W, not thousands: the 0.17 of surface films saves it. Swap one layer to an insulator and watch the resistor chain transform.');
+  else if (airGapTooWide)
+    setVerdict('vd-levelup', 'warn', 'That air layer is wider than convection allows.',
+      'Our series chain assumes the air stays still, so q = ' + fmt(q, 1) + ' W keeps (slowly) improving with width — but Tab 2 showed a ' +
+      fmt(solids.find(l => l.name === 'still air' && l.L > 20).L, 0) + ' mm cavity circulates. Past ~20 mm the real R stops growing; keep gaps near 12–20 mm or fill them.');
+  else if (Rt >= 2)
+    setVerdict('vd-levelup', 'good', 'Serious insulation — code-grade wall.',
+      'R″ = ' + fmt(Rt, 2) + ' m²K/W (US R-' + fmt(Rus, 0) + ', U = ' + fmt(U, 2) +
+      ') holds q to ' + fmt(q, 1) + ' W/m² at ΔT = ' + fmt(dt, 0) +
+      ' K. Read the staircase: nearly the whole temperature drop lives inside the high-R layer, and the orange percentages under the circuit say the same thing.');
+  else if (Rt >= 0.5)
+    setVerdict('vd-levelup', 'good', 'A decent assembly — double-pane territory.',
+      'R″ = ' + fmt(Rt, 2) + ' m²K/W, U = ' + fmt(U, 1) + ', q = ' + fmt(q, 1) +
+      ' W/m². Compare the resistor chain: whichever element holds the biggest share of ΔT is your best insulator — grow it (thicker) or better it (lower k) for the next win.');
+  else
+    setVerdict('vd-levelup', 'warn', 'Single-pane territory.',
+      'R″ = ' + fmt(Rt, 3) + ' m²K/W leaks q = ' + fmt(q, 0) +
+      ' W/m² — Lesson 3\'s 115 W window lives right here. The films are likely your biggest resistors; the fix is one good layer: try 12 mm of still air (double pane) or any insulation slot.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { series: drawSeries, air: drawAir, voids: drawVoids, levelup: drawLevelup };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopAnim(); else startAnim(); });
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

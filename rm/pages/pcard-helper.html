@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PCard Business Purpose Helper — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    .pc-wrap { max-width: 760px; margin: 0 auto; }
+    .pc-lede {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin: 4px 0 20px;
+      line-height: 1.5;
+    }
+
+    /* Click-to-copy defaults strip */
+    .pc-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .pc-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+      transition: background .15s, border-color .15s;
+      user-select: none;
+    }
+    .pc-chip:hover { background: var(--bg); border-color: var(--primary); }
+    .pc-chip-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .pc-chip-value {
+      font-family: ui-monospace, "SF Mono", monospace;
+      font-size: 13px;
+    }
+    .pc-chip-icon { opacity: 0.5; font-size: 11px; }
+
+    /* Card sections */
+    .pc-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .pc-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-muted);
+      margin: 0 0 14px;
+    }
+    .pc-num {
+      background: var(--primary);
+      color: white;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* Expense-type pills */
+    .pc-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .pc-pill {
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .pc-pill:hover { background: var(--bg); }
+    .pc-pill.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+    .pc-tip {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: var(--bg);
+      border-left: 3px solid var(--primary);
+      border-radius: 4px;
+      line-height: 1.5;
+    }
+    .pc-tip.warn  { border-left-color: var(--amber, #f59e0b); background: var(--amber-bg, #fef3c7); color: #78350f; }
+    .pc-tip.good  { border-left-color: var(--green, #16a34a); background: var(--green-bg, #dcfce7); color: #14532d; }
+    .pc-tip strong { font-weight: 600; }
+
+    /* Fields */
+    .pc-field { margin-bottom: 12px; }
+    .pc-field:last-child { margin-bottom: 0; }
+    .pc-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .pc-field label .pc-hint {
+      font-weight: 400;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-left: 4px;
+    }
+    .pc-field input,
+    .pc-field textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 14px;
+      background: white;
+      color: var(--text);
+    }
+    .pc-field textarea { resize: vertical; min-height: 90px; }
+    .pc-field input:focus,
+    .pc-field textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+    }
+
+    /* Output */
+    .pc-output-section {
+      background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+      border: 1px solid #86efac;
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 20px;
+    }
+    .pc-output-section .pc-section-title { color: #14532d; }
+    .pc-output-section .pc-num { background: #16a34a; }
+    .pc-output {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      min-height: 90px;
+      white-space: pre-wrap;
+    }
+    .pc-output.empty { color: var(--text-muted); font-style: italic; }
+    .pc-output-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pc-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .pc-count.over { color: var(--red, #dc2626); font-weight: 600; }
+    .pc-copy-btn {
+      background: #16a34a;
+      color: white;
+      border: none;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .pc-copy-btn:hover { background: #15803d; }
+    .pc-copy-btn:active { transform: translateY(1px); }
+
+    /* Collapsible help */
+    .pc-help {
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .pc-help summary {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      list-style: none;
+    }
+    .pc-help summary::-webkit-details-marker { display: none; }
+    .pc-help summary::after {
+      content: "▾";
+      color: var(--text-muted);
+      transition: transform .2s;
+    }
+    .pc-help[open] summary::after { transform: rotate(180deg); }
+    .pc-help-body {
+      padding: 0 16px 16px;
+      border-top: 1px solid var(--border);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .pc-help-body ul {
+      margin: 12px 0;
+      padding-left: 20px;
+    }
+    .pc-help-body li { margin-bottom: 6px; }
+    .pc-help-body a { color: var(--primary); text-decoration: none; }
+    .pc-help-body a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="pc-wrap">
+      <div class="page-header">
+        <h1 class="page-title">PCard Business Purpose Helper</h1>
+        <p class="pc-lede">Pick the expense type, fill in a few details, copy the statement into the EBC-N PCard form.</p>
+      </div>
+
+      <!-- Click-to-copy defaults -->
+      <div class="pc-chips" id="pc-defaults"></div>
+
+      <!-- Step 1: Expense type -->
+      <div class="pc-section">
+        <div class="pc-section-title"><span class="pc-num">1</span>What kind of expense?</div>
+        <div class="pc-pills" id="pc-type-pills"></div>
+        <div id="pc-type-tip"></div>
+      </div>
+
+      <!-- Step 2: Fields -->
+      <div class="pc-section">
+        <div class="pc-section-title"><span class="pc-num">2</span>Fill in the details</div>
+        <div id="pc-fields"></div>
+      </div>
+
+      <!-- Step 3: Output -->
+      <div class="pc-output-section">
+        <div class="pc-section-title"><span class="pc-num">3</span>Copy this into the PCard form</div>
+        <div class="pc-output" id="pc-output">—</div>
+        <div class="pc-output-footer">
+          <span class="pc-count" id="pc-count">0 characters</span>
+          <button class="pc-copy-btn" id="pc-copy">📋 Copy to clipboard</button>
+        </div>
+      </div>
+
+      <!-- Collapsed: other form-field tips -->
+      <details class="pc-help">
+        <summary>Other PCard form field tips</summary>
+        <div class="pc-help-body">
+          <ul>
+            <li><strong>Receipt $$ Amount:</strong> Exact total from the itemized receipt — must match to the cent.</li>
+            <li><strong>Capital Asset?</strong> Yes if unit cost ≥ $5,000 with > 1 year useful life. Otherwise No.</li>
+            <li><strong>Tax Exempt?</strong> Yes if you used UA's tax-exempt status at point of sale; many online vendors charge sales tax by default — request a refund of the tax portion.</li>
+            <li><strong>Asset Location = Ship Address?</strong> Yes for normal lab equipment.</li>
+            <li><strong>File Upload:</strong> Itemized receipt as PDF; combine multiples into one file (≤10 files). Must show date, total, line items, payment method.</li>
+            <li><strong>Funding Account:</strong> Sponsored research → typically HEFC code 20 (Research).</li>
+            <li><strong>Additional Comments:</strong> Travel Authorization #, sole-source justification reference, split-funding rationale.</li>
+            <li><strong>Used / reseller equipment:</strong> May require a separate Sole Source Justification attached.</li>
+          </ul>
+          <p style="margin-top:12px;">
+            <a href="https://finance.arizona.edu/accounting/business-purpose" target="_blank" rel="noopener">UA Business Purpose Guide ↗</a> ·
+            <a href="https://finance.arizona.edu/accounting/business-purpose/reasonable-expense" target="_blank" rel="noopener">Reasonable Expense Guide ↗</a>
+          </p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- RM nav chrome -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/pcard-helper.js"></script>
+</body>
+</html>

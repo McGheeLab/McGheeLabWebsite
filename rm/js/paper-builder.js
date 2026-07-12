@@ -205,5 +205,13 @@
     if (e.key === 'Escape' && !modalEl.hidden) closeModal();
   });
 
-  load();
+  load().then(function () {
+    // V3.229 — deep-link from the research view ("+ Add Item" type=paper)
+    // opens this page with ?new=1 and expects the create modal to appear
+    // immediately rather than forcing a second click.
+    try {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('new') === '1') openModal();
+    } catch {}
+  });
 })();

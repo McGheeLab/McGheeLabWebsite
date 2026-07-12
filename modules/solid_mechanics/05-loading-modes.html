@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading Modes — Solid Mechanics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Loading Modes — Tension, Compression, Bending, Torsion</h1>
+  <p class="subtitle">Solid Mechanics Foundations · Lesson 5 of 5 — pull it, squash it, bend it,
+  twist it: every complicated load on a solid decomposes into a few basic modes, and geometry
+  decides where inside the solid the stress concentrates.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="axial">1 · Tension &amp; Compression</button>
+  <button class="tab-btn" data-tab="bend">2 · Bending</button>
+  <button class="tab-btn" data-tab="twist">3 · Torsion</button>
+  <button class="tab-btn" data-tab="combo">4 · Level Up: Combined Loading &amp; Shape</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: axial -->
+<section id="tab-axial" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: Tension and compression — the uniform modes</h2>
+    <p>Grab a bar and pull it straight along its axis: that is <b>tension</b>. Push it straight
+    along its axis: that is <b>compression</b>. These are the simplest ways you can load anything,
+    and they are also the friendliest, because of one beautiful fact: <b>every atomic chain shares
+    the load equally.</b> Remember Lesson 1 — a bar is millions of parallel chains of atoms. Pull
+    the bar end-to-end and each chain carries exactly the same slice of the force. So the stress
+    (Lesson 4) is <b>uniform</b> across the cross-section: one number, \( \sigma = F/A \), the
+    same at the skin, the same at the core, the same everywhere.</p>
+    <p>We keep the books straight with a sign convention: <b>tension is positive, compression is
+    negative</b>. A hanging weight puts the wire above it at \( \sigma = +F/A \); the leg of a
+    table lives its whole life at \( \sigma = -F/A \). Same formula, opposite sign.</p>
+    <p>One wrinkle before you trust compression completely: <b>slender things cheat.</b> Take a
+    plastic ruler and push its ends together — long before the plastic itself is anywhere near
+    failing, the ruler suddenly bows out sideways and folds. That escape route is called
+    <b>buckling</b>: a stability failure of the <em>shape</em>, not a strength failure of the
+    <em>material</em>. Short, fat columns fail by crushing; long, thin struts buckle first. We
+    will only flag it qualitatively here — the full theory is a course of its own.</p>
+    <div class="equation-box">
+      $$ \sigma \;=\; \pm\,\frac{F}{A} \qquad \text{(uniform — the same value at every point of
+      the cross-section; } + \text{ tension, } - \text{ compression)} $$
+    </div>
+    <div class="worked-example">
+      <p>A 60&nbsp;kg person (\(F \approx 590\ \text{N}\)) hangs from a steel wire of diameter
+      \(d = 2\ \text{mm}\). The cross-section area is
+      \(A = \pi d^2/4 = \pi (0.002)^2/4 = 3.14\times10^{-6}\ \text{m}^2\). The stress is
+      \(\sigma = 590 / 3.14\times10^{-6} = 188\ \text{MPa}\) — everywhere in the wire at once.
+      Mild steel yields at about 250&nbsp;MPa, so the wire holds with a margin of about
+      \(250/188 \approx 1.3\times\). Thin wire, whole person — that is how efficient pure
+      tension is.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Axial loading is uniform: \( \sigma = F/A \) at every point of the section — every
+        fiber shares equally.</li>
+        <li>Sign convention: tension positive, compression negative.</li>
+        <li>Tension is the most efficient way to use material — a 2&nbsp;mm wire holds a
+        person.</li>
+        <li>Slender members in compression buckle sideways before the material fails — shape
+        instability, not material failure.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on the <b>Hanging load</b> scenario. Look at the stress profile in the lower
+      plot — it is a flat line. Drag <b>Axial force F</b> up and down: the line moves but never
+      tilts. That flatness IS this tab.</li>
+      <li>Drag <b>Diameter d</b> from 40&nbsp;mm down to 5&nbsp;mm at fixed force. Stress goes as
+      \(1/d^2\) — how much diameter change does it take to double σ?</li>
+      <li>Push F negative (compression) with d large, then shrink d below 20&nbsp;mm and watch
+      the bar: the sideways bow and "buckling risk" flag appear. The <b>Slender strut</b>
+      scenario jumps straight there.</li>
+      <li>Find the force that puts a 10&nbsp;mm bar exactly at the 250&nbsp;MPa yield line
+      (watch the margin stat hit 1.0).</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="axial" data-scen="hang" onclick="setScen('axial','hang')">Hanging load (tension)</button>
+    <button class="scen-btn" data-tab="axial" data-scen="column" onclick="setScen('axial','column')">Column (compression)</button>
+    <button class="scen-btn" data-tab="axial" data-scen="strut" onclick="setScen('axial','strut')">Slender strut (buckles first)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Axial force F <span id="v-axial-F">+8 kN</span></label>
+        <input type="range" id="s-axial-F" min="-20" max="20" step="0.5" value="8">
+      </div>
+      <div class="ctrl-group">
+        <label>Bar diameter d <span id="v-axial-d">10 mm</span></label>
+        <input type="range" id="s-axial-d" min="5" max="40" step="1" value="10">
+      </div>
+      <div class="stats" id="st-axial"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The bar between grips (blue = compression, red = tension)</div>
+        <canvas id="cv-axial" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cross-section + stress across the width — flat means uniform</div>
+        <canvas id="cv-axial2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-axial"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: bend -->
+<section id="tab-bend" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Bending — tension on one face, compression on the other</h2>
+    <p>Bend a beam and watch its faces carefully: one surface <b>shortens</b> (compression) while
+    the opposite surface <b>stretches</b> (tension). Somewhere in between there must be a layer
+    that does neither — it keeps exactly its original length. That layer is the <b>neutral
+    axis</b>. So bending is not a new kind of stress at all: it is tension and compression from
+    Tab 1, <em>distributed cleverly</em> through the thickness.</p>
+    <p>How cleverly? The stress grows <b>linearly</b> with the distance \(y\) from the neutral
+    axis: zero at the axis, maximum at the outer faces. Material far from the axis works hardest;
+    material sitting near the axis does almost nothing — it is dead weight along for the ride.
+    Hold that thought: it is the reason I-beams have their flanges at the extremes and the reason
+    your bones are tubes rather than solid rods. We cash it in fully in Tab 4.</p>
+    <p>Our test rig is a <b>cantilever</b>: a beam clamped into a wall at one end, loaded at the
+    free tip. The load \(F\) acting at distance \(L\) creates a <b>bending moment</b>
+    \(M = F \cdot L\) at the wall — and since the lever arm is longest there, the moment (and the
+    stress) is largest <em>at the support</em>. That is why diving boards, tree branches, and
+    shelf brackets always break where they attach, not where you push.</p>
+    <div class="equation-box">
+      $$ \sigma \;=\; \frac{M\,y}{I} \qquad\qquad I_{\text{rect}} = \frac{b\,h^{3}}{12} $$
+      <p style="margin:6px 0 0">\(M\): bending moment (N·m). \(y\): distance from the neutral
+      axis (m). \(I\): the <b>second moment of area</b> (m⁴) — the shape's resistance to bending.
+      \(b\): section width, \(h\): section depth.</p>
+    </div>
+    <div class="worked-example">
+      <p>Cantilever, \(L = 0.5\ \text{m}\), end load \(F = 100\ \text{N}\): the wall moment is
+      \(M = 100 \times 0.5 = 50\ \text{N·m}\). Rectangular section \(b = 20\ \text{mm}\),
+      \(h = 10\ \text{mm}\): \(I = 0.02 \times (0.01)^3 / 12 = 1.67\times10^{-9}\ \text{m}^4\).
+      Peak stress, at the wall's top and bottom faces:
+      \(\sigma_{\max} = M(h/2)/I = 50 \times 0.005 / 1.67\times10^{-9} = 150\ \text{MPa}\).
+      Now <b>double the depth</b> to \(h = 20\ \text{mm}\): \(I\) grows by \(2^3 = 8\times\)
+      while \(h/2\) only doubles, so \(\sigma_{\max}\) drops by \(4\times\) to
+      \(37.5\ \text{MPa}\). Depth is the magic ingredient — it enters \(I\) cubed.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Bending = tension on one face + compression on the other, with a stress-free neutral
+        axis between them.</li>
+        <li>Stress is linear in \(y\): \( \sigma = My/I \) — outer fibers work hardest, the core
+        loafs.</li>
+        <li>For a cantilever, \(M = F L\) is largest at the wall — beams fail at the support.</li>
+        <li>\(I = bh^3/12\): doubling the depth cuts peak stress \(4\times\). Depth beats width,
+        cubed versus linear.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On the <b>Diving board</b> scenario, look at the beam's colors: for this downward tip
+      load the <b>top</b> is red (tension) and the bottom blue (compression), strongest at the
+      wall, fading to nothing at the tip. Trace the dashed neutral axis.</li>
+      <li>Read the through-thickness profile (lower plot): a straight line through zero. Where in
+      the thickness would you drill a hole if you had to?</li>
+      <li>Keep <b>End load F</b> fixed and swap depth for width: compare \(h=40, b=10\) (the
+      <b>Joist</b>) against \(h=10, b=40\). Same material area — compare σ<sub>max</sub> and the
+      tip deflection δ.</li>
+      <li>Load the <b>Overloaded</b> scenario, then find the smallest depth \(h\) that brings
+      σ<sub>max</sub> back under 250 MPa.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="bend" data-scen="dive" onclick="setScen('bend','dive')">Diving board (shallow, wide)</button>
+    <button class="scen-btn" data-tab="bend" data-scen="joist" onclick="setScen('bend','joist')">Joist (deep, narrow)</button>
+    <button class="scen-btn" data-tab="bend" data-scen="over" onclick="setScen('bend','over')">Overloaded</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>End load F <span id="v-bend-F">150 N</span></label>
+        <input type="range" id="s-bend-F" min="10" max="500" step="5" value="150">
+      </div>
+      <div class="ctrl-group">
+        <label>Section depth h <span id="v-bend-h">10 mm</span></label>
+        <input type="range" id="s-bend-h" min="5" max="40" step="1" value="10">
+      </div>
+      <div class="ctrl-group">
+        <label>Section width b <span id="v-bend-b">40 mm</span></label>
+        <input type="range" id="s-bend-b" min="5" max="40" step="1" value="40">
+      </div>
+      <div class="stats" id="st-bend"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cantilever, side view — red = tension, blue = compression, dashed = neutral axis</div>
+        <canvas id="cv-bend" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Stress through the thickness at the wall — linear, zero at the neutral axis</div>
+        <canvas id="cv-bend2" width="640" height="280"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-bend"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: twist -->
+<section id="tab-twist" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Torsion — shear in circles</h2>
+    <p>Now twist. Grip a shaft at one end and rotate the other: each circular cross-section
+    rotates a little relative to its neighbor, like a stack of coins being fanned. The material
+    between two neighboring sections is not being pulled apart or squashed — its layers are
+    <b>sliding past each other</b>. That is <b>shear stress</b>, \( \tau \) (tau), and it is a
+    genuinely third mode, distinct from pull and push. You have met shear before: in Lesson 3,
+    shear was the one load honey could only resist by <em>flowing</em>. A solid resists shear
+    elastically and springs back — that is exactly what a twisted shaft is doing.</p>
+    <p>Like bending, torsion plays favorites with position — but radially. The shear stress grows
+    <b>linearly with the radius</b> \(r\): zero on the central axis, maximum at the outer skin.
+    The center of a solid shaft does essentially nothing; <b>the skin does everything</b>. Which
+    suggests a trick: if the core is loafing, remove it. That is why drive shafts, bike frames,
+    and bones are <b>hollow tubes</b> — throw away the lazy core, keep the hard-working skin,
+    save the weight.</p>
+    <div class="equation-box">
+      $$ \tau \;=\; \frac{T\,r}{J} \qquad J_{\text{solid}} = \frac{\pi R^{4}}{2} \qquad
+         J_{\text{tube}} = \frac{\pi\,(R_o^{4} - R_i^{4})}{2} $$
+      <p style="margin:6px 0 0">\(T\): applied torque (N·m). \(r\): radius from the shaft axis
+      (m). \(J\): the <b>polar second moment of area</b> (m⁴) — the twist-resisting cousin of
+      \(I\). \(R_o, R_i\): outer and inner radii of a tube.</p>
+    </div>
+    <div class="worked-example">
+      <p>A solid steel shaft, \(R = 10\ \text{mm}\), carries \(T = 100\ \text{N·m}\):
+      \(J = \pi (0.01)^4/2 = 1.57\times10^{-8}\ \text{m}^4\), so the surface stress is
+      \(\tau_{\max} = TR/J = 100 \times 0.01 / 1.57\times10^{-8} = 63.7\ \text{MPa}\) — and
+      exactly zero at the center. Now bore out a hole of \(R_i = 6\ \text{mm}\):
+      \(J\) only drops to \(\pi(0.01^4 - 0.006^4)/2 = 1.37\times10^{-8}\ \text{m}^4\), so
+      \(\tau_{\max}\) rises just 15% to \(73.1\ \text{MPa}\) — while you removed
+      \((6/10)^2 = 36\%\) of the weight. The core you drilled out was barely working.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Torsion loads the material in <b>shear</b> — layers sliding past each other, a third
+        mode beyond pull and push.</li>
+        <li>\( \tau = Tr/J \): shear stress is zero at the axis and maximal at the skin.</li>
+        <li>Hollow shafts are the rational conclusion: remove the idle core, keep the working
+        skin, save weight.</li>
+        <li>Mild steel yields in shear around 150 MPa — roughly half its tensile yield.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On the <b>Solid shaft</b> scenario, study the cross-section colormap: dark center,
+      hot rim. Confirm on the τ(r) plot that the stress is literally zero on the axis.</li>
+      <li>Slide <b>Inner radius</b> from 0 to 0.6 × R. Watch τ<sub>max</sub> creep up only
+      slightly while "weight saved" races ahead. Where does the trade stop being worth it?</li>
+      <li>Halve the <b>Outer radius R</b> at fixed torque. τ<sub>max</sub> scales as \(1/R^3\) —
+      verify with the stats (predict first!).</li>
+      <li>Load <b>Overtorqued</b> and read the verdict: which part of the shaft yields first,
+      and why is the failure always at the surface?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="twist" data-scen="solid" onclick="setScen('twist','solid')">Solid shaft</button>
+    <button class="scen-btn" data-tab="twist" data-scen="hollow" onclick="setScen('twist','hollow')">Hollow tube (same outer R)</button>
+    <button class="scen-btn" data-tab="twist" data-scen="over" onclick="setScen('twist','over')">Overtorqued</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Torque T <span id="v-twist-T">100 N·m</span></label>
+        <input type="range" id="s-twist-T" min="10" max="500" step="5" value="100">
+      </div>
+      <div class="ctrl-group">
+        <label>Outer radius R <span id="v-twist-R">10 mm</span></label>
+        <input type="range" id="s-twist-R" min="5" max="25" step="0.5" value="10">
+      </div>
+      <div class="ctrl-group">
+        <label>Inner radius <span id="v-twist-Ri">0 × R</span></label>
+        <input type="range" id="s-twist-Ri" min="0" max="0.9" step="0.05" value="0">
+      </div>
+      <div class="stats" id="st-twist"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The twisted shaft — helix lines show the twist (exaggerated)</div>
+        <canvas id="cv-twist" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cross-section colormap + shear stress τ(r) — zero at the axis, max at the skin</div>
+        <canvas id="cv-twist2" width="640" height="280"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-twist"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: combo -->
+<section id="tab-combo" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: combined loading and the shape game</h2>
+    <p>Real parts rarely get the courtesy of a single clean mode. Push on a bike pedal and the
+    spindle feels <b>bending</b> (your weight on a lever) <em>and</em> <b>torsion</b> (that lever
+    twisting the crank axle) at the same time. A lamppost in wind bends <em>and</em> twists.
+    The good news: while stresses stay elastic, they <b>superpose</b> — the normal stresses
+    simply add point by point, \( \sigma_{\text{total}} = \sigma_{\text{bend}} +
+    \sigma_{\text{axial}} \), while the torsional shear \( \tau \) acts on different planes and
+    is tracked alongside. Combining a σ and a τ at one point into a single "how close to failure"
+    number takes machinery we will not build here — <b>Mohr's circle</b> and the <b>von Mises
+    criterion</b> — and that, honestly, is the opening act of your next course.</p>
+    <p>What we <em>can</em> finish here is the payoff of the whole series: <b>the shape game.</b>
+    Look at the definition \(I = \int y^2\,dA\). Every patch of area counts by the <em>square</em>
+    of its distance from the neutral axis — so the same kilograms of steel, pushed away from the
+    axis, buy wildly more bending stiffness. That is the entire idea of the I-beam. And it closes
+    the loop on this course: <b>atoms set the stiffness</b> \(E\) (Lesson 1), <b>grains set the
+    strength</b> (Lesson 2), <b>the material law converts load to stress</b> (Lessons 3–4), and
+    <b>shape decides where the stress goes</b> (Lesson 5). Materials are given to you; shape is
+    where you get to be clever.</p>
+    <div class="equation-box">
+      $$ \sigma_{\text{total}} = \sigma_{\text{bend}} + \sigma_{\text{axial}}
+         \qquad\qquad I = \int y^{2}\,dA $$
+      <p style="margin:6px 0 0">Elastic stresses superpose; torsional shear \( \tau \) lives on
+      different planes and combines via Mohr's circle / von Mises (next course). The integral
+      says: area far from the neutral axis counts <em>quadratically</em>.</p>
+    </div>
+    <div class="worked-example">
+      <p>A solid square \(20\times20\ \text{mm}\) has \(A = 400\ \text{mm}^2\) and
+      \(I = 20 \times 20^3/12 = 13{,}333\ \text{mm}^4\). Reshape the <b>same</b> 400&nbsp;mm²
+      into an idealized I-section 60&nbsp;mm deep: two flanges \(35\times5\ \text{mm}\) centered
+      at \(y = \pm27.5\ \text{mm}\), joined by a thin \(1\times50\ \text{mm}\) web. Parallel-axis
+      theorem: \(I = 2\,[\,35\times5^3/12 + (35\times5)\times27.5^2\,] + 1\times50^3/12
+      \approx 275{,}800\ \text{mm}^4\) — about <b>20.7× stiffer in bending with the same amount
+      of material</b>. (The 1&nbsp;mm web is idealized; real webs are thicker so they don't
+      buckle.)</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Real loads are combinations; elastic stresses superpose point by point. Full
+        combination machinery (Mohr, von Mises) is next course.</li>
+        <li>\(I = \int y^2\,dA\): pushing area away from the neutral axis buys stiffness
+        quadratically — same mass, ~20× stiffer.</li>
+        <li>No free lunch: open thin sections (I-beams) are excellent in bending and terrible in
+        torsion; closed tubes are the twist-resistant choice.</li>
+        <li>The course in one line: atoms set \(E\), grains set strength, the material law makes
+        stress, and shape decides where the stress goes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start at <b>Solid square</b> with some bending load, then sweep <b>Shape morph</b>
+      slowly to 100. Watch the area stat stay ≈ 400 mm² while I multiplies — where along the
+      morph does I climb fastest?</li>
+      <li>At full I-beam, compare the two bar charts: I up ~20.7×, σ<sub>max</sub> down. How much
+      more <b>End load</b> can the I-beam take before matching the square's stress?</li>
+      <li>Now add <b>Torque T</b> above 50 N·m with the shape past 50% (or hit the
+      <b>I-beam + torsion</b> scenario). Read the verdict: the same shape that wins at bending
+      loses at twisting. Why would a closed tube fix it?</li>
+      <li>Design challenge: find the smallest morph % that keeps σ<sub>max</sub> under 150 MPa
+      at F = 300 N with zero torque.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="combo" data-scen="square" onclick="setScen('combo','square')">Solid square</button>
+    <button class="scen-btn" data-tab="combo" data-scen="ibeam" onclick="setScen('combo','ibeam')">Full I-beam (pure bending)</button>
+    <button class="scen-btn" data-tab="combo" data-scen="twisty" onclick="setScen('combo','twisty')">I-beam + torsion (the tradeoff)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Bending end load F <span id="v-combo-Fb">100 N</span></label>
+        <input type="range" id="s-combo-Fb" min="0" max="300" step="5" value="100">
+      </div>
+      <div class="ctrl-group">
+        <label>Torque T <span id="v-combo-T">0 N·m</span></label>
+        <input type="range" id="s-combo-T" min="0" max="200" step="5" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Shape morph <span id="v-combo-shape">0 %</span></label>
+        <input type="range" id="s-combo-shape" min="0" max="100" step="1" value="0">
+      </div>
+      <div class="stats" id="st-combo"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cross-section to scale — banded by bending stress |σ| = M·|y|/I</div>
+        <canvas id="cv-combo" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Scoreboard vs. the solid square (same 400 mm² of steel)</div>
+        <canvas id="cv-combo2" width="640" height="280"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-combo"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>J. M. Gere &amp; B. J. Goodno, <i>Mechanics of Materials</i>, 9th ed., Cengage (2018) —
+    Ch. 1–3 (axial loading, torsion), Ch. 5 (bending stresses; σ = My/I), Ch. 11 (columns and
+    buckling).</li>
+    <li>F. P. Beer, E. R. Johnston, J. T. DeWolf &amp; D. F. Mazurek, <i>Mechanics of
+    Materials</i>, 8th ed., McGraw-Hill (2020) — torsion of circular and hollow shafts
+    (τ = Tr/J), combined loadings.</li>
+    <li>S. P. Timoshenko &amp; J. N. Goodier, <i>Theory of Elasticity</i>, 3rd ed., McGraw-Hill
+    (1970) — torsion of non-circular/open sections (why open sections are torsionally weak).</li>
+    <li>M. F. Ashby &amp; D. R. H. Jones, <i>Engineering Materials 1</i>, 4th ed.,
+    Butterworth-Heinemann (2012) — shape factors: stiffness per unit mass of shaped
+    sections.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Lesson 5 of 5 — you now have the vocabulary of
+solid mechanics: bonds → grains → material laws → stress &amp; strain → loading modes.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 5: Loading Modes
+   ================================================================ */
+
+/* --- constants --- */
+const E_STEEL = 200e9;      // Pa
+const G_STEEL = 80e9;       // Pa
+const YIELD_T = 250;        // MPa, mild-steel tensile yield
+const YIELD_S = 150;        // MPa, mild-steel shear yield (~half tensile)
+
+/* --- color maps (local; blue = compression, white = zero, red = tension) --- */
+function lerpC(c1, c2, u){
+  return 'rgb(' + Math.round(c1[0] + (c2[0] - c1[0]) * u) + ',' +
+    Math.round(c1[1] + (c2[1] - c1[1]) * u) + ',' +
+    Math.round(c1[2] + (c2[2] - c1[2]) * u) + ')';
+}
+const C_BLUE = [37, 99, 235], C_WHITE = [246, 248, 252], C_RED = [220, 38, 38];
+const C_COOL = [191, 219, 254], C_MID = [253, 224, 71], C_HOT = [220, 38, 38];
+function divColor(v){                       // v in [-1,1]; − blue, 0 white, + red
+  v = Math.max(-1, Math.min(1, v));
+  return v < 0 ? lerpC(C_WHITE, C_BLUE, -v) : lerpC(C_WHITE, C_RED, v);
+}
+function heatColor(u){                      // u in [0,1]; cold blue → yellow → hot red
+  u = Math.max(0, Math.min(1, u));
+  return u < 0.5 ? lerpC(C_COOL, C_MID, u * 2) : lerpC(C_MID, C_HOT, (u - 0.5) * 2);
+}
+
+/* --- control state --- */
+let activeTab = 'axial';
+const scen = { axial: 'hang', bend: 'dive', twist: 'solid', combo: 'square' };
+
+const FMT = {
+  'axial-F': v => (v > 0 ? '+' : '') + fmt(v, 1) + ' kN',
+  'axial-d': v => fmt(v, 0) + ' mm',
+  'bend-F':  v => fmt(v, 0) + ' N',
+  'bend-h':  v => fmt(v, 0) + ' mm',
+  'bend-b':  v => fmt(v, 0) + ' mm',
+  'twist-T': v => fmt(v, 0) + ' N·m',
+  'twist-R': v => fmt(v, 1) + ' mm',
+  'twist-Ri': v => fmt(v, 2) + ' × R',
+  'combo-Fb': v => fmt(v, 0) + ' N',
+  'combo-T':  v => fmt(v, 0) + ' N·m',
+  'combo-shape': v => fmt(v, 0) + ' %'
+};
+
+const SCEN = {
+  axial: {
+    hang:   { 's-axial-F': 8,   's-axial-d': 10 },
+    column: { 's-axial-F': -15, 's-axial-d': 30 },
+    strut:  { 's-axial-F': -5,  's-axial-d': 8 }
+  },
+  bend: {
+    dive:  { 's-bend-F': 150, 's-bend-h': 10, 's-bend-b': 40 },
+    joist: { 's-bend-F': 500, 's-bend-h': 40, 's-bend-b': 10 },
+    over:  { 's-bend-F': 500, 's-bend-h': 10, 's-bend-b': 20 }
+  },
+  twist: {
+    solid:  { 's-twist-T': 100, 's-twist-R': 10, 's-twist-Ri': 0 },
+    hollow: { 's-twist-T': 100, 's-twist-R': 10, 's-twist-Ri': 0.6 },
+    over:   { 's-twist-T': 400, 's-twist-R': 10, 's-twist-Ri': 0 }
+  },
+  combo: {
+    square: { 's-combo-shape': 0,   's-combo-Fb': 100, 's-combo-T': 0 },
+    ibeam:  { 's-combo-shape': 100, 's-combo-Fb': 100, 's-combo-T': 0 },
+    twisty: { 's-combo-shape': 100, 's-combo-Fb': 100, 's-combo-T': 150 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- small shared drawing bits --- */
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+function hatchWall(ctx, x, y0, y1, side){
+  // side = +1: wall material to the left of x
+  ctx.save(); ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(side > 0 ? x - 12 : x, y0, 12, y1 - y0);
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1;
+  ctx.strokeRect(side > 0 ? x - 12 : x, y0, 12, y1 - y0);
+  for (let y = y0 + 6; y < y1; y += 10)
+    drawLine(ctx, side > 0 ? x - 12 : x + 12, y + 6, side > 0 ? x : x, y - 2, COL.axis, 1);
+  ctx.restore();
+}
+function arcArrow(ctx, cx, cy, r, a0, a1, color, width){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width || 2.5;
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke(); ctx.restore();
+  const ex = cx + r * Math.cos(a1), ey = cy + r * Math.sin(a1);
+  const tx = -Math.sin(a1), ty = Math.cos(a1);       // tangent (CCW direction)
+  arrow(ctx, ex - tx * 2, ey - ty * 2, ex + tx * 8, ey + ty * 8, color, width || 2.5);
+}
+
+/* ---------------- TAB 1: axial ---------------- */
+function drawAxial(){
+  const Fk = num('s-axial-F'), d = num('s-axial-d');   // kN, mm
+  const FN = Fk * 1000;
+  const Amm2 = Math.PI * d * d / 4;
+  const sig = FN / (Amm2 * 1e-6) / 1e6;                // MPa
+  const Lbar = 300;                                    // mm, nominal drawn length
+  const slender = Lbar / d;
+  const buckling = FN < 0 && slender > 15;
+  const fill = divColor(sig / 300);
+
+  // --- canvas 1: the bar between grips ---
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-axial'));
+  const cy = h / 2 - 8;
+  const dPx = Math.max(-40, Math.min(40, sig * 0.06));       // exaggerated length change
+  const half = 175 + dPx;
+  const xL = w / 2 - half, xR = w / 2 + half;
+  const hPx = Math.max(10, d * 2);
+
+  // ghost outline at rest length
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = COL.muted; ctx.lineWidth = 1;
+  ctx.strokeRect(w / 2 - 175, cy - hPx / 2, 350, hPx); ctx.restore();
+
+  // bar
+  ctx.fillStyle = fill;
+  ctx.fillRect(xL, cy - hPx / 2, xR - xL, hPx);
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.5;
+  ctx.strokeRect(xL, cy - hPx / 2, xR - xL, hPx);
+
+  // grips (jaws at each end)
+  ctx.fillStyle = '#64748b';
+  ctx.fillRect(xL - 14, cy - hPx / 2 - 8, 14, hPx + 16);
+  ctx.fillRect(xR, cy - hPx / 2 - 8, 14, hPx + 16);
+
+  // load arrows
+  const aLen = Math.min(70, 22 + Math.abs(Fk) * 2.4);
+  if (Fk > 0.01) {
+    arrow(ctx, xL - 18, cy, xL - 18 - aLen, cy, COL.bad, 3.5);
+    arrow(ctx, xR + 18, cy, xR + 18 + aLen, cy, COL.bad, 3.5);
+    caption(ctx, w / 2, cy - hPx / 2 - 24, 'tension — pulled apart', COL.bad, true);
+  } else if (Fk < -0.01) {
+    arrow(ctx, xL - 18 - aLen, cy, xL - 18, cy, COL.accent, 3.5);
+    arrow(ctx, xR + 18 + aLen, cy, xR + 18, cy, COL.accent, 3.5);
+    caption(ctx, w / 2, cy - hPx / 2 - 24, 'compression — squashed', COL.accent, true);
+  } else {
+    caption(ctx, w / 2, cy - hPx / 2 - 24, 'no load', COL.axis, true);
+  }
+
+  // buckling overlay
+  if (buckling) {
+    ctx.save(); ctx.strokeStyle = COL.warn; ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]);
+    ctx.beginPath(); ctx.moveTo(xL, cy);
+    ctx.quadraticCurveTo(w / 2, cy - hPx / 2 - 34, xR, cy); ctx.stroke(); ctx.restore();
+    caption(ctx, w / 2, cy + hPx / 2 + 24,
+      '⚠ buckling risk — slender (L/d = ' + fmt(slender, 0) + '): it bows out before the material fails',
+      COL.warn, true);
+  } else {
+    caption(ctx, w / 2, cy + hPx / 2 + 24,
+      'bar drawn as 300 mm long — slenderness L/d = ' + fmt(slender, 1), COL.muted);
+  }
+
+  // --- canvas 2: cross-section disk + flat stress profile ---
+  const c2 = setupCanvas(document.getElementById('cv-axial2'));
+  const cx2 = 88, cy2 = 122, rPx = Math.max(9, d * 1.35);
+  c2.ctx.fillStyle = fill;
+  c2.ctx.beginPath(); c2.ctx.arc(cx2, cy2, rPx, 0, 7); c2.ctx.fill();
+  c2.ctx.strokeStyle = COL.ink; c2.ctx.lineWidth = 1.5; c2.ctx.stroke();
+  caption(c2.ctx, cx2, cy2 + rPx + 20, 'cross-section', COL.axis);
+  caption(c2.ctx, cx2, cy2 + rPx + 36, 'one uniform color = one uniform σ', COL.muted);
+
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 210, r: 16, t: 14, b: 36 });
+  const yA = Math.max(60, Math.abs(sig) * 1.4);
+  ch.setRange(-d / 2, d / 2, -yA, yA);
+  ch.grid(); ch.axes('position across the width (mm)', 'σ (MPa)');
+  ch.hLine(0, COL.axis, [3, 3]);
+  if (yA >= YIELD_T) { ch.hLine(YIELD_T, COL.bad, [2, 4]); ch.hLine(-YIELD_T, COL.bad, [2, 4]); }
+  ch.plot([[-d / 2, sig], [d / 2, sig]], sig >= 0 ? COL.bad : COL.accent, 3.5);
+  ch.legend([{ label: 'σ(x) — flat: every fiber carries the same', color: sig >= 0 ? COL.bad : COL.accent }]);
+
+  // --- stats + verdict ---
+  const mode = Fk > 0.01 ? 'tension (+)' : Fk < -0.01 ? 'compression (−)' : 'unloaded';
+  setStat('st-axial', [
+    { label: 'Force F', value: (Fk > 0 ? '+' : '') + fmt(Fk, 1) + ' kN' },
+    { label: 'Area A', value: fmt(Amm2, 1) + ' mm²' },
+    { label: 'σ = F/A', value: fmt(sig, 1) + ' MPa', highlight: true },
+    { label: 'Mode', value: mode },
+    { label: 'Margin vs 250 MPa yield', value: Math.abs(sig) > 0.1 ? fmt(YIELD_T / Math.abs(sig), 2) + '×' : '—' }
+  ]);
+
+  const aS = Math.abs(sig);
+  if (buckling)
+    setVerdict('vd-axial', 'warn', 'Slender + compressed — buckling gets there first.',
+      'The material is only at ' + fmt(aS, 0) + ' MPa, far from crushing — but at slenderness L/d = ' +
+      fmt(slender, 0) + ' this strut will bow out sideways and fold long before the material fails. ' +
+      'Shape instability, not material strength, sets the limit (think of pressing a plastic ruler end-on).');
+  else if (aS < 150)
+    setVerdict('vd-axial', 'good', 'Comfortably elastic — stress uniform.',
+      '|σ| = ' + fmt(aS, 0) + ' MPa, well under the ~250 MPa yield of mild steel. Every fiber of the ' +
+      'cross-section shares equally: the flat profile line is the whole story of axial loading.');
+  else if (aS <= 250)
+    setVerdict('vd-axial', 'warn', 'Approaching mild-steel yield.',
+      '|σ| = ' + fmt(aS, 0) + ' MPa against a ~250 MPa yield — margin ' + fmt(YIELD_T / aS, 2) +
+      '×. Still elastic, but a real design would want more headroom than this.');
+  else
+    setVerdict('vd-axial', 'bad', 'Beyond yield — permanent stretch.',
+      '|σ| = ' + fmt(aS, 0) + ' MPa exceeds the ~250 MPa yield everywhere at once (the stress is uniform, ' +
+      'so the whole section yields together). The Lesson 2 picture: grains are slipping, and the bar will not spring back.');
+}
+
+/* ---------------- TAB 2: bend ---------------- */
+function drawBend(){
+  const F = num('s-bend-F'), hmm = num('s-bend-h'), bmm = num('s-bend-b'); // N, mm, mm
+  const L = 0.5;                                          // m
+  const I = (bmm / 1000) * Math.pow(hmm / 1000, 3) / 12;  // m4
+  const M = F * L;                                        // N·m at the wall
+  const sigMax = M * (hmm / 2000) / I / 1e6;              // MPa
+  const deltaMM = F * Math.pow(L, 3) / (3 * E_STEEL * I) * 1000; // mm
+  const norm = Math.max(120, sigMax);                     // color normalization
+
+  // --- canvas 1: cantilever side view, color-mapped ---
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-bend'));
+  const xw = 52, xt = 600, pxPerMM = (xt - xw) / 500;     // beam = 500 mm
+  const cy = 96;
+  const hPx = Math.max(12, hmm * 3);
+  // exaggerated tip drop
+  const rawDropPx = deltaMM * pxPerMM;
+  const ex = Math.max(0.05, Math.min(5000, 70 / Math.max(rawDropPx, 1e-9)));
+  const dropTip = Math.min(70, rawDropPx * ex);
+  const shape = u => u * u * (3 - u) / 2;                 // normalized cantilever deflection
+
+  hatchWall(ctx, xw, cy - hPx / 2 - 26, cy + 96, 1);
+
+  // color cells: sigma(x,y) = F(L-x)·y/I ; downward tip load → TOP fiber in tension
+  const colW = 10, rowH = 4;
+  for (let x = xw; x < xt; x += colW) {
+    const u = (x - xw) / (xt - xw);                       // 0..1 along the beam
+    const X = u * L;                                      // m from wall
+    const Mx = F * (L - X);                               // N·m
+    const yDrop = shape(u) * dropTip;
+    for (let yr = -hPx / 2; yr < hPx / 2; yr += rowH) {
+      // yr grows downward on screen; distance above the neutral axis:
+      const yUp_m = -(yr + rowH / 2) / 3 / 1000;          // 3 px per mm of depth
+      const s = Mx * yUp_m / I / 1e6;                     // MPa, + tension at TOP
+      ctx.fillStyle = divColor(s / norm);
+      ctx.fillRect(x, cy + yDrop + yr, colW, rowH);
+    }
+  }
+  // outline top & bottom edges along the deflected shape
+  ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.2;
+  for (const edge of [-hPx / 2, hPx / 2]) {
+    ctx.beginPath();
+    for (let x = xw; x <= xt; x += 8) {
+      const u = (x - xw) / (xt - xw), y = cy + shape(u) * dropTip + edge;
+      if (x === xw) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  // dashed neutral axis
+  ctx.save(); ctx.strokeStyle = COL.ink; ctx.setLineDash([6, 5]); ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  for (let x = xw; x <= xt; x += 8) {
+    const u = (x - xw) / (xt - xw), y = cy + shape(u) * dropTip;
+    if (x === xw) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke(); ctx.restore();
+  // tip load arrow (downward)
+  arrow(ctx, xt - 4, cy + dropTip - hPx / 2 - 56, xt - 4, cy + dropTip - hPx / 2 - 8, COL.warn, 3.5);
+  caption(ctx, xt - 30, cy + dropTip - hPx / 2 - 40, 'F = ' + fmt(F, 0) + ' N', COL.warn, true);
+  caption(ctx, xw + 60, cy - hPx / 2 - 14, 'tension (top, near wall)', COL.bad, true);
+  caption(ctx, xw + 74, cy + hPx / 2 + 18, 'compression (bottom)', COL.accent, true);
+  caption(ctx, (xw + xt) / 2, h - 10,
+    'L = 0.5 m — deflection exaggerated ×' + fmt(ex, ex < 10 ? 1 : 0) + '; neutral axis dashed', COL.muted);
+
+  // --- canvas 2: through-thickness profile at the wall + tip-deflection bar ---
+  const c2 = setupCanvas(document.getElementById('cv-bend2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 56, r: 14, t: 40, b: 36 });
+  const sA = Math.max(50, sigMax * 1.25);
+  ch.setRange(-sA, sA, -hmm / 2, hmm / 2);
+  ch.grid(); ch.axes('σ (MPa)', 'y from neutral axis (mm)');
+  ch.hLine(0, COL.axis, [3, 3]); ch.vLine(0, COL.axis, [3, 3]);
+  if (sA >= YIELD_T) { ch.vLine(YIELD_T, COL.bad, [2, 4]); ch.vLine(-YIELD_T, COL.bad, [2, 4]); }
+  // top fiber (y = +h/2) is in TENSION for a downward tip load on a cantilever
+  ch.plot([[-sigMax, -hmm / 2], [sigMax, hmm / 2]], COL.purple, 3);
+  ch.dot(sigMax, hmm / 2, COL.bad, 6);
+  ch.dot(-sigMax, -hmm / 2, COL.accent, 6);
+  ch.dot(0, 0, COL.axis, 4);
+  c2.ctx.save(); c2.ctx.font = 'bold 11px sans-serif'; c2.ctx.fillStyle = COL.bad;
+  c2.ctx.textAlign = 'right';
+  c2.ctx.fillText('+σmax = ' + fmt(sigMax, 0) + ' MPa (top face)', ch.toX(sigMax) - 8, ch.toY(hmm / 2) + 4);
+  c2.ctx.fillStyle = COL.accent; c2.ctx.textAlign = 'left';
+  c2.ctx.fillText('−σmax (bottom face)', ch.toX(-sigMax) + 8, ch.toY(-hmm / 2) - 4);
+  c2.ctx.restore();
+  // mini tip-deflection bar in the top band
+  const barMax = 180, barW = Math.min(barMax, deltaMM / 25 * barMax);
+  c2.ctx.fillStyle = '#e2e8f0'; c2.ctx.fillRect(c2.w - 240, 12, barMax, 12);
+  c2.ctx.fillStyle = COL.teal; c2.ctx.fillRect(c2.w - 240, 12, Math.max(2, barW), 12);
+  c2.ctx.strokeStyle = COL.axis; c2.ctx.strokeRect(c2.w - 240, 12, barMax, 12);
+  c2.ctx.save(); c2.ctx.font = 'bold 11px sans-serif'; c2.ctx.fillStyle = COL.ink;
+  c2.ctx.textAlign = 'right';
+  c2.ctx.fillText('tip deflection δ = ' + fmt(deltaMM, 2) + ' mm', c2.w - 248, 22);
+  c2.ctx.restore();
+
+  // --- stats + verdict ---
+  setStat('st-bend', [
+    { label: 'Moment at wall M = F·L', value: fmt(M, 1) + ' N·m' },
+    { label: 'I = bh³/12', value: fmt(I * 1e12, 0) + ' mm⁴', highlight: true },
+    { label: 'σ max = M(h/2)/I', value: fmt(sigMax, 1) + ' MPa' },
+    { label: 'Tip deflection δ', value: fmt(deltaMM, 2) + ' mm' }
+  ]);
+
+  if (sigMax < 150)
+    setVerdict('vd-bend', 'good', 'Elastic bending — note the dead zone near the neutral axis.',
+      'σmax = ' + fmt(sigMax, 0) + ' MPa at the wall faces, but look at the middle of the thickness: ' +
+      'almost white, almost unstressed. In bending, the material near the neutral axis is dead weight — ' +
+      'a fact Tab 4 turns into the I-beam.');
+  else if (sigMax <= 250)
+    setVerdict('vd-bend', 'warn', 'Outer fibers approaching yield — they yield FIRST, the middle is still loafing.',
+      'σmax = ' + fmt(sigMax, 0) + ' MPa at the top and bottom faces near the wall. Only the extreme ' +
+      'fibers are near the ~250 MPa limit; the core is barely working. Bending failure always starts at the skin, at the support.');
+  else
+    setVerdict('vd-bend', 'bad', 'Outer fibers past yield — the beam takes a permanent set.',
+      'σmax = ' + fmt(sigMax, 0) + ' MPa exceeds the ~250 MPa yield: the top face (tension) and bottom ' +
+      'face (compression) near the wall are deforming plastically. Unload it and the beam stays bent. ' +
+      'Deepen the section — h enters I cubed.');
+}
+
+/* ---------------- TAB 3: twist ---------------- */
+function drawTwist(){
+  const T = num('s-twist-T'), Rmm = num('s-twist-R'), frac = num('s-twist-Ri');
+  const R = Rmm / 1000, Ri = frac * R, RiMM = frac * Rmm;
+  const J = Math.PI * (Math.pow(R, 4) - Math.pow(Ri, 4)) / 2;    // m4
+  const tauMax = T * R / J / 1e6;                                // MPa at the skin
+  const thetaDegPerM = T / (G_STEEL * J) * 180 / Math.PI;        // deg over 1 m
+  const wSave = frac * frac * 100;                               // % weight removed
+  const tauAt = rM => T * rM / J / 1e6;                          // MPa at radius rM (m)
+
+  // --- canvas 1: oblique cylinder with twisted helix lines ---
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-twist'));
+  const x0 = 90, x1 = 545, cy = 108;
+  const rPx = Math.max(14, Rmm * 3);
+  const rx = Math.max(6, rPx * 0.32);
+  const EXAG = 40;
+  const phiReal = T / (G_STEEL * J) * 0.5;                       // rad over the drawn 0.5 m
+  const phiDraw = Math.min(8, phiReal * EXAG);
+
+  // body
+  ctx.fillStyle = '#eef2f7';
+  ctx.beginPath();
+  ctx.moveTo(x0, cy - rPx); ctx.lineTo(x1, cy - rPx);
+  ctx.ellipse(x1, cy, rx, rPx, 0, -Math.PI / 2, Math.PI / 2);
+  ctx.lineTo(x0, cy + rPx);
+  ctx.ellipse(x0, cy, rx, rPx, 0, Math.PI / 2, -Math.PI / 2, true);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.5; ctx.stroke();
+  // left (fixed) end ellipse + wall
+  hatchWall(ctx, x0 - rx - 4, cy - rPx - 12, cy + rPx + 12, 1);
+  ctx.beginPath(); ctx.ellipse(x0, cy, rx, rPx, 0, 0, 7);
+  ctx.strokeStyle = COL.muted; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+  // right end ellipse
+  ctx.beginPath(); ctx.ellipse(x1, cy, rx, rPx, 0, 0, 7);
+  ctx.fillStyle = '#dbe6f5'; ctx.fill(); ctx.strokeStyle = COL.ink; ctx.stroke();
+  // hole at the free end
+  if (frac > 0.01) {
+    ctx.beginPath(); ctx.ellipse(x1, cy, rx * frac, rPx * frac, 0, 0, 7);
+    ctx.fillStyle = '#f4f6fa'; ctx.fill();
+    ctx.strokeStyle = COL.axis; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+    caption(ctx, x1 + rx + 34, cy + 4, 'hollow', COL.axis, true);
+  }
+  // helix lines (points on the surface; front where cos(angle) > 0)
+  for (let k = 0; k < 6; k++) {
+    const a0 = k * Math.PI / 3;
+    let px = null, py = null, pa = null;
+    for (let u = 0; u <= 1.0001; u += 0.025) {
+      const a = a0 + phiDraw * u;
+      const X = x0 + (x1 - x0) * u;
+      const Y = cy + rPx * Math.sin(a);
+      if (px !== null) {
+        const front = Math.cos((a + pa) / 2) > 0;
+        drawLine(ctx, px, py, X, Y, front ? 'rgba(37,99,235,.75)' : 'rgba(148,163,184,.4)', front ? 1.8 : 1.1);
+      }
+      px = X; py = Y; pa = a;
+    }
+  }
+  // twist arrows at the free end
+  arcArrow(ctx, x1 + 6, cy, rPx * 0.72, Math.PI * 0.35, Math.PI * 1.05, COL.warn, 3);
+  caption(ctx, x1 + 40, cy - rPx - 12, 'T = ' + fmt(T, 0) + ' N·m', COL.warn, true);
+  caption(ctx, (x0 + x1) / 2, h - 10,
+    'shaft drawn as 0.5 m — twist exaggerated ×' + EXAG + '; each helix line was straight before the torque',
+    COL.muted);
+
+  // --- canvas 2: cross-section colormap + τ(r) profile ---
+  const c2 = setupCanvas(document.getElementById('cv-twist2'));
+  const dx = 118, dy = 138, dR = Math.max(20, Rmm * 3.3);
+  const normT = Math.max(150, tauMax);
+  for (let rr = dR; rr > 0; rr -= 3) {
+    const rmm = rr / dR * Rmm;
+    c2.ctx.fillStyle = rmm < RiMM ? '#e8edf3' : heatColor(tauAt(rmm / 1000) / normT);
+    c2.ctx.beginPath(); c2.ctx.arc(dx, dy, rr, 0, 7); c2.ctx.fill();
+  }
+  c2.ctx.strokeStyle = COL.ink; c2.ctx.lineWidth = 1.5;
+  c2.ctx.beginPath(); c2.ctx.arc(dx, dy, dR, 0, 7); c2.ctx.stroke();
+  if (frac > 0.01) {
+    c2.ctx.strokeStyle = COL.axis; c2.ctx.setLineDash([3, 3]);
+    c2.ctx.beginPath(); c2.ctx.arc(dx, dy, dR * frac, 0, 7); c2.ctx.stroke();
+    c2.ctx.setLineDash([]);
+    caption(c2.ctx, dx, dy + 4, 'hole', COL.axis);
+  }
+  caption(c2.ctx, dx, dy + dR + 22, frac > 0.01 ? 'cold core removed' : 'cold lazy core, hot skin', COL.axis);
+
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 320, r: 16, t: 14, b: 36 });
+  const yT = Math.max(20, tauMax * 1.2);
+  ch.setRange(0, Rmm, 0, yT);
+  ch.grid(); ch.axes('radius r (mm)', 'τ (MPa)');
+  if (yT >= YIELD_S) ch.hLine(YIELD_S, COL.bad, [2, 4]);
+  if (frac > 0.01) {
+    ch.band(0, RiMM, 'rgba(148,163,184,.18)');
+    ch.plot([[0, 0], [RiMM, tauAt(Ri)]], COL.muted, 1.5, [3, 4]);
+    ch.plot([[RiMM, tauAt(Ri)], [Rmm, tauMax]], COL.bad, 3);
+    caption(c2.ctx, ch.toX(RiMM / 2), ch.toY(yT * 0.5), 'no material', COL.muted);
+  } else {
+    ch.plot([[0, 0], [Rmm, tauMax]], COL.bad, 3);
+    ch.dot(0, 0, COL.axis, 5);
+    caption(c2.ctx, ch.toX(Rmm * 0.24), ch.toY(yT * 0.08) - 10, 'zero at the center', COL.axis);
+  }
+  ch.dot(Rmm, tauMax, COL.bad, 6);
+
+  // --- stats + verdict ---
+  setStat('st-twist', [
+    { label: 'J (polar moment)', value: fmt(J * 1e12, 0) + ' mm⁴', highlight: true },
+    { label: 'τ max = T·R/J (skin)', value: fmt(tauMax, 1) + ' MPa' },
+    { label: 'Twist over a 1 m shaft', value: fmt(thetaDegPerM, 2) + ' °' },
+    { label: 'Weight saved (hollow)', value: fmt(wSave, 0) + ' %' }
+  ]);
+
+  if (tauMax < 80)
+    setVerdict('vd-twist', 'good', 'Elastic twist — look how little the core contributes.',
+      'τmax = ' + fmt(tauMax, 1) + ' MPa at the skin, tapering linearly to nothing at the axis. ' +
+      (frac > 0.01
+        ? 'You removed ' + fmt(wSave, 0) + '% of the weight and the surface stress barely moved — the drilled-out core was hardly working.'
+        : 'The inner half of this solid shaft carries only a small fraction of the torque. Try boring it out with the inner-radius slider.'));
+  else if (tauMax <= 150)
+    setVerdict('vd-twist', 'warn', 'Approaching the shear yield of mild steel.',
+      'τmax = ' + fmt(tauMax, 1) + ' MPa against a shear yield of ~150 MPa (about half the tensile ' +
+      'yield of ~250 MPa — materials give up in shear earlier). Only the outer skin is this highly stressed.');
+  else
+    setVerdict('vd-twist', 'bad', 'Shear yielding at the surface — the skin fails first, always.',
+      'τmax = ' + fmt(tauMax, 1) + ' MPa exceeds ~150 MPa: the outermost layer is yielding in shear ' +
+      'while the core is still fully elastic. Torsional failure starts at the surface and eats inward — ' +
+      'exactly where τ = Tr/J says the stress lives.');
+}
+
+/* ---------------- TAB 4: combo ---------------- */
+function comboGeom(t){
+  // interpolated section, area held ≈ 400 mm²
+  const bf = 20 + 15 * t;                   // flange width, mm (20 → 35)
+  const tf = 5;                             // flange thickness, mm (constant)
+  const dw = 10 + 40 * t;                   // web depth, mm (10 → 50)
+  const tw = (400 - 10 * bf) / dw;          // web thickness from area constraint (20 → 1)
+  const D = dw + 2 * tf;                    // overall depth, mm (20 → 60)
+  const yc = (dw + tf) / 2;                 // flange centroid offset, mm
+  const I = 2 * (bf * Math.pow(tf, 3) / 12 + bf * tf * yc * yc) + tw * Math.pow(dw, 3) / 12; // mm4
+  const A = 2 * bf * tf + tw * dw;          // mm²
+  return { bf, tf, dw, tw, D, yc, I, A };
+}
+
+function drawCombo(){
+  const Fb = num('s-combo-Fb'), T = num('s-combo-T'), sh = num('s-combo-shape');
+  const t = sh / 100;
+  const g = comboGeom(t);
+  const I_SQ = 20 * Math.pow(20, 3) / 12;   // 13,333 mm4
+  const M = Fb * 0.5;                       // N·m (0.5 m cantilever)
+  const sigOf = (Imm4, yMM) => Imm4 > 0 ? M * (yMM / 1000) / (Imm4 * 1e-12) / 1e6 : 0; // MPa
+  const sigMax = sigOf(g.I, g.D / 2);
+  const sigSq = sigOf(I_SQ, 10);
+  const gain = g.I / I_SQ;
+  const shapeName = sh < 10 ? 'solid square' : sh > 90 ? 'I-beam' : 'morphing';
+
+  // --- canvas 1: the cross-section, banded by |σ| ---
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-combo'));
+  const cx = 210, cy = h / 2, sc = 3.4;     // px per mm
+  const norm = Math.max(150, sigMax);
+  const rowMM = 4 / sc;
+  for (let y = -g.D / 2; y < g.D / 2; y += rowMM) {
+    const ym = y + rowMM / 2;
+    const wMM = Math.abs(ym) > g.dw / 2 ? g.bf : g.tw;
+    const s = M > 0 ? sigOf(g.I, Math.abs(ym)) : 0;
+    ctx.fillStyle = M > 0 ? heatColor(s / norm) : '#dbeafe';
+    ctx.fillRect(cx - wMM * sc / 2, cy + y * sc, wMM * sc, rowMM * sc + 0.5);
+  }
+  // outline
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.5;
+  const bfp = g.bf * sc / 2, twp = g.tw * sc / 2, dwp = g.dw * sc / 2, Dp = g.D * sc / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - bfp, cy - Dp); ctx.lineTo(cx + bfp, cy - Dp);
+  ctx.lineTo(cx + bfp, cy - dwp); ctx.lineTo(cx + twp, cy - dwp);
+  ctx.lineTo(cx + twp, cy + dwp); ctx.lineTo(cx + bfp, cy + dwp);
+  ctx.lineTo(cx + bfp, cy + Dp); ctx.lineTo(cx - bfp, cy + Dp);
+  ctx.lineTo(cx - bfp, cy + dwp); ctx.lineTo(cx - twp, cy + dwp);
+  ctx.lineTo(cx - twp, cy - dwp); ctx.lineTo(cx - bfp, cy - dwp);
+  ctx.closePath(); ctx.stroke();
+  // neutral axis
+  drawLine(ctx, cx - bfp - 26, cy, cx + bfp + 26, cy, COL.ink, 1.2, [6, 5]);
+  caption(ctx, cx - bfp - 52, cy + 4, 'neutral axis', COL.axis);
+  // labels
+  ctx.save(); ctx.font = 'bold 13px sans-serif'; ctx.fillStyle = COL.ink; ctx.textAlign = 'left';
+  ctx.fillText('I = ' + fmt(g.I, 0) + ' mm⁴', 420, 96);
+  ctx.fillText('σmax = ' + fmt(sigMax, 1) + ' MPa', 420, 120);
+  ctx.font = '12px sans-serif'; ctx.fillStyle = COL.axis;
+  ctx.fillText('area = ' + fmt(g.A, 0) + ' mm² (held constant)', 420, 144);
+  ctx.restore();
+  // applied-load inset (top right)
+  arrow(ctx, 452, 40, 452, 62, COL.warn, 3);
+  caption(ctx, 505, 56, 'M = ' + fmt(M, 0) + ' N·m', COL.warn, true);
+  if (T > 0) {
+    arcArrow(ctx, 452, h - 62, 16, -Math.PI * 0.75, Math.PI * 0.55, COL.purple, 2.5);
+    caption(ctx, 516, h - 56, 'T = ' + fmt(T, 0) + ' N·m', COL.purple, true);
+  }
+  caption(ctx, cx, h - 12, 'drawn to scale — hot bands work hardest, farthest from the axis', COL.muted);
+
+  // --- canvas 2: scoreboard bars vs the solid square ---
+  const c2 = setupCanvas(document.getElementById('cv-combo2'));
+  const base = 212, topArea = 52;
+  const bar = (x, v, vmax, color, label, valTxt) => {
+    const bh = vmax > 0 ? Math.max(3, v / vmax * (base - topArea)) : 3;
+    c2.ctx.fillStyle = color; c2.ctx.fillRect(x - 26, base - bh, 52, bh);
+    c2.ctx.strokeStyle = COL.axis; c2.ctx.strokeRect(x - 26, base - bh, 52, bh);
+    caption(c2.ctx, x, base - bh - 8, valTxt, COL.ink, true);
+    caption(c2.ctx, x, base + 18, label, COL.axis);
+  };
+  const iMax = Math.max(g.I, I_SQ), sMaxRef = Math.max(sigMax, sigSq, 1);
+  bar(120, g.I, iMax, COL.accent, 'this shape', fmt(g.I, 0));
+  bar(210, I_SQ, iMax, '#cbd5e1', 'square', fmt(I_SQ, 0));
+  caption(c2.ctx, 165, base + 38, 'I (mm⁴) — bigger is stiffer', COL.ink, true);
+  bar(430, sigMax, sMaxRef, COL.orange, 'this shape', fmt(sigMax, 1));
+  bar(520, sigSq, sMaxRef, '#cbd5e1', 'square', fmt(sigSq, 1));
+  caption(c2.ctx, 475, base + 38, 'σmax (MPa) — smaller is safer', COL.ink, true);
+  const noteWarn = T > 0 && sh > 50;
+  caption(c2.ctx, c2.w / 2, c2.h - 10,
+    'torsion note: open thin sections are TERRIBLE in torsion — the I-beam wins at bending and loses at twisting',
+    noteWarn ? COL.warn : COL.muted, noteWarn);
+
+  // --- stats + verdict ---
+  setStat('st-combo', [
+    { label: 'Shape', value: shapeName + ' (' + fmt(sh, 0) + '% morph)' },
+    { label: 'Area', value: fmt(g.A, 0) + ' mm² (≈ constant)' },
+    { label: 'I', value: fmt(g.I, 0) + ' mm⁴', highlight: true },
+    { label: 'σ max (bending)', value: fmt(sigMax, 1) + ' MPa' },
+    { label: 'Bending stiffness vs square', value: fmt(gain, 1) + '×' }
+  ]);
+
+  if (sh > 50 && T > 50)
+    setVerdict('vd-combo', 'warn', 'Careful: open I-sections are torsionally floppy.',
+      'You are asking a ' + fmt(sh, 0) + '%-morphed open section to carry ' + fmt(T, 0) + ' N·m of ' +
+      'torque. Its bending stiffness is ' + fmt(gain, 1) + '× the square, but an open thin-walled ' +
+      'section resists twist orders of magnitude worse than a solid or closed one (Timoshenko territory). ' +
+      'Combined bending + torsion wants a closed tube instead.');
+  else if (sh < 20)
+    setVerdict('vd-combo', 'good', 'Solid square — every mode is mediocre but nothing is catastrophic.',
+      'I = ' + fmt(g.I, 0) + ' mm⁴ and reasonable torsion behavior. A solid compact section is the ' +
+      'all-rounder: no mode is great, no mode is terrible. Now start the morph and watch what the same 400 mm² can do.');
+  else if (sh > 80)
+    setVerdict('vd-combo', 'good', fmt(gain, 1) + '× the bending stiffness of the square, same weight.',
+      'σmax dropped from ' + fmt(sigSq, 1) + ' to ' + fmt(sigMax, 1) + ' MPa at the same load, with the ' +
+      'same kilograms of steel — the area just moved away from the neutral axis where y² makes it count. ' +
+      'This is why skyscrapers are full of I-beams.');
+  else
+    setVerdict('vd-combo', 'good', 'Area migrating to the flanges — I climbing fast.',
+      'At ' + fmt(sh, 0) + '% morph, I is already ' + fmt(gain, 1) + '× the square. Every square ' +
+      'millimeter you move outward counts by the square of its distance from the neutral axis: ' +
+      'I = ∫y²dA rewards the flanges and forgets the web.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { axial: drawAxial, bend: drawBend, twist: drawTwist, combo: drawCombo };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+</script>
+</body>
+</html>

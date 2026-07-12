@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traction Force Microscopy — Measuring Cell Forces (Module 2, BME 466/566)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 18px;border:none;background:none;font-size:.88rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+.tab-content > .background-section{order:1}
+.tab-content > .student-task{order:2;margin-top:0;margin-bottom:14px}
+.tab-content > .scenario-bar{order:3}
+.tab-content > .panel{order:4}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+
+/* ── Stats ── */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}
+.stat-row .value{font-weight:600;color:#1e293b}
+.stat-row.highlight .value{color:#2563eb}
+.color-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-tab scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+.val-verdict strong{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight box ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px} .tab-btn{padding:10px 10px;font-size:.76rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 8px;font-size:.72rem} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Traction Force Microscopy</h1>
+  <p class="subtitle">Module 2 — Measuring Cell Forces · BME/AME 466·566 (Part II: Cellular)</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="hooke">1. Hookean vs neo-Hookean</button>
+  <button class="tab-btn" data-tab="strain">2. Stress &amp; Strain</button>
+  <button class="tab-btn" data-tab="dim">3. 2D vs 3D</button>
+  <button class="tab-btn" data-tab="beads">4. Beads</button>
+  <button class="tab-btn" data-tab="imaging">5. Confocal vs Epi</button>
+  <button class="tab-btn" data-tab="inverse">6. Using the Fields</button>
+</div>
+
+<main>
+
+<!-- ══════════ TAB 3: HOOKEAN → NEO-HOOKEAN ══════════ -->
+<section id="tab-hooke" class="tab-content active">
+  <div class="background-section">
+    <div class="insight">← <strong>Continuing from Module 1.</strong> There you saw how a hydrogel network deforms and behaves like springs + dashpots, and how a known modulus turns displacement into force. Module 2 builds the real measurement: the constitutive law, strain &amp; stress fields, 2D vs 3D, beads, confocal vs epifluorescence, and the regularized inverse problem.</div>
+    <h2>Background: the substrate is a spring you can read</h2>
+    <p>TFM works because the cell sits on a soft, elastic material whose deformation we can <em>measure</em>. To turn that deformation back into force, we first need the material's <strong>force–displacement law</strong>. Start with the spring you already know from statics:</p>
+    <div class="equation-box"><p style="text-align:center">$$F = k\,x \qquad\Longrightarrow\qquad \sigma = E\,\varepsilon \;\;\text{(linear elastic, 1D)}$$</p>
+    <p>where \(\sigma\) is stress (force per area), \(\varepsilon\) is strain (fractional length change), and \(E\) is the Young's modulus — the substrate's stiffness.</p></div>
+    <p>Hydrogels (polyacrylamide, PEG, PDMS) used in TFM are <strong>hyperelastic</strong>: at large stretch they stiffen and Hooke's law breaks down. The simplest model that captures this is the incompressible <strong>neo-Hookean</strong> solid, whose true (Cauchy) stress under uniaxial stretch \(\lambda\) is</p>
+    <div class="equation-box"><p style="text-align:center">$$\sigma_{\text{neo}} = \mu\left(\lambda^2 - \frac{1}{\lambda}\right), \qquad \mu = \frac{E}{2(1+\nu)} \xrightarrow{\nu\to 0.5} \frac{E}{3}$$</p></div>
+    <div class="worked-example">
+      <p>Expand the neo-Hookean law for a <em>small</em> stretch \(\lambda = 1+\varepsilon\): \(\;\lambda^2-\tfrac1\lambda \approx (1+2\varepsilon)-(1-\varepsilon)=3\varepsilon\). So \(\sigma_{\text{neo}}\approx 3\mu\,\varepsilon = E\,\varepsilon\). The neo-Hookean curve is <strong>tangent to Hooke's law at the origin</strong> — linear elasticity is just its small-strain limit.</p>
+    </div>
+    <div class="key-takeaways"><ul>
+      <li>Linear elasticity (\(\sigma=E\varepsilon\)) is the leading-order approximation of any hyperelastic law.</li>
+      <li>For the small strains typical of TFM, treating the gel as linear elastic is justified — that is what makes the force recovery tractable.</li>
+      <li>At large stretch the neo-Hookean solid <em>stiffens</em>; using a linear model there <strong>underestimates</strong> stress.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Start in <strong>Small strain</strong>. Notice the Hookean line and neo-Hookean curve sit almost on top of each other.</li>
+    <li>Switch to <strong>Large strain</strong> and watch them separate. Read the % difference at maximum stretch.</li>
+    <li>Change the modulus \(E\): does it change <em>where</em> the two models diverge, or only the vertical scale?</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Strain window:</span>
+    <button class="scen-btn on" data-tab="hooke" data-scen="small" onclick="setScen('hooke','small')">Small strain (λ ≤ 1.1)</button>
+    <button class="scen-btn" data-tab="hooke" data-scen="large" onclick="setScen('hooke','large')">Large strain (λ ≤ 2.5)</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Young's modulus E <span id="v-hooke-E">10.0 kPa</span></label><input type="range" id="s-hooke-E" min="0.5" max="50" step="0.5" value="10"></div>
+      <div class="stats" id="st-hooke"></div>
+    </div>
+    <div class="viz"><div class="canvas-wrap"><div class="canvas-title">Stress vs stretch — Hookean vs neo-Hookean</div><canvas id="cv-hooke" width="640" height="380"></canvas></div>
+      <div class="val-verdict" id="vd-hooke"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 2: STRESS & STRAIN ══════════ -->
+<section id="tab-strain" class="tab-content">
+  <div class="background-section">
+    <h2>Background: strain is a derivative of the displacement field</h2>
+    <p>TFM never measures strain directly — it measures the <strong>displacement field</strong> \(\mathbf{u}(\mathbf{x})\) (how far each bead moved). Strain is the <em>spatial gradient</em> of that field:</p>
+    <div class="equation-box"><p style="text-align:center">$$\boldsymbol{\varepsilon} = \tfrac12\!\left(\nabla\mathbf{u} + \nabla\mathbf{u}^{\top}\right),\quad \varepsilon_{xx}=\frac{\partial u_x}{\partial x},\quad \gamma_{xy}=\frac{\partial u_x}{\partial y}+\frac{\partial u_y}{\partial x}$$</p></div>
+    <p>The <strong>trace</strong> of the strain tensor is the fractional <em>area</em> change (the link between "change in area" and "change in displacements"):</p>
+    <div class="equation-box"><p style="text-align:center">$$\frac{\Delta A}{A} \approx \varepsilon_{xx}+\varepsilon_{yy} = \nabla\cdot\mathbf{u}$$</p></div>
+    <div class="worked-example"><p>A uniform displacement (every bead shifts the same amount) has <em>zero</em> gradient ⇒ zero strain ⇒ zero stress. Only <strong>differences</strong> in displacement deform the material. That is why TFM needs a dense, well-sampled field, not a single arrow.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>Strain comes from <em>gradients</em> of displacement, computed by differencing neighboring beads.</li>
+      <li>Strain is pure geometry; converting it to <strong>stress</strong> requires the material law and the modulus \(E\) from Tab 1.</li>
+      <li>Same displacement field on a 1 kPa vs a 40 kPa gel ⇒ very different stress.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Apply <strong>Uniaxial stretch</strong> and watch the marker grid extend; read \(\varepsilon_{xx}\) and the area change.</li>
+    <li>Switch to <strong>Simple shear</strong> — note \(\varepsilon_{xx}=\varepsilon_{yy}=0\) but the shear strain \(\gamma_{xy}\) is nonzero, and area barely changes.</li>
+    <li>Raise the modulus \(E\): the strain is unchanged (it is geometry) but the stress scales up.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Deformation:</span>
+    <button class="scen-btn on" data-tab="strain" data-scen="stretch" onclick="setScen('strain','stretch')">Uniaxial stretch</button>
+    <button class="scen-btn" data-tab="strain" data-scen="shear" onclick="setScen('strain','shear')">Simple shear</button>
+    <button class="scen-btn" data-tab="strain" data-scen="biaxial" onclick="setScen('strain','biaxial')">Equibiaxial</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Deformation magnitude <span id="v-strain-m">0.20</span></label><input type="range" id="s-strain-m" min="0" max="0.4" step="0.01" value="0.2"></div>
+      <div class="ctrl-group"><label>Young's modulus E <span id="v-strain-E">10 kPa</span></label><input type="range" id="s-strain-E" min="0.5" max="40" step="0.5" value="10"></div>
+      <div class="stats" id="st-strain"></div>
+    </div>
+    <div class="viz"><div class="canvas-wrap"><div class="canvas-title">Marker grid: reference (grey) → deformed (blue), with displacement vectors</div><canvas id="cv-strain" width="640" height="420"></canvas></div>
+      <div class="val-verdict" id="vd-strain"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 3: 2D vs 3D ══════════ -->
+<section id="tab-dim" class="tab-content">
+  <div class="background-section">
+    <h2>Background: what a 2D vs a 3D measurement can recover</h2>
+    <p>A planar substrate imaged in one focal plane gives the <strong>in-plane</strong> displacement \((u_x,u_y)\) only. But cells also push and pull <em>normal</em> to the surface (the \(z\) direction). A 2D measurement is blind to that component.</p>
+    <p>Maskarinec et al. (2009) tracked the full 3D field with confocal microscopy + digital volume correlation and found that migrating fibroblasts produce <strong>significant normal (z) displacements even on nominally 2D substrates</strong>, and that normal forces "play important roles even in 2-D cell migration." A 2D-only measurement misses a real part of what the cell does.</p>
+    <div class="equation-box"><p style="text-align:center">$$\text{recovered }|\mathbf{t}|_{\text{2D}} = \sqrt{1-f_z^{\,2}}\;|\mathbf{t}|_{\text{true}}, \qquad f_z=\frac{|t_z|}{|\mathbf{t}|}$$</p></div>
+    <div class="key-takeaways"><ul>
+      <li>2D TFM recovers tangential tractions; the normal component is invisible to it.</li>
+      <li>The more out-of-plane the cell pulls (\(f_z\) large), the more force a 2D measurement misses.</li>
+      <li>Rounded, invading, or 3D-embedded cells <em>require</em> a 3D measurement.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Start with a <strong>Spread cell</strong> (mostly tangential pull). The 2D measurement recovers nearly all of the force.</li>
+    <li>Switch to a <strong>Rounded / invading cell</strong> and watch the recovered-force bar drop as the normal fraction grows.</li>
+    <li>Drag the normal fraction \(f_z\) and read the % of traction magnitude a 2D measurement would miss.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Cell type:</span>
+    <button class="scen-btn on" data-tab="dim" data-scen="spread" onclick="setScen('dim','spread')">Spread cell</button>
+    <button class="scen-btn" data-tab="dim" data-scen="rounded" onclick="setScen('dim','rounded')">Rounded / invading</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Normal fraction f_z <span id="v-dim-fz">0.20</span></label><input type="range" id="s-dim-fz" min="0" max="0.95" step="0.01" value="0.2"></div>
+      <div class="stats" id="st-dim"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Side view (x–z): true tractions vs 2D-measured</div><canvas id="cv-dim" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Recovered vs true total force</div><canvas id="cv-dim2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-dim"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 4: BEADS ══════════ -->
+<section id="tab-beads" class="tab-content">
+  <div class="background-section">
+    <h2>Background: beads sample the field — size and density set the limits</h2>
+    <p>Fluorescent beads are the fiducial markers whose motion <em>is</em> the displacement measurement. Two independent properties matter:</p>
+    <p><strong>Density → spatial resolution.</strong> Beads sample \(\mathbf{u}(\mathbf{x})\) at discrete points. The mean bead spacing sets the finest traction feature you can resolve — sparse seeding undersamples the field and washes out sharp features (a Nyquist limit: features narrower than \(\sim\!2\times\) the spacing are lost).</p>
+    <p><strong>Size vs PSF → localization precision.</strong> Each bead is localized to sub-pixel precision by fitting its intensity centroid. A bead near the size of the optical point-spread function (PSF) localizes best; far below it the bead is dim and noisy, far above it the blur hides the true center. There is a sweet spot.</p>
+    <div class="insight"><strong>The trade-off:</strong> packing in more, bigger beads sounds better, but once beads <em>overlap</em> you can no longer match each one between the stressed and reference images — tracking fails.</div>
+    <div class="key-takeaways"><ul>
+      <li>Traction resolution ≈ bead spacing; increase density to resolve finer features.</li>
+      <li>Localization precision is best when bead size ≈ a small multiple of the PSF.</li>
+      <li>Too sparse → undersampled; too dense/large → overlap and lost correspondence.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>In <strong>Sparse</strong>, see the reconstructed displacement profile miss the true peak (high error).</li>
+    <li>Move to <strong>Optimal</strong> — the reconstruction tracks the truth and the error drops.</li>
+    <li>Push to <strong>Over-seeded</strong> and increase bead size until the overlap warning appears and error rises again.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Seeding:</span>
+    <button class="scen-btn" data-tab="beads" data-scen="sparse" onclick="setScen('beads','sparse')">Sparse</button>
+    <button class="scen-btn on" data-tab="beads" data-scen="optimal" onclick="setScen('beads','optimal')">Optimal</button>
+    <button class="scen-btn" data-tab="beads" data-scen="over" onclick="setScen('beads','over')">Over-seeded</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Bead density <span id="v-beads-n">20 / 100µm</span></label><input type="range" id="s-beads-n" min="4" max="80" step="1" value="20"></div>
+      <div class="ctrl-group"><label>Bead diameter d <span id="v-beads-d">0.5 µm</span></label><input type="range" id="s-beads-d" min="0.1" max="2" step="0.05" value="0.5"></div>
+      <div class="stats" id="st-beads"></div>
+    </div>
+    <div class="viz"><div class="canvas-wrap"><div class="canvas-title">True displacement profile vs reconstruction from bead samples</div><canvas id="cv-beads" width="640" height="380"></canvas></div>
+      <div class="val-verdict" id="vd-beads"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 5: CONFOCAL vs EPI ══════════ -->
+<section id="tab-imaging" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the microscope decides whether 3D is even possible</h2>
+    <p>To localize a bead in \(z\) you must know which depth its light came from. An <strong>inverted confocal</strong> microscope uses a pinhole to reject out-of-focus light — <em>optical sectioning</em> — producing a sharp axial intensity peak you can localize. This is what makes 3D bead tracking (and 3D TFM) possible.</p>
+    <p>An <strong>epifluorescence</strong> (widefield) microscope collects in-focus <em>and</em> out-of-focus light at once, so a bead's signal is essentially a <em>z-projection</em>: lateral \((x,y)\) position is fine, but the axial response is broad and ambiguous. Practically, epifluorescence limits you to a <strong>2D</strong> measurement.</p>
+    <div class="equation-box"><p style="text-align:center">$$\sigma_z \;>\; \sigma_{xy}\quad\text{(optical microscopes always resolve worse along the axis than laterally)}$$</p></div>
+    <div class="key-takeaways"><ul>
+      <li>Confocal optical sectioning → resolvable bead \(z\) → 3D displacement fields.</li>
+      <li>Epifluorescence → projected signal → unreliable \(z\) → 2D-only.</li>
+      <li>Axial resolution is intrinsically worse than lateral — \(z\) is always the hard direction.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>In <strong>Confocal</strong>, note the sharp axial intensity peak and that recovered \(u_z\) follows the true value.</li>
+    <li>Switch to <strong>Epifluorescence</strong>: the axial signal flattens and the recovered \(u_z\) collapses toward noise.</li>
+    <li>Sweep the true \(u_z\) and compare how well each modality tracks it.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Imaging mode:</span>
+    <button class="scen-btn on" data-tab="imaging" data-scen="confocal" onclick="setScen('imaging','confocal')">Inverted confocal</button>
+    <button class="scen-btn" data-tab="imaging" data-scen="epi" onclick="setScen('imaging','epi')">Epifluorescence</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>True z-displacement u_z <span id="v-imaging-uz">1.0 µm</span></label><input type="range" id="s-imaging-uz" min="-3" max="3" step="0.1" value="1"></div>
+      <div class="stats" id="st-imaging"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Axial (z) intensity of one bead</div><canvas id="cv-imaging" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Recovered vs true u_z</div><canvas id="cv-imaging2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-imaging"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 6: USING THE FIELDS ══════════ -->
+<section id="tab-inverse" class="tab-content">
+  <div class="background-section">
+    <h2>Background: from displacement to traction — and whether to trust it</h2>
+    <p>The substrate mechanics give a <strong>forward</strong> map from traction to displacement (a convolution with the elastic Green's function): \(\;u_i(\mathbf{x})=\int G_{ij}(\mathbf{x}-\mathbf{x}')\,t_j(\mathbf{x}')\,d\mathbf{x}'\). TFM needs the <strong>inverse</strong>: recover \(\mathbf{t}\) from the measured \(\mathbf{u}\). That deconvolution is <strong>ill-posed</strong> — it amplifies high-frequency noise, so tiny displacement errors explode into huge spurious tractions.</p>
+    <p>The fix is <strong>regularization</strong> (Tikhonov): minimize \(\lVert G\mathbf{t}-\mathbf{u}\rVert^2+\lambda^2\lVert\mathbf{t}\rVert^2\). The parameter \(\lambda\) trades resolution against noise:</p>
+    <div class="equation-box"><p style="text-align:center">$$\lambda\ \text{too small} \Rightarrow \text{noisy, spiky tractions}; \qquad \lambda\ \text{too large} \Rightarrow \text{smoothed, } \textbf{underestimated}\ \text{forces.}$$</p></div>
+    <p>A free cell exerts no net force, so a trustworthy recovered field must satisfy <strong>force balance</strong> \(\sum \mathbf{t}\,\Delta A \approx 0\). A large residual flags a bad (drifted / not-force-free) reference image. (The demo below is a 1-D toy with a Gaussian forward kernel standing in for the Green's function — the ill-posedness and the regularization trade-off are real.)</p>
+    <div class="key-takeaways"><ul>
+      <li>The forward problem is easy and well-posed; the inverse TFM needs is ill-posed.</li>
+      <li>A traction number is only meaningful with its assumptions (\(E,\nu\), reference), resolution, and uncertainty.</li>
+      <li>Check force balance; report the regularization choice; stiffer gels lower the displacement SNR.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>In <strong>Clean data</strong>, sweep \(\lambda\): too small is spiky, too large flattens the peaks. Find the value that best matches the true (dashed) tractions.</li>
+    <li>Switch to <strong>Noisy data</strong> — now small \(\lambda\) is unusable; you must regularize more, accepting lower resolution.</li>
+    <li>Try <strong>Drifted reference</strong> and watch the force-balance residual blow up — the read-out that tells you the measurement is untrustworthy.</li>
+    <li>Raise \(E\): stiffer gel → smaller displacements → worse signal-to-noise.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Data quality:</span>
+    <button class="scen-btn on" data-tab="inverse" data-scen="clean" onclick="setScen('inverse','clean')">Clean data</button>
+    <button class="scen-btn" data-tab="inverse" data-scen="noisy" onclick="setScen('inverse','noisy')">Noisy data</button>
+    <button class="scen-btn" data-tab="inverse" data-scen="drift" onclick="setScen('inverse','drift')">Drifted reference</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Regularization log₁₀λ <span id="v-inverse-lam">-2.0</span></label><input type="range" id="s-inverse-lam" min="-3.5" max="0.5" step="0.1" value="-2"></div>
+      <div class="ctrl-group"><label>Young's modulus E <span id="v-inverse-E">10 kPa</span></label><input type="range" id="s-inverse-E" min="1" max="40" step="1" value="10"></div>
+      <div class="stats" id="st-inverse"></div>
+    </div>
+    <div class="viz"><div class="canvas-wrap"><div class="canvas-title">Recovered traction (solid) vs true (dashed)</div><canvas id="cv-inverse" width="640" height="380"></canvas></div>
+      <div class="val-verdict" id="vd-inverse"></div></div>
+  </div>
+</section>
+
+<div class="sources">
+  <h2>Sources (verified)</h2>
+  <ol>
+    <li>Dembo &amp; Wang (1999), <em>Biophys. J.</em> — first continuum TFM. <a href="https://doi.org/10.1016/S0006-3495(99)77386-8" target="_blank" rel="noopener">10.1016/S0006-3495(99)77386-8</a></li>
+    <li>Butler, Tolić-Nørrelykke, Fabry &amp; Fredberg (2002), <em>Am. J. Physiol. Cell Physiol.</em> — Fourier-transform traction cytometry. <a href="https://doi.org/10.1152/ajpcell.00270.2001" target="_blank" rel="noopener">10.1152/ajpcell.00270.2001</a></li>
+    <li>Sabass, Gardel, Waterman &amp; Schwarz (2008), <em>Biophys. J.</em> — high-resolution TFM &amp; regularization. <a href="https://doi.org/10.1529/biophysj.107.113670" target="_blank" rel="noopener">10.1529/biophysj.107.113670</a></li>
+    <li>Schwarz &amp; Soiné (2015), <em>BBA Mol. Cell Res.</em> — computational TFM review. <a href="https://doi.org/10.1016/j.bbamcr.2015.05.028" target="_blank" rel="noopener">10.1016/j.bbamcr.2015.05.028</a></li>
+    <li>Style et al. (2014), <em>Soft Matter</em> — TFM in physics and biology. <a href="https://doi.org/10.1039/c4sm00264d" target="_blank" rel="noopener">10.1039/c4sm00264d</a></li>
+    <li>Polacheck &amp; Chen (2016), <em>Nat. Methods</em> — guide to force-measurement tools. <a href="https://doi.org/10.1038/nmeth.3834" target="_blank" rel="noopener">10.1038/nmeth.3834</a></li>
+    <li>Maskarinec, Franck, Tirrell &amp; Ravichandran (2009), <em>PNAS</em> — 3D traction (LSCM + DVC). <a href="https://doi.org/10.1073/pnas.0904565106" target="_blank" rel="noopener">10.1073/pnas.0904565106</a></li>
+    <li>Legant et al. (2010), <em>Nat. Methods</em> — tractions in 3D matrices. <a href="https://doi.org/10.1038/nmeth.1531" target="_blank" rel="noopener">10.1038/nmeth.1531</a></li>
+    <li>Bar-Kochba, Toyjanova, Andrews, Kim &amp; Franck (2015), <em>Exp. Mech.</em> — fast iterative DVC. <a href="https://doi.org/10.1007/s11340-014-9874-2" target="_blank" rel="noopener">10.1007/s11340-014-9874-2</a></li>
+    <li>Conchello &amp; Lichtman (2005), <em>Nat. Methods</em> — optical sectioning microscopy. <a href="https://doi.org/10.1038/nmeth815" target="_blank" rel="noopener">10.1038/nmeth815</a></li>
+    <li>Pelham &amp; Wang (1997), <em>PNAS</em>; Discher, Janmey &amp; Wang (2005), <em>Science</em>; Engler et al. (2006), <em>Cell</em> — substrate-stiffness mechanobiology.</li>
+  </ol>
+</div>
+
+</main>
+<footer>BME/AME 466·566 Biomechanics — Traction Force Microscopy module · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   TFM MODULE — synthetic, self-contained interactive demos.
+   Reuses the McGhee-lab module house helpers (COL, niceTicks,
+   setupCanvas, Chart, drawLine) from the BME576 reference module.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  hooke:'#2563eb', neo:'#ef4444', ref:'#cbd5e1', def:'#2563eb', vec:'#f59e0b',
+  truth:'#1e3a5f', rec:'#2563eb', good:'#10b981', bad:'#ef4444', warn:'#f59e0b',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b', tan:'#2563eb', nrm:'#ef4444'
+};
+
+/* ── math utils ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+
+/* ── canvas / chart helpers (house pattern) ── */
+function setupCanvas(canvas){ const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const w=rect.width||canvas.width; const h=w*(canvas.height/canvas.width);
+  canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b; }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),h=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-h*Math.cos(a-0.42),y1-h*Math.sin(a-0.42));ctx.lineTo(x1-h*Math.cos(a+0.42),y1-h*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  el.innerHTML=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join(''); }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  el.className='val-verdict '+cls; el.innerHTML='<strong>'+title+'</strong>'+body; }
+
+/* ── linear algebra (Tab 6) ── */
+function matvec(A,x){ const n=A.length,m=x.length,y=new Array(n).fill(0); for(let i=0;i<n;i++){let s=0;for(let j=0;j<m;j++)s+=A[i][j]*x[j];y[i]=s;} return y; }
+function matmul(A,B){ const n=A.length,p=B[0].length,m=B.length,C=[]; for(let i=0;i<n;i++){C[i]=new Array(p).fill(0);for(let k=0;k<m;k++){const a=A[i][k];if(a===0)continue;for(let j=0;j<p;j++)C[i][j]+=a*B[k][j];}} return C; }
+function solveSym(A,b){ const n=b.length,M=A.map((r,i)=>r.slice().concat([b[i]]));
+  for(let c=0;c<n;c++){ let p=c; for(let r=c+1;r<n;r++) if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    const tmp=M[c];M[c]=M[p];M[p]=tmp; const piv=M[c][c]||1e-12;
+    for(let r=0;r<n;r++){ if(r===c)continue; const f=M[r][c]/piv; if(f===0)continue; for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k]; } }
+  const x=new Array(n); for(let i=0;i<n;i++)x[i]=M[i][n]/(M[i][i]||1e-12); return x; }
+
+/* ── state ── */
+let activeTab='hooke';
+const scen={ hooke:'small', strain:'stretch', dim:'spread', beads:'optimal', imaging:'confocal', inverse:'clean' };
+
+/* ════════ TAB 1: HOOKEAN vs NEO-HOOKEAN ════════ */
+function drawHooke(){
+  const E=parseFloat(val('s-hooke-E')); const mu=E/3;
+  const lmax = scen.hooke==='small'?1.10:2.5;
+  const {ctx,w,h}=setupCanvas(document.getElementById('cv-hooke'));
+  const N=160, hk=[], nh=[]; let ymax=0;
+  for(let i=0;i<=N;i++){ const lam=1+(lmax-1)*i/N; const sh=E*(lam-1); const sn=mu*(lam*lam-1/lam);
+    hk.push([lam,sh]); nh.push([lam,sn]); ymax=Math.max(ymax,sh,sn); }
+  ymax=ymax*1.08||1;
+  const ch=new Chart(ctx,w,h); ch.setRange(1,lmax,0,ymax);
+  const xt=niceTicks(1,lmax,6), yt=niceTicks(0,ymax,5);
+  ch.grid(xt,yt); ch.axes('Stretch  λ','Stress σ (kPa)',xt,yt,2,1);
+  drawLine(ctx,hk.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.hooke,2.4);
+  drawLine(ctx,nh.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.neo,2.4);
+  ch.legend([{label:'Hookean σ=E(λ−1)',color:COL.hooke},{label:'neo-Hookean',color:COL.neo}],ch.m.l+6,ch.m.t+8);
+  const sh=E*(lmax-1), sn=mu*(lmax*lmax-1/lmax); const diff=sn>0?(sn-sh)/sn*100:0;
+  setStat('st-hooke',[
+    {k:'Shear modulus μ = E/3',v:fmt(mu,2)+' kPa'},
+    {k:'At λ = '+fmt(lmax,2)+', Hookean σ',v:fmt(sh,2)+' kPa'},
+    {k:'At λ = '+fmt(lmax,2)+', neo-Hookean σ',v:fmt(sn,2)+' kPa'},
+    {k:'Difference at λmax',v:fmt(diff,1)+' %',hi:true}
+  ]);
+  if(scen.hooke==='small') setVerdict('vd-hooke','good','Linear model is fine here.',
+    'At λ ≤ 1.1 the two curves differ by only '+fmt(diff,1)+'%. Treating the gel as linear elastic (σ=Eε) is well justified — exactly the regime most TFM substrates operate in.');
+  else setVerdict('vd-hooke','warn','Linear model breaks down.',
+    'At λ up to '+fmt(lmax,1)+' the neo-Hookean stress is '+fmt(diff,0)+'% above the linear prediction — the gel stiffens. A linear analysis here would <em>underestimate</em> the stress (and thus the cell force).');
+}
+
+/* ════════ TAB 2: STRAIN FROM DISPLACEMENT ════════ */
+function drawStrain(){
+  const m=parseFloat(val('s-strain-m')), E=parseFloat(val('s-strain-E')), nu=0.45;
+  let H; // displacement gradient [[du x/dx,du x/dy],[du y/dx,du y/dy]]
+  if(scen.strain==='stretch') H=[[m,0],[0,-nu*m]];
+  else if(scen.strain==='shear') H=[[0,m],[0,0]];
+  else H=[[m,0],[0,m]];
+  const exx=H[0][0], eyy=H[1][1], exy=0.5*(H[0][1]+H[1][0]); const dA=exx+eyy;
+  const {ctx,w,h}=setupCanvas(document.getElementById('cv-strain'));
+  // map unit square [0,1]^2 to a centred box
+  const pad=46, S=Math.min(w,h)-2*pad, ox=(w-S)/2, oy=(h-S)/2;
+  const mapR=(x,y)=>[ox+x*S, oy+(1-y)*S];
+  const mapD=(x,y)=>{ const dx=H[0][0]*x+H[0][1]*y, dy=H[1][0]*x+H[1][1]*y; return [ox+(x+dx)*S, oy+(1-(y+dy))*S]; };
+  const G=6;
+  ctx.save();
+  // reference grid
+  ctx.strokeStyle=COL.ref; ctx.lineWidth=1;
+  for(let i=0;i<=G;i++){ let p=[]; for(let j=0;j<=G;j++)p.push(mapR(i/G,j/G)); drawLine(ctx,p,COL.ref,1);
+    p=[]; for(let j=0;j<=G;j++)p.push(mapR(j/G,i/G)); drawLine(ctx,p,COL.ref,1); }
+  // deformed grid
+  for(let i=0;i<=G;i++){ let p=[]; for(let j=0;j<=G;j++)p.push(mapD(i/G,j/G)); drawLine(ctx,p,COL.def,1.6);
+    p=[]; for(let j=0;j<=G;j++)p.push(mapD(j/G,i/G)); drawLine(ctx,p,COL.def,1.6); }
+  // displacement vectors at nodes
+  for(let i=0;i<=G;i++)for(let j=0;j<=G;j++){ const r=mapR(i/G,j/G), d=mapD(i/G,j/G);
+    if(Math.hypot(d[0]-r[0],d[1]-r[1])>3) arrow(ctx,r[0],r[1],d[0],d[1],COL.vec,1.3); }
+  // highlight one unit cell
+  const cell=[mapD(0.5,0.5),mapD(0.5+1/G,0.5),mapD(0.5+1/G,0.5+1/G),mapD(0.5,0.5+1/G),mapD(0.5,0.5)];
+  drawLine(ctx,cell,'#b45309',2.2);
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='center';
+  ctx.fillText('grey = reference grid    blue = deformed    orange = displacement / highlighted cell',w/2,h-8);
+  ctx.restore();
+  const sxx=E*exx; // illustrative linear-elastic normal stress
+  setStat('st-strain',[
+    {k:'ε_xx (∂u_x/∂x)',v:fmt(exx,3)},
+    {k:'ε_yy (∂u_y/∂y)',v:fmt(eyy,3)},
+    {k:'shear γ_xy',v:fmt(2*exy,3)},
+    {k:'area change ΔA/A = tr(ε)',v:fmt(dA,3),hi:true},
+    {k:'σ_xx ≈ E·ε_xx (illustrative)',v:fmt(sxx,2)+' kPa'}
+  ]);
+  if(scen.strain==='shear') setVerdict('vd-strain','good','Shear: distortion without area change.',
+    'The cell skews but ΔA/A ≈ 0 — normal strains are zero while the shear strain γ_xy is not. Area change tracks only the <em>diagonal</em> of the strain tensor.');
+  else setVerdict('vd-strain','good','Strain is the gradient; stress needs E.',
+    'The grid stretches by ε_xx = '+fmt(exx,3)+' and the area changes by '+fmt(dA*100,1)+'%. The strain is purely geometric — multiply by the modulus to get stress, which is why a wrong E rescales every recovered force.');
+}
+
+/* ════════ TAB 3: 2D vs 3D ════════ */
+function drawDim(){
+  const fz=parseFloat(val('s-dim-fz'));
+  const inPlane=Math.sqrt(Math.max(0,1-fz*fz)); const missed=(1-inPlane)*100;
+  // left: side view
+  const c1=setupCanvas(document.getElementById('cv-dim'));
+  let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const surf=h*0.62;
+  ctx.save(); ctx.fillStyle='#eef2f7'; ctx.fillRect(0,surf,w,h-surf);
+  ctx.strokeStyle=COL.axis;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,surf);ctx.lineTo(w,surf);ctx.stroke();
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillText('gel surface',6,surf-6);
+  ctx.fillText('gel (substrate)',6,surf+16);
+  // cell body
+  ctx.fillStyle='rgba(37,99,235,0.12)';ctx.strokeStyle='#2563eb';ctx.lineWidth=1.4;
+  ctx.beginPath();
+  const cw=scen.dim==='spread'?0.6:0.26;
+  ctx.ellipse(w/2,surf-18,w*cw,scen.dim==='spread'?20:42,0,Math.PI,0,true);ctx.fill();ctx.stroke();
+  ctx.fillStyle=COL.text;ctx.textAlign='center';ctx.fillText(scen.dim==='spread'?'spread cell':'rounded / invading cell',w/2,surf-(scen.dim==='spread'?44:74));
+  // traction vectors at adhesion points (cell pulls inward+down)
+  const xs=[0.28,0.42,0.58,0.72], L=46;
+  for(const xf of xs){ const x=w*xf, y=surf; const dirx=(xf<0.5?1:-1); // inward
+    const tx=dirx*inPlane, tz=fz; const nrm=Math.hypot(tx,tz)||1;
+    // full traction (into gel = downward, +y)
+    arrow(ctx,x,y,x+tx/nrm*L*0.8,y+tz/nrm*L,COL.truth,2.2);
+    // 2D-measured = in-plane component only
+    arrow(ctx,x,y+1,x+tx/nrm*L*0.8,y+1,COL.tan,1.8);
+  }
+  ctx.font='11px sans-serif';ctx.textAlign='left';
+  ctx.fillStyle=COL.truth;ctx.fillText('● true 3D traction',8,h-22);
+  ctx.fillStyle=COL.tan;ctx.fillText('● in-plane part (what 2D sees)',8,h-8);
+  ctx.restore();
+  // right: bar chart
+  const c2=setupCanvas(document.getElementById('cv-dim2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const base=h-40, top=24, bw=w*0.26;
+  const bars=[{l:'True |t|',v:1,c:COL.truth},{l:'2D recovered',v:inPlane,c:COL.tan}];
+  ctx.save();ctx.font='12px sans-serif';ctx.textAlign='center';
+  bars.forEach((b,i)=>{ const x=w*(0.3+i*0.4)-bw/2; const bh=(base-top)*b.v;
+    ctx.fillStyle=b.c;ctx.fillRect(x,base-bh,bw,bh);
+    ctx.fillStyle=COL.text;ctx.fillText((b.v*100).toFixed(0)+'%',x+bw/2,base-bh-16);
+    ctx.fillStyle=COL.axis;ctx.fillText(b.l,x+bw/2,base+16); });
+  ctx.strokeStyle=COL.axis;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(20,base);ctx.lineTo(w-12,base);ctx.stroke();
+  ctx.restore();
+  setStat('st-dim',[
+    {k:'normal fraction f_z',v:fmt(fz,2)},
+    {k:'in-plane fraction',v:fmt(inPlane,2)},
+    {k:'force magnitude missed by 2D',v:fmt(missed,0)+' %',hi:true}
+  ]);
+  if(missed<8) setVerdict('vd-dim','good','2D is adequate here.',
+    'A spread cell pulls mostly tangentially, so a 2D measurement captures '+fmt(inPlane*100,0)+'% of the traction magnitude. Classic 2D TFM is a reasonable choice.');
+  else setVerdict('vd-dim','bad','2D misses real force.',
+    'With f_z = '+fmt(fz,2)+', a 2D measurement loses '+fmt(missed,0)+'% of the traction magnitude. Maskarinec et al. showed normal forces matter even on "2D" gels — this cell needs confocal 3D TFM.');
+}
+
+/* ════════ TAB 4: BEADS ════════ */
+function drawBeads(){
+  let n=parseInt(val('s-beads-n')); const d=parseFloat(val('s-beads-d')); const PSF=0.3, Lx=100;
+  // true displacement profile: localized bump (µm of displacement)
+  const x0=55, wid=9, A=1.0; const trueU=x=>A*Math.exp(-((x-x0)*(x-x0))/(2*wid*wid));
+  const spacing=Lx/n;
+  // localization error: U-shaped in d (best near ~1.7*PSF), plus overlap penalty
+  const dOpt=1.7*PSF; let locErr=0.012*(dOpt/d + d/dOpt)/2;
+  const overlap = spacing < 1.4*d; if(overlap) locErr*=4;
+  // place beads, sample with noise
+  const bx=[],bu=[]; for(let i=0;i<n;i++){ const x=spacing*(i+0.5); bx.push(x); bu.push(trueU(x)+locErr*randn()); }
+  // reconstruct by linear interpolation, eval on fine grid; RMSE vs truth
+  const M=200; let se=0; const recPts=[],truePts=[];
+  function interp(x){ if(x<=bx[0])return bu[0]; if(x>=bx[n-1])return bu[n-1];
+    for(let i=1;i<n;i++){ if(x<=bx[i]){ const t=(x-bx[i-1])/(bx[i]-bx[i-1]); return bu[i-1]+t*(bu[i]-bu[i-1]); } } return bu[n-1]; }
+  for(let i=0;i<=M;i++){ const x=Lx*i/M; const tr=trueU(x), rc=interp(x); se+=(tr-rc)*(tr-rc); truePts.push([x,tr]); recPts.push([x,rc]); }
+  const rmse=Math.sqrt(se/(M+1));
+  const {ctx,w,h}=setupCanvas(document.getElementById('cv-beads'));
+  const ch=new Chart(ctx,w,h); ch.setRange(0,Lx,-0.15,1.25);
+  const xt=niceTicks(0,Lx,6), yt=niceTicks(0,1.2,4);
+  ch.grid(xt,yt); ch.axes('Position x (µm)','Displacement u (µm)',xt,yt,0,2);
+  drawLine(ctx,truePts.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.truth,2.4);
+  drawLine(ctx,recPts.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.rec,2,[6,4]);
+  // bead samples
+  ctx.save(); ctx.fillStyle=overlap?COL.bad:COL.vec;
+  const r=Math.max(2,Math.min(7,d*4));
+  for(let i=0;i<n;i++){ ctx.beginPath();ctx.arc(ch.toX(bx[i]),ch.toY(bu[i]),r,0,2*Math.PI);ctx.fill(); }
+  ctx.restore();
+  ch.legend([{label:'true field',color:COL.truth},{label:'reconstruction',color:COL.rec},{label:'beads',color:overlap?COL.bad:COL.vec}],ch.m.l+6,ch.m.t+8);
+  setStat('st-beads',[
+    {k:'bead spacing',v:fmt(spacing,1)+' µm'},
+    {k:'resolvable feature ≈ 2× spacing',v:fmt(2*spacing,1)+' µm'},
+    {k:'localization error',v:fmt(locErr*1000,0)+' nm'},
+    {k:'reconstruction RMSE',v:fmt(rmse,3)+' µm',hi:true},
+    {k:'beads overlap?',v:overlap?'YES':'no'}
+  ]);
+  if(overlap) setVerdict('vd-beads','bad','Beads overlap — tracking fails.',
+    'At this density and size the spacing ('+fmt(spacing,1)+' µm) is below the bead size, so beads merge and cannot be matched between frames. Reduce density or bead size.');
+  else if(rmse>0.12) setVerdict('vd-beads','warn','Undersampled field.',
+    'The bead spacing ('+fmt(spacing,1)+' µm) is too coarse to capture the '+fmt(2*wid,0)+'-µm-wide feature — the reconstruction (RMSE '+fmt(rmse,3)+' µm) misses the peak. Increase density.');
+  else setVerdict('vd-beads','good','Well sampled and well localized.',
+    'Spacing resolves the feature and the bead size is near the PSF sweet spot, so the reconstruction tracks the true field (RMSE '+fmt(rmse,3)+' µm).');
+}
+
+/* ════════ TAB 5: CONFOCAL vs EPI ════════ */
+function drawImaging(){
+  const uz=parseFloat(val('s-imaging-uz')); const conf=scen.imaging==='confocal';
+  const sigConf=0.55, sigEpi=6.0; const sig=conf?sigConf:sigEpi;
+  // left: axial intensity profile of a bead centred at z=uz
+  const c1=setupCanvas(document.getElementById('cv-imaging')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const ch=new Chart(ctx,w,h,{l:48,r:14,t:14,b:42}); ch.setRange(-6,6,0,1.1);
+  const xt=niceTicks(-6,6,6), yt=niceTicks(0,1,4); ch.grid(xt,yt); ch.axes('z (µm)','intensity',xt,yt,0,1);
+  const pts=[]; for(let i=0;i<=160;i++){ const z=-6+12*i/160; pts.push([ch.toX(z),ch.toY(Math.exp(-((z-uz)*(z-uz))/(2*sig*sig)))]); }
+  drawLine(ctx,pts,conf?COL.good:COL.warn,2.4);
+  ctx.save();ctx.strokeStyle=COL.truth;ctx.setLineDash([4,3]);ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(ch.toX(uz),ch.m.t);ctx.lineTo(ch.toX(uz),ch.m.t+ch.ph);ctx.stroke();ctx.restore();
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='center';
+  ctx.fillText('true z = '+fmt(uz,1)+' µm',ch.toX(uz),ch.m.t+10);
+  // right: recovered vs true uz over a sweep
+  const c2=setupCanvas(document.getElementById('cv-imaging2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const ch2=new Chart(ctx,w,h,{l:48,r:14,t:14,b:42}); ch2.setRange(-3,3,-3,3);
+  const t2=niceTicks(-3,3,6); ch2.grid(t2,t2); ch2.axes('true u_z (µm)','recovered u_z',t2,t2,0,0);
+  // identity line
+  drawLine(ctx,[[ch2.toX(-3),ch2.toY(-3)],[ch2.toX(3),ch2.toY(3)]],COL.ref,1.5,[5,4]);
+  const locSig=conf?0.12:2.2; ctx.fillStyle=conf?COL.good:COL.bad;
+  for(let i=0;i<=24;i++){ const tz=-3+6*i/24; const rec=conf?tz+locSig*randn():locSig*randn()*0.6;
+    ctx.beginPath();ctx.arc(ch2.toX(tz),ch2.toY(Math.max(-3,Math.min(3,rec))),2.6,0,2*Math.PI);ctx.fill(); }
+  setStat('st-imaging',[
+    {k:'mode',v:conf?'confocal (sectioned)':'epifluorescence'},
+    {k:'axial PSF width σ_z',v:fmt(sig,2)+' µm'},
+    {k:'z-localization error',v:fmt(locSig*1000,0)+' nm',hi:true},
+    {k:'3D TFM feasible?',v:conf?'yes':'no'}
+  ]);
+  if(conf) setVerdict('vd-imaging','good','Confocal resolves z → 3D possible.',
+    'Optical sectioning gives a sharp axial peak (σ_z ≈ '+fmt(sig,2)+' µm), so the bead\'s z-position — and thus u_z — can be localized. This is the basis of 3D TFM.');
+  else setVerdict('vd-imaging','bad','Epifluorescence ≈ 2D only.',
+    'Widefield collects out-of-focus light, so the axial signal is broad (σ_z ≈ '+fmt(sig,1)+' µm) and z is unrecoverable — recovered u_z is essentially noise. Use an inverted confocal for 3D.');
+}
+
+/* ════════ TAB 6: INVERSE PROBLEM ════════ */
+let invG=null, invGG=null, invTrue=null, invX=null;
+function buildInverse(){
+  const N=48, L=1; invX=[]; const dx=L/(N-1); invTrue=new Array(N);
+  for(let i=0;i<N;i++){ const x=i*dx; invX.push(x);
+    // self-equilibrated true traction: +bump and −bump
+    invTrue[i]=Math.exp(-((x-0.35)**2)/(2*0.045**2))-Math.exp(-((x-0.65)**2)/(2*0.045**2)); }
+  // Gaussian forward kernel (row-normalised → averaging/smoothing), stand-in for Green's function
+  const kw=0.07; invG=[]; for(let i=0;i<N;i++){ const row=new Array(N); let s=0;
+    for(let j=0;j<N;j++){ row[j]=Math.exp(-(( (i-j)*dx )**2)/(2*kw*kw)); s+=row[j]; }
+    for(let j=0;j<N;j++) row[j]/=s; invG.push(row); }
+  invGG=matmul(invG,invG); // G is symmetric ⇒ GᵀG = G·G
+}
+function drawInverse(){
+  if(!invG) buildInverse();
+  const N=invX.length; const lam=Math.pow(10,parseFloat(val('s-inverse-lam')));
+  const E=parseFloat(val('s-inverse-E')); const Eref=10; const uscale=Eref/E;
+  const noiseLvl = scen.inverse==='clean'?0.0 : 0.02;
+  // forward: u = uscale * G·t_true  (+noise) (+drift)
+  const Gt=matvec(invG,invTrue); const u=new Array(N);
+  for(let i=0;i<N;i++){ let v=uscale*Gt[i]; v+=noiseLvl*randn();
+    if(scen.inverse==='drift') v += 0.05*(invX[i]-0.5); u[i]=v; }
+  // de-scale measured displacement, then Tikhonov: (GᵀG+λ²I) t = Gᵀ (u/uscale)
+  const ud=u.map(v=>v/uscale); const rhs=matvec(invG,ud);
+  const A=invGG.map((r,i)=>r.map((v,j)=>v+(i===j?lam*lam:0)));
+  const trec=solveSym(A,rhs);
+  // metrics
+  let se=0,peakT=0,peakR=0,sumF=0,sumAbs=0; const dx=1/(N-1);
+  for(let i=0;i<N;i++){ se+=(trec[i]-invTrue[i])**2; peakT=Math.max(peakT,Math.abs(invTrue[i])); peakR=Math.max(peakR,Math.abs(trec[i]));
+    sumF+=trec[i]*dx; sumAbs+=Math.abs(trec[i])*dx; }
+  const rmse=Math.sqrt(se/N); const resid=Math.abs(sumF)/(sumAbs||1)*100;
+  const {ctx,w,h}=setupCanvas(document.getElementById('cv-inverse'));
+  const ch=new Chart(ctx,w,h); const ymax=Math.max(1.3,peakR*1.1); ch.setRange(0,1,-ymax,ymax);
+  const xt=niceTicks(0,1,5), yt=niceTicks(-Math.ceil(ymax),Math.ceil(ymax),6);
+  ch.grid(xt,yt); ch.axes('position (normalised)','traction (arb. units)',xt,yt,1,1); ch.hLine(0,COL.axis,[2,2]);
+  drawLine(ctx,invTrue.map((v,i)=>[ch.toX(invX[i]),ch.toY(v)]),COL.truth,2.2,[6,4]);
+  drawLine(ctx,trec.map((v,i)=>[ch.toX(invX[i]),ch.toY(v)]),COL.rec,2.4);
+  ch.legend([{label:'true traction',color:COL.truth},{label:'recovered',color:COL.rec}],ch.m.l+6,ch.m.t+8);
+  setStat('st-inverse',[
+    {k:'regularization λ',v:fmt(lam,3)},
+    {k:'peak traction (true)',v:fmt(peakT,2)},
+    {k:'peak traction (recovered)',v:fmt(peakR,2)},
+    {k:'reconstruction RMSE',v:fmt(rmse,3),hi:true},
+    {k:'force-balance residual',v:fmt(resid,0)+' %'}
+  ]);
+  if(scen.inverse==='drift' && resid>15) setVerdict('vd-inverse','bad','Untrustworthy — reference is drifted.',
+    'The recovered field carries a large net force (residual '+fmt(resid,0)+'%). A free cell cannot push the substrate net — this signature means the reference image is not truly force-free (drift). Fix the reference before trusting any number.');
+  else if(rmse>0.45 && peakR>peakT*1.4) setVerdict('vd-inverse','bad','Under-regularized — noise amplified.',
+    'λ is too small for this noise: the ill-posed inverse has amplified measurement noise into spiky, overshooting tractions (RMSE '+fmt(rmse,3)+'). Increase λ.');
+  else if(peakR<peakT*0.6) setVerdict('vd-inverse','warn','Over-regularized — forces underestimated.',
+    'λ is so large that the recovered peaks ('+fmt(peakR,2)+') fall well below the true value ('+fmt(peakT,2)+'). You have traded away resolution and are <em>underestimating</em> the cell force.');
+  else setVerdict('vd-inverse','good','Trustworthy reconstruction.',
+    'Moderate λ recovers both traction peaks, RMSE is low ('+fmt(rmse,3)+'), and the force-balance residual is small ('+fmt(resid,0)+'%). Report λ and the residual alongside the result.');
+}
+
+/* ════════ TAB 1: INSIDE A HYDROGEL ════════ */
+
+/* ════════ TAB 2: SPRINGS & DASHPOTS → SLS ════════ */
+
+/* ════════ wiring ════════ */
+const DRAW={hooke:drawHooke,strain:drawStrain,dim:drawDim,beads:drawBeads,imaging:drawImaging,inverse:drawInverse};
+function val(id){ const e=document.getElementById(id); return e?e.value:0; }
+function refreshActiveTab(){ const f=DRAW[activeTab]; if(f){ try{ f(); }catch(e){ console.error('draw '+activeTab,e); } } }
+function setScen(tab,s){ scen[tab]=s;
+  document.querySelectorAll('.scen-btn[data-tab="'+tab+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(tab===activeTab) refreshActiveTab(); }
+
+function wire(id,fmtFn){ const s=document.getElementById('s-'+id), v=document.getElementById('v-'+id);
+  if(!s)return; const upd=()=>{ if(v&&fmtFn)v.textContent=fmtFn(parseFloat(s.value)); refreshActiveTab(); };
+  s.addEventListener('input',upd); }
+wire('hooke-E',x=>fmt(x,1)+' kPa');
+wire('strain-m',x=>fmt(x,2)); wire('strain-E',x=>fmt(x,0)+' kPa');
+wire('dim-fz',x=>fmt(x,2));
+wire('beads-n',x=>x+' / 100µm'); wire('beads-d',x=>fmt(x,2)+' µm');
+wire('imaging-uz',x=>fmt(x,1)+' µm');
+wire('inverse-lam',x=>fmt(x,1)); wire('inverse-E',x=>x+' kPa');
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    document.getElementById('tab-'+activeTab).classList.add('active');
+    refreshActiveTab();
+  });
+});
+window.addEventListener('resize',()=>refreshActiveTab());
+refreshActiveTab();
+</script>
+</body>
+</html>

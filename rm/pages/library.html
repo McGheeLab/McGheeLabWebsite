@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Library — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <script>
@@ -118,6 +119,7 @@
         <button class="btn" id="library-customize-btn" title="Customize what you see (filters, sort, visibility)">⚙ Customize</button>
         <button class="btn" id="library-sync-btn" title="Pull pending captures from the Chrome extension">↻ Sync captures</button>
         <button class="btn" id="library-add-doi">+ Add by DOI / arXiv / PMID</button>
+        <button class="btn" id="library-missing-pdfs" style="display:none;" title="Filter to entries without a PDF — retry the OA fetch, upload manually, or mark unobtainable (V3.311)">Missing PDFs</button>
         <span id="library-status" class="lib-status"></span>
       </div>
     </div>
@@ -334,6 +336,7 @@
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
   <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/rm-dialog.js"></script>
   <script src="/rm/js/local-cache.js"></script>
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
@@ -347,6 +350,11 @@
       var tab = window.__LIB_TAB;
       var papersScripts = [
         'https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js',
+        '/rm/js/paper-semantic-scholar.js',
+        // V3.206 — library-extras runs before library-upload so the
+        // import-time ref parse + Semantic Scholar enrichment write
+        // their heavy fields to items/{id}/details/main.
+        '/rm/js/library-extras.js',
         '/rm/js/library-upload.js',
         '/rm/js/library-metadata.js',
         '/rm/js/library-sync.js',
@@ -358,6 +366,10 @@
         // (window.PAPER_CITATIONS exposed); no DOM side-effects until
         // init() is called, which only happens on the paper-reader.
         '/rm/js/paper-citations.js',
+        // V3.309 — metadata editor modal (✎ / ⚠ Fix metadata row actions).
+        '/rm/js/library-edit.js',
+        // V3.310 — fullRefresh pipeline (shared with the paper reader).
+        '/rm/js/library-refresh.js',
         '/rm/js/library.js'
       ];
       var commentsScripts = [

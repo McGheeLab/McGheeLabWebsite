@@ -38,12 +38,23 @@
   let _linkedDrafts = [];   // [{id, title, kind:'paper'|'grant'}, ...]
   let _active = new Set();
   let _changeCallbacks = [];
+  let _docClickBound = false;   // V3.294 — bind the outside-click closer once
 
   /* ─── Persistence (per-paper active set) ──────────────── */
   function _storageKey() {
     return `rm_lp_drafts_${_paperItem ? _paperItem.id : 'unknown'}`;
   }
   function _loadActive() {
+    // V3.187 — `?draft=<id>` URL param overrides the persisted active set.
+    // Used when the grant editor's "Linked Papers" panel hands off into the
+    // paper reader: that grant's overlay activates exclusively so the user
+    // sees only the grant-relevant highlights. The persisted set is left
+    // intact so a later visit without the param restores the user's state.
+    try {
+      const qp = new URLSearchParams(window.location.search);
+      const focusId = qp.get('draft') || qp.get('grant');
+      if (focusId) return new Set([focusId]);
+    } catch (_) { /* no window — ignore */ }
     try {
       const raw = localStorage.getItem(_storageKey());
       if (raw) {
@@ -118,7 +129,10 @@
   //   grant drafts: items.json type:'grant' AND status in proposals
   // Each draft: {id, title, kind:'paper'|'grant', hint:'…'}
   async function _loadAllDrafts() {
-    if (!window.api || !window.api.load) return [];
+    // util.js declares `api` with top-level `const`, which creates a
+    // script-global identifier but does NOT attach a `window.api`
+    // property. Guard on the lexical binding via typeof.
+    if (typeof api === 'undefined' || !api.load) return [];
     const out = [];
     // Paper drafts live in projects/papers.json (separate from items.json).
     try {
@@ -135,7 +149,7 @@
     } catch (e) {
       console.warn('[paper-overlays] could not load projects/papers.json:', e.message || e);
     }
-    // Grants live in items.json with type:'grant'.
+    // Grants live in items.json with type:'grant' (legacy schema).
     try {
       const idata = await api.load('items.json');
       const items = (idata && idata.items) || [];
@@ -151,6 +165,28 @@
       }
     } catch (e) {
       console.warn('[paper-overlays] could not load items.json:', e.message || e);
+    }
+    // V3.187 — grant drafts from the new V3.179 `grantDrafts` collection.
+    // These are the in-progress proposals the grant writer authors; their
+    // ids appear in cite_in_drafts on annotations imported via
+    // .paper-overlay.md files dropped on the grant card.
+    try {
+      if (typeof firebridge !== 'undefined' && firebridge.db && firebridge.isLabMember && firebridge.isLabMember()) {
+        const snap = await firebridge.db().collection('grantDrafts').get();
+        const seen = new Set(out.map(d => d.id));
+        snap.docs.forEach(d => {
+          if (seen.has(d.id)) return;  // legacy items.json entry takes precedence
+          const data = d.data() || {};
+          out.push({
+            id: d.id,
+            title: data.title || d.id,
+            kind: 'grant',
+            hint: [data.agency, data.mechanism, data.deadlineISO].filter(Boolean).join(' · '),
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('[paper-overlays] could not load grantDrafts collection:', e.message || e);
     }
     return out;
   }
@@ -187,11 +223,28 @@
     const papers = (papersData && papersData.papers) || [];
     const fresh = items.find(i => i.id === _paperItem.id) || _paperItem;
     const ids = (fresh.meta && fresh.meta.library && fresh.meta.library.linked_drafts) || [];
+
+    // V3.187 — fetch grant titles for ids that match grantDrafts/{id}.
+    // Done in parallel via direct doc reads (cheap; usually 1-3 ids per paper).
+    const grantTitles = {};
+    if (typeof firebridge !== 'undefined' && firebridge.db && firebridge.isLabMember && firebridge.isLabMember()) {
+      await Promise.all(ids.map(async id => {
+        try {
+          const snap = await firebridge.db().collection('grantDrafts').doc(id).get();
+          if (snap.exists) {
+            const d = snap.data();
+            grantTitles[id] = d.title || id;
+          }
+        } catch (_) { /* not a grantDraft id — fine */ }
+      }));
+    }
+
     const enriched = ids.map(id => {
       const paper = papers.find(p => p.id === id);
       if (paper) return { id, title: paper.title || id, kind: 'paper' };
       const it = items.find(i => i.id === id);
       if (it && it.type === 'grant') return { id, title: it.title || id, kind: 'grant' };
+      if (grantTitles[id]) return { id, title: grantTitles[id], kind: 'grant' };
       // Fallback: legacy bucket id or unknown — show as paper-flavored.
       return { id, title: (it && it.title) || id, kind: 'paper' };
     });
@@ -264,11 +317,23 @@
       pop.style.display = isOpen ? 'none' : 'block';
       if (!isOpen) _renderPop();
     });
-    document.addEventListener('click', (ev) => {
-      if (pop.style.display === 'none') return;
-      if (_mountEl.contains(ev.target)) return;
-      pop.style.display = 'none';
-    });
+    // V3.294 — bind the outside-click closer ONCE (module-level named
+    // handler), not on every _render(). Re-rendering the panel (init,
+    // _refreshLinkedDrafts, checkbox change, all/none) used to stack a
+    // fresh anonymous document listener each time, which leaked across
+    // tab switches. The named handler re-queries the live _mountEl/pop.
+    if (!_docClickBound) {
+      document.addEventListener('click', _onDocClick);
+      _docClickBound = true;
+    }
+  }
+
+  function _onDocClick(ev) {
+    if (!_mountEl) return;
+    const pop = _mountEl.querySelector('#lp-overlays-pop');
+    if (!pop || pop.style.display === 'none') return;
+    if (_mountEl.contains(ev.target)) return;
+    pop.style.display = 'none';
   }
 
   function _renderPop() {
@@ -543,6 +608,13 @@
 
   function destroy() {
     if (_mountEl) _mountEl.innerHTML = '';
+    // V3.294 — remove the once-bound outside-click closer so re-init for
+    // the next paper (tab switch) doesn't leave a stale handler referencing
+    // a detached _mountEl.
+    if (_docClickBound) {
+      document.removeEventListener('click', _onDocClick);
+      _docClickBound = false;
+    }
     _changeCallbacks = [];
     _active = new Set();
     _linkedDrafts = [];

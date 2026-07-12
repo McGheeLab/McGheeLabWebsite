@@ -29,6 +29,17 @@ try {
     firebase.initializeApp(firebaseConfig);
     McgheeLab.firebase = firebase;
     McgheeLab.auth    = firebase.auth();
+    // Auto-detect long-polling fallback when Chrome's QUIC stack drops
+    // Firestore's WebChannel Listen stream (emits a flood of
+    // QUIC_PROTOCOL_ERROR / "WebChannelConnection RPC 'Listen' stream
+    // transport errored" warnings even though Firestore reconnects).
+    // Must be set before the first .firestore() operation.
+    try {
+      firebase.firestore().settings({
+        experimentalAutoDetectLongPolling: true,
+        merge: true,
+      });
+    } catch (e) { /* already configured by another path */ }
     McgheeLab.db      = firebase.firestore();
     McgheeLab.storage = firebase.storage();
   } else if (typeof firebase === 'undefined') {

@@ -127,7 +127,7 @@
     });
 
     const allUsers = (usersData && usersData.users) || [];
-    _users = allUsers.filter(u => u.role !== 'guest');
+    _users = allUsers.filter(u => LAB_USERS.isVisible(u));
 
     _projects = (projDoc && projDoc.exists && (projDoc.data().projects || projDoc.data().items)) || [];
     _fundingSources = (fundDoc && fundDoc.exists && (fundDoc.data().fundingSources || fundDoc.data().sources || fundDoc.data().items)) || [];

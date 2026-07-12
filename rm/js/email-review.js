@@ -25,6 +25,7 @@ const CAT_COLORS = {
 const CATS = Object.keys(CAT_COLORS);
 
 const ALL_CATS = ['research', 'teaching', 'service', 'admin', 'personal', 'noise', 'unknown'];
+const EMAIL_SCRAPE_NOW_URL = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/scrapeNow';
 
 function loadCatFilter() {
   // Persist toggle state in localStorage. Default: everything except noise.
@@ -66,6 +67,7 @@ const STATE = {
   tasksInbox: null,           // cached {tasks:[...]} from tasks/inbox.json (lazy)
   relatedTasksOpen: new Set(),// email_ids whose Related-tasks section is expanded
   pinnedBucketKeys: null,     // Set of `cat§sub` keys; null = not loaded yet
+  classifierTraining: {},     // emailId -> {label, sub, s, subj, snip, ts} (V3.292)
 };
 
 // Three-way email disposition: immediate action, watch-later, FYI.
@@ -237,6 +239,16 @@ async function bulkReassignCategory() {
         };
       }
       await saveCategoryOverrides();
+      // Add every reassigned email to the training store (one save), retrain,
+      // then recheck the remaining guesses so the bulk label propagates too.
+      STATE.classifierTraining = STATE.classifierTraining || {};
+      for (const id of ids) {
+        const e = STATE.emails.find(x => x.id === id);
+        if (e && hasRealCategory(e.category)) STATE.classifierTraining[id] = _trainingExampleFromEmail(e);
+      }
+      _retrainClassifier();
+      try { await saveClassifierTraining(); } catch (_) { /* best-effort */ }
+      _recheckGuesses();
       if (category && sub_category) {
         YR_SHARED.addPathToTree(STATE.subcatTree, category, sub_category);
         YR_SHARED.addPathToCounts(STATE.subcatCounts, category, sub_category);
@@ -324,7 +336,10 @@ function renderDispositionChips(e) {
     if (isSeedHint)  chip.classList.add('seed-hint');
     chip.innerHTML = `<span class="disp-shape">${opt.shape}</span><span class="disp-label">${opt.label}</span>`;
     const tipParts = [];
-    if (isMLHint) tipParts.push(`AI suggests: ${opt.label}${suggestion.reason ? ` \u2014 ${suggestion.reason}` : ''}`);
+    if (isMLHint) {
+      const lead = suggestion.source === 'rule' ? 'Suggested (rule)' : 'AI suggests';
+      tipParts.push(`${lead}: ${opt.label}${suggestion.reason ? ` \u2014 ${suggestion.reason}` : ''}`);
+    }
     else if (isSeedHint) tipParts.push(`Suggested by rule: ${opt.label}`);
     else tipParts.push(`Mark as ${opt.label}`);
     chip.title = tipParts.join(' \u2014 ');
@@ -336,53 +351,56 @@ function renderDispositionChips(e) {
     });
     wrap.appendChild(chip);
   }
-  // ✨ Refine with AI — calls /api/refine-disposition and stores the result
-  // under STATE.dispositionSuggestions[id] with source='llm' so it renders
-  // as an ml-hint until the user accepts. Click-a-chip then confirms.
+  // ✨ Suggest a disposition — computed locally from the category + subject
+  // (no network). The deployed backend has no /api/refine-disposition route,
+  // so the old fetch always 404'd; until the Haiku few-shot guesser ships this
+  // is an instant, offline rule-based hint stored under
+  // STATE.dispositionSuggestions[id] with source='rule'. It highlights the
+  // matching chip as an ml-hint; clicking that chip confirms it as a user pick.
   const sug = document.createElement('button');
   sug.type = 'button';
   sug.className = 'disp-refine';
   sug.textContent = '\u2728';
-  sug.title = 'Refine with AI';
-  sug.addEventListener('click', async (ev) => {
+  sug.title = 'Suggest a disposition (rule-based)';
+  sug.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    if (sug.disabled) return;
-    sug.disabled = true;
-    const prev = sug.textContent;
-    sug.textContent = '\u2026';
-    try {
-      const res = await fetch('/api/refine-disposition', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email_id: e.id }),
-      });
-      const j = await res.json();
-      if (!j.ok) {
-        alert('Refine failed: ' + (j.error || res.status));
-        return;
-      }
-      STATE.dispositionSuggestions[e.id] = {
-        id: e.id,
-        value: j.value,
-        confidence: j.confidence,
-        reason: j.reason || 'AI suggestion',
-        source: 'llm',
-      };
-      // Re-render the row so the hint appears on the matching chip.
-      const entry = document.querySelector(`[data-email-id="${CSS.escape(e.id)}"]`);
-      if (entry && entry.parentNode) {
-        const replacement = renderEmailEntry(e);
-        entry.parentNode.replaceChild(replacement, entry);
-      }
-    } catch (err) {
-      alert('Refine failed: ' + err.message);
-    } finally {
-      sug.textContent = prev;
-      sug.disabled = false;
+    const g = guessDisposition(e);
+    STATE.dispositionSuggestions[e.id] = {
+      id: e.id,
+      value: g.value,
+      confidence: g.confidence,
+      reason: g.reason,
+      source: 'rule',
+    };
+    // Re-render the row so the hint appears on the matching chip.
+    const entry = document.querySelector(`[data-email-id="${CSS.escape(e.id)}"]`);
+    if (entry && entry.parentNode) {
+      const replacement = renderEmailEntry(e);
+      entry.parentNode.replaceChild(replacement, entry);
     }
   });
   wrap.appendChild(sug);
   return wrap;
+}
+
+// Rule-based disposition guess (actionable / reminder / info). A local
+// heuristic over category + subject signals \u2014 the offline counterpart to the
+// deferred LLM disposition refiner. Returns { value, confidence, reason }.
+function guessDisposition(e) {
+  const subj = (e.subject || '').toLowerCase();
+  const cat = e.category;
+  if (e.has_task) return { value: 'actionable', confidence: 0.8, reason: 'linked to a task' };
+  if (cat === 'noise') return { value: 'info', confidence: 0.7, reason: 'newsletter / noise' };
+  if (/\b(action required|please respond|please reply|awaiting your|deadline|due (date|by|on)|rsvp|sign|signature|approve|approval|review by|invitation to review|respond by|urgent)\b/.test(subj)) {
+    return { value: 'actionable', confidence: 0.7, reason: 'asks for a response or action' };
+  }
+  if (/\b(reminder|upcoming|tomorrow|scheduled for|don'?t forget|do not forget|renew|expir|past due|overdue)\b/.test(subj)) {
+    return { value: 'reminder', confidence: 0.6, reason: 'time-based reminder' };
+  }
+  if (cat === 'service' || cat === 'research' || cat === 'teaching') {
+    return { value: 'actionable', confidence: 0.45, reason: cat + ' mail usually needs a response' };
+  }
+  return { value: 'info', confidence: 0.4, reason: 'no clear action signal' };
 }
 
 async function loadPredictions() {
@@ -486,10 +504,12 @@ async function loadSubCategoryTree() {
  *
  * The IndexedDB cache (LOCAL_CACHE) keys per-year so repeat year clicks are
  * instant from cache. */
-// Hard cap on the initial year fetch. 1000 docs ≈ 1.2 MB on the wire and
-// dominates page LCP. Keep this small for the first paint; users can hit
-// "Load more" to pull older messages within the year.
-const EMAIL_PAGE_LIMIT = 250;
+// Hard cap on the per-year fetch. Raised 250 → 2000 (V3.291) to match the
+// manual-backfill cap in scrape-now.js: a "go back 90 days" scrape can write
+// ~1000+ docs, and a 250-doc fetch silently hid most of them (the user saw
+// "1000 scraped, 150 in unknown"). 2000 docs ≈ a few MB cached once per year
+// in IndexedDB; the render list itself is still capped (see renderEmails).
+const EMAIL_PAGE_LIMIT = 2000;
 
 async function loadSummary() {
   const me = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
@@ -529,6 +549,13 @@ async function loadSummary() {
         if (yearsCache) yearsCache.put(years);
         return;
       }
+      // Signed-in but the mailbox is empty (not connected yet, or nothing
+      // synced). Don't fall through to the legacy on-disk archive — that's
+      // Alex's local-dev path and throws in production. Present an empty paged
+      // summary so boot() proceeds to the inline Connect-Gmail state.
+      STATE.summary = { years: [String(new Date().getFullYear())], by_year: {} };
+      STATE._sourceMode = 'firestore-paged';
+      return;
     } catch (err) {
       console.warn('[email-review] year detection failed:', err.message);
     }
@@ -581,6 +608,295 @@ async function _refreshYearsInBackground(me, yearsCache) {
 // the background refresh corrects within a beat.
 function _emailYearCache(year) {
   return window.LOCAL_CACHE && window.LOCAL_CACHE.scope('emailMessages-' + year, 60 * 60_000);
+}
+
+function _setEmailScrapeStatus(message, tone) {
+  const el = document.getElementById('email-scrape-status');
+  if (!el) return;
+  el.textContent = message || '';
+  const colors = {
+    ok: '#059669',
+    warn: '#d97706',
+    error: '#dc2626',
+    muted: '#6b7280',
+  };
+  el.style.color = colors[tone] || colors.muted;
+}
+
+// Read the "days back" backfill input (manual scrapes only). Returns a clamped
+// positive integer, or null when empty/invalid (→ server stays incremental).
+function _readScrapeDays() {
+  const el = document.getElementById('email-scrape-days');
+  if (!el) return null;
+  const n = parseInt(el.value, 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(n, 3650);
+}
+
+async function _clearEmailMessageCaches(year) {
+  if (!window.LOCAL_CACHE || !LOCAL_CACHE.scope) return;
+  const current = new Date().getFullYear();
+  const target = Number(year) || current;
+  const names = new Set([
+    'emailYears',
+    'emailMessages-' + (current - 1),
+    'emailMessages-' + current,
+    'emailMessages-' + (current + 1),
+    'emailMessages-' + (target - 1),
+    'emailMessages-' + target,
+    'emailMessages-' + (target + 1),
+  ]);
+  await Promise.all(Array.from(names).map(name => {
+    try {
+      return LOCAL_CACHE.scope(name, 1).clear();
+    } catch (_) {
+      return Promise.resolve();
+    }
+  }));
+}
+
+async function _reloadEmailAfterScrape() {
+  const sel = document.getElementById('year-filter');
+  const preferred = (sel && sel.value) || STATE.year || String(new Date().getFullYear());
+  await loadSummary();
+  populateYearSelect();
+  const years = (STATE.summary && STATE.summary.years || []).slice().sort().reverse();
+  const target = (preferred && preferred !== 'all' && years.includes(preferred))
+    ? preferred
+    : (years[0] || String(new Date().getFullYear()));
+  if (sel) sel.value = target;
+  await loadYear(target);
+  await refresh();
+}
+
+// Coordinated scrape state — shared by the manual button, the on-load sync,
+// the 10-min poll, and the visibility/online re-syncs. `inFlight` keeps these
+// from stacking concurrent scrapes; `lastAttempt` throttles the refocus/online
+// catch-up to the server's 60s rate-limit window.
+const _emailScrape = { inFlight: false, pollTimer: null, wired: false, evtWired: false, lastAttempt: 0, didInitialSync: false };
+const EMAIL_POLL_MS = 10 * 60 * 1000; // 10 min, matches the server schedule
+
+// Is the signed-in user's Gmail connected? Reads their own credential doc
+// directly (owner-readable) — more reliable at boot than waiting for the
+// oauth-connections snapshot. `refreshTokenStored` is the flag oauth.js sets.
+async function _isGmailConnected() {
+  try {
+    const me = firebridge.getUser && firebridge.getUser();
+    if (!me || !firebridge.db) return false;
+    const snap = await firebridge.db()
+      .collection('userData').doc(me.uid)
+      .collection('private').doc('gmailCredential').get();
+    return !!(snap.exists && snap.data() && snap.data().refreshTokenStored === true);
+  } catch (err) {
+    console.warn('[email-review] gmail connection check failed:', err.message);
+    return false;
+  }
+}
+
+// First-time / disconnected state: a self-contained card in #content that runs
+// the OAuth popup inline (no trip to Settings) and scrapes on success.
+function _renderConnectGmailEmptyState() {
+  _emailStopPoll();
+  const host = document.getElementById('content');
+  if (!host) return;
+  const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+  host.innerHTML = `
+    <div class="card" style="padding:28px;max-width:520px;margin:24px auto;text-align:center">
+      <div style="font-size:40px;line-height:1">\u{1F4E8}</div>
+      <h3 style="margin:12px 0 6px">Connect your Gmail</h3>
+      <p style="color:#6b7280;font-size:14px;margin:0 0 18px">
+        Sync your inbox here to triage, rate, and turn emails into tasks.
+        We only read message metadata — never send or delete.
+      </p>
+      ${offline
+        ? '<p style="color:#d97706;font-size:13px;margin:0">You’re offline — reconnect to set this up.</p>'
+        : '<button class="btn btn-primary" id="email-connect-gmail-btn" type="button">Connect Gmail</button>'}
+      <p style="color:#9ca3af;font-size:12px;margin:14px 0 0">
+        Once connected, new mail syncs automatically every 10 minutes.
+      </p>
+    </div>`;
+  const cbtn = document.getElementById('email-connect-gmail-btn');
+  if (cbtn) cbtn.addEventListener('click', _connectGmailInline);
+}
+
+function _connectGmailInline() {
+  const btn = document.getElementById('email-connect-gmail-btn');
+  if (!window.OAUTH_CONNECTIONS || !OAUTH_CONNECTIONS.connectGoogle) {
+    // Helper not loaded — fall back to the Settings connect flow.
+    _setEmailScrapeStatus('Opening Settings to connect…', 'muted');
+    window.location.href = '/rm/pages/settings.html';
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  _setEmailScrapeStatus('Waiting for Google consent…', 'muted');
+  OAUTH_CONNECTIONS.connectGoogle({
+    onDone: async () => {
+      _setEmailScrapeStatus('Connected. Syncing your inbox…', 'muted');
+      await onScrapeEmailsNow({ quiet: false });   // this loud sync IS the initial sync
+      _emailScrape.didInitialSync = true;          // so _emailStartPoll just arms the poll
+      _emailStartPoll();
+    },
+    onError: () => {
+      if (btn) { btn.disabled = false; btn.textContent = 'Connect Gmail'; }
+      _setEmailScrapeStatus('Connection cancelled or failed. Try again.', 'warn');
+    },
+  });
+}
+
+// One scrape path for manual + background. opts.quiet: no button takeover, no
+// error toasts, terse status — used by the on-load sync, the poll, and the
+// refocus/online catch-up. Manual clicks pass quiet:false (the default).
+async function onScrapeEmailsNow(opts) {
+  opts = opts || {};
+  const quiet = !!opts.quiet;
+  const btn = document.getElementById('email-scrape-now-btn');
+  const me = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
+  if (!me) { _setEmailScrapeStatus('Sign in first.', 'error'); return; }
+
+  // Offline guard FIRST — attempting the fetch offline is the silent failure
+  // that made the button feel dead. Say so instead of doing nothing.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    _setEmailScrapeStatus('You’re offline — reconnect to sync Gmail.', 'warn');
+    if (!quiet && window.TOAST) TOAST.warn('You’re offline.', { detail: 'Reconnect to scrape Gmail.' });
+    return;
+  }
+
+  // Don't stack scrapes (load + poll + click can otherwise overlap).
+  if (_emailScrape.inFlight) return;
+  _emailScrape.inFlight = true;
+  _emailScrape.lastAttempt = Date.now();
+
+  // "days back" backfill — manual clicks only. The quiet background poll stays
+  // incremental (server resumes from lastSyncEpoch); only a deliberate click
+  // forces a deeper reach so a user who hasn't synced in a while can catch up.
+  const days = quiet ? null : _readScrapeDays();
+
+  const original = btn ? btn.textContent : '';
+  if (btn && !quiet) { btn.disabled = true; btn.textContent = 'Scraping...'; }
+  _setEmailScrapeStatus(
+    quiet ? 'Checking for new email…'
+          : (days ? `Fetching last ${days} days…` : 'Fetching Gmail...'), 'muted');
+
+  try {
+    const idToken = await me.getIdToken();
+    const body = { provider: 'gmail' };
+    if (days) body.days = days;
+    const res = await fetch(EMAIL_SCRAPE_NOW_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(res.status + ': ' + text);
+    }
+    const json = await res.json();
+    const result = json && json.results && json.results.gmail;
+
+    if (result && result.error === 'rate-limited') {
+      // A recent scrape (server tick or our own poll) already ran — just
+      // re-read Firestore so the open page reflects it. Not an error.
+      const secs = Math.max(1, Math.ceil((result.retry_after_ms || 0) / 1000));
+      await _clearEmailMessageCaches(STATE.year);
+      try { await _reloadEmailAfterScrape(); } catch (reloadErr) {
+        console.warn('[email-review] reload after rate-limit failed:', reloadErr);
+      }
+      _setEmailScrapeStatus(quiet ? 'Up to date.' : 'Recent sync found. Try again in ' + secs + 's.', quiet ? 'ok' : 'warn');
+      if (!quiet && window.TOAST) TOAST.warn('Gmail sync was just run.', { detail: 'Try again in ' + secs + ' seconds.' });
+      return;
+    }
+
+    if (result && result.error) {
+      if (result.error === 'gmail-not-connected' || result.error === 'no-refresh-token') {
+        // Lost / never had the connection — show the inline connect path and
+        // stop polling until they reconnect.
+        _renderConnectGmailEmptyState();
+        _setEmailScrapeStatus('Connect Gmail to sync.', 'warn');
+        return;
+      }
+      _setEmailScrapeStatus(quiet ? 'Sync failed.' : result.error, 'error');
+      if (!quiet && window.TOAST) TOAST.error('Gmail scrape failed', { detail: result.error });
+      return;
+    }
+
+    const written = result && result.written != null ? Number(result.written) || 0 : 0;
+    await _clearEmailMessageCaches(STATE.year);
+    try {
+      await _reloadEmailAfterScrape();
+      _setEmailScrapeStatus(
+        quiet ? (written ? written + ' new.' : 'Up to date.')
+              : 'Scrape complete: ' + written + ' emails' + (days ? ` (last ${days} days).` : '.'), 'ok');
+    } catch (reloadErr) {
+      console.warn('[email-review] reload after scrape failed:', reloadErr);
+      _setEmailScrapeStatus('Scrape complete. Reload the page to refresh the list.', 'warn');
+    }
+    if (!quiet && window.TOAST) TOAST.success('Gmail scraped (' + written + ' emails).');
+  } catch (err) {
+    console.error('[email-review] scrape failed:', err);
+    // Network failure (offline mid-request, DNS, CORS) vs. a real server error.
+    const isNetwork = (err instanceof TypeError) || /Failed to fetch|NetworkError|ERR_INTERNET|Load failed/i.test(err.message || '');
+    _setEmailScrapeStatus(isNetwork ? 'Couldn’t reach the server — check your connection.' : 'Scrape failed.', isNetwork ? 'warn' : 'error');
+    if (!quiet && window.TOAST) TOAST.error(isNetwork ? 'Network error' : 'Scrape failed', { detail: err.message });
+  } finally {
+    _emailScrape.inFlight = false;
+    if (btn && !quiet) { btn.disabled = false; btn.textContent = original || 'Scrape now'; }
+  }
+}
+
+// Resilient wiring: a single delegated click listener on document, registered
+// at module-eval time (not only inside boot()), so the manual button responds
+// even if boot() bailed before reaching the wiring. Idempotent.
+function wireScrapeEmailsNowButton() {
+  if (_emailScrape.wired) return;
+  _emailScrape.wired = true;
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target && ev.target.closest && ev.target.closest('#email-scrape-now-btn');
+    if (btn) onScrapeEmailsNow();
+  });
+}
+// Wire now, independent of boot — the hardening that prevents a silent dead
+// button if anything downstream throws.
+wireScrapeEmailsNowButton();
+
+// On-load sync + 10-min poll while the tab is open, visible, and online.
+async function _emailStartPoll() {
+  // Immediate freshness on load / after connect — but exactly ONCE, and
+  // AWAITED before wiring the catchUp listeners. Awaiting matters: the initial
+  // scrape stamps _emailScrape.lastAttempt, so a spurious visibilitychange/
+  // online event that fires right after load is throttled by catchUp's 60s
+  // window instead of triggering a second redundant scrape+reload (the V3.288
+  // double "cache MISS → refresh" on load). The didInitialSync latch also keeps
+  // a second _emailStartPoll() call (e.g. from the inline-connect onDone path)
+  // from re-firing the immediate sync.
+  if (!_emailScrape.didInitialSync) {
+    _emailScrape.didInitialSync = true;
+    try { await onScrapeEmailsNow({ quiet: true }); } catch (_) { /* poll still arms below */ }
+  }
+  if (!_emailScrape.pollTimer) {
+    _emailScrape.pollTimer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;     // skip hidden tabs
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      onScrapeEmailsNow({ quiet: true });
+    }, EMAIL_POLL_MS);
+  }
+  if (!_emailScrape.evtWired) {
+    _emailScrape.evtWired = true;
+    // Catch up when the tab refocuses or the network returns — throttled to the
+    // server's 60s rate-limit window so refocus/online thrash stays cheap.
+    const catchUp = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (_emailScrape.inFlight) return;
+      if (Date.now() - _emailScrape.lastAttempt < 60_000) return;
+      onScrapeEmailsNow({ quiet: true });
+    };
+    document.addEventListener('visibilitychange', catchUp);
+    window.addEventListener('online', catchUp);
+    window.addEventListener('pagehide', _emailStopPoll);
+  }
+}
+function _emailStopPoll() {
+  if (_emailScrape.pollTimer) { clearInterval(_emailScrape.pollTimer); _emailScrape.pollTimer = null; }
 }
 
 // Cheap freshness check: 1-doc query to find the year's most-recent email's
@@ -650,12 +966,173 @@ function _coerceLegacyEmailShape(m) {
       return { name: '', email: part.trim() };
     }).filter(x => x.email || x.name);
   }
+  const from = parseAddrs(m.from);
+  // Category resolution. A real backfilled/manual category on the doc wins.
+  // Otherwise run guessCategory() — the learned model first (V3.292), then the
+  // deterministic rules (V3.289), then 'unknown'. A later manual override
+  // re-stamps this via applyOverrideToEmail (category_source='manual').
+  let category = m.category;
+  let category_source = m.category_source;
+  if (!category) {
+    const g = guessCategory({ from: from, subject: m.subject || '', snippet: m.snippet || m.body_preview || '' });
+    category = g.category;
+    category_source = g.source;
+  }
+  // Normalize `date` to a sortable ISO string. The Gmail scraper stores the
+  // raw RFC-2822 header ("Wed, 25 Jun 2026 14:30:00 -0700"), but the renderer,
+  // the monthly timeline (date.slice(0,7)) and the date sort all assume ISO.
+  // internalDate (epoch ms, when Gmail received the message) is the reliable
+  // source; fall back to parsing the header; last resort keep the raw value.
+  let isoDate = '';
+  const t = Number(m.internalDate) || 0;
+  if (t > 0) {
+    isoDate = new Date(t).toISOString();
+  } else if (m.date) {
+    const parsed = Date.parse(m.date);
+    isoDate = Number.isFinite(parsed) ? new Date(parsed).toISOString() : m.date;
+  }
   return Object.assign({}, m, {
-    from: parseAddrs(m.from),
+    from: from,
     to: parseAddrs(m.to),
     cc: parseAddrs(m.cc),
     body_preview: m.body_preview || m.snippet || '',
+    date: isoDate || m.date || '',
+    category: category,
+    category_source: category_source,
   });
+}
+
+// True only when the user/classifier assigned a REAL category — 'unknown' (our
+// default for un-triaged scraped mail) doesn't count. Used by the task-linking
+// gates so they still prompt for a real category before tagging a task.
+function hasRealCategory(c) {
+  return !!c && c !== 'unknown';
+}
+
+/* ---------- Auto-guess + the live-learning classifier (V3.292) ----------
+ *
+ * Single source of truth for an auto-guess: the LEARNED model first (when it's
+ * trained + confident), then the deterministic CATEGORY_RULES, then 'unknown'.
+ * Used both at load (_coerceLegacyEmailShape) and on every recheck.
+ * `email` needs { from:[{email}], subject, snippet }. */
+function guessCategory(email) {
+  if (typeof window !== 'undefined' && window.EMAIL_CLASSIFIER && EMAIL_CLASSIFIER.predict) {
+    try {
+      const pred = EMAIL_CLASSIFIER.predict(email);
+      if (pred && pred.category) return { category: pred.category, source: 'model' };
+    } catch (_) { /* fall through to rules */ }
+  }
+  if (typeof window !== 'undefined' && window.CATEGORY_RULES && CATEGORY_RULES.guess) {
+    const g = CATEGORY_RULES.guess({ from: email.from, subject: email.subject || '' });
+    if (g && g.category && g.category !== 'unknown') return { category: g.category, source: 'rule' };
+  }
+  return { category: 'unknown', source: undefined };
+}
+
+// Re-run guessCategory() over every NON-manual email and update its category +
+// source in place. Hand-categorized rows (category_source==='manual') are never
+// touched. Returns the number of rows whose guess changed. This is the core of
+// "every time I categorize an email, recheck all the other guesses" — called
+// after each manual label (the model just retrained) so guesses propagate.
+function _recheckGuesses() {
+  let changed = 0;
+  for (const e of STATE.emails) {
+    if (e.category_source === 'manual') continue;  // user's label is sacrosanct
+    const g = guessCategory({ from: e.from, subject: e.subject, snippet: e.snippet || e.body_preview });
+    if (e.category !== g.category || e.category_source !== g.source) {
+      e.category = g.category;
+      e.category_source = g.source;
+      changed++;
+    }
+  }
+  return changed;
+}
+
+// Compact, self-contained training example captured from a hand-categorized
+// email. snippet/subject truncated to keep the single training doc well under
+// Firestore's 1 MB limit even with thousands of labels.
+function _trainingExampleFromEmail(e) {
+  const sender = (e.from && e.from[0] && (e.from[0].email || e.from[0].name)) || '';
+  return {
+    label: e.category,
+    sub: e.sub_category || '',
+    s: sender,
+    subj: (e.subject || '').slice(0, 160),
+    snip: (e.snippet || e.body_preview || '').slice(0, 160),
+    ts: new Date().toISOString(),
+  };
+}
+
+function _trainingExamplesArray() {
+  const t = STATE.classifierTraining || {};
+  return Object.keys(t).map(id => t[id]);
+}
+
+// Retrain the in-browser model from the current training store. Cheap (a few ms
+// for hundreds of examples), so it's safe to call on every label.
+function _retrainClassifier() {
+  if (typeof window === 'undefined' || !window.EMAIL_CLASSIFIER) return;
+  EMAIL_CLASSIFIER.train(_trainingExamplesArray());
+}
+
+// Apply the user's saved weights/thresholds to the classifier engine. Safe to
+// call before any emails load — pure config, no model needed yet.
+async function loadClassifierSettings() {
+  if (typeof window === 'undefined' || !window.EMAIL_CLASSIFIER) return;
+  try {
+    const j = await api.load('email_archive/classifier_settings.json');
+    if (j && (j.weights || j.minConfidence != null || j.minExamples != null || j.alpha != null)) {
+      EMAIL_CLASSIFIER.configure(j);
+    }
+  } catch { /* no saved settings → engine defaults */ }
+}
+
+async function loadClassifierTraining() {
+  try {
+    const j = await api.load('email_archive/classifier_training.json');
+    STATE.classifierTraining = j.examples || {};
+  } catch { STATE.classifierTraining = {}; }
+  _retrainClassifier();
+}
+
+async function saveClassifierTraining() {
+  await api.save('email_archive/classifier_training.json', {
+    examples: STATE.classifierTraining || {},
+    updated_at: new Date().toISOString(),
+  });
+}
+
+// Upsert a hand-categorized email into the training store, retrain, persist.
+// Caller triggers _recheckGuesses() + refresh() so the freshly-learned signal
+// propagates to the other rows.
+async function recordTrainingExample(e) {
+  if (!e || !hasRealCategory(e.category)) return;
+  STATE.classifierTraining = STATE.classifierTraining || {};
+  STATE.classifierTraining[e.id] = _trainingExampleFromEmail(e);
+  _retrainClassifier();
+  try { await saveClassifierTraining(); } catch (_) { /* best-effort persist */ }
+}
+
+async function removeTrainingExample(id) {
+  if (!STATE.classifierTraining || !STATE.classifierTraining[id]) return;
+  delete STATE.classifierTraining[id];
+  _retrainClassifier();
+  try { await saveClassifierTraining(); } catch (_) { /* best-effort persist */ }
+}
+
+// One-time capture of pre-existing hand-labels: any loaded email with a manual
+// override that isn't in the training store yet becomes a training example.
+// Lets the model learn from history the first time, not only from new labels.
+function _backfillTrainingFromLoaded() {
+  STATE.classifierTraining = STATE.classifierTraining || {};
+  let added = 0;
+  for (const e of STATE.emails) {
+    if (e.category_source !== 'manual' || !hasRealCategory(e.category)) continue;
+    if (STATE.classifierTraining[e.id]) continue;
+    STATE.classifierTraining[e.id] = _trainingExampleFromEmail(e);
+    added++;
+  }
+  return added;
 }
 
 function _synthesizeEmailSummary(messages) {
@@ -951,7 +1428,7 @@ function filterEmails() {
   });
   switch (STATE.sort) {
     case 'date-asc':
-      rows.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      rows.sort((a, b) => emailTime(a) - emailTime(b));
       break;
     case 'predicted-desc':
       rows.sort((a, b) => (STATE.predictions[b.id] || 0) - (STATE.predictions[a.id] || 0));
@@ -960,9 +1437,18 @@ function filterEmails() {
       rows.sort((a, b) => effectiveRating(b) - effectiveRating(a));
       break;
     default: // date-desc
-      rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      rows.sort((a, b) => emailTime(b) - emailTime(a));
   }
   return rows;
+}
+
+// Sortable timestamp (ms) for an email — date AND time. Prefers internalDate
+// (epoch ms from Gmail), falls back to parsing the (now ISO) date string.
+function emailTime(e) {
+  const t = Number(e.internalDate);
+  if (Number.isFinite(t) && t > 0) return t;
+  const p = Date.parse(e.date || '');
+  return Number.isFinite(p) ? p : 0;
 }
 
 function renderYearReview(emails) {
@@ -1062,7 +1548,11 @@ function renderActivityRollup(emails) {
   // only surfaces activities from visible categories.
   const byActivity = {};
   for (const e of emails) {
-    const k = e.activity_type || '(unspecified)';
+    // Freshly-scraped / rule-guessed mail has no activity_type yet, so it would
+    // all collapse into '(unspecified)' (which is filtered out below) and the
+    // panel would read empty. Fall back to the category so the rollup is useful
+    // before sub-categories are assigned; it refines once activity_type fills in.
+    const k = e.activity_type || e.category || '(unspecified)';
     const b = byActivity[k] || (byActivity[k] = { count: 0, cat: e.category, withTasks: 0, emails: [] });
     b.count += 1;
     if (e.has_task) b.withTasks += 1;
@@ -1170,17 +1660,18 @@ function renderEmails(emails) {
     host.innerHTML = `<div style="padding:20px;color:#6b7280">No emails match the current filter.</div>`;
     return;
   }
+  const RENDER_CAP = 1000;
   const wrap = document.createElement('div');
   wrap.className = 'card';
-  for (const e of emails.slice(0, 500)) {
+  for (const e of emails.slice(0, RENDER_CAP)) {
     wrap.appendChild(renderEmailEntry(e));
   }
   host.appendChild(wrap);
-  if (emails.length > 500) {
+  if (emails.length > RENDER_CAP) {
     const more = document.createElement('div');
     more.style.padding = '10px';
     more.style.color = '#6b7280';
-    more.textContent = `(showing first 500 of ${emails.length} — narrow filters to see more)`;
+    more.textContent = `(showing first ${RENDER_CAP} of ${emails.length} — narrow filters to see more)`;
     host.appendChild(more);
   }
 }
@@ -1191,6 +1682,14 @@ function renderEmailEntry(e) {
   const entry = document.createElement('div');
   entry.className = 'email-entry';
   entry.dataset.emailId = e.id;
+
+  // Uncategorized flag — a red inset "tab" down the left edge so unsorted mail
+  // is obvious while scanning. box-shadow (not border) avoids any layout shift.
+  const uncategorized = !hasRealCategory(e.category);
+  if (uncategorized) {
+    entry.classList.add('email-uncategorized');
+    entry.style.boxShadow = 'inset 3px 0 0 #dc2626';
+  }
 
   const caret = STATE.expandedEmails.has(e.id) ? '\u25BE' : '\u25B8';
   const fromStr = (e.from || []).map(a => a.name || a.email).filter(Boolean).join(', ');
@@ -1222,7 +1721,7 @@ function renderEmailEntry(e) {
   row.innerHTML = `
     <div class="col-select"><input type="checkbox"${isSelected ? ' checked' : ''}></div>
     <div class="col-date">${escapeHtml((e.date || '').slice(0, 10))}</div>
-    <div>${categoryTag(e.category)}${e.category_source === 'manual' ? '<span style="margin-left:4px;font-size:10px;padding:1px 4px;background:#fde68a;color:#78350f;border-radius:4px">edit</span>' : ''}</div>
+    <div>${uncategorized ? '<span title="Uncategorized — pick a category below" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626;margin-right:5px;vertical-align:middle"></span>' : ''}${categoryTag(e.category)}${e.category_source === 'manual' ? '<span style="margin-left:4px;font-size:10px;padding:1px 4px;background:#fde68a;color:#78350f;border-radius:4px">edit</span>' : e.category_source === 'model' ? '<span title="Predicted by the learned classifier (trained on your hand-categorized mail) — click a category to confirm or change" style="margin-left:4px;font-size:10px;padding:1px 4px;background:#dcfce7;color:#166534;border-radius:4px">learned</span>' : e.category_source === 'rule' ? '<span title="Auto-guessed from sender/subject rules — click a category to confirm or change" style="margin-left:4px;font-size:10px;padding:1px 4px;background:#e0e7ff;color:#3730a3;border-radius:4px">guess</span>' : ''}</div>
     <div class="col-main">
       <div class="title"><span style="color:#9ca3af;margin-right:4px">${caret}</span>${escapeHtml(e.subject || '(no subject)')}</div>
       <div class="sub">${subLine}</div>
@@ -1277,10 +1776,109 @@ function renderEmailEntry(e) {
   });
   entry.appendChild(row);
 
+  // Inline quick-sort: a always-open pill bar under every uncategorized row so
+  // sorting is one click, no expand required. Expanding still gives the full
+  // category / sub-category picker.
+  if (uncategorized) {
+    entry.appendChild(renderQuickCategorize(e));
+  }
+
   if (STATE.expandedEmails.has(e.id)) {
     entry.appendChild(renderEmailExpand(e));
   }
   return entry;
+}
+
+// One-click category assignment for an uncategorized row. Sets a manual
+// override (category only — sub-category stays empty; expand for the full
+// picker), persists it, and re-renders. Mirrors renderCategoryEditor's
+// onChange minus the sub-category/task-attach steps.
+async function quickSetCategory(e, category) {
+  e.category = category;
+  e.category_source = 'manual';
+  e.activity_type = e.sub_category || category || e.activity_type;
+  const existing = overrideToObj(STATE.categoryOverrides[e.id]) || {};
+  STATE.categoryOverrides[e.id] = {
+    ...existing,
+    category: category,
+    sub_category: existing.sub_category || '',
+  };
+  await saveCategoryOverrides();
+  await recordTrainingExample(e);          // learn from this label + persist
+  const rechecked = _recheckGuesses();     // re-predict every other guessed row
+  if (window.TOAST) {
+    TOAST.success('Sorted into ' + category + (rechecked ? ` · rechecked ${rechecked} guess${rechecked === 1 ? '' : 'es'}` : ''));
+  }
+  await refresh();
+}
+
+// Compact "Sort into:" bar for uncategorized rows. Ranks candidate categories
+// via CATEGORY_RULES.rank() (best guess first, marked ★); any real categories
+// the rules didn't surface follow as lighter pills so every option is one
+// click away. A trailing "more…" opens the full picker.
+function renderQuickCategorize(e) {
+  const REAL = ['research', 'teaching', 'service', 'admin', 'personal', 'noise'];
+  let ranked = [];
+  try {
+    // Learned model ranks first (when trained); fall back to the rules' ranking.
+    if (window.EMAIL_CLASSIFIER && EMAIL_CLASSIFIER.ready()) {
+      ranked = EMAIL_CLASSIFIER.rank({ from: e.from, subject: e.subject, snippet: e.snippet || e.body_preview }) || [];
+    }
+    if (!ranked.length && window.CATEGORY_RULES && CATEGORY_RULES.rank) {
+      ranked = CATEGORY_RULES.rank({ from: e.from, subject: e.subject || '' }) || [];
+    }
+  } catch (_) { ranked = []; }
+  const rankedCats = ranked.map(r => r.category).filter(c => REAL.includes(c));
+  const order = [...rankedCats, ...REAL.filter(c => !rankedCats.includes(c))];
+
+  const bar = document.createElement('div');
+  bar.className = 'quick-cat-bar';
+  bar.style.cssText = 'display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:6px 10px 8px 12px;background:#fef2f2;border-top:1px dashed #fecaca';
+
+  const lbl = document.createElement('span');
+  lbl.textContent = 'Sort into:';
+  lbl.style.cssText = 'font-size:11px;font-weight:600;color:#991b1b;text-transform:uppercase;letter-spacing:.4px;margin-right:2px';
+  bar.appendChild(lbl);
+
+  order.forEach((cat, i) => {
+    const isTop = rankedCats.length > 0 && rankedCats[0] === cat;
+    const isRanked = rankedCats.includes(cat);
+    const color = CAT_COLORS[cat] || '#6b7280';
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'quick-cat-pill';
+    pill.style.cssText = [
+      'font-size:12px', 'padding:3px 10px', 'border-radius:999px', 'cursor:pointer',
+      'line-height:1.4', 'white-space:nowrap',
+      isRanked ? `border:1.5px solid ${color}` : 'border:1px solid #e5e7eb',
+      isRanked ? `color:${color}` : 'color:#6b7280',
+      isTop ? `background:${color}1a;font-weight:600` : 'background:#fff',
+    ].join(';');
+    pill.textContent = (isTop ? '★ ' : '') + cat;
+    pill.title = isTop
+      ? `Best guess from sender/subject rules — click to sort into ${cat}`
+      : `Sort into ${cat}`;
+    pill.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      pill.disabled = true;
+      await quickSetCategory(e, cat);
+    });
+    bar.appendChild(pill);
+  });
+
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.textContent = 'more…';
+  more.title = 'Open the full category / sub-category picker';
+  more.style.cssText = 'font-size:12px;padding:3px 8px;border:none;background:none;color:#6b7280;cursor:pointer;text-decoration:underline';
+  more.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const entry = bar.closest('.email-entry');
+    if (entry && !STATE.expandedEmails.has(e.id)) toggleEmailExpand(e, entry);
+  });
+  bar.appendChild(more);
+
+  return bar;
 }
 
 function renderEmailExpand(e) {
@@ -1465,7 +2063,7 @@ function renderRelatedTasksSection(email) {
   label.textContent = 'Related tasks';
   const tagChip = document.createElement('span');
   tagChip.style.cssText = 'font-weight:400;text-transform:none;letter-spacing:0;color:#6b7280;font-size:11px';
-  const tagPath = [email.category, email.sub_category].filter(Boolean).join(' / ') || '(no category)';
+  const tagPath = [email.category, email.sub_category].filter(Boolean).filter(c => c !== 'unknown').join(' / ') || '(no category)';
   tagChip.textContent = tagPath;
   const countSlot = document.createElement('span');
   countSlot.className = 'rt-count';
@@ -1487,7 +2085,7 @@ function renderRelatedTasksSection(email) {
     const matches = tasksMatchingEmail(email, inbox);
     countSlot.textContent = matches.length ? `${matches.length} task${matches.length === 1 ? '' : 's'}` : 'none';
     body.innerHTML = '';
-    if (!email.category) {
+    if (!hasRealCategory(email.category)) {
       body.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:6px 0">Pick a category above to see related tasks.</div>';
       return;
     }
@@ -1649,9 +2247,9 @@ function renderAddTaskButton(email, repaint) {
   btn.type = 'button';
   btn.className = 'btn';
   btn.style.cssText = 'font-size:12px;padding:4px 10px;margin-top:4px;color:#166534;border-color:#bbf7d0;background:#f0fdf4';
-  btn.textContent = email.category ? '+ new task for this tag' : '+ new task';
+  btn.textContent = hasRealCategory(email.category) ? '+ new task for this tag' : '+ new task';
   btn.addEventListener('click', async () => {
-    if (!email.category) {
+    if (!hasRealCategory(email.category)) {
       alert('Pick a category above before creating a task for this email.');
       return;
     }
@@ -1784,6 +2382,8 @@ function renderCategoryEditor(e) {
       };
       await saveCategoryOverrides();
       await attachEmailToTask(e);
+      await recordTrainingExample(e);   // learn from this label + persist
+      _recheckGuesses();                // re-predict every other guessed row
       await refresh();
     },
   });
@@ -1796,20 +2396,15 @@ function renderCategoryEditor(e) {
   clear.textContent = 'Clear override';
   clear.addEventListener('click', async () => {
     delete STATE.categoryOverrides[e.id];
-    try {
-      const fresh = (await api.load(`email_archive/by_year/${STATE.year}.json`)).emails.find(x => x.id === e.id);
-      if (fresh) { e.category = fresh.category; e.sub_category = fresh.sub_category || ''; }
-    } catch {}
-    e.category_source = 'rules';
+    await removeTrainingExample(e.id);   // drop from training set + retrain
+    // Forget the manual label and let it fall back to a fresh guess.
+    e.category = undefined;
+    e.sub_category = '';
+    e.activity_type = '';
+    e.category_source = undefined;
+    _recheckGuesses();                   // re-guesses this row (+ any others that shift)
     await saveCategoryOverrides();
-    const entry = wrap.closest('.email-entry');
-    if (entry) {
-      const replacement = renderEmailEntry(e);
-      entry.parentNode.replaceChild(replacement, entry);
-    }
-    renderYearReview(STATE.emails);
-    renderCatToggles();
-    renderTimeline(STATE.emails);
+    await refresh();
   });
   wrap.appendChild(clear);
   return wrap;
@@ -2167,6 +2762,7 @@ function _emailAttachLiveSync() {
 
 async function boot() {
   _emailWrapSaves();
+  wireScrapeEmailsNowButton();
   await loadSummary();
   await loadRatings();
   await loadPredictions();
@@ -2176,6 +2772,11 @@ async function boot() {
   try {
     STATE.categoryOverrides = (await api.load('email_archive/category_overrides.json')).overrides || {};
   } catch { STATE.categoryOverrides = {}; }
+  // Apply the user's saved classifier weights/thresholds (V3.293) BEFORE
+  // training, then train the in-browser classifier BEFORE loading year data so
+  // guessCategory() can use the learned model while coercing emails (V3.292).
+  await loadClassifierSettings();
+  await loadClassifierTraining();
   await loadSubCategoryTree();
   populateYearSelect();
   const years = (STATE.summary.years || []).slice().sort().reverse();
@@ -2190,6 +2791,31 @@ async function boot() {
     });
   }
   await refresh();
+
+  // V3.292 — capture any pre-existing hand-labels (loaded this session) into the
+  // training store, then retrain + recheck so the model reflects them on first
+  // load, not only from new labels. One persist if anything was added.
+  if (_backfillTrainingFromLoaded()) {
+    _retrainClassifier();
+    _recheckGuesses();
+    try { await saveClassifierTraining(); } catch (_) { /* best-effort */ }
+    await refresh();
+  }
+
+  // V3.288 — connection-aware bootstrap. Connected users get an immediate
+  // background sync + a 10-min poll (on top of the server's 10-min scheduled
+  // scrape); first-time / disconnected users with nothing cached get the
+  // inline Connect-Gmail card. Wrapped so a failed check never breaks boot.
+  try {
+    if (await _isGmailConnected()) {
+      _emailStartPoll();
+    } else if (!STATE.emails.length) {
+      _renderConnectGmailEmptyState();
+    }
+  } catch (err) {
+    console.warn('[email-review] connection-aware bootstrap failed:', err.message);
+  }
+
   // Live-sync intentionally OFF on email-review (Phase 12). The page is
   // view-mostly; tab-to-tab edits aren't worth the 4 onSnapshot streams +
   // their initial-state network cost on every page boot. Saves ~20-30 KB +

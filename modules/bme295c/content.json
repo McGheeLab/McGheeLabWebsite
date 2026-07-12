@@ -1,0 +1,526 @@
+{
+  "course": {
+    "code": "BME 295C",
+    "title": "Challenges in Biomedical Engineering",
+    "semester": "Summer 2026",
+    "dates": "June 8 – June 12, 2026",
+    "duration": "5 days (Monday – Friday)",
+    "times": "8:30 AM – 11:30 AM daily, optional laboratory tours 11:30 AM – 12:00 PM",
+    "description": "BME 295C is a one-week summer course designed to introduce rising high school juniors and seniors to the field of Biomedical Engineering (BME). Through interactive lectures, laboratory tours, and networking with world-class faculty, students will explore diverse BME topics and gain exposure to ongoing research at both the Tucson and Phoenix University of Arizona campuses.",
+    "prerequisites": "No prior biomedical engineering experience is required."
+  },
+  "feeNotice": {
+    "title": "Opt out of the $75 textbook charge",
+    "body": "You may notice a $75 charge on your account in addition to the $176 total for the application fee and tuition. That's an Inclusive Access textbook fee — this course does not use a textbook, so you'll want to OPT OUT to avoid being billed. The Bookstore and Bursar can't remove the charge on their end; you have to opt out yourself through D2L.",
+    "steps": [
+      { "label": "Log in to D2L", "href": "https://d2l.arizona.edu/" },
+      "From the Nav bar at the top, select My UA Tools",
+      "Select Pay OnePrice / Inclusive Access Opt-out/in",
+      "Carefully read the instructions in the Opt out/in section, then click the Opt Out/In button"
+    ]
+  },
+  "locations": [
+    {
+      "campus": "Tucson",
+      "building": "Health Sciences Innovation Building (HSIB)",
+      "room": "880",
+      "fullName": "University of Arizona Main Campus",
+      "mapUrl": "https://www.google.com/maps/place/Health+Sciences+Innovation+Building+(HSIB)/@32.2390447,-110.9468145,19.44z/data=!4m6!3m5!1s0x86d671a7b5176c53:0x67880bc15138eb29!8m2!3d32.2389287!4d-110.9472516!16s%2Fg%2F11dxck11tg",
+      "parkingUrl": "https://www.google.com/maps/place/Health+Sciences+Garage,+1401+N+Campbell+Ave,+Tucson,+AZ+85724/@32.2398873,-110.944889,18.85z/data=!4m6!3m5!1s0x86d671a675bbde29:0x49e2fe8ceb6f3a5f!8m2!3d32.2398873!4d-110.944889!16s%2Fg%2F11c24wq7b7",
+      "parkingOptions": [
+        { "label": "Health Sciences Garage", "url": "https://www.google.com/maps/place/Health+Sciences+Garage,+1401+N+Campbell+Ave,+Tucson,+AZ+85724/@32.2398873,-110.944889,18.85z/data=!4m6!3m5!1s0x86d671a675bbde29:0x49e2fe8ceb6f3a5f!8m2!3d32.2398873!4d-110.944889!16s%2Fg%2F11c24wq7b7" },
+        { "label": "Highland Garage", "url": "https://www.google.com/maps/place/Highland+Parking+Garage/@32.2377205,-110.9509579,19z/data=!3m1!4b1!4m6!3m5!1s0x86d67107f9d26119:0xd40ae54b50244782!8m2!3d32.2376813!4d-110.9507012!16s%2Fg%2F11bwkz_7nt" }
+      ],
+      "parkingNote": "Daily max: $9 at either garage."
+    },
+    {
+      "campus": "Phoenix",
+      "building": "Biomedical Sciences Partnership Building (BSPB)",
+      "room": "E115",
+      "fullName": "Phoenix Bioscience Core",
+      "mapUrl": "https://www.google.com/maps/place/Biomedical+Sciences+Partnership+Building+University+of+Arizona/@33.4533008,-112.06661,18.51z/data=!4m6!3m5!1s0x872b121bd541bea3:0x4ab33a119623ca91!8m2!3d33.4532566!4d-112.0658618!16s%2Fg%2F11gdmfcmk3",
+      "parkingUrl": "https://phoenixmed.arizona.edu/parking",
+      "parkingMap": "ClassInfo/parking-map phoenix campus.pdf"
+    }
+  ],
+  "instructors": [
+    {
+      "name": "Dr. Alexander McGhee",
+      "department": "Department of Biomedical Engineering",
+      "office": "Health Science Innovation Building 940 (Tucson campus)",
+      "email": "mcgheealex@gmail.com",
+      "role": "Course Instructor"
+    },
+    {
+      "name": "Monique Martinez, MS",
+      "department": "Department of Basic Medical Sciences",
+      "office": "Arizona Biomedical Collaborative 331F (Phoenix campus)",
+      "email": "moniquem15@arizona.edu",
+      "role": "Course Instructor (Phoenix campus)"
+    },
+    {
+      "name": "Diana Wilson",
+      "department": "Sr. Academic Undergraduate Advisor, Biomedical Engineering",
+      "office": "Engineering 112D (Tucson campus)",
+      "email": "dwilson@arizona.edu",
+      "role": "Course Advisor"
+    }
+  ],
+  "objectives": [
+    "Define key concepts and career pathways in BME.",
+    "Describe real-world applications of BME research and technologies.",
+    "Engage with ongoing biomedical research through laboratory visits and discussions with faculty.",
+    "Learn about opportunities and facilities at the Tucson and Phoenix UA campuses."
+  ],
+  "materials": [
+    "Laptop (if available) — useful for in-class activities and accessing course materials",
+    "Notebook or journal — for taking additional notes during lectures, tours, and discussions",
+    "Pens and pencils — bring several in case of loss or sharing",
+    "Highlighter — for marking important concepts or handouts",
+    "Folder or binder — to organize printed materials and handouts",
+    "Reusable water bottle — to stay hydrated during the day",
+    "Closed-toe shoes — required for laboratory tours",
+    "Comfortable clothing — appropriate for walking tours and indoor/outdoor activities",
+    "Backpack or tote bag — to carry personal items and supplies"
+  ],
+  "policies": {
+    "grading": "This course is graded based on participation. Students are expected to actively participate in class lectures and complete the required worksheets for each session.",
+    "attendance": "Attendance is required for all scheduled sessions. Daily attendance is mandatory. Students are expected to arrive on time and remain for the full day. If a student must miss a session due to illness or emergency, they or their parent/guardian must notify the program coordinator as soon as possible. Students must either join virtually or watch the class recording for the day(s) missed. More than one unexcused absence may result in dismissal from the program and ineligibility for a certificate of completion.",
+    "recordings": "Lectures will be recorded. Access will be given to students following the completion of the course or on a case-by-case basis. Students may not modify content or re-use content for any purpose other than personal educational reasons.",
+    "behavior": "Students are highly encouraged to freely discuss the course material and their intellectual views. We ask that students be respectful and considerate of each other, refrain from off-topic conversation, engage in respectful interactions during discussion sections, and arrive and leave class in a timely manner. Silence phones and use laptops only for class-related activities."
+  },
+  "schedule": [
+    {
+      "day": "Monday",
+      "date": "June 8",
+      "sessions": [
+        { "time": "8:30 AM", "type": "talk",  "topic": "Biomedical Imaging (MRI)",           "speakerSlug": "Nan-kuei_Chen",      "campus": "UA Tucson" },
+        { "time": "9:30 AM", "type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "10:00 AM","type": "talk",  "topic": "Optical Imaging for Cancer Detection","speakerSlug": "Jennifer_Barton",    "campus": "UA Phoenix" },
+        { "time": "11:00 AM","type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Barton Laboratory",                 "campus": "UA Tucson" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Medical School (hosted by Annika Ozols)", "campus": "UA Phoenix" }
+      ]
+    },
+    {
+      "day": "Tuesday",
+      "date": "June 9",
+      "sessions": [
+        { "time": "8:30 AM", "type": "talk",  "topic": "Cardiovascular Engineering",        "speakerSlug": "Monique_Martinez",   "campus": "UA Phoenix" },
+        { "time": "9:30 AM", "type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "10:00 AM","type": "talk",  "topic": "Bionic Control of Robotic Limbs",    "speakerSlug": "Mario_Romero-Ortega","campus": "UA Tucson" },
+        { "time": "11:00 AM","type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Romero-Ortega Laboratory",          "campus": "UA Tucson" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Hale Laboratory (hosted by Ashton Jorgensen)", "campus": "UA Phoenix" }
+      ]
+    },
+    {
+      "day": "Wednesday",
+      "date": "June 10",
+      "sessions": [
+        { "time": "8:30 AM", "type": "talk",  "topic": "Wearable Sensors",                  "speakerSlug": "Philipp_Gutruf",     "campus": "UA Tucson" },
+        { "time": "9:30 AM", "type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "10:00 AM","type": "talk",  "topic": "Biological Models of the Tumor Microenvironment","speakerSlug": "Jerome_Lacombe", "campus": "UA Phoenix" },
+        { "time": "11:00 AM","type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Gutruf Laboratory",                 "campus": "UA Tucson" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Lacombe Laboratory",                "campus": "UA Phoenix" }
+      ]
+    },
+    {
+      "day": "Thursday",
+      "date": "June 11",
+      "sessions": [
+        { "time": "8:30 AM", "type": "talk",  "topic": "Quantitative Brain MRI Imaging",    "speakerSlug": "Elizabeth_Hutchinson","campus": "UA Tucson" },
+        { "time": "9:30 AM", "type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "10:00 AM","type": "talk",  "topic": "In Vivo Microscopy",                "speakerSlug": "Dongkyun_Kang",      "campus": "UA Tucson" },
+        { "time": "11:00 AM","type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Hutchinson Laboratory",             "campus": "UA Tucson" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Marlowe Laboratory (hosted by Hunter O'Brien)", "campus": "UA Phoenix" }
+      ]
+    },
+    {
+      "day": "Friday",
+      "date": "June 12",
+      "sessions": [
+        { "time": "8:30 AM", "type": "talk",  "topic": "Bioprinting",                       "speakerSlug": "Alexander_McGhee",   "campus": "UA Tucson" },
+        { "time": "9:30 AM", "type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "10:00 AM","type": "talk",  "topic": "Convergence of Engineering in Medicine","speakerSlug": "Frederic_Zenhausern","campus": "UA Phoenix" },
+        { "time": "11:00 AM","type": "discussion", "topic": "Review & Discussion",          "campus": "Both Campuses" },
+        { "time": "11:30 AM","type": "tour",  "topic": "McGhee Laboratory",                 "campus": "UA Tucson" },
+        { "time": "11:30 AM","type": "tour",  "topic": "Zenhausern Laboratory",             "campus": "UA Phoenix" }
+      ]
+    }
+  ],
+  "speakers": [
+    {
+      "slug": "Nan-kuei_Chen",
+      "name": "Nan-kuei Chen, Ph.D.",
+      "title": "Professor, Biomedical Engineering, University of Arizona",
+      "photo": "speaker-photos/Nan-kuei_Chen.png",
+      "talkTitle": "Biomedical Imaging from Physics to Clinical Impact",
+      "abstract": "This talk introduces how biomedical imaging, and especially MRI, enables us to visualize the human body and brain, from structure to function, while highlighting its growing role in understanding diseases and brain plasticity. It also emphasizes engineering innovations such as low-field MRI, AI-driven analysis, and cloud-based tools to improve access to advanced healthcare and reduce disparities. Ultimately, the talk connects fundamental physics and imaging technology to real-world clinical impact and future opportunities in medicine.",
+      "day": "Monday, June 8",
+      "time": "8:30 AM",
+      "campus": "UA Tucson",
+      "labTour": "Barton Laboratory (UA Tucson) · Medical School, hosted by Annika Ozols (UA Phoenix)"
+    },
+    {
+      "slug": "Jennifer_Barton",
+      "name": "Jennifer Barton, Ph.D.",
+      "title": "Professor, Biomedical Engineering and Wyant College of Optical Sciences, University of Arizona",
+      "photo": "speaker-photos/Jennifer_Barton.jpg",
+      "talkTitle": "Optical Imaging for Early Detection of Ovarian Cancer",
+      "abstract": "Making a decision whether to have a prophylactic (preventative) surgery is difficult. Would you choose to lose your ability to conceive children naturally, and be reliant on hormones, pills and patches for health, to nearly eliminate a 15% chance of getting likely deadly ovarian cancer? Optics may provide answers and certainty to this decision. Advanced imaging modalities and miniaturized components mean that the earliest signs of cancer can be made visible with tiny endoscopes that traverse the reproductive tract.",
+      "day": "Monday, June 8",
+      "time": "10:00 AM",
+      "campus": "UA Phoenix",
+      "labTour": "Barton Laboratory (UA Tucson)"
+    },
+    {
+      "slug": "Monique_Martinez",
+      "name": "Monique Martinez",
+      "title": "PhD Student, University of Arizona · Co-Instructor, Phoenix Campus",
+      "photo": "speaker-photos/Monique_Martinez.webp",
+      "talkTitle": "Cardiovascular Engineering",
+      "abstract": "The heart functions as a pump to circulate blood throughout the body. The electrical signals of the heart set a particular rhythm that is detectable by medical equipment, such as heart monitors. We can image the heart within the body using several different imaging technologies, such as echocardiograms, x-rays, CT scans, and MRI scans. Monitoring and early detection of cardiac dysfunction decrease the risk of cardiovascular disease-related deaths. However, cardiovascular disease (CVD) is still the number one cause of mortality in the United States. There are many types of modifiable and unmodifiable traditional and nontraditional risk factors associated with CVD. Some of these risk factors even originate in utero and differ between males and females! Engineering solutions for CVD include solutions for when the heart struggles to pump blood, when electrical signals are not normal, and if the heart completely fails. The future of engineering solutions for CVD can take us from 3D-printed organs to the use of artificial intelligence in monitoring and diagnoses, and everything in between.",
+      "day": "Tuesday, June 9",
+      "time": "8:30 AM",
+      "campus": "UA Phoenix",
+      "labTour": "Romero-Ortega Laboratory (UA Tucson) · Hale Laboratory, hosted by Ashton Jorgensen (UA Phoenix)"
+    },
+    {
+      "slug": "Mario_Romero-Ortega",
+      "name": "Mario I. Romero-Ortega, Ph.D.",
+      "title": "Department Head and Professor, Biomedical Engineering, University of Arizona",
+      "photo": "speaker-photos/Mario_Romero-Ortega.png",
+      "talkTitle": "Prosthetic, Bionic, and Beyond: Engineering and Controlling the Next Generation of Robotic Limbs",
+      "abstract": "Robotic limbs have advanced from passive mechanical replacements to devices integrated with the human nervous system, yet the terms prosthetic and bionic are often conflated. This talk draws a clear architectural distinction. Prosthetics restore form and gross function, while bionic limbs are bidirectionally coupled to the user, driven by neural intent and capable of returning touch, force, and proprioception. I will survey the spectrum of control strategies, from surface EMG and targeted muscle reinnervation to intrafascicular arrays, microchannel devices, and our laboratory's regenerative peripheral neural interfaces that allow axons to grow through the electrode itself. I will then contrast upper-limb engineering, where dexterity and sensory feedback dominate, with lower-limb engineering, where dynamics, load-bearing, and gait control take precedence. The talk closes with the remaining barriers, including chronic stability, wireless power, and regulatory pathways that continue to gate clinical translation.",
+      "day": "Tuesday, June 9",
+      "time": "10:00 AM",
+      "campus": "UA Tucson",
+      "labTour": "Romero-Ortega Laboratory (UA Tucson)"
+    },
+    {
+      "slug": "Philipp_Gutruf",
+      "name": "Philipp Gutruf, Ph.D.",
+      "title": "Associate Professor and Associate Department Head, Biomedical Engineering, University of Arizona",
+      "photo": "speaker-photos/Philipp_Gutruf.jpg",
+      "talkTitle": "Imperceptible by Design: Next-Generation Wearables for Continuous Diagnostics and Closed-Loop Therapy",
+      "abstract": "Wearables are finally crossing the threshold from consumer gadgets to clinical-grade diagnostic and therapeutic devices. This talk examines the convergence that made automated diagnosis possible, including soft skin-conformal materials, wireless power, on-device machine learning, and continuous longitudinal data streams, and argues that the deciding factor for long-term adoption is imperceptibility, meaning a device the user never has to think about. I will present our laboratory's biosymbiotic platform, soft 3D-printed mesh wearables that conform to the individual, harvest energy wirelessly, and transmit clinical-grade signals to clinicians miles away. I will then introduce osseosurface electronics, thin wireless devices that interface directly with bone to record the strain and mechanical loading history that drives fracture healing, giving orthopedic surgeons an objective, continuous readout in place of episodic radiographs. The talk closes with fully implanted, battery-free platforms for closed-loop neurostimulation, cardiac pacing, and functional electrical stimulation.",
+      "day": "Wednesday, June 10",
+      "time": "8:30 AM",
+      "campus": "UA Tucson",
+      "labTour": "Gutruf Laboratory (UA Tucson)"
+    },
+    {
+      "slug": "Jerome_Lacombe",
+      "name": "Jerome Lacombe, Ph.D.",
+      "title": "Assistant Professor, Center for Applied NanoBioscience and Medicine, University of Arizona College of Medicine – Phoenix",
+      "photo": "speaker-photos/Jerome_Lacombe.png",
+      "talkTitle": "Modeling the Tumor Microenvironment with Organoids and Organs-on-Chip",
+      "abstract": "This lecture will present the biochemical and mechanical interactions that take place within the tumor microenvironment, and how they contribute to cancer development, progression, and response to therapy. It will then introduce emerging biological models, such as tumor organoids and organ-on-chip systems, designed to more faithfully reproduce these complex conditions than traditional cell culture methods. By better capturing the cellular diversity, spatial organization, and physical forces present in real tumors, these models provide more accurate insights into cancer biology and significantly improve how we study human tumor behavior and responses to therapy.",
+      "day": "Wednesday, June 10",
+      "time": "10:00 AM",
+      "campus": "UA Phoenix",
+      "labTour": "Lacombe Laboratory (UA Phoenix)"
+    },
+    {
+      "slug": "Elizabeth_Hutchinson",
+      "name": "Elizabeth Hutchinson, Ph.D.",
+      "title": "Associate Professor, Biomedical Engineering, University of Arizona",
+      "photo": "speaker-photos/Elizabeth_Hutchinson.png",
+      "talkTitle": "Brain MRI for Neurodegenerative Disorders: Detecting Neurodegeneration Before It's Too Late",
+      "abstract": "Neurodegenerative disorders such as Alzheimer's Disease are devastating to patients, caregivers and families. They also present a large and growing economic burden to the healthcare system and individuals affected with these disorders. If diagnostic tools can be developed to sensitively and specifically detect AD pathology at the earliest stages, then there is the potential for preventative treatment and improved outcomes, but currently the majority of diagnosis for AD is made at later stages when cognition and daily life are already affected. In combination with other clinical diagnostic tools, brain imaging and especially magnetic resonance imaging (MRI) can play an important role in the diagnosis and monitoring of AD. In this talk, the development of novel diffusion MRI approaches to improve non-invasive detection of AD pathology in the brain will be explored. Diffusion MRI uses the MRI signal to sensitively measure the magnitude and shape of water diffusion as a probe of cell and tissue features such as cell density, edema, white matter tract connections among others.",
+      "day": "Thursday, June 11",
+      "time": "8:30 AM",
+      "campus": "UA Tucson",
+      "labTour": "Hutchinson Laboratory (UA Tucson)"
+    },
+    {
+      "slug": "Dongkyun_Kang",
+      "name": "Dongkyun \"DK\" Kang, Ph.D.",
+      "title": "Associate Professor, Wyant College of Optical Sciences and Department of Biomedical Engineering, University of Arizona",
+      "photo": "speaker-photos/Dongkyun_Kang.jpg",
+      "talkTitle": "From Biopsy to Bedside Microscopy: Making Cellular Diagnosis Available Everywhere",
+      "abstract": "A definitive cancer diagnosis still depends on a pathologist viewing stained cells under a microscope, a workflow that requires biopsy, fixation, sectioning, and days of laboratory infrastructure that simply does not exist in most of the world. This talk first reviews the standard histopathology pipeline and its real costs, including diagnostic delay, sampling error, and the inability to monitor the same cells over time. I will then introduce in vivo microscopy, including confocal, multiphoton, and light-sheet techniques, that image living tissue at cellular resolution without excision, replacing physical sectioning with optical sectioning and enabling real-time, point-of-care diagnosis. Finally, I will present our laboratory's smartphone confocal microscope, which uses a slit aperture and diffraction grating on a consumer phone to perform confocal imaging without any beam-scanning hardware. I will share results from our NIH-funded program diagnosing Kaposi's sarcoma in Uganda and extensions to cervical, oral, and skin cancer screening.",
+      "day": "Thursday, June 11",
+      "time": "10:00 AM",
+      "campus": "UA Tucson",
+      "labTour": "Marlowe Laboratory, hosted by Hunter O'Brien (UA Phoenix)"
+    },
+    {
+      "slug": "Alexander_McGhee",
+      "name": "Alexander McGhee, Ph.D.",
+      "title": "Assistant Professor, Biomedical Engineering, University of Arizona",
+      "photo": "speaker-photos/Alexander_McGhee.jpg",
+      "talkTitle": "Developing 3D In Vitro Models of Cancer via Cellular Assembly and 3D Bioprinting",
+      "abstract": "In vitro models give us something animal studies and patient trials cannot, namely a controllable, observable, repeatable system for asking precise mechanistic questions about cancer. The future of these models is one in which every patient's tumor is reconstructed in a dish to test therapy before it is given. I will confront a fundamental problem in targeted therapeutics. Drugs are typically developed against 2D cell monolayers that lack the architecture, stromal cells, and mechanical forces of real tumors, which is why so many compounds that look promising in flat culture fail in the body. The second half of the talk turns to 3D bioprinting and its persistent issues, including resolution limits, cell viability, and recapitulating native heterogeneity, and shows how harnessing the collective self-assembly behavior of cells lets us build tissue models the printer alone cannot.",
+      "day": "Friday, June 12",
+      "time": "8:30 AM",
+      "campus": "UA Tucson",
+      "labTour": "McGhee Laboratory (UA Tucson)"
+    },
+    {
+      "slug": "Frederic_Zenhausern",
+      "name": "Frederic Zenhausern, Ph.D., MBA",
+      "title": "Professor of Basic Medical Sciences and Director of the Center for Applied NanoBioscience and Medicine, University of Arizona College of Medicine – Phoenix",
+      "photo": "speaker-photos/Frederic_Zenhausern.jpg",
+      "talkTitle": "Convergence of Engineering in Medicine",
+      "abstract": "This talk introduces students to the converging frontier where engineering, nanoscience, and molecular medicine meet to reshape clinical practice. I will first describe how biomedical research is conducted in the United States and outline its three main funding pillars, which include federal agencies (NIH, NSF, and DoD/DARPA), foundations and philanthropic organizations, and industry partnerships with venture capital. I will then identify three research priorities for the next 5 to 10 years, including precision and predictive diagnostics built on point-of-care molecular sensors, personalized therapeutics enabled by genomics and nanomedicine, and AI-augmented decision support that extends advanced care into resource-limited settings. Finally, I will walk through the translational pipeline, including discovery, preclinical validation, regulatory strategy, clinical trials, and commercialization, drawing on our Center for Applied NanoBioscience and Medicine's experience converting bench-top inventions into deployable diagnostic platforms. Convergence is the operative word, and medicine's future is being engineered now.",
+      "day": "Friday, June 12",
+      "time": "10:00 AM",
+      "campus": "UA Phoenix",
+      "labTour": "Zenhausern Laboratory (UA Phoenix)"
+    }
+  ],
+  "discussion": {
+    "Mario_Romero-Ortega": [
+      {
+        "prompt": "What are the best methods to control robotic limbs?",
+        "followups": [
+          "Surface EMG is non-invasive but noisy — when is it \"good enough,\" and when do you need to go inside the body?",
+          "Compare targeted muscle reinnervation, intrafascicular arrays, and regenerative peripheral neural interfaces — which trade-off (invasiveness, signal fidelity, longevity) matters most for a hand vs. a leg?",
+          "If axons grow through the electrode, what new failure modes appear that a metal cuff electrode would never have?"
+        ]
+      },
+      {
+        "prompt": "What is the main difference between prosthetic and bionic limbs?",
+        "followups": [
+          "A prosthetic restores form; a bionic limb is bidirectionally coupled — why does giving the user back touch and proprioception change what they can do, not just how it feels?",
+          "Is \"bionic\" a property of the device, the surgery, or the user's brain learning to use it?",
+          "Where would you draw the line between \"very advanced prosthetic\" and \"bionic\" — and does the line even matter clinically?"
+        ]
+      },
+      {
+        "prompt": "How are upper and lower robotic limbs engineered differently?",
+        "followups": [
+          "Upper limbs prioritize dexterity and sensation; lower limbs prioritize dynamics and load-bearing — what does that mean for the control bandwidth each one needs?",
+          "A missed signal in a hand drops a coffee cup; a missed signal in a leg drops the user — how should that asymmetry shape safety design?",
+          "What does \"gait\" demand that \"grasp\" doesn't, and vice versa?"
+        ]
+      }
+    ],
+    "Nan-kuei_Chen": [
+      {
+        "prompt": "How can low-field MRI and AI help make advanced medical imaging more accessible?",
+        "followups": [
+          "A 3T MRI scanner costs more than most rural hospitals' annual budget — what does a low-field system give up to become deployable, and is that trade worth it?",
+          "If AI can clean up a noisier low-field image to \"look like\" a high-field one, are we imaging the patient or imaging the model's expectations?",
+          "Cloud-based interpretation moves the radiologist off-site — what new problems (privacy, bandwidth, liability) does that create?"
+        ]
+      },
+      {
+        "prompt": "What does brain imaging like fMRI teach us, and how might this change disease treatment?",
+        "followups": [
+          "fMRI shows where activity happens but not what the brain is computing — what kinds of clinical decisions can we make from \"where\" alone?",
+          "Brain plasticity means the map changes after injury — should rehabilitation be guided by imaging, or does that risk over-fitting to a single scan?",
+          "When two patients have the same diagnosis but different fMRI patterns, which one do you trust?"
+        ]
+      },
+      {
+        "prompt": "If you were an engineer, what problem in healthcare would you solve with imaging or technology, and why?",
+        "followups": [
+          "Pick a disease whose outcome would change if you could see it 5 years earlier — what would you build?",
+          "Is the bigger gap in new imaging tech or in deploying what we already have?",
+          "What problem is too unglamorous to attract funding but would help the most people?"
+        ]
+      }
+    ],
+    "Philipp_Gutruf": [
+      {
+        "prompt": "What has changed that allows us to now enable automated diagnosis?",
+        "followups": [
+          "Soft conformal materials, wireless power, on-device ML, continuous longitudinal data — which of these was the bottleneck until recently?",
+          "A consumer fitness tracker and a clinical-grade wearable record similar signals — what separates \"wellness\" data from a diagnosis a doctor can act on?",
+          "Continuous data also means continuous false alarms — how do you design a wearable that doesn't cry wolf?"
+        ]
+      },
+      {
+        "prompt": "What is important for people to keep using wearables?",
+        "followups": [
+          "Imperceptibility is the deciding factor — what does a device need to stop being for the user to forget it's there?",
+          "Battery anxiety, charging rituals, skin irritation — rank the adherence killers; which one is engineering's job and which is psychology's?",
+          "Would you trade signal quality for invisibility? Where's the limit?"
+        ]
+      },
+      {
+        "prompt": "What biosignal can be used to track fracture recovery?",
+        "followups": [
+          "Osseosurface electronics read strain and mechanical loading directly off bone — why is that a better recovery signal than an X-ray taken once a month?",
+          "An X-ray is a snapshot; bone strain is a movie — what clinical decisions become possible when you have the movie?",
+          "If a surgeon sees daily loading data, do they intervene more or less? Could continuous monitoring create over-treatment?"
+        ]
+      }
+    ],
+    "Dongkyun_Kang": [
+      {
+        "prompt": "What is the standard medical procedure to make a final cancer diagnosis?",
+        "followups": [
+          "Biopsy → fixation → sectioning → pathologist — list every place this pipeline can fail, and which failure costs the patient the most.",
+          "Sampling error: the pathologist only sees the slice you cut — how often does the disease hide in the slice you didn't?",
+          "The pipeline takes days; some patients live hours away from any lab — what does \"diagnostic delay\" actually cost in lives?"
+        ]
+      },
+      {
+        "prompt": "What is in vivo microscopy?",
+        "followups": [
+          "Confocal, multiphoton, light-sheet — all replace physical sectioning with optical sectioning. Why is that a step-change, not an incremental improvement?",
+          "Imaging living tissue over time means you can watch a tumor respond — what new questions does that unlock?",
+          "What does in vivo microscopy give up vs. classical histology — and is the trade-off worth it at point-of-care?"
+        ]
+      },
+      {
+        "prompt": "How can you make in vivo microscopy tools at low cost?",
+        "followups": [
+          "A smartphone + slit aperture + diffraction grating = confocal microscopy without beam-scanning hardware — what made the smartphone the right platform now and not 10 years ago?",
+          "The Uganda Kaposi's sarcoma program is the proof-of-concept — what changes when the same device targets cervical, oral, and skin cancer screening?",
+          "Cheap hardware still needs a trained operator — is the bottleneck the device or the workforce around it?"
+        ]
+      }
+    ],
+    "Frederic_Zenhausern": [
+      {
+        "prompt": "How is medical research conducted in the USA, and what are the 3 main sources of funding?",
+        "followups": [
+          "Federal agencies (NIH, NSF, DoD/DARPA), foundations and philanthropy, and industry/VC — what kind of project does each one fund, and which one would your idea fit?",
+          "DARPA funds risky bets; NIH funds incremental science — does that division of labor still make sense, or does it leave gaps?",
+          "Industry funding gets products to patients but also shapes what gets studied — what gets unstudied as a result?"
+        ]
+      },
+      {
+        "prompt": "What are the 3 research priorities to address critical needs in the next 5–10 years?",
+        "followups": [
+          "Precision/predictive diagnostics, personalized therapeutics, AI-augmented decision support in low-resource settings — which one closes the biggest healthcare gap and which is the most over-hyped?",
+          "\"Personalized\" medicine works best for patients with rich data; what happens to populations that aren't in the training set?",
+          "If you had to drop one of the three, which one survives without it?"
+        ]
+      },
+      {
+        "prompt": "What is the translational process for transferring discoveries to clinical practice?",
+        "followups": [
+          "Discovery → preclinical → regulatory → clinical trials → commercialization — at which step do most good ideas die, and why?",
+          "The \"valley of death\" between a published paper and a deployable product — what's actually in that valley?",
+          "Convergence (engineering + nano + molecular medicine) is the pitch — but does combining fields speed translation or slow it down by adding more regulators?"
+        ]
+      }
+    ],
+    "Jennifer_Barton": [
+      {
+        "prompt": "For what biomedical applications are optical imaging techniques well suited? What are their limitations?",
+        "followups": [
+          "Optics excels at surface and near-surface tissue, high resolution, and miniaturization — what does that rule out, and is that ruled-out space where ovarian cancer hides?",
+          "Light doesn't penetrate deep tissue — when is that a limit and when is it actually a feature (e.g., specificity, no radiation)?",
+          "Compare optical imaging to MRI/CT for early detection — what does each one see that the others miss?"
+        ]
+      },
+      {
+        "prompt": "What advances have made fallopian-tube imaging possible, where it was not 10 years ago?",
+        "followups": [
+          "Miniaturized endoscopes, better light sources, fiber optics, micro-optics — which advance was the unlock?",
+          "Anatomically, the fallopian tube is narrow, curved, and delicate — what engineering constraints does that put on every component?",
+          "Why did imaging the ovary itself fail, and why is the fallopian tube now the right target?"
+        ]
+      },
+      {
+        "prompt": "What are the hurdles to bringing the falloposcope into standard of care for ovarian cancer detection?",
+        "followups": [
+          "Would you choose prophylactic surgery to avoid a 15% lifetime risk? If a falloposcope existed, would your answer change — and what level of certainty would you need?",
+          "FDA approval, OB/GYN training, insurance reimbursement, patient acceptance — rank these hurdles; which one kills the most good devices?",
+          "A screening test only saves lives if people get screened — what's the path from \"exists\" to \"routine\"?"
+        ]
+      }
+    ],
+    "Jerome_Lacombe": [
+      {
+        "prompt": "What is the tumor microenvironment, and how do biochemical signals and mechanical forces within it influence cancer development and response to therapy?",
+        "followups": [
+          "Stromal cells, immune cells, ECM stiffness, hypoxia, pH — which of these does a flat 2D culture fail to reproduce, and which one matters most for drug response?",
+          "A drug that works in a dish but fails in a patient — how often is the TME the reason?",
+          "Mechanical forces (stiffness, shear, compression) actually change gene expression — does that mean a \"tumor\" growing on plastic is even the same disease?"
+        ]
+      },
+      {
+        "prompt": "What are the main challenges scientists face when trying to recreate the tumor microenvironment in the lab?",
+        "followups": [
+          "Cellular diversity, spatial organization, vascularization, immune components, patient-to-patient variability — which one is the showstopper?",
+          "If you can only include three TME features in your model, which three give you the most predictive power?",
+          "How do you validate that your \"tumor-on-chip\" is actually behaving like a tumor and not just a complicated cell culture?"
+        ]
+      },
+      {
+        "prompt": "How do bioengineered systems technically recreate aspects of the TME, and what specific advantages do these approaches provide?",
+        "followups": [
+          "Organoids vs. organ-on-chip vs. bioprinted tissue — what does each format do well, and where does each one break?",
+          "These models are slower and more expensive than 2D — when is the extra realism worth the cost?",
+          "Could a sufficiently accurate tumor-on-chip replace animal models, and what would have to be true for the FDA to accept that?"
+        ]
+      }
+    ],
+    "Elizabeth_Hutchinson": [
+      {
+        "prompt": "How could different types of diagnostics (clinical exam, blood markers, imaging) be used together to best serve patients?",
+        "followups": [
+          "Cognitive tests are cheap but late; blood markers are emerging but noisy; MRI is expensive but anatomical — how would you stage them?",
+          "Two diagnostics that agree aren't twice as confident if they share the same confounder — how do you pick complementary tests?",
+          "Designing for the patient pathway vs. the research study — what's the difference?"
+        ]
+      },
+      {
+        "prompt": "If diffusion MRI could accurately report any shape or size feature of cellular structures, what would be important to target in neurodegenerative diseases?",
+        "followups": [
+          "Cell density, axon diameter, myelin thickness, edema, soma size — which one would tell you Alzheimer's is starting before symptoms?",
+          "Diffusion MRI measures water motion as a probe of tissue structure — what's the limit of that inference?",
+          "White matter tract connections degrade before cell death — is \"tract integrity\" the right early biomarker, or is it already too late?"
+        ]
+      },
+      {
+        "prompt": "What are the ethics of performing diagnostics when there is no effective prevention, treatment, or cure?",
+        "followups": [
+          "Would you want to know you have AD pathology 10 years before symptoms? What would you do with that information?",
+          "Does early diagnosis without a treatment harm patients (insurance, mental health, autonomy) more than it helps?",
+          "Research needs early-stage patients; patients need useful answers — can a diagnosis \"for science\" be ethical?"
+        ]
+      }
+    ],
+    "Alexander_McGhee": [
+      {
+        "prompt": "Why are in vitro models a useful resource? What can we do with them in the future?",
+        "followups": [
+          "Animals are slow and ethically loaded; trials are slow and risky — what specifically does an in vitro model give you that those two can't?",
+          "Imagine every patient's tumor reconstructed in a dish before therapy is given — what changes about oncology if that becomes routine?",
+          "What's the highest-value question an in vitro model can answer that no other system can?"
+        ]
+      },
+      {
+        "prompt": "What are the fundamental problems with the way we develop targeted therapeutics for cancer?",
+        "followups": [
+          "Most drugs are screened against 2D monolayers — which features of a real tumor (architecture, stroma, mechanics) do those screens systematically miss?",
+          "A drug that works on every cell in a flat dish often fails in the body — is the dish the problem, or the drug?",
+          "If we screened on 3D models from the start, would we have fewer approved drugs or better ones?"
+        ]
+      },
+      {
+        "prompt": "What are the issues in 3D bioprinting, and how does cellular collective behavior help solve them?",
+        "followups": [
+          "Resolution limits, cell viability, recapitulating native heterogeneity — which one is the hardest physics problem and which is the hardest biology problem?",
+          "Cells self-organize — at what point do you stop printing and let the biology finish the job?",
+          "If collective behavior builds the tissue, what does the printer's job become — scaffold, seed, or trigger?"
+        ]
+      }
+    ],
+    "Monique_Martinez": [
+      {
+        "prompt": "What are some ways the heart can be assessed and monitored for abnormalities?",
+        "followups": []
+      },
+      {
+        "prompt": "What are some examples of risk factors that increase cardiovascular disease risk? Would these examples be considered traditional or nontraditional, modifiable or unmodifiable?",
+        "followups": []
+      },
+      {
+        "prompt": "How can future engineering solutions to cardiovascular disease replace or improve current engineering solutions?",
+        "followups": []
+      }
+    ]
+  }
+}

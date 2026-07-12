@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 4: Roughness &amp; Superhydrophobicity — Surface Functionalization Foundations</title>
+<style>
+  /* ===== worksheet house style (print-first, self-contained) ===== */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .blank.w{min-width:160px}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .circle{color:#334155}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Surface Functionalization Foundations · Lesson 4 Worksheet</div>
+  <h1>Roughness &amp; Superhydrophobicity — How Texture Makes Water Bounce</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="04-roughness-and-superhydrophobicity.html"><b>04-roughness-and-superhydrophobicity.html</b></a>
+  and keep it next to this worksheet. Each experiment below uses one tab of the lesson.
+  <b>Predict first</b> (before you touch the sliders!), then click a <b>scenario</b> button, drag the
+  sliders, record your data, and explain what you saw. The <b>stats panel</b> (left side, under the
+  sliders) and the <b>verdict box</b> (below the plots) give you the numbers to record. Keep a
+  calculator handy — you will check the simulator against Wenzel's and Cassie's equations by hand.
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>The Missing Ingredient</h2>
+  <p class="goal">Goal: see that flat chemistry caps near 120°, but adding texture lets the apparent angle θ* pull far away from the intrinsic angle θ.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">A lotus leaf uses the same ordinary hydrophobic wax as a candle, yet holds water
+  at 160°. The extra 40° comes from…
+  &nbsp;☐ better chemistry &nbsp; ☐ microscopic texture &nbsp; ☐ colder water</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click the <b>Smooth hydrophobe</b> scenario (Texture amount = 0). Read <b>Intrinsic θ</b>
+    and <b>Apparent θ*</b> from the stats panel — on a smooth surface they should match.</li>
+    <li>Click <b>Lotus-like texture</b>. Read θ* again and the <b>Change from texture</b> stat.</li>
+    <li>With Lotus-like texture on, drag <b>Intrinsic angle θ</b> (0–130°) up and watch how much
+    faster the textured drop's θ* climbs than the smooth identity line on the second plot.</li>
+    <li>Click <b>Hydrophilic + texture</b> (θ = 60°). Note which direction θ* moves now.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Scenario</th><th>Intrinsic θ</th><th>Texture amount</th><th>Apparent θ*</th><th>Change from texture</th></tr>
+    <tr><td class="lab">Smooth hydrophobe</td><td class="fill"></td><td>0 %</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Lotus-like texture</td><td class="fill"></td><td>70 %</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Hydrophilic + texture</td><td class="fill"></td><td>70 %</td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>On the smooth surface, θ* is <span class="blank"></span> the intrinsic θ (equal / bigger / smaller).
+  On the hydrophilic + texture surface, texture pushed θ*
+  &nbsp;☐ higher &nbsp; ☐ lower &nbsp; ☐ no change.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. What is the difference between the <em>intrinsic</em> angle θ and the <em>apparent</em>
+  angle θ*? Why does the smooth surface have θ* = θ?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Texture exaggerated a hydrophobe (θ went up) but hurt a hydrophilic surface (θ went down).
+  In one sentence, describe what texture actually does to a drop:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>Wenzel: Roughness Amplifies</h2>
+  <p class="goal">Goal: measure how the roughness ratio r amplifies wetting, and find where the Wenzel picture breaks down. Equation: cos θ* = r · cos θ.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">If a surface is already hydrophobic (θ &gt; 90°), making it rougher (bigger r)
+  in the Wenzel state will make it… &nbsp;☐ more hydrophobic &nbsp; ☐ more hydrophilic &nbsp; ☐ unchanged</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Amplified hydrophobe</b> (θ = 114°). Drag <b>Roughness ratio r</b> from 1 to 3 and
+    record <b>r·cos θ</b> and <b>Apparent θ*</b> at each r in the table. Verify r = 1.5 → θ* ≈ 128°.</li>
+    <li>Click <b>Amplified hydrophilic</b> (θ = 60°) and raise r again. Note which way θ* moves.</li>
+    <li>Click <b>Past the limit (r too big)</b> (r ≈ 2.7). Read the <b>verdict box</b>: what does it
+    say happens when |r·cos θ| would exceed 1?</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <p><b>A. Amplified hydrophobe (θ = 114°), sweep r:</b></p>
+  <table class="data">
+    <tr><th>Roughness ratio r</th><td>1.0</td><td>1.5</td><td>2.0</td><td>2.5</td><td>3.0</td></tr>
+    <tr><th>r·cos θ (sim)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><th>Apparent θ* (sim)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p><b>B. By hand</b> (use cos 114° = −0.407): for r = 1.5, cos θ* = 1.5 × (−0.407) =
+  <span class="blank"></span>, so θ* = <span class="blank"></span>°.
+  For r = 2.0, cos θ* = <span class="blank"></span>, θ* = <span class="blank"></span>°.
+  <span class="hint">(Compare with your sim rows above.)</span></p>
+  <p>Wenzel breaks down at about r = <span class="blank"></span>, where r·cos θ crosses
+  &nbsp;☐ +1 &nbsp; ☐ −1. On the hydrophilic setting, roughness pushed θ*
+  &nbsp;☐ toward 0° &nbsp; ☐ toward 180°.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Explain the word "amplifier" for Wenzel roughness using both your hydrophobe and
+  hydrophilic data:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. A Wenzel drop can have a high θ* yet be a bad self-cleaning surface. Why? (Think about what
+  the water is doing inside the grooves.)</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Cassie–Baxter: Trapped Air</h2>
+  <p class="goal">Goal: show that trapping air under the drop (small solid fraction f_s) gives BOTH a high angle and low stickiness — the lotus effect. Equation: cos θ* = f_s(cos θ + 1) − 1.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">As the drop touches <b>less</b> solid (smaller f_s, more trapped air), the
+  apparent angle θ* will head toward… &nbsp;☐ 90° &nbsp; ☐ 120° &nbsp; ☐ 180°</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Lotus (f_s ≈ 0.1)</b> at θ = 114°. Read <b>Solid fraction</b>, <b>Air fraction</b>,
+    and <b>Apparent θ*</b>. Confirm f_s = 0.1 → θ* ≈ 160°.</li>
+    <li>Click <b>Dense pillars (f_s = 0.4)</b>, then <b>Extreme (f_s = 0.03)</b>, recording each row.
+    Watch the blue air pockets grow under the drop as f_s shrinks.</li>
+    <li>Set θ = 100° (weak wax) at f_s = 0.1. Is θ* still superhydrophobic (≥ 150°)?</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Scenario</th><th>Solid fraction f_s</th><th>Air fraction</th><th>Intrinsic θ</th><th>Apparent θ* (sim)</th></tr>
+    <tr><td class="lab">Lotus</td><td>0.10</td><td class="fill"></td><td>114°</td><td class="fill"></td></tr>
+    <tr><td class="lab">Dense pillars</td><td>0.40</td><td class="fill"></td><td>114°</td><td class="fill"></td></tr>
+    <tr><td class="lab">Extreme</td><td>0.03</td><td class="fill"></td><td>114°</td><td class="fill"></td></tr>
+    <tr><td class="lab">Weak wax</td><td>0.10</td><td class="fill"></td><td>100°</td><td class="fill"></td></tr>
+  </table>
+  <p><b>By hand</b> (cos 114° = −0.407), f_s = 0.1:
+  cos θ* = 0.1 × (−0.407 + 1) − 1 = <span class="blank"></span>, so θ* = <span class="blank"></span>°.
+  <span class="hint">(Match the sim's lotus row.)</span></p>
+  <p><b>Compare to Wenzel</b> for the SAME chemistry (θ = 114°): Cassie at f_s = 0.1 gave θ* =
+  <span class="blank"></span>°, but Wenzel at r = 1.5 gave only <span class="blank"></span>°
+  (from Tab 2). The higher angle is the &nbsp;☐ Cassie &nbsp;☐ Wenzel state.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Wenzel and Cassie can both raise θ*, but only one self-cleans. What does Cassie give that
+  Wenzel cannot, and why? (Use the words <b>trapped air</b> and <b>adhesion</b>.)</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. At f_s = 0.1 even a mediocre θ = 100° wax was still superhydrophobic. What does that tell
+  you about how good a lotus's chemistry needs to be?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Level Up: Lotus, Collapse &amp; Sharklet</h2>
+  <p class="goal">Goal: find which state is truly stable (Cassie vs. Wenzel), trigger an irreversible collapse, and see how Sharklet uses texture for a completely different purpose. Stability: Cassie is favored when cos θ &lt; (f_s − 1)/(r − f_s).</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">A Cassie drop resting on trapped air is often only <em>metastable</em>. If you
+  press hard enough and it collapses into the grooves, then release the pressure, it will…
+  &nbsp;☐ pop back up to Cassie &nbsp; ☐ stay collapsed in Wenzel &nbsp; ☐ evaporate</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Robust lotus (Cassie stable)</b>. From the stats read <b>θ_crit</b>, the
+    <b>True stable state</b>, the <b>Collapse barrier</b>, and <b>Current θ*</b> (pressure = 0).</li>
+    <li>Click <b>Collapsed (Wenzel)</b> and record the same stats. Note the True stable state now.</li>
+    <li>Back on Robust lotus, slowly raise <b>Impalement pressure</b> (0–100%) until the drop drops
+    into the grooves. Then lower the pressure again and read the verdict on <b>irreversibility</b>.</li>
+    <li>Click <b>Sharklet anti-fouling</b> and read how it works.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Scenario</th><th>θ_crit</th><th>True stable state</th><th>Collapse barrier</th><th>Current θ*</th></tr>
+    <tr><td class="lab">Robust lotus</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Collapsed (Wenzel)</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Sharklet</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>On Robust lotus I raised the pressure to about <span class="blank"></span>% before it collapsed.
+  After I lowered the pressure, the drop &nbsp;☐ came back to Cassie &nbsp;☐ stayed in Wenzel.
+  The collapse was &nbsp;☐ reversible &nbsp;☐ irreversible.</p>
+  <p><b>Stability by hand (stretch):</b> for r = 1.6, f_s = 0.1, the criterion is
+  cos θ_crit = (f_s − 1)/(r − f_s) = (0.1 − 1)/(1.6 − 0.1) = <span class="blank"></span>,
+  so θ_crit = <span class="blank"></span>°. A θ = 114° coating is
+  &nbsp;☐ above &nbsp;☐ below θ_crit, so its true stable state is
+  &nbsp;☐ Cassie &nbsp;☐ Wenzel.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. The lotus uses <em>hierarchical</em> texture (bumps on bumps). Using your collapse
+  observation, explain what the finer scale buys you:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Sharklet is a textured surface too, but its goal is not to repel water. In one sentence,
+  contrast Sharklet's job with the lotus's — and say what both prove about topography vs. chemistry:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — the whole course in one drop</h2>
+  <p>1. Over four lessons you built a superhydrophobic surface from the atoms up. Put the story in
+  order by writing 1–5 in the boxes:</p>
+  <p>☐ Roughen it (Wenzel or Cassie) to turn a good hydrophobe into a self-cleaning superhydrophobe &nbsp;
+     ☐ Grow –OH groups with plasma so the silane can bond &nbsp;
+     ☐ Start from surface energy — why surfaces want to be covered &nbsp;
+     ☐ Get a clean surface (vacuum) so the chemistry lands where you want &nbsp;
+     ☐ Attach a silane coating that sets the intrinsic angle θ</p>
+  <p>2. In three sentences, explain why the <em>same</em> hydrophobic wax can give a sticky 128°
+  surface OR a self-cleaning 160° surface. Use the words <b>intrinsic angle</b>, <b>Wenzel</b>,
+  <b>Cassie</b>, and <b>trapped air</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+  <p>3. <b>Challenge (optional):</b> a fluorosilane coating gives θ = 114° (cos 114° = −0.407). You
+  build pillars with f_s = 0.05. Predict the Cassie angle by hand:
+  cos θ* = 0.05(−0.407 + 1) − 1 = <span class="blank"></span>, θ* ≈ <span class="blank"></span>°.
+  <span class="hint">Then check it against Tab 3's slider!</span></p>
+  <p>4. Design question: to make that Cassie state <em>robust</em> (not just high-angle) against a
+  raindrop impact, name the one thing you would change about the texture and why:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Surface Functionalization Foundations · Worksheet 4 of 4</footer>
+</body>
+</html>

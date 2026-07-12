@@ -54,6 +54,25 @@ const firebridge = (function () {
       if (!coHosted && !firebase.apps.length) {
         firebase.initializeApp(FIREBASE_CONFIG);
       }
+      /* Auto-fall-back to HTTP long-polling when the WebChannel stream
+       * fails (Chrome's QUIC stack drops Firestore Listen long-polls
+       * intermittently — emits a flood of `QUIC_PROTOCOL_ERROR` /
+       * `WebChannelConnection RPC 'Listen' stream transport errored`
+       * warnings even though Firestore eventually reconnects). Setting
+       * this once before the first `.firestore()` call routes traffic
+       * to long-polling when WebChannel is unhealthy and silences the
+       * spam. `merge: true` keeps any defaults the SDK has already
+       * staged. Wrapped in try/catch because calling .settings() twice
+       * throws — if some other init path beat us to a Firestore
+       * operation, we don't want to fail the whole bridge. */
+      try {
+        firebase.firestore().settings({
+          experimentalAutoDetectLongPolling: true,
+          merge: true,
+        });
+      } catch (e) {
+        // Already configured (rare — co-hosted parent may have set it).
+      }
       firebase.auth().onAuthStateChanged(async function (user) {
         if (user) {
           _user = user;
@@ -221,14 +240,22 @@ const firebridge = (function () {
           .collection('userPermissions').doc(_user.uid).get();
         if (snap.exists) {
           var d = snap.data() || {};
-          _accessGrant = { allowedPageIds: Array.isArray(d.allowedPageIds) ? d.allowedPageIds : null };
+          _accessGrant = {
+            allowedPageIds: Array.isArray(d.allowedPageIds) ? d.allowedPageIds : null,
+            // V3.212 — collaborator data-layer gate. Denormalized from
+            // allowedPageIds via rm/js/page-collections.js at admin-
+            // matrix-save time. firestore.rules' collabMay(coll)
+            // reads this same array server-side; mirrored here for
+            // client-side inspection / debugging.
+            allowedCollections: Array.isArray(d.allowedCollections) ? d.allowedCollections : null,
+          };
         } else {
-          _accessGrant = { allowedPageIds: null };
+          _accessGrant = { allowedPageIds: null, allowedCollections: null };
         }
       } catch (err) {
         // Non-admin user without a grant doc gets PERMISSION_DENIED here.
         // That's fine — fall back to implicit baseline.
-        _accessGrant = { allowedPageIds: null };
+        _accessGrant = { allowedPageIds: null, allowedCollections: null };
       }
       return _accessGrant;
     })();
@@ -254,6 +281,12 @@ const firebridge = (function () {
     if (_accessGrant.allowedPageIds && _accessGrant.allowedPageIds.length) {
       return _accessGrant.allowedPageIds.indexOf(pageId) >= 0;
     }
+    // V3.209 — collaborators have no implicit baseline. Admin grants
+    // every page explicitly via the page-allow matrix; no grant = no
+    // access through workflow UIs and page-discovery surfaces. (This is
+    // a UI gate, not a security boundary — see firestore.rules for the
+    // data-layer policy.)
+    if (_profile && _profile.category === 'collaborator') return false;
     // Implicit baseline. PAGE_REGISTRY may not be loaded on every page
     // (only nav-bearing pages load page-registry.js); be defensive.
     var REG = window.PAGE_REGISTRY;
@@ -859,3 +892,19 @@ document.addEventListener('DOMContentLoaded', function () {
   // so use a short delay to ensure nav is in the DOM)
   setTimeout(function () { firebridge.injectIndicator(); }, 0);
 });
+
+// V3.208 — shared visibility predicate for every people-list in RM.
+// V3.209 — collaborators are auto-hidden by category (no per-user flag
+// needed). A user is visible iff they have a non-guest role AND they
+// aren't hidden (either by the per-user `hidden` flag or by being a
+// collaborator) — except admins always see everyone. Public-facing
+// (parent SPA) callers inline their own filter since they don't load
+// firebridge.
+window.LAB_USERS = {
+  isVisible: function (u) {
+    if (!u || !u.role || u.role === 'guest') return false;
+    var hideByCategory = u.category === 'collaborator';
+    if ((u.hidden || hideByCategory) && !(typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin())) return false;
+    return true;
+  },
+};

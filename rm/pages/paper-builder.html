@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Papers — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <link rel="stylesheet" href="/rm/css/paper-editor.css">
@@ -90,20 +91,45 @@
     </div>
   </div>
 
-  <!-- ===== Editor mode ===== -->
-  <div class="pe-page paper-editor-mode">
+  <!-- ===== Editor mode =====
+       V3.235 — .rm-mobile-drawer-host turns .pe-sidebar + .pe-comments-pane
+       into side-swipe drawers at ≤640px. At ≥641px the classes are inert
+       (panes render in their natural flex flow). -->
+  <div class="pe-page paper-editor-mode rm-mobile-drawer-host">
     <div class="pe-topbar">
+      <button class="rm-mobile-drawer-toggle pe-mobile-toggle" id="pe-mobile-left-toggle" type="button" aria-label="Open outline sidebar">☰ Outline</button>
       <a class="pe-back" href="/rm/pages/paper-builder.html">← All papers</a>
       <input type="text" class="pe-title-input" id="pe-title" placeholder="Untitled paper" disabled>
       <div class="pe-savestate" id="pe-savestate"></div>
+      <button class="rm-mobile-drawer-toggle pe-mobile-toggle" id="pe-mobile-right-toggle" type="button" aria-label="Open comments pane">💬 Comments<span class="rm-mobile-drawer-toggle-badge" id="pe-mobile-right-toggle-badge" hidden>0</span></button>
     </div>
+    <!-- V3.120 — pill-tab bar + global toolbar live persistently between
+         the topbar and the editor layout. paper-equations.js populates
+         the pills + toolbar buttons on attach(). -->
+    <div class="pe-pillbar" id="pe-pillbar" role="tablist" aria-label="Paper tabs"></div>
+    <div class="pe-global-toolbar" id="pe-global-toolbar" role="toolbar" aria-label="Paper toolbar"></div>
     <div class="pe-readonly-banner" id="pe-readonly-banner" hidden></div>
     <div class="pe-layout">
-      <aside class="pe-sidebar">
-        <div class="pe-sidebar-title">Outline</div>
-        <ul class="pe-sidebar-list" id="pe-outline"></ul>
-        <div class="pe-sidebar-actions">
-          <button class="btn pe-add-section" id="pe-add-section-btn" disabled>+ Add section</button>
+      <aside class="pe-sidebar rm-mobile-drawer-left">
+        <!-- V3.197 — tabbed sidebar. "Outline" mirrors the doc's
+             section list (legacy behavior); "Paragraph" mirrors the
+             skeleton bullets of whichever paragraph contenteditable
+             the user last had focus in. Active tab persists across
+             reloads via localStorage `rm_paper_sidebar_tab`. -->
+        <div class="pe-sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
+          <button class="pe-sidebar-tab active" data-sidebar-tab="outline" role="tab" aria-selected="true">Outline</button>
+          <button class="pe-sidebar-tab" data-sidebar-tab="paragraph" role="tab" aria-selected="false">Paragraph</button>
+        </div>
+        <div class="pe-sidebar-tab-content" data-sidebar-tab="outline">
+          <ul class="pe-sidebar-list" id="pe-outline"></ul>
+          <div class="pe-sidebar-actions">
+            <button class="btn pe-add-section" id="pe-add-section-btn" disabled>+ Add section</button>
+          </div>
+        </div>
+        <div class="pe-sidebar-tab-content" data-sidebar-tab="paragraph" hidden>
+          <div class="pe-sidebar-paragraph-skel" id="pe-paragraph-skel">
+            <div class="pe-sidebar-empty">Click into a paragraph to see its skeleton.</div>
+          </div>
         </div>
       </aside>
       <main class="pe-main" id="pe-main">
@@ -127,16 +153,34 @@
           <div id="pe-content"></div>
         </div>
       </main>
-      <aside class="pe-comments-pane" id="pe-comments-pane" hidden>
+      <aside class="pe-comments-pane rm-mobile-drawer-right" id="pe-comments-pane" hidden>
         <div class="pe-comments-header">
           <span class="pe-comments-title">Comments</span>
           <button class="pe-icon-btn" id="pe-comments-close" aria-label="Close">×</button>
         </div>
+        <!-- V3.204 — filter toggle between "this paragraph only" and
+             "every paragraph currently visible on screen". -->
+        <div class="pe-comments-filterbar">
+          <label for="pe-comments-filter">Show:</label>
+          <select id="pe-comments-filter">
+            <option value="block">This paragraph only</option>
+            <option value="view">Paragraphs in view</option>
+          </select>
+        </div>
         <div class="pe-comments-context" id="pe-comments-context"></div>
         <div class="pe-comments-list" id="pe-comments-list"></div>
-        <div class="pe-comments-composer">
-          <textarea id="pe-comments-input" rows="3" placeholder="Write a comment&hellip;"></textarea>
-          <button class="btn btn-primary" id="pe-comments-submit">Post</button>
+        <!-- V3.211 — "new comment" section sits directly above the
+             composer. The anchor preview surfaces highlighted text
+             the new comment will be tied to; while the pane is open,
+             any selection inside a paragraph body auto-stages here
+             without requiring the floating "💬 Comment" button click. -->
+        <div class="pe-comments-new" id="pe-comments-new">
+          <div class="pe-comments-new-title">New comment</div>
+          <div class="pe-comments-anchor-preview" id="pe-comments-anchor-preview" hidden></div>
+          <div class="pe-comments-composer">
+            <textarea id="pe-comments-input" rows="3" placeholder="Write a comment&hellip;"></textarea>
+            <button class="btn btn-primary" id="pe-comments-submit">Post</button>
+          </div>
         </div>
       </aside>
     </div>
@@ -151,7 +195,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <!-- V3.102: Storage SDK for figure-block image uploads (paper-figures.js). -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <!-- V3.319 — lightweight activity events (first edit of the day). -->
+  <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
@@ -160,6 +208,8 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/paper-schemas.js"></script>
+  <!-- V3.234 — external links (Synology share URLs etc) on paper drafts. -->
+  <script src="/rm/js/external-links.js"></script>
 
   <!-- Per-mode scripts via document.write (same V3.58/V3.59 pattern) -->
   <script>
@@ -168,8 +218,21 @@
       var listScripts = ['/rm/js/paper-builder.js'];
       var editorScripts = [
         '/rm/js/paper-yjs.js',
+        '/rm/js/paper-figures.js',
+        // V3.104 — skeleton bullet claims bridge sits between paper-blocks
+        // (which renders the per-bullet ⚑ flag + status pill) and the
+        // existing window.CLAIMS namespace from claims.js. Both must load
+        // before paper-blocks so the renderer can probe their public APIs.
+        '/rm/js/claims.js',
+        '/rm/js/paper-bullet-claims.js',
+        // V3.109 — equation library + right-click insert + numbering UI.
+        // Loaded before paper-blocks so renderEquation can register the
+        // numbered-toggle / label-input controls and so the paragraph
+        // body's contextmenu handler can wire up.
+        '/rm/js/paper-equations.js',
         '/rm/js/paper-blocks.js',
         '/rm/js/paper-export-tex.js',
+        '/rm/js/mobile-drawers.js',
         '/rm/js/paper-editor.js'
       ];
       var srcs = (mode === 'editor') ? editorScripts : listScripts;

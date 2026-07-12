@@ -94,7 +94,7 @@ window.McgheeLab = window.McgheeLab || {};
   }
 
   /* ─── Category hierarchy ────────────────────────────────── */
-  const CATEGORY_ORDER = ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni', 'guest'];
+  const CATEGORY_ORDER = ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni', 'collaborator', 'guest'];
   function categoryRank(cat) {
     const idx = CATEGORY_ORDER.indexOf(cat);
     return idx === -1 ? 99 : idx;

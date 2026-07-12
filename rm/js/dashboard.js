@@ -93,7 +93,7 @@ async function _runDashboard() {
       const users = (d && d.users) || [];
       const todayStr = new Date().toISOString().slice(0, 10);
       activeMembers = users.filter(u =>
-        u.role && u.role !== 'guest' &&
+        LAB_USERS.isVisible(u) &&
         u.category !== 'alumni' &&
         (!u.end || u.end === '' || u.end === 'TBD' || u.end > todayStr)
       );
@@ -122,6 +122,30 @@ async function _runDashboard() {
     ? `${upcomingCount} ahead`
     : 'Connect Calendar in Settings';
   grid.appendChild(card('Calendar', upcomingCount, upcomingBody, '/rm/pages/calendar.html'));
+
+  // 1b. Grant Drafts (V3.185) — in-progress proposals authored in the
+  // V3.179 grant writer. Distinct from the `funding/{id}` Proposals card
+  // below: this surfaces drafts still being written, while Proposals
+  // surfaces the institutional accounting record post-submission.
+  // Wrapped in try/catch — `grantDrafts` rules require lab-member; a
+  // guest signin would 403 here and shouldn't break the dashboard.
+  let grantDrafts = [];
+  try {
+    if (typeof firebridge !== 'undefined' && firebridge.db && firebridge.isLabMember && firebridge.isLabMember()) {
+      const snap = await firebridge.db().collection('grantDrafts').get();
+      grantDrafts = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      const openDrafts = grantDrafts.filter(g => g.status === 'draft' || g.status === 'internal-review');
+      const nextDraftDeadline = openDrafts
+        .map(g => g.deadlineISO)
+        .filter(d => d && d !== 'TBD')
+        .sort()[0];
+      grid.appendChild(card('Grant Drafts', openDrafts.length,
+        nextDraftDeadline ? `Next deadline: ${formatDate(nextDraftDeadline)}` : 'No deadlines set',
+        '/rm/pages/grant-builder.html'));
+    }
+  } catch (err) {
+    console.warn('[dashboard] grant drafts card skipped:', err.message);
+  }
 
   // 2. Proposals
   const openProposals = proposals.proposals.filter(p => p.status !== 'awarded' && p.status !== 'rejected');
@@ -159,6 +183,21 @@ async function _runDashboard() {
   } catch (err) {
     // items.json may not exist on first run — silently skip the card.
     console.warn('[dashboard] library card skipped:', err.message);
+  }
+
+  // 4c. Protocols (V3.113) — wrapped in try/catch because rules may not
+  // be deployed when this card first appears.
+  try {
+    const protoData = await api.load('protocols/list.json');
+    const protos = (protoData && protoData.protocols) || [];
+    const byStatus = {};
+    protos.forEach(p => { byStatus[p.status] = (byStatus[p.status] || 0) + 1; });
+    const body = protos.length
+      ? Object.entries(byStatus).map(([s, c]) => `${c} ${s}`).join(' · ')
+      : 'No protocols yet';
+    grid.appendChild(card('Protocols', protos.length, body, '/rm/pages/protocols.html'));
+  } catch (err) {
+    console.warn('[dashboard] protocols card skipped:', err.message);
   }
 
   // 5. Courses
@@ -289,38 +328,40 @@ async function _runDashboard() {
     var db = firebridge.db();
 
     try {
-      // Activity Tracker — hours logged this week (only users who opted in)
-      var weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      var cutoffStr = weekAgo.toISOString().slice(0, 10);
-      // Phase D: use cached lab roster; filter client-side. The MAX(updatedAt)
-      // probe means subsequent reads short-circuit when nothing changed —
-      // the earlier uncached db.collection('users').get() ran on every load.
-      var _ud2 = await api.load('lab/users.json');
-      var sharingIds = ((_ud2 && _ud2.users) || []).filter(function (u) {
-        return u.role && u.role !== 'guest' && u.shareActivity === true;
-      }).map(function (u) { return u.id; });
-      var totalHours = 0;
-      var byCategory = {};
-      var entryPromises = sharingIds.map(function (uid) {
-        return db.collection('trackerEntries').doc(uid).collection('entries')
-          .where('date', '>=', cutoffStr)
-          .get().then(function (snap) {
-            snap.docs.forEach(function (d) {
-              var entry = d.data();
-              var hrs = entry.duration || entry.hours || 0;
-              totalHours += hrs;
-              var cat = entry.category || 'Other';
-              byCategory[cat] = (byCategory[cat] || 0) + hrs;
-            });
-          }).catch(function () {});
-      });
-      await Promise.all(entryPromises);
-      var catStr = Object.entries(byCategory).slice(0, 3)
-        .map(function (kv) { return kv[0] + ': ' + kv[1].toFixed(1) + 'h'; })
-        .join(', ') || 'No entries';
-      grid.appendChild(card('Lab Activity (7d)', totalHours.toFixed(1) + 'h',
-        catStr, '/rm/pages/activity-overview.html?tab=lab-stats'));
+      // V3.321 — My Activity: personal streak + this-week event count
+      // (hours are dead; FuturePlan 04 B3). One read of the signed-in
+      // user's last ~60 days of tracker events.
+      var me = firebridge.getUser && firebridge.getUser();
+      if (me && me.uid) {
+        var back60 = new Date();
+        back60.setDate(back60.getDate() - 60);
+        var snap60 = await db.collection('trackerEntries').doc(me.uid)
+          .collection('entries')
+          .where('date', '>=', back60.toISOString().slice(0, 10))
+          .get();
+        var dayHas = {};
+        var weekCount = 0;
+        var weekAgoStr = (function () {
+          var d = new Date(); d.setDate(d.getDate() - 6);
+          return d.toISOString().slice(0, 10);
+        })();
+        snap60.docs.forEach(function (d) {
+          var e = d.data();
+          if (e.status === 'dismissed') return;
+          if (e.kind === 'schedule' || (!e.kind && e.scheduled_for && e.status === 'pending')) return;
+          if (e.date) dayHas[e.date] = true;
+          if (e.date && e.date >= weekAgoStr) weekCount++;
+        });
+        var streak = 0;
+        var cursor = new Date();
+        function ds(d) { return d.toISOString().slice(0, 10); }
+        if (!dayHas[ds(cursor)]) cursor.setDate(cursor.getDate() - 1); // empty today doesn't break it
+        while (dayHas[ds(cursor)]) { streak++; cursor.setDate(cursor.getDate() - 1); }
+        grid.appendChild(card('My Activity',
+          streak + (streak === 1 ? ' day' : ' days'),
+          'streak · ' + weekCount + ' events this week',
+          '/rm/pages/activity-overview.html?tab=tracker'));
+      }
     } catch (e) {
       console.warn('[dashboard] Activity tracker read failed:', e.message);
     }
@@ -382,7 +423,7 @@ async function _runDashboard() {
       // CV Overview — stale CVs (uses cached lab roster from Phase B)
       var _ud3 = await api.load('lab/users.json');
       var userIds = ((_ud3 && _ud3.users) || []).filter(function (u) {
-        return u.role && u.role !== 'guest';
+        return LAB_USERS.isVisible(u);
       }).map(function (u) { return u.id; });
       var staleCount = 0;
       var noCV = 0;
@@ -428,6 +469,22 @@ async function _runDashboard() {
 
   const allDeadlines = deadlines.deadlines
     .filter(d => { const du = daysUntil(d.date); return du === null || du >= -7; });
+
+  // V3.185 — inject grant draft deadlines so they surface alongside
+  // calendar deadlines in the table. Only drafts in active states; once
+  // submitted the deadlineISO is historical and shouldn't clutter the
+  // upcoming view.
+  grantDrafts.forEach(function (g) {
+    if (!g.deadlineISO || g.deadlineISO === 'TBD') return;
+    if (g.status !== 'draft' && g.status !== 'internal-review') return;
+    var du = daysUntil(g.deadlineISO);
+    if (du === null || du < -7) return;
+    allDeadlines.push({
+      date: g.deadlineISO,
+      title: (g.title || '(untitled grant)') + (g.mechanism ? (' — ' + g.mechanism) : ''),
+      category: 'grant',
+    });
+  });
 
   function renderDeadlines() {
     var sorted = sortItems(allDeadlines, _dlSortKey, _dlSortDir, DL_COLUMNS);

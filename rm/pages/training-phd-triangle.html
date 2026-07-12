@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The PhD Triangle — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+        </div>
+        <h1 class="training-module-title">The Three Pillars of a Good PhD</h1>
+        <p class="training-module-subtitle">
+          What we expect of you, what we'll help you develop, and how to know
+          you're growing.
+        </p>
+      </header>
+
+      <!-- 1. Framing -->
+      <section class="training-section">
+        <h2>What "a good PhD" actually means here</h2>
+        <p>
+          A doctorate isn't a credential you earn by accumulating credits. It's
+          a transformation — by the end of it you should be able to identify
+          a real scientific problem, design experiments that genuinely
+          discriminate hypotheses, do the work even when the work fights back,
+          and explain what you found to other humans well enough that they
+          will trust and build on it.
+        </p>
+        <p>
+          We've found that the people who do this well tend to be strong on
+          three pillars — and the strongest students are not the ones who
+          arrive with all three; they're the ones who recognize which of
+          their pillars is underdeveloped and put in the work to grow it.
+        </p>
+        <div class="training-callout">
+          <strong>The honest part:</strong> almost no one comes in with all
+          three fully formed. That is fine. Your job over the next few years
+          is to figure out which one is yours to grow.
+        </div>
+      </section>
+
+      <!-- 2. Interactive triangle -->
+      <section class="training-section">
+        <h2>The triangle</h2>
+        <p>
+          Each vertex is one pillar; Knowledge sits at the center because it's
+          the substrate that makes the other three actually work. Tap a vertex
+          to read about that pillar.
+        </p>
+
+        <div class="triangle-layout">
+          <div class="triangle-svg-wrap">
+            <svg
+              class="training-triangle-svg"
+              viewBox="0 0 600 540"
+              role="img"
+              aria-label="The PhD triangle with three pillars and Knowledge at the center"
+            >
+              <!-- Outer (ideal) triangle -->
+              <polygon
+                id="outer-triangle"
+                points="300,60 60,480 540,480"
+                fill="rgba(37,99,235,0.05)"
+                stroke="#2563eb"
+                stroke-width="2"
+              />
+              <!-- Connecting lines from centroid to each vertex (Knowledge → pillars) -->
+              <line x1="300" y1="340" x2="300" y2="60"  stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4"/>
+              <line x1="300" y1="340" x2="60"  y2="480" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4"/>
+              <line x1="300" y1="340" x2="540" y2="480" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4"/>
+
+              <!-- Inner (student) triangle — recomputed by JS -->
+              <polygon
+                id="inner-triangle"
+                points="300,60 60,480 540,480"
+                fill="rgba(22,163,74,0.18)"
+                stroke="#16a34a"
+                stroke-width="2"
+              />
+
+              <!-- Knowledge center -->
+              <circle cx="300" cy="340" r="38" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+              <text class="pillar-label knowledge" x="300" y="338" text-anchor="middle">Knowledge</text>
+              <text class="pillar-label knowledge" x="300" y="354" text-anchor="middle" style="font-size:10px;font-weight:400;">the substrate</text>
+
+              <!-- Vertex: Communication (top) -->
+              <g class="pillar-vertex" data-pillar="communication" tabindex="0" role="button" aria-label="Scientific Communication pillar">
+                <circle cx="300" cy="60" r="22" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+                <text x="300" y="65" text-anchor="middle" style="font-size:18px;pointer-events:none;">✍️</text>
+                <text class="pillar-label" x="300" y="32" text-anchor="middle" fill="#1f2937">Scientific Communication</text>
+              </g>
+
+              <!-- Vertex: Creativity (bottom-left) -->
+              <g class="pillar-vertex" data-pillar="creativity" tabindex="0" role="button" aria-label="Creativity and Synthesis pillar">
+                <circle cx="60" cy="480" r="22" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+                <text x="60" y="485" text-anchor="middle" style="font-size:18px;pointer-events:none;">💡</text>
+                <text class="pillar-label" x="60" y="515" text-anchor="middle" fill="#1f2937">Creativity</text>
+                <text class="pillar-label" x="60" y="532" text-anchor="middle" fill="#1f2937" style="font-size:12px;">&amp; Synthesis</text>
+              </g>
+
+              <!-- Vertex: Grit (bottom-right) -->
+              <g class="pillar-vertex" data-pillar="grit" tabindex="0" role="button" aria-label="Grit pillar">
+                <circle cx="540" cy="480" r="22" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+                <text x="540" y="485" text-anchor="middle" style="font-size:18px;pointer-events:none;">🪨</text>
+                <text class="pillar-label" x="540" y="515" text-anchor="middle" fill="#1f2937">Grit</text>
+              </g>
+            </svg>
+          </div>
+
+          <div class="pillar-panel-stack">
+            <!-- Default panel before any vertex is selected -->
+            <div class="training-pillar-panel is-active" data-pillar-panel="default">
+              <h3>Tap a pillar to learn more</h3>
+              <p>
+                Each pillar has a definition, observable behaviors we look for,
+                ways to grow it in this lab, and a common failure mode.
+              </p>
+              <p style="font-size:13px;color:var(--text-muted);">
+                Tip: tapping switches the panel here, not the triangle shape.
+                The inner green triangle below reflects your self-assessment in
+                the next section.
+              </p>
+            </div>
+
+            <div class="training-pillar-panel" data-pillar-panel="communication">
+              <h3>✍️ Scientific Communication</h3>
+              <p>
+                Writing papers and grants, presenting at lab meeting and at
+                conferences, teaching, and defending what you've done.
+                Communication is the channel through which your work exists
+                outside your own head — without it, brilliant results stay
+                private and never compound.
+              </p>
+              <p>
+                <strong>What good looks like:</strong> You can outline a paper
+                from your figures before you write a sentence. You can walk
+                someone outside the lab through your project in five minutes
+                without losing them. You handle reviewer pushback as a
+                technical problem, not a personal one.
+              </p>
+              <p>
+                <strong>How to grow it here:</strong> draft early and often in
+                the
+                <a href="/rm/pages/paper-builder.html">paper builder</a>
+                (don't wait until the work is "done"); present at journal
+                club; volunteer to teach a class section; ask Alex for
+                feedback on early prose, not just polished prose.
+              </p>
+              <div class="pillar-failure">
+                <strong>Failure mode:</strong> clear thinking that never reaches
+                another human — work no one finds because it was never written
+                up.
+              </div>
+            </div>
+
+            <div class="training-pillar-panel" data-pillar-panel="creativity">
+              <h3>💡 Creativity & Synthesis</h3>
+              <p>
+                Generating questions that haven't been asked, connecting ideas
+                across fields, and designing experiments that genuinely
+                discriminate between hypotheses (not just confirm the one you
+                already believe). Synthesis is what turns a stack of papers
+                into a research program.
+              </p>
+              <p>
+                <strong>What good looks like:</strong> You can read three
+                papers from adjacent fields and propose an experiment none of
+                them did. You can predict what the result would mean before
+                you run it. You routinely suggest the experiment that would
+                break your own model.
+              </p>
+              <p>
+                <strong>How to grow it here:</strong> use the
+                <a href="/rm/pages/library.html">Library</a> aggressively —
+                annotate, don't just read; bring suggestions to PMR
+                brainstorming blocks; rotate through other lab members'
+                projects in group meetings; design at least one experiment
+                per quarter that you wouldn't have designed a year ago.
+              </p>
+              <div class="pillar-failure">
+                <strong>Failure mode:</strong> technically competent but
+                derivative — only asks questions other people have already
+                framed.
+              </div>
+            </div>
+
+            <div class="training-pillar-panel" data-pillar-panel="grit">
+              <h3>🪨 Grit</h3>
+              <p>
+                The capacity to keep working through failed experiments, lost
+                samples, rejected papers, scooping, funding turn-downs, and
+                the years-long arc of doctoral work. Grit is not stubbornness
+                — it's the ability to take a real blow, reassess, and keep
+                moving on the parts that are still worth moving on.
+              </p>
+              <p>
+                <strong>What good looks like:</strong> when an experiment
+                fails twice you treat it as data about your protocol, not
+                evidence of personal inadequacy. You can articulate what
+                changed between attempt 3 and attempt 4. You ask for help
+                before you've spent two weeks stuck.
+              </p>
+              <p>
+                <strong>How to grow it here:</strong> use the
+                <a href="/rm/pages/pmr.html">PMR barriers block</a> the
+                moment something blocks you, not three weeks later; bring
+                near-failures to lab meeting, not just successes; build the
+                habit of weekly written reflection on what worked and what
+                didn't.
+              </p>
+              <div class="pillar-failure">
+                <strong>Failure mode:</strong> bright but fragile — the first
+                hard "no" ends the project, or stubborn for-its-own-sake
+                persistence on a doomed experiment.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Self-assessment -->
+      <section class="training-section">
+        <h2>Where are you today?</h2>
+        <p>
+          Move each slider to where you honestly are right now (1 = "I've
+          never really done this"; 5 = "I do this well, consistently").
+          The inner green triangle above will redraw to match. This is for
+          you — it isn't saved or shared, and the goal is to surface
+          imbalances, not to grade yourself.
+        </p>
+
+        <div class="self-assessment">
+          <div class="assessment-row">
+            <label for="score-communication">✍️ Communication</label>
+            <input type="range" id="score-communication" min="1" max="5" step="1" value="3" aria-label="Scientific Communication score 1 to 5">
+            <span class="score-value" id="score-communication-out">3</span>
+          </div>
+          <div class="assessment-row">
+            <label for="score-creativity">💡 Creativity</label>
+            <input type="range" id="score-creativity" min="1" max="5" step="1" value="3" aria-label="Creativity score 1 to 5">
+            <span class="score-value" id="score-creativity-out">3</span>
+          </div>
+          <div class="assessment-row">
+            <label for="score-grit">🪨 Grit</label>
+            <input type="range" id="score-grit" min="1" max="5" step="1" value="3" aria-label="Grit score 1 to 5">
+            <span class="score-value" id="score-grit-out">3</span>
+          </div>
+        </div>
+
+        <div class="training-verdict" id="triangle-verdict" role="status" aria-live="polite">
+          Move the sliders to see how your current shape compares to a
+          balanced triangle.
+        </div>
+      </section>
+
+      <!-- 4. Milestone timeline -->
+      <section class="training-section">
+        <h2>The journey, year by year</h2>
+        <p>
+          Milestones below are typical for a PhD in this lab; exact timing
+          varies by program and project. Each milestone exercises one or
+          more pillars — pay attention to which pillar you're being asked
+          to lean on at each stage.
+        </p>
+
+        <div class="milestone-timeline">
+          <div class="milestone-card">
+            <div class="milestone-year">Year 1</div>
+            <div class="milestone-name">Coursework + rotations</div>
+            <div class="milestone-pillars">
+              <span class="milestone-pillar-tag">Knowledge</span>
+              <span class="milestone-pillar-tag">✍️</span>
+            </div>
+          </div>
+          <div class="milestone-card">
+            <div class="milestone-year">Year 2</div>
+            <div class="milestone-name">Qualifying exam, project taking shape</div>
+            <div class="milestone-pillars">
+              <span class="milestone-pillar-tag">✍️</span>
+              <span class="milestone-pillar-tag">💡</span>
+            </div>
+          </div>
+          <div class="milestone-card">
+            <div class="milestone-year">Year 3</div>
+            <div class="milestone-name">Comprehensive / proposal</div>
+            <div class="milestone-pillars">
+              <span class="milestone-pillar-tag">💡</span>
+              <span class="milestone-pillar-tag">✍️</span>
+              <span class="milestone-pillar-tag">🪨</span>
+            </div>
+          </div>
+          <div class="milestone-card">
+            <div class="milestone-year">Year 4</div>
+            <div class="milestone-name">Productive research + first papers</div>
+            <div class="milestone-pillars">
+              <span class="milestone-pillar-tag">🪨</span>
+              <span class="milestone-pillar-tag">✍️</span>
+            </div>
+          </div>
+          <div class="milestone-card">
+            <div class="milestone-year">Year 5</div>
+            <div class="milestone-name">Thesis + defense</div>
+            <div class="milestone-pillars">
+              <span class="milestone-pillar-tag">✍️</span>
+              <span class="milestone-pillar-tag">🪨</span>
+              <span class="milestone-pillar-tag">💡</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Lab support -->
+      <section class="training-section">
+        <h2>How the lab will help you grow each pillar</h2>
+        <p>
+          You won't develop these in isolation. Every surface in RM was built
+          to feed one or more pillars — use them.
+        </p>
+
+        <div class="support-grid">
+          <div class="support-card">
+            <h4>✍️ Communication</h4>
+            <ul>
+              <li><a href="/rm/pages/paper-builder.html">Paper builder</a> — start drafting early</li>
+              <li><a href="/rm/pages/library.html">Library</a> — annotate as you read</li>
+              <li>Lab meeting + journal club rotations</li>
+              <li>Conference travel — talk to Alex about budgets</li>
+            </ul>
+          </div>
+          <div class="support-card">
+            <h4>💡 Creativity</h4>
+            <ul>
+              <li><a href="/rm/pages/pmr.html">PMR</a> brainstorming sections</li>
+              <li><a href="/rm/pages/protocols.html">Protocols</a> — see what already works</li>
+              <li>Cross-project group meetings</li>
+              <li>Sit in on other labs' seminars</li>
+            </ul>
+          </div>
+          <div class="support-card">
+            <h4>🪨 Grit</h4>
+            <ul>
+              <li><a href="/rm/pages/pmr.html">PMR barriers block</a> — name the obstacle</li>
+              <li>Weekly 1:1s with Alex</li>
+              <li>Peer support inside the lab</li>
+              <li>Weekly reflection on what worked / didn't</li>
+            </ul>
+          </div>
+          <div class="support-card">
+            <h4>📚 Knowledge</h4>
+            <ul>
+              <li><a href="/rm/pages/lab-notebook.html">Lab Notebook</a> — record everything</li>
+              <li><a href="/rm/pages/library.html">Library</a> annotations + discussions</li>
+              <li>Recommended reading lists per project</li>
+              <li>This training library — keep coming back</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="training-section">
+        <h2>One thing to take away</h2>
+        <p>
+          You will not finish a PhD by maxing out the pillar you were strongest
+          on at the start. You finish it by recognizing the one you've been
+          quietly avoiding — and growing it.
+        </p>
+        <p style="margin-top:8px;font-size:13px;color:var(--text-muted);">
+          Questions, disagreements, or suggestions for this module → bring them
+          to your next PMR.
+        </p>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-phd-triangle.js"></script>
+</body>
+</html>

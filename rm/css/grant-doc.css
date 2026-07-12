@@ -1,0 +1,332 @@
+/* grant-doc.css — V3.178. Shared "proposal document" page styling for
+   biosketch + facilities (and, later, the grant writer). Built to match
+   NIH 2023+ formatting: 11pt Arial body, 0.5" margins, single column.
+   Screen view keeps the on-page document framed inside the standard RM
+   chrome; @media print drops the chrome and renders just the document. */
+
+:root {
+  --grantdoc-page-w: 8.5in;
+  --grantdoc-page-h: 11in;
+  --grantdoc-margin: 0.5in;
+  --grantdoc-body-font: 'Arial', 'Helvetica', sans-serif;
+  --grantdoc-body-size: 11pt;
+  --grantdoc-body-color: #111;
+  --grantdoc-section-gap: 14pt;
+}
+
+/* ---- Outer page shell (RM chrome) ---- */
+
+.grantdoc-page {
+  padding: 20px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.grantdoc-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: var(--radius, 6px);
+  margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.grantdoc-toolbar h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1 1 auto;
+}
+
+.grantdoc-toolbar .grantdoc-spacer { flex: 1 1 auto; }
+
+.grantdoc-toolbar select,
+.grantdoc-toolbar input[type="text"] {
+  padding: 6px 10px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: var(--radius, 6px);
+  font-size: 13px;
+  background: #fff;
+}
+
+.grantdoc-status {
+  font-size: 12px;
+  color: var(--text-muted, #777);
+  min-width: 90px;
+  text-align: right;
+}
+
+/* ---- The document itself (one page worth of layout per variant) ---- */
+
+.grantdoc-paper {
+  background: #fff;
+  width: var(--grantdoc-page-w);
+  min-height: var(--grantdoc-page-h);
+  margin: 0 auto;
+  padding: var(--grantdoc-margin);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  font-family: var(--grantdoc-body-font);
+  font-size: var(--grantdoc-body-size);
+  color: var(--grantdoc-body-color);
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+
+.grantdoc-paper .gd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid #000;
+  padding-bottom: 4px;
+  margin-bottom: 10pt;
+}
+
+.grantdoc-paper .gd-header .gd-name {
+  font-weight: 700;
+  font-size: 13pt;
+}
+
+.grantdoc-paper .gd-header .gd-position {
+  font-size: 10pt;
+  color: #333;
+}
+
+.grantdoc-paper h2.gd-section {
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: none;
+  margin: var(--grantdoc-section-gap) 0 4pt;
+  border-bottom: 1px solid #aaa;
+  padding-bottom: 2pt;
+}
+
+.grantdoc-paper h3.gd-subsection {
+  font-size: 11pt;
+  font-weight: 700;
+  margin: 8pt 0 2pt;
+}
+
+.grantdoc-paper p,
+.grantdoc-paper ul,
+.grantdoc-paper ol {
+  margin: 4pt 0;
+}
+
+.grantdoc-paper ul,
+.grantdoc-paper ol {
+  padding-left: 18pt;
+}
+
+.grantdoc-paper li { margin-bottom: 2pt; }
+
+.grantdoc-paper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4pt 0 8pt;
+  font-size: 10pt;
+}
+
+.grantdoc-paper table th,
+.grantdoc-paper table td {
+  border: 1px solid #aaa;
+  padding: 3pt 5pt;
+  text-align: left;
+  vertical-align: top;
+}
+
+.grantdoc-paper table th {
+  background: #f0f0f0;
+  font-weight: 600;
+}
+
+.grantdoc-paper .gd-citation {
+  font-size: 10pt;
+  text-indent: -1.5em;
+  padding-left: 1.5em;
+  margin: 2pt 0;
+}
+
+.grantdoc-paper .gd-empty {
+  font-style: italic;
+  color: #888;
+}
+
+/* ---- Editable surfaces ---- */
+
+.grantdoc-paper [contenteditable="true"] {
+  outline: 1px dashed transparent;
+  border-radius: 2px;
+}
+
+.grantdoc-paper [contenteditable="true"]:hover {
+  outline-color: #cce;
+}
+
+.grantdoc-paper [contenteditable="true"]:focus {
+  outline: 1px solid #6e8efb;
+  background: #fafbff;
+}
+
+.gd-contribution {
+  border-left: 3px solid #e0e0e0;
+  padding-left: 8pt;
+  margin: 6pt 0;
+}
+
+.gd-contribution-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.gd-contribution-head .gd-contribution-title {
+  font-weight: 600;
+  flex: 1 1 auto;
+}
+
+.gd-contribution-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.gd-contribution-actions button {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-muted, #777);
+}
+
+.gd-contribution-actions button:hover {
+  border-color: #c00;
+  color: #c00;
+}
+
+.gd-variant-meta {
+  font-size: 10pt;
+  color: #666;
+  margin-bottom: 6pt;
+}
+
+/* ---- Variant list (left-side rail) ---- */
+
+.grantdoc-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+}
+
+.grantdoc-variants {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: var(--radius, 6px);
+  padding: 12px;
+  align-self: start;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.grantdoc-variants h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #777);
+}
+
+.grantdoc-variant-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.grantdoc-variant-list li {
+  padding: 8px 10px;
+  border-radius: var(--radius, 6px);
+  cursor: pointer;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  font-size: 13px;
+}
+
+.grantdoc-variant-list li:hover {
+  background: var(--surface-hover, #f5f7fb);
+}
+
+.grantdoc-variant-list li.active {
+  background: var(--surface-hover, #eef2ff);
+  border-color: var(--primary, #6e8efb);
+  font-weight: 600;
+}
+
+.grantdoc-variant-list .gd-vlabel { display: block; }
+
+.grantdoc-variant-list .gd-vmech {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted, #777);
+  font-weight: 400;
+}
+
+.grantdoc-empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted, #777);
+}
+
+.grantdoc-empty-state h2 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+/* ---- Print ---- */
+
+@media print {
+  html, body { background: #fff !important; }
+
+  /* Strip RM chrome */
+  nav, .topnav, .wf-strip,
+  .grantdoc-toolbar, .grantdoc-variants,
+  #toast-host, #sync-status,
+  button { display: none !important; }
+
+  .grantdoc-page { padding: 0; max-width: none; }
+
+  .grantdoc-layout {
+    display: block;
+  }
+
+  .grantdoc-paper {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;            /* @page handles margins */
+    box-shadow: none;
+    font-size: 11pt;
+  }
+
+  .grantdoc-paper [contenteditable="true"] {
+    outline: none !important;
+  }
+
+  .gd-page-break {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  @page {
+    size: letter;
+    margin: 0.5in;
+  }
+}

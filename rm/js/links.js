@@ -2,11 +2,13 @@
  *
  * An "item" is a row in data/items.json (research_project, grant, paper,
  * course, conference, etc.) or in one of the data/service/*.json files
- * adapted on read. A "bucket" is a project node in data/tasks/buckets.json.
+ * adapted on read. A "bucket" here is a *task-builder* node in
+ * data/tasks/buckets.json (renamed from "project" in V3.128 to avoid
+ * collision with the canonical research-projects collection).
  *
  * Schema additions (both optional, default empty):
- *   items.json item:           linked_bucket_ids: [string]
- *   buckets.json project node: linked_item_ids:   [string]
+ *   items.json item:                linked_bucket_ids: [string]
+ *   buckets.json task-builder node: linked_item_ids:   [string]
  *
  * Pinning an item to the dashboard means: ensure a linked bucket exists,
  * remove it from state.hidden on the dashboard, and let the existing
@@ -39,7 +41,7 @@
   function linkedBucketsForItem(item, bucketsDoc) {
     const ids = (item && item.linked_bucket_ids) || [];
     if (!ids.length) return [];
-    const projects = (bucketsDoc && bucketsDoc.projects) || [];
+    const projects = (bucketsDoc && bucketsDoc.taskBuilders) || [];
     return ids.map(id => projects.find(p => p.id === id)).filter(Boolean);
   }
 
@@ -53,7 +55,7 @@
   async function addLink(itemId, bucketId) {
     const [itemsDoc, bucketsDoc] = await Promise.all([loadItems(), loadBuckets()]);
     const item = (itemsDoc.items || []).find(i => i.id === itemId);
-    const proj = (bucketsDoc.projects || []).find(p => p.id === bucketId);
+    const proj = (bucketsDoc.taskBuilders || []).find(p => p.id === bucketId);
     if (!item || !proj) throw new Error('addLink: item or bucket not found');
     if (!Array.isArray(item.linked_bucket_ids)) item.linked_bucket_ids = [];
     if (item.linked_bucket_ids.indexOf(bucketId) === -1) item.linked_bucket_ids.push(bucketId);
@@ -66,7 +68,7 @@
   async function removeLink(itemId, bucketId) {
     const [itemsDoc, bucketsDoc] = await Promise.all([loadItems(), loadBuckets()]);
     const item = (itemsDoc.items || []).find(i => i.id === itemId);
-    const proj = (bucketsDoc.projects || []).find(p => p.id === bucketId);
+    const proj = (bucketsDoc.taskBuilders || []).find(p => p.id === bucketId);
     if (item && Array.isArray(item.linked_bucket_ids)) {
       item.linked_bucket_ids = item.linked_bucket_ids.filter(x => x !== bucketId);
     }
@@ -109,8 +111,8 @@
     } else {
       // Create + link a fresh empty bucket.
       const proj = newProjectForItem(fresh);
-      bucketsDoc.projects = bucketsDoc.projects || [];
-      bucketsDoc.projects.push(proj);
+      bucketsDoc.taskBuilders = bucketsDoc.taskBuilders || [];
+      bucketsDoc.taskBuilders.push(proj);
       if (!Array.isArray(fresh.linked_bucket_ids)) fresh.linked_bucket_ids = [];
       fresh.linked_bucket_ids.push(proj.id);
       await Promise.all([saveItems(itemsDoc), saveBuckets(bucketsDoc)]);

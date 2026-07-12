@@ -1,0 +1,1202 @@
+/* protocol-editor.css — V3.113 — protocol-builder-specific styles.
+ *
+ * Reuses the shared paper-editor chrome (status pills, save state, layout)
+ * via paper-editor.css loaded earlier in protocols.html. This sheet adds
+ * only the protocol-specific bits: list filters, materials table, step
+ * number badge, safety/note callouts, figure block.
+ */
+
+/* ── List view ──────────────────────────────────────────────── */
+.pr-filters {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 8px 0 16px;
+  flex-wrap: wrap;
+}
+.pr-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+#pr-filter-search {
+  flex: 1;
+  min-width: 180px;
+  max-width: 320px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.pr-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.pr-card-summary {
+  font-size: 14px;
+  color: #555;
+  margin: 4px 0;
+}
+.pr-card-tags {
+  margin-top: 6px;
+}
+.pr-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #eef2f7;
+  font-size: 11px;
+  margin-right: 4px;
+  color: #345;
+}
+
+/* ── Editor sidebar — metadata block ───────────────────────── */
+.pre-meta-edit {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pre-meta-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #555;
+}
+.pre-meta-label select,
+.pre-meta-label input,
+.pre-meta-label textarea {
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+/* ── Sections + blocks ─────────────────────────────────────── */
+.pre-section {
+  margin-bottom: 32px;
+  padding: 16px;
+  border: 1px solid #e3e7ed;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+.pre-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.pre-section-label {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  border-bottom: 1px dashed transparent;
+  padding: 4px 2px;
+}
+.pre-section-label:focus {
+  outline: none;
+  border-bottom-color: #888;
+}
+
+.pre-block {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e3e7ed;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #aaa;
+}
+
+.pre-block-controls {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.pre-block:hover .pre-block-controls,
+.pre-block:focus-within .pre-block-controls {
+  opacity: 1;
+}
+.pre-block-btn {
+  padding: 2px 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pre-block-btn:hover { background: #f0f0f0; }
+.pre-block-status {
+  font-size: 11px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 2px 4px;
+  background: #fff;
+}
+
+/* ── Step block ────────────────────────────────────────────── */
+.pre-block-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.pre-step-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2c5fa3;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+.pre-step-text {
+  min-height: 24px;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Note block ────────────────────────────────────────────── */
+.pre-block-note {
+  border-left: 4px solid #2c5fa3;
+}
+.pre-note-tip { border-left-color: #36a85a; }
+.pre-note-label { font-size: 12px; color: #666; margin-bottom: 4px; }
+.pre-note-flavor {
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 1px 4px;
+  background: #fff;
+}
+.pre-note-body { outline: none; font-size: 14px; line-height: 1.5; }
+
+/* ── Safety block ──────────────────────────────────────────── */
+.pre-block-safety {
+  border-left: 4px solid #d97706;
+  background: #fffbf2;
+}
+.pre-safety-warning { border-left-color: #c0392b; background: #fdf3f1; }
+.pre-safety-danger  { border-left-color: #7c1e15; background: #fbe9e6; color: #4d1310; }
+.pre-safety-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; margin-bottom: 6px; }
+.pre-safety-icon { font-size: 16px; }
+.pre-safety-severity {
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 1px 4px;
+  background: #fff;
+}
+.pre-safety-body { outline: none; font-size: 14px; line-height: 1.5; font-weight: 500; }
+
+/* ── Materials block ───────────────────────────────────────── */
+.pre-block-materials .pre-materials-label {
+  font-size: 12px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.pre-materials-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.pre-materials-table th,
+.pre-materials-table td {
+  border: 1px solid #eee;
+  padding: 4px 6px;
+  font-size: 13px;
+  text-align: left;
+}
+.pre-materials-table th {
+  background: #f4f6f9;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #555;
+}
+.pre-materials-table input {
+  width: 100%;
+  border: none;
+  padding: 2px 4px;
+  font-size: 13px;
+  background: transparent;
+}
+.pre-materials-table input:focus {
+  outline: 1px solid #2c5fa3;
+  background: #fff;
+}
+.pre-mat-qty   { width: 60px; }
+.pre-mat-unit  { width: 70px; }
+.pre-mat-add { margin-bottom: 4px; }
+
+/* ── Figure block ──────────────────────────────────────────── */
+.pre-block-figure { padding: 16px; }
+.pre-figure-img {
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-bottom: 8px;
+  background: #fafbfc;
+}
+.pre-figure-img.pre-figure-dragover {
+  border-color: #2c5fa3;
+  background: #eef4ff;
+}
+.pre-figure-img img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 3px;
+}
+.pre-figure-placeholder {
+  color: #888;
+  font-size: 13px;
+}
+.pre-figure-meta {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: #555;
+  flex-wrap: wrap;
+}
+.pre-figure-meta input[type="number"] { width: 60px; }
+.pre-figure-meta input[type="text"] { width: 200px; }
+.pre-figure-caption {
+  outline: none;
+  font-size: 13px;
+  font-style: italic;
+  color: #444;
+  padding: 6px 0;
+  border-top: 1px solid #eee;
+}
+
+/* ── Add-block row ─────────────────────────────────────────── */
+.pre-add-block-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 6px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  background: #fff;
+}
+.pre-add-block-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: #f4f6f9;
+}
+
+/* ── Unknown block (forward compat) ───────────────────────── */
+.pre-block-unknown {
+  background: #fef9e7;
+  color: #846a00;
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* ── V3.119 — Topbar additions: byline, fork lineage, action buttons ───── */
+
+.pre-topbar {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pre-title-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 200px;
+}
+.pre-byline {
+  font-size: 12px;
+  color: #666;
+  padding: 0 6px;
+}
+.pre-fork-lineage {
+  font-size: 12px;
+  color: #2c5fa3;
+  background: #eef4ff;
+  border: 1px solid #c2d1f0;
+  border-radius: 4px;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+.pre-fork-lineage a { color: inherit; text-decoration: underline; }
+.pre-fork-icon { font-size: 14px; }
+
+.pre-topbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pre-action-btn {
+  font-size: 13px;
+  padding: 6px 10px;
+  background: #f4f6f9;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.pre-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pre-action-btn:not(:disabled):hover { background: #e6ebf3; }
+.pre-action-migrate {
+  background: #fff5e8;
+  border-color: #f0c896;
+  color: #8a4a00;
+}
+.pre-action-migrate:hover { background: #ffe8c8; }
+.pre-versions-count {
+  font-size: 11px;
+  color: #777;
+  margin-left: 2px;
+}
+
+.pre-versions-wrap {
+  position: relative;
+}
+.pre-versions-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  min-width: 320px;
+  max-width: 480px;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.pre-version-row {
+  display: block;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  text-decoration: none;
+  color: inherit;
+  font-size: 13px;
+}
+.pre-version-row:last-child { border-bottom: none; }
+.pre-version-row:hover { background: #f4f6f9; }
+.pre-version-row.pre-version-current {
+  background: #eef4ff;
+  border-left: 3px solid #2c5fa3;
+}
+.pre-version-row strong {
+  display: block;
+}
+.pre-version-meta {
+  display: block;
+  font-size: 11px;
+  color: #777;
+  margin-top: 2px;
+}
+.pre-version-msg {
+  display: block;
+  font-size: 12px;
+  color: #555;
+  margin-top: 4px;
+  font-style: italic;
+}
+.pre-version-empty {
+  color: #888;
+  font-style: italic;
+  cursor: default;
+}
+
+.pre-version-banner {
+  background: #fff8e1;
+  border-color: #f0d896;
+  color: #6a4900;
+}
+.pre-version-banner a { color: #2c5fa3; text-decoration: underline; }
+
+.pre-savever-hint, .pre-fork-hint {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+/* List card additions */
+.pr-card-byline {
+  font-size: 12px;
+  color: #555;
+  margin: 2px 0;
+}
+.pr-card-byline strong { color: #2c5fa3; }
+.pr-card-fork {
+  font-size: 12px;
+  color: #2c5fa3;
+  background: #eef4ff;
+  border: 1px solid #c2d1f0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  margin: 4px 0;
+  display: inline-block;
+}
+
+/* ── V3.141 — Admin: edit author + creation date ────────────── */
+
+.pre-byline-edit {
+  margin-left: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.6;
+  vertical-align: baseline;
+}
+.pre-byline-edit:hover {
+  opacity: 1;
+  background: #fff5d6;
+  border-color: #ead78b;
+}
+
+#pre-authdate-modal .pb-modal-card {
+  max-width: 480px;
+}
+.pre-authdate-hint {
+  font-size: 12px;
+  color: #555;
+  background: #fff5d6;
+  border: 1px solid #ead78b;
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 0 0 12px 0;
+  line-height: 1.45;
+}
+
+/* ── V3.139 — Import modal + matcher modal ──────────────────── */
+
+.pr-list-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pr-import-modal .pb-modal-card {
+  max-width: 560px;
+  width: 90vw;
+}
+.pr-import-hint {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.45;
+  margin: 0 0 12px 0;
+}
+.pr-import-hint code {
+  background: #eef2f9;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+.pr-import-paste {
+  margin: 8px 0 12px;
+  font-size: 13px;
+}
+.pr-import-paste summary {
+  cursor: pointer;
+  color: #2c5fa3;
+  font-size: 12px;
+  user-select: none;
+}
+.pr-import-paste textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px;
+  margin-top: 4px;
+  box-sizing: border-box;
+}
+.pr-import-preview {
+  margin: 8px 0 12px;
+  padding: 10px;
+  border: 1px solid #c2d1f0;
+  background: #eef4ff;
+  border-radius: 4px;
+}
+.pr-import-preview-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e3a6e;
+}
+.pr-import-preview-summary {
+  font-size: 12px;
+  color: #345;
+  margin-top: 2px;
+}
+.pr-import-preview-counts {
+  margin-top: 6px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #345;
+}
+.pr-import-preview-counts span {
+  background: #fff;
+  border: 1px solid #c2d1f0;
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+.pr-import-preview-warnings {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #846a00;
+  background: #fff8e1;
+  border: 1px solid #f0d896;
+  border-radius: 3px;
+  padding: 4px 8px;
+}
+.pr-import-progress {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  background: #f4f6f9;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #345;
+}
+
+/* Matcher modal */
+.pre-matcher-card {
+  max-width: 720px;
+  width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.pre-matcher-body {
+  overflow-y: auto;
+  flex: 1;
+}
+.pre-matcher-intro {
+  font-size: 13px;
+  color: #444;
+  margin: 0 0 12px 0;
+  line-height: 1.45;
+}
+.pre-matcher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pre-matcher-row {
+  border: 1px solid #e3e7ed;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fafbfc;
+}
+.pre-matcher-row.pre-matcher-skipped {
+  opacity: 0.55;
+  background: #f4f4f4;
+}
+.pre-matcher-row.pre-matcher-nomatch {
+  background: #fff8e1;
+  border-color: #f0d896;
+}
+.pre-matcher-rowhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.pre-matcher-rowidx {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #777;
+  background: #eef2f9;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+.pre-matcher-source {
+  font-weight: 500;
+  flex: 1;
+}
+.pre-matcher-best {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  color: #345;
+}
+.pre-matcher-best em {
+  color: #888;
+  font-size: 12px;
+}
+.pre-matcher-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pre-matcher-action {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+.pre-matcher-alts {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.pre-matcher-alts summary {
+  cursor: pointer;
+  color: #555;
+  user-select: none;
+  font-size: 11px;
+}
+.pre-matcher-alt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid #f0f0f0;
+}
+.pre-matcher-altpick {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: auto;
+}
+
+/* ── V3.121 — Inventory: materials row chip mode, picker, body chips ── */
+
+/* Materials row chip mode (when item_ref is set) */
+.pre-mat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ecf6ed;
+  border: 1px solid #b6d8b9;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 13px;
+  color: #1f5d24;
+  max-width: 100%;
+}
+.pre-mat-chip-unknown {
+  background: #fff4e5;
+  border-color: #f0c896;
+  color: #8a4a00;
+}
+.pre-mat-chip-clear {
+  margin-left: 4px;
+  font-size: 12px;
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.5;
+}
+.pre-mat-chip-clear:hover { opacity: 1; }
+
+/* 🧪 picker button on free-text materials cell */
+.pre-mat-pick {
+  margin-left: 4px;
+  padding: 2px 8px;
+  font-size: 14px;
+  background: #f4f6f9;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.pre-mat-pick:hover { background: #eef4ff; border-color: #2c5fa3; }
+
+/* Stock chip — used inline next to chip and in the picker rows */
+.proto-stock {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.proto-stock-full { background: #d8eedb; color: #1f5d24; border: 1px solid #b6d8b9; }
+.proto-stock-low  { background: #fff5d6; color: #745d00; border: 1px solid #ead78b; }
+.proto-stock-out  { background: #fde0dc; color: #8a1d11; border: 1px solid #e8a89e; }
+
+/* Block-controls 🧪 insert button */
+.pre-block-inv {
+  font-size: 14px;
+  padding: 2px 6px;
+}
+
+/* Inline [!inv:<id>] chips in step / note / safety / figure-caption bodies */
+.proto-inv {
+  display: inline-block;
+  background: #ecf6ed;
+  border: 1px solid #b6d8b9;
+  border-radius: 3px;
+  padding: 0 6px;
+  margin: 0 1px;
+  font-size: 0.95em;
+  font-family: inherit;
+  font-weight: 500;
+  color: #1f5d24;
+  cursor: help;
+  user-select: none;
+}
+.proto-inv-low {
+  background: #fff5d6;
+  border-color: #ead78b;
+  color: #745d00;
+}
+.proto-inv-out {
+  background: #fde0dc;
+  border-color: #e8a89e;
+  color: #8a1d11;
+}
+.proto-inv-unknown {
+  background: #fff4e5;
+  border-color: #f0c896;
+  color: #8a4a00;
+}
+
+/* Picker popover — distinct class set from .ln-inv-popover so the two
+ * lab-notebook + protocol pickers can coexist on a page-cache hit
+ * without style bleed. */
+.proto-inv-pop {
+  position: fixed;
+  z-index: 200;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  width: 360px;
+  max-width: calc(100vw - 16px);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+.proto-inv-pop[hidden] { display: none; }
+.proto-inv-pop-title {
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+}
+.proto-inv-pop-search {
+  margin: 8px 12px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.proto-inv-pop-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.proto-inv-pop-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-bottom: 1px solid #f4f4f4;
+  cursor: pointer;
+  font-family: inherit;
+}
+.proto-inv-pop-row:hover, .proto-inv-pop-row.active {
+  background: #eef4ff;
+}
+.proto-inv-pop-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.proto-inv-kind-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-weight: 700;
+}
+.proto-inv-kind-chemical { background: #fff5d6; color: #745d00; }
+.proto-inv-kind-item     { background: #eef4ff; color: #1e3a6e; }
+.proto-inv-pop-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: #222;
+  flex: 1;
+}
+.proto-inv-pop-meta {
+  font-size: 11px;
+  color: #666;
+}
+.proto-inv-pop-empty {
+  padding: 12px;
+  font-style: italic;
+  color: #888;
+  font-size: 13px;
+}
+.proto-inv-pop-hint {
+  border-top: 1px solid #eee;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #888;
+}
+.proto-inv-pop-hint kbd {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+
+/* ── V3.117 — Formula block + var chips ────────────────────── */
+
+.pre-block-formula {
+  background: #f7f9ff;
+  border-color: #c2d1f0;
+}
+.pre-formula-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pre-formula-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  width: 90px;
+  flex-shrink: 0;
+}
+.pre-formula-field input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.pre-formula-expr input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  background: #fff;
+}
+.pre-formula-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+.pre-formula-vars-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+.pre-formula-vars-table th,
+.pre-formula-vars-table td {
+  border: 1px solid #e6e6e6;
+  padding: 3px 6px;
+  font-size: 12px;
+  text-align: left;
+}
+.pre-formula-vars-table th {
+  background: #eef2f9;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #444;
+}
+.pre-formula-vars-table input {
+  width: 100%;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  background: transparent;
+}
+.pre-formula-vars-table input:focus {
+  outline: 1px solid #2c5fa3;
+  background: #fff;
+}
+.pre-formula-name { width: 100px; }
+.pre-formula-name input { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.pre-formula-default { width: 70px; }
+.pre-formula-unit { width: 60px; }
+.pre-formula-add-var { font-size: 12px; padding: 2px 8px; margin-bottom: 4px; }
+
+.pre-formula-output-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.pre-formula-out-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #555;
+}
+.pre-formula-out-field input {
+  padding: 3px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.pre-formula-out-field input[type="text"] {
+  width: 130px;
+}
+
+.pre-formula-preview {
+  background: #fff;
+  border: 1px solid #d0d8e7;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  margin: 8px 0 6px;
+}
+.pre-formula-preview-hint {
+  color: #888;
+  font-style: italic;
+}
+.pre-formula-preview-error {
+  color: #b03020;
+  font-size: 12px;
+}
+.pre-formula-hint {
+  font-size: 11px;
+  color: #777;
+  margin-top: 4px;
+}
+.pre-formula-hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: #eef2f9;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+/* ── Inline variable chips (rendered in step/note/safety/caption bodies) */
+.proto-var {
+  display: inline-block;
+  background: #eef4ff;
+  border: 1px solid #c2d1f0;
+  border-radius: 3px;
+  padding: 0 6px;
+  margin: 0 1px;
+  font-size: 0.95em;
+  font-family: inherit;
+  font-weight: 500;
+  color: #1e3a6e;
+  cursor: help;
+  user-select: none;
+}
+.proto-var-computed {
+  background: #ecf6ed;
+  border-color: #b6d8b9;
+  color: #1f5d24;
+}
+.proto-var-unknown {
+  background: #fff4e5;
+  border-color: #f0c896;
+  color: #8a4a00;
+}
+.proto-var-error {
+  background: #fdecea;
+  border-color: #e8a89e;
+  color: #8a1d11;
+}
+
+/* ── V3.315 — generalized callout (folds note/safety) ─────────── */
+.pre-block-callout {
+  border-left: 4px solid #99a3b0;
+  background: #f5f7fa;
+}
+.pre-callout-critical { border-left-color: #c23b3b; background: #fdf3f3; }
+.pre-callout-note     { border-left-color: #2f6db3; background: #f1f6fc; }
+.pre-callout-assume   { border-left-color: #8259b3; background: #f6f2fb; }
+.pre-callout-timing   { border-left-color: #d9a422; background: #fff7e8; }
+.pre-callout-label { font-size: 12px; color: #666; margin-bottom: 4px; }
+.pre-callout-type {
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 2px 4px;
+  background: #fff;
+}
+.pre-callout-body { outline: none; font-size: 14px; line-height: 1.5; }
+
+/* ── V3.315 — stage heading block ─────────────────────────────── */
+.pre-block-heading { background: #fbfcfe; }
+.pre-heading-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.pre-heading-code {
+  width: 48px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8a1e2d;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 4px;
+  background: transparent;
+}
+.pre-heading-code:focus { outline: none; border-color: #ccc; background: #fff; }
+.pre-heading-title {
+  flex: 1;
+  font-size: 19px;
+  font-weight: 700;
+  outline: none;
+  padding: 2px 4px;
+}
+.pre-heading-rule-toggle {
+  font-size: 11px;
+  color: #889;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* ── V3.315 — document header block ───────────────────────────── */
+.pre-block-docheader {
+  border-top: 3px solid #1c2430;
+  background: #f7f9fc;
+}
+.pre-docheader-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a1e2d;
+  margin-bottom: 8px;
+}
+.pre-docheader-subtitle {
+  outline: none;
+  font-size: 14px;
+  color: #55606e;
+  margin: 8px 0;
+  padding: 2px 4px;
+}
+.pre-docheader-chips { display: flex; flex-direction: column; gap: 6px; }
+.pre-docheader-chip-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pre-docheader-chip-row input {
+  flex: 1;
+  font-size: 13px;
+  padding: 3px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+.pre-docheader-chip-row input.pre-docheader-chip-var {
+  flex: 0 0 130px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pre-docheader-chip-add { font-size: 12px; align-self: flex-start; }
+
+/* ── V3.316 — generic table / kv / timeline editors ───────────── */
+.pre-generic-table th.pre-gt-th { min-width: 110px; }
+.pre-generic-table th.pre-gt-th input { font-weight: 600; }
+.pre-gt-colctl {
+  display: flex;
+  gap: 2px;
+  margin-top: 3px;
+}
+.pre-gt-colctl .pre-block-btn { font-size: 10px; padding: 1px 5px; }
+.pre-gt-on { background: #dbe7f5; border-color: #9db8d9; }
+.pre-gt-mono input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.pre-gt-addcol { vertical-align: top; }
+
+.pre-kv-list { display: flex; flex-direction: column; gap: 6px; }
+.pre-kv-row { display: flex; gap: 6px; align-items: center; }
+.pre-kv-row input {
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+.pre-kv-term {
+  flex: 0 0 160px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+}
+.pre-kv-def { flex: 1; }
+
+.pre-timeline-title { outline: none; font-size: 14px; margin-bottom: 8px; padding: 2px 4px; }
+.pre-timeline-list { display: flex; flex-direction: column; gap: 6px; }
+.pre-timeline-row { display: flex; gap: 6px; align-items: center; }
+.pre-timeline-row input[type="text"] {
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+.pre-timeline-at {
+  flex: 0 0 90px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pre-timeline-label { flex: 1; }
+.pre-timeline-sub { flex: 1; }
+
+/* ── V3.318 — calculator editor ───────────────────────────────── */
+.pre-block-calculator {
+  border-left: 4px solid #8a1e2d;
+  background: #fcfafa;
+}
+.pre-block-calculator .pre-formula-vars-table input[type="text"] {
+  min-width: 0;
+}
+
+/* ── V3.324 — builder + layoutMap editors ─────────────────────── */
+.pre-block-builder {
+  border-left: 4px solid #2f6db3;
+  background: #fafbfd;
+}
+.pre-block-layoutmap {
+  border-left: 4px solid #22663c;
+  background: #fafdfb;
+}

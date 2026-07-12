@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Surfaces Are Hungry — Surface Functionalization Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Surface Functionalization Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Surfaces Are Hungry — Surface Energy &amp; Adsorbed Water</h1>
+  <p class="subtitle">Surface Functionalization Foundations · Lesson 1 of 4 — Every surface you
+  have ever touched is a layer of atoms that got cheated out of half their neighbors. That makes
+  surfaces tense, energetic, and hungry — and it's why they're never actually clean.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="neighbors">1 · Missing Neighbors</button>
+  <button class="tab-btn" data-tab="energy">2 · Surface Energy</button>
+  <button class="tab-btn" data-tab="adsorb">3 · Water Coats Everything</button>
+  <button class="tab-btn" data-tab="vacuum">4 · Level Up: Vacuum &amp; Kinetics</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: neighbors -->
+<section id="tab-neighbors" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: The atoms at the surface got a bad deal</h2>
+    <p>Picture an atom deep inside a solid. It is surrounded on every side — above, below, left,
+    right — by neighbors, and every neighbor bond pulls on it. Because the pulls come from all
+    directions equally, they <b>cancel out</b>. A bulk atom feels no net force at all. It doesn't
+    even know which way "up" is.</p>
+    <p>Now slide that atom up to the surface. Suddenly all the neighbors that should have been
+    <em>above</em> it are gone — there's just air (or vacuum) up there. The pulls from below and
+    from the sides are still there, but nothing balances them from above. The result is a
+    <b>net inward pull</b>: every surface atom is being tugged down into the solid by the
+    neighbors it still has.</p>
+    <div class="equation-box">
+      $$ \vec F_{\text{net}} \;=\; \sum_{\text{neighbors}} \vec f_{\text{bond}}
+      \;=\; \begin{cases} \vec 0 & \text{bulk atom (pulls cancel)}\\[2pt]
+      \text{inward} & \text{surface atom (pulls from above are missing)} \end{cases} $$
+    </div>
+    <p>This unbalanced tug is the seed of everything in this course. It is why liquid drops pull
+    themselves into spheres (surface tension), why surfaces store extra energy, and why they grab
+    onto almost any molecule that lands on them. A surface atom is <em>unhappy</em> — it is
+    missing bonds it would love to make. Chemists say the surface has <b>dangling bonds</b> and
+    the surface is <b>high-energy</b> or, more vividly, <em>hungry</em>.</p>
+    <p>One subtlety worth noticing in the sim: the imbalance is <b>shallow</b>. Go just two or
+    three atomic layers below the surface and the pulls balance out again. All of the drama of
+    surface science happens in a skin about a nanometer thick.</p>
+    <div class="worked-example">
+      <p>In a simple cubic packing, a bulk atom has 6 nearest neighbors (4 in-plane, 1 up, 1 down).
+      An atom at the surface has only 5 — it lost the one above. Count the pulls: the 4 in-plane
+      pulls cancel each other, and the pull from below (1 bond) has nothing to cancel it.
+      So the surface atom feels a net inward force equal to <b>one full bond's worth of pull</b> —
+      with a metallic bond force scale of ~1&nbsp;nN, that's a huge force for one atom.
+      One layer down, the atom has all 6 neighbors back and the net force drops to zero
+      (longer-range attractions leave only a few-percent residual).</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Bulk atoms are pulled equally from all sides — net force zero.</li>
+        <li>Surface atoms are missing their upper neighbors — net <b>inward</b> pull.</li>
+        <li>The imbalance dies off within ~2–3 atomic layers; surfaces are a nanometer-thick skin.</li>
+        <li>Unbalanced bonds = stored energy = a surface that wants to grab new partners.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>With the probe at the surface (depth 0), look at the thin green arrows — those are the
+      pulls from each neighbor. Where are they missing? Which way does the thick red resultant
+      arrow point?</li>
+      <li>Drag <b>Probe depth</b> down one layer at a time and watch the resultant arrow shrink.
+      At what depth does it effectively vanish?</li>
+      <li>Increase <b>Interaction reach</b> so atoms feel neighbors farther away. Does the
+      imbalance reach deeper below the surface? Check the plot.</li>
+      <li>Explain to a friend (or to yourself, out loud): why does the deepest atom feel nothing,
+      when it has the <em>most</em> neighbors pulling on it?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="neighbors" data-scen="surface" onclick="setScen('neighbors','surface')">At the surface</button>
+    <button class="scen-btn" data-tab="neighbors" data-scen="sub" onclick="setScen('neighbors','sub')">One layer down</button>
+    <button class="scen-btn" data-tab="neighbors" data-scen="bulk" onclick="setScen('neighbors','bulk')">Deep in the bulk</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Probe depth <span id="v-neighbors-depth">0</span></label>
+        <input type="range" id="s-neighbors-depth" min="0" max="6" step="1" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Interaction reach <span id="v-neighbors-reach">1.5</span></label>
+        <input type="range" id="s-neighbors-reach" min="1.0" max="3.0" step="0.05" value="1.5">
+      </div>
+      <div class="stats" id="st-neighbors"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The lattice — green pulls from neighbors, red = unbalanced resultant</div>
+        <canvas id="cv-neighbors" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Net inward pull vs. depth below the surface</div>
+        <canvas id="cv-neighbors2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-neighbors"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: energy -->
+<section id="tab-energy" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Making surface costs energy — and the surface remembers</h2>
+    <p>Here's a thought experiment you can actually do with a piece of chalk: snap it in half.
+    You just created two brand-new surfaces that didn't exist a second ago. Where did they come
+    from? You <b>cut bonds</b>. Every atomic bond that used to cross your break plane is now
+    dangling, and cutting each one cost energy — energy that came from your hands and is now
+    stored in those two unhappy, bond-starved surfaces.</p>
+    <p>That stored energy has a name: <b>surface energy</b>, written \(\gamma\) (gamma). It is
+    the energy cost per square meter of new surface. Count the bonds crossing a plane, multiply
+    by the energy per bond, and divide by two (because one cut makes <em>two</em> surfaces):</p>
+    <div class="equation-box">
+      $$ \gamma \;\approx\; \frac{N_{\text{bonds}}\; \varepsilon_{\text{bond}}}{2A}
+      \qquad \left[\gamma\right] = \frac{\text{J}}{\text{m}^2}
+      \;\;(\text{usually quoted in mJ/m}^2) $$
+    </div>
+    <p><b>Level up — real numbers.</b> Surface energies span a huge range, and that range is the
+    whole story of this course. Strong bonds → hungry surfaces; weak bonds → content ones:</p>
+    <p style="margin-left:16px">
+      · Metals (metallic bonds): \(\gamma \approx\) 1000–2000 mJ/m² — ravenous.<br>
+      · Glass &amp; oxides (ionic/covalent): \(\gamma \approx\) 200–500 mJ/m² — hungry.<br>
+      · Water (hydrogen bonds): \(\gamma = 72.8\) mJ/m² — the surface <em>tension</em> of water.<br>
+      · Polymers &amp; waxes (van der Waals): \(\gamma \approx\) 20–40 mJ/m² — content.<br>
+      · PTFE / Teflon: \(\gamma \approx\) 18–20 mJ/m² — nearly nothing sticks.
+    </p>
+    <p>Note that surface <em>tension</em> and surface <em>energy</em> are the same quantity in
+    different clothes: J/m² is the same unit as N/m. A liquid minimizes its area (drops go round)
+    because area costs energy. A solid can't flow into a ball, so it does the next best thing:
+    it <b>grabs whatever lands on it</b> to satisfy its dangling bonds. High-\(\gamma\) surfaces
+    are the grabby ones — hold that thought for Tab 3.</p>
+    <div class="worked-example">
+      <p>Estimate \(\gamma\) for copper. A copper surface has about
+      \(n_s = 1.5\times10^{19}\) atoms per m², each metallic bond is worth roughly
+      \(\varepsilon \approx 3.5\ \text{eV} = 5.6\times10^{-19}\ \text{J}\), and cleaving breaks
+      about one bond per surface atom while making two surfaces:
+      $$\gamma \approx \frac{1.5\times10^{19} \times 5.6\times10^{-19}}{2}
+      \approx 4.2\ \text{J/m}^2 = 4200\ \text{mJ/m}^2.$$
+      The measured value is ~1800 mJ/m² — our estimate is high because cleaving doesn't
+      <em>fully</em> break the bonds (the leftover electrons rearrange and recover some energy).
+      But it lands within a factor of ~2 and nails the trend: strong bonds → big \(\gamma\).</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Creating surface = cutting bonds = spending energy. \(\gamma\) is that cost per m².</li>
+        <li>\(\gamma \approx N\varepsilon/2A\): stronger or denser bonds → higher surface energy.</li>
+        <li>Metals ~1000+, glass ~300, water 72.8, Teflon ~20 mJ/m². Memorize water's number —
+        it will run the whole course.</li>
+        <li>High-\(\gamma\) surfaces are "hungry": they lower their energy by grabbing adsorbates.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Cleave</b> slowly from 0 to 100% and watch the bonds crossing the plane stretch,
+      snap, and leave dangling stubs on both new surfaces.</li>
+      <li>Read the \(\gamma\) value in the stats. Now double the <b>Bond energy</b> — does
+      \(\gamma\) double too? Check the plot.</li>
+      <li>Use the scenario buttons to jump between a waxy polymer, glass, and a metal. Compare
+      their \(\gamma\) against the reference lines on the plot (water, Teflon, copper).</li>
+      <li>Chalk question: when you snap chalk, the energy in your hands ends up stored in the two
+      new surfaces. Which would take more energy to snap (same size bar): chalk or copper? Why?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="energy" data-scen="wax" onclick="setScen('energy','wax')">Waxy polymer (weak bonds)</button>
+    <button class="scen-btn on" data-tab="energy" data-scen="glass" onclick="setScen('energy','glass')">Glass / oxide</button>
+    <button class="scen-btn" data-tab="energy" data-scen="metal" onclick="setScen('energy','metal')">Metal (strong bonds)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Cleave progress <span id="v-energy-cut">0</span></label>
+        <input type="range" id="s-energy-cut" min="0" max="100" step="1" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Bond energy ε <span id="v-energy-eps">1.5</span></label>
+        <input type="range" id="s-energy-eps" min="0.1" max="5" step="0.05" value="1.5">
+      </div>
+      <div class="ctrl-group">
+        <label>Surface packing <span id="v-energy-pack">1.0</span></label>
+        <input type="range" id="s-energy-pack" min="0.5" max="2" step="0.05" value="1.0">
+      </div>
+      <div class="stats" id="st-energy"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cleaving a crystal — every snapped bond becomes two dangling bonds</div>
+        <canvas id="cv-energy" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Surface energy γ vs. bond energy ε (dashed = real materials)</div>
+        <canvas id="cv-energy2" width="640" height="280"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-energy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: adsorb -->
+<section id="tab-adsorb" class="tab-content">
+  <div class="background-section">
+    <h2>Background: The air is full of water, and your surface knows it</h2>
+    <p>Here is the fact that surprises everyone: <b>in ordinary air, every surface around you is
+    already coated in water.</b> Not visibly wet — a film a few molecules thick. The air always
+    carries water vapor (that's what "humidity" is), water molecules constantly slam into every
+    exposed surface, and a hungry, high-energy surface doesn't let them bounce away. It grabs
+    them. This grabbing is called <b>adsorption</b> (with a "d" — molecules sticking <em>onto</em>
+    a surface, not soaking into it).</p>
+    <p>It doesn't stop at one layer. The first layer of water bonds to the surface itself; then
+    more water molecules land <em>on the water</em> and hydrogen-bond to the first layer; then a
+    third layer sticks to the second. Water stacks on water. The film gets thicker as the air gets
+    more humid — from well under one layer in desert-dry air to many layers in a steamy room.</p>
+    <p><b>Level up — the BET isotherm.</b> In 1938 Brunauer, Emmett and Teller wrote down the
+    classic model for multilayer adsorption. The coverage \(\theta\) (in monolayers) as a
+    function of relative humidity \(x = \text{RH}\) is:</p>
+    <div class="equation-box">
+      $$ \theta(x) \;=\; \frac{c\,x}{(1-x)\bigl(1 + (c-1)\,x\bigr)}
+      \qquad c \approx e^{(E_1 - E_L)/RT} $$
+    </div>
+    <p>The constant \(c\) measures how much more strongly the <em>first</em> layer binds to the
+    solid (\(E_1\)) than later layers bind to each other (\(E_L\), the liquefaction energy).
+    A hungry surface has a big \(c\): the first monolayer forms fast, at low humidity — that's the
+    steep initial rise and the "knee" of the curve. Then multilayers pile up, gently at mid
+    humidity and steeply as RH → 100% (the curve blows up as \(x \to 1\): that's condensation —
+    actual dew). This S-shape is called a <b>Type II isotherm</b>, and it is what real water on
+    real glass or metal looks like.</p>
+    <p>The punchline for functionalization: whatever chemistry you want to do to your surface,
+    you won't be doing it to the surface at all — <b>you'll be doing it to a film of water</b>,
+    unless you get rid of it first. Which is Tab 4's job.</p>
+    <div class="worked-example">
+      <p>Room air, RH = 45%, a hungry surface with \(c = 50\):
+      $$\theta = \frac{50 \times 0.45}{(1-0.45)\,(1 + 49\times0.45)}
+      = \frac{22.5}{0.55 \times 23.05} \approx 1.8\ \text{monolayers}.$$
+      A water monolayer is ~0.3 nm thick, so the film is ~0.5 nm — invisible, but it's there,
+      completely burying the atoms you might want to react with. At RH 90% the same formula gives
+      \(\theta \approx 10\) layers (~3 nm), and lab experiments on glass agree: a few nanometers
+      of water in humid air.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Ambient air always contains water vapor; hungry surfaces adsorb it on contact.</li>
+        <li>Water stacks in <b>multilayers</b> — a film, not just one molecular layer.</li>
+        <li>BET: steep first-monolayer "knee," then multilayer growth that diverges as RH → 100%.</li>
+        <li>Adsorption is a <b>dynamic equilibrium</b> — molecules land and leave constantly;
+        humidity sets the balance.</li>
+        <li>Any chemistry you attempt in air happens on the water film, not the bare surface.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Watch the animation at room humidity (45%). Molecules land, sit a while, and leave —
+      count the layers in the film. This is a two-way traffic, not a one-way pile-up.</li>
+      <li>Drag <b>Relative humidity</b> from 5% to 95% and watch both the film and the dot on the
+      BET curve. Where does the first full monolayer appear? Where does the film really take off?</li>
+      <li>Lower the <b>Surface hunger</b> (the BET \(c\)) to make the surface more Teflon-like.
+      How humid does the air have to be now before even one monolayer forms?</li>
+      <li>Look at the shape of the curve: steep, flat-ish, steep. Match each part to what the
+      molecules are doing (first layer / stacking / condensation).</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="adsorb" data-scen="dry" onclick="setScen('adsorb','dry')">Desert-dry (10% RH)</button>
+    <button class="scen-btn on" data-tab="adsorb" data-scen="room" onclick="setScen('adsorb','room')">Room air (45% RH)</button>
+    <button class="scen-btn" data-tab="adsorb" data-scen="steam" onclick="setScen('adsorb','steam')">Steamy bathroom (90% RH)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Relative humidity <span id="v-adsorb-rh">45</span></label>
+        <input type="range" id="s-adsorb-rh" min="2" max="97" step="1" value="45">
+      </div>
+      <div class="ctrl-group">
+        <label>Surface hunger (BET c) <span id="v-adsorb-c">50</span></label>
+        <input type="range" id="s-adsorb-c" min="2" max="200" step="1" value="50">
+      </div>
+      <div class="stats" id="st-adsorb"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Water vapor over the surface — landing, stacking, leaving (live)</div>
+        <canvas id="cv-adsorb" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">BET Type II isotherm — coverage vs. relative humidity</div>
+        <canvas id="cv-adsorb2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-adsorb"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: vacuum -->
+<section id="tab-vacuum" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: Vacuum — how to actually get a bare surface (and why it takes patience)</h2>
+    <p>Tab 3 left us with a problem: our surface is buried under water. The fix sounds simple —
+    put it in a chamber and pump the air out. With no water vapor arriving, the adsorbed film's
+    two-way traffic becomes one-way: molecules keep leaving (<b>desorbing</b>) but nothing
+    replaces them, and the surface gradually bares itself. Gradually! Desorption is <em>not</em>
+    instant — each molecule needs enough thermal energy to break free, so the film evaporates
+    layer by layer. That's why real vacuum systems get <b>baked out</b> (gently heated) to hurry
+    the stragglers along: the first layers leave in seconds, the last tightly-bound monolayer can
+    take hours at room temperature.</p>
+    <p><b>Kinetic theory, part 1 — how empty is "vacuum"?</b> A gas molecule travels a distance
+    called the <b>mean free path</b> \(\lambda\) between collisions. It's set by how many other
+    molecules are in the way, i.e. by pressure:</p>
+    <div class="equation-box">
+      $$ \lambda \;=\; \frac{k_B T}{\sqrt{2}\,\pi d^2 P} $$
+    </div>
+    <p>where \(d \approx 0.37\) nm is a molecule's diameter. At atmospheric pressure
+    \(\lambda \approx 68\) <em>nanometers</em> — a molecule can't move a thousandth of a hair's
+    width without crashing into another. At \(10^{-6}\) Torr, \(\lambda \approx 50\)
+    <em>meters</em>: molecules fly clear across the chamber without meeting anyone. Same formula,
+    nine orders of magnitude apart.</p>
+    <p><b>Kinetic theory, part 2 — how fast does a surface get dirty again?</b> The
+    Hertz–Knudsen equation counts the molecules striking each square meter per second:</p>
+    <div class="equation-box">
+      $$ \Phi \;=\; \frac{P}{\sqrt{2\pi m k_B T}}
+      \qquad\Rightarrow\qquad
+      t_{\text{monolayer}} \;\approx\; \frac{n_s}{\Phi} $$
+    </div>
+    <p>with \(n_s \approx 10^{19}\) sites/m². If every arriving molecule sticks, \(t_{\text{monolayer}}\)
+    is how long a freshly cleaned surface stays clean. Vacuum scientists honor this with a unit:
+    one <b>Langmuir</b> = \(10^{-6}\) Torr·s ≈ one monolayer's worth of exposure.</p>
+    <div class="worked-example">
+      <p>Nitrogen at \(T = 300\) K, \(m = 4.65\times10^{-26}\) kg,
+      \(\sqrt{2\pi m k_B T} = 3.5\times10^{-23}\) (SI units).<br>
+      <b>Ambient</b> (\(P = 101{,}325\) Pa): \(\Phi = 2.9\times10^{27}\) hits/m²·s →
+      \(t \approx 10^{19}/2.9\times10^{27} \approx 3.5\) <b>nanoseconds</b> per monolayer.
+      A surface in air can never, ever be clean.<br>
+      <b>High vacuum</b> (\(10^{-6}\) Torr \(= 1.33\times10^{-4}\) Pa):
+      \(\Phi = 3.8\times10^{18}\) → \(t \approx\) <b>2.6 seconds</b> per monolayer.
+      Now you have a working window — and at \(10^{-9}\) Torr it stretches to ~45 minutes,
+      which is why true surface-science experiments live in ultra-high vacuum.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Vacuum removes the water film by cutting off the <em>arrivals</em>; departures then
+        win — but desorption takes time and is helped by heat (bake-out).</li>
+        <li>Mean free path: 68 nm in air → 50 m at 10⁻⁶ Torr. "Vacuum" means molecules stop
+        meeting each other.</li>
+        <li>Hertz–Knudsen: a clean surface recontaminates in ~ns at ambient, ~seconds at
+        10⁻⁶ Torr. Cleanliness is a race against pressure.</li>
+        <li>A pumped-down, baked, bare surface is the blank canvas every functionalization in
+        Lessons 2–3 starts from.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start at ambient and drag <b>Pressure</b> down slowly. Watch the gas thin out — and
+      notice the water film does NOT vanish the moment the pressure drops. It desorbs layer by
+      layer over a few seconds. (That lag is real physics, not lag in the sim.)</li>
+      <li>At 10⁻⁶ Torr, raise the <b>Temperature</b> to 400 K and watch the last layer leave
+      faster. You just did a bake-out.</li>
+      <li>Read λ and the monolayer time in the stats at 760, 10⁻², and 10⁻⁶ Torr. Check them
+      against the plot.</li>
+      <li>Challenge: your plasma cleaner (Lesson 2) needs the surface bare for ~60 seconds of
+      treatment. Using the plot, what's the highest pressure you could get away with?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="vacuum" data-scen="ambient" onclick="setScen('vacuum','ambient')">Ambient (760 Torr)</button>
+    <button class="scen-btn" data-tab="vacuum" data-scen="rough" onclick="setScen('vacuum','rough')">Rough vacuum (10⁻² Torr)</button>
+    <button class="scen-btn" data-tab="vacuum" data-scen="high" onclick="setScen('vacuum','high')">High vacuum (10⁻⁶ Torr)</button>
+    <button class="scen-btn" data-tab="vacuum" data-scen="bake" onclick="setScen('vacuum','bake')">Bake-out (10⁻⁶ Torr, 420 K)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Pressure <span id="v-vacuum-logP">760 Torr</span></label>
+        <input type="range" id="s-vacuum-logP" min="-8" max="2.881" step="0.02" value="2.881">
+      </div>
+      <div class="ctrl-group">
+        <label>Temperature <span id="v-vacuum-T">300</span></label>
+        <input type="range" id="s-vacuum-T" min="250" max="500" step="5" value="300">
+      </div>
+      <div class="stats" id="st-vacuum"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The chamber — pump down and watch the film desorb (live)</div>
+        <canvas id="cv-vacuum" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Time to re-form one monolayer vs. pressure (log–log)</div>
+        <canvas id="cv-vacuum2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-vacuum"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>J. N. Israelachvili, <i>Intermolecular and Surface Forces</i>, 3rd ed., Academic Press
+    (2011) — Ch. 13 &amp; 17 (surface energy, adhesion, adsorbed films).</li>
+    <li>A. W. Adamson &amp; A. P. Gast, <i>Physical Chemistry of Surfaces</i>, 6th ed., Wiley
+    (1997) — Ch. VII (surface energy of solids), Ch. XVI–XVII (adsorption, BET).</li>
+    <li>S. Brunauer, P. H. Emmett &amp; E. Teller, "Adsorption of Gases in Multimolecular
+    Layers," <i>J. Am. Chem. Soc.</i> <b>60</b>, 309–319 (1938). DOI: 10.1021/ja01269a023.</li>
+    <li>G. A. Somorjai &amp; Y. Li, <i>Introduction to Surface Chemistry and Catalysis</i>,
+    2nd ed., Wiley (2010) — Ch. 1 (surface concentrations, Hertz–Knudsen, the Langmuir unit,
+    why UHV).</li>
+    <li>D. B. Asay &amp; S. H. Kim, "Evolution of the Adsorbed Water Layer Structure on Silicon
+    Oxide at Room Temperature," <i>J. Phys. Chem. B</i> <b>109</b>, 16760–16763 (2005).
+    DOI: 10.1021/jp053042o (measured multilayer water films on oxide vs. humidity).</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Surface Functionalization Foundations · Lesson 1 of 4 — Next: plasma
+treatment, or how to use lightning-in-a-box to rewrite a surface's chemistry.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl, xtickFmt, ytickFmt){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(xtickFmt ? xtickFmt(t) : fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(ytickFmt ? ytickFmt(t) : fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+function drawAtom(ctx, x, y, r, color){
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.15, x, y, r);
+  g.addColorStop(0, '#dbeafe'); g.addColorStop(1, color);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,58,95,.35)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 1: Surfaces Are Hungry
+   ================================================================ */
+
+/* --- control state --- */
+let activeTab = 'neighbors';
+const scen = { neighbors: 'surface', energy: 'glass', adsorb: 'room', vacuum: 'ambient' };
+
+const FMT = {
+  'neighbors-depth': v => fmt(v, 0) + (v === 0 ? ' (surface)' : ' layers down'),
+  'neighbors-reach': v => fmt(v, 2) + ' × spacing',
+  'energy-cut':  v => fmt(v, 0) + ' %',
+  'energy-eps':  v => fmt(v, 2) + ' eV',
+  'energy-pack': v => fmt(v, 2) + '×',
+  'adsorb-rh':   v => fmt(v, 0) + ' %',
+  'adsorb-c':    v => fmt(v, 0),
+  'vacuum-logP': v => { const P = Math.pow(10, v);
+    return (P >= 1 ? fmt(P, 0) : P.toExponential(0).replace('e-', '×10⁻').replace('e+', '×10')) + ' Torr'; },
+  'vacuum-T':    v => fmt(v, 0) + ' K'
+};
+
+const SCEN = {
+  neighbors: {
+    surface: { 's-neighbors-depth': 0 },
+    sub:     { 's-neighbors-depth': 1 },
+    bulk:    { 's-neighbors-depth': 6 }
+  },
+  energy: {
+    wax:   { 's-energy-eps': 0.3, 's-energy-pack': 0.8, 's-energy-cut': 100 },
+    glass: { 's-energy-eps': 1.5, 's-energy-pack': 1.0, 's-energy-cut': 100 },
+    metal: { 's-energy-eps': 3.5, 's-energy-pack': 1.3, 's-energy-cut': 100 }
+  },
+  adsorb: {
+    dry:   { 's-adsorb-rh': 10, 's-adsorb-c': 50 },
+    room:  { 's-adsorb-rh': 45, 's-adsorb-c': 50 },
+    steam: { 's-adsorb-rh': 90, 's-adsorb-c': 50 }
+  },
+  vacuum: {
+    ambient: { 's-vacuum-logP': 2.881, 's-vacuum-T': 300 },
+    rough:   { 's-vacuum-logP': -2,    's-vacuum-T': 300 },
+    high:    { 's-vacuum-logP': -6,    's-vacuum-T': 300 },
+    bake:    { 's-vacuum-logP': -6,    's-vacuum-T': 420 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation plumbing (TFM pattern): only 'adsorb' and 'vacuum' animate --- */
+const ANIMATED = new Set(['adsorb', 'vacuum']);
+let rafId = null, animClock = 0;
+function animLoop(ts){
+  animClock = (ts || 0) / 1000;
+  if (ANIMATED.has(activeTab)) {
+    try { DRAW[activeTab](); } catch (e) { console.error(e); }
+    rafId = requestAnimationFrame(animLoop);
+  } else rafId = null;
+}
+function startAnim(){ if (ANIMATED.has(activeTab) && rafId == null) rafId = requestAnimationFrame(animLoop); }
+function stopAnim(){ if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; } }
+
+/* ---------------- TAB 1: neighbors ---------------- */
+/* Sum bond pulls on a probe atom at `depth` rows below the surface, from all
+   lattice sites within `reach` lattice spacings, weighted 1/r⁴ (van der
+   Waals-flavored falloff). Physics y: + = up. Returns net fy (− = inward). */
+function neighborSum(depth, reach){
+  let fx = 0, fy = 0, have = 0, miss = 0;
+  const R = Math.ceil(reach);
+  for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) {
+    if (dx === 0 && dy === 0) continue;
+    const r = Math.hypot(dx, dy);
+    if (r > reach + 1e-9) continue;
+    if (dy > depth) { miss++; continue; }        // that site would be above the surface
+    const w = 1 / Math.pow(r, 4);
+    fx += w * dx / r; fy += w * dy / r;          // attraction toward the neighbor
+    have++;
+  }
+  return { fx, fy, have, miss };
+}
+
+function drawNeighbors(){
+  const depth = num('s-neighbors-depth'), reach = num('s-neighbors-reach');
+  const cur = neighborSum(depth, reach);
+  const surf = neighborSum(0, reach);
+  const pullRel = Math.abs(surf.fy) > 1e-12 ? Math.abs(cur.fy) / Math.abs(surf.fy) : 0;
+
+  /* ---- canvas 1: lattice with pull arrows ---- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-neighbors'));
+  const cols = 13, rows = 8, sp = 40, R = 9;
+  const x0 = (w - (cols - 1) * sp) / 2, y0 = 46;
+  // sky + solid shading
+  ctx.fillStyle = '#f0f9ff'; ctx.fillRect(0, 0, w, y0 - R - 6);
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, y0 - R - 6, w, h);
+  drawLine(ctx, 0, y0 - R - 6, w, y0 - R - 6, COL.muted, 1, [6, 4]);
+  caption(ctx, 60, 18, 'air / vacuum', COL.axis);
+  const pc = Math.floor(cols / 2);
+  const px = x0 + pc * sp, py = y0 + depth * sp * 0.78; // compress rows a bit to fit
+  const spy = sp * 0.78;
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+    const x = x0 + c * sp, y = y0 + r * spy;
+    if (y > h - 8) continue;
+    const isProbe = (c === pc && r === depth);
+    drawAtom(ctx, x, y, isProbe ? R + 3 : R, isProbe ? COL.orange : COL.accent);
+  }
+  // pull arrows from probe to each in-reach neighbor
+  const Rr = Math.ceil(reach);
+  for (let dx = -Rr; dx <= Rr; dx++) for (let dy = -Rr; dy <= Rr; dy++) {
+    if (dx === 0 && dy === 0) continue;
+    const r = Math.hypot(dx, dy);
+    if (r > reach + 1e-9 || dy > depth) continue;
+    const nc = pc + dx, nr = depth - dy;               // dy>0 = toward surface (up)
+    if (nc < 0 || nc >= cols || nr >= rows) continue;
+    const nx = x0 + nc * sp, ny = y0 + nr * spy;
+    if (ny > h - 8) continue;
+    const L = Math.hypot(nx - px, ny - py) || 1;
+    const s = 0.55 / Math.pow(r, 2);                    // display length falls off gently
+    arrow(ctx, px, py, px + (nx - px) / L * sp * (0.45 + s), py + (ny - py) / L * sp * (0.45 + s),
+      'rgba(22,163,74,.45)', 2);
+  }
+  // resultant (canvas y is down; physics fy>0 = up)
+  const mag = Math.min(70, Math.abs(cur.fy) / Math.abs(surf.fy || 1) * 70);
+  if (mag > 3) {
+    arrow(ctx, px, py, px, py + mag, COL.bad, 4);
+    caption(ctx, px + 78, py + mag / 2 + 4, 'net inward pull', COL.bad, true);
+  } else {
+    caption(ctx, px, py - R - 12, 'balanced', COL.good, true);
+  }
+
+  /* ---- canvas 2: net pull vs depth ---- */
+  const c2 = setupCanvas(document.getElementById('cv-neighbors2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(-0.2, 6.2, 0, 1.1);
+  ch.grid(); ch.axes('depth below surface (atomic layers)', 'net inward pull (relative)');
+  const pts = [];
+  for (let d = 0; d <= 6; d++) pts.push([d, Math.abs(neighborSum(d, reach).fy) / Math.abs(surf.fy || 1)]);
+  ch.plot(pts, COL.accent, 2.5);
+  for (const p of pts) ch.dot(p[0], p[1], COL.muted, 3);
+  ch.dot(depth, pullRel, COL.orange, 7);
+  ch.legend([{ label: 'imbalance profile', color: COL.accent }]);
+
+  setStat('st-neighbors', [
+    { label: 'Probe depth', value: depth === 0 ? 'surface' : depth + ' layers' },
+    { label: 'Neighbors present', value: fmt(cur.have, 0) },
+    { label: 'Neighbors missing', value: fmt(cur.miss, 0) },
+    { label: 'Net inward pull', value: fmt(pullRel * 100, 0) + ' % of surface', highlight: true }
+  ]);
+
+  if (depth === 0)
+    setVerdict('vd-neighbors', 'bad', 'Surface atom — strongly unbalanced.',
+      'Every neighbor that should sit above this atom is missing (' + cur.miss + ' of them within reach). The pulls from below don\'t cancel, so the atom is dragged inward with the full surface-strength force. This atom has dangling bonds and would happily grab any molecule that comes near.');
+  else if (pullRel > 0.05)
+    setVerdict('vd-neighbors', 'warn', 'Sub-surface — almost balanced.',
+      'One or two layers down, only the longer-range attractions are still missing partners. The net pull is down to ' + fmt(pullRel * 100, 0) + '% of the surface value. The surface "skin" is only a few atoms thick.');
+  else
+    setVerdict('vd-neighbors', 'good', 'Bulk atom — perfectly balanced, net force ≈ 0.',
+      'This atom is pulled by ' + cur.have + ' neighbors arranged symmetrically in every direction, so the tugs cancel. It has no idea a surface exists ' + depth + ' layers above it. All the surface drama lives in the top ~2–3 layers.');
+}
+
+/* ---------------- TAB 2: energy ---------------- */
+const NS_REF = 1.5e19;      // surface sites per m² at packing 1.0
+function gammaOf(epsEV, pack){ return NS_REF * pack * epsEV * 1.602e-19 / 2 * 1000; } // mJ/m²
+
+function drawEnergy(){
+  const cut = num('s-energy-cut'), eps = num('s-energy-eps'), pack = num('s-energy-pack');
+  const gam = gammaOf(eps, pack);
+  const nCross = 12;
+  const snapped = Math.round(nCross * Math.min(1, cut / 60));
+
+  /* ---- canvas 1: cleaving block ---- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-energy'));
+  const cols = 12, sp = 42, R = 9;
+  const x0 = (w - (cols - 1) * sp) / 2;
+  const gap = 14 + (cut / 100) * 70;               // gap between the halves
+  const midY = h / 2;
+  const topRows = 3, botRows = 3, spy = 30;
+  // top half (moves up as gap grows)
+  for (let r = 0; r < topRows; r++) for (let c = 0; c < cols; c++)
+    drawAtom(ctx, x0 + c * sp, midY - gap / 2 - r * spy, R, COL.accent);
+  // bottom half
+  for (let r = 0; r < botRows; r++) for (let c = 0; c < cols; c++)
+    drawAtom(ctx, x0 + c * sp, midY + gap / 2 + r * spy, R, COL.accent);
+  // interface bonds: snap left-to-right as the cleave progresses
+  for (let c = 0; c < nCross; c++) {
+    const x = x0 + c * sp;
+    const yT = midY - gap / 2 + R, yB = midY + gap / 2 - R;
+    if (c < snapped) {
+      // dangling stubs (broken bond) — red
+      drawLine(ctx, x, yT, x, yT + 8, COL.bad, 2.5);
+      drawLine(ctx, x, yB, x, yB - 8, COL.bad, 2.5);
+    } else {
+      const strain = Math.min(1, (gap - 14) / 42);
+      springGlyph(ctx, x, yT, x, yB, 4, 4, strain > 0.6 ? COL.warn : COL.ink, 2);
+    }
+  }
+  caption(ctx, w / 2, 20, cut === 0 ? 'one solid block — bonds intact across the plane' :
+    snapped < nCross ? ('cleaving… ' + snapped + ' of ' + nCross + ' bonds snapped') :
+    'two new surfaces — every crossing bond is now two dangling bonds', COL.ink, true);
+  if (snapped === nCross) {
+    caption(ctx, w - 96, midY - gap / 2 - 6, 'new surface', COL.bad);
+    caption(ctx, w - 96, midY + gap / 2 + 16, 'new surface', COL.bad);
+  }
+
+  /* ---- canvas 2: γ vs ε with material reference lines ---- */
+  const c2 = setupCanvas(document.getElementById('cv-energy2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 62, r: 14, t: 12, b: 36 });
+  const yMax = Math.max(2600, gam * 1.15);
+  ch.setRange(0, 5, 0, yMax);
+  ch.grid(); ch.axes('bond energy ε (eV)', 'surface energy γ (mJ/m²)');
+  const refs = [ ['PTFE ~20', 20, COL.teal], ['water 72.8', 72.8, COL.accent],
+                 ['glass ~300', 300, COL.purple], ['copper ~1800', 1800, COL.orange] ];
+  for (const [lab, y, col] of refs) {
+    ch.hLine(y, col, [4, 4]);
+    c2.ctx.save(); c2.ctx.fillStyle = col; c2.ctx.font = 'bold 10px sans-serif';
+    c2.ctx.textAlign = 'right'; c2.ctx.textBaseline = 'bottom';
+    c2.ctx.fillText(lab, ch.toX(5) - 4, ch.toY(y) - 2); c2.ctx.restore();
+  }
+  const pts = [];
+  for (let e = 0; e <= 5.001; e += 0.05) pts.push([e, gammaOf(e, pack)]);
+  ch.plot(pts, COL.ink, 2.5);
+  ch.dot(eps, gam, COL.bad, 6);
+  ch.legend([{ label: 'broken-bond estimate', color: COL.ink }]);
+
+  setStat('st-energy', [
+    { label: 'Bond energy ε', value: fmt(eps, 2) + ' eV' },
+    { label: 'Sites per m²', value: (NS_REF * pack).toExponential(1) },
+    { label: 'Bonds snapped', value: snapped + ' / ' + nCross },
+    { label: 'Estimated γ', value: fmt(gam, 0) + ' mJ/m²', highlight: true }
+  ]);
+
+  const hungry = gam > 500 ? 'ravenous' : gam > 100 ? 'hungry' : 'content';
+  if (cut < 100)
+    setVerdict('vd-energy', 'warn', 'Still cleaving — energy flowing into the crack.',
+      'You\'ve snapped ' + snapped + ' of ' + nCross + ' bonds so far. Each snap converts work from your hands into stored surface energy. Finish the cleave to see the two new surfaces.');
+  else if (gam > 500)
+    setVerdict('vd-energy', 'bad', 'γ ≈ ' + fmt(gam, 0) + ' mJ/m² — a ravenous, high-energy surface.',
+      'Strong bonds mean expensive surfaces. A freshly cleaved metal or oxide like this will grab water, oils, and any stray molecule within nanoseconds in air (Tab 3), because every adsorbate lowers its energy.');
+  else if (gam > 100)
+    setVerdict('vd-energy', 'warn', 'γ ≈ ' + fmt(gam, 0) + ' mJ/m² — a hungry surface.',
+      'Glass-like territory. Water (72.8 mJ/m²) spreads happily on a surface like this — wetting it lowers the total energy. That\'s why clean glass fogs evenly instead of beading.');
+  else
+    setVerdict('vd-energy', 'good', 'γ ≈ ' + fmt(gam, 0) + ' mJ/m² — a content, low-energy surface.',
+      'Weak van der Waals bonds are cheap to cut, so this surface stores little energy and has little appetite. Wax and Teflon live here — water beads up on them rather than spreading. (γ is ' + hungry + '.)');
+}
+
+/* ---------------- TAB 3: adsorb (animated) ---------------- */
+function betTheta(x, c){ return (c * x) / ((1 - x) * (1 + (c - 1) * x)); }
+
+/* fixed particle attributes, seeded once */
+const ADS_P = (() => {
+  const rng = mulberry32(7), a = [];
+  for (let i = 0; i < 60; i++) a.push({
+    x: rng(), lane: rng(), T: 5 + rng() * 6, ph: rng(), wig: 6 + rng() * 10, wf: 0.6 + rng()
+  });
+  return a;
+})();
+
+function drawAdsorb(){
+  const rh = num('s-adsorb-rh') / 100, c = num('s-adsorb-c');
+  const th = betTheta(rh, c);
+  const thShow = Math.min(th, 8);
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-adsorb'));
+  const surfY = h - 34;
+  // solid
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY, w, h - surfY);
+  ctx.strokeStyle = COL.axis; drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.5);
+  caption(ctx, w / 2, h - 12, 'solid surface (hungry)', COL.ink, true);
+  // adsorbed film: full layers as rows, partial layer as fraction of a row
+  const mR = 5.5, mSp = 13;
+  const full = Math.floor(thShow), frac = thShow - full;
+  const perRow = Math.floor(w / mSp) - 2;
+  for (let l = 0; l < full; l++) {
+    const y = surfY - mR - l * (mR * 2 - 1);
+    for (let i = 0; i < perRow; i++)
+      drawAtom(ctx, mSp + i * mSp + (l % 2) * mSp / 2, y, mR, COL.teal);
+  }
+  if (frac > 0.03) {
+    const y = surfY - mR - full * (mR * 2 - 1);
+    const nP = Math.round(perRow * frac);
+    const rng = mulberry32(99);
+    for (let i = 0; i < nP; i++)
+      drawAtom(ctx, mSp + Math.floor(rng() * perRow) * mSp, y, mR, COL.teal);
+  }
+  const filmTop = surfY - mR - Math.max(0, thShow - 0.5) * (mR * 2 - 1);
+  // vapor molecules: landing / dwelling / leaving loops, count ∝ RH
+  const nV = Math.round(6 + rh * 50);
+  const dwellFrac = Math.min(0.55, 0.15 + c / 400 + rh * 0.2);
+  for (let i = 0; i < nV; i++) {
+    const p = ADS_P[i % ADS_P.length];
+    const t = ((animClock / p.T) + p.ph) % 1;
+    const xB = 14 + p.x * (w - 28);
+    let y;
+    const skyTop = 16, travel = filmTop - 10 - skyTop;
+    const downEnd = (1 - dwellFrac) / 2, upStart = downEnd + dwellFrac;
+    if (t < downEnd) y = skyTop + (t / downEnd) * travel;
+    else if (t < upStart) y = skyTop + travel;
+    else y = skyTop + (1 - (t - upStart) / (1 - upStart)) * travel;
+    const x = xB + Math.sin(animClock * p.wf + p.ph * 7) * p.wig;
+    drawAtom(ctx, x, y, 4.5, COL.teal);
+  }
+  caption(ctx, 70, 20, 'water vapor (RH ' + fmt(rh * 100, 0) + '%)', COL.teal);
+
+  /* ---- canvas 2: BET curve ---- */
+  const c2 = setupCanvas(document.getElementById('cv-adsorb2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 1, 0, 8);
+  ch.grid(); ch.axes('relative humidity  P/P₀', 'coverage θ (monolayers)');
+  ch.hLine(1, COL.warn, [4, 4]);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.warn; c2.ctx.font = 'bold 10px sans-serif';
+  c2.ctx.textAlign = 'left'; c2.ctx.fillText('one monolayer', ch.toX(0.02), ch.toY(1) - 4); c2.ctx.restore();
+  const pts = [];
+  for (let x = 0; x <= 0.985; x += 0.005) pts.push([x, betTheta(x, c)]);
+  ch.plot(pts, COL.accent, 2.5);
+  const ptsLo = [];
+  for (let x = 0; x <= 0.985; x += 0.005) ptsLo.push([x, betTheta(x, 3)]);
+  ch.plot(ptsLo, COL.muted, 1.5, [4, 4]);
+  ch.dot(rh, Math.min(th, 8), COL.bad, 6);
+  ch.legend([{ label: 'your surface (c = ' + fmt(c, 0) + ')', color: COL.accent },
+             { label: 'low-energy surface (c = 3)', color: COL.muted, dash: [4, 4] }]);
+
+  setStat('st-adsorb', [
+    { label: 'Relative humidity', value: fmt(rh * 100, 0) + ' %' },
+    { label: 'BET c (hunger)', value: fmt(c, 0) },
+    { label: 'Coverage θ', value: fmt(th, 2) + ' layers', highlight: true },
+    { label: 'Film thickness', value: '≈ ' + fmt(th * 0.3, 2) + ' nm' }
+  ]);
+
+  if (th < 0.5)
+    setVerdict('vd-adsorb', 'good', 'Sub-monolayer — patches of bare surface remain.',
+      'θ = ' + fmt(th, 2) + ' layers: scattered water molecules, not a continuous film. Only very dry air (or a very low-energy surface) gets you here. Even so, "clean" is generous — the patches refill constantly.');
+  else if (th < 2)
+    setVerdict('vd-adsorb', 'warn', 'About a monolayer of water — the surface is wearing a coat.',
+      'θ = ' + fmt(th, 2) + ' layers (≈ ' + fmt(th * 0.3, 2) + ' nm). The solid\'s own atoms are now hidden behind bound water. Any chemistry you attempt reacts with this film first.');
+  else
+    setVerdict('vd-adsorb', 'bad', 'Thick multilayer film — the surface is buried.',
+      'θ = ' + fmt(th, 1) + ' layers of stacked water (BET multilayer regime). You cannot functionalize this surface as-is: the reagents would never touch the solid. It needs vacuum (next tab) or heat before any treatment.');
+}
+
+/* ---------------- TAB 4: vacuum (animated) ---------------- */
+const KB = 1.380649e-23, DMOL = 3.7e-10, MN2 = 4.65e-26, NSITES = 1e19;
+function meanFreePath(Ptorr, T){ const P = Ptorr * 133.322;
+  return KB * T / (Math.SQRT2 * Math.PI * DMOL * DMOL * P); }
+function monoTime(Ptorr, T){ const P = Ptorr * 133.322;
+  return NSITES / (P / Math.sqrt(2 * Math.PI * MN2 * KB * T)); }
+
+const VAC_P = (() => {
+  const rng = mulberry32(13), a = [];
+  for (let i = 0; i < 110; i++) a.push({
+    x: rng(), y: rng(), wig: 5 + rng() * 12, w1: 0.5 + rng() * 1.4, w2: 0.4 + rng() * 1.2, ph: rng() * 7
+  });
+  return a;
+})();
+let vacFilm = 2.2, vacPrevClock = null;   // film state relaxes toward target — desorption is NOT instant
+
+function drawVacuum(){
+  const logP = num('s-vacuum-logP'), T = num('s-vacuum-T');
+  const P = Math.pow(10, logP);
+  const lam = meanFreePath(P, T), tMono = monoTime(P, T);
+
+  // film target: ~2.2 layers at ambient → 0 below ~1e-5 Torr; relax with T-dependent rate
+  const target = 2.2 * Math.pow(Math.max(0, Math.min(1, (logP + 5) / 7.9)), 0.8);
+  const dt = vacPrevClock == null ? 0 : Math.min(0.1, animClock - vacPrevClock);
+  vacPrevClock = animClock;
+  const rate = 0.35 * Math.exp((T - 300) / 80);
+  vacFilm += (target - vacFilm) * (1 - Math.exp(-dt * rate));
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-vacuum'));
+  // chamber walls
+  const cx0 = 14, cx1 = w - 90, cy0 = 12, cy1 = h - 14;
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 2.5; ctx.strokeRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+  // pump: box + pipe on the right
+  const pyc = (cy0 + cy1) / 2;
+  ctx.fillStyle = '#e2e8f0'; ctx.fillRect(cx1, pyc - 14, 26, 28);
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(cx1 + 26, pyc - 26, 52, 52);
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+  ctx.strokeRect(cx1 + 26, pyc - 26, 52, 52);
+  // fan blades (spin faster at lower pressure)
+  const fx = cx1 + 52, fy = pyc, spin = animClock * (2 + (2.9 - logP));
+  ctx.save(); ctx.translate(fx, fy); ctx.rotate(spin);
+  ctx.strokeStyle = COL.accent; ctx.lineWidth = 3;
+  for (let b = 0; b < 3; b++) { ctx.rotate(Math.PI * 2 / 3);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(16, 0); ctx.stroke(); }
+  ctx.restore();
+  caption(ctx, fx, pyc + 42, 'pump', COL.axis);
+  arrow(ctx, cx1 + 4, pyc, cx1 + 22, pyc, COL.axis, 2);
+  // surface at the bottom of the chamber
+  const surfY = cy1 - 26;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(cx0 + 2, surfY, cx1 - cx0 - 4, cy1 - surfY - 2);
+  drawLine(ctx, cx0 + 2, surfY, cx1 - 2, surfY, COL.axis, 1.5);
+  caption(ctx, (cx0 + cx1) / 2, cy1 - 8, 'your sample', COL.ink, true);
+  // water film (desorbing)
+  const mR = 5, mSp = 12;
+  const perRow = Math.floor((cx1 - cx0 - 20) / mSp);
+  const fullL = Math.floor(vacFilm), fracL = vacFilm - fullL;
+  for (let l = 0; l < fullL; l++) {
+    const y = surfY - mR - l * (mR * 2 - 1);
+    for (let i = 0; i < perRow; i++) drawAtom(ctx, cx0 + 12 + i * mSp + (l % 2) * 6, y, mR, COL.teal);
+  }
+  if (fracL > 0.04) {
+    const y = surfY - mR - fullL * (mR * 2 - 1);
+    const rng = mulberry32(55);
+    const nP = Math.round(perRow * fracL);
+    for (let i = 0; i < nP; i++) drawAtom(ctx, cx0 + 12 + Math.floor(rng() * perRow) * mSp, y, mR, COL.teal);
+  }
+  // a few desorbing molecules rising when the film is shrinking
+  if (target < vacFilm - 0.02) {
+    const rng = mulberry32(77);
+    for (let i = 0; i < 6; i++) {
+      const xx = cx0 + 20 + rng() * (cx1 - cx0 - 40);
+      const yy = surfY - 16 - ((animClock * (24 + rng() * 30) + rng() * 120) % 120);
+      if (yy > cy0 + 10) drawAtom(ctx, xx + Math.sin(animClock * 2 + i) * 5, yy, 4, COL.teal);
+    }
+  }
+  // gas molecules: count collapses with pressure (log-mapped)
+  const nGas = Math.round(110 * Math.pow(Math.max(0, (logP + 8) / 10.9), 3));
+  for (let i = 0; i < Math.min(nGas, 110); i++) {
+    const p = VAC_P[i];
+    const x = cx0 + 12 + p.x * (cx1 - cx0 - 24) + Math.sin(animClock * p.w1 + p.ph) * p.wig;
+    const y = cy0 + 10 + p.y * (surfY - cy0 - 26) + Math.cos(animClock * p.w2 + p.ph) * p.wig;
+    drawAtom(ctx, x, y, 3.6, '#94a3b8');
+  }
+  caption(ctx, cx0 + 96, cy0 + 18, P >= 1 ? 'P = ' + fmt(P, 0) + ' Torr' : 'P = 10^' + fmt(logP, 1) + ' Torr', COL.ink, true);
+
+  /* ---- canvas 2: monolayer time vs pressure, log-log ---- */
+  const c2 = setupCanvas(document.getElementById('cv-vacuum2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 62, r: 14, t: 12, b: 36 });
+  ch.setRange(-8, 3, -10, 6);   // log10 axes
+  ch.grid();
+  ch.axes('pressure (Torr)', 'monolayer time (s)',
+    t => Number.isInteger(t) ? '10^' + fmt(t, 0) : '',
+    t => Number.isInteger(t) ? '10^' + fmt(t, 0) : '');
+  const pts = [];
+  for (let lp = -8; lp <= 3.001; lp += 0.1) pts.push([lp, Math.log10(monoTime(Math.pow(10, lp), T))]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.hLine(0, COL.warn, [4, 4]);      // 1 second
+  ch.hLine(Math.log10(60), COL.good, [4, 4]);  // 1 minute
+  c2.ctx.save(); c2.ctx.font = 'bold 10px sans-serif'; c2.ctx.textAlign = 'left';
+  c2.ctx.fillStyle = COL.warn; c2.ctx.fillText('1 second', ch.toX(-7.8), ch.toY(0) - 4);
+  c2.ctx.fillStyle = COL.good; c2.ctx.fillText('1 minute', ch.toX(-7.8), ch.toY(Math.log10(60)) - 4);
+  c2.ctx.restore();
+  ch.dot(logP, Math.log10(tMono), COL.bad, 6);
+  ch.legend([{ label: 'Hertz–Knudsen (sticking = 1)', color: COL.accent }]);
+
+  const tTxt = tMono < 1e-6 ? fmt(tMono * 1e9, 1) + ' ns' :
+               tMono < 1e-3 ? fmt(tMono * 1e6, 1) + ' µs' :
+               tMono < 1    ? fmt(tMono * 1e3, 1) + ' ms' :
+               tMono < 120  ? fmt(tMono, 1) + ' s' :
+               tMono < 7200 ? fmt(tMono / 60, 1) + ' min' : fmt(tMono / 3600, 1) + ' h';
+  const lamTxt = lam < 1e-6 ? fmt(lam * 1e9, 0) + ' nm' :
+                 lam < 1e-3 ? fmt(lam * 1e6, 0) + ' µm' :
+                 lam < 1    ? fmt(lam * 1e3, 0) + ' mm' : fmt(lam, 1) + ' m';
+  setStat('st-vacuum', [
+    { label: 'Pressure', value: P >= 1 ? fmt(P, 0) + ' Torr' : P.toExponential(0) + ' Torr' },
+    { label: 'Mean free path λ', value: lamTxt },
+    { label: 'Monolayer time', value: tTxt, highlight: true },
+    { label: 'Water film left', value: fmt(Math.max(0, vacFilm), 2) + ' layers' },
+    { label: 'Temperature', value: fmt(T, 0) + ' K' }
+  ]);
+
+  if (logP > 1)
+    setVerdict('vd-vacuum', 'bad', 'Ambient — a clean surface is impossible here.',
+      'A fresh monolayer of contamination re-forms every ' + tTxt + '. Even if you wiped the surface atomically clean, the air would repaint it before a nanosecond passed. λ = ' + lamTxt + ': molecules are everywhere, colliding constantly.');
+  else if (logP > -4)
+    setVerdict('vd-vacuum', 'warn', 'Rough vacuum — better, but still a busy sky.',
+      'Monolayer time is ' + tTxt + ' — too short for careful surface work, but exactly the pressure window where plasma cleaners operate (Lesson 2 will explain why a little gas left in the chamber is actually the point). The water film is ' + (vacFilm > 0.2 ? 'still desorbing — patience.' : 'gone.'));
+  else if (vacFilm > 0.2)
+    setVerdict('vd-vacuum', 'warn', 'High vacuum, but the film hasn\'t finished leaving.',
+      'Arrivals have stopped, yet ' + fmt(vacFilm, 2) + ' layers of water remain — desorption is kinetically limited, not instant. Watch it thin out, or raise the temperature (bake-out) to speed the stragglers. This wait is a real, budgeted step in every vacuum process.');
+  else
+    setVerdict('vd-vacuum', 'good', 'Bare surface achieved — and it will stay clean for ' + tTxt + '.',
+      'The water film has fully desorbed and λ = ' + lamTxt + ' means arriving molecules are rare. You now hold the blank canvas of surface science: dangling bonds exposed, ready for functionalization. On to Lesson 2.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { neighbors: drawNeighbors, energy: drawEnergy, adsorb: drawAdsorb, vacuum: drawVacuum };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

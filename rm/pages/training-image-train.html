@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Train &amp; Objectives — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+        </div>
+        <h1 class="training-module-title">Image Train &amp; Objectives</h1>
+        <p class="training-module-subtitle">
+          The optical components from sample to camera, the markings on an
+          objective, when aberrations bite, and how to pick the right lens
+          for a job.
+        </p>
+      </header>
+
+      <nav class="tab-bar" role="tablist">
+        <button class="tab-btn active" data-tab="tab-train"      role="tab" aria-selected="true">1. Light Path</button>
+        <button class="tab-btn"        data-tab="tab-decoder"    role="tab">2. Decoding the Objective</button>
+        <button class="tab-btn"        data-tab="tab-aberration" role="tab">3. Aberrations</button>
+        <button class="tab-btn"        data-tab="tab-fov"        role="tab">4. FOV &amp; Pixel Sampling</button>
+        <button class="tab-btn"        data-tab="tab-purchase"   role="tab">5. Pick an Objective</button>
+      </nav>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 1 — Light Path (end-to-end)                              -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-train" class="tab-content active" role="tabpanel">
+        <div class="background-section">
+          <h2>1. The journey of a photon</h2>
+          <p>
+            Follow a photon emitted by a GFP molecule inside a tumor spheroid
+            on its way to a camera pixel. Every component between the sample
+            and the sensor either bends, filters, focuses, or absorbs that
+            photon — and each is a potential source of aberration if it's the
+            wrong piece of glass.
+          </p>
+
+          <h3>The components in order</h3>
+          <ol>
+            <li><strong>Sample + mounting medium</strong> — water, glycerol, or fluoromount; their refractive index is the first thing the photon experiences.</li>
+            <li><strong>Coverslip</strong> — #1.5 thickness 170 μm is the worldwide standard. Objectives are designed for this.</li>
+            <li><strong>Immersion medium</strong> — air, water, glycerol, or oil between coverslip and objective front lens.</li>
+            <li><strong>Objective</strong> — does the heavy lifting (NA, magnification, aberration correction).</li>
+            <li><strong>Tube lens</strong> — forms the intermediate image (200 mm focal length on Nikon).</li>
+            <li><strong>Intermediate optics</strong> — filter cubes, beam splitters, scan optics (confocal only).</li>
+            <li><strong>Port</strong> — camera or eyepiece. You can't have both at once.</li>
+          </ol>
+
+          <div class="worked-example">
+            <strong>The first failure mode every student hits.</strong> Using a
+            #1 coverslip (~150 μm) under an oil 60× / 1.4 objective designed
+            for #1.5 (170 μm) introduces severe spherical aberration —
+            features blur axially, the PSF skews to one side. Fix: use the
+            right coverslip. Correction collars (Tab 3) help only marginally.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Click each component label on the diagram below. The component highlights and the right-side panel explains what it does and what happens if you get it wrong.</li>
+            <li>Click <strong>Sample → Coverslip</strong>. Note the refractive-index step — that's where aberration is born.</li>
+            <li>Click <strong>Tube Lens</strong>. The 200 mm focal length determines actual magnification of any objective (a "60×" objective on a 180 mm tube lens is really 54×).</li>
+            <li>Find the optical element you knew the least about going in. Read the description twice.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Component:</span>
+          <button class="scen-btn comp-btn active" data-comp="sample">Sample</button>
+          <button class="scen-btn comp-btn" data-comp="coverslip">Coverslip</button>
+          <button class="scen-btn comp-btn" data-comp="immersion">Immersion</button>
+          <button class="scen-btn comp-btn" data-comp="objective">Objective</button>
+          <button class="scen-btn comp-btn" data-comp="tubelens">Tube lens</button>
+          <button class="scen-btn comp-btn" data-comp="cube">Filter cube</button>
+          <button class="scen-btn comp-btn" data-comp="port">Camera / eyepiece</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="stats">
+              <h4>Selected component</h4>
+              <div class="stat-row"><span class="label">Name</span><span class="value" id="comp-name">—</span></div>
+              <div class="stat-row"><span class="label">Lab default</span><span class="value" id="comp-default">—</span></div>
+              <div class="stat-row"><span class="label">Common mistake</span><span class="value" id="comp-mistake">—</span></div>
+              <div class="stat-row"><span class="label">Fix</span><span class="value" id="comp-fix">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Sample → camera image train (click components above)</div>
+              <canvas id="canvas-train" width="600" height="400"></canvas>
+            </div>
+            <div class="val-verdict" id="comp-verdict" role="status" aria-live="polite">
+              Pick a component to read what it does.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 2 — Decoding the objective                              -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-decoder" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>2. Reading the markings on an objective</h2>
+          <p>
+            The text engraved on the front of an objective contains
+            essentially the whole specification. Once you can decode it, you
+            can predict what it'll do without consulting the data sheet.
+          </p>
+
+          <h3>The canonical example</h3>
+          <div class="equation-box"><span class="lhs">Plan Apo λ</span> 60× / 1.40 Oil ∞ / 0.17 WD 0.13</div>
+
+          <h3>What each token means</h3>
+          <ul>
+            <li><strong>Plan</strong> — field flatness; the image is in focus from center to edge. (Not Plan = curved field, edges blur first.)</li>
+            <li><strong>Apo / Fluor / Achromat</strong> — chromatic correction tier. Achromat ≈ 2 colors; Fluor ≈ 3 colors; Apo ≈ 4+ colors. For multicolor fluorescence you want Apo.</li>
+            <li><strong>λ</strong> — extended UV / IR transmission. Necessary for DAPI (UV excitation) and far-red dyes.</li>
+            <li><strong>60×</strong> — nominal magnification at the manufacturer's reference tube-lens focal length.</li>
+            <li><strong>1.40</strong> — numerical aperture (NA).</li>
+            <li><strong>Oil</strong> — immersion medium.</li>
+            <li><strong>∞</strong> — infinity-corrected. Needs a tube lens to form the image (modern standard).</li>
+            <li><strong>0.17</strong> — designed coverslip thickness in mm (= #1.5).</li>
+            <li><strong>WD 0.13</strong> — working distance in mm (= 130 μm).</li>
+          </ul>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Paste any objective marking (or use one of the preset buttons) into the field below.</li>
+            <li>The decoder splits the string into tokens and color-codes each.</li>
+            <li>The stats panel reports each spec value with a one-line explanation.</li>
+            <li>Try a #1 coverslip objective ("0.13") vs a #1.5 ("0.17") — same lens otherwise. The decoder flags the mismatch on a #1.5-only lens.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Presets:</span>
+          <button class="scen-btn obj-preset" data-spec="Plan Apo λ 60× / 1.40 Oil ∞ / 0.17 WD 0.13">60× / 1.4 oil</button>
+          <button class="scen-btn obj-preset" data-spec="CFI Apo LWD 25× / 1.10 Water ∞ / 0.17 WD 2.0">25× / 1.1 water (AX-R)</button>
+          <button class="scen-btn obj-preset" data-spec="Plan Fluor 20× / 0.75 Air ∞ / 0.17 WD 1.0">20× / 0.75 air</button>
+          <button class="scen-btn obj-preset" data-spec="Plan Achromat 4× / 0.13 Air ∞ / – WD 17.0">4× / 0.13 overview</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="obj-spec">Objective marking</label>
+              <input type="text" id="obj-spec" value="Plan Apo λ 60× / 1.40 Oil ∞ / 0.17 WD 0.13">
+            </div>
+            <div class="stats">
+              <h4>Decoded</h4>
+              <div class="stat-row"><span class="label">Field flatness</span><span class="value" id="dec-flat">—</span></div>
+              <div class="stat-row"><span class="label">Chromatic correction</span><span class="value" id="dec-chrom">—</span></div>
+              <div class="stat-row"><span class="label">UV / IR transmission</span><span class="value" id="dec-uvir">—</span></div>
+              <div class="stat-row"><span class="label">Magnification</span><span class="value" id="dec-mag">—</span></div>
+              <div class="stat-row"><span class="label">NA</span><span class="value" id="dec-na">—</span></div>
+              <div class="stat-row"><span class="label">Immersion</span><span class="value" id="dec-imm">—</span></div>
+              <div class="stat-row"><span class="label">Tube-lens type</span><span class="value" id="dec-tube">—</span></div>
+              <div class="stat-row"><span class="label">Coverslip thickness</span><span class="value" id="dec-cs">—</span></div>
+              <div class="stat-row"><span class="label">Working distance</span><span class="value" id="dec-wd">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Token map of the objective marking</div>
+              <canvas id="canvas-decoder" width="600" height="200"></canvas>
+            </div>
+            <div class="val-verdict" id="dec-verdict" role="status" aria-live="polite">
+              Type or paste an objective marking to decode it.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 3 — Aberrations                                          -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-aberration" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>3. Immersion, coverslips &amp; correction collars</h2>
+          <p>
+            Light bends every time it crosses a refractive-index boundary.
+            Manufacturers pre-compute the aberration for a specific
+            <em>design</em> set (typically 170 μm of #1.5 coverslip + a
+            specified immersion medium) and grind the lens elements to
+            cancel it. The moment you stray from those conditions —
+            different coverslip, mismatched immersion, deep inside an
+            aqueous sample with an oil lens — that cancellation breaks and
+            the image gets spherically aberrated.
+          </p>
+
+          <h3>The classic mismatches</h3>
+          <ul>
+            <li><strong>#1 coverslip with a #1.5 oil objective</strong> — under-correction; axial blur skewed deeper-than-expected.</li>
+            <li><strong>Oil objective into an aqueous sample &gt; 20 μm deep</strong> — mismatch grows linearly with depth; deep into a spheroid is unusable.</li>
+            <li><strong>Water objective with too much glycerol mounting medium</strong> — water lens designed for n=1.33; glycerol is n=1.47.</li>
+          </ul>
+
+          <h3>Correction collars</h3>
+          <p>
+            High-NA water and air objectives often have a rotating ring on
+            the barrel — a <em>correction collar</em> — that adjusts internal
+            spacing to compensate for coverslip-thickness deviation. To use
+            it: focus on the deepest plane of your sample, rotate the collar
+            slightly, refocus, look at the PSF. Iterate until the PSF is
+            symmetric in Z.
+          </p>
+
+          <div class="worked-example">
+            <strong>The correction-collar trap.</strong> Students will spend
+            twenty minutes twiddling a collar on an objective that doesn't
+            have one. The 25×/1.1 water on the AX-R does. The 60×/1.4 oil
+            does not (oil-into-coverslip-into-aqueous-sample mismatch can\'t
+            be corrected by a collar — only by switching to a water lens).
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>The simulation below shows the PSF (point-spread function) of a single bead, cross-section in XZ.</li>
+            <li>Start with #1.5 coverslip + 0% collar offset — the PSF is symmetric (the design condition).</li>
+            <li>Switch coverslip to #1 (150 μm). The PSF skews — that's spherical aberration.</li>
+            <li>Try to rescue with the correction collar slider. You can recover a lot — but only up to a point.</li>
+            <li>Toggle the "oil-into-aqueous" scenario. No collar setting can fix this — the only fix is a water-immersion lens.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Scenario:</span>
+          <button class="scen-btn ab-btn active" data-ab="design">Design conditions (60× oil, #1.5)</button>
+          <button class="scen-btn ab-btn" data-ab="cs1">Wrong coverslip (#1 instead of #1.5)</button>
+          <button class="scen-btn ab-btn" data-ab="deep">Oil lens deep into aqueous sample</button>
+          <button class="scen-btn ab-btn" data-ab="glycerol">Water lens into glycerol mount</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="ab-collar">Correction collar offset</label>
+              <input type="range" id="ab-collar" min="-50" max="50" step="1" value="0">
+              <div class="ctrl-readout"><span class="v" id="ab-collar-out">0</span> arbitrary units</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="ab-depth">Sample depth (μm)</label>
+              <input type="range" id="ab-depth" min="0" max="100" step="1" value="0">
+              <div class="ctrl-readout"><span class="v" id="ab-depth-out">0</span> μm into sample</div>
+            </div>
+            <div class="stats">
+              <h4>Current aberration</h4>
+              <div class="stat-row"><span class="label">Scenario</span><span class="value" id="ab-scenario">—</span></div>
+              <div class="stat-row"><span class="label">Spherical aberration</span><span class="value" id="ab-spherical">—</span></div>
+              <div class="stat-row"><span class="label">Collar recoverable</span><span class="value" id="ab-recover">—</span></div>
+              <div class="stat-row"><span class="label">PSF symmetry</span><span class="value" id="ab-sym">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">XZ cross-section of a sub-resolution bead</div>
+              <canvas id="canvas-psf" width="600" height="260"></canvas>
+            </div>
+            <div class="val-verdict" id="ab-verdict" role="status" aria-live="polite">
+              Toggle scenarios + adjust the collar to see what aberration looks like.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 4 — FOV & Pixel Sampling                                -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-fov" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>4. Field of view &amp; pixel sampling</h2>
+          <p>
+            Magnification at the camera is set by
+            <code>M = M_obj × (f_tube / f_design)</code> — a 60× objective
+            designed for a 200 mm tube lens (Nikon) becomes <strong>60×</strong>
+            on a Nikon scope but ~54× on an Olympus (180 mm) and ~49× on a
+            Zeiss (165 mm). Pixel size at the sample then determines whether
+            you meet Nyquist.
+          </p>
+
+          <h3>Pixel size at the sample</h3>
+          <div class="equation-box"><span class="lhs">px_sample</span> = px_sensor / M_system</div>
+          <p>
+            For Nyquist sampling of a fluorescent point object you want
+            <code>px_sample ≤ λ_em / (4·NA)</code>. If you're scoping for
+            deconvolution or strict quantitative work, tighten to
+            <code>λ_em / (4.6·NA)</code>.
+          </p>
+
+          <h3>FOV at the camera</h3>
+          <p>
+            FOV at the sample is <code>sensor_diagonal / M_system</code>.
+            Bigger sensors give bigger FOVs but only up to the objective's
+            field number — beyond that, the corners go dark or aberrated.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Pick an objective + a tube lens. Note the actual system magnification.</li>
+            <li>Pick a camera. The pixel size at the sample updates.</li>
+            <li>Pick an emission wavelength. The Nyquist target updates.</li>
+            <li>The verdict reports under-, at-, or over-Nyquist. Adjust binning if you need to push the pixel size in either direction.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="fov-obj">Objective</label>
+              <select id="fov-obj">
+                <option value="20_075" data-design="200">20× / 0.75 (Nikon, 200 mm design)</option>
+                <option value="25_110" selected data-design="200">25× / 1.1 (Nikon, 200 mm design)</option>
+                <option value="40_130" data-design="200">40× / 1.3 (Nikon, 200 mm design)</option>
+                <option value="60_140" data-design="200">60× / 1.4 (Nikon, 200 mm design)</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="fov-tube">Scope tube-lens focal length</label>
+              <select id="fov-tube">
+                <option value="200" selected>200 mm (Nikon)</option>
+                <option value="180">180 mm (Olympus)</option>
+                <option value="165">165 mm (Zeiss)</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="fov-camera">Camera</label>
+              <select id="fov-camera">
+                <option value="fusion_bt"  selected>Hamamatsu Fusion BT (2304×2304 · 6.5 μm)</option>
+                <option value="prime_95b">Photometrics Prime 95B (1200×1200 · 11 μm)</option>
+                <option value="zyla_42">Andor Zyla 4.2 (2048×2048 · 6.5 μm)</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="fov-lambda">Emission λ</label>
+              <select id="fov-lambda">
+                <option value="450">DAPI 450 nm</option>
+                <option value="510" selected>GFP 510 nm</option>
+                <option value="595">mCherry 595 nm</option>
+                <option value="670">AF647 670 nm</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="fov-bin">Binning</label>
+              <select id="fov-bin">
+                <option value="1" selected>1×1</option>
+                <option value="2">2×2</option>
+                <option value="4">4×4</option>
+              </select>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">System magnification</span><span class="value" id="fov-sysmag">—</span></div>
+              <div class="stat-row"><span class="label">Pixel size at sample</span><span class="value" id="fov-pxsample">— μm</span></div>
+              <div class="stat-row"><span class="label">Nyquist target</span><span class="value" id="fov-nyquist">— μm</span></div>
+              <div class="stat-row"><span class="label">FOV (μm × μm)</span><span class="value" id="fov-fov">—</span></div>
+              <div class="stat-row"><span class="label">Verdict</span><span class="value" id="fov-status">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">FOV at sample (μm) with one sub-resolution bead drawn to scale</div>
+              <canvas id="canvas-fov" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="fov-verdict" role="status" aria-live="polite">
+              Pick objective + tube + camera + wavelength + binning to evaluate Nyquist.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 5 — Objective purchase capstone                         -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-purchase" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>5. Capstone — pick an objective</h2>
+          <p>
+            <strong>Scenario:</strong> A new project needs to image actin
+            filaments (Phalloidin-AF488, λ_em ≈ 510 nm) inside fixed tumor
+            spheroids. Targets are ~100 nm wide. You need to reach about
+            50 μm into a 100 μm spheroid mounted in aqueous medium. State
+            your priorities below and the page will narrow the lab's
+            candidate catalog to a short list, scored against your needs.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>Build the spec</h3>
+          <ol>
+            <li>Pick your minimum required NA — sets resolution.</li>
+            <li>Pick your minimum required working distance — sets reachable depth.</li>
+            <li>Pick the immersion medium you're willing to use (oil is highest NA but creates aberration deep into aqueous samples).</li>
+            <li>Pick budget tier — Apo costs ~3× Fluor.</li>
+            <li>The candidate table fills in. Pick a winning row and read the trade-off summary.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="bu-na">Minimum NA</label>
+              <input type="range" id="bu-na" min="0.5" max="1.45" step="0.05" value="1.0">
+              <div class="ctrl-readout"><span class="v" id="bu-na-out">1.00</span></div>
+            </div>
+            <div class="ctrl-group">
+              <label for="bu-wd">Minimum working distance (mm)</label>
+              <input type="range" id="bu-wd" min="0.1" max="3.0" step="0.05" value="0.5">
+              <div class="ctrl-readout"><span class="v" id="bu-wd-out">0.50</span> mm</div>
+            </div>
+            <div class="ctrl-group">
+              <label>Acceptable immersion media</label>
+              <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="bu-imm-air"> Air</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="bu-imm-water" checked> Water</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="bu-imm-oil"> Oil</label>
+              </div>
+            </div>
+            <div class="ctrl-group">
+              <label for="bu-budget">Chromatic correction</label>
+              <select id="bu-budget">
+                <option value="achr">Achromat ($ cheapest)</option>
+                <option value="fluor" selected>Fluor ($$)</option>
+                <option value="apo">Apo ($$$ — best for fluorescence)</option>
+              </select>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="val-verdict" id="bu-verdict" role="status" aria-live="polite">
+              Set your spec to see which lab-catalog objectives match.
+            </div>
+            <div class="signoff-sheet" id="bu-signoff" style="display:none;">
+              <h3>Objective shortlist</h3>
+              <div id="bu-table"></div>
+              <div class="signoff-row"><span class="label">Date</span><span class="value" id="bu-date">—</span></div>
+              <div class="signoff-row"><span class="label">Requester</span><span class="value">________________________</span></div>
+              <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">Print this page and attach it to your purchase request.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight">
+          <strong>You finished the optics arc.</strong> Microscope basics
+          (V3.164) → Epi-fluorescence (V3.165) → Confocal AX-R (V3.166) →
+          Image train (this one). Next: image analysis (V3.168–V3.170) and
+          the lab-software trainings (V3.171+).
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-image-train.js"></script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 3: Honey, Cheese, Metal, Diamond — Solid Mechanics Foundations</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Solid Mechanics Foundations · Lesson 3 Worksheet</div>
+  <h1>Honey, Cheese, Metal, Diamond — Force vs. Displacement</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="03-honey-cheese-metal-diamond.html"><b>03-honey-cheese-metal-diamond.html</b></a>.
+  <b>Predict first</b>, then experiment, record, and explain. Today's big question: for each
+  material, does the force care how <b>far</b> you push, how <b>fast</b> you push — or both?
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>Poke four materials</h2>
+  <p class="goal">Goal: sort honey, cheese, steel, and diamond into springs (care about distance), dashpots (care about speed), or both.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p>Circle your guesses now, test them below: &nbsp;honey cares about
+  <b>distance / speed / both</b>; &nbsp;steel cares about <b>distance / speed / both</b>;
+  &nbsp;cheese cares about <b>distance / speed / both</b>.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Pick <b>Honey</b>. Set push depth 5 mm, speed 5 mm/s. Record the F estimate. Now double
+    ONLY the depth (10 mm) — did F change? Reset depth to 5 and double ONLY the speed (10 mm/s)
+    — did F change?</li>
+    <li>Repeat the same three readings for <b>Steel</b>.</li>
+    <li>Repeat for <b>Cheese</b>.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>F at (5 mm, 5 mm/s)</th><th>F when depth ×2</th><th>F when speed ×2</th><th>Verdict: spring / dashpot / both</th></tr>
+    <tr><td class="lab">Honey</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Steel</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Cheese</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Check the stats panel: which material "springs back", which "never" recovers, and which is
+  in between? Note it in your verdict column.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>One of these materials cannot be described without using the word <b>time</b> (or speed).
+  Which one, and why?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>The push-and-hold test</h2>
+  <p class="goal">Goal: use the material's "memory time" τ (tau) to explain why cheese acts solid for a quick poke but flows if you wait.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p>Push into cheese and then HOLD still. The force on your finger will…
+  &nbsp;☐ stay the same &nbsp; ☐ drop instantly to zero &nbsp; ☐ fade away gradually.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Pure spring</b>. Read the "force remembered after hold" ratio from the stats.</li>
+    <li>Click <b>Pure dashpot (honey)</b>. Read the same ratio.</li>
+    <li>Click <b>Cheese (both)</b> with memory τ = 5 s. Run a FAST push (ramp time 0.5 s) and
+    record the remembered ratio; then a SLOW push (ramp time 10 s) and record it.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>Spring</th><th>Dashpot</th><th>Cheese, fast push (0.5 s)</th><th>Cheese, slow push (10 s)</th></tr>
+    <tr><td class="lab">Force remembered after hold</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Cheese acted most like a <b>spring</b> when the push was
+  &nbsp;☐ much faster than τ &nbsp; ☐ much slower than τ.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>In your own words, what does the memory time τ tell you about a material?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Two parts, two wirings</h2>
+  <p class="goal">Goal: verify τ = c ÷ k, and tell the two classic circuits apart: Maxwell (relaxes) vs. Kelvin–Voigt (creeps).</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Maxwell (relaxes)</b>. For each (k, c) pair in the table, set the sliders,
+    compute c ÷ k by hand, and compare with the sim's τ stat.</li>
+    <li>Check the response curve each time: confirm the dashed marker sits at t = τ and the
+    curve has fallen to about 0.37 of its start there.</li>
+    <li>Click <b>Kelvin–Voigt (creeps)</b>. With k = 500: does the FINAL sink depth change when
+    you change c? Does the TIME to get there change?</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>k (N/m)</th><th>c (N·s/m)</th><th>τ = c ÷ k (you)</th><th>τ (sim)</th><th>value at t = τ</th></tr>
+    <tr><td>50</td><td>10000</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>500</td><td>2500</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>2000</td><td>1000</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Kelvin–Voigt: changing c changed the final sink &nbsp;☐ yes ☐ no; it changed the speed of
+  sinking &nbsp;☐ yes ☐ no.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>A memory-foam mattress slowly accepts your shape, then slowly recovers. Which circuit is it,
+  and what do the spring and the dashpot each do for the sleeper?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Level up: real units, real cheese</h2>
+  <p class="goal">Goal: run a stress-relaxation test like a materials lab would, and fix the Maxwell model's embarrassing secret.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p>Squeeze a Maxwell "solid" by 10% and hold it forever. The stress will end at…
+  &nbsp;☐ its starting value &nbsp; ☐ about a third of it &nbsp; ☐ zero.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Cheese</b> (E = 100 kPa, η = 1 MPa·s, E∞ = 0, ε₀ = 10%). Record τ, the starting
+    stress σ₀, the stress at t = τ, and at t = 3τ.</li>
+    <li>Divide: (σ at τ) ÷ σ₀ = <span class="blank"></span>. <span class="hint">Should be close
+    to 0.37 — the number e⁻¹ that shows up everywhere in nature.</span></li>
+    <li>Now raise the <b>parallel spring E∞</b> to 50 kPa. Record the plateau stress the curve
+    levels out at, and check it equals E∞ × ε₀ by hand.</li>
+    <li>Read the two verdicts (E∞ = 0 vs. E∞ = 50) carefully.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>τ (s)</th><th>σ₀ (kPa)</th><th>σ at τ (kPa)</th><th>σ at 3τ (kPa)</th><th>plateau with E∞ = 50 (kPa)</th></tr>
+    <tr><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+
+  <h3 class="part explain">Explain</h3>
+  <p>Why does the lesson say a bare Maxwell "solid" is <em>secretly a fluid</em>, and what does
+  adding the parallel spring E∞ fix?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — put it together</h2>
+  <p>1. Classify each object with a model — write <b>spring</b>, <b>dashpot</b>,
+  <b>Maxwell</b>, or <b>Kelvin–Voigt</b>:</p>
+  <table class="data">
+    <tr><td class="lab">glass marble</td><td class="fill"></td><td class="lab">mayonnaise</td><td class="fill"></td></tr>
+    <tr><td class="lab">memory-foam pillow</td><td class="fill"></td><td class="lab">chewing gum (pulled slowly)</td><td class="fill"></td></tr>
+  </table>
+  <p>2. Pick ONE of your answers above and defend it in two sentences using τ:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>3. Next lesson preview: your Tab 1 force numbers spanned from 10⁻⁴ N (honey) to millions of
+  newtons (steel) — but the pusher and the block size were the same. What OTHER two things about
+  an object (not its material) would change the force you measure? <span class="hint">Think back
+  to Lesson 1, Tab 3.</span></p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Worksheet 3 of 5</footer>
+</body>
+</html>

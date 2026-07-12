@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Selection — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+        </div>
+        <h1 class="training-module-title">Selecting a Camera for the Inverted Microscope</h1>
+        <p class="training-module-subtitle">
+          The sensor side of the image train — how to read a camera
+          datasheet, match specs to your imaging modality, and pick a
+          camera at a sensible price for the Nikon Ti-E / Ti2-U.
+        </p>
+      </header>
+
+      <nav class="tab-bar" role="tablist">
+        <button class="tab-btn active" data-tab="tab-sensors"  role="tab" aria-selected="true">1. Sensor Types</button>
+        <button class="tab-btn"        data-tab="tab-specs"    role="tab">2. Specs Deciphered</button>
+        <button class="tab-btn"        data-tab="tab-modality" role="tab">3. Modality Matcher</button>
+        <button class="tab-btn"        data-tab="tab-snr"      role="tab">4. SNR Calculator</button>
+        <button class="tab-btn"        data-tab="tab-pick"     role="tab">5. Pick a Camera</button>
+      </nav>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 1 — Sensor architectures                                 -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-sensors" class="tab-content active" role="tabpanel">
+        <div class="background-section">
+          <h2>1. The five sensor families you'll meet</h2>
+          <p>
+            Scientific cameras have consolidated. In 2026 a buyer for an
+            inverted microscope is realistically choosing between five
+            sensor families, separated by an order of magnitude in price
+            and two orders of magnitude in low-light performance.
+          </p>
+
+          <h3>The lineup</h3>
+          <ul>
+            <li><strong>Industrial CMOS</strong> — color or mono, ~$1-3k.
+              Fine for brightfield / phase / DIC where signal is plentiful
+              and SNR isn't the bottleneck. Don't use for fluorescence.</li>
+            <li><strong>sCMOS (front-illuminated)</strong> — the workhorse
+              of fluorescence imaging since 2012. ~70-82% peak QE, ~1.5 e-
+              read noise, fast, $10-20k. Examples: Hamamatsu Flash 4.0,
+              Andor Zyla, Photometrics Iris.</li>
+            <li><strong>sCMOS (back-illuminated, BSI)</strong> — same
+              architecture flipped over so photons hit the silicon
+              directly. ~95% peak QE, similar read noise, $20-30k.
+              Examples: Photometrics Prime BSI Express / Kinetix, Andor
+              Sona, Hamamatsu Fusion BT.</li>
+            <li><strong>qCMOS</strong> — "quantitative" CMOS, the newest
+              tier. Photon-number-resolving (you can count single photons),
+              ~85% QE BSI, sub-0.3 e- read noise, $25-30k. Example:
+              Hamamatsu ORCA-Quest 2.</li>
+            <li><strong>EMCCD</strong> — electron-multiplying CCD, the
+              legacy ultra-low-light champion. ~95% QE but slow,
+              small-sensor, and adds excess noise factor √2. Mostly
+              displaced by qCMOS; still used for some single-molecule.
+              Example: Andor iXon Ultra 888.</li>
+          </ul>
+
+          <div class="worked-example">
+            <strong>The "Iris 15 alternative" question.</strong> Someone
+            asks "what's comparable to a Photometrics Iris 15 at $15k?"
+            That depends on what you actually need. The Iris 15 is a
+            <em>front-illuminated</em> sCMOS optimized for large FOV at
+            moderate (73%) QE. Three honest alternatives, each making a
+            different trade:
+            <ul style="margin-top:6px;">
+              <li><strong>Same FOV, better sensitivity</strong> —
+                <em>Tucsen Libra 25 (~$14k)</em>: 25 mm BSI sensor at 92%
+                QE + 1 e- read noise. Trade: 7.52 µm pixels are coarser,
+                so you'll under-sample below ~40× mag.</li>
+              <li><strong>Same FOV class, lowest price</strong> —
+                <em>Tucsen Dhyana 4040 V2 (~$11k)</em>: 32 mm
+                front-illum, 16 MP. Best FOV-per-dollar; QE matches Iris.</li>
+              <li><strong>Smaller FOV, premium sensitivity</strong> —
+                <em>Hamamatsu Fusion BT or Prime BSI Express ($22-25k)</em>:
+                ~18 mm BSI, 95% QE, sub-1 e- read noise. Beats Iris on
+                every spec except sensor size.</li>
+            </ul>
+            The Tab 5 capstone walks you through this kind of pick
+            against the lab's real catalog (28 cameras, $700 → $35k).
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Click each sensor family below. The right panel updates
+              with peak QE, typical read noise, frame-rate range, price
+              band, and what it's best used for.</li>
+            <li>Compare <strong>sCMOS front-illuminated</strong> and
+              <strong>sCMOS BSI</strong>. The architecture diagram changes
+              — BSI flips the wiring layer behind the photosensitive
+              silicon. That ~25% QE jump is the entire reason BSI exists.</li>
+            <li>Click <strong>EMCCD</strong>. Note the excess-noise-factor
+              warning. EMCCD's headline 95% QE is real, but the EM gain
+              amplifies the noise too — the effective QE is closer to 50%.
+              This is why qCMOS displaced EMCCD for most labs.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Sensor family:</span>
+          <button class="scen-btn fam-btn active" data-fam="indcmos">Industrial CMOS</button>
+          <button class="scen-btn fam-btn" data-fam="scmos">sCMOS (front)</button>
+          <button class="scen-btn fam-btn" data-fam="scmos-bsi">sCMOS BSI</button>
+          <button class="scen-btn fam-btn" data-fam="qcmos">qCMOS</button>
+          <button class="scen-btn fam-btn" data-fam="emccd">EMCCD</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="stats">
+              <h4>Selected family</h4>
+              <div class="stat-row"><span class="label">Type</span><span class="value" id="fam-name">—</span></div>
+              <div class="stat-row"><span class="label">Peak QE</span><span class="value" id="fam-qe">—</span></div>
+              <div class="stat-row"><span class="label">Read noise</span><span class="value" id="fam-readnoise">—</span></div>
+              <div class="stat-row"><span class="label">Typ. fps</span><span class="value" id="fam-fps">—</span></div>
+              <div class="stat-row"><span class="label">Price band</span><span class="value" id="fam-price">—</span></div>
+              <div class="stat-row"><span class="label">Best for</span><span class="value" id="fam-bestfor">—</span></div>
+              <div class="stat-row"><span class="label">Avoid for</span><span class="value" id="fam-avoid">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Pixel architecture (cross-section through one pixel)</div>
+              <canvas id="canvas-sensor" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="fam-verdict" role="status" aria-live="polite">
+              Pick a sensor family to see its architecture and tradeoffs.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 2 — Specs deciphered                                     -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-specs" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>2. The six specs that actually decide the camera</h2>
+          <p>
+            A camera datasheet lists 20+ numbers. Six of them carry the
+            decision; the rest are derivable or marketing. Read these six
+            and you can tell what a camera will do without trying it.
+          </p>
+
+          <h3>The six</h3>
+          <ol>
+            <li><strong>Quantum efficiency (QE)</strong> — fraction of
+              incident photons that produce an electron. Wavelength-
+              dependent — the "peak QE" is the spec headline, but check
+              the QE at your emission wavelength. Front-illum sCMOS
+              peaks ~70-82% green and rolls off in the red/far-red; BSI
+              holds ~90%+ across the visible. <strong>Matters most when
+              photons are scarce.</strong></li>
+            <li><strong>Read noise</strong> — RMS electrons added per
+              pixel per readout, independent of signal. sCMOS 1.0-1.6 e-,
+              qCMOS &lt;0.3 e-, EMCCD &lt;1 e- (with EM gain ON). Quoted
+              as either median or rms; rms is more conservative and what
+              you want. <strong>Matters most at short exposures and low
+              signal</strong> — once shot noise dominates, read noise is
+              irrelevant.</li>
+            <li><strong>Pixel size</strong> — physical pixel pitch (µm).
+              4.25 µm (Iris / Quest), 6.5 µm (Flash / Fusion / Zyla),
+              11 µm (Prime 95B / Sona-11). Drives Nyquist sampling at
+              the sample together with system magnification — bigger
+              pixels are higher-SNR but coarser sampling; smaller pixels
+              are finer sampling but more shot-noise per pixel.</li>
+            <li><strong>Sensor size + pixel count</strong> — sensor
+              diagonal (mm) and megapixels. Drives field-of-view at the
+              sample (FOV = sensor_diagonal ÷ system_mag). 13 mm
+              ("4 MP, 6.5 µm"), 18 mm ("5-9 MP, 6.5 µm"), 25 mm (Iris
+              15, 15 MP, 4.25 µm). <strong>Beware the field number</strong>
+              of your objective — past its field number the corners
+              vignette regardless of sensor size.</li>
+            <li><strong>Dynamic range / bit depth</strong> — full-well
+              capacity (electrons) ÷ read noise gives the dynamic-range
+              ratio, expressed as a ratio or in dB. Bit depth is what
+              the ADC encodes: 12, 14, or 16 bits. Higher matters when
+              you have both very dim and very bright structures in the
+              same frame (e.g. a bright cytoplasmic stain with dim
+              membrane puncta).</li>
+            <li><strong>Frame rate</strong> — fps at full frame and at
+              ROIs. Full-frame: sCMOS 30-100 fps, qCMOS 5-25 fps, EMCCD
+              5-30 fps. Sub-array readout (ROI of 128×128) can hit
+              kHz on sCMOS. Matters for live tracking, calcium imaging,
+              fast particle motion.</li>
+          </ol>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Pick a spec from the bar below. The right panel explains
+              what it is, the typical range, and the specific failure
+              mode you'll see when it's wrong for your sample.</li>
+            <li>For each spec, note the "matters when…" line. Specs
+              compound — a camera with both high QE and low read noise
+              wins twice over for dim samples.</li>
+            <li>Compare <strong>pixel size</strong> 4.25 µm vs 11 µm.
+              Same sensor diagonal, the 4.25 µm camera has 6.7× more
+              pixels — denser sampling, smaller pixels, ~7× less light
+              per pixel.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Spec:</span>
+          <button class="scen-btn spec-btn active" data-spec="qe">Quantum efficiency</button>
+          <button class="scen-btn spec-btn" data-spec="readnoise">Read noise</button>
+          <button class="scen-btn spec-btn" data-spec="pxsize">Pixel size</button>
+          <button class="scen-btn spec-btn" data-spec="sensor">Sensor size</button>
+          <button class="scen-btn spec-btn" data-spec="dynrange">Dynamic range</button>
+          <button class="scen-btn spec-btn" data-spec="fps">Frame rate</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="stats">
+              <h4>About this spec</h4>
+              <div class="stat-row"><span class="label">Spec</span><span class="value" id="spec-name">—</span></div>
+              <div class="stat-row"><span class="label">Units</span><span class="value" id="spec-units">—</span></div>
+              <div class="stat-row"><span class="label">Typical range</span><span class="value" id="spec-range">—</span></div>
+              <div class="stat-row"><span class="label">Better when</span><span class="value" id="spec-better">—</span></div>
+              <div class="stat-row"><span class="label">Trade-off</span><span class="value" id="spec-tradeoff">—</span></div>
+              <div class="stat-row"><span class="label">Matters most</span><span class="value" id="spec-matters">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Visual: how this spec shows up in an image</div>
+              <canvas id="canvas-spec" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="spec-verdict" role="status" aria-live="polite">
+              Pick a spec to read the field guide.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 3 — Modality matcher                                     -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-modality" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>3. What matters depends on what you image</h2>
+          <p>
+            The six specs from Tab 2 don't all matter equally — your
+            imaging modality reweights them. Brightfield doesn't care
+            about QE because the lamp can deliver as many photons as you
+            want. Single-molecule cares about QE more than anything else
+            because you're literally counting one or two photons per
+            pixel.
+          </p>
+
+          <h3>The hierarchy</h3>
+          <p>
+            For each modality below, the matcher computes a per-spec
+            priority on a 0-3 scale, then recommends a sensor family +
+            ballpark price band. A few canonical heuristics:
+          </p>
+          <ul>
+            <li><strong>Photons plentiful</strong> (brightfield, phase, DIC,
+              well-stained epi) → spend on FOV and dynamic range, not QE
+              or read noise.</li>
+            <li><strong>Photons scarce</strong> (dim fluorescence, TIRF,
+              single-molecule, intra-spheroid live imaging) → spend on
+              QE + read noise, accept smaller FOV.</li>
+            <li><strong>Speed-bound</strong> (calcium imaging, fast
+              tracking) → spend on frame rate. Many ROIs read faster
+              than fewer big ROIs.</li>
+            <li><strong>Quant-bound</strong> (TFM bead localization,
+              ratiometric imaging) → spend on linearity + low read noise
+              + cooled. qCMOS is often worth the premium.</li>
+          </ul>
+
+          <div class="worked-example">
+            <strong>The Ti-E + 100µm spheroid + GFP scenario.</strong>
+            Epi-fluorescence into the middle of a spheroid: signal is
+            dim because you're past the focal plane, photobleaching
+            limits how long you can expose, and the sample is moving
+            (live cells). Priorities: QE high, read noise low, frame
+            rate moderate, FOV medium. A Hamamatsu Fusion BT or
+            Photometrics Prime BSI Express ($22-25k) is the canonical
+            pick. The Iris 15 is fine for the same field on a fixed
+            slide but won't keep up on the live spheroid.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Click each modality below. The priority bars on the right
+              reshuffle and the recommended sensor family updates.</li>
+            <li>Compare <strong>Brightfield</strong> and <strong>TIRF</strong>.
+              The QE and read-noise priorities are flipped — brightfield
+              ignores them, TIRF lives or dies on them.</li>
+            <li>Click <strong>TFM bead tracking</strong>. Note that both
+              QE <em>and</em> FOV are high priority — beads are dim, and
+              you want as many cells per frame as possible for statistics.
+              That combination is what the Photometrics Kinetix was
+              designed for.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Modality:</span>
+          <button class="scen-btn mod-btn active" data-mod="brightfield">Brightfield</button>
+          <button class="scen-btn mod-btn" data-mod="phase">Phase / DIC</button>
+          <button class="scen-btn mod-btn" data-mod="epi-bright">Epi (well-stained)</button>
+          <button class="scen-btn mod-btn" data-mod="epi-dim">Epi (dim / fixed)</button>
+          <button class="scen-btn mod-btn" data-mod="tirf">TIRF</button>
+          <button class="scen-btn mod-btn" data-mod="spinning">Spinning-disk</button>
+          <button class="scen-btn mod-btn" data-mod="livecell">Live-cell time-lapse</button>
+          <button class="scen-btn mod-btn" data-mod="calcium">Calcium / fast tracking</button>
+          <button class="scen-btn mod-btn" data-mod="smlm">Single-molecule</button>
+          <button class="scen-btn mod-btn" data-mod="tfm">TFM bead tracking</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="stats">
+              <h4>Spec priorities (0-3)</h4>
+              <div class="stat-row"><span class="label">Quantum efficiency</span><span class="value" id="mod-pri-qe">—</span></div>
+              <div class="stat-row"><span class="label">Read noise</span><span class="value" id="mod-pri-rn">—</span></div>
+              <div class="stat-row"><span class="label">Pixel size</span><span class="value" id="mod-pri-px">—</span></div>
+              <div class="stat-row"><span class="label">Sensor / FOV</span><span class="value" id="mod-pri-fov">—</span></div>
+              <div class="stat-row"><span class="label">Dynamic range</span><span class="value" id="mod-pri-dr">—</span></div>
+              <div class="stat-row"><span class="label">Frame rate</span><span class="value" id="mod-pri-fps">—</span></div>
+            </div>
+            <div class="stats">
+              <h4>Recommendation</h4>
+              <div class="stat-row"><span class="label">Sensor family</span><span class="value" id="mod-rec-fam">—</span></div>
+              <div class="stat-row"><span class="label">Budget band</span><span class="value" id="mod-rec-budget">—</span></div>
+              <div class="stat-row"><span class="label">Canonical pick</span><span class="value" id="mod-rec-pick">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap is-light">
+              <div class="canvas-title">Spec priority bars</div>
+              <canvas id="canvas-modality" width="600" height="240"></canvas>
+            </div>
+            <div class="val-verdict" id="mod-verdict" role="status" aria-live="polite">
+              Pick a modality to see the priority weighting + recommendation.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 4 — SNR calculator                                       -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-snr" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>4. SNR — one equation that ties the specs together</h2>
+          <p>
+            The signal-to-noise ratio of a single pixel in a fluorescence
+            image is the lens through which every camera spec is measured:
+          </p>
+          <div class="equation-box">
+            <span class="lhs">SNR</span> = (S · QE) / √(S · QE + B · QE + N<sub>read</sub>² + D · t)
+          </div>
+          <p>
+            where <strong>S</strong> = signal photons hitting the pixel,
+            <strong>B</strong> = background photons, <strong>QE</strong>
+            = quantum efficiency, <strong>N<sub>read</sub></strong> = read
+            noise (e- rms), <strong>D</strong> = dark current (e-/s),
+            <strong>t</strong> = exposure (s).
+          </p>
+
+          <h3>The four noise regimes</h3>
+          <ul>
+            <li><strong>Shot-noise limited</strong> (the goal) — the
+              √(S·QE) signal-shot-noise term dominates. Raising QE raises
+              the numerator and the denominator together, so SNR ∝ √QE.
+              This is the only regime where high-QE BSI cameras pay off
+              proportionally.</li>
+            <li><strong>Read-noise limited</strong> — N<sub>read</sub>²
+              term dominates. Happens at short exposures + low signal.
+              Drop in a low-read-noise sCMOS or qCMOS for a 5-10×
+              improvement.</li>
+            <li><strong>Background-shot-noise limited</strong> — B·QE
+              term dominates. Autofluorescence or scattered laser. Fix
+              with better filters / TIRF / confocal pinhole, not a
+              better camera.</li>
+            <li><strong>Dark-current limited</strong> — D·t term
+              dominates. Long exposures + warm sensor. Fix with cooling
+              or shorter exposures.</li>
+          </ul>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Start with the defaults — a moderately dim fluorescence
+              pixel. Note which noise term dominates.</li>
+            <li>Drop <strong>signal</strong> to 5 photons. Read noise now
+              dominates; halving N<sub>read</sub> doubles SNR.</li>
+            <li>Push <strong>exposure</strong> to 60 s. Dark current
+              dominates; turn on cooling (lower D) for a 5-10× win.</li>
+            <li>Set signal = 500, background = 200. Background shot noise
+              dominates; switching from epi to TIRF (which kills B) is the
+              real fix.</li>
+            <li>Watch the noise-regime pill on the verdict — it tells you
+              what to optimize for your real sample.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="snr-signal">Signal (photons / pixel / exposure)</label>
+              <input type="range" id="snr-signal" min="1" max="2000" step="1" value="80">
+              <div class="ctrl-readout"><span class="v" id="snr-signal-out">80</span> photons</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="snr-bg">Background (photons / pixel / exposure)</label>
+              <input type="range" id="snr-bg" min="0" max="500" step="1" value="20">
+              <div class="ctrl-readout"><span class="v" id="snr-bg-out">20</span> photons</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="snr-qe">Quantum efficiency</label>
+              <input type="range" id="snr-qe" min="20" max="95" step="1" value="75">
+              <div class="ctrl-readout"><span class="v" id="snr-qe-out">75</span>%</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="snr-rn">Read noise (e- rms)</label>
+              <input type="range" id="snr-rn" min="0.2" max="10" step="0.1" value="1.5">
+              <div class="ctrl-readout"><span class="v" id="snr-rn-out">1.5</span> e-</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="snr-dc">Dark current (e- / pixel / s)</label>
+              <input type="range" id="snr-dc" min="0.01" max="2" step="0.01" value="0.2">
+              <div class="ctrl-readout"><span class="v" id="snr-dc-out">0.20</span> e-/s</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="snr-t">Exposure (s)</label>
+              <input type="range" id="snr-t" min="0.01" max="60" step="0.01" value="0.5">
+              <div class="ctrl-readout"><span class="v" id="snr-t-out">0.50</span> s</div>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">Signal e-</span><span class="value" id="snr-sig-e">—</span></div>
+              <div class="stat-row"><span class="label">Background e-</span><span class="value" id="snr-bg-e">—</span></div>
+              <div class="stat-row"><span class="label">Dark e-</span><span class="value" id="snr-dark-e">—</span></div>
+              <div class="stat-row"><span class="label">Total noise (e-)</span><span class="value" id="snr-total-noise">—</span></div>
+              <div class="stat-row"><span class="label">SNR</span><span class="value" id="snr-value">—</span></div>
+              <div class="stat-row"><span class="label">Dominant noise</span><span class="value" id="snr-regime">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Simulated pixel grid — same fluorescent object at current spec</div>
+              <canvas id="canvas-snr" width="600" height="280"></canvas>
+            </div>
+            <div class="val-verdict" id="snr-verdict" role="status" aria-live="polite">
+              Adjust the sliders to explore noise regimes.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- TAB 5 — Pick a camera (capstone)                             -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section id="tab-pick" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>5. Capstone — pick a camera for your project</h2>
+          <p>
+            State your budget + modality + priorities. The page scores
+            every camera in the lab catalog (28 entries, $700 → $35k —
+            Thorlabs Zelux / Quantalux / Kiralux, FLIR Blackfly,
+            Tucsen Libra 25 / FL-20BW / FL-26BW / Aries 6504 Pro / Dhyana
+            family, Photometrics Iris 9 / Iris 15 / Prime 95B / Prime
+            BSI Express / Kinetix, Hamamatsu Spark / Flash 4.0 V3 /
+            Fusion BT / Quest 2 / Lightning, Andor ZL41 Cell 4.2 / Cell
+            5.5 / Sona-11 22mm / Sona-11 32mm / Sona Extreme / CB2 24B /
+            iXon Ultra 888 EMCCD) against your spec and ranks them. The
+            top-5 list prints as a purchase-request shortlist you can
+            attach to a procurement ticket.
+          </p>
+          <p>
+            <strong>Prices are 2025-2026 ballpark academic quotes</strong> —
+            real numbers depend on options (mount, fan vs water cooling,
+            interface card) and your university discount. Always confirm
+            the live quote before submitting a purchase request.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>Build the spec</h3>
+          <ol>
+            <li>Set your budget. The shortlist hides anything above it.</li>
+            <li>Pick your primary modality — drives the spec priorities
+              from Tab 3.</li>
+            <li>Toggle the "I also need…" priorities if your modality
+              has a quirk (big FOV, fast frame rate, lowest noise).</li>
+            <li>The top-5 table appears with prices and key specs. The
+              winning row gets a paragraph of trade-off justification.</li>
+            <li>Print this page (Cmd+P) and attach to your procurement
+              request — the chrome strips out, leaving the shortlist.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="pick-budget">Max budget (USD)</label>
+              <input type="range" id="pick-budget" min="500" max="40000" step="500" value="20000">
+              <div class="ctrl-readout">≤ $<span class="v" id="pick-budget-out">20,000</span></div>
+            </div>
+            <div class="ctrl-group">
+              <label for="pick-modality">Primary modality</label>
+              <select id="pick-modality">
+                <option value="brightfield">Brightfield</option>
+                <option value="phase">Phase contrast / DIC</option>
+                <option value="epi-bright">Epi-fluorescence (well-stained)</option>
+                <option value="epi-dim" selected>Epi-fluorescence (dim / fixed)</option>
+                <option value="tirf">TIRF</option>
+                <option value="spinning">Spinning-disk confocal</option>
+                <option value="livecell">Live-cell time-lapse</option>
+                <option value="calcium">Calcium / fast tracking</option>
+                <option value="smlm">Single-molecule (STORM / SMLM)</option>
+                <option value="tfm">TFM bead tracking</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label>I also need…</label>
+              <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="pick-needfov"> Large FOV (many cells per frame)</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="pick-needfast"> Fast frame rate (&gt;50 fps)</label>
+                <label style="display:flex;gap:6px;align-items:center;font-weight:400;"><input type="checkbox" id="pick-needlownoise"> Lowest-possible noise</label>
+              </div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="val-verdict" id="pick-verdict" role="status" aria-live="polite">
+              Set your budget + modality to see the shortlist.
+            </div>
+            <div class="signoff-sheet" id="pick-signoff" style="display:none;">
+              <h3>Camera shortlist — top 5</h3>
+              <div id="pick-table"></div>
+              <div class="signoff-row"><span class="label">Date</span><span class="value" id="pick-date">—</span></div>
+              <div class="signoff-row"><span class="label">Requester</span><span class="value">________________________</span></div>
+              <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+                Print this page (Cmd+P / Ctrl+P) and attach to your procurement request. Prices are 2025-2026 academic ballparks; confirm with a current vendor quote.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight">
+          <strong>You finished the optics + sensor arc.</strong>
+          Microscope basics (V3.164) → Epi-fluorescence (V3.165) →
+          Confocal AX-R (V3.166) → Image train (V3.167) → Camera
+          selection (this one). Next: image analysis (V3.168-V3.170) and
+          the lab-software trainings (V3.171+) for what to do with the
+          pixels once you've recorded them.
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-camera-selection.js"></script>
+</body>
+</html>

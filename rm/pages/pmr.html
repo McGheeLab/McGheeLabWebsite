@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PMR — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/activity-signals.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <style>
     /* ── Page chrome ──────────────────────────────────────────── */
@@ -90,6 +92,27 @@
 
     .pmr-empty{text-align:center;padding:30px 20px;color:#9ca3af;font-size:13px}
     .pmr-loading{padding:20px;color:#6b7280;font-size:13px}
+
+    /* V3.161 — Figure reviews block + lightbox. */
+    .pmr-fig-review-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:8px}
+    .pmr-fig-review-card{background:#fff;border:1px solid #e5e7eb;border-left:4px solid #f59e0b;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+    .pmr-fig-review-imgbox{position:relative;background:#f9fafb;border-radius:6px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center}
+    .pmr-fig-review-img{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in;background:#fff}
+    .pmr-fig-review-meta{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px}
+    .pmr-fig-review-meta a{color:#1d4ed8;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pmr-fig-review-meta a:hover{text-decoration:underline}
+    .pmr-fig-review-stamp{color:#9ca3af;font-size:11px;white-space:nowrap}
+    .pmr-fig-review-caption{font-size:13px;padding:6px 8px;border:1px solid transparent;border-radius:6px;min-height:36px;line-height:1.4;color:#1f2937}
+    .pmr-fig-review-caption[contenteditable=true]{background:#fffbeb;border-color:#fde68a}
+    .pmr-fig-review-caption[contenteditable=true]:focus{outline:none;border-color:#f59e0b;background:#fff}
+    .pmr-fig-review-caption:empty:before{content:attr(data-placeholder);color:#9ca3af;font-style:italic}
+    .pmr-fig-review-actions{display:flex;justify-content:space-between;gap:6px}
+    .pmr-fig-review-remove{color:#991b1b !important;border-color:#fca5a5 !important}
+    .pmr-fig-review-remove:hover{background:#fef2f2 !important}
+
+    .pmr-fig-lightbox{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;cursor:zoom-out}
+    .pmr-fig-lightbox-img{max-width:90vw;max-height:88vh;object-fit:contain;border-radius:6px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.5)}
+    .pmr-fig-lightbox-label{margin-top:12px;color:#f9fafb;font-size:13px;max-width:90vw;text-align:center}
   </style>
 </head>
 <body>
@@ -100,8 +123,15 @@
         <span class="lbl">Period</span>
         <select id="pmr-period"></select>
         <button id="pmr-new" title="Create a new PMR for a different period">+ New period</button>
+        <!-- V3.323 — archived periods stay out of the select unless toggled. -->
+        <button id="pmr-show-archived" style="display:none" title="Show archived periods in the list"></button>
         <span class="grow"></span>
+        <!-- V3.323 — optional 1:1 meeting date on the period doc (feeds FuturePlan 05 reminders). -->
+        <label id="pmr-meeting-wrap" style="display:none;font-size:11px;color:#6b7280;align-items:center;gap:4px">🗓 1:1
+          <input type="date" id="pmr-meeting-date" style="font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px">
+        </label>
         <span id="pmr-status-pill" class="status-pill draft">draft</span>
+        <button id="pmr-archive" style="display:none" title="Archive this period — hides it from the period list"></button>
         <button id="pmr-submit" class="primary" title="Mark as submitted for 1:1 discussion">Submit for 1:1</button>
         <span id="pmr-saving" style="font-size:11px;color:#9ca3af"></span>
       </div>
@@ -113,10 +143,20 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <!-- V3.157 — Storage SDK powers barrier figure uploads via paper-figures.js. -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
+  <!-- V3.157 — barriers paste-image upload, threaded comments, and admin-side task assignment. -->
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/paper-figures.js"></script>
+  <script src="/rm/js/task-assign.js"></script>
+  <script src="/rm/js/section-comments.js"></script>
+  <!-- V3.194 — bridge to Tasks-page subtasks (Add to PMR + completion sync). -->
+  <script src="/rm/js/task-pmr-sync.js"></script>
   <script src="/rm/js/pmr.js"></script>
 </body>
 </html>

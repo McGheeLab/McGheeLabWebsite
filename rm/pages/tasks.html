@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tasks — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/activity-signals.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <script>
     /* V3.58 — unified Tasks shell. Single page hosts four tabs
@@ -49,9 +51,56 @@
           a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
           a.textContent = t.label;
           a.style.textDecoration = 'none';
+          if (t.tab === 'inbox') a.id = 'task-hub-tab-inbox';
           bar.appendChild(a);
         });
       });
+
+      /* V3.160 — Inbox tab badge for unseen assigned tasks. Queries the
+       * signed-in user's tasks/assigned and counts !assigned_seen_at && !done.
+       * Refreshes on the rm:assigned-inbox-changed event fired by
+       * tasks-dashboard-buckets.js when it stamps assigned_seen_at. */
+      async function refreshInboxBadge() {
+        try {
+          const link = document.getElementById('task-hub-tab-inbox');
+          if (!link) return;
+          if (!window.firebridge || !firebridge.getUser) return;
+          const me = firebridge.getUser();
+          if (!me) return;
+          const snap = await firebridge.db()
+            .collection('userData').doc(me.uid)
+            .collection('tasks')
+            .where('bucket', '==', 'assigned')
+            .get();
+          let n = 0;
+          snap.forEach(d => {
+            const t = d.data();
+            if (!t.done && !t.assigned_seen_at) n++;
+          });
+          let badge = link.querySelector('.tasks-tab-badge');
+          if (n > 0) {
+            if (!badge) {
+              badge = document.createElement('span');
+              badge.className = 'tasks-tab-badge';
+              link.appendChild(badge);
+            }
+            badge.textContent = n;
+          } else if (badge) {
+            badge.remove();
+          }
+        } catch (err) {
+          console.warn('[tasks.html] inbox badge refresh failed:', err);
+        }
+      }
+      // Wait for firebridge to settle, then run.
+      document.addEventListener('DOMContentLoaded', () => {
+        const tryRefresh = () => {
+          if (window.firebridge && firebridge.getUser && firebridge.getUser()) refreshInboxBadge();
+          else setTimeout(tryRefresh, 500);
+        };
+        setTimeout(tryRefresh, 800);
+      });
+      window.addEventListener('rm:assigned-inbox-changed', refreshInboxBadge);
     </script>
     <div class="page-header" id="task-page-header"></div>
     <div id="task-tab-mount"></div>
@@ -68,6 +117,7 @@
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
   <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/rm-dialog.js"></script>
   <script src="/rm/js/local-cache.js"></script>
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
@@ -77,6 +127,13 @@
   <script src="/rm/js/card-grid.js"></script>
   <script src="/rm/js/links.js"></script>
   <script src="/rm/js/task-assign.js"></script>
+  <!-- V3.317 — task marketplace composer (embedded mode: no #tm-board, no listener). -->
+  <script src="/rm/js/task-market.js"></script>
+  <!-- V3.194 — bridge to PMR (Add to PMR button + completion sync). -->
+  <script src="/rm/js/task-pmr-sync.js"></script>
+  <script src="/rm/js/activity-signals.js"></script>
+  <!-- V3.234 — external links (Synology share URLs etc) on project buckets. -->
+  <script src="/rm/js/external-links.js"></script>
 
   <!-- Render the per-tab header + container, then synchronously load
        the per-tab renderer via document.write so its DOMContentLoaded
@@ -88,7 +145,7 @@
       var HEADERS = {
         dashboard: '<h1 class="page-title">Task Dashboard</h1>'
                  + '<div>'
-                 + '  <a href="/rm/pages/tasks.html?tab=add" class="btn btn-primary" style="text-decoration:none">+ Add Task</a>'
+                 + '  <button type="button" class="btn btn-primary" id="btn-add-task">+ Add Task</button>'
                  + '  <button type="button" class="btn" id="btn-assign-task" style="margin-left:6px;">Send to Teammate</button>'
                  + '</div>',
         inbox:    '<h1 class="page-title">Task List</h1>',
@@ -120,6 +177,13 @@
       document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('btn-assign-task')?.addEventListener('click', () => {
           if (window.TASK_ASSIGN) TASK_ASSIGN.open();
+        });
+        // V3.144 — "+ Add Task" opens a modal that creates a subtask in a
+        // chosen task builder. The dashboard module exposes the open fn
+        // once it boots.
+        document.getElementById('btn-add-task')?.addEventListener('click', () => {
+          if (window.DASH_ADD_TASK) DASH_ADD_TASK.open();
+          else alert('Dashboard still loading — try again in a moment.');
         });
       });
     }

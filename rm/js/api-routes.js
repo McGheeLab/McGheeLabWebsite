@@ -178,6 +178,20 @@
     shadowJson: true, cache: MEDIUM,
   });
 
+  // V3.206 — library-list fast path. The library page only needs paper
+  // items, not grants/courses/tools, and never the abstract / references
+  // bulk on the list view. Server-side `where('type','==','paper')` cuts
+  // the read to library-relevant docs; library-extras.js handles abstract
+  // + references via a per-item subdoc. LONG cache because the cheap
+  // MAX(updatedAt) probe handles staleness on the route's collection,
+  // so a 4-hour TTL just amortizes the probe across many visits.
+  api.registerRoute('library/papers.json', {
+    scope: 'lab', collection: 'items', wrapKey: 'papers',
+    where: ['type', '==', 'paper'],
+    discriminator: { field: 'type', value: 'paper' },
+    shadowJson: true, cache: LONG,
+  });
+
   // Lab roster — full users collection cached MEDIUM (30 min). Pre-Phase B
   // ~9 pages each called firebridge.getAll('users') independently → ~9
   // redundant collection reads per session. Now: one cached fetch shared by
@@ -233,6 +247,18 @@
     cache: LONG,
   });
 
+  // Protocols (V3.113) — protocols.io-style lab protocol authoring. New
+  // top-level `protocols` collection; no JSON shadow (born in Firestore).
+  // The list view loads list rows from this route; the editor reads/writes
+  // the full protocol doc directly via firebridge.db().collection('protocols')
+  // because it pairs with Yjs subcollections at protocols/{id}/yjs_*.
+  // MEDIUM cache: protocols are edited in bursts; LIVE_SYNC keeps the open
+  // list current within a session.
+  api.registerRoute('protocols/list.json', {
+    scope: 'lab', collection: 'protocols', wrapKey: 'protocols',
+    cache: MEDIUM,
+  });
+
   /* ── PERSONAL data (Phase 3) ──────────────────────────────────
    * Stored under userData/{uid}/<subcollection> — strictly owner read/write
    * per firestore.rules. Admin has NO blanket read; users opt into sharing
@@ -249,15 +275,18 @@
    */
 
   // Tasks — buckets tree + flat tasks. Bucket-based current model lives in
-  // userData/{uid}/buckets (each project = doc). Legacy flat tasks (inbox,
-  // daily/weekly/monthly/annual archives) merge into userData/{uid}/tasks
-  // with a `bucket` discriminator so they're queryable as one timeline.
-  // Tasks routes use MEDIUM cache because live-sync (api.subscribe) already
-  // keeps active editing in real time — cache invalidation happens via
-  // api.save AND via the onSnapshot listener. SHORT (5 min) was too aggressive,
-  // forcing a full ~80 KB buckets fetch on every page nav after each edit.
+  // userData/{uid}/buckets (each task builder = doc). Legacy flat tasks
+  // (inbox, daily/weekly/monthly/annual archives) merge into
+  // userData/{uid}/tasks with a `bucket` discriminator so they're queryable
+  // as one timeline. Tasks routes use MEDIUM cache because live-sync
+  // (api.subscribe) already keeps active editing in real time — cache
+  // invalidation happens via api.save AND via the onSnapshot listener.
+  // SHORT (5 min) was too aggressive, forcing a full ~80 KB buckets fetch
+  // on every page nav after each edit.
+  // Note: wrapKey was renamed `projects` → `taskBuilders` in V3.128 to free
+  // "project" for the actual research-projects model in projects/*.json.
   api.registerRoute('tasks/buckets.json', {
-    scope: 'user', subcollection: 'buckets', wrapKey: 'projects',
+    scope: 'user', subcollection: 'buckets', wrapKey: 'taskBuilders',
     cache: MEDIUM,
   });
   // 'assigned' is Phase 8 cross-user task assignment — when a teammate
@@ -270,6 +299,16 @@
       discriminator: { field: 'bucket', value: bucket },
       cache: MEDIUM,
     });
+  });
+  // V3.313 — Task marketplace board (FuturePlan 04). Lab-scope, one doc
+  // per cross-user post (offer / request / handoff). Registered so the
+  // explorer + migrate tooling can see the collection; the board page
+  // itself (rm/js/task-market.js) uses direct per-doc firebridge.db()
+  // writes because the rules enforce per-post status transitions that a
+  // whole-list api.save would violate. No JSON shadow (born-Firestore).
+  api.registerRoute('tasks/market.json', {
+    scope: 'lab', collection: 'taskMarket', wrapKey: 'posts',
+    cache: SHORT,
   });
   api.registerRoute('tasks/email_tasks.json', {
     scope: 'user', subcollection: 'emailTasks', wrapKey: 'email_tasks',
@@ -339,6 +378,21 @@
     cache: SHORT,
   });
 
+  // Lab Notebook (ELN) — per-user notebook entries. Same shape as PMR: a
+  // single `_index` doc holds the lightweight summary list for the left
+  // rail (single-read load), and each entry doc lives at
+  // userData/{uid}/notebook/{entryId}. Entry IDs are kebab slugs
+  // (`nb-YYYY-MM-DD-...`), unbounded, so per-entry routes are registered
+  // lazily by js/lab-notebook.js via
+  //   api.registerRoute('notebook/<entryId>.json',
+  //     { scope:'user', subcollection:'notebook', doc:'<entryId>' });
+  // The `_index` doc lives in the same `notebook` subcollection — entry
+  // IDs always start with `nb-` so they can never collide with `_index`.
+  api.registerRoute('notebook/_index.json', {
+    scope: 'user', subcollection: 'notebook', doc: '_index',
+    cache: SHORT,
+  });
+
   // Settings / integrations — moved per-user. Each user has their own list
   // of email/calendar/repo connections. The legacy lab-shared
   // data/settings/connections.json is read-only after migration.
@@ -388,6 +442,21 @@
   });
   api.registerRoute('email_archive/trash.json', {
     scope: 'user', subcollection: 'emailArchive', doc: 'trash',
+    cache: SHORT,
+  });
+  // V3.292: labeled training set for the in-browser email-category classifier
+  // (email-classifier.js). One doc, { examples: { <emailId>: {label, sub, s,
+  // subj, snip, ts} } } — a feature snapshot per hand-categorized email, so the
+  // classifier (and the API-page review) need only this doc, not a join with
+  // emailMessages. Mirrors categoryOverrides but carries the features.
+  api.registerRoute('email_archive/classifier_training.json', {
+    scope: 'user', subcollection: 'emailArchive', doc: 'classifierTraining',
+    cache: SHORT,
+  });
+  // V3.293: per-user classifier weights/thresholds (Classifier Settings page).
+  // { minExamples, minPerClass, minConfidence, alpha, weights:{from,dom,s,b} }.
+  api.registerRoute('email_archive/classifier_settings.json', {
+    scope: 'user', subcollection: 'emailArchive', doc: 'classifierSettings',
     cache: SHORT,
   });
 

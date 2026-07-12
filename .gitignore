@@ -40,3 +40,17 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# Slack export — secrets and resume state
+scripts/.env
+scripts/.slack_export_checkpoint.json
+
+# Firebase service account JSON used by one-off migration scripts (V3.212+)
+scripts/service-account.json
+
+# Accidental gcloud SDK extraction — not project code
+gcloud auth login/
+# Exceeds GitHub 100MB push limit (embedded images?) — needs LFS or asset split
+Data/protocols/GELS Lab Notebook.md
+# Private student documents (LORs, personal statements, CVs) — never publish
+Data/LOR requests/

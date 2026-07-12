@@ -18,7 +18,7 @@
 
 const LAB_FIELDS = [
   { key: 'category', label: 'Category', type: 'select',
-    options: ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni'], required: true },
+    options: ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni', 'collaborator'], required: true },
   { key: 'appointment', label: 'Appointment / Position', type: 'text',
     placeholder: 'e.g. PhD Student, 9-month faculty, Postdoc Co-PI' },
   { key: 'effort_pct', label: 'Effort %', type: 'number' },
@@ -27,13 +27,14 @@ const LAB_FIELDS = [
   { key: 'start', label: 'Start Date', type: 'date' },
   { key: 'end', label: 'End Date', type: 'date' },
   { key: 'notes', label: 'Notes', type: 'textarea' },
+  { key: 'hidden', label: 'Hidden from public + internal directories', type: 'checkbox' },
 ];
 
 const PEOPLE_CAT_LABEL = {
   pi: 'PI', postdoc: 'Postdoc', grad: 'Grad', undergrad: 'Undergrad',
-  highschool: 'High School', alumni: 'Alumni', guest: 'Guest',
+  highschool: 'High School', alumni: 'Alumni', collaborator: 'Collaborator', guest: 'Guest',
 };
-const PEOPLE_CAT_ORDER = ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni', 'guest'];
+const PEOPLE_CAT_ORDER = ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni', 'collaborator', 'guest'];
 const ROLE_OPTIONS = ['admin', 'editor', 'contributor', 'guest'];
 
 let activeCategoryFilter = 'all';
@@ -67,8 +68,12 @@ function render() {
   const tabs = document.getElementById('tabs');
   if (tabs) {
     tabs.innerHTML = '';
-    const counts = { all: _users.filter(u => u.role !== 'guest').length };
-    PEOPLE_CAT_ORDER.forEach(c => { counts[c] = _users.filter(u => u.category === c).length; });
+    const _isAdmin = firebridge.isAdmin();
+    const _visibleForCounts = u => u.role !== 'guest' && (_isAdmin || !u.hidden);
+    const counts = { all: _users.filter(_visibleForCounts).length };
+    PEOPLE_CAT_ORDER.forEach(c => {
+      counts[c] = _users.filter(u => u.category === c && (_isAdmin || !u.hidden)).length;
+    });
     const make = (key, label) => {
       const btn = document.createElement('button');
       btn.className = 'tab-btn' + (activeCategoryFilter === key ? ' active' : '');
@@ -88,6 +93,10 @@ function render() {
     list = list.filter(u => u.category === activeCategoryFilter);
   } else {
     list = list.filter(u => u.role !== 'guest');
+  }
+  // Non-admins never see hidden users.
+  if (!firebridge.isAdmin()) {
+    list = list.filter(u => !u.hidden);
   }
   if (_searchQuery) {
     const q = _searchQuery.toLowerCase();
@@ -144,6 +153,7 @@ function render() {
       : (u.role === 'guest'
         ? '<span class="chip chip-amber">pending</span>'
         : '<span class="chip chip-green">active</span>');
+    const hiddenChip = u.hidden ? ' <span class="chip chip-amber" title="Hidden from public + internal directories">hidden</span>' : '';
     const isAdmin = firebridge.isAdmin();
     html += '<tr>' +
       '<td>' + photo + '<strong>' + _esc(u.name || '(no name)') + '</strong>' +
@@ -153,7 +163,7 @@ function render() {
       '<td>' + (u.effort_pct != null ? u.effort_pct + '%' : '') + '</td>' +
       '<td>' + _esc(u.primary_funding || '') + '</td>' +
       '<td>' + (u.start ? formatDate(u.start) : '') + '</td>' +
-      '<td>' + status + '</td>' +
+      '<td>' + status + hiddenChip + '</td>' +
       '<td class="row-actions">' +
         (isAdmin ? '<button onclick="editLabFields(\'' + _esc(u.id) + '\')">Edit</button>' : '') +
         (isAdmin ? '<button onclick="changeRole(\'' + _esc(u.id) + '\',\'' + _esc(u.role || '') + '\',\'' + _esc(u.category || '') + '\')">Role</button>' : '') +
@@ -202,6 +212,7 @@ window.editLabFields = function (uid) {
     start: u.start || '',
     end: u.end || '',
     notes: u.notes || '',
+    hidden: !!u.hidden,
   };
   openForm({
     title: 'Edit Lab Profile — ' + (u.name || u.email || uid),
@@ -216,6 +227,7 @@ window.editLabFields = function (uid) {
         start: vals.start || '',
         end: vals.end || '',
         notes: vals.notes || '',
+        hidden: !!vals.hidden,
       };
       // Optimistic: mutate local + render NOW; save in background.
       Object.assign(u, update);
@@ -239,13 +251,22 @@ window.changeRole = function (uid, currentRole, currentCategory) {
     fields: [
       { key: 'role', label: 'Role (access tier)', type: 'select', options: ROLE_OPTIONS, required: true },
       { key: 'category', label: 'Category (lab tier)', type: 'select',
-        options: ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni', 'guest'], required: true },
+        options: ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni', 'collaborator', 'guest'], required: true },
+      { key: 'hidden', label: 'Hidden from public + internal directories', type: 'checkbox' },
     ],
-    values: { role: currentRole || 'contributor', category: currentCategory || 'grad' },
+    values: {
+      role: currentRole || 'contributor',
+      category: currentCategory || 'grad',
+      hidden: !!(u && u.hidden),
+    },
     onSave: async function (vals) {
-      if (u) { u.role = vals.role; u.category = vals.category; render(); }
+      if (u) { u.role = vals.role; u.category = vals.category; u.hidden = !!vals.hidden; render(); }
       try {
-        await firebridge.updateDoc('users', uid, { role: vals.role, category: vals.category });
+        await firebridge.updateDoc('users', uid, {
+          role: vals.role,
+          category: vals.category,
+          hidden: !!vals.hidden,
+        });
       } catch (err) {
         console.error('[people] changeRole save failed:', err);
         alert('Role update failed: ' + err.message);
@@ -261,7 +282,7 @@ window.openInviteForm = function () {
     title: 'Send Invitation',
     fields: [
       { key: 'category', label: 'Category', type: 'select',
-        options: ['pi', 'postdoc', 'grad', 'undergrad', 'highschool'], required: true },
+        options: ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'collaborator'], required: true },
       { key: 'note', label: 'Note (optional)', type: 'text',
         placeholder: 'e.g. New PhD student starting Fall 2026' },
     ],

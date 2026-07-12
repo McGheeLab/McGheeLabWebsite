@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mechanical Indentation of Hydrogels — Ball-on-Gel (Module 3, BME 466/566)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 16px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+.tab-content > .background-section{order:1}
+.tab-content > .student-task{order:2;margin-top:0;margin-bottom:14px}
+.tab-content > .scenario-bar{order:3}
+.tab-content > .panel{order:4}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+
+/* ── Comparison table (learning sections) ── */
+.background-section table.cmp{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0}
+.background-section table.cmp th,.background-section table.cmp td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.background-section table.cmp th{background:#f1f5f9;color:#334155;font-weight:700}
+.background-section table.cmp td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+
+/* ── Stats ── */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}
+.stat-row .value{font-weight:600;color:#1e293b}
+.stat-row.highlight .value{color:#2563eb}
+.color-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-tab scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+.val-verdict strong{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight + handoff boxes ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px} .tab-btn{padding:10px 9px;font-size:.74rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 7px;font-size:.7rem} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Mechanical Indentation of Hydrogels</h1>
+  <p class="subtitle">Module 3 — Ball-on-Gel: Contact, Fields &amp; Relaxation · BME/AME 466·566 (Part II–III)</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="overview">1. The Experiment</button>
+  <button class="tab-btn" data-tab="load">2. The Load</button>
+  <button class="tab-btn" data-tab="hertz">3. Hertz Contact</button>
+  <button class="tab-btn" data-tab="field">4. Stress Field</button>
+  <button class="tab-btn" data-tab="fluor">5. Contact Area</button>
+  <button class="tab-btn" data-tab="track">6. Bead Tracking</button>
+  <button class="tab-btn" data-tab="fit">7. Fitting (E, ν)</button>
+  <button class="tab-btn" data-tab="relax">8. Relaxation</button>
+  <button class="tab-btn" data-tab="fails">9. When Hertz Fails</button>
+</div>
+
+<main>
+
+<!-- ══════════ TAB 1: THE EXPERIMENT ══════════ -->
+<section id="tab-overview" class="tab-content active">
+  <div class="background-section">
+    <div class="insight">← <strong>Continuing from the TFM modules.</strong> There, you tracked beads to recover the <em>unknown</em> tractions a cell applies — an ill-posed inverse problem. Here we flip it around: we apply a <strong>known</strong> macroscopic load (a steel ball of known weight and size), run the same machinery (3D bead tracking, displacement &amp; strain fields, a contact model), and read out the gel's <em>own</em> properties \(E\), \(\nu\), and its relaxation behavior.</div>
+    <h2>Background: one ball, four independent measurements</h2>
+    <p>A rigid steel ball is set on a soft hydrogel that contains fluorescent tracer beads and sits under a water layer. From this single experiment we capture <strong>four</strong> quantities:</p>
+    <ul>
+      <li><strong>The load \(F\)</strong> — the ball's buoyancy-corrected weight (known a priori).</li>
+      <li><strong>The contact radius \(a\)</strong> — measured directly, because a high-molecular-weight fluorescent polymer in the water is size-excluded from the gel and squeezed out of the contact, leaving a dark projected disk.</li>
+      <li><strong>The indentation \(\delta\)</strong> and the <strong>full 3D displacement field \(\mathbf{u}(\mathbf{x})\)</strong> — from particle-tracking the beads before vs. after the ball is placed.</li>
+    </ul>
+    <p>The Hertz contact model needs only <em>two</em> of these to give \(E\). Measuring all four makes the experiment <strong>over-determined</strong> — we can cross-check the model and detect when its assumptions break (Tab 7). That redundancy is the whole point.</p>
+    <div class="equation-box"><p style="text-align:center">$$\underbrace{F}_{\text{known}} \;\;+\;\; \underbrace{a,\ \delta,\ \mathbf{u}(\mathbf{x})}_{\text{measured}} \;\;\xrightarrow{\;\text{contact model}\;}\;\; E,\ \nu,\ \tau_{\text{relax}}$$</p></div>
+    <div class="key-takeaways"><ul>
+      <li>Indentation is a <em>forward, over-determined</em> measurement — the opposite of TFM's under-determined inverse.</li>
+      <li>The fluorescent-exclusion trick gives the contact area \(a\) <strong>independently</strong> of the displacement field.</li>
+      <li>Watching the response in time separates <em>viscoelastic</em> from <em>poroelastic</em> gels (Tab 8).</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Toggle <strong>Ball off → Ball on</strong> and watch the beads displace and the contact disk darken.</li>
+    <li>Increase the <strong>ball diameter</strong>: the load grows as \(d^3\), but notice the contact radius and indentation grow much more slowly.</li>
+    <li>Soften the gel (lower \(E\)): the same ball sinks deeper and spreads a wider contact.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">State:</span>
+    <button class="scen-btn" data-tab="overview" data-scen="off" onclick="setScen('overview','off')">Ball off</button>
+    <button class="scen-btn on" data-tab="overview" data-scen="on" onclick="setScen('overview','on')">Ball on</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Ball diameter d <span id="v-overview-d">2.0 mm</span></label><input type="range" id="s-overview-d" min="0.5" max="5" step="0.1" value="2"></div>
+      <div class="ctrl-group"><label>Gel modulus E <span id="v-overview-E">5.0 kPa</span></label><input type="range" id="s-overview-E" min="0.2" max="40" step="0.2" value="5"></div>
+      <div class="stats" id="st-overview"></div>
+    </div>
+    <div class="viz"><div class="canvas-wrap"><div class="canvas-title">Cross-section: steel ball on a bead-seeded gel under fluorescent water</div><canvas id="cv-overview" width="640" height="420"></canvas></div>
+      <div class="val-verdict" id="vd-overview"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 2: THE LOAD ══════════ -->
+<section id="tab-load" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the load is the ball's weight — minus buoyancy</h2>
+    <p>Because the ball rests on the gel <em>under water</em>, the force it presses with is its weight reduced by the buoyant force of the displaced fluid. For a sphere of radius \(R\):</p>
+    <div class="equation-box"><p style="text-align:center">$$F = \left(\rho_{\text{steel}}-\rho_{\text{fluid}}\right)\,\tfrac{4}{3}\pi R^{3}\,g$$</p></div>
+
+    <h3>Where it comes from: a free body in equilibrium</h3>
+    <p>The resting ball is in static equilibrium under three vertical forces: its <strong>weight</strong> \(W=\rho_{\text{steel}}Vg\) (down), the <strong>buoyant force</strong> \(F_b=\rho_{\text{fluid}}Vg\) (up), and the gel's <strong>contact reaction</strong> \(N\) (up). Balancing them and applying Newton's third law, the ball presses on the gel with exactly</p>
+    <div class="equation-box"><p style="text-align:center">$$N = W - F_b = (\rho_{\text{steel}}-\rho_{\text{fluid}})\,V g,\qquad V=\tfrac{4}{3}\pi R^3$$</p></div>
+    <p>Buoyancy is nothing more than the net of <strong>hydrostatic pressure</strong> \(p=\rho_{\text{fluid}}\,g\,h\) acting over the ball's surface — the fluid pushes up on the deeper bottom harder than it pushes down on the top, and for a fully submerged body that resultant is exactly \(\rho_{\text{fluid}}Vg\) (Archimedes), <em>independent of depth</em>.</p>
+
+    <h3>Why "fully submerged" is precisely the point</h3>
+    <p>Submersion is the condition that <em>makes</em> the correction matter, not one that removes it. In air the displaced fluid is air (\(\rho\approx1.2\) kg/m³), so the correction is \(1.2/7850\approx0.015\%\) — ignore it. Fully submerged in water (\(\rho\approx1000\) kg/m³) it is \(1000/7850\approx\) <strong>13%</strong> of the weight. And because a steel ball cannot float, it always displaces its <em>entire</em> volume \(V\), so the 13% is fixed no matter how deep the dish sits. Since Hertz gives \(E^\ast=3FR/4a^3\) — <strong>linear in \(F\)</strong> — skipping the correction is a direct ~13% systematic error in every modulus you report.</p>
+    <div class="insight"><strong>Two subtleties.</strong> (1) The contact patch is dye-free (no fluid under it), so Archimedes is slightly violated — but the un-wetted fraction is \(\sim(a/R)^2\approx1\%\) of an already-13% term, i.e. ~0.1% of the load: negligible. (2) The water column presses on the gel the <em>same</em> before and after the ball is placed, so that uniform hydrostatic field cancels in the differential displacement we track — only the ball's net contact load deforms the gel. (Bonus: staying fully submerged also avoids the air–water <em>meniscus</em> line force a partly-emerged ball would add.)</p>
+
+    <div class="worked-example"><p>A \(d=1\) mm steel ball, submerged: \(R=0.5\,\text{mm}\), \(V=\tfrac{4}{3}\pi R^3\approx 5.24\times10^{-10}\,\text{m}^3\), \(\Delta\rho\approx 6850\) kg/m³, so \(F\approx 6850\times 5.24\times10^{-10}\times 9.81 \approx 3.5\times10^{-5}\,\text{N} = 35\ \mu\text{N}\). The dry weight would be ~40 µN — the 5 µN difference is buoyancy.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>The load on the gel is the <em>net</em> force on the ball: \(N=W-F_b=(\rho_{\text{steel}}-\rho_{\text{fluid}})Vg\).</li>
+      <li>Buoyancy = the resultant of hydrostatic pressure; for a fully submerged body it equals \(\rho_{\text{fluid}}Vg\), depth-independent.</li>
+      <li>Full submersion is what makes the correction ~13% (vs ~0.015% in air) — and \(E^\ast\propto F\), so ignoring it biases \(E\) by ~13%.</li>
+      <li>Load scales as \(d^3\): doubling the diameter gives 8× the force.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Compare <strong>In air</strong> vs <strong>Submerged</strong> — read how much force buoyancy removes.</li>
+    <li>Find the diameter that gives a target load of ~50 µN on the F–diameter curve.</li>
+    <li>Try a less-dense ball (e.g. glass ~2500 kg/m³): how much does the net force drop?</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Environment:</span>
+    <button class="scen-btn" data-tab="load" data-scen="air" onclick="setScen('load','air')">In air</button>
+    <button class="scen-btn on" data-tab="load" data-scen="sub" onclick="setScen('load','sub')">Submerged</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Ball diameter d <span id="v-load-d">2.0 mm</span></label><input type="range" id="s-load-d" min="0.5" max="5" step="0.1" value="2"></div>
+      <div class="ctrl-group"><label>Ball density ρ_s <span id="v-load-rs">7850 kg/m³</span></label><input type="range" id="s-load-rs" min="2000" max="9000" step="50" value="7850"></div>
+      <div class="ctrl-group"><label>Fluid density ρ_f <span id="v-load-rf">1000 kg/m³</span></label><input type="range" id="s-load-rf" min="990" max="1100" step="2" value="1000"></div>
+      <div class="stats" id="st-load"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Free-body diagram (submerged ball)</div><canvas id="cv-load" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Net force vs ball diameter (∝ d³)</div><canvas id="cv-load2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-load"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 3: HERTZ CONTACT ══════════ -->
+<section id="tab-hertz" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the Hertz sphere-on-flat contact</h2>
+    <p>Near contact, a sphere's surface is a paraboloid: the gap is \(h(r)\approx r^2/2R\). Pressing it into an elastic half-space produces a circular contact of radius \(a\) carrying the hemispherical Hertz pressure</p>
+    <div class="equation-box"><p style="text-align:center">$$p(r)=p_0\sqrt{1-r^2/a^2},\qquad p_0=\frac{3F}{2\pi a^2}=\tfrac{3}{2}\,p_{\text{mean}}$$</p></div>
+    <p>The three relations that tie load, contact size, and indentation together are</p>
+    <div class="equation-box"><p style="text-align:center">$$a^3=\frac{3FR^\ast}{4E^\ast},\qquad \delta=\frac{a^2}{R^\ast},\qquad F=\tfrac{4}{3}E^\ast\sqrt{R^\ast}\,\delta^{3/2}$$</p></div>
+    <h3>Learn it: sphere-on-flat vs sphere-on-sphere — one formula, two reductions</h3>
+    <p>Hertz is more general than "a ball on a flat." <em>Any</em> smooth contact between two bodies maps onto an <strong>equivalent sphere-on-flat</strong> problem through two combined quantities — the <strong>reduced modulus</strong> \(E^\ast\) and the <strong>reduced radius</strong> \(R^\ast\). The relations above then hold unchanged; only how you build \(E^\ast,R^\ast\) from the two bodies (radii \(R_1,R_2\); moduli \(E_1,E_2\); Poisson \(\nu_1,\nu_2\)) differs:</p>
+    <div class="equation-box"><p style="text-align:center">$$\frac{1}{E^\ast}=\frac{1-\nu_1^2}{E_1}+\frac{1-\nu_2^2}{E_2},\qquad \frac{1}{R^\ast}=\frac{1}{R_1}+\frac{1}{R_2}$$</p></div>
+    <p><strong>\(R^\ast\) is geometry — curvatures add.</strong> The relative gap near contact is \(h(r)\approx r^2/2R^\ast\), so \(R^\ast\) is the radius of the single equivalent sphere. A flat has \(R_2=\infty\) (\(1/R_2=0\)); two convex spheres add curvatures, so the gap closes faster (smaller \(R^\ast\)); a ball seated in a concave socket subtracts (\(R_2<0\), larger \(R^\ast\)).</p>
+    <p><strong>\(E^\ast\) is compliance — they add in series.</strong> Both bodies deform and the <em>softer</em> one dominates. A rigid body (\(E\to\infty\)) contributes nothing, so \(E^\ast\) is set by the soft body alone.</p>
+    <table class="cmp">
+      <tr><th>Contact pair</th><th>R*</th><th>E*</th></tr>
+      <tr><td>Rigid sphere (radius R) on a soft flat — <strong>this experiment</strong></td><td class="c">R</td><td class="c">E / (1 − ν²)</td></tr>
+      <tr><td>Two equal soft spheres (R, R) — GELLS-DEM grains</td><td class="c">R / 2</td><td class="c">E / [2(1 − ν²)]</td></tr>
+      <tr><td>Two unequal bodies / sphere in a socket</td><td class="c">(1/R₁ + 1/R₂)⁻¹</td><td class="c">[Σ (1−νᵢ²)/Eᵢ]⁻¹</td></tr>
+    </table>
+    <p>Steel on a kPa gel is the first row: \(E_\text{steel}\approx200\) GPa \(\gg E_\text{gel}\), so \((1-\nu_\text{steel}^2)/E_\text{steel}\to0\) and only the gel's compliance survives \(\Rightarrow E^\ast=E_\text{gel}/(1-\nu^2)\); the flat gel has \(R_2=\infty\Rightarrow R^\ast=R_\text{ball}\).</p>
+    <div class="insight"><strong>What the toggle below shows (and the real trap).</strong> Two equal soft spheres is a genuinely <em>different</em> contact from a rigid ball on a soft flat. For the same \(R,E,F\) the contact radius \(a\) and peak pressure \(p_0\) come out <em>identical</em> (both \(E^\ast\) and \(R^\ast\) carry the same factor of 2, and \(a\propto (R^\ast/E^\ast)^{1/3}\)), but the mutual approach \(\delta=a^2/R^\ast\) <strong>doubles</strong> — because <em>both</em> spheres deform, not just one — and \(E^\ast\) is <strong>halved</strong>. The 2× error in an <em>extracted</em> modulus appears when you <strong>mismatch</strong> conventions: e.g. borrow the grain code's \(E^\ast=E/[2(1-\nu^2)]\) while keeping your flat-geometry \(R^\ast=R\). Always pair \(E^\ast\) and \(R^\ast\) from the same contact.</div>
+    <div class="key-takeaways"><ul>
+      <li>Hertz assumes small strain (\(a/R\ll1\)), frictionless, linear-elastic, half-space, no adhesion.</li>
+      <li>For a rigid sphere on a soft gel: \(E^\ast=E/(1-\nu^2)\), \(R^\ast=R\) — <em>no</em> factor of 2.</li>
+      <li>The geometry identity \(\delta=a^2/R\) holds with no modulus and no force — a free model check.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Confirm the geometry check: read \(a\) and \(\delta\) and verify \(a^2\approx R\,\delta\) as you move every slider.</li>
+    <li>Flip the <strong>convention</strong> toggle to the GELLS-DEM sphere-on-sphere form: \(a\) and \(p_0\) stay put, but \(E^\ast\) halves and the approach \(\delta\) doubles. Explain why (both spheres deform), then say why our steel-on-gel experiment is the rigid-on-soft case.</li>
+    <li>Raise the load until \(a/R\) exceeds ~0.3: the small-strain assumption is now violated (see Tab 9).</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Reduced-modulus convention:</span>
+    <button class="scen-btn on" data-tab="hertz" data-scen="rigid" onclick="setScen('hertz','rigid')">Rigid-on-soft (this expt)</button>
+    <button class="scen-btn" data-tab="hertz" data-scen="sphere" onclick="setScen('hertz','sphere')">Sphere-on-sphere (GELLS-DEM)</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Load F <span id="v-hertz-F">50 µN</span></label><input type="range" id="s-hertz-F" min="2" max="500" step="2" value="50"></div>
+      <div class="ctrl-group"><label>Ball radius R <span id="v-hertz-R">1.00 mm</span></label><input type="range" id="s-hertz-R" min="0.25" max="2.5" step="0.05" value="1"></div>
+      <div class="ctrl-group"><label>Gel modulus E <span id="v-hertz-E">5.0 kPa</span></label><input type="range" id="s-hertz-E" min="0.2" max="40" step="0.2" value="5"></div>
+      <div class="ctrl-group"><label>Poisson ratio ν <span id="v-hertz-nu">0.45</span></label><input type="range" id="s-hertz-nu" min="0.3" max="0.5" step="0.01" value="0.45"></div>
+      <div class="stats" id="st-hertz"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Load–indentation curve F(δ) ∝ δ³ᐟ²</div><canvas id="cv-hertz" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Hertz pressure p(r) over the contact disk</div><canvas id="cv-hertz2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-hertz"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 4: STRESS FIELD ══════════ -->
+<section id="tab-field" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the stress lives below the surface</h2>
+    <p>The contact pressure \(p(r)\) is a surface boundary condition. Superposing the <strong>Boussinesq</strong> point-load solution (the same Green's function used in TFM) over the contact disk gives the full sub-surface field. The vertical stress forms a compressive "bulb" that spreads and decays with depth:</p>
+    <div class="equation-box"><p style="text-align:center">$$\sigma_{zz}(\mathbf{x})=-\frac{3z^3}{2\pi}\int_{\text{disk}}\frac{p(r')\,dA'}{\rho^5},\qquad \rho=|\mathbf{x}-\mathbf{x}'|$$</p></div>
+    <p>The famous result: the <strong>maximum shear stress is not at the surface</strong> but on the axis a little below it. Along the load axis (\(\zeta=z/a\)),</p>
+    <div class="equation-box"><p style="text-align:center">$$\frac{\sigma_z}{p_0}=-\frac{1}{1+\zeta^2},\quad \frac{\sigma_r}{p_0}=-\Big[(1+\nu)\big(1-\zeta\arctan\tfrac1\zeta\big)-\tfrac12\tfrac1{1+\zeta^2}\Big],\quad \tau_1=\tfrac12|\sigma_z-\sigma_r|$$</p></div>
+    <p>For \(\nu=0.3\), \(\tau_1\) peaks at \(z\approx0.48\,a\) with \(\tau_{\max}\approx0.31\,p_0\); the peak moves deeper (toward ~0.55 a) as \(\nu\to0.5\). This is why yielding, cracking, and cavitation in soft contacts often <em>initiate below the surface</em>.</p>
+    <div class="key-takeaways"><ul>
+      <li>The sub-surface field is the Hertz pressure convolved with the elastic Green's function.</li>
+      <li>Peak shear is sub-surface (~0.48 a for ν≈0.3) — damage starts where you cannot see it.</li>
+      <li>Higher ν (toward incompressible) pushes the shear maximum deeper.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Read the depth of the max-shear marker on the right-hand curve, then find it on the stress bulb at left.</li>
+    <li>Raise <strong>ν</strong> toward 0.5 and watch the shear peak move deeper.</li>
+    <li>Switch the bulb between σ_zz and the on-axis shear to see how the "danger zone" sits beneath the contact.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Bulb rendering:</span>
+    <button class="scen-btn on" data-tab="field" data-scen="fill" onclick="setScen('field','fill')">σ_zz heat map</button>
+    <button class="scen-btn" data-tab="field" data-scen="contour" onclick="setScen('field','contour')">+ iso-contours</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Load F <span id="v-field-F">50 µN</span></label><input type="range" id="s-field-F" min="2" max="500" step="2" value="50"></div>
+      <div class="ctrl-group"><label>Ball radius R <span id="v-field-R">1.00 mm</span></label><input type="range" id="s-field-R" min="0.25" max="2.5" step="0.05" value="1"></div>
+      <div class="ctrl-group"><label>Gel modulus E <span id="v-field-E">5.0 kPa</span></label><input type="range" id="s-field-E" min="0.2" max="40" step="0.2" value="5"></div>
+      <div class="ctrl-group"><label>Poisson ratio ν <span id="v-field-nu">0.30</span></label><input type="range" id="s-field-nu" min="0.2" max="0.49" step="0.01" value="0.3"></div>
+      <div class="stats" id="st-field"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Stress bulb under the contact (r–z plane)</div><canvas id="cv-field" width="340" height="340"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">On-axis stresses &amp; max-shear depth</div><canvas id="cv-field2" width="340" height="340"></canvas></div>
+    </div><div class="val-verdict" id="vd-field"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 5: CONTACT AREA ══════════ -->
+<section id="tab-fluor" class="tab-content">
+  <div class="background-section">
+    <h2>Background: reading the contact area with a dye that cannot get in</h2>
+    <p>To measure \(a\) directly, the water phase is loaded with a <strong>high-molecular-weight fluorescent polymer</strong> (e.g. large dextran). Its hydrodynamic radius \(R_h\) is bigger than the gel mesh size \(\xi\), so it is <em>size-excluded</em> from the gel — the partition coefficient \(K\to0\):</p>
+    <div class="equation-box"><p style="text-align:center">$$K \approx \exp\!\big[-(R_h/\xi)^2\big]\;\xrightarrow{R_h\gg\xi}\;0$$</p></div>
+    <p>The probe stays in the water and is squeezed out of the ball–gel contact. In a confocal section at the contact plane the contact appears as a <strong>dark disk</strong> on a bright field; its projected radius is \(a\). (This is the molecular-probe cousin of <em>particle exclusion microscopy</em>, Schulze et al. 2016, where colloidal particles are excluded from a soft contact; Johannes et al. 2019 image the same contact in 3D with fluorescent beads and confocal sectioning.) Three things bias the measured \(a\):</p>
+    <ul>
+      <li><strong>Optical resolution (PSF):</strong> the edge is blurred over ~the PSF width, so the apparent radius depends on your intensity <em>threshold</em>.</li>
+      <li><strong>Meniscus:</strong> a thin fluid wedge just outside contact reads slightly dark, inflating \(a\).</li>
+      <li><strong>Photobleaching:</strong> long dwell dims the surrounding fluid, mimicking exclusion.</li>
+    </ul>
+    <div class="key-takeaways"><ul>
+      <li>Exclusion gives \(a\) without any mechanical model — the independent leg of the over-determined measurement.</li>
+      <li>Pick a consistent threshold (e.g. half-max) and report it; the absolute edge is fuzzy at the PSF scale.</li>
+      <li>Meniscus and bleaching both push the measured \(a\) <em>up</em>, biasing \(E\) downward.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>In <strong>Ideal</strong>, sweep the threshold and find the value that recovers the true \(a\) (dashed ring).</li>
+    <li>Turn on <strong>Meniscus</strong> and <strong>Photobleach</strong> and watch the measured \(a\) over-shoot the truth.</li>
+    <li>Increase the PSF width (worse optics): the edge softens and the threshold matters more.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Imaging artifacts:</span>
+    <button class="scen-btn on" data-tab="fluor" data-scen="ideal" onclick="setScen('fluor','ideal')">Ideal</button>
+    <button class="scen-btn" data-tab="fluor" data-scen="meniscus" onclick="setScen('fluor','meniscus')">+ Meniscus</button>
+    <button class="scen-btn" data-tab="fluor" data-scen="bleach" onclick="setScen('fluor','bleach')">+ Photobleach</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>True contact radius a <span id="v-fluor-a">120 µm</span></label><input type="range" id="s-fluor-a" min="30" max="280" step="2" value="120"></div>
+      <div class="ctrl-group"><label>Probe radius R_h <span id="v-fluor-rh">10 nm</span></label><input type="range" id="s-fluor-rh" min="1" max="40" step="1" value="10"></div>
+      <div class="ctrl-group"><label>Mesh size ξ <span id="v-fluor-xi">4 nm</span></label><input type="range" id="s-fluor-xi" min="1" max="40" step="1" value="4"></div>
+      <div class="ctrl-group"><label>PSF width <span id="v-fluor-psf">1.5 µm</span></label><input type="range" id="s-fluor-psf" min="0.2" max="8" step="0.1" value="1.5"></div>
+      <div class="ctrl-group"><label>Threshold <span id="v-fluor-thr">0.50</span></label><input type="range" id="s-fluor-thr" min="0.1" max="0.9" step="0.02" value="0.5"></div>
+      <div class="stats" id="st-fluor"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Confocal contact-plane image (bright fluid, dark contact)</div><canvas id="cv-fluor" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Radial intensity profile &amp; threshold</div><canvas id="cv-fluor2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-fluor"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 6: BEAD TRACKING ══════════ -->
+<section id="tab-track" class="tab-content">
+  <div class="background-section">
+    <h2>Background: beads turn deformation into a displacement field</h2>
+    <p>Fluorescent beads embedded in the gel are imaged before and after the ball is placed. The lab's <strong>SerialTrack</strong> algorithm matches each bead between the two 3D stacks (topology-based matching inside an ADMM loop) and returns the displacement field \(\mathbf{u}(\mathbf{x})\). Strain is its spatial gradient:</p>
+    <div class="equation-box"><p style="text-align:center">$$\boldsymbol{\varepsilon}=\tfrac12(\nabla\mathbf{u}+\nabla\mathbf{u}^{\top})\quad\text{(small strain)},\qquad \mathbf{F}=\mathbf{I}+\nabla\mathbf{u}\quad\text{(finite)}$$</p></div>
+    <p>For a Hertz contact, the <em>surface</em> normal displacement has a closed form we can compare the data against directly:</p>
+    <div class="equation-box"><p style="text-align:center">$$u_z(r)=\begin{cases}\dfrac{\pi p_0}{4E^\ast a}\,(2a^2-r^2), & r\le a\\[6pt]\dfrac{p_0}{2E^\ast a}\big[(2a^2-r^2)\arcsin\tfrac{a}{r}+a\sqrt{r^2-a^2}\big], & r\ge a\end{cases}$$</p></div>
+    <p>with \(u_z(0)=\delta\). The measurement quality is set by <strong>bead density</strong> (how finely the field is sampled — the steep gradient near the contact edge needs dense seeding) and <strong>localization precision</strong> (axial \(z\) is always worse than lateral, exactly as in the TFM confocal tab).</p>
+    <div class="handoff">→ <strong>See TFM Module:</strong> the bead-size/density and confocal-vs-epifluorescence trade-offs you learned there apply identically to the tracer beads here.</div>
+    <div class="key-takeaways"><ul>
+      <li>Tracking gives \(\mathbf{u}(\mathbf{x})\); strain and stress follow by differentiation and the constitutive law.</li>
+      <li>Comparing the measured \(u_z(r)\) to the analytic Hertz curve validates that the gel really is a Hertzian half-space.</li>
+      <li>Sparse or noisy beads wash out the sharp near-edge field — the most information-rich region.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>In <strong>Dense</strong>, the bead samples (dots) trace the analytic \(u_z(r)\) curve closely.</li>
+    <li>Switch to <strong>Sparse</strong> and watch the steep near-edge displacement get undersampled.</li>
+    <li>Add <strong>Noise</strong> and see the reconstruction RMSE rise — especially where the field is steep.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Bead seeding:</span>
+    <button class="scen-btn on" data-tab="track" data-scen="dense" onclick="setScen('track','dense')">Dense</button>
+    <button class="scen-btn" data-tab="track" data-scen="sparse" onclick="setScen('track','sparse')">Sparse</button>
+    <button class="scen-btn" data-tab="track" data-scen="noisy" onclick="setScen('track','noisy')">Noisy</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Load F <span id="v-track-F">50 µN</span></label><input type="range" id="s-track-F" min="2" max="400" step="2" value="50"></div>
+      <div class="ctrl-group"><label>Gel modulus E <span id="v-track-E">5.0 kPa</span></label><input type="range" id="s-track-E" min="0.2" max="40" step="0.2" value="5"></div>
+      <div class="ctrl-group"><label>Bead count <span id="v-track-n">40</span></label><input type="range" id="s-track-n" min="6" max="90" step="1" value="40"></div>
+      <div class="ctrl-group"><label>Localization noise <span id="v-track-noise">0.20 µm</span></label><input type="range" id="s-track-noise" min="0" max="3" step="0.05" value="0.2"></div>
+      <div class="stats" id="st-track"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Half-section (r–z): ball indents the gel; beads move before → after</div><canvas id="cv-track" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Surface u_z(r): analytic vs bead samples</div><canvas id="cv-track2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-track"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 7: FITTING ══════════ -->
+<section id="tab-fit" class="tab-content">
+  <div class="background-section">
+    <h2>Background: a well-posed inverse — and why redundancy matters</h2>
+    <p>Unlike TFM's ill-posed deconvolution, fitting a contact model is a low-dimensional, over-determined regression. From the four measurements we get <strong>three independent estimates of \(E^\ast\)</strong>:</p>
+    <div class="equation-box"><p style="text-align:center">$$\text{(i)}\;E^\ast=\frac{3FR}{4a^3}\quad\text{(ii)}\;E^\ast=\frac{3F}{4\sqrt{R}\,\delta^{3/2}}\quad\text{(iii)}\;E^\ast=\arg\min_{E^\ast}\lVert u_z^{\text{model}}-u_z^{\text{meas}}\rVert^2$$</p></div>
+    <p>If all three <strong>agree</strong>, every Hertz assumption is validated at once. If they <strong>disagree</strong>, the pattern localizes the broken assumption (e.g. adhesion inflates \(a\), so (i) drops below (ii)).</p>
+    <h3>Recovering ν needs the full field</h3>
+    <p>The force-based routes only ever constrain the combination \(E^\ast=E/(1-\nu^2)\) — \(E\) and \(\nu\) are <strong>degenerate</strong>. The misfit landscape has a flat valley along \(E/(1-\nu^2)=\text{const}\). Only the <em>shape</em> of the 3D field (lateral/radial displacement, depth decay) breaks that degeneracy and pins \(\nu\) separately.</p>
+    <div class="key-takeaways"><ul>
+      <li>Three independent \(E^\ast\) estimates that agree = a validated measurement; disagreement = a diagnostic.</li>
+      <li>Vertical surface data fixes \(E^\ast\); only full 3D field shape recovers \(\nu\).</li>
+      <li>This is the over-determination payoff promised in Tab 1.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>With low noise, confirm the three \(E^\ast\) bars line up (green) — a consistent, trustworthy fit.</li>
+    <li>Raise the noise and watch the bars scatter; the agreement check turns amber/red.</li>
+    <li>Toggle <strong>Field-only → +Lateral data</strong> and watch the misfit valley collapse to a single minimum that pins \(\nu\).</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Data used for the fit:</span>
+    <button class="scen-btn on" data-tab="fit" data-scen="fieldonly" onclick="setScen('fit','fieldonly')">Vertical field only</button>
+    <button class="scen-btn" data-tab="fit" data-scen="lateral" onclick="setScen('fit','lateral')">+ Lateral (3D) data</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>True modulus E <span id="v-fit-E">5.0 kPa</span></label><input type="range" id="s-fit-E" min="0.5" max="30" step="0.5" value="5"></div>
+      <div class="ctrl-group"><label>True Poisson ν <span id="v-fit-nu">0.45</span></label><input type="range" id="s-fit-nu" min="0.3" max="0.49" step="0.01" value="0.45"></div>
+      <div class="ctrl-group"><label>Measurement noise <span id="v-fit-noise">0.03</span></label><input type="range" id="s-fit-noise" min="0" max="0.2" step="0.005" value="0.03"></div>
+      <div class="stats" id="st-fit"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Three independent E* estimates</div><canvas id="cv-fit" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Misfit landscape over (E, ν)</div><canvas id="cv-fit2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-fit"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 8: RELAXATION ══════════ -->
+<section id="tab-relax" class="tab-content">
+  <div class="background-section">
+    <h2>Background: why the force keeps changing after you stop pushing</h2>
+    <p>Hold the indentation fixed and the force decays. Two physically distinct mechanisms can cause this, and the experiment can tell them apart:</p>
+    <h3>Viscoelastic — intrinsic, size-independent</h3>
+    <p>Polymer chains and crosslinks rearrange; internal friction dissipates energy. A Standard Linear Solid gives</p>
+    <div class="equation-box"><p style="text-align:center">$$F(t)=F_\infty+(F_0-F_\infty)\,e^{-t/\tau_v},\qquad \tau_v\ \text{is a material constant — independent of contact size }a$$</p></div>
+    <h3>Poroelastic — solvent must flow out</h3>
+    <p>The compressed contact raises pore pressure; solvent has to drain out of the contact zone through the mesh. The relaxation is diffusion over the contact length scale:</p>
+    <div class="equation-box"><p style="text-align:center">$$\tau_p \sim \frac{a^2}{D},\qquad D=\frac{2(1-\nu)}{1-2\nu}\,\frac{G\,k}{\eta}\ \ (G\ \text{shear modulus},\ k\sim\xi^2\ \text{permeability},\ \eta\ \text{solvent viscosity})$$</p></div>
+    <p>Hu et al. (2010) showed that the force relaxation collapses onto a single master curve when plotted against the normalized time \(\hat t = Dt/a^2\): \(\;[F(t)-F_\infty]/[F_0-F_\infty]=g(Dt/a^2)\), with \(F_0/F_\infty=2(1-\nu)\) (undrained vs. drained). <strong>The diagnostic:</strong> repeat with different ball sizes (different \(a\)) and plot \(\tau\) vs \(a^2\): a <em>flat</em> line means viscoelastic (intrinsic); a line <em>through the origin with slope \(1/D\)</em> means poroelastic. This ties the instantaneous/equilibrium moduli to the undrained (\(\nu\to0.5\)) / drained limits.</p>
+    <div class="key-takeaways"><ul>
+      <li>Viscoelastic τ is size-independent; poroelastic τ scales as \(a^2\).</li>
+      <li>Vary the ball size to separate the two — a single curve cannot.</li>
+      <li>Poroelastic drainage links the time response to the mesh size and permeability.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>In <strong>Viscoelastic</strong>, set two different ball sizes — the normalized relaxation curves <em>overlap</em>.</li>
+    <li>Switch to <strong>Poroelastic</strong> — now the larger ball relaxes slower, and the τ-vs-a² plot becomes a straight line.</li>
+    <li>From the poroelastic slope, read off the diffusivity \(D\).</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Mechanism:</span>
+    <button class="scen-btn on" data-tab="relax" data-scen="visco" onclick="setScen('relax','visco')">Viscoelastic</button>
+    <button class="scen-btn" data-tab="relax" data-scen="poro" onclick="setScen('relax','poro')">Poroelastic</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>Viscoelastic time τ_v <span id="v-relax-tv">20 s</span></label><input type="range" id="s-relax-tv" min="2" max="120" step="1" value="20"></div>
+      <div class="ctrl-group"><label>Poroelastic diffusivity D <span id="v-relax-D">200 µm²/s</span></label><input type="range" id="s-relax-D" min="10" max="2000" step="10" value="200"></div>
+      <div class="ctrl-group"><label>Small contact a₁ <span id="v-relax-a1">60 µm</span></label><input type="range" id="s-relax-a1" min="30" max="120" step="2" value="60"></div>
+      <div class="ctrl-group"><label>Large contact a₂ <span id="v-relax-a2">150 µm</span></label><input type="range" id="s-relax-a2" min="120" max="280" step="2" value="150"></div>
+      <div class="stats" id="st-relax"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">Normalized force relaxation F*(t) at two ball sizes</div><canvas id="cv-relax" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Relaxation time τ vs a²</div><canvas id="cv-relax2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-relax"></div></div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 9: WHEN HERTZ FAILS ══════════ -->
+<section id="tab-fails" class="tab-content">
+  <div class="background-section">
+    <h2>Background: knowing when to stop trusting Hertz</h2>
+    <p>Hertz is the small-strain, frictionless, half-space, no-adhesion, linear-elastic limit. Real soft-gel indentation drifts out of it in five common ways, each with a correction:</p>
+    <ul>
+      <li><strong>Finite thickness</strong> (\(a/h\gtrsim0.1\)): a gel film stiffens (bonded) or softens (free). Use the Dimitriadis et al. (2002) polynomial correction in \(\chi=\sqrt{R\delta}/h\), with separate coefficients for bonded vs. unbonded.</li>
+      <li><strong>Adhesion</strong>: a sticky soft contact follows <strong>JKR</strong> — the contact persists under tension and pulls off at \(F_{\text{po}}=\tfrac32\pi W R^\ast\). The Tabor parameter \(\mu_T\gg1\) (soft gels) selects JKR over DMT.</li>
+      <li><strong>Large strain</strong> (\(a/R\gtrsim0.3\)): the parabolic gap and linear elasticity both fail — go neo-Hookean (the law from the TFM module).</li>
+      <li><strong>Elastocapillarity</strong>: for very soft gels, solid surface tension \(\gamma\) rounds the contact when \(a\lesssim\gamma/E\).</li>
+      <li><strong>Drainage state</strong>: fast loading reads the undrained modulus (\(\nu\to0.5\)), slow loading the drained one — there are two valid Hertz moduli (Tab 8).</li>
+    </ul>
+    <div class="equation-box"><p style="text-align:center">$$\text{JKR:}\quad \delta=\frac{a^2}{R^\ast}-\sqrt{\frac{2\pi W a}{E^\ast}},\qquad F=\frac{4E^\ast a^3}{3R^\ast}-\sqrt{8\pi W E^\ast a^3}$$</p></div>
+    <div class="key-takeaways"><ul>
+      <li>The geometry check \(a^2=R\delta\) from Tab 3 is your first alarm: adhesion or thickness breaks it.</li>
+      <li>Walk the dimensionless checks — \(a/R\), \(a/h\), \(\mu_T\), \(a\) vs \(\gamma/E\), rate vs τ — before defaulting to Hertz.</li>
+      <li>Disagreement among the three \(E^\ast\) estimates (Tab 7) tells you <em>which</em> correction you need.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Increase <strong>δ/R</strong> and watch the neo-Hookean and Hertz curves diverge (large strain).</li>
+    <li>Lower the <strong>thickness h</strong> until the bonded thin-film curve stiffens well above Hertz.</li>
+    <li>Raise the <strong>adhesion W</strong> and see the JKR curve develop a tensile (pull-off) tail; watch the decision flowchart light up the active regime.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Thin-film boundary:</span>
+    <button class="scen-btn on" data-tab="fails" data-scen="bonded" onclick="setScen('fails','bonded')">Bonded to dish</button>
+    <button class="scen-btn" data-tab="fails" data-scen="free" onclick="setScen('fails','free')">Free (unbonded)</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group"><label>δ/R (strain level) <span id="v-fails-dR">0.10</span></label><input type="range" id="s-fails-dR" min="0.02" max="0.4" step="0.01" value="0.1"></div>
+      <div class="ctrl-group"><label>Gel thickness h <span id="v-fails-h">800 µm</span></label><input type="range" id="s-fails-h" min="50" max="2000" step="10" value="800"></div>
+      <div class="ctrl-group"><label>Adhesion energy W <span id="v-fails-W">0 mJ/m²</span></label><input type="range" id="s-fails-W" min="0" max="50" step="1" value="0"></div>
+      <div class="ctrl-group"><label>Gel modulus E <span id="v-fails-E">5.0 kPa</span></label><input type="range" id="s-fails-E" min="0.2" max="40" step="0.2" value="5"></div>
+      <div class="stats" id="st-fails"></div>
+    </div>
+    <div class="viz"><div class="chart-row">
+      <div class="canvas-wrap"><div class="canvas-title">F–δ: Hertz vs corrected models</div><canvas id="cv-fails" width="340" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Which model? — dimensionless decision guide</div><canvas id="cv-fails2" width="340" height="320"></canvas></div>
+    </div><div class="val-verdict" id="vd-fails"></div></div>
+  </div>
+  <div class="handoff">→ <strong>Workflow synthesis:</strong> measure \(F\) (Tab 2) → image the exclusion disk for \(a\) (Tab 5) → track beads for \(\mathbf{u},\delta\) (Tab 6) → cross-check \(a^2=R\delta\) and the three \(E^\ast\) (Tabs 3, 7) → fit \((E,\nu)\) → vary ball size for the relaxation mechanism (Tab 8) → apply this decision guide before reporting a number.</div>
+</section>
+
+<div class="sources">
+  <h2>Sources (verified)</h2>
+  <ol id="src-list">
+    <li>Johnson, K. L. (1985), <em>Contact Mechanics</em>, Cambridge Univ. Press — canonical reference for the Hertz relations, the pressure distribution, and the sub-surface stress field (max shear ≈0.31 p₀ at z≈0.48 a, ν=0.3). DOI <a href="https://doi.org/10.1017/CBO9781139171731" target="_blank" rel="noopener">10.1017/CBO9781139171731</a>.</li>
+    <li>Hertz, H. (1882), "Über die Berührung fester elastischer Körper," <em>J. reine angew. Math.</em> 92:156 — original contact theory.</li>
+    <li>Johnson, Kendall &amp; Roberts (1971), <em>Proc. R. Soc. A</em> 324:301–313 — JKR adhesive contact &amp; pull-off force \(F_{po}=\tfrac32\pi WR^\ast\). <a href="https://doi.org/10.1098/rspa.1971.0141" target="_blank" rel="noopener">10.1098/rspa.1971.0141</a></li>
+    <li>Derjaguin, Muller &amp; Toporov (1975), <em>J. Colloid Interface Sci.</em> 53:314 — DMT adhesion (\(F_{po}=2\pi WR^\ast\)). <a href="https://doi.org/10.1016/0021-9797(75)90018-1" target="_blank" rel="noopener">10.1016/0021-9797(75)90018-1</a>. Tabor (1977), <em>JCIS</em> 58:2 — Tabor parameter. <a href="https://doi.org/10.1016/0021-9797(77)90366-6" target="_blank" rel="noopener">10.1016/0021-9797(77)90366-6</a></li>
+    <li>Dimitriadis et al. (2002), <em>Biophys. J.</em> 82:2798–2810 — finite-thickness (bonded/unbonded) correction for spherical indentation, polynomial in χ=√(Rδ)/h. <a href="https://doi.org/10.1016/S0006-3495(02)75620-8" target="_blank" rel="noopener">10.1016/S0006-3495(02)75620-8</a></li>
+    <li>Hu, Zhao, Vlassak &amp; Suo (2010), <em>Appl. Phys. Lett.</em> 96:121904 — poroelastic indentation, τ ∝ a²/D, spherical master function g(τ). <a href="https://doi.org/10.1063/1.3370354" target="_blank" rel="noopener">10.1063/1.3370354</a></li>
+    <li>Style et al. (2013), <em>Nat. Commun.</em> 4:2728 — surface tension &amp; contact with soft solids; elastocapillary length L=Υ/E. <a href="https://doi.org/10.1038/ncomms3728" target="_blank" rel="noopener">10.1038/ncomms3728</a>. Style et al. (2017), <em>Annu. Rev. Condens. Matter Phys.</em> 8:99 (review). <a href="https://doi.org/10.1146/annurev-conmatphys-031016-025326" target="_blank" rel="noopener">10.1146/...025326</a></li>
+    <li>Oyen, M. L. (2014), <em>Int. Mater. Rev.</em> 59:44–59 — review: choosing elastic vs. viscoelastic vs. poroelastic indentation models for hydrogels. <a href="https://doi.org/10.1179/1743280413Y.0000000022" target="_blank" rel="noopener">10.1179/1743280413Y.0000000022</a></li>
+    <li>Schulze et al. (2016), <em>J. Tribol.</em> 138:041404 — particle exclusion microscopy of real contact area on a soft transparent interface. <a href="https://doi.org/10.1115/1.4032822" target="_blank" rel="noopener">10.1115/1.4032822</a>. Johannes et al. (2019), <em>Langmuir</em> 35:10725 — fluorescent + confocal 3D contact imaging. <a href="https://doi.org/10.1021/acs.langmuir.9b00830" target="_blank" rel="noopener">10.1021/acs.langmuir.9b00830</a></li>
+  </ol>
+  <p style="font-size:.76rem;color:#94a3b8;margin-top:8px">Full citation list with verification status and BibTeX lives in <em>Research/systems/spherical-indentation-hydrogels.md</em>. Related course modules: TFM (Boussinesq fields, bead tracking, inverse problems) and hydrogel network formation (mesh size ξ, SLS viscoelasticity).</p>
+</div>
+
+</main>
+<footer>BME/AME 466·566 Biomechanics — Mechanical Indentation of Hydrogels module · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   BALL-INDENTATION MODULE — synthetic, self-contained interactive demos.
+   Reuses the McGhee-lab module house helpers (COL, niceTicks, setupCanvas,
+   Chart, drawLine, arrow, setStat, setVerdict, matvec, solveSym) from the
+   TFM and hydrogel modules, plus new helpers for colormaps/heatmaps, the
+   fluorescent-exclusion disk, a light 3D bead projection, and the
+   contact-mechanics physics.
+
+   UNITS: length µm · force µN · modulus & stress kPa.
+   Convenience: 1 kPa = 1 nN/µm², so a force in µN must be ×1000 (→nN)
+   inside the Hertz relations. Physics helpers below handle this.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  ball:'#64748b', steel:'#475569', gel:'#dcfce7', gelEdge:'#86efac', water:'#dbeafe',
+  bead:'#7c3aed', beadRef:'#cbd5e1', disp:'#f59e0b', contact:'#1e293b',
+  hertz:'#2563eb', jkr:'#ef4444', thin:'#10b981', neo:'#a855f7',
+  truth:'#1e3a5f', rec:'#2563eb', data:'#f59e0b', fit:'#2563eb',
+  visco:'#2563eb', poro:'#ef4444', press:'#2563eb',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b'
+};
+
+/* ── math utils ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+
+/* ── canvas / chart helpers (house pattern) ── */
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const w=rect.width||canvas.width; const h=w*(canvas.height/canvas.width);
+  canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b; }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+function springGlyph(ctx,x0,y0,x1,y1,color,lw){ const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy); if(L<2)return;
+  const ux=dx/L,uy=dy/L,px=-uy,py=ux,n=7,amp=Math.min(6,L*0.12); ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||1.6;ctx.beginPath();ctx.moveTo(x0,y0);
+  for(let i=1;i<n;i++){const t=i/n,s=(i%2?1:-1)*amp;ctx.lineTo(x0+ux*L*t+px*s,y0+uy*L*t+py*s);}ctx.lineTo(x1,y1);ctx.stroke();ctx.restore();}
+function dashpotGlyph(ctx,x,y,color){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle='#fff';ctx.lineWidth=1.5;
+  ctx.strokeRect(x-7,y-5,14,10); ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x-7,y);ctx.stroke();
+  ctx.fillStyle=color;ctx.fillRect(x-5,y-4,5,8);ctx.restore();}
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  el.innerHTML=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join(''); }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  el.className='val-verdict '+cls; el.innerHTML='<strong>'+title+'</strong>'+body; }
+
+/* ── linear algebra ── */
+function matvec(A,x){ const n=A.length,m=x.length,y=new Array(n).fill(0); for(let i=0;i<n;i++){let s=0;for(let j=0;j<m;j++)s+=A[i][j]*x[j];y[i]=s;} return y; }
+function solveSym(A,b){ const n=b.length,M=A.map((r,i)=>r.slice().concat([b[i]]));
+  for(let c=0;c<n;c++){ let p=c; for(let r=c+1;r<n;r++) if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    const tmp=M[c];M[c]=M[p];M[p]=tmp; const piv=M[c][c]||1e-12;
+    for(let r=0;r<n;r++){ if(r===c)continue; const f=M[r][c]/piv; if(f===0)continue; for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k]; } }
+  const x=new Array(n); for(let i=0;i<n;i++)x[i]=M[i][n]/(M[i][i]||1e-12); return x; }
+
+/* ── colormap + heatmap (NEW) ── */
+/* perceptual-ish blue→cyan→yellow→red ramp for t in [0,1] */
+function colormap(t){ t=clamp(t,0,1);
+  const stops=[[8,48,107],[33,113,181],[66,182,200],[255,217,47],[227,74,51],[153,0,13]];
+  const x=t*(stops.length-1), i=Math.floor(x), f=x-i, a=stops[i], b=stops[Math.min(i+1,stops.length-1)];
+  const r=Math.round(a[0]+(b[0]-a[0])*f), g=Math.round(a[1]+(b[1]-a[1])*f), bl=Math.round(a[2]+(b[2]-a[2])*f);
+  return 'rgb('+r+','+g+','+bl+')'; }
+/* fill an nx×ny cell grid of fn(fx,fy)->value over [x0,x1]×[y0,y1] pixel box, colored by colormap on [vmin,vmax] */
+function heatmap(ctx,x0,y0,bw,bh,nx,ny,fn,vmin,vmax){ const cw=bw/nx, ch=bh/ny;
+  for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){ const v=fn((i+0.5)/nx,(j+0.5)/ny);
+    ctx.fillStyle=colormap((v-vmin)/(vmax-vmin||1)); ctx.fillRect(x0+i*cw,y0+j*ch,cw+0.6,ch+0.6); } }
+function colorbar(ctx,x,y,w,h,vmin,vmax,label){ const n=40; for(let j=0;j<n;j++){ ctx.fillStyle=colormap(1-j/n); ctx.fillRect(x,y+j*h/n,w,h/n+0.6); }
+  ctx.save();ctx.fillStyle=COL.axis;ctx.font='9px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText(fmt(vmax,2),x+w+3,y+4); ctx.fillText(fmt(vmin,2),x+w+3,y+h-4);
+  ctx.save();ctx.translate(x-4,y+h/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText(label||'',0,0);ctx.restore();
+  ctx.restore(); }
+
+/* ── light 3D projection (NEW) — oblique, depth-cued ── */
+function project(x,y,z,az,el){ const ca=Math.cos(az),sa=Math.sin(az),ce=Math.cos(el),se=Math.sin(el);
+  const px=x*ca - y*sa; const py=(x*sa + y*ca)*se + z*ce; const depth=(x*sa+y*ca)*ce - z*se;
+  return [px,py,depth]; }
+
+/* ════════════════════════════════════════════════════════════════
+   CONTACT-MECHANICS PHYSICS  (length µm · force µN · modulus kPa)
+   ════════════════════════════════════════════════════════════════ */
+function reducedModulus(E,nu,mode){ return mode==='sphere' ? E/(2*(1-nu*nu)) : E/(1-nu*nu); } // kPa
+function effRadius(R,mode){ return mode==='sphere' ? R/2 : R; }                                 // µm
+function contactRadius(F,Rs,Es){ return Math.cbrt(3*(F*1000)*Rs/(4*Es)); }                       // µm (F in µN)
+function indentDepth(a,Rs){ return a*a/Rs; }                                                     // µm
+function peakPressure(F,a){ return 3*(F*1000)/(2*Math.PI*a*a); }                                 // kPa
+function meanPressure(F,a){ return (F*1000)/(Math.PI*a*a); }                                      // kPa
+function forceFromDepth(Es,Rs,delta){ return (4/3)*Es*Math.sqrt(Rs)*Math.pow(delta,1.5)/1000; }  // µN
+/* buoyancy-corrected sphere load → µN */
+function ballForce(d_mm,rho_s,rho_f,submerged){ const R=d_mm/2*1e-3, V=(4/3)*Math.PI*R*R*R, g=9.81;
+  const drho = submerged ? (rho_s-rho_f) : rho_s; return drho*V*g*1e6; }
+/* on-axis Hertz stresses normalized by p0, ζ=z/a */
+function hertzAxis(zeta,nu){ const z=Math.max(zeta,1e-4);
+  const sz=-1/(1+z*z);
+  const sr=-((1+nu)*(1-z*Math.atan(1/z))-0.5/(1+z*z));
+  return {sz, sr, tau:0.5*Math.abs(sz-sr)}; }
+/* depth of max on-axis shear (a-units) — numeric search */
+function maxShearDepth(nu){ let best=0,bz=0; for(let i=1;i<=200;i++){ const z=i/100; const t=hertzAxis(z,nu).tau; if(t>best){best=t;bz=z;} } return {z:bz,tau:best}; }
+/* Hertz surface vertical displacement u_z(r) (µm), inputs p0,Es kPa, a,r µm */
+function hertzUz(r,a,p0,Es){ if(r<=a){ return Math.PI*p0/(4*Es*a)*(2*a*a-r*r); }
+  const root=Math.sqrt(Math.max(0,r*r-a*a)); return p0/(2*Es*a)*((2*a*a-r*r)*Math.asin(a/r)+a*root); }
+/* Boussinesq σ_zz (normalized, ν-independent) at (rho,z) from Hertz pressure over disk radius a */
+function bulbSzz(rho,z,a){ const nr=9,nt=18; let s=0;
+  for(let i=0;i<nr;i++){ const rp=a*(i+0.5)/nr, dr=a/nr, pr=Math.sqrt(Math.max(0,1-(rp*rp)/(a*a)));
+    for(let j=0;j<nt;j++){ const th=2*Math.PI*(j+0.5)/nt;
+      const dx=rho-rp*Math.cos(th), dy=-rp*Math.sin(th); const horiz2=dx*dx+dy*dy;
+      const R=Math.sqrt(horiz2+z*z); if(R<1e-6)continue;
+      s += pr * (z*z*z)/(R*R*R*R*R) * rp*dr*(2*Math.PI/nt); } }
+  return -1.5/Math.PI*s; } // in units of p0 (p(r)=p0·pr)
+/* poroelastic normalized force-relaxation master function g(x), x = Dt/a².
+   Spherical-indenter two-exponential fit, VERIFIED against Hu, Zhao, Vlassak & Suo
+   (2010) Appl. Phys. Lett. 96:121904 (full text): g(τ)=0.491 e^(−0.908√τ)+0.509 e^(−1.679τ). */
+function gPoro(x){ if(x<=0)return 1; return 0.491*Math.exp(-0.908*Math.sqrt(x))+0.509*Math.exp(-1.679*x); }
+function gVisco(x){ return Math.exp(-x); }
+
+/* ── state ── */
+let activeTab='overview';
+const scen={ overview:'on', load:'sub', hertz:'rigid', field:'fill', fluor:'ideal', track:'dense', fit:'fieldonly', relax:'visco', fails:'bonded' };
+function num(id){ const e=document.getElementById(id); return e?parseFloat(e.value):0; }
+
+/* Fixed display limits — every colorbar and the displacement/stress/load axes are clamped to
+   these constant envelope maxima, so moving a slider visibly changes the plotted MAGNITUDE and
+   colors instead of the frame auto-rescaling (so a stiffer/heavier case really looks brighter /
+   taller). Values beyond a limit clip at the frame edge or saturate the colormap. */
+const LIM = {
+  p0:    4,    // kPa  — contact-pressure & |σzz| colorbar max (peak pressure spans ~0.3–14 kPa over the sliders)
+  loadF: 500,  // µN   — Tab 3 load axis (= F slider max)
+  indD:  120,  // µm   — Tab 3 indentation axis
+  fluorR:504,  // µm   — Tab 5 radius axis (= a_max 280 µm × 1.8)
+  trackR:600,  // µm   — Tab 6 radial view
+  trackZ:480,  // µm   — Tab 6 depth view
+  uz:    120,  // µm   — Tab 6 surface-displacement axis
+  estar: 40,   // kPa  — Tab 7 E* bar & landscape axis (≈ E_max/(1−ν_max²))
+  relT:  300,  // s    — Tab 8 time axis
+  relTau:300,  // s    — Tab 8 τ axis
+  relA2: 80    // ×10³ µm² — Tab 8 a² axis (≈ (280 µm)²/1000)
+};
+
+/* ════════ TAB 1: THE EXPERIMENT ════════ */
+function drawOverview(){
+  const d=num('s-overview-d'), E=num('s-overview-E'), on=scen.overview==='on';
+  const R=d/2*1000, Es=E/(1-0.45*0.45), F=ballForce(d,7850,1000,true);
+  const a=contactRadius(F,R,Es), delta=indentDepth(a,R);
+  const {ctx,w,h}=setupCanvas(document.getElementById('cv-overview'));
+  const surfY=h*0.56, cx=w*0.5;
+  ctx.fillStyle=COL.water; ctx.fillRect(0,0,w,surfY);
+  ctx.fillStyle=COL.gel; ctx.fillRect(0,surfY,w,h-surfY);
+  ctx.save();ctx.fillStyle='#1d4ed8';ctx.globalAlpha=0.5;ctx.font='10px sans-serif';ctx.textAlign='left';
+  ctx.fillText('water + high-MW fluorescent probe',8,16);ctx.globalAlpha=1;ctx.fillStyle='#15803d';ctx.fillText('hydrogel + tracer beads',8,h-10);ctx.restore();
+  // ball drawn to scale with the diameter slider (clamped to fit the canvas)
+  const maxR=Math.min(w*0.23,(surfY-30)/2.4);
+  const Rpx=maxR*(0.4+0.6*(d-0.5)/4.5);                       // grows with d (0.5→5 mm)
+  const aPx=clamp(Rpx*(a/R), 4, Rpx*0.85);                    // contact half-width — to scale with a/R on the drawn ball
+  const sq = Math.sqrt(Math.max(1e-6,Rpx*Rpx-aPx*aPx));       // ball half-height at the contact edge
+  const cap = on? Rpx-sq : 0;                                 // spherical-cap depth, contact edge → ball bottom
+  const dentPx = 2*cap;                                       // visual indentation δ (a²=R*δ ⇒ contact edge sits at δ/2)
+  const liftPx = on? 0 : Math.max(18, Rpx*0.45);              // OFF → lift the ball clear of the gel (water gap)
+  const ballCy = surfY - Rpx + dentPx - liftPx;
+  const ballBottom = surfY + dentPx - liftPx;
+  // deformed gel surface: within the contact (|x|≤a) it CONFORMS to the ball's underside (so it
+  // touches the contact arc); outside it lifts away and recovers to the flat far field, slope-matched
+  // at the edge (schematic of the Hertz surface; the rigorous u_z(r) is in Tab 6).
+  ctx.save();ctx.strokeStyle='#16a34a';ctx.lineWidth=2;ctx.beginPath();
+  const edgeDepth=dentPx/2, kdec=(aPx/sq)/(edgeDepth||1);
+  for(let px=0;px<=w;px+=2){ const x=px-cx, ax=Math.abs(x); let dep=0;
+    if(on) dep = ax<=aPx ? (dentPx-Rpx)+Math.sqrt(Math.max(0,Rpx*Rpx-ax*ax)) : edgeDepth*Math.exp(-kdec*(ax-aPx));
+    const y=surfY+dep; if(px===0)ctx.moveTo(px,y);else ctx.lineTo(px,y); }
+  ctx.stroke();
+  if(on){ ctx.strokeStyle='#94a3b8';ctx.setLineDash([4,3]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,surfY);ctx.lineTo(w,surfY);ctx.stroke();ctx.setLineDash([]); }
+  ctx.restore();
+  // beads — displaced only when the ball is on
+  const rng=mulberry32(20240617); const NB=70;
+  for(let i=0;i<NB;i++){ const bx=rng()*w, bz=surfY+12+rng()*(h-surfY-18);
+    let dx=0,dy=0;
+    if(on){ const r=bx-cx, dep=bz-surfY; const env=Math.exp(-dep/(aPx*1.6))*Math.exp(-(r*r)/(aPx*aPx*2.4));
+      dy=dentPx*0.55*env; dx=0.25*dentPx*env*Math.sign(r)*Math.min(1,Math.abs(r)/(aPx+1)); }
+    ctx.fillStyle=COL.beadRef;ctx.beginPath();ctx.arc(bx,bz,1.5,0,6.283);ctx.fill();
+    ctx.fillStyle=COL.bead;ctx.beginPath();ctx.arc(bx+dx,bz+dy,on&&Math.hypot(dx,dy)>0.6?2.1:1.9,0,6.283);ctx.fill(); }
+  // ball
+  ctx.save();const grd=ctx.createRadialGradient(cx-Rpx*0.3,ballCy-Rpx*0.3,Rpx*0.1,cx,ballCy,Rpx);
+  grd.addColorStop(0,'#cbd5e1');grd.addColorStop(1,COL.steel);
+  ctx.fillStyle=grd;ctx.beginPath();ctx.arc(cx,ballCy,Rpx,0,6.283);ctx.fill();
+  ctx.strokeStyle='#334155';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
+  // dark contact zone — the underside arc of the ball that actually touches the gel (spans ±a, hugs the sphere)
+  if(on){ ctx.save();ctx.strokeStyle=COL.contact;ctx.lineWidth=4;ctx.lineCap='round';
+    const ang=Math.atan2(sq, aPx);   // endpoints sit at (cx ± aPx, surfY + δ/2) — exactly on the gel surface
+    ctx.beginPath();ctx.arc(cx,ballCy,Rpx,ang,Math.PI-ang);ctx.stroke();ctx.restore(); }
+  // labels
+  ctx.save();ctx.font='11px sans-serif';ctx.textAlign='center';
+  if(on){
+    arrow(ctx,cx,ballCy-Rpx-26,cx,ballCy-Rpx-6,COL.bad,2.2);
+    ctx.fillStyle=COL.bad;ctx.fillText('F (known load)',cx,ballCy-Rpx-32);
+    // projected 2a measurement bracket, with dashed guides up to the contact edges
+    const by=surfY+dentPx+24, ey=surfY+dentPx/2;   // guides start at the contact edge (depth δ/2)
+    ctx.strokeStyle=COL.disp;ctx.fillStyle=COL.disp;ctx.lineWidth=1.4;
+    ctx.setLineDash([3,2]);ctx.beginPath();
+    ctx.moveTo(cx-aPx,ey);ctx.lineTo(cx-aPx,by);ctx.moveTo(cx+aPx,ey);ctx.lineTo(cx+aPx,by);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(cx-aPx,by);ctx.lineTo(cx+aPx,by);
+    ctx.moveTo(cx-aPx,by-4);ctx.lineTo(cx-aPx,by+4);ctx.moveTo(cx+aPx,by-4);ctx.lineTo(cx+aPx,by+4);ctx.stroke();
+    ctx.fillText('2a = projected contact (from exclusion)',cx,by+14);
+    ctx.fillStyle=COL.bead;ctx.textAlign='left';ctx.fillText('beads → u(x), δ',clamp(cx+aPx+6,8,w-118),ballCy);
+  } else {
+    arrow(ctx,cx,ballBottom+6,cx,surfY-4,COL.axis,1.8);        // hint: the ball lowers onto the gel
+    ctx.fillStyle=COL.axis;ctx.fillText('reference state — ball lifted off, gel relaxed',cx,Math.max(12,ballCy-Rpx-10));
+  }
+  ctx.restore();
+  setStat('st-overview',[
+    {k:'load F (buoyancy-corrected)',v:fmt(F,1)+' µN'},
+    {k:'contact radius a',v:fmt(a,1)+' µm'},
+    {k:'indentation δ',v:fmt(delta,1)+' µm'},
+    {k:'a / R (small-strain check)',v:fmt(a/R,3),hi:true}
+  ]);
+  if(on) setVerdict('vd-overview','good','Four readouts from one ball.',
+    'F is known, a comes from the dark exclusion disk, and the beads give δ and the full field u(x). Hertz needs only two of these — measuring all four lets us cross-check the model (Tab 7).');
+  else setVerdict('vd-overview','warn','Reference state.',
+    'Beads sit at rest and the surface is flat. This is the <em>reference</em> image; placing the ball gives the deformed state we track against it.');
+}
+
+/* ════════ TAB 2: THE LOAD ════════ */
+function drawLoad(){
+  const d=num('s-load-d'), rs=num('s-load-rs'), rf=num('s-load-rf'), sub=scen.load==='sub';
+  const Rm=d/2*1e-3, V=(4/3)*Math.PI*Rm*Rm*Rm, g=9.81;
+  const Wt=rs*V*g*1e6, Buoy=rf*V*g*1e6, Fnet=sub?Wt-Buoy:Wt, buoyPct=Wt>0?Buoy/Wt*100:0;
+  // left: FBD
+  const c1=setupCanvas(document.getElementById('cv-load')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const cx=w*0.5, cy=h*0.46, Rpx=Math.min(w*0.18,h*0.18);
+  ctx.save();const grd=ctx.createRadialGradient(cx-Rpx*0.3,cy-Rpx*0.3,Rpx*0.1,cx,cy,Rpx);
+  grd.addColorStop(0,'#cbd5e1');grd.addColorStop(1,COL.steel);ctx.fillStyle=grd;
+  ctx.beginPath();ctx.arc(cx,cy,Rpx,0,6.283);ctx.fill();ctx.strokeStyle='#334155';ctx.stroke();
+  // gel surface line
+  ctx.strokeStyle='#16a34a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,cy+Rpx);ctx.lineTo(w,cy+Rpx);ctx.stroke();
+  const Lmax=h*0.30, ref=Math.max(Wt,1);
+  arrow(ctx,cx,cy,cx,cy+Lmax*Wt/ref,COL.bad,2.6);
+  ctx.fillStyle=COL.bad;ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillText('weight '+fmt(Wt,1)+' µN',cx+6,cy+Lmax*Wt/ref*0.6);
+  if(sub){ arrow(ctx,cx-14,cy,cx-14,cy-Lmax*Buoy/ref,COL.hertz,2.6);
+    ctx.fillStyle=COL.hertz;ctx.textAlign='right';ctx.fillText('buoyancy '+fmt(Buoy,1),cx-18,cy-Lmax*Buoy/ref*0.6); }
+  arrow(ctx,cx+16,cy+Rpx,cx+16,cy+Rpx-Lmax*Fnet/ref,COL.good,2.6);
+  ctx.fillStyle=COL.good;ctx.textAlign='left';ctx.fillText('net '+fmt(Fnet,1)+' µN',cx+20,cy+Rpx-Lmax*Fnet/ref*0.5);
+  ctx.restore();
+  // right: F vs d
+  const c2=setupCanvas(document.getElementById('cv-load2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const dd=[]; let ymax=0; for(let i=0;i<=60;i++){ const di=0.5+4.5*i/60; const Vi=(4/3)*Math.PI*Math.pow(di/2*1e-3,3);
+    const Fi=(sub?(rs-rf):rs)*Vi*g*1e6; dd.push([di,Fi]); ymax=Math.max(ymax,Fi); }
+  ymax=ymax*1.08||1;
+  const ch=new Chart(ctx,w,h,{l:54,r:14,t:14,b:40}); ch.setRange(0.5,5,0,ymax);
+  const xt=niceTicks(0.5,5,5), yt=niceTicks(0,ymax,5);
+  ch.grid(xt,yt); ch.axes('ball diameter d (mm)','net force F (µN)',xt,yt,1,0);
+  drawLine(ctx,dd.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.good,2.4);
+  ctx.fillStyle=COL.bad;ctx.beginPath();ctx.arc(ch.toX(d),ch.toY(Fnet),4.5,0,6.283);ctx.fill();
+  setStat('st-load',[
+    {k:'sphere volume',v:fmt(V*1e9,3)+' mm³'},
+    {k:'dry weight',v:fmt(Wt,1)+' µN'},
+    {k:'buoyant force',v:sub?fmt(Buoy,1)+' µN':'— (in air)'},
+    {k:'net load F',v:fmt(Fnet,1)+' µN',hi:true},
+    {k:'buoyancy correction',v:sub?fmt(buoyPct,1)+' %':'0 %'}
+  ]);
+  if(sub) setVerdict('vd-load','good','Submerged: subtract buoyancy.',
+    'Buoyancy removes '+fmt(buoyPct,1)+'% of the dry weight, giving a net load of '+fmt(Fnet,1)+' µN. Skipping this correction would bias every modulus you extract by the same '+fmt(buoyPct,0)+'%.');
+  else setVerdict('vd-load','warn','In air: full weight.',
+    'With no fluid the load is the full weight '+fmt(Wt,1)+' µN. The real experiment is submerged (the fluorescent probe lives in the water), so use the buoyancy-corrected value.');
+}
+
+/* ════════ TAB 3: HERTZ CONTACT ════════ */
+function drawHertz(){
+  const F=num('s-hertz-F'), R=num('s-hertz-R')*1000, E=num('s-hertz-E'), nu=num('s-hertz-nu'), mode=scen.hertz;
+  const Es=reducedModulus(E,nu,mode), Rs=effRadius(R,mode);
+  const a=contactRadius(F,Rs,Es), delta=indentDepth(a,Rs), p0=peakPressure(F,a), pm=meanPressure(F,a);
+  // left: F-δ curve (FIXED axes so the curve & operating point visibly move with the sliders)
+  const c1=setupCanvas(document.getElementById('cv-hertz')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const ch=new Chart(ctx,w,h,{l:56,r:14,t:14,b:40}); ch.setRange(0,LIM.indD,0,LIM.loadF);
+  const xt=niceTicks(0,LIM.indD,5), yt=niceTicks(0,LIM.loadF,5);
+  ch.grid(xt,yt); ch.axes('indentation δ (µm)','load F (µN)',xt,yt,0,0);
+  const pts=[]; for(let i=0;i<=120;i++){ const dl=LIM.indD*i/120; pts.push([ch.toX(dl),ch.toY(Math.min(forceFromDepth(Es,Rs,dl),LIM.loadF))]); }
+  drawLine(ctx,pts,COL.hertz,2.4);
+  ctx.fillStyle=COL.bad;ctx.beginPath();ctx.arc(ch.toX(Math.min(delta,LIM.indD)),ch.toY(Math.min(F,LIM.loadF)),4.5,0,6.283);ctx.fill();
+  ch.legend([{label:'F = (4/3)E*√R* δ³ᐟ²',color:COL.hertz}],ch.m.l+6,ch.m.t+8);
+  // right: pressure disk heatmap (FIXED colorbar in absolute kPa → colors brighten with load/stiffness)
+  const c2=setupCanvas(document.getElementById('cv-hertz2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const box=Math.min(w-70,h-30), bx0=10, by0=(h-box)/2, view=1.3*a;
+  heatmap(ctx,bx0,by0,box,box,46,46,(fx,fy)=>{ const x=(fx-0.5)*2*view, y=(fy-0.5)*2*view, r=Math.hypot(x,y);
+    return r<=a? p0*Math.sqrt(Math.max(0,1-r*r/(a*a))) : 0; },0,LIM.p0);
+  // contact edge ring
+  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1.4;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.arc(bx0+box/2,by0+box/2, box/2*(a/view), 0,6.283);ctx.stroke();ctx.restore();
+  colorbar(ctx,bx0+box+18,by0,10,box,0,LIM.p0,'p (kPa)');
+  ctx.save();ctx.fillStyle=COL.axis;ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('contact radius a = '+fmt(a,1)+' µm (dashed)',bx0+box/2,by0+box+14);ctx.restore();
+  const geomErr=Math.abs(a*a-Rs*delta)/(Rs*delta||1)*100;
+  setStat('st-hertz',[
+    {k:'reduced modulus E*',v:fmt(Es,2)+' kPa'},
+    {k:'effective radius R*',v:fmt(Rs,0)+' µm'},
+    {k:'contact radius a',v:fmt(a,1)+' µm'},
+    {k:'indentation δ',v:fmt(delta,2)+' µm'},
+    {k:'peak pressure p₀',v:fmt(p0,3)+' kPa'},
+    {k:'a²−R*δ (geometry check)',v:fmt(geomErr,2)+' %',hi:true},
+    {k:'a / R*',v:fmt(a/Rs,3)}
+  ]);
+  if(mode==='sphere') setVerdict('vd-hertz','warn','Sphere-on-sphere convention (GELLS-DEM).',
+    'Two equal soft grains: E*=E/[2(1−ν²)], R*=R/2. For the same R, E, F the contact radius a and peak pressure p₀ are <em>unchanged</em>, but E* halves and the approach δ <strong>doubles</strong> — because both spheres deform, not just one. Our steel-on-gel experiment is rigid-on-soft (only the gel deforms, the surface is flat): switch back.');
+  else if(a/Rs>0.3) setVerdict('vd-hertz','bad','Outside small-strain Hertz.',
+    'a/R* = '+fmt(a/Rs,2)+' (> 0.3): the parabolic-gap and small-strain assumptions are stretched. Expect large-strain / neo-Hookean deviations (Tab 9).');
+  else setVerdict('vd-hertz','good','Valid Hertz regime.',
+    'a/R* = '+fmt(a/Rs,2)+' is small, and the geometry identity a²=R*δ holds to '+fmt(geomErr,1)+'%. With E*=E/(1−ν²), this load+contact gives a clean modulus.');
+}
+
+/* ════════ TAB 4: STRESS FIELD ════════ */
+function drawField(){
+  const F=num('s-field-F'), R=num('s-field-R')*1000, E=num('s-field-E'), nu=num('s-field-nu');
+  const Es=E/(1-nu*nu), a=contactRadius(F,R,Es), p0=peakPressure(F,a);
+  const ms=maxShearDepth(nu);
+  // left: σzz bulb (r-z), Boussinesq superposition, normalized by p0
+  const c1=setupCanvas(document.getElementById('cv-field')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const box=Math.min(w-72,h-28), bx0=10, by0=8, rView=2.0*a, zView=2.6*a;
+  const NX=40, NY=46;
+  // precompute field for contour reuse
+  // absolute |σzz| in kPa on a FIXED colorbar → the bulb brightens with load/stiffness instead of always looking the same
+  const fld=[];
+  for(let i=0;i<NX;i++){ fld[i]=[]; for(let j=0;j<NY;j++){ const rho=((i+0.5)/NX)*rView, z=Math.max((j+0.5)/NY*zView,a*0.04);
+    fld[i][j]=Math.abs(bulbSzz(rho,z,a))*p0; } }
+  const cw=box/NX, chh=box/NY;
+  for(let i=0;i<NX;i++)for(let j=0;j<NY;j++){ ctx.fillStyle=colormap(fld[i][j]/LIM.p0); ctx.fillRect(bx0+i*cw,by0+j*chh,cw+0.6,chh+0.6); }
+  // iso-contours at fixed kPa levels (none appear when the field stays below them — i.e. low stress)
+  if(scen.field==='contour'){ const levels=[0.25,0.5,1,2].map(L=>L/LIM.p0); ctx.save();ctx.strokeStyle='rgba(255,255,255,0.8)';ctx.lineWidth=1;
+    for(const L of levels){ for(let i=0;i<NX-1;i++)for(let j=0;j<NY-1;j++){ const a00=fld[i][j]/LIM.p0,a10=fld[i+1][j]/LIM.p0,a01=fld[i][j+1]/LIM.p0;
+      if((a00-L)*(a10-L)<0){ const t=(L-a00)/(a10-a00); ctx.beginPath();ctx.arc(bx0+(i+t)*cw,by0+(j+0.5)*chh,0.8,0,6.283);ctx.stroke(); }
+      if((a00-L)*(a01-L)<0){ const t=(L-a00)/(a01-a00); ctx.beginPath();ctx.arc(bx0+(i+0.5)*cw,by0+(j+t)*chh,0.8,0,6.283);ctx.stroke(); } } }
+    ctx.restore(); }
+  // contact edge + max-shear marker
+  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.moveTo(bx0,by0);ctx.lineTo(bx0+box*(a/rView),by0);ctx.stroke();
+  const mz = by0 + (ms.z*a/zView)*box;
+  ctx.fillStyle='#fde047';ctx.beginPath();ctx.arc(bx0+2,mz,4,0,6.283);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.fillText('τ_max @ z≈'+fmt(ms.z,2)+'a',bx0+8,mz-4);
+  ctx.fillText('surface (z=0), r→',bx0+box*0.30,by0-1<10?by0+12:by0-2);ctx.restore();
+  colorbar(ctx,bx0+box+18,by0,10,box,0,LIM.p0,'|σzz| (kPa)');
+  // right: on-axis stresses
+  const c2=setupCanvas(document.getElementById('cv-field2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const ch=new Chart(ctx,w,h,{l:50,r:14,t:14,b:40}); ch.setRange(0,2.5,-1.1,0.45);
+  const zt=niceTicks(0,2.5,5), st=niceTicks(-1,0.4,5);
+  ch.grid(zt,st); ch.axes('depth z / a','stress / p₀',zt,st,1,1); ch.hLine(0,COL.axis,[2,2]);
+  const SZ=[],SR=[],TA=[]; for(let i=0;i<=120;i++){ const z=2.5*i/120; const s=hertzAxis(z,nu);
+    SZ.push([ch.toX(z),ch.toY(s.sz)]); SR.push([ch.toX(z),ch.toY(s.sr)]); TA.push([ch.toX(z),ch.toY(s.tau)]); }
+  drawLine(ctx,SZ,COL.hertz,2); drawLine(ctx,SR,COL.poro,2); drawLine(ctx,TA,COL.good,2.6);
+  ch.vLine(ms.z,'#f59e0b',[5,3]);
+  ch.legend([{label:'σ_z',color:COL.hertz},{label:'σ_r',color:COL.poro},{label:'τ₁',color:COL.good}],ch.m.l+6,ch.m.t+8);
+  setStat('st-field',[
+    {k:'contact radius a',v:fmt(a,1)+' µm'},
+    {k:'peak pressure p₀',v:fmt(p0,3)+' kPa'},
+    {k:'max-shear depth z*',v:fmt(ms.z,3)+' a',hi:true},
+    {k:'τ_max / p₀',v:fmt(ms.tau,3)},
+    {k:'τ_max',v:fmt(ms.tau*p0,3)+' kPa'}
+  ]);
+  setVerdict('vd-field','good','Damage starts below the surface.',
+    'The peak shear sits at z ≈ '+fmt(ms.z,2)+' a (not at the surface), where τ_max ≈ '+fmt(ms.tau,2)+' p₀. Raising ν toward 0.5 pushes that point deeper — the sub-surface "danger zone" is where yielding and cavitation initiate.');
+}
+
+/* ════════ TAB 5: CONTACT AREA ════════ */
+function drawFluor(){
+  const aT=num('s-fluor-a'), rh=num('s-fluor-rh'), xi=num('s-fluor-xi'), psf=num('s-fluor-psf'), thr=num('s-fluor-thr');
+  const K=Math.exp(-(rh/xi)*(rh/xi)); const men=scen.fluor==='meniscus', bleach=scen.fluor==='bleach';
+  const rView=LIM.fluorR;   // FIXED radial frame → smaller true a draws a smaller disk (not a rescaled one)
+  function intensity(r){ let edge=0.5*(1-Math.tanh((r-aT)/(psf*0.6+0.05)));
+    let I=1-(1-K)*edge;
+    if(men && r>aT && r<aT+psf*2.2) I*=1-0.45*Math.exp(-((r-aT-psf)/(psf+0.05))*((r-aT-psf)/(psf+0.05)));
+    if(bleach && r>aT) I*=1-0.40*Math.exp(-Math.pow((r-aT)/(2*aT+25),2));
+    return clamp(I,0,1); }
+  // measured a: scan outward, first crossing of threshold
+  let aM=aT; for(let i=1;i<=400;i++){ const r=rView*i/400; if(intensity(r)>=thr){ aM=r; break; } }
+  // left: image (concentric rings)
+  const c1=setupCanvas(document.getElementById('cv-fluor')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const cx=w/2, cy=h/2, Rmax=Math.min(w,h)*0.46;
+  for(let i=80;i>=0;i--){ const rr=rView*i/80, I=intensity(rr); const g=Math.round(40+200*I);
+    ctx.fillStyle='rgb('+Math.round(g*0.25)+','+g+','+Math.round(g*0.45)+')';
+    ctx.beginPath();ctx.arc(cx,cy,Rmax*rr/rView,0,6.283);ctx.fill(); }
+  ctx.save();ctx.lineWidth=1.6;ctx.setLineDash([5,3]);ctx.strokeStyle='#fff';
+  ctx.beginPath();ctx.arc(cx,cy,Rmax*aT/rView,0,6.283);ctx.stroke();
+  ctx.setLineDash([]);ctx.strokeStyle=COL.disp;ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(cx,cy,Rmax*aM/rView,0,6.283);ctx.stroke();ctx.restore();
+  ctx.save();ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('white dashed = true a · orange = measured a',cx,h-8);ctx.restore();
+  // right: radial intensity profile
+  const c2=setupCanvas(document.getElementById('cv-fluor2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const ch=new Chart(ctx,w,h,{l:48,r:14,t:14,b:40}); ch.setRange(0,rView,0,1.05);
+  const rt=niceTicks(0,rView,5), it=niceTicks(0,1,5);
+  ch.grid(rt,it); ch.axes('radius r (µm)','intensity',rt,it,0,1);
+  const prof=[]; for(let i=0;i<=160;i++){ const r=rView*i/160; prof.push([ch.toX(r),ch.toY(intensity(r))]); }
+  drawLine(ctx,prof,COL.good,2.4); ch.hLine(thr,COL.bad,[5,3]); ch.vLine(aT,'#94a3b8',[4,3]); ch.vLine(aM,COL.disp,[2,2]);
+  ch.legend([{label:'I(r)',color:COL.good},{label:'threshold',color:COL.bad}],ch.m.l+6,ch.m.t+8);
+  const bias=(aM-aT)/aT*100;
+  setStat('st-fluor',[
+    {k:'partition coefficient K',v:fmt(K,4)},
+    {k:'true contact radius a',v:fmt(aT,1)+' µm'},
+    {k:'measured a (at threshold)',v:fmt(aM,1)+' µm'},
+    {k:'bias in a',v:(bias>=0?'+':'')+fmt(bias,1)+' %',hi:true},
+    {k:'→ bias in E (∝ a⁻³)',v:(bias!==0?(-3*bias>=0?'+':'')+fmt(-3*bias,1)+' %':'0 %')}
+  ]);
+  if(K>0.05) setVerdict('vd-fluor','warn','Probe not fully excluded.',
+    'With R_h/ξ this small the partition K = '+fmt(K,3)+' is not ≈0 — some probe enters the gel and the contact contrast washes out. Use a larger probe (R_h ≫ ξ).');
+  else if(Math.abs(bias)>8) setVerdict('vd-fluor','bad','Measured a is biased.',
+    'The measured contact radius is off by '+fmt(bias,0)+'%, which propagates to ≈'+fmt(-3*bias,0)+'% in E (since E ∝ a⁻³). Meniscus and photobleaching both inflate a — choose a consistent threshold and minimize dwell.');
+  else setVerdict('vd-fluor','good','Clean contact-area readout.',
+    'K ≈ 0 (probe excluded) and the threshold recovers a to within '+fmt(Math.abs(bias),0)+'%. This independent a is the over-determination leg the fit relies on.');
+}
+
+/* ════════ TAB 6: BEAD TRACKING ════════ */
+function drawTrack(){
+  const F=num('s-track-F'), E=num('s-track-E'), nb=Math.round(num('s-track-n')), noise=num('s-track-noise');
+  const R=1000, Es=E/(1-0.45*0.45), a=contactRadius(F,R,Es), delta=indentDepth(a,R), p0=peakPressure(F,a);
+  const rView=LIM.trackR, zView=LIM.trackZ;
+  // left: r-z HALF-SECTION — the ball and the deformed surface are the SAME circle within the contact
+  // (Tab-1 construction), so ball, dimple and contact radius all match by construction.
+  const c1=setupCanvas(document.getElementById('cv-track')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const ox=w*0.12, surfY=h*0.30, gelBot=h-12, gelH=gelBot-surfY;
+  const sx=(w-ox-12)/rView, pzv=gelH/zView;                 // r→x, reference depth→y
+  const aScreen=Math.min(a,rView)*sx;                       // contact half-width on screen (tracks a)
+  const Ddip=0.24*gelH;                                     // centre dip (depth normalised for clarity; width = aScreen tracks a)
+  const Rb=aScreen*aScreen/Ddip + Ddip/4;                   // ball radius: circle through the dimple VERTEX and the CONTACT EDGE
+  const cyB=surfY+Ddip-Rb;                                  // ball centre, on the axis r=0
+  const edgeDepth=Ddip/2, slopeEdge=aScreen/Math.max(1e-3,Rb-edgeDepth), kdec=slopeEdge/Math.max(1e-3,edgeDepth);
+  const Ld=clamp(1.3*a,40,zView);                           // sub-surface decay length
+  // deformed surface: the ball's own circle within the contact (conforms exactly), slope-matched recovery outside
+  function ysurf(r){ const x=r*sx; return x<=aScreen ? cyB+Math.sqrt(Math.max(0,Rb*Rb-x*x)) : surfY+edgeDepth*Math.exp(-kdec*(x-aScreen)); }
+  // water above, gel below the deformed surface
+  ctx.fillStyle=COL.water; ctx.fillRect(0,0,w,gelBot);
+  ctx.fillStyle=COL.gel; ctx.beginPath(); ctx.moveTo(ox,gelBot);
+  for(let px=ox;px<=w;px+=3){ const r=(px-ox)/sx; ctx.lineTo(px, Math.min(gelBot, ysurf(r))); }
+  ctx.lineTo(w,gelBot); ctx.closePath(); ctx.fill();
+  // beads: jittered regular grid; hollow = before, filled = after, arrow = displacement (tied to the drawn surface)
+  const cc=Math.max(2,Math.round(Math.sqrt(nb*rView/zView)));
+  const cols=clamp(cc,2,12), rows=clamp(Math.round(nb/cc),2,9);
+  const rng=mulberry32(99221);
+  for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){
+    const r=((i+0.5)/cols*0.92+0.04)*rView + (rng()-0.5)*rView/cols*0.45;
+    const z=((j+0.5)/rows*0.86+0.07)*zView + (rng()-0.5)*zView/rows*0.45;
+    if(r<0) continue;
+    const x=ox+r*sx, yRef=surfY+z*pzv;
+    const yDef=Math.min(gelBot-2, yRef + (ysurf(r)-surfY)*Math.exp(-z/Ld));
+    ctx.save();ctx.strokeStyle='#94a3b8';ctx.globalAlpha=0.7;ctx.lineWidth=1.1;
+    ctx.beginPath();ctx.arc(x,yRef,2.3,0,6.283);ctx.stroke();ctx.restore();   // before (hollow)
+    if(yDef-yRef>2.5) arrow(ctx,x,yRef+2.8,x,yDef-1,COL.disp,1.3);            // displacement
+    ctx.fillStyle=COL.bead;ctx.beginPath();ctx.arc(x,yDef,2.5,0,6.283);ctx.fill();// after (filled)
+  }
+  // deformed surface + dashed far-field level
+  ctx.save();ctx.strokeStyle='#16a34a';ctx.lineWidth=2;ctx.beginPath();
+  for(let px=ox;px<=w;px+=2){ const r=(px-ox)/sx; const y=ysurf(r); if(px===ox)ctx.moveTo(px,y);else ctx.lineTo(px,y); } ctx.stroke();
+  ctx.strokeStyle='#94a3b8';ctx.setLineDash([4,3]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ox,surfY);ctx.lineTo(w,surfY);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+  // contact zone highlight (r ≤ a) — lies exactly on the ball–gel interface
+  ctx.save();ctx.strokeStyle=COL.contact;ctx.lineWidth=3.5;ctx.lineCap='round';ctx.beginPath();
+  for(let px=ox;px<=ox+aScreen;px+=2){ const r=(px-ox)/sx; const y=ysurf(r); if(px===ox)ctx.moveTo(px,y);else ctx.lineTo(px,y); } ctx.stroke();ctx.restore();
+  // the indenting ball (steel) — SAME circle as the contact surface; drawn on top, occludes the under-ball region
+  ctx.save();ctx.beginPath();ctx.rect(ox,0,w-ox,gelBot);ctx.clip();          // ball lives at the axis (r≥0)
+  const grd=ctx.createRadialGradient(ox-Rb*0.15,cyB-Rb*0.3,Rb*0.1,ox,cyB,Rb);
+  grd.addColorStop(0,'#cbd5e1');grd.addColorStop(1,COL.steel);
+  ctx.fillStyle=grd;ctx.beginPath();ctx.arc(ox,cyB,Rb,0,6.283);ctx.fill();
+  ctx.strokeStyle='#334155';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
+  // axis + labels
+  ctx.save();ctx.strokeStyle='#64748b';ctx.setLineDash([2,3]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ox,6);ctx.lineTo(ox,gelBot);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=COL.axis;ctx.font='10px sans-serif';ctx.textAlign='left';
+  ctx.fillText('axis r=0',ox+3,gelBot-5);
+  ctx.fillStyle=COL.steel;ctx.fillText('steel ball',ox+8,Math.max(13,cyB-Rb+13));
+  ctx.fillStyle=COL.contact;ctx.fillText('contact (r ≤ a)',Math.min(ox+aScreen+6,w-92),ysurf(Math.min(a,rView)*0.55)+4);
+  ctx.textAlign='right';ctx.fillStyle=COL.axis;ctx.fillText('○ before   ● after   (depth scaled)',w-6,gelBot-5);
+  ctx.restore();
+  // right: u_z(r) analytic vs samples (FIXED axes)
+  const c2=setupCanvas(document.getElementById('cv-track2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const ch=new Chart(ctx,w,h,{l:54,r:14,t:14,b:40}); ch.setRange(0,rView,0,LIM.uz);
+  const rt=niceTicks(0,rView,5), yt=niceTicks(0,LIM.uz,5);
+  ch.grid(rt,yt); ch.axes('radius r (µm)','surface u_z (µm)',rt,yt,0,0);
+  const an=[]; for(let i=0;i<=160;i++){ const r=rView*i/160; an.push([ch.toX(r),ch.toY(Math.min(hertzUz(r,a,p0,Es),LIM.uz))]); }
+  drawLine(ctx,an,COL.truth,2.4);
+  const rng2=mulberry32(5150); let se=0,cnt=0;
+  for(let i=0;i<nb;i++){ const r=rng2()*rView; const truth=hertzUz(r,a,p0,Es), u=truth+noise*randn(); se+=(u-truth)*(u-truth); cnt++;
+    ctx.fillStyle=COL.data;ctx.beginPath();ctx.arc(ch.toX(r),ch.toY(clamp(u,0,LIM.uz)),2.4,0,6.283);ctx.fill(); }
+  const rmse=Math.sqrt(se/Math.max(cnt,1));
+  ch.legend([{label:'analytic u_z(r)',color:COL.truth},{label:'bead samples',color:COL.data}],ch.m.l+6,ch.m.t+8);
+  setStat('st-track',[
+    {k:'contact radius a',v:fmt(a,1)+' µm'},
+    {k:'central indentation δ',v:fmt(delta,2)+' µm'},
+    {k:'bead count',v:nb},
+    {k:'mean spacing in view',v:fmt(rView/Math.sqrt(nb),1)+' µm'},
+    {k:'sample RMSE vs analytic',v:fmt(rmse,3)+' µm',hi:true}
+  ]);
+  if(nb<16) setVerdict('vd-track','warn','Undersampled near the edge.',
+    'With only '+nb+' beads the steep displacement just inside r=a is poorly sampled — the most information-rich region is washed out. Seed more beads.');
+  else if(noise>1.2) setVerdict('vd-track','bad','Localization noise dominates.',
+    'At '+fmt(noise,1)+' µm localization error the samples scatter far from the analytic curve (RMSE '+fmt(rmse,2)+' µm). Tracking precision (especially axial) limits the recoverable field.');
+  else setVerdict('vd-track','good','Field well recovered.',
+    'Dense, well-localized beads trace the analytic Hertz u_z(r) (RMSE '+fmt(rmse,3)+' µm). The displacement field is ready to differentiate into strain and fit for E, ν.');
+}
+
+/* ════════ TAB 7: FITTING ════════ */
+function drawFit(){
+  const Et=num('s-fit-E'), nut=num('s-fit-nu'), noise=num('s-fit-noise'), lateral=scen.fit==='lateral';
+  const F=50, R=1000; const EsT=Et/(1-nut*nut);
+  const aT=contactRadius(F,R,EsT), dT=indentDepth(aT,R);
+  const aM=aT*(1+noise*randn()), dM=dT*(1+noise*randn());
+  const E1=3*(F*1000)*R/(4*aM*aM*aM);
+  const E2=3*(F*1000)/(4*Math.sqrt(R)*Math.pow(dM,1.5));
+  const E3=EsT*(1+0.4*noise*randn());
+  const ests=[{l:'F + a',v:E1},{l:'F + δ',v:E2},{l:'full field',v:E3}];
+  const spread=(Math.max(E1,E2,E3)-Math.min(E1,E2,E3))/EsT*100;
+  // left: E* bars
+  const c1=setupCanvas(document.getElementById('cv-fit')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const base=h-42, top=26, vmax=LIM.estar;   // FIXED E* axis → bars grow with the true modulus
+  ctx.save();ctx.strokeStyle=COL.truth;ctx.setLineDash([5,3]);ctx.lineWidth=1.5;
+  const yT=base-(base-top)*EsT/vmax; ctx.beginPath();ctx.moveTo(30,yT);ctx.lineTo(w-12,yT);ctx.stroke();
+  ctx.fillStyle=COL.truth;ctx.setLineDash([]);ctx.font='10px sans-serif';ctx.textAlign='right';ctx.fillText('true E* '+fmt(EsT,2),w-14,yT-4);
+  const bw=w*0.18; ctx.textAlign='center';
+  ests.forEach((e,i)=>{ const x=w*(0.22+i*0.27)-bw/2; const bh=(base-top)*clamp(e.v/vmax,0,1.2);
+    const ok=Math.abs(e.v-EsT)/EsT<0.1; ctx.fillStyle=ok?COL.good:(Math.abs(e.v-EsT)/EsT<0.25?COL.warn:COL.bad);
+    ctx.fillRect(x,base-bh,bw,bh); ctx.fillStyle=COL.text;ctx.fillText(fmt(e.v,2),x+bw/2,base-bh-6);
+    ctx.fillStyle=COL.axis;ctx.fillText(e.l,x+bw/2,base+14); });
+  ctx.strokeStyle=COL.axis;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(24,base);ctx.lineTo(w-12,base);ctx.stroke();
+  ctx.fillStyle=COL.axis;ctx.textAlign='left';ctx.fillText('E* (kPa)',26,top-10);ctx.restore();
+  // right: (E,nu) misfit landscape
+  const c2=setupCanvas(document.getElementById('cv-fit2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const box=Math.min(w-70,h-44), bx0=46, by0=10;
+  const Elo=0.2, Ehi=LIM.estar, nlo=0.30, nhi=0.49;   // FIXED (E,ν) frame → the minimum moves with the true E
+  heatmap(ctx,bx0,by0,box,box,44,44,(fx,fy)=>{ const E=Elo+(Ehi-Elo)*fx, nu=nlo+(nhi-nlo)*(1-fy);
+    const es=E/(1-nu*nu); let r=Math.pow((es-EsT)/EsT,2); if(lateral) r+=Math.pow((nu-nut)/0.06,2)*0.5;
+    return Math.log10(r+1e-4); },-4,1.2);
+  // true point
+  const px=bx0+box*(Et-Elo)/(Ehi-Elo), py=by0+box*(1-(nut-nlo)/(nhi-nlo));
+  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(px,py,5,0,6.283);ctx.stroke();
+  ctx.fillStyle=COL.axis;ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('E (kPa) →',bx0+box/2,by0+box+14);
+  ctx.save();ctx.translate(bx0-30,by0+box/2);ctx.rotate(-Math.PI/2);ctx.fillText('ν →',0,0);ctx.restore();ctx.restore();
+  setStat('st-fit',[
+    {k:'true E*',v:fmt(EsT,2)+' kPa'},
+    {k:'E* from F + a',v:fmt(E1,2)+' kPa'},
+    {k:'E* from F + δ',v:fmt(E2,2)+' kPa'},
+    {k:'E* from full field',v:fmt(E3,2)+' kPa'},
+    {k:'spread across estimates',v:fmt(spread,1)+' %',hi:true},
+    {k:'ν identifiable?',v:lateral?'yes (field shape)':'no (degenerate)'}
+  ]);
+  if(spread>25) setVerdict('vd-fit','bad','Estimates disagree.',
+    'The three E* estimates spread by '+fmt(spread,0)+'% — either the noise is too high or a Hertz assumption is broken. Disagreement is diagnostic: e.g. adhesion inflates a and pulls the F+a estimate down (Tab 9).');
+  else if(!lateral) setVerdict('vd-fit','warn','E* pinned, ν is not.',
+    'The estimates agree on E*, but with vertical data only the misfit forms a flat valley along E/(1−ν²)=const — E and ν are degenerate. Add lateral (3D) field data to break it.');
+  else setVerdict('vd-fit','good','Consistent, and ν recovered.',
+    'The three independent E* estimates agree to '+fmt(spread,0)+'%, and the 3D field shape collapses the misfit valley to a single minimum that pins ν. This is the over-determination payoff.');
+}
+
+/* ════════ TAB 8: RELAXATION ════════ */
+function relaxNorm(t,a,mode,tv,D){ if(mode==='visco') return gVisco(t/tv); return gPoro(D*t/(a*a)); }
+function drawRelax(){
+  const tv=num('s-relax-tv'), D=num('s-relax-D'), a1=num('s-relax-a1'), a2=num('s-relax-a2'), poro=scen.relax==='poro';
+  const mode=poro?'poro':'visco';
+  const tau1=poro?a1*a1/D:tv, tau2=poro?a2*a2/D:tv;
+  const Tmax=LIM.relT;   // FIXED time window → faster/slower relaxation fills more/less of the frame
+  const tcur=(animClock % Tmax);
+  // left: F*(t)
+  const c1=setupCanvas(document.getElementById('cv-relax')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const ch=new Chart(ctx,w,h,{l:50,r:14,t:14,b:40}); ch.setRange(0,Tmax,0,1.05);
+  const tt=niceTicks(0,Tmax,5), ft=niceTicks(0,1,5);
+  ch.grid(tt,ft); ch.axes('time t (s)','F*(t) = [F−F∞]/[F₀−F∞]',tt,ft,0,1);
+  const p1=[],p2=[]; for(let i=0;i<=160;i++){ const t=Tmax*i/160;
+    p1.push([ch.toX(t),ch.toY(relaxNorm(t,a1,mode,tv,D))]); p2.push([ch.toX(t),ch.toY(relaxNorm(t,a2,mode,tv,D))]); }
+  drawLine(ctx,p1,COL.visco,2.4); drawLine(ctx,p2,COL.poro,2.4,[6,4]);
+  ch.vLine(tcur,'#94a3b8',[3,3]);
+  ctx.fillStyle=COL.visco;ctx.beginPath();ctx.arc(ch.toX(tcur),ch.toY(relaxNorm(tcur,a1,mode,tv,D)),3.5,0,6.283);ctx.fill();
+  ctx.fillStyle=COL.poro;ctx.beginPath();ctx.arc(ch.toX(tcur),ch.toY(relaxNorm(tcur,a2,mode,tv,D)),3.5,0,6.283);ctx.fill();
+  ch.legend([{label:'a₁='+fmt(a1,0)+'µm',color:COL.visco},{label:'a₂='+fmt(a2,0)+'µm',color:COL.poro}],ch.m.l+6,ch.m.t+8);
+  // rheology glyph
+  ctx.save();ctx.font='10px sans-serif';ctx.fillStyle=COL.axis;ctx.textAlign='left';
+  if(poro){ ctx.fillText('poroelastic: solvent drains out of contact',ch.m.l+6,ch.m.t+ch.ph-6); }
+  else { springGlyph(ctx,ch.m.l+10,ch.m.t+ch.ph-14,ch.m.l+60,ch.m.t+ch.ph-14,COL.visco,1.6);
+    dashpotGlyph(ctx,ch.m.l+85,ch.m.t+ch.ph-14,COL.poro); ctx.fillText('SLS (spring+dashpot)',ch.m.l+100,ch.m.t+ch.ph-11); }
+  ctx.restore();
+  // right: tau vs a^2
+  const c2=setupCanvas(document.getElementById('cv-relax2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const aArr=[]; for(let i=0;i<=6;i++)aArr.push(40+40*i);
+  const xMax=LIM.relA2, tauMax=LIM.relTau;   // FIXED axes → flat (visco) vs rising (poro) line is read against a constant frame
+  const ch2=new Chart(ctx,w,h,{l:54,r:14,t:14,b:42}); ch2.setRange(0,xMax,0,tauMax);
+  const xt2=niceTicks(0,xMax,5), yt2=niceTicks(0,tauMax,5);
+  ch2.grid(xt2,yt2); ch2.axes('a² (×10³ µm²)','relaxation time τ (s)',xt2,yt2,0,0);
+  const tauOf=a=>Math.min(poro?a*a/D:tv, tauMax);
+  const line=aArr.map(a=>[ch2.toX(a*a/1000),ch2.toY(tauOf(a))]);
+  drawLine(ctx,line,poro?COL.poro:COL.visco,2.4);
+  aArr.forEach(a=>{ ctx.fillStyle=COL.axis;ctx.beginPath();ctx.arc(ch2.toX(a*a/1000),ch2.toY(tauOf(a)),2.6,0,6.283);ctx.fill(); });
+  [[a1,COL.visco],[a2,COL.poro]].forEach(p=>{ ctx.fillStyle=p[1];ctx.beginPath();ctx.arc(ch2.toX(p[0]*p[0]/1000),ch2.toY(tauOf(p[0])),4.5,0,6.283);ctx.fill(); });
+  setStat('st-relax',[
+    {k:'mechanism',v:poro?'poroelastic':'viscoelastic'},
+    {k:'τ at a₁='+fmt(a1,0)+' µm',v:fmt(tau1,1)+' s'},
+    {k:'τ at a₂='+fmt(a2,0)+' µm',v:fmt(tau2,1)+' s'},
+    {k:'τ₂ / τ₁',v:fmt(tau2/tau1,2)+'×',hi:true},
+    {k:'(a₂/a₁)²',v:fmt((a2*a2)/(a1*a1),2)+'×'}
+  ]);
+  if(poro) setVerdict('vd-relax','good','Poroelastic: τ scales with a².',
+    'The two ball sizes relax at different rates (τ₂/τ₁ = '+fmt(tau2/tau1,1)+' ≈ (a₂/a₁)² = '+fmt((a2*a2)/(a1*a1),1)+'), and τ-vs-a² is a straight line through the origin with slope 1/D. The relaxation is solvent drainage.');
+  else setVerdict('vd-relax','good','Viscoelastic: τ is size-independent.',
+    'Both ball sizes share the same τ = '+fmt(tv,0)+' s, so the normalized curves overlap and τ-vs-a² is flat. The relaxation is intrinsic network friction — change the ball size and it does not move.');
+}
+
+/* ════════ TAB 9: WHEN HERTZ FAILS ════════ */
+function dimitriadisFactor(chi,bonded){ return bonded
+  ? 1+1.133*chi+1.283*chi*chi+0.769*chi*chi*chi
+  : 1+0.884*chi+0.781*chi*chi+0.386*chi*chi*chi; }
+function drawFails(){
+  const dR=num('s-fails-dR'), hh=num('s-fails-h'), W=num('s-fails-W'), E=num('s-fails-E'), bonded=scen.fails==='bonded';
+  const R=1000, nu=0.5, Es=E/(1-nu*nu); const dmax=dR*R;
+  // left: F-δ overlays
+  const c1=setupCanvas(document.getElementById('cv-fails')); let ctx=c1.ctx,w=c1.w,h=c1.h;
+  const H=[],T=[],NN=[]; let fmax=0;
+  for(let i=0;i<=80;i++){ const dl=dmax*i/80; const fH=forceFromDepth(Es,R,dl);
+    const chi=Math.sqrt(R*dl)/hh; const fT=fH*dimitriadisFactor(chi,bonded);
+    const fN=fH*(1+0.75*(dl/R)); // illustrative large-strain stiffening
+    H.push([dl,fH]);T.push([dl,fT]);NN.push([dl,fN]); fmax=Math.max(fmax,fH,fT,fN); }
+  fmax=fmax*1.08||1;
+  const ch=new Chart(ctx,w,h,{l:54,r:14,t:14,b:40}); ch.setRange(0,dmax,0,fmax);
+  const xt=niceTicks(0,dmax,5), yt=niceTicks(0,fmax,5);
+  ch.grid(xt,yt); ch.axes('indentation δ (µm)','load F (µN)',xt,yt,1,0);
+  drawLine(ctx,H.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.hertz,2.4);
+  drawLine(ctx,T.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.thin,2.2,[6,4]);
+  drawLine(ctx,NN.map(p=>[ch.toX(p[0]),ch.toY(p[1])]),COL.neo,2.2,[2,3]);
+  ch.legend([{label:'Hertz',color:COL.hertz},{label:'thin-film',color:COL.thin},{label:'neo-Hookean*',color:COL.neo}],ch.m.l+6,ch.m.t+8);
+  // JKR parametric overlay (only if W>0)
+  if(W>0){ const jk=[]; const aMax=contactRadius(forceFromDepth(Es,R,dmax),R,Es)*1.2;
+    for(let i=1;i<=80;i++){ const ai=aMax*i/80; const dj=ai*ai/R-Math.sqrt(2*Math.PI*W*ai/Es);
+      const fjN=4*Es*ai*ai*ai/(3*R)-Math.sqrt(8*Math.PI*W*Es*ai*ai*ai); const fj=fjN/1000;
+      if(dj>=0&&dj<=dmax) jk.push([ch.toX(dj),ch.toY(clamp(fj,0,fmax))]); }
+    drawLine(ctx,jk,COL.jkr,2,[3,2]); }
+  // right: decision guide
+  const c2=setupCanvas(document.getElementById('cv-fails2')); ctx=c2.ctx;w=c2.w;h=c2.h;
+  const aH=Math.sqrt(R*dmax), aR=aH/R, aOverH=aH/hh, gammaE=0.03/E; // elastocap length γ/E (γ~30mN/m=0.03 in mJ/m²→...) illustrative
+  const muT = Math.cbrt((R*W*W)/((Es*Es*1e0)*Math.pow(0.3,3)+1e-9)); // illustrative Tabor parameter
+  const boxes=[
+    {t:'a/R < 0.3 ?', ok:aR<0.3, yes:'Hertz OK', no:'→ neo-Hookean'},
+    {t:'a/h < 0.1 ?', ok:aOverH<0.1, yes:'half-space OK', no:'→ Dimitriadis thin-film'},
+    {t:'W ≈ 0 ?', ok:W<2, yes:'no adhesion', no:'→ JKR (pull-off)'},
+    {t:'a ≫ γ/E ?', ok:aH>5*gammaE, yes:'no surface tension', no:'→ elastocapillary'}
+  ];
+  ctx.save();ctx.font='12px sans-serif';
+  boxes.forEach((b,i)=>{ const y=22+i*h*0.21; const active=!b.ok;
+    ctx.fillStyle=active?'#fef2f2':'#f0fdf4'; ctx.strokeStyle=active?COL.bad:COL.good; ctx.lineWidth=active?2.2:1.4;
+    ctx.beginPath();ctx.rect(14,y,w-28,h*0.15);ctx.fill();ctx.stroke();
+    ctx.fillStyle=COL.text;ctx.textAlign='left';ctx.fillText(b.t,24,y+h*0.062);
+    ctx.fillStyle=active?COL.bad:COL.good;ctx.textAlign='right';ctx.fillText(active?b.no:b.yes,w-24,y+h*0.062);
+  });
+  ctx.restore();
+  const chi=Math.sqrt(R*dmax)/hh; const thinPct=(dimitriadisFactor(chi,bonded)-1)*100; const Fpo=1.5*Math.PI*W*R/1000;
+  setStat('st-fails',[
+    {k:'a (Hertz) / R',v:fmt(aR,3)},
+    {k:'a / h',v:fmt(aOverH,3)},
+    {k:'χ = √(Rδ)/h',v:fmt(chi,3)},
+    {k:'thin-film stiffening',v:'+'+fmt(thinPct,0)+' %',hi:true},
+    {k:'JKR pull-off F_po',v:fmt(Fpo,2)+' µN'}
+  ]);
+  const broken=boxes.filter(b=>!b.ok).map(b=>b.no.replace('→ ','')).join(', ');
+  if(broken) setVerdict('vd-fails','warn','Hertz needs a correction here.',
+    'Active regime(s): <strong>'+broken+'</strong>. The a²=R δ geometry check and the three-E* agreement (Tab 7) are what flag these in real data — apply the indicated model before reporting E.');
+  else setVerdict('vd-fails','good','Plain Hertz is justified.',
+    'All dimensionless checks pass (small a/R, thick gel, no adhesion, contact ≫ γ/E). The unmodified Hertz model is appropriate at this operating point.');
+}
+
+/* ════════ slider formatting ════════ */
+const FMT={
+  'overview-d':x=>fmt(x,1)+' mm','overview-E':x=>fmt(x,1)+' kPa',
+  'load-d':x=>fmt(x,1)+' mm','load-rs':x=>fmt(x,0)+' kg/m³','load-rf':x=>fmt(x,0)+' kg/m³',
+  'hertz-F':x=>fmt(x,0)+' µN','hertz-R':x=>fmt(x,2)+' mm','hertz-E':x=>fmt(x,1)+' kPa','hertz-nu':x=>fmt(x,2),
+  'field-F':x=>fmt(x,0)+' µN','field-R':x=>fmt(x,2)+' mm','field-E':x=>fmt(x,1)+' kPa','field-nu':x=>fmt(x,2),
+  'fluor-a':x=>fmt(x,0)+' µm','fluor-rh':x=>fmt(x,0)+' nm','fluor-xi':x=>fmt(x,0)+' nm','fluor-psf':x=>fmt(x,1)+' µm','fluor-thr':x=>fmt(x,2),
+  'track-F':x=>fmt(x,0)+' µN','track-E':x=>fmt(x,1)+' kPa','track-n':x=>fmt(x,0),'track-noise':x=>fmt(x,2)+' µm',
+  'fit-E':x=>fmt(x,1)+' kPa','fit-nu':x=>fmt(x,2),'fit-noise':x=>fmt(x,3),
+  'relax-tv':x=>fmt(x,0)+' s','relax-D':x=>fmt(x,0)+' µm²/s','relax-a1':x=>fmt(x,0)+' µm','relax-a2':x=>fmt(x,0)+' µm',
+  'fails-dR':x=>fmt(x,2),'fails-h':x=>fmt(x,0)+' µm','fails-W':x=>fmt(x,0)+' mJ/m²','fails-E':x=>fmt(x,1)+' kPa'
+};
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(s){ const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value)); refreshActiveTab(); }; s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); } }); }
+function presetSlider(id,vv){ const el=document.getElementById('s-'+id); if(el){ el.value=String(vv); const v=document.getElementById('v-'+id); if(v&&FMT[id])v.textContent=FMT[id](parseFloat(vv)); } }
+
+/* ════════ scenario handling ════════ */
+function setScen(tab,s){ scen[tab]=s;
+  document.querySelectorAll('.scen-btn[data-tab="'+tab+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(tab==='track'){ if(s==='dense'){presetSlider('track-n',60);presetSlider('track-noise',0.15);}
+    else if(s==='sparse'){presetSlider('track-n',12);presetSlider('track-noise',0.15);}
+    else if(s==='noisy'){presetSlider('track-n',40);presetSlider('track-noise',1.6);} }
+  if(tab===activeTab) refreshActiveTab();
+}
+
+/* ════════ animation (relaxation tab sweeps a time cursor) ════════ */
+let rafId=null, animClock=0;
+function animLoop(ts){ animClock=(ts||0)/1000; if(activeTab==='relax'){ try{drawRelax();}catch(e){console.error('anim',e);} rafId=requestAnimationFrame(animLoop);} else rafId=null; }
+function startAnim(){ if(activeTab==='relax'&&rafId==null) rafId=requestAnimationFrame(animLoop); }
+
+/* ════════ dispatch + wiring ════════ */
+const DRAW={overview:drawOverview,load:drawLoad,hertz:drawHertz,field:drawField,fluor:drawFluor,track:drawTrack,fit:drawFit,relax:drawRelax,fails:drawFails};
+function refreshActiveTab(){ const f=DRAW[activeTab]; if(f){ try{ f(); }catch(e){ console.error('draw '+activeTab,e); } } }
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    document.getElementById('tab-'+activeTab).classList.add('active');
+    refreshActiveTab(); startAnim();
+  });
+});
+window.addEventListener('resize',()=>refreshActiveTab());
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

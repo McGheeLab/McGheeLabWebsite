@@ -15,7 +15,7 @@ mcgheelab.github.io/
 ├── CLAUDE.md                 # THIS FILE
 ├── index.html                # HTML shell with persistent header/footer
 ├── app.js                    # Main SPA router & page logic
-├── content.json              # All site content (mission, research, projects, team, classes)
+├── content.json              # Static seed content (mission text, contact) — dynamic content is Firestore
 ├── styles.css                # CSS styling
 ├── Images/                   # Research photos, diagrams, team photos
 │   ├── research/             # TFM, ME3B, microfluidics, CELLS, ELISA
@@ -37,8 +37,16 @@ mcgheelab.github.io/
 
 - **Architecture:** Vanilla HTML/CSS/JS — no frameworks, no build step
 - **Routing:** Hash-based SPA routing (#/mission, #/research, #/projects, #/team, #/classes, #/contact)
-- **Content:** All text content lives in `content.json` — edit content there, not in JS
-- **Images:** Place in appropriate `Images/` subdirectory; reference from `content.json`
+- **Content (V3.302 correction):** `content.json` holds only static seed
+  content (mission sections, contact info, classes intro). Research
+  stories, news posts, project packages, and team members live in
+  **Firestore** (`stories`, `newsPosts`, `projectPackages`, `users` /
+  `teamProfiles`) and are authored through the in-site dashboard editors
+  in `user-system.js` (login → `#/dashboard`), with contributor
+  submissions reviewed by admins. Editing content.json still requires an
+  FTP redeploy; Firestore content does not.
+- **Images:** Static site images go in `Images/`; story/news media is
+  uploaded through the editors to Firebase Storage as webp thumb/medium/full sets
 - **Naming:** camelCase for JS functions and variables
 - **Mobile:** All layouts must be responsive; touch interactions supported
 
@@ -104,3 +112,40 @@ Or use the VSCode Live Server extension.
 - No build tools or package managers required
 - Pure HTML, CSS, and JavaScript
 - Hosted on GitHub Pages
+
+## RM (ResearchManagement Hub)
+
+The McGhee Lab's lab-management dashboard ships under `mcgheelab.com/rm/`
+and lives in this repo's [`rm/`](rm/) subdirectory. As of 2026-05-04 this
+is the **working source of truth** for RM — edit here directly. The old
+path-rewriting deploy from the sibling `ResearchManagement/` repo is
+retired (see that repo's `scripts/deploy_to_rm_subdir.py` deprecation
+note).
+
+When working on RM, read [rm/CLAUDE.md](rm/CLAUDE.md) for full guidance.
+Quick references:
+
+| Concern | Path |
+|---|---|
+| RM source code | [rm/](rm/) (index.html, css/, js/, pages/, vendor/) |
+| RM dev server (launcher) | [rm/server.py](rm/server.py) → execs `../../ResearchManagement/server.py` |
+| Local seed JSON (dev only) | `../ResearchManagement/data/` (sibling repo, not in this repo) |
+| Firestore security rules | [firestore.rules](firestore.rules) — deploy with `firebase deploy --only firestore:rules` |
+| Firestore composite indexes | [firestore.indexes.json](firestore.indexes.json) — deploy with `firebase deploy --only firestore:indexes` |
+| Storage rules | [storage.rules](storage.rules) — deploy with `firebase deploy --only storage:rules` |
+| Cloud Functions used by RM | [functions/](functions/) — `gmail-scraper.js`, `calendar-proxy.js`, `ics-scraper.js`, `stats-updater.js`, `oauth.js`, `chat.js`, `tasks.js`. Deploy with `firebase deploy --only functions`. |
+| Shared with parent SPA | [user-system.js](user-system.js) (bootstraps `users/{uid}` for RM's `isLabMember()` gate); [cv-builder.js](cv-builder.js) (shares `cvData/{uid}` with `rm/js/cv-schemas.js`) |
+
+Local dev:
+
+```bash
+RM_WRITE_ALLOWLIST=mcgheealex@gmail.com python3 rm/server.py
+# open http://localhost:8000/rm/
+```
+
+Production deploy:
+
+- **RM static tree:** Cyberduck FTP this repo to godaddy. The `rm/`
+  subdir lands at `mcgheelab.com/rm/`. No build step.
+- **Firebase rules / indexes / functions:** `firebase deploy --only ...`
+  from this repo root. Never paste rules into the Firebase console.

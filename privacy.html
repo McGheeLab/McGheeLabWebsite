@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — McGheeLab Research Management</title>
+  <style>
+    /* Self-contained styles — don't link the website's stylesheet because it's
+       dark-themed and would render this dark-text page invisible. */
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #1f2937; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+    .legal { max-width: 760px; margin: 60px auto; padding: 0 24px; line-height: 1.6; }
+    .legal h1 { font-size: 28px; margin: 0 0 6px; color: #111827; }
+    .legal .subtitle { color: #6b7280; margin: 0 0 32px; font-size: 14px; }
+    .legal h2 { font-size: 18px; margin-top: 32px; margin-bottom: 8px; color: #111827; }
+    .legal p, .legal ul { margin: 8px 0 16px; }
+    .legal ul { padding-left: 24px; }
+    .legal a { color: #2563eb; }
+    .legal code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-size: 13px; color: #111827; }
+  </style>
+</head>
+<body>
+  <div class="legal">
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">McGhee Lab Research Management dashboard. Effective 2026-05-01.</p>
+
+    <h2>What this policy covers</h2>
+    <p>
+      This policy describes how the McGhee Lab Research Management application
+      (&ldquo;RM&rdquo;, hosted at <code>mcgheelab.com/rm/</code>) collects, uses,
+      and protects information about its users. RM is an internal lab dashboard
+      operated by the McGhee Lab at the University of Arizona, principal
+      investigator Alex McGhee. It is intended for members of the McGhee Lab and
+      is not a public service.
+    </p>
+
+    <h2>Who we are</h2>
+    <p>
+      Operator: Alex McGhee, McGhee Lab, University of Arizona. Contact:
+      <a href="mailto:mcgheealex@gmail.com">mcgheealex@gmail.com</a>.
+      The RM tool runs on Google Firebase (project <code>mcgheelab-f56cc</code>)
+      and serves a small number of authenticated lab members.
+    </p>
+
+    <h2>What information we collect</h2>
+    <p>
+      <strong>Account information.</strong> When you sign in with Google, RM
+      reads your name, email address, and Google profile photo from your
+      Google account, and stores them in Firebase Firestore so other lab
+      members can see who is on the team page.
+    </p>
+    <p>
+      <strong>Lab activity you create.</strong> Tasks, calendar events, project
+      notes, year-review entries, library annotations, and other content you
+      enter directly into RM are saved in Firebase Firestore under a private
+      per-user namespace (<code>userData/{your-uid}/</code>). Only you can read
+      and write your private namespace by default.
+    </p>
+    <p>
+      <strong>Google Workspace data (optional, if you connect Gmail or Calendar).</strong>
+      With your explicit consent, RM can read your Gmail messages and Google
+      Calendar events to surface relevant tasks and deadlines on your dashboard.
+      Specifically, when you click &ldquo;Connect Gmail&rdquo; or
+      &ldquo;Connect Calendar&rdquo; in RM Settings, you grant the following
+      OAuth scopes:
+    </p>
+    <ul>
+      <li>
+        <code>gmail.readonly</code> — Used to fetch the metadata and contents of
+        emails you receive, classify them by topic, and surface lab-relevant
+        action items in your task list. No emails are sent on your behalf and
+        no emails are modified.
+      </li>
+      <li>
+        <code>calendar.readonly</code> — Used to display upcoming events on your
+        dashboard, detect schedule conflicts, and aggregate time spent by category.
+        No events are created or modified.
+      </li>
+    </ul>
+    <p>
+      You can disconnect either integration at any time from RM Settings, or by
+      revoking RM&rsquo;s access at
+      <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>.
+      When you disconnect, RM stops fetching new data and (within 30 days) deletes
+      your previously synced Gmail/Calendar content from Firestore.
+    </p>
+
+    <h2>How we use your data</h2>
+    <ul>
+      <li>To render your personal RM dashboard (tasks, calendar, email triage, etc.).</li>
+      <li>To run lab-wide reports (aggregated, anonymized counts) for the PI.</li>
+      <li>To enable cross-user features like task assignment between lab members,
+          when you explicitly choose to assign a task to a teammate.</li>
+    </ul>
+    <p>
+      We <strong>do not</strong> use your data for advertising, profiling, sale to
+      third parties, training machine-learning models for general use, or any
+      purpose unrelated to McGhee Lab operations.
+    </p>
+
+    <h2>Where your data is stored</h2>
+    <p>
+      All RM data is stored in Google Cloud (Firebase Firestore + Firebase
+      Storage), in the <code>mcgheelab-f56cc</code> project. Data is encrypted in
+      transit (HTTPS) and at rest using Google Cloud&rsquo;s standard encryption.
+      Firestore security rules limit access to the document owner and, for
+      shared lab resources, to authenticated lab members.
+    </p>
+
+    <h2>Who can see your data</h2>
+    <ul>
+      <li><strong>You</strong> — full read/write access to your own
+          <code>userData/{your-uid}/</code> namespace.</li>
+      <li><strong>The PI / lab admin</strong> — has Firebase project owner
+          access by virtue of operating the lab&rsquo;s Google Cloud account, and
+          can therefore technically read any document in the project. The PI
+          will not bulk-read members&rsquo; private data without notice.</li>
+      <li><strong>Teammates you explicitly share with</strong> — when you opt to
+          share a task or note (by adding their UID to a document&rsquo;s
+          <code>sharedWithUids[]</code> field), they can read that document.</li>
+      <li><strong>Google</strong> — as our cloud provider, Google Cloud
+          processes the data on our behalf under their
+          <a href="https://cloud.google.com/terms/data-processing-addendum" target="_blank" rel="noopener">Data Processing Addendum</a>.</li>
+    </ul>
+    <p>
+      No other third parties have access. No analytics scripts, no advertising
+      pixels, no third-party widgets.
+    </p>
+
+    <h2>Compliance with Google API Services User Data Policy</h2>
+    <p>
+      RM&rsquo;s use and transfer to any other app of information received from
+      Google APIs will adhere to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>,
+      including the Limited Use requirements. Specifically:
+    </p>
+    <ul>
+      <li>RM only uses Google user data to provide and improve user-facing features within RM.</li>
+      <li>RM does not transfer Google user data to third parties except as necessary to provide or improve user-facing features, or to comply with applicable law.</li>
+      <li>RM does not use Google user data for advertising.</li>
+      <li>RM does not allow humans to read Google user data unless: (a) the user has provided affirmative consent for specific messages, (b) it is necessary for security purposes (e.g. investigating abuse), (c) it is necessary to comply with applicable law, or (d) the data has been aggregated and anonymized.</li>
+    </ul>
+
+    <h2>Data retention</h2>
+    <p>
+      Lab content you enter (tasks, notes, etc.) is retained while you remain a
+      lab member. When you leave the lab, the PI may archive your namespace and
+      retain it for up to 7 years for academic record-keeping, after which it
+      is deleted. Synced Gmail and Calendar content is deleted within 30 days
+      of you disconnecting the integration.
+    </p>
+
+    <h2>Your rights</h2>
+    <ul>
+      <li>You can view all your stored data via the RM dashboard.</li>
+      <li>You can edit or delete tasks, notes, and other content you created.</li>
+      <li>You can disconnect Gmail / Calendar at any time from RM Settings.</li>
+      <li>You can request a complete export or deletion of your data by emailing
+          <a href="mailto:mcgheealex@gmail.com">mcgheealex@gmail.com</a>; we will
+          comply within 30 days.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>
+      RM is for adult researchers. We do not knowingly collect data from anyone
+      under 13.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      Material changes will be announced in RM and emailed to active lab
+      members at least 14 days before taking effect.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions or requests:
+      <a href="mailto:mcgheealex@gmail.com">mcgheealex@gmail.com</a>.
+    </p>
+
+    <p style="margin-top:48px;font-size:13px;color:#6b7280;">
+      <a href="/">&larr; Back to McGheeLab</a> &middot;
+      <a href="terms.html">Terms of Service</a>
+    </p>
+  </div>
+</body>
+</html>

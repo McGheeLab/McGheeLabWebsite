@@ -1,0 +1,148 @@
+/* ResearchManagement Hub — design tokens (V3.107)
+
+   Foundation file for mobile/tablet compatibility. Loaded BEFORE
+   style.css on every RM page so all downstream CSS can reference
+   these custom properties.
+
+   Two standardized breakpoints — every page should round to these:
+     --bp-phone:   640px   (phone portrait + narrow landscape)
+     --bp-tablet:  1024px  (iPad portrait — the stated baseline)
+     --bp-desktop: 1280px  (full multi-pane experience)
+
+   CSS variables cannot be referenced inside @media queries, so the
+   actual queries use literal pixel values. The variables exist as a
+   single source of truth for JS (window.matchMedia) and as
+   documentation. Author rules with:
+     @media (max-width: 640px)  { ... phone overrides ... }
+     @media (max-width: 1024px) { ... tablet-and-below overrides ... }
+*/
+
+:root {
+  /* ---- Spacing scale (8-pt grid with 4px half-step) ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* ---- Font scale (px — avoid churning 21 sibling CSS files) ---- */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 22px;
+  --fs-3xl: 28px;
+
+  /* ---- Breakpoints (reference for JS; CSS @media uses literals) ---- */
+  --bp-phone: 640px;
+  --bp-tablet: 1024px;
+  --bp-desktop: 1280px;
+
+  /* ---- Touch sizing ---- */
+  --tap-min: 44px;          /* Apple HIG / WCAG 2.5.5 */
+  --tap-min-compact: 36px;  /* dense lists with adequate spacing */
+
+  /* ---- Page layout (mobile/tablet/desktop padding) ---- */
+  --page-pad-mobile: 12px;
+  --page-pad-tablet: 16px;
+  --page-pad-desktop: 24px;
+  --page-max-w: 1200px;
+
+  /* ---- iOS safe-area-inset (notch + home indicator) ---- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ---- Z-index ladder ---- */
+  --z-nav: 100;
+  --z-dropdown: 150;
+  --z-drawer: 200;
+  --z-modal: 1000;
+  --z-toast: 1500;
+}
+
+/* ---- iOS Safari: prevent auto-zoom on input focus ---- */
+input,
+select,
+textarea {
+  font-size: max(16px, var(--fs-base));
+}
+
+/* ---- Eliminate the 300ms tap delay on touch devices ---- */
+button,
+.btn,
+.top-nav a,
+.dropdown-menu a {
+  touch-action: manipulation;
+}
+
+/* ---- Touch devices: suppress sticky :hover highlight on tap ----
+   Only targets the rules that actually cause visible stuck states
+   after tap (cards, nav links, dropdown items, year-review/calendar
+   rows). Pair with explicit :active styles in component CSS for tap
+   feedback. */
+@media (hover: none) {
+  .card:hover {
+    box-shadow: var(--shadow);
+    transform: none;
+  }
+  .top-nav a:hover {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .dropdown-menu a:hover {
+    background: transparent;
+  }
+  .yr-line:hover,
+  .ch-line:hover,
+  .lib-line:hover {
+    background: transparent;
+  }
+}
+
+/* ---- iOS safe-area support: pad body to avoid notch / home bar ----
+   Wrapped in @supports so non-iOS browsers see no behavior change.
+   Sticky elements (.top-nav) account for --safe-top separately as
+   they migrate to tokens; this only handles the page body. */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+}
+
+/* ---- V3.236 — Anchor the page on phone ----
+   iOS Safari and Chrome mobile both default to "loose" page behavior:
+   any descendant slightly wider than the viewport opens horizontal
+   scroll the user can drag through, and vertical scroll bounces past
+   the content edges (rubber-band). Both make the page feel unanchored.
+
+   Locking the html + body axis here keeps every RM page anchored on
+   phones. Internal scroll containers (PDF viewer, comment lists,
+   chat threads) handle their own overflow — they're free to scroll
+   in either direction within their box without dragging the page.
+
+   The `.rm-mobile-drawer-locked` body class still wins when a drawer
+   is open — it adds `position: fixed; width: 100%` for full scroll
+   arrest with the iOS-friendly scroll-position save.
+
+   Tablet + desktop (>640px) are unaffected. */
+@media (max-width: 640px) {
+  html,
+  body {
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+  body {
+    /* Make the body's box exactly the viewport's width so off-by-one
+     * pixel overflows from rounded transforms (drawers, KaTeX, PDF
+     * canvas) can't open a scroll. */
+    max-width: 100vw;
+  }
+}

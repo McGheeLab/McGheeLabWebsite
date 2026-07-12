@@ -66,13 +66,19 @@
     return pad(Date.now(), 16) + '-' + clientId4 + '-' + shortNonce();
   }
 
-  /* Pick a stable color per uid (cheap hash → hue). */
+  /* Pick a stable color per uid (cheap hash → hue). V3.222 — switched
+   * from CSS Color 4 space-separated HSL (`hsl(120 70% 45%)`) to the
+   * universally-supported comma form (`hsl(120, 70%, 45%)`) because the
+   * space-separated form silently became an invalid color value in some
+   * browser engines we still need to support, which made
+   * `--pe-lock-color: hsl(120 70% 45%)` resolve to the fallback gray
+   * and the V3.219 lock-color outline look "broken." */
   function colorForUid(uid) {
     var s = String(uid || 'anon');
     var h = 0;
     for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
     var hue = Math.abs(h) % 360;
-    return 'hsl(' + hue + ' 70% 45%)';
+    return 'hsl(' + hue + ', 70%, 45%)';
   }
 
   /* ── Provider ── */
@@ -293,20 +299,48 @@
         next: function (snap) {
           var now = Date.now();
           var arr = [];
+          var selfSeen = false;
           snap.docs.forEach(function (d) {
             var data = d.data();
             if (!data) return;
             var ts = data.lastSeen && data.lastSeen.toDate ? data.lastSeen.toDate().getTime() : 0;
             if (ts && (now - ts) > PRESENCE_STALE_MS) return; // stale
+            var rowUid = data.uid || d.id;
+            var isSelf = rowUid === user.uid;
+            /* V3.222 — for self, override `focusBlockId` with the local
+             * `presenceState.focusBlockId`. Reasons:
+             * 1. In follower tabs, the leader's heartbeat writes the
+             *    leader's `focusBlockId` under our uid (single doc per
+             *    user), so without this override the snapshot would
+             *    clobber our local focus value.
+             * 2. The local value is always the freshest one for this
+             *    tab — Firestore lags by 100–300ms. */
+            var focusBlockId = isSelf
+              ? (presenceState.focusBlockId != null ? presenceState.focusBlockId : (data.focusBlockId || null))
+              : (data.focusBlockId || null);
+            if (isSelf) selfSeen = true;
             arr.push({
-              uid: data.uid || d.id,
+              uid: rowUid,
               name: data.name || '',
-              color: data.color || colorForUid(data.uid || d.id),
+              color: data.color || colorForUid(rowUid),
               lastSeen: ts,
-              focusBlockId: data.focusBlockId || null,
-              isSelf: (data.uid || d.id) === user.uid,
+              focusBlockId: focusBlockId,
+              isSelf: isSelf,
             });
           });
+          /* V3.222 — if Firestore hasn't reflected our own presence doc
+           * yet (first focus race), synthesize a local self entry so the
+           * lock UI doesn't depend on the round-trip. */
+          if (!selfSeen && presenceState.focusBlockId) {
+            arr.push({
+              uid: user.uid,
+              name: displayName,
+              color: colorForUid(user.uid),
+              lastSeen: now,
+              focusBlockId: presenceState.focusBlockId,
+              isSelf: true,
+            });
+          }
           presenceCache = arr;
           presenceListeners.forEach(function (cb) { try { cb(arr); } catch (e) { console.error(e); } });
         },
@@ -319,6 +353,32 @@
       if (presenceState.focusBlockId === blockId) return;
       presenceState.focusBlockId = blockId || null;
       writePresence(); // immediate flush for snappy UI
+      /* V3.222 — optimistic local cache update so the self-lock outline
+       * paints immediately, without waiting for the Firestore round-trip
+       * to bounce back through the onSnapshot listener. Done for ALL
+       * tabs (not just the leader): follower tabs still benefit from a
+       * local lock indicator even though the leader is the one writing
+       * to Firestore. The presenceUnsub callback below overrides self's
+       * `focusBlockId` with `presenceState.focusBlockId` on every real
+       * snapshot, so follower-tab edits stay locally locked even after
+       * a snapshot replaces presenceCache. */
+      var selfIdx = -1;
+      for (var i = 0; i < presenceCache.length; i++) {
+        if (presenceCache[i].uid === user.uid) { selfIdx = i; break; }
+      }
+      var patched = {
+        uid: user.uid,
+        name: displayName,
+        color: colorForUid(user.uid),
+        lastSeen: Date.now(),
+        focusBlockId: blockId || null,
+        isSelf: true,
+      };
+      if (selfIdx >= 0) presenceCache[selfIdx] = patched;
+      else presenceCache = presenceCache.concat([patched]);
+      presenceListeners.forEach(function (cb) {
+        try { cb(presenceCache); } catch (e) { console.error(e); }
+      });
     }
 
     function onPresence(cb) {

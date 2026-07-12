@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scientific Communication — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+        </div>
+        <h1 class="training-module-title">Scientific Communication</h1>
+        <p class="training-module-subtitle">
+          Telling a story in scientific framing — posters and presentations.
+          The core idea: complexity and scope are inversely correlated with
+          audience attention. Good talks oscillate; bad talks drown.
+        </p>
+      </header>
+
+      <div class="training-layout">
+
+        <aside class="training-toc" aria-label="Section navigation">
+          <h3>Sections</h3>
+          <ol>
+            <li><a href="#sec-why" class="active">Why storytelling</a></li>
+            <li><a href="#sec-arc">The attention arc</a></li>
+            <li><a href="#sec-open">The opening hook</a></li>
+            <li><a href="#sec-funnel">Funneling into complexity</a></li>
+            <li><a href="#sec-pullback">Pulling back broad</a></li>
+            <li><a href="#sec-protagonist">Choosing a protagonist</a></li>
+            <li><a href="#sec-arcs">Classic story arcs</a></li>
+            <li><a href="#sec-hooks">Other hooks</a></li>
+            <li><a href="#sec-format">Format adaptation</a></li>
+            <li><a href="#sec-capstone">Build your story</a></li>
+          </ol>
+        </aside>
+
+        <main>
+
+          <!-- 1. Why storytelling -->
+          <section class="training-section" id="sec-why">
+            <h2>1. Why storytelling</h2>
+            <p>
+              You can be the most rigorous person in the room and still
+              lose the room. Science doesn't propagate by being correct —
+              it propagates by being <em>heard</em>, <em>understood</em>,
+              and <em>remembered</em>. That is communication. And human
+              brains, including the ones in your audience, have a stubborn
+              architecture: they listen to <strong>stories</strong> and tune
+              out from <strong>information dumps</strong>.
+            </p>
+            <p>
+              This isn't a flaw to apologize for. It's the medium you're
+              working in. Every good scientific talk and every good poster
+              uses the audience's attention as a constrained resource —
+              spending it deliberately, replenishing it on purpose, and
+              never assuming you have more of it than you do.
+            </p>
+            <div class="training-callout">
+              <strong>One principle for this whole training.</strong>
+              Your audience will pay attention to whatever feels broad,
+              human, and surprising — and check out when it feels narrow,
+              technical, and grinding. Your job is to design a journey
+              that uses both states on purpose.
+            </div>
+          </section>
+
+          <!-- 2. The attention arc -->
+          <section class="training-section" id="sec-arc">
+            <h2>2. The attention arc</h2>
+            <p>
+              The central concept of this module. Imagine your talk's
+              timeline on the x-axis and <em>complexity</em> on the y-axis.
+              Complexity is how narrow, technical, and jargon-dense your
+              content is at any given moment. As complexity rises, audience
+              attention falls. As complexity falls — when you pull back
+              broad, show a striking image, ask a question, reconnect to
+              the stakes — attention recovers.
+            </p>
+            <p>
+              The interactive below is the visual core of this lesson.
+              Seven sliders, one per "beat" of a hypothetical 10-minute
+              talk. Each slider sets how complex / narrow you are at that
+              beat. The blue line is what you set. The green line is the
+              audience's attention, computed from your complexity history.
+              The red zone is <strong>"you've lost them"</strong> — when
+              attention falls below that line, the audience is mentally
+              checked out.
+            </p>
+
+            <p>Start with a preset, then drag the sliders to see what shapes work.</p>
+
+            <div class="arc-presets">
+              <button class="scen-btn arc-preset active" data-preset="oscillate">Good — oscillating</button>
+              <button class="scen-btn arc-preset" data-preset="monotonic">Bad — monotonic deep dive</button>
+              <button class="scen-btn arc-preset" data-preset="shallow">Bad — never goes deep</button>
+              <button class="scen-btn arc-preset" data-preset="marathon">Marathon — 5 cycles</button>
+              <button class="scen-btn arc-preset" data-preset="lightning">Lightning — single tight arc</button>
+            </div>
+
+            <div class="arc-controls" id="arc-controls">
+              <div class="beat"><label>1 (open)</label><input type="range" min="0" max="10" step="1" value="1" data-beat="0"><span class="v">1</span></div>
+              <div class="beat"><label>2</label><input type="range" min="0" max="10" step="1" value="3" data-beat="1"><span class="v">3</span></div>
+              <div class="beat"><label>3</label><input type="range" min="0" max="10" step="1" value="7" data-beat="2"><span class="v">7</span></div>
+              <div class="beat"><label>4</label><input type="range" min="0" max="10" step="1" value="2" data-beat="3"><span class="v">2</span></div>
+              <div class="beat"><label>5</label><input type="range" min="0" max="10" step="1" value="6" data-beat="4"><span class="v">6</span></div>
+              <div class="beat"><label>6</label><input type="range" min="0" max="10" step="1" value="3" data-beat="5"><span class="v">3</span></div>
+              <div class="beat"><label>7 (close)</label><input type="range" min="0" max="10" step="1" value="1" data-beat="6"><span class="v">1</span></div>
+            </div>
+
+            <div class="canvas-wrap is-light" style="margin-top:6px;">
+              <div class="canvas-title">Complexity (blue) vs audience attention (green) — red zone is "you've lost them"</div>
+              <canvas id="canvas-arc" width="700" height="280"></canvas>
+            </div>
+
+            <div class="val-verdict" id="arc-verdict" role="status" aria-live="polite" style="margin-top:10px;">
+              Move a slider or pick a preset to see how your shape affects attention.
+            </div>
+
+            <h3 style="margin-top:16px;">The lesson</h3>
+            <ul>
+              <li><strong>Monotonic ramps kill talks.</strong> If complexity only goes up, attention only goes down. By beat 4 you're talking to yourself.</li>
+              <li><strong>Permanent shallowness is also a failure.</strong> If you never go deep, the audience never gets the actual science — they remember "that was nice" and nothing more.</li>
+              <li><strong>Oscillate deliberately.</strong> Two to three deep dives in a 10-min talk; each one preceded by a broadening move and followed by a recovery. Plot your beats before you write a slide.</li>
+              <li><strong>Long talks need more cycles, not deeper ones.</strong> A 60-min seminar isn't a 10-min talk with longer technical sections — it's 5–7 mini-talks, each with its own arc.</li>
+            </ul>
+          </section>
+
+          <!-- 3. Opening hook -->
+          <section class="training-section" id="sec-open">
+            <h2>3. The opening hook — the first 60 seconds</h2>
+            <p>
+              The opening is when you negotiate with the audience whether
+              they're going to invest. Get this wrong and the rest of the
+              talk is pulling rope. Get it right and you've earned the
+              right to take them deep.
+            </p>
+            <p>What the opening must accomplish:</p>
+            <ol>
+              <li><strong>Connect</strong> — make this feel like a human problem, not a niche technical one.</li>
+              <li><strong>Motivate</strong> — answer "why should I care?" before the audience asks it.</li>
+              <li><strong>Spark curiosity</strong> — leave a clear question hanging that the rest of the talk will answer.</li>
+            </ol>
+
+            <h3>Tactics that work</h3>
+            <ul>
+              <li><strong>Surprising statistic.</strong> "One in eight women will develop breast cancer. Two-thirds of those who recur die within five years. We don't know why some recur and some don't." Three sentences. The audience is in.</li>
+              <li><strong>Patient or clinical story.</strong> A specific person's situation. Always more powerful than aggregate numbers, used sparingly.</li>
+              <li><strong>Striking image.</strong> A confocal slice that's beautiful before it's informative. A scanning electron micrograph. A drawn diagram with one piece deliberately missing.</li>
+              <li><strong>Bold question.</strong> "Why do tumors that look the same under the microscope behave so differently in the clinic?" If the audience would also like to know, you've already won.</li>
+              <li><strong>Counter-intuitive claim.</strong> "Stiffer matrices should promote invasion — every textbook says so. We don't think they always do." Now the audience has to listen to find out why.</li>
+              <li><strong>Personal motivation.</strong> Sparingly. "I started working on this because my grandmother..." can land. It can also flop. Read the room.</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>What to never open with.</strong> "Today I'd like to
+              talk about..." / "First a bit of background on my project..."
+              / a slide of seven bullet points labelled "Outline." None of
+              these connect. None of them motivate. None of them spark
+              curiosity. The audience uses them as license to check email.
+            </div>
+          </section>
+
+          <!-- 4. Funnel into complexity -->
+          <section class="training-section" id="sec-funnel">
+            <h2>4. The funnel into complexity</h2>
+            <p>
+              You've hooked them broad. Now you need to take them somewhere
+              specific enough that the science actually lands. This is the
+              <em>funnel</em>. Done well, the audience comes with you. Done
+              badly, they're left on the surface while you talk to yourself
+              in the deep end.
+            </p>
+
+            <h3>Bring them with you</h3>
+            <ul>
+              <li><strong>Build one concept at a time.</strong> A single new idea per slide is the cap. Two and you've already lost the back of the room.</li>
+              <li><strong>Define every jargon term the first time you use it.</strong> Including ones you assume everyone knows. They don't.</li>
+              <li><strong>Use analogies — carefully.</strong> "Like a thermostat" / "like a key in a lock." Good for first orientation. Wrong if pushed too hard. Drop the analogy before it starts misleading.</li>
+              <li><strong>Show, don't define.</strong> A short animation, a clean schematic, or a single illustrative dataset beats two paragraphs of explanation.</li>
+              <li><strong>Pause + check in.</strong> Especially in seminars. "Does this part make sense before I go further?" Cheap; high payoff. The room either nods or stares — both are signal.</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>The audience-arrogance trap.</strong> "But everyone in
+              this field knows what NF-κB does." Maybe. But your audience
+              isn't your field — even at a conference. Define it. The
+              specialists will tolerate ten seconds of recap; the
+              non-specialists will be lost without it.
+            </div>
+          </section>
+
+          <!-- 5. Pulling back broad -->
+          <section class="training-section" id="sec-pullback">
+            <h2>5. Pulling back broad</h2>
+            <p>
+              The recovery move. Most students never learn it; it's the
+              single biggest gap between a competent talk and a great one.
+              You've been deep. You feel the room slipping. You need to
+              <em>climb back out</em> — broaden, reconnect, refresh
+              stakes — before you take them deep again on the next point.
+            </p>
+
+            <h3>How to pull back</h3>
+            <ul>
+              <li><strong>"OK let me zoom out for a second."</strong> Spoken transition. Cheap. The audience instantly knows you're moving from detail back to context. Buys you 10 seconds to recover.</li>
+              <li><strong>A striking visual.</strong> A photograph, a histology image, an animation. Something the audience can rest on while you reframe.</li>
+              <li><strong>Ask a question.</strong> "So what does this actually mean for a patient?" — answers itself, broadens scope, re-engages.</li>
+              <li><strong>Tell a quick anecdote.</strong> Twenty seconds. About the lab. About a moment in the project. About how an experiment failed and what you tried next.</li>
+              <li><strong>Connect back to the opening hook.</strong> Best move when available. "Remember those statistics about recurrence? Here's where what we just measured starts to matter."</li>
+              <li><strong>Refresh the stakes.</strong> Why this matters beyond the technical detail you just delivered.</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>The rhythm to feel.</strong> Broad → narrow → broad →
+              narrow → broad. Two to four cycles in a 10-minute talk. Each
+              broad moment lasts 20–40 seconds; each narrow descent 60–120.
+              The exact numbers vary; the rhythm doesn't.
+            </div>
+          </section>
+
+          <!-- 6. Protagonist -->
+          <section class="training-section" id="sec-protagonist">
+            <h2>6. Choosing a protagonist</h2>
+            <p>
+              Every story has characters. Your science has characters too,
+              even if you've never named them. Picking your protagonist
+              deliberately is one of the highest-leverage moves in a
+              scientific talk — same data, different protagonist, totally
+              different talk.
+            </p>
+            <p>
+              Click a protagonist below to see how a single example science
+              story shifts depending on whose perspective the story is told
+              from.
+            </p>
+
+            <div class="protagonist-grid" id="protagonist-grid">
+              <div class="protagonist-card is-active" data-prot="cells">
+                <div class="icon">🦠</div>
+                <div class="name">The cells / organism</div>
+                <div class="summary">The thing being studied takes center stage. Most common default.</div>
+              </div>
+              <div class="protagonist-card" data-prot="patient">
+                <div class="icon">🧑‍⚕️</div>
+                <div class="name">The patient</div>
+                <div class="summary">Adds stakes. Clinical audiences. When real-world impact is your hook.</div>
+              </div>
+              <div class="protagonist-card" data-prot="lab">
+                <div class="icon">🧪</div>
+                <div class="name">The lab / researcher</div>
+                <div class="summary">The struggle and discovery. "We tried X, it failed, then we tried Y..."</div>
+              </div>
+              <div class="protagonist-card" data-prot="data">
+                <div class="icon">📊</div>
+                <div class="name">The data</div>
+                <div class="summary">When the surprise IS the data. The talk lets the data speak for itself.</div>
+              </div>
+              <div class="protagonist-card" data-prot="instrument">
+                <div class="icon">🔬</div>
+                <div class="name">The instrument / method</div>
+                <div class="summary">Methods-paper talks. "Here's a new tool, here's what it can do."</div>
+              </div>
+              <div class="protagonist-card" data-prot="antagonist">
+                <div class="icon">⚔️</div>
+                <div class="name">The antagonist</div>
+                <div class="summary">Cancer. The disease. The unsolved problem the science is fighting.</div>
+              </div>
+            </div>
+
+            <div class="protagonist-detail" id="protagonist-detail">
+              <div class="pd-h">Loading…</div>
+            </div>
+
+            <div class="training-callout" style="margin-top:14px;">
+              <strong>The same data, told three ways.</strong> Pick the
+              protagonist that gives the audience the most reason to care.
+              Clinical audiences: usually patient or antagonist. Technical
+              audiences: cells or instrument. Mixed audiences: lab /
+              researcher as protagonist often bridges best because everyone
+              relates to a person struggling toward a discovery.
+            </div>
+          </section>
+
+          <!-- 7. Classic story arcs -->
+          <section class="training-section" id="sec-arcs">
+            <h2>7. Classic story arcs</h2>
+            <p>
+              Audiences are pattern-matchers. Your story will land harder
+              if it fits a shape the audience already knows. Pick the arc
+              that matches the actual structure of your work — don't force
+              it, but recognize when one fits.
+            </p>
+
+            <div class="arc-grid">
+              <div class="arc-card">
+                <div class="arc-name">Hero's journey</div>
+                <div class="arc-shape">status quo → call → trials → breakthrough → return</div>
+                <div class="arc-example">"For years we assumed X. Then we noticed Y. We tried A, B, C — all failed. Eventually we tried D, and it worked. Now we know..."</div>
+              </div>
+              <div class="arc-card">
+                <div class="arc-name">Mystery</div>
+                <div class="arc-shape">unknown → clues → suspect → resolution</div>
+                <div class="arc-example">"We had a clinical observation no one could explain. Here are the clues we collected, and here's the mechanism we eventually uncovered."</div>
+              </div>
+              <div class="arc-card">
+                <div class="arc-name">Tragedy + redemption</div>
+                <div class="arc-shape">attempt → failure → reframe → success</div>
+                <div class="arc-example">"Our first model was wrong. The data forced us to abandon it. The reframing gave us the right model — and a better one than we'd hoped for."</div>
+              </div>
+              <div class="arc-card">
+                <div class="arc-name">Discovery</div>
+                <div class="arc-shape">expectation → anomaly → investigation → new fact</div>
+                <div class="arc-example">"We expected the spheroids to grow uniformly. They didn't. Following the anomaly led us to a mechanism we hadn't predicted."</div>
+              </div>
+              <div class="arc-card">
+                <div class="arc-name">Quest</div>
+                <div class="arc-shape">goal → obstacles → prize</div>
+                <div class="arc-example">"We needed to image actin dynamics inside a 200-μm spheroid. Three years of obstacles. Here's how we finally got there — and here's what we saw."</div>
+              </div>
+              <div class="arc-card">
+                <div class="arc-name">Comparison / conflict</div>
+                <div class="arc-shape">two hypotheses → decisive data → winner</div>
+                <div class="arc-example">"Two competing models. The decisive experiment had to discriminate them. Here's what it showed, and what that means for the field."</div>
+              </div>
+            </div>
+
+            <div class="training-callout">
+              <strong>The grit arc.</strong> The tragedy-and-redemption / quest
+              arcs both pay off the lab's "grit pillar" from the
+              <a href="/rm/pages/training-phd-triangle.html">PhD triangle</a>.
+              When the failures are real and the eventual success was earned,
+              say so. Audiences trust scientists who admit how hard the work
+              actually was.
+            </div>
+          </section>
+
+          <!-- 8. Other hooks -->
+          <section class="training-section" id="sec-hooks">
+            <h2>8. Other hooks — keeping attention beyond the opening</h2>
+            <p>
+              The opening hook gets them in the room. Mid-talk hooks keep
+              them there. Every "pull back broad" move is a chance to deploy
+              one of these.
+            </p>
+            <ul>
+              <li><strong>Surprise.</strong> A counter-intuitive result. The data not matching the prediction. Lead with what didn't fit the textbook.</li>
+              <li><strong>Humor.</strong> Sparingly. Self-aware, not at the audience's expense, never about other scientists. One well-timed line is worth ten attempted ones.</li>
+              <li><strong>Stakes.</strong> Real-world consequences. What does this actually mean for a patient, a clinical decision, the next paper, the next experiment?</li>
+              <li><strong>Beauty.</strong> A stunning image. A clean dataset. Elegant math. Audiences will pay attention to beauty even when they wouldn't pay attention to the science underneath it.</li>
+              <li><strong>Controversy.</strong> "Everyone thinks X. We don't." Stake out a position and defend it with the data.</li>
+              <li><strong>Personal connection.</strong> A moment from the project. Why you specifically work on this. Earns trust if it's brief and sincere.</li>
+              <li><strong>The unsolved.</strong> Point at what's still unknown. The audience leaves the room wanting more, instead of feeling the talk closed the topic.</li>
+            </ul>
+          </section>
+
+          <!-- 9. Format adaptation -->
+          <section class="training-section" id="sec-format">
+            <h2>9. Adapting to the format</h2>
+            <p>
+              The same story has to be re-cut for the channel it's running on.
+            </p>
+            <h3>60-second elevator pitch</h3>
+            <p>One hook + one claim. No cycles. The hook IS the talk. Memorize the exact words; you'll deliver this dozens of times.</p>
+
+            <h3>10-minute conference talk</h3>
+            <p>Two or three cycles. Tight. No introductory throat-clearing. Open with the hook, deliver each cycle with a clear figure, close with a memorable takeaway and one slide of acknowledgments. Practice it standing up at least three times.</p>
+
+            <h3>45-minute seminar</h3>
+            <p>Five to seven cycles — basically a series of mini-talks, each with its own arc. The transitions between cycles are where you "pull back broad" — by far the highest-risk parts of the talk. Use them to refresh stakes and re-engage.</p>
+
+            <h3>Poster</h3>
+            <p>Different beast. The audience moves at their own pace and reads in non-linear order. Visual hierarchy and eye-flow matter more than narration order. Each subsection of the poster is its own mini-arc: hook-in-the-title, point-in-the-figure, claim-in-the-conclusion. The whole poster's job is to attract → reward 30-second visitors → reward 5-minute visitors. Three audiences, one design.</p>
+
+            <div class="training-callout">
+              <strong>Posters are not papers printed on cardboard.</strong>
+              The most common poster mistake is reproducing the manuscript's
+              dense paragraphs at A0 size. Cut text by ~70%. Lead with figures.
+              Title is a claim, not a topic. Use 24 point as your minimum.
+            </div>
+          </section>
+
+          <!-- 10. Capstone -->
+          <section class="training-section" id="sec-capstone">
+            <h2>10. Capstone — build your story arc</h2>
+            <p>
+              Pick a real upcoming talk (a lab meeting, a conference talk,
+              a poster). Fill in the storyboard below. The output is a
+              printable single-page plan to keep next to your slide deck
+              while you build.
+            </p>
+
+            <div class="panel">
+              <div class="ctrl">
+                <div class="ctrl-group">
+                  <label for="sb-format">Format</label>
+                  <select id="sb-format">
+                    <option value="">— pick one —</option>
+                    <option value="elevator">60-second elevator pitch</option>
+                    <option value="talk10">10-minute conference talk</option>
+                    <option value="seminar">45-minute seminar</option>
+                    <option value="poster">Conference poster</option>
+                  </select>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-topic">Working title / claim</label>
+                  <input type="text" id="sb-topic" placeholder='e.g. "Edge density inverts the effect of stiffness on tumor invasion"'>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-protagonist">Protagonist</label>
+                  <select id="sb-protagonist">
+                    <option value="">— pick one —</option>
+                    <option value="cells">The cells / organism</option>
+                    <option value="patient">The patient</option>
+                    <option value="lab">The lab / researcher</option>
+                    <option value="data">The data</option>
+                    <option value="instrument">The instrument / method</option>
+                    <option value="antagonist">The antagonist (disease)</option>
+                  </select>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-hook">Opening hook tactic</label>
+                  <select id="sb-hook">
+                    <option value="">— pick one —</option>
+                    <option value="statistic">Surprising statistic</option>
+                    <option value="patient">Patient / clinical story</option>
+                    <option value="image">Striking image</option>
+                    <option value="question">Bold question</option>
+                    <option value="counter">Counter-intuitive claim</option>
+                    <option value="personal">Personal motivation</option>
+                  </select>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-arc">Classic arc</label>
+                  <select id="sb-arc">
+                    <option value="">— pick one —</option>
+                    <option value="hero">Hero's journey</option>
+                    <option value="mystery">Mystery</option>
+                    <option value="tragedy">Tragedy + redemption</option>
+                    <option value="discovery">Discovery</option>
+                    <option value="quest">Quest</option>
+                    <option value="conflict">Comparison / conflict</option>
+                  </select>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-beat1">Cycle 1 — broad reset</label>
+                  <input type="text" id="sb-beat1" placeholder='e.g. "Why invasion matters clinically"'>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-beat2">Cycle 2 — broad reset</label>
+                  <input type="text" id="sb-beat2" placeholder='e.g. "Zoom out: the mechanical landscape of the tumor"'>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-beat3">Cycle 3 — broad reset (optional for short talks)</label>
+                  <input type="text" id="sb-beat3" placeholder='e.g. "Why this changes how we think about trials"'>
+                </div>
+                <div class="ctrl-group">
+                  <label for="sb-close">Closing message (one sentence)</label>
+                  <input type="text" id="sb-close" placeholder='e.g. "Edge density is the missing variable in 20 years of contradicting stiffness studies."'>
+                </div>
+              </div>
+              <div class="viz">
+                <div class="val-verdict" id="sb-verdict" role="status" aria-live="polite">
+                  Fill in the storyboard fields to generate a printable plan.
+                </div>
+                <div class="signoff-sheet" id="sb-signoff" style="display:none;">
+                  <h3>Story arc storyboard</h3>
+                  <div class="signoff-row"><span class="label">Format</span><span class="value" id="sb-out-format">—</span></div>
+                  <div class="signoff-row"><span class="label">Working title / claim</span><span class="value" id="sb-out-topic">—</span></div>
+                  <div class="signoff-row"><span class="label">Protagonist</span><span class="value" id="sb-out-prot">—</span></div>
+                  <div class="signoff-row"><span class="label">Opening hook</span><span class="value" id="sb-out-hook">—</span></div>
+                  <div class="signoff-row"><span class="label">Classic arc</span><span class="value" id="sb-out-arc">—</span></div>
+                  <div class="signoff-row"><span class="label">Cycle 1 reset</span><span class="value" id="sb-out-b1">—</span></div>
+                  <div class="signoff-row"><span class="label">Cycle 2 reset</span><span class="value" id="sb-out-b2">—</span></div>
+                  <div class="signoff-row"><span class="label">Cycle 3 reset</span><span class="value" id="sb-out-b3">—</span></div>
+                  <div class="signoff-row"><span class="label">Closing message</span><span class="value" id="sb-out-close">—</span></div>
+                  <div class="signoff-row"><span class="label">Date</span><span class="value" id="sb-out-date">—</span></div>
+                  <div class="signoff-row"><span class="label">Speaker</span><span class="value">________________________</span></div>
+                  <div class="signoff-pass" id="sb-pass" style="display:none;">✅ Storyboard ready — print and keep next to your slide deck.</div>
+                  <div class="signoff-fail" id="sb-fail" style="display:none;">❌ Fill in every required field before printing.</div>
+                  <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">Print (browser <kbd>Cmd/Ctrl + P</kbd>) and pin it to your monitor while building slides.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="insight">
+              <strong>What to do next.</strong> Build slides against this
+              storyboard, not against your figures. The figures serve the
+              story, not the other way around. Practice the opening hook
+              out loud at least three times — it's the part most likely to
+              be under-rehearsed.
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-scientific-communication.js"></script>
+</body>
+</html>

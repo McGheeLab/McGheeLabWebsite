@@ -110,7 +110,10 @@ body.split-dragging .split-pane-frame {
 }
 
 /* ─── Mobile fallback (stack vertically) ──────────────── */
-@media (max-width: 700px) {
+/* V3.233: standardized 700px → 640px phone breakpoint. iPad-portrait
+ * (1024px) keeps the side-by-side panes — 512px per pane is tight but
+ * usable; phones stack. */
+@media (max-width: 640px) {
   .split-shell { flex-direction: column; }
   .split-pane { flex: 1 1 50% !important; }
   .split-divider {

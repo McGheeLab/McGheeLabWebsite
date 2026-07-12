@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hydrogels &amp; Cell Forces I — From Atoms to Deformation (BME 466/566)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 12px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 14px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+.tab-content > .background-section{order:1}
+.tab-content > .student-task{order:2;margin-top:0;margin-bottom:14px}
+.tab-content > .scenario-bar{order:3}
+.tab-content > .panel{order:4}
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.cite{color:#64748b;font-style:italic;font-size:.95em}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}.key-takeaways li{font-size:.82rem;color:#14532d}
+.key-takeaways h3{display:none}
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}.student-task li{font-size:.88rem;margin-bottom:4px}
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:11px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.8rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.8rem;font-variant-numeric:tabular-nums;margin-top:8px}
+.stat-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b}.stat-row .value{font-weight:600;color:#1e293b;text-align:right}
+.stat-row.highlight .value{color:#2563eb}
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 13px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.8rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+.val-verdict strong{display:block;font-size:.9rem;margin-bottom:2px}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}.sources li{font-size:.78rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}.sources a:hover{text-decoration:underline}
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+mjx-container{display:inline-block !important}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.15rem} header .subtitle{font-size:.74rem}
+  .tab-bar{padding:0 6px} .tab-btn{padding:10px 8px;font-size:.72rem}
+  main{padding:10px 8px} .background-section{padding:16px 16px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Hydrogels &amp; Cell Forces I</h1>
+  <p class="subtitle">From Atoms to Deformation — BME/AME 466·566 Biomechanics (Part II: Cellular)</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="atom">1. Atoms → Springs</button>
+  <button class="tab-btn" data-tab="micro">2. Microstructure</button>
+  <button class="tab-btn" data-tab="thermal">3. Entropic Spring</button>
+  <button class="tab-btn" data-tab="elements">4. Springs &amp; Dashpots</button>
+  <button class="tab-btn" data-tab="lump">5. Lumping → SLS</button>
+  <button class="tab-btn" data-tab="integrin">6. Integrin Pull</button>
+  <button class="tab-btn" data-tab="macro">7. Macroscopic Field</button>
+  <button class="tab-btn" data-tab="infer">8. Inferring Force</button>
+  <button class="tab-btn" data-tab="normalize">9. Normalize</button>
+</div>
+
+<main>
+
+<!-- ===== TAB 1: ATOMS -> SPRINGS ===== -->
+<section id="tab-atom" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: where does a "spring" come from?</h2>
+    <p>You already read force–displacement plots for springs. But a spring is not fundamental — it is what <em>any</em> chemical bond looks like when you barely disturb it. Take two atoms a distance \(r\) apart. Their interaction energy is well described by the <strong>Lennard-Jones (LJ) potential</strong>: a steep short-range repulsion (electron clouds cannot overlap, the \(r^{-12}\) term) plus a softer long-range van der Waals attraction (London dispersion, the \(r^{-6}\) term).</p>
+    <div class="equation-box"><p style="text-align:center">$$U(r) = 4\varepsilon\!\left[\left(\frac{\sigma}{r}\right)^{12} - \left(\frac{\sigma}{r}\right)^{6}\right]$$</p>
+    <p>\(\varepsilon\) is the <em>well depth</em> (bond energy scale) and \(\sigma\) is the distance where \(U=0\).</p></div>
+    <h3>From energy to force, and the spring</h3>
+    <p>The force is minus the slope, \(F(r) = -\,dU/dr\). It vanishes at the energy minimum, the <strong>equilibrium bond length</strong> \(r_0 = 2^{1/6}\sigma\approx1.122\sigma\), where \(U(r_0)=-\varepsilon\). Taylor-expand about \(r_0\): the slope is zero there, so the leading term is parabolic and the restoring force is linear:</p>
+    <div class="equation-box"><p style="text-align:center">$$F(r) \approx -\,U''(r_0)\,(r-r_0) = -k\,(r-r_0),\qquad k = U''(r_0)=\frac{72\varepsilon}{r_0^{2}}$$</p></div>
+    <p>That is Hooke's law, with the spring constant being the <em>curvature of the well</em>. It is not special to LJ — <strong>every smooth bond is parabolic near its minimum</strong>, so small displacements always give a linear restoring force, and macroscopic small-strain elasticity is the sum of these atomic springs.</p>
+    <div class="worked-example"><p>The LJ well is <em>asymmetric</em> — steep in compression, soft in tension. Pull the bond and the true force falls below the straight Hooke line, peaks at the maximum-attraction distance (\(r\approx1.24\sigma\)), then drops toward zero: the bond breaks. A real spring would just keep pulling. That anharmonicity is exactly what Hooke cannot capture.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>\(F=-dU/dr\); at the minimum the slope is zero, so \(F\approx-k(r-r_0)\) with \(k=72\varepsilon/r_0^2\).</li>
+      <li>Hooke's law is the universal small-displacement limit of <em>any</em> smooth bond, not a property of LJ.</li>
+      <li>The harmonic spring fails at large displacement: the well is anharmonic and the bond has a finite breaking force.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Start at <strong>Tiny wiggle</strong>: the red dashed parabola sits exactly on the LJ well and the Hooke line on the true force.</li>
+    <li>Go to <strong>Moderate</strong> then <strong>Large pull</strong> and watch the orange (true) and hollow (Hooke) markers separate — read the force error climb.</li>
+    <li>Change \(\varepsilon\) and \(\sigma\): the well depth and \(r_0\) move, and the spring constant \(k\) rescales.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Displacement:</span>
+    <button class="scen-btn on" data-tab="atom" data-scen="tiny" onclick="setScen('atom','tiny')">Tiny wiggle (Hooke exact)</button>
+    <button class="scen-btn" data-tab="atom" data-scen="moderate" onclick="setScen('atom','moderate')">Moderate stretch</button>
+    <button class="scen-btn" data-tab="atom" data-scen="break" onclick="setScen('atom','break')">Large pull (bond breaks)</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Displacement Δr <span id="v-atom-disp">0.05 σ</span></label><input type="range" id="s-atom-disp" min="-0.25" max="0.6" step="0.01" value="0.05"></div>
+      <div class="ctrl-group"><label>Well depth ε <span id="v-atom-eps">1.0 ε₀</span></label><input type="range" id="s-atom-eps" min="0.3" max="3" step="0.1" value="1"></div>
+      <div class="ctrl-group"><label>Diameter σ <span id="v-atom-sigma">1.00 σ₀</span></label><input type="range" id="s-atom-sigma" min="0.7" max="1.5" step="0.05" value="1"></div>
+      <div class="stats" id="st-atom"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Potential energy U(r) — well + harmonic approximation</div><canvas id="cv-atom" width="640" height="300"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Force F(r) = −dU/dr — true vs Hooke line</div><canvas id="cv-atom2" width="640" height="300"></canvas></div>
+      <div class="val-verdict" id="vd-atom"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 2: MICROSTRUCTURE ===== -->
+<section id="tab-micro" class="tab-content">
+  <div class="background-section">
+    <h2>Background: a hydrogel is a tangle of noodles</h2>
+    <p>Zoom into any hydrogel or tissue and you find the same cartoon: long, noodle-like polymer strands threaded through water. What changes is only (i) <strong>how floppy each noodle is</strong> — its <em>persistence length</em> \(L_p\), the distance over which a strand stays roughly straight — and (ii) <strong>how the noodles are joined</strong> — by fixed <em>covalent crosslinks</em> or by transient <em>physical entanglements</em> and branch points. Those two micro-choices set the entire macroscopic character.</p>
+    <h3>Three networks, side by side</h3>
+    <p><strong>Polyacrylamide (PAAM).</strong> Thin, <em>flexible</em> chains (\(L_p\sim\)nm ≪ mesh size) joined at fixed <em>covalent</em> junctions by bis-acrylamide → an isotropic random mesh. Each strand is an entropic spring; the network is a linearly elastic swollen rubber whose stiffness is set <em>independently</em> by monomer and crosslinker fractions. Bioinert; the canonical tunable substrate <span class="cite">(Tse &amp; Engler 2010)</span>.</p>
+    <p><strong>Collagen-I gel.</strong> Thick <em>semiflexible</em> fibrils (\(L_p\sim\) mesh size) in a sparse, <em>branched / entangled</em> network. At low load it is fibril <em>bending</em> (soft); under load the network reorients and pulls fibrils into <em>stretching</em> → dramatic strain-stiffening <span class="cite">(Licup et al. 2015)</span>.</p>
+    <p><strong>Extracellular matrix (ECM).</strong> The biological generalization: heterogeneous fibrous composite (collagen + fibronectin + elastin + proteoglycans), mixed physical and enzymatic crosslinks, anisotropic and actively remodeled <span class="cite">(Frantz et al. 2010; Mouw et al. 2014)</span>.</p>
+    <div class="equation-box"><p style="text-align:center">$$G \approx n\,k_B T\ \ \text{(flexible: stiffness}\propto\text{strand density } n);\qquad K(\gamma)=\frac{d\sigma}{d\gamma}\ \text{(collagen/ECM: } K\sim\sigma)$$</p></div>
+    <div class="worked-example"><p>A flexible PAAM strand of \(N\) Kuhn segments is a Hookean entropic spring \(k=3k_BT/(Nb^2)\); summed over \(n\) strands the modulus \(G\approx nk_BT\) is constant in strain → a straight stress–strain line. A semiflexible collagen fibril bends cheaply at first, but once taut its tangent modulus \(K\) climbs >100-fold and becomes nearly concentration-independent, scaling as \(K\sim\sigma\) <span class="cite">(Licup et al. 2015)</span>. Same noodles, opposite signatures — set purely by \(L_p\) and junction type.</p></div>
+    <div class="key-takeaways"><ul>
+      <li><strong>PAAM:</strong> flexible + covalent crosslinks → isotropic mesh → linear, \(G\approx nk_BT\), tunable, bioinert.</li>
+      <li><strong>Collagen:</strong> semiflexible + entanglements/branches → bending then stretching → strong strain-stiffening.</li>
+      <li><strong>ECM:</strong> heterogeneous multi-protein fibrous network, mixed crosslinks → anisotropic, nonlinear, remodeled.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Switch between <strong>PAAM</strong>, <strong>Collagen</strong>, and <strong>ECM</strong>: watch the junctions change from filled covalent dots to hollow entanglements, and the strands from thin/flexible to thick/semiflexible.</li>
+    <li>Drag the <strong>applied strain</strong> γ up: PAAM stays a straight stress line; collagen/ECM peel away from the dashed linear reference (strain-stiffening).</li>
+    <li>Change persistence length and crosslink density and read how the tangent modulus K responds.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Material:</span>
+    <button class="scen-btn on" data-tab="micro" data-scen="paam" onclick="setScen('micro','paam')">PAAM (covalent mesh)</button>
+    <button class="scen-btn" data-tab="micro" data-scen="collagen" onclick="setScen('micro','collagen')">Collagen-I (entangled)</button>
+    <button class="scen-btn" data-tab="micro" data-scen="ecm" onclick="setScen('micro','ecm')">ECM (heterogeneous)</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Persistence length Lp <span id="v-micro-lp">2 nm</span></label><input type="range" id="s-micro-lp" min="1" max="200" step="1" value="2"></div>
+      <div class="ctrl-group"><label>Crosslink density <span id="v-micro-xlink">2.0×</span></label><input type="range" id="s-micro-xlink" min="0.1" max="3" step="0.1" value="2"></div>
+      <div class="ctrl-group"><label>Applied shear strain γ <span id="v-micro-gamma">0.00</span></label><input type="range" id="s-micro-gamma" min="0" max="0.5" step="0.01" value="0"></div>
+      <div class="stats" id="st-micro"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Noodle network (filled = covalent crosslink, hollow = entanglement)</div><canvas id="cv-micro" width="640" height="400"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Shear stress vs strain</div><canvas id="cv-micro2" width="640" height="280"></canvas></div>
+      <div class="val-verdict" id="vd-micro"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 3: ENTROPIC SPRING ===== -->
+<section id="tab-thermal" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the entropic spring</h2>
+    <p>A single hydrogel chain (a "noodle string") is bombarded by solvent and constantly jiggles with thermal energy \(k_BT\). Left alone it samples a huge number of crumpled shapes; far more of them have the two ends close together than far apart, so the coil is "entropically happy" balled up.</p>
+    <p>Grab the two ends and pull. You are not stretching any chemical bond (the contour length is unchanged) — you are forcing the chain into rare, aligned shapes, <em>reducing its conformational entropy</em> \(S\). Since \(F=U-TS\) and the internal energy \(U\) barely changes, the chain pushes back with a purely <strong>entropic</strong> restoring force \(f=-T\,dS/dx\).</p>
+    <h3>Why warmer pulls harder</h3>
+    <p>Because \(f\propto -T\,dS/dx\), the force scales <em>linearly with absolute temperature</em>: hotter chains fluctuate more, resist alignment more, and pull back harder. (A stretched rubber band actually contracts when heated — the Gough–Joule effect.) This is the opposite of an energetic bond spring, which softens when warm.</p>
+    <div class="equation-box">
+      <p><strong>FJC Gaussian / low-force limit — a true Hookean spring:</strong></p>
+      $$ f = \frac{3 k_B T}{N b^2}\,x,\qquad k_{\text{spring}}=\frac{3 k_B T}{N b^2}=\frac{3k_BT}{\langle R^2\rangle_0},\quad b=2L_p $$
+      <p><strong>WLC (Marko–Siggia)</strong> for semiflexible filaments (collagen, dsDNA):</p>
+      $$ f = \frac{k_B T}{L_p}\!\left[\frac{1}{4(1-x/L)^2}-\frac14+\frac{x}{L}\right] $$
+      <p>Low force \(f\approx\frac{3k_BT}{2L_p}\frac{x}{L}\) (linear); near full extension the force <em>diverges</em> as \(1/(1-x/L)^2\).</p>
+    </div>
+    <div class="worked-example"><p>dsDNA-like: \(L_p=50\) nm, \(L=1000\) nm, \(k_BT\approx4.1\) pN·nm. The WLC force scale is \(k_BT/L_p\approx0.08\) pN. At 10% extension the bracket \(\approx0.16\) so \(f\approx0.013\) pN; at 90% the first term explodes (bracket \(\approx25.6\)) so \(f\approx2.1\) pN — a ~160× stiffening from the same thermal spring.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>A chain is an <strong>entropic spring</strong>: \(f=-T\,dS/dx\), from lost conformational entropy, not stretched bonds.</li>
+      <li>At small extension it is <strong>Hookean</strong>, \(k=3k_BT/(Nb^2)\): longer chains are softer, and the spring is <em>stiffer when hotter</em>.</li>
+      <li>The WLC adds <strong>finite extensibility</strong>: force diverges as \(x\to L\).</li>
+      <li>Summed over a network this gives the rubber modulus \(G\approx\nu k_BT\), also rising with temperature.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Watch the chain jiggle (it animates). In <strong>Relaxed coil</strong> it crumples and wiggles freely; in <strong>Near full extension</strong> it pulls taut and the force arrow grows.</li>
+    <li>Compare the WLC curve (solid) to the FJC Hookean line (dashed): they overlap at small x/L and split as you stretch.</li>
+    <li>Hit <strong>Heat it up</strong> vs <strong>Freeze it</strong>: both force curves rise/fall with temperature — the entropic-spring signature.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">State:</span>
+    <button class="scen-btn" data-tab="thermal" data-scen="coil" onclick="setScen('thermal','coil')">Relaxed coil</button>
+    <button class="scen-btn on" data-tab="thermal" data-scen="linear" onclick="setScen('thermal','linear')">Hookean (small pull)</button>
+    <button class="scen-btn" data-tab="thermal" data-scen="taut" onclick="setScen('thermal','taut')">Near full extension</button>
+    <button class="scen-btn" data-tab="thermal" data-scen="hot" onclick="setScen('thermal','hot')">Heat it up</button>
+    <button class="scen-btn" data-tab="thermal" data-scen="cold" onclick="setScen('thermal','cold')">Freeze it</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Temperature <span id="v-thermal-temp">1.00×</span></label><input type="range" id="s-thermal-temp" min="0.2" max="2" step="0.05" value="1"></div>
+      <div class="ctrl-group"><label>Extension x/L <span id="v-thermal-ext">0.25</span></label><input type="range" id="s-thermal-ext" min="0" max="0.98" step="0.01" value="0.25"></div>
+      <div class="ctrl-group"><label>Persistence length Lp <span id="v-thermal-lp">50 nm</span></label><input type="range" id="s-thermal-lp" min="5" max="100" step="1" value="50"></div>
+      <div class="ctrl-group"><label>Kuhn segments N <span id="v-thermal-N">40</span></label><input type="range" id="s-thermal-N" min="10" max="100" step="1" value="40"></div>
+      <div class="ctrl-group"><label>Kuhn length b <span id="v-thermal-b">100 nm</span></label><input type="range" id="s-thermal-b" min="50" max="200" step="5" value="100"></div>
+      <div class="stats" id="st-thermal"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">A living noodle string (thermal fluctuations)</div><canvas id="cv-thermal" width="640" height="280"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Entropic spring: force–extension</div><canvas id="cv-thermal2" width="640" height="300"></canvas></div>
+      <div class="val-verdict" id="vd-thermal"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 4: SPRINGS & DASHPOTS ===== -->
+<section id="tab-elements" class="tab-content">
+  <div class="background-section">
+    <h2>Background: every network is just springs and dashpots</h2>
+    <p>Before any constitutive law, <em>see</em> the mechanical elements inside the tangle. Two questions decide what each strand is: <strong>are both ends pinned to permanent crosslinks?</strong> and <strong>does its motion cost frictional energy?</strong></p>
+    <p>A strand fixed at <em>both</em> ends between two crosslinks is an <strong>entropic spring</strong>: pulling it lowers entropy, \(f=-T\,dS/dx\), and for a Gaussian chain this is Hookean, \(k=3k_BT/(Nb^2)\). It stores energy <em>reversibly</em>, so it carries load forever and sets the <em>equilibrium</em> modulus.</p>
+    <p>Anything whose stress relaxes by frictional sliding is a <strong>dashpot</strong>: (1) <em>physical entanglements</em>, where strands hook and only temporarily constrain each other (they slip past, dragging through neighbors); and (2) <em>dangling ends and free chains</em>, attached at one end (or none) so they bear no equilibrium load but still drag through the mesh. Both convert work to heat — the molecular origin of viscosity \(\eta\).</p>
+    <div class="equation-box"><p style="text-align:center">$$\underbrace{f=\frac{3k_BT}{Nb^2}x}_{\text{strand = spring}}\qquad\qquad \underbrace{\sigma=\eta\,\dot{\varepsilon}}_{\text{entanglement / end = dashpot}}\qquad G_{\text{eq}}=\nu\,k_BT$$</p></div>
+    <div class="worked-example"><p>Of 100 strands, suppose 60 are pinned at both ends, 25 entangled-only, 15 dangling. Only the 60 bridging strands set the long-time stiffness: \(G_{\text{eq}}=\nu k_BT\) uses \(\nu\propto60\), not 100. The other 40 add transient resistance (loss, a viscous \(\eta\)) that decays away — they make the gel feel stiffer when poked fast, then flow out of the load path. Convert a dangling end into a second crosslink and it "promotes" to a spring: \(\nu\) and \(G_{\text{eq}}\) rise.</p></div>
+    <div class="key-takeaways"><ul>
+      <li><strong>Spring = strand pinned at both ends.</strong> Entropic, reversible, sets \(G_{\text{eq}}=\nu k_BT\).</li>
+      <li><strong>Dashpot = entanglement or dangling/free end.</strong> Temporary constraint or load-free drag → viscosity \(\eta\).</li>
+      <li>Only <em>elastically effective</em> strands enter \(\nu\); dangling ends are invisible to equilibrium stiffness but visible to loss/relaxation.</li>
+      <li>This bookkeeping bridges microstructure to the lumped viscoelastic models (next tab).</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Use <strong>Highlight springs</strong> / <strong>Highlight dashpots</strong> to isolate the load-bearing strands vs the dissipative entanglements and dangling ends.</li>
+    <li><strong>Classify</strong> color-codes everything: green springs, amber entanglements, red dangling ends.</li>
+    <li>Add strands (more springs → higher elastic fraction and G_eq) or add entanglements/ends (more dashpots → more viscosity, same G_eq).</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Highlight:</span>
+    <button class="scen-btn on" data-tab="elements" data-scen="all" onclick="setScen('elements','all')">Show all</button>
+    <button class="scen-btn" data-tab="elements" data-scen="springs" onclick="setScen('elements','springs')">Springs (strands)</button>
+    <button class="scen-btn" data-tab="elements" data-scen="dashpots" onclick="setScen('elements','dashpots')">Dashpots</button>
+    <button class="scen-btn" data-tab="elements" data-scen="pinned-vs-dangle" onclick="setScen('elements','pinned-vs-dangle')">Classify</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Bridging strands (springs) <span id="v-elements-strands">12</span></label><input type="range" id="s-elements-strands" min="4" max="24" step="1" value="12"></div>
+      <div class="ctrl-group"><label>Entanglements (dashpots) <span id="v-elements-entang">6</span></label><input type="range" id="s-elements-entang" min="0" max="16" step="1" value="6"></div>
+      <div class="ctrl-group"><label>Dangling ends (dashpots) <span id="v-elements-dangle">5</span></label><input type="range" id="s-elements-dangle" min="0" max="16" step="1" value="5"></div>
+      <div class="ctrl-group"><label>Temperature <span id="v-elements-temp">300 K</span></label><input type="range" id="s-elements-temp" min="280" max="340" step="1" value="300"></div>
+      <div class="stats" id="st-elements"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Network with spring &amp; dashpot elements overlaid</div><canvas id="cv-elements" width="640" height="420"></canvas></div>
+      <div class="val-verdict" id="vd-elements"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 5: LUMPING -> SLS ===== -->
+<section id="tab-lump" class="tab-content">
+  <div class="background-section">
+    <h2>Background: averaging the mesh into one element</h2>
+    <p>The previous tabs zoomed all the way in: each strand is an <strong>entropic spring</strong> \(k=3k_BT/(Nb^2)\), and wherever stress leaks away by frictional sliding there is a <strong>dashpot</strong>. A real hydrogel has <em>millions</em> of these, all different. We never solve each one — we <strong>lump</strong> them into one average spring + dashpot element whose stress \(\sigma\) and strain \(\varepsilon\) are the volume averages.</p>
+    <ul>
+      <li><strong>Springs</strong> — strands tied at <em>both</em> ends store free energy reversibly → the equilibrium modulus \(E_\infty\) (\(G=\nu k_BT\)).</li>
+      <li><strong>Dashpots</strong> — dangling ends, sticky/transient links, and reptating entangled segments that slide → each carries a relaxation time \(\tau\) and a modulus that decays as \(e^{-t/\tau}\).</li>
+    </ul>
+    <div class="equation-box"><p style="text-align:center">$$\text{spring: }\sigma=E\varepsilon\qquad \text{dashpot: }\sigma=\eta\dot{\varepsilon}\qquad (\tau=\eta/E)$$</p></div>
+    <h3>The lumped model: a Standard Linear Solid</h3>
+    <p>The minimal element with all three features — an <strong>instantaneous</strong> \(E_0\), a smaller <strong>equilibrium</strong> \(E_\infty\), and a <strong>relaxation time</strong> \(\tau\) — is the <strong>Standard Linear Solid (SLS / Zener)</strong>: a lone spring \(E_\infty\) parallel to a Maxwell arm (spring \(E_2\) + dashpot \(\eta\)):</p>
+    <div class="equation-box"><p style="text-align:center">$$E(t)=E_\infty+(E_0-E_\infty)e^{-t/\tau_\sigma},\ \ E_0=E_\infty+E_2,\ \tau_\sigma=\eta/E_2$$</p>
+    <p style="text-align:center">$$J(t)=\frac1{E_\infty}-\Big(\frac1{E_\infty}-\frac1{E_0}\Big)e^{-t/\tau_\varepsilon},\ \ \tau_\varepsilon=\tau_\sigma\frac{E_0}{E_\infty}>\tau_\sigma$$</p></div>
+    <p>Because the permanent springs never let go, \(E_\infty>0\): a viscoelastic <strong>solid</strong> (relaxes but does not flow to zero). If <em>every</em> link were transient (\(E_\infty=0\)) we'd get a Maxwell fluid — an uncrosslinked melt. A real network is a <em>spectrum</em> of \(\tau_i\); one SLS is the single-time approximation (exact for a narrow spread).</p>
+    <div class="worked-example"><p>\(E_\infty=2\), \(E_2=8\) → \(E_0=10\) kPa, \(\eta=24\) kPa·s. Then \(\tau_\sigma=\eta/E_2=3\) s and \(\tau_\varepsilon=\tau_\sigma E_0/E_\infty=15\) s. Hold strain: stress decays from \(E_0=10\) to \(E_\infty=2\) kPa over ~3 s. Hold stress: the gel creeps from \(1/E_0=0.1\) to \(1/E_\infty=0.5\) (1/kPa) over the slower ~15 s.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>Lumping = volume-averaging millions of micro springs/dashpots into one element.</li>
+      <li>Strands fixed at both ends → springs (\(E_\infty\)); dangling ends, sliding/sticky links → dashpots (\(\tau\)).</li>
+      <li>SLS is the minimal faithful lump: \(E_0\), \(E_\infty>0\) (solid), \(\tau_\sigma=\eta/E_2\), with \(\tau_\varepsilon>\tau_\sigma\).</li>
+      <li>A broad \(\tau_i\) spectrum needs multiple Maxwell arms; one SLS is the single-time approximation.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Scrub <strong>Lump progress</strong> from 0→1 to watch the micro noodle-soup pour into one SLS schematic.</li>
+    <li>Toggle <strong>Stress relaxation</strong> vs <strong>Creep</strong>; move E₂ and η to shift the relaxation time τσ (marked).</li>
+    <li>Set <strong>E∞→0</strong> (fluid) and watch stress relax to zero; widen the <strong>τ-spread</strong> and see the single-SLS line deviate from the population mean.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Test:</span>
+    <button class="scen-btn on" data-tab="lump" data-scen="relax" onclick="setScen('lump','relax')">Stress relaxation</button>
+    <button class="scen-btn" data-tab="lump" data-scen="creep" onclick="setScen('lump','creep')">Creep</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Equilibrium spring E∞ <span id="v-lump-einf">2.0 kPa</span></label><input type="range" id="s-lump-einf" min="0" max="12" step="0.5" value="2"></div>
+      <div class="ctrl-group"><label>Maxwell-arm spring E₂ <span id="v-lump-e2">8.0 kPa</span></label><input type="range" id="s-lump-e2" min="0.5" max="16" step="0.5" value="8"></div>
+      <div class="ctrl-group"><label>Dashpot η <span id="v-lump-eta">24 kPa·s</span></label><input type="range" id="s-lump-eta" min="2" max="80" step="1" value="24"></div>
+      <div class="ctrl-group"><label>Transient fraction φ <span id="v-lump-phi">0.50</span></label><input type="range" id="s-lump-phi" min="0" max="1" step="0.05" value="0.5"></div>
+      <div class="ctrl-group"><label>τ-spread <span id="v-lump-spread">0.30 dec</span></label><input type="range" id="s-lump-spread" min="0" max="1.2" step="0.05" value="0.3"></div>
+      <div class="ctrl-group"><label>Lump progress <span id="v-lump-morph">1.00</span></label><input type="range" id="s-lump-morph" min="0" max="1" step="0.01" value="1"></div>
+      <div class="stats" id="st-lump"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Micro network → one Standard Linear Solid</div><canvas id="cv-lump" width="640" height="280"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Averaged viscoelastic response</div><canvas id="cv-lump2" width="640" height="300"></canvas></div>
+      <div class="val-verdict" id="vd-lump"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 6: INTEGRIN PULL ===== -->
+<section id="tab-integrin" class="tab-content">
+  <div class="background-section">
+    <h2>Background: a local pull, felt less and less with distance</h2>
+    <p>A cell grips the hydrogel through <strong>integrin</strong> receptors that cluster into <strong>focal adhesions</strong>, physically linking the cell's contractile actomyosin to the matrix and delivering a roughly <em>localized</em> pull (a traction) at the adhesion <span class="cite">(Geiger, Spatz &amp; Bershadsky 2009)</span>.</p>
+    <p>Picture the network as a chain of linked noodles anchored there. The strand at the integrin is pulled most; each strand farther down is dragged a little less, because the load spreads through the elastic medium. The displacement <strong>decays with distance</strong>.</p>
+    <h3>How fast? The Boussinesq 1/r law</h3>
+    <p>For a concentrated normal force \(P\) on a soft linear-elastic half-space, classical elasticity gives the surface displacement at distance \(r\):</p>
+    <div class="equation-box"><p style="text-align:center">$$u_z(r)=\frac{P(1-\nu^2)}{\pi E r}\ \propto\ \frac{1}{r}$$</p>
+    <p>Double the distance, <strong>halve</strong> the displacement. It also scales as \(1/E\): a stiffer matrix moves less for the same pull — exactly how cells "feel" rigidity.</p></div>
+    <div class="worked-example"><p>A strand 2 µm from the integrin moves \(u_0\). Where does a strand move only \(\tfrac14u_0\)? Since \(u_z\propto1/r\), quarter the displacement = four times the distance, \(r=8\) µm. Stiffen the gel 5→20 kPa at fixed force and every displacement shrinks 4× (\(u_z\propto1/E\)).</p></div>
+    <div class="key-takeaways"><ul>
+      <li>Integrins/focal adhesions transmit the cell's contractile force as a localized pull.</li>
+      <li>On a linear-elastic substrate, surface displacement decays as \(u_z\propto1/r\).</li>
+      <li>Displacement also scales as \(1/E\): stiffer gels deform less (rigidity sensing).</li>
+      <li>The point-force law is a far-field idealization (singular at \(r=0\), small strain, linear, thick gel); fibrous matrices can carry force farther.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li>Watch the chain: the arrow at the integrin is longest, and each node down the line displaces less — the 1/r falloff.</li>
+    <li>Toggle <strong>Soft</strong> vs <strong>Stiff gel</strong>: the whole decay curve scales by 1/E.</li>
+    <li>Move the probe r* and read the ratio u_z(r*)/u_z(2µm); try <strong>Compare 1/r vs 1/r²</strong>.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Gel:</span>
+    <button class="scen-btn on" data-tab="integrin" data-scen="soft" onclick="setScen('integrin','soft')">Soft (E≈1 kPa)</button>
+    <button class="scen-btn" data-tab="integrin" data-scen="stiff" onclick="setScen('integrin','stiff')">Stiff (E≈30 kPa)</button>
+    <button class="scen-btn" data-tab="integrin" data-scen="compare" onclick="setScen('integrin','compare')">Compare 1/r vs 1/r²</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Pull force P <span id="v-integrin-force">40 nN</span></label><input type="range" id="s-integrin-force" min="1" max="100" step="1" value="40"></div>
+      <div class="ctrl-group"><label>Gel stiffness E <span id="v-integrin-E">5.0 kPa</span></label><input type="range" id="s-integrin-E" min="0.5" max="40" step="0.5" value="5"></div>
+      <div class="ctrl-group"><label>Probe distance r* <span id="v-integrin-r">4.0 µm</span></label><input type="range" id="s-integrin-r" min="0.6" max="20" step="0.1" value="4"></div>
+      <div class="stats" id="st-integrin"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Chain of noodles pulled by an integrin</div><canvas id="cv-integrin" width="640" height="320"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Displacement vs distance (Boussinesq 1/r)</div><canvas id="cv-integrin2" width="640" height="300"></canvas></div>
+      <div class="val-verdict" id="vd-integrin"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 7: MACROSCOPIC FIELD ===== -->
+<section id="tab-macro" class="tab-content">
+  <div class="background-section">
+    <h2>Background: many integrins → one deformation field</h2>
+    <p>Step back to the scale of a whole cell. A spread cell does not pull at one point — it grips the matrix through <strong>many focal adhesions</strong> around its footprint, each applying a localized inward traction <span class="cite">(Geiger et al. 2009)</span>. Two facts make the macroscopic picture tractable on a soft (linear-elastic) gel:</p>
+    <div class="equation-box"><p style="text-align:center">$$u_z(r)=\frac{P(1-\nu^2)}{\pi E r}\ \ \text{(one adhesion, Boussinesq)};\qquad \mathbf{u}(\mathbf{x})=\sum_{a=1}^{N}\frac{(1-\nu^2)P_a}{\pi E\,|\mathbf{x}-\mathbf{x}_a|}\,\hat{\mathbf{P}}_a$$</p></div>
+    <p>First, each adhesion's displacement decays as \(1/r\). Second — the key idea — because the gel is <strong>linear</strong>, the fields simply <strong>superpose</strong> (add). The macroscopic deformation TFM measures is the vector sum of every adhesion's local contribution <span class="cite">(Johnson 1985; Landau &amp; Lifshitz)</span>.</p>
+    <div class="worked-example"><p>One adhesion, \(P=10\) nN, \(E=10\) kPa, \(\nu=0.5\): at \(r=5\,\mu\)m, \(u_z\approx48\) nm; at \(r=10\,\mu\)m, \(\approx24\) nm — exactly half (\(1/r\)). On a stiffer \(E=40\) kPa gel the \(5\,\mu\)m value drops to \(\approx12\) nm. These tens-of-nm displacements over microns are what bead-tracking TFM resolves.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>A cell pulls through <strong>many discrete adhesions</strong>, each a localized inward traction.</li>
+      <li>Linear elasticity ⇒ the per-adhesion \(1/r\) fields <strong>superpose</strong> into the bulk deformation.</li>
+      <li>Displacement scales as \(P/E\): stronger pulls grow the field, stiffer gels shrink it uniformly.</li>
+      <li>A symmetric ring gives net force ≈ 0 yet large stored strain energy — the signature of contractility.</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li><strong>Few, strong</strong> adhesions → you see individual 1/r dimples; <strong>Many, weak</strong> → a smooth inward contraction ring.</li>
+    <li>Compare <strong>Soft gel</strong> vs <strong>Stiff gel</strong>: the deformed (teal) grid relaxes back toward the reference as E rises.</li>
+    <li>Change the cell radius and the per-adhesion force and watch the whole field scale.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="macro" data-scen="few-strong" onclick="setScen('macro','few-strong')">Few, strong</button>
+    <button class="scen-btn" data-tab="macro" data-scen="many-weak" onclick="setScen('macro','many-weak')">Many, weak</button>
+    <button class="scen-btn" data-tab="macro" data-scen="soft-gel" onclick="setScen('macro','soft-gel')">Soft gel</button>
+    <button class="scen-btn" data-tab="macro" data-scen="stiff-gel" onclick="setScen('macro','stiff-gel')">Stiff gel</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Adhesions N <span id="v-macro-nadh">8</span></label><input type="range" id="s-macro-nadh" min="1" max="24" step="1" value="8"></div>
+      <div class="ctrl-group"><label>Force per adhesion P <span id="v-macro-force">10 nN</span></label><input type="range" id="s-macro-force" min="1" max="40" step="1" value="10"></div>
+      <div class="ctrl-group"><label>Gel stiffness E <span id="v-macro-stiff">10 kPa</span></label><input type="range" id="s-macro-stiff" min="1" max="40" step="1" value="10"></div>
+      <div class="ctrl-group"><label>Cell radius <span id="v-macro-radius">15 µm</span></label><input type="range" id="s-macro-radius" min="6" max="24" step="1" value="15"></div>
+      <div class="stats" id="st-macro"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Superposed gel displacement field (top-down)</div><canvas id="cv-macro" width="640" height="460"></canvas></div>
+      <div class="val-verdict" id="vd-macro"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 8: INFERRING FORCE ===== -->
+<section id="tab-infer" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the forward map, read backwards</h2>
+    <p>The cell pulls with a contractile force \(F\) we cannot see — but we <em>can</em> see embedded beads shift toward the adhesion. The question: <strong>if we know how stiff the gel is, can the measured displacements tell us the force?</strong></p>
+    <h3>The forward map needs the material</h3>
+    <p>For one concentrated pull \(F\) on a linear-elastic half-space (Boussinesq), the surface displacement at distance \(r\) is</p>
+    <div class="equation-box"><p style="text-align:center">$$u_z(r)=\frac{F(1-\nu^2)}{\pi E r}\,,\qquad u_z\propto\frac1r,\ \ u_z\propto\frac1E.$$</p></div>
+    <p>Given \(F\) and the material \((E,\nu)\) this predicts every bead's motion — a unique, smooth field.</p>
+    <h3>Inferring the force: invert the same equation</h3>
+    <p>We know the material and <em>measure</em> a bead's displacement \(u_{\text{meas}}\) at known \(r_{\text{meas}}\). Because the forward law is just multiplication, solve for \(F\):</p>
+    <div class="equation-box"><p style="text-align:center">$$\boxed{\,F_{\text{inferred}}=\dfrac{\pi E\,r_{\text{meas}}}{1-\nu^2}\,u_{\text{meas}}\,}$$</p></div>
+    <p>That is the whole idea of Traction Force Microscopy. Two consequences: the inferred force is <strong>directly proportional to the assumed \(E\)</strong> (guess stiffness 2× high → report force 2× high); and dividing by a tiny far-field displacement amplifies noise — the first whiff of an <strong>ill-posed</strong> inverse.</p>
+    <div class="worked-example"><p>On \(E=10\) kPa, \(\nu=0.45\): a bead moves \(0.81\,\mu\)m at \(r=5\,\mu\)m → \(F=\pi(10\,000)(5\times10^{-6})(0.81\times10^{-6})/(1-0.45^2)\approx160\) nN — right in the measured range. If the gel were actually 20 kPa, the same beads imply 320 nN. The displacements never changed; only the assumed material did.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>Forward (force→displacement) needs the material; it is unique and smooth.</li>
+      <li>Inferring force = inverting that law: \(F=\pi E r\,u/(1-\nu^2)\).</li>
+      <li>Recovered force scales <em>linearly</em> with the assumed \(E\): wrong modulus → wrong force, one-for-one.</li>
+      <li>The inverse is <strong>ill-posed</strong>: noise on small far-field displacements blows up. Real TFM fits the whole field and regularizes (Module 2).</li>
+    </ul></div>
+  </div>
+  <div class="student-task"><ol>
+    <li><strong>Material known exactly</strong> + no noise: the dashed inferred field lands on the true field and F_inferred = F_true.</li>
+    <li><strong>Wrong stiffness</strong>: displacements are perfect but F_inferred is off by exactly E_assumed/E_true.</li>
+    <li><strong>Noisy</strong>: push the measurement bead far out (small u_z) and watch the inferred force swing wildly.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Condition:</span>
+    <button class="scen-btn on" data-tab="infer" data-scen="known" onclick="setScen('infer','known')">Material known</button>
+    <button class="scen-btn" data-tab="infer" data-scen="wrongE" onclick="setScen('infer','wrongE')">Wrong stiffness</button>
+    <button class="scen-btn" data-tab="infer" data-scen="noisy" onclick="setScen('infer','noisy')">Noisy / far-field</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>True force F_true <span id="v-infer-trueF">160 nN</span></label><input type="range" id="s-infer-trueF" min="20" max="400" step="5" value="160"></div>
+      <div class="ctrl-group"><label>True stiffness E_true <span id="v-infer-Etrue">10.0 kPa</span></label><input type="range" id="s-infer-Etrue" min="1" max="40" step="0.5" value="10"></div>
+      <div class="ctrl-group"><label>Assumed stiffness E_assumed <span id="v-infer-Eassumed">10.0 kPa</span></label><input type="range" id="s-infer-Eassumed" min="1" max="40" step="0.5" value="10"></div>
+      <div class="ctrl-group"><label>Poisson ν <span id="v-infer-nu">0.45</span></label><input type="range" id="s-infer-nu" min="0" max="0.49" step="0.01" value="0.45"></div>
+      <div class="ctrl-group"><label>Measurement distance r* <span id="v-infer-rMeas">5.0 µm</span></label><input type="range" id="s-infer-rMeas" min="1" max="20" step="0.5" value="5"></div>
+      <div class="ctrl-group"><label>Beads <span id="v-infer-beadN">7</span></label><input type="range" id="s-infer-beadN" min="3" max="14" step="1" value="7"></div>
+      <div class="ctrl-group"><label>Noise <span id="v-infer-noise">0.000 µm</span></label><input type="range" id="s-infer-noise" min="0" max="0.2" step="0.005" value="0"></div>
+      <div class="stats" id="st-infer"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Gel surface: beads shift toward the cell (1/r)</div><canvas id="cv-infer" width="640" height="280"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">True field, the measurement, and the inferred fit</div><canvas id="cv-infer2" width="640" height="300"></canvas></div>
+      <div class="val-verdict" id="vd-infer"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 9: NORMALIZE ===== -->
+<section id="tab-normalize" class="tab-content">
+  <div class="background-section">
+    <h2>Background: a material-independent, local description</h2>
+    <p>A spring is one force \(F\) and one displacement \(x\) — fine for one spring, useless for comparing materials. A 10 nN pull on a 5 µm contact means something different from 10 nN over 50 µm, and "the gel moved 2 µm" is meaningless without knowing <em>over what distance</em>. So we <strong>normalize</strong>.</p>
+    <h3>Force → traction stress; displacement → strain</h3>
+    <div class="equation-box"><p style="text-align:center">$$\sigma=\frac{F}{A}\ \ [\text{Pa}],\qquad \varepsilon=\frac{\Delta x}{L}=\frac{\partial u}{\partial x}\ \ [\text{dimensionless}],\qquad \sigma=E\,\varepsilon$$</p></div>
+    <p>Both are now <em>intensive</em> and <em>local</em>, so tractions from a tiny and a large cell sit on the same axis, and the cell becomes a <strong>traction field</strong>, not one arrow. Cells generate tractions of order \(10^2\!-\!10^3\) Pa.</p>
+    <p>The crux: <strong>strain is geometry, but stress is material.</strong> Impose the <em>same</em> displacement (same strain) on a soft and a stiff gel and you get <em>different</em> stress, because \(\sigma=E\varepsilon\) scales with \(E\). Equivalently, for a fixed cell force a stiffer gel deforms less (\(u\propto1/E\)). Normalizing through \(\sigma=E\varepsilon\) makes the cell's force description portable between materials. (A uniform shift of the whole gel has zero gradient → zero strain → zero stress: only <em>differences</em> in displacement carry load.)</p>
+    <div class="worked-example"><p>\(F=20\) nN over \(A=20\,\mu\)m² → \(\sigma=F/A=1\) kPa. On a soft \(E=1\) kPa gel that implies \(\varepsilon=\sigma/E=1.0\) (huge — beyond linear); on a stiff \(E=20\) kPa gel only \(\varepsilon=0.05\). Same force per area, very different deformation — the material dependence, laid bare.</p></div>
+    <div class="key-takeaways"><ul>
+      <li>Normalize: force/area → traction <strong>stress</strong> (Pa); displacement/length → <strong>strain</strong> (dimensionless).</li>
+      <li>Both are intensive and local, so different-size cells/gels compare on common axes — the cell is a traction field.</li>
+      <li>Strain is geometry; stress needs the material via \(\sigma=E\varepsilon\). Same displacement, different \(E\) ⇒ different stress.</li>
+      <li>This is the bridge into Module 2: measure the displacement field, normalize, and recover the traction field.</li>
+    </ul></div>
+    <div class="handoff">→ <strong>Next: Module 2 — Traction Force Microscopy.</strong> You now know <em>why</em> the gel deforms and how displacement + known material → traction. Module 2 builds the real measurement: beads, confocal vs epifluorescence, 2D vs 3D, and the regularized inverse problem.</div>
+  </div>
+  <div class="student-task"><ol>
+    <li><strong>Same displacement</strong>: the identical strain gives different stress on the two gels (factor = E_ratio).</li>
+    <li><strong>Same force</strong>: the identical traction gives different strain (soft deforms more, u∝1/E).</li>
+    <li><strong>Equal stiffness</strong>: the two stress–strain lines collapse onto one — the material-independent law σ=Eε.</li>
+  </ol></div>
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Compare:</span>
+    <button class="scen-btn" data-tab="normalize" data-scen="fixed-force" onclick="setScen('normalize','fixed-force')">Same force</button>
+    <button class="scen-btn on" data-tab="normalize" data-scen="fixed-disp" onclick="setScen('normalize','fixed-disp')">Same displacement</button>
+    <button class="scen-btn" data-tab="normalize" data-scen="collapse" onclick="setScen('normalize','collapse')">Equal stiffness</button>
+  </div>
+  <div class="panel">
+    <div class="ctrl"><h3>Controls</h3>
+      <div class="ctrl-group"><label>Cell force F <span id="v-normalize-F">20 nN</span></label><input type="range" id="s-normalize-F" min="2" max="60" step="1" value="20"></div>
+      <div class="ctrl-group"><label>Contact area A <span id="v-normalize-A">20 µm²</span></label><input type="range" id="s-normalize-A" min="2" max="80" step="1" value="20"></div>
+      <div class="ctrl-group"><label>Displacement Δx <span id="v-normalize-disp">1.00 µm</span></label><input type="range" id="s-normalize-disp" min="0" max="3" step="0.05" value="1"></div>
+      <div class="ctrl-group"><label>Length scale L <span id="v-normalize-L">10 µm</span></label><input type="range" id="s-normalize-L" min="3" max="40" step="1" value="10"></div>
+      <div class="ctrl-group"><label>Soft modulus E_soft <span id="v-normalize-Esoft">2.0 kPa</span></label><input type="range" id="s-normalize-Esoft" min="0.5" max="20" step="0.5" value="2"></div>
+      <div class="ctrl-group"><label>Stiffness ratio <span id="v-normalize-Eratio">5.0×</span></label><input type="range" id="s-normalize-Eratio" min="1" max="20" step="0.5" value="5"></div>
+      <div class="stats" id="st-normalize"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap"><div class="canvas-title">Same force, two gels: soft bowl deep, stiff bowl shallow</div><canvas id="cv-normalize" width="640" height="300"></canvas></div>
+      <div class="canvas-wrap"><div class="canvas-title">Normalized: stress vs strain</div><canvas id="cv-normalize2" width="640" height="300"></canvas></div>
+      <div class="val-verdict" id="vd-normalize"></div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTIONS INSERTED ABOVE THIS MARKER -->
+
+<div class="sources">
+  <h2>Sources (verified)</h2>
+  <ol>
+    <li>Israelachvili (2011), <em>Intermolecular and Surface Forces</em>, 3rd ed. — <a href="https://doi.org/10.1016/C2009-0-21560-1" target="_blank" rel="noopener">10.1016/C2009-0-21560-1</a>. Kittel (2005), <em>Intro to Solid State Physics</em>; Atkins &amp; de Paula (2014), <em>Physical Chemistry</em>.</li>
+    <li>Tse &amp; Engler (2010), <em>Curr. Protoc. Cell Biol.</em> — <a href="https://doi.org/10.1002/0471143030.cb1016s47" target="_blank" rel="noopener">10.1002/0471143030.cb1016s47</a>.</li>
+    <li>Licup et al. (2015), <em>PNAS</em> — <a href="https://doi.org/10.1073/pnas.1504258112" target="_blank" rel="noopener">10.1073/pnas.1504258112</a>.</li>
+    <li>Frantz, Stewart &amp; Weaver (2010), <em>J. Cell Sci.</em> — <a href="https://doi.org/10.1242/jcs.023820" target="_blank" rel="noopener">10.1242/jcs.023820</a>; Mouw, Ou &amp; Weaver (2014), <em>Nat. Rev. Mol. Cell Biol.</em> — <a href="https://doi.org/10.1038/nrm3902" target="_blank" rel="noopener">10.1038/nrm3902</a>.</li>
+    <li>Marko &amp; Siggia (1995), <em>Macromolecules</em> (WLC) — <a href="https://doi.org/10.1021/ma00130a008" target="_blank" rel="noopener">10.1021/ma00130a008</a>; Rubinstein &amp; Colby (2003), <em>Polymer Physics</em>; Treloar (1975); Flory (1953).</li>
+    <li>de Gennes (1971), <em>J. Chem. Phys.</em> (reptation) — <a href="https://doi.org/10.1063/1.1675789" target="_blank" rel="noopener">10.1063/1.1675789</a>; Rubinstein &amp; Semenov (2001) — <a href="https://doi.org/10.1021/ma0013049" target="_blank" rel="noopener">10.1021/ma0013049</a>; Chaudhuri et al. (2016/2020).</li>
+    <li>Geiger, Spatz &amp; Bershadsky (2009), <em>Nat. Rev. Mol. Cell Biol.</em> — <a href="https://doi.org/10.1038/nrm2593" target="_blank" rel="noopener">10.1038/nrm2593</a>; Johnson (1985), <em>Contact Mechanics</em>; Landau &amp; Lifshitz, <em>Theory of Elasticity</em> (Boussinesq).</li>
+    <li>Dembo &amp; Wang (1999); Butler et al. (2002); Sabass et al. (2008) — TFM inverse problem (developed in Module 2).</li>
+  </ol>
+</div>
+
+</main>
+<footer>BME/AME 466·566 Biomechanics — Module 1: Hydrogels &amp; Cell Forces · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ============================================================
+   MODULE 1 — Hydrogels & Cell Forces: From Atoms to Deformation
+   Self-contained, synthetic demos. House helpers shared with the
+   lab's BME576 modules.
+   ============================================================ */
+
+/* ---- palette ---- */
+const COL = {
+  truth:'#1e3a5f', rec:'#2563eb', neo:'#ef4444', vec:'#f59e0b',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b', def:'#2563eb', ref:'#cbd5e1',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b',
+  paam:'#2563eb', collagen:'#d97706', ecm:'#7c3aed',
+  spring:'#10b981', dashpot:'#f59e0b'
+};
+
+/* ---- math/format helpers ---- */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo,rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+
+/* ---- canvas / chart ---- */
+function setupCanvas(c){ if(!c)return null; const dpr=window.devicePixelRatio||1; const rect=c.getBoundingClientRect();
+  const w=rect.width||c.width; const h=w*(c.height/c.width);
+  c.width=w*dpr;c.height=h*dpr;c.style.width=w+'px';c.style.height=h+'px';
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};this.pw=w-this.m.l-this.m.r;this.ph=h-this.m.t-this.m.b; }
+  setRange(a,b,c,d){this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d;}
+  toX(v){return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw;}
+  toY(v){return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph;}
+  grid(xt,yt){const c=this.ctx;c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}c.restore();}
+  axes(xl,yl,xt,yt,dx,dy){const c=this.ctx;c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();c.restore();}
+  hLine(yv,color,dash){const c=this.ctx,y=this.toY(yv);c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore();}
+  vLine(xv,color,dash){const c=this.ctx,x=this.toX(xv);c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore();}
+  legend(items,x,y){const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore();}
+}
+function drawLine(ctx,pts,color,lw,dash){if(pts.length<2)return;ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();ctx.restore();}
+function arrow(ctx,x0,y0,x1,y1,color,lw){ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5;ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore();}
+function springGlyph(ctx,x0,y0,x1,y1,color,lw){ const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy); if(L<2)return;
+  const ux=dx/L,uy=dy/L,px=-uy,py=ux,n=6,amp=Math.min(5,L*0.12); ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||1.6;ctx.beginPath();ctx.moveTo(x0,y0);
+  for(let i=1;i<n;i++){const t=i/n,s=(i%2?1:-1)*amp;ctx.lineTo(x0+ux*L*t+px*s,y0+uy*L*t+py*s);}ctx.lineTo(x1,y1);ctx.stroke();ctx.restore();}
+function dashpotGlyph(ctx,x,y,color){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle='#fff';ctx.lineWidth=1.5;
+  ctx.strokeRect(x-7,y-5,14,10); ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x-7,y);ctx.stroke();
+  ctx.fillStyle=color;ctx.fillRect(x-5,y-4,5,8);ctx.restore();}
+function setStat(id,rows){const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join('');}
+function setVerdict(id,cls,title,body){const el=document.getElementById(id);if(!el)return;el.className='val-verdict '+cls;el.innerHTML='<strong>'+title+'</strong>'+body;}
+function val(id){const e=document.getElementById(id);return e?e.value:0;}
+function num(id){return parseFloat(val(id));}
+
+/* ---- small linear algebra (unused stubs kept for parity) ---- */
+function matvec(A,x){const n=A.length,m=x.length,y=new Array(n).fill(0);for(let i=0;i<n;i++){let s=0;for(let j=0;j<m;j++)s+=A[i][j]*x[j];y[i]=s;}return y;}
+
+/* ---- state ---- */
+let activeTab='atom';
+const scen={ atom:'tiny', micro:'paam', thermal:'linear', elements:'all', lump:'relax', integrin:'soft', macro:'few-strong', infer:'known', normalize:'fixed-disp' };
+
+/* ---- slider formatting + wiring ---- */
+const FMT={
+ 'atom-disp':x=>fmt(x,2)+' σ','atom-eps':x=>fmt(x,1)+' ε₀','atom-sigma':x=>fmt(x,2)+' σ₀',
+ 'micro-lp':x=>fmt(x,0)+' nm','micro-xlink':x=>fmt(x,1)+'×','micro-gamma':x=>fmt(x,2),
+ 'thermal-temp':x=>fmt(x,2)+'×','thermal-ext':x=>fmt(x,2),'thermal-lp':x=>fmt(x,0)+' nm','thermal-N':x=>fmt(x,0),'thermal-b':x=>fmt(x,0)+' nm',
+ 'elements-strands':x=>fmt(x,0),'elements-entang':x=>fmt(x,0),'elements-dangle':x=>fmt(x,0),'elements-temp':x=>fmt(x,0)+' K',
+ 'lump-einf':x=>fmt(x,1)+' kPa','lump-e2':x=>fmt(x,1)+' kPa','lump-eta':x=>fmt(x,0)+' kPa·s','lump-phi':x=>fmt(x,2),'lump-spread':x=>fmt(x,2)+' dec','lump-morph':x=>fmt(x,2),
+ 'integrin-force':x=>fmt(x,0)+' nN','integrin-E':x=>fmt(x,1)+' kPa','integrin-r':x=>fmt(x,1)+' µm',
+ 'macro-nadh':x=>fmt(x,0),'macro-force':x=>fmt(x,0)+' nN','macro-stiff':x=>fmt(x,0)+' kPa','macro-radius':x=>fmt(x,0)+' µm',
+ 'infer-trueF':x=>fmt(x,0)+' nN','infer-Etrue':x=>fmt(x,1)+' kPa','infer-Eassumed':x=>fmt(x,1)+' kPa','infer-nu':x=>fmt(x,2),'infer-rMeas':x=>fmt(x,1)+' µm','infer-beadN':x=>fmt(x,0),'infer-noise':x=>fmt(x,3)+' µm',
+ 'normalize-F':x=>fmt(x,0)+' nN','normalize-A':x=>fmt(x,0)+' µm²','normalize-disp':x=>fmt(x,2)+' µm','normalize-L':x=>fmt(x,0)+' µm','normalize-Esoft':x=>fmt(x,1)+' kPa','normalize-Eratio':x=>fmt(x,1)+'×'
+};
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(s){ const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value)); refreshActiveTab(); }; s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); } }); }
+function presetSlider(id,v){ const el=document.getElementById('s-'+id); if(el){ el.value=String(v); const vv=document.getElementById('v-'+id); if(vv&&FMT[id])vv.textContent=FMT[id](parseFloat(v)); } }
+
+/* ---- scenario handling (mode + presets) ---- */
+function setScen(tab,s){ scen[tab]=s;
+  document.querySelectorAll('.scen-btn[data-tab="'+tab+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(tab==='atom'){ if(s==='tiny')presetSlider('atom-disp',0.03); else if(s==='moderate')presetSlider('atom-disp',0.18); else if(s==='break')presetSlider('atom-disp',0.45); }
+  else if(tab==='thermal'){ if(s==='coil')presetSlider('thermal-ext',0.1); else if(s==='linear')presetSlider('thermal-ext',0.25); else if(s==='taut')presetSlider('thermal-ext',0.92); else if(s==='hot')presetSlider('thermal-temp',2); else if(s==='cold')presetSlider('thermal-temp',0.3); }
+  else if(tab==='integrin'){ if(s==='soft')presetSlider('integrin-E',1); else if(s==='stiff')presetSlider('integrin-E',30); }
+  else if(tab==='macro'){ if(s==='few-strong'){presetSlider('macro-nadh',3);presetSlider('macro-force',30);} else if(s==='many-weak'){presetSlider('macro-nadh',18);presetSlider('macro-force',6);} else if(s==='soft-gel')presetSlider('macro-stiff',2); else if(s==='stiff-gel')presetSlider('macro-stiff',30); }
+  else if(tab==='infer'){ if(s==='known'){presetSlider('infer-Eassumed',num('s-infer-Etrue'));presetSlider('infer-noise',0);} else if(s==='wrongE'){presetSlider('infer-Eassumed',Math.min(40,num('s-infer-Etrue')*2));presetSlider('infer-noise',0);} else if(s==='noisy')presetSlider('infer-noise',0.08); }
+  else if(tab==='normalize'){ if(s==='collapse')presetSlider('normalize-Eratio',1); }
+  if(tab===activeTab) refreshActiveTab();
+}
+
+/* ---- animation (only the thermal chain animates continuously) ---- */
+let rafId=null, animClock=0;
+function animLoop(ts){ animClock=(ts||0)/1000; if(activeTab==='thermal'){ try{drawThermal();}catch(e){console.error(e);} rafId=requestAnimationFrame(animLoop);} else rafId=null; }
+function startAnim(){ if(activeTab==='thermal'&&rafId==null) rafId=requestAnimationFrame(animLoop); }
+function stopAnim(){ if(rafId!=null){cancelAnimationFrame(rafId);rafId=null;} }
+
+/* ---- draw dispatch ---- */
+const DRAW={atom:drawAtom,micro:drawMicro,thermal:drawThermal,elements:drawElements,lump:drawLump,integrin:drawIntegrin,macro:drawMacro,infer:drawInfer,normalize:drawNormalize};
+function refreshActiveTab(){ const f=DRAW[activeTab]; if(f){ try{ f(); }catch(e){ console.error('draw '+activeTab,e); } } }
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{ btn.addEventListener('click',()=>{
+  stopAnim();
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+  btn.classList.add('active'); activeTab=btn.dataset.tab;
+  document.getElementById('tab-'+activeTab).classList.add('active');
+  refreshActiveTab(); startAnim();
+}); });
+window.addEventListener('resize',()=>refreshActiveTab());
+
+/* ---- draw functions (filled in below) ---- */
+function drawAtom(){
+  const dr=num('s-atom-disp'), eps=num('s-atom-eps'), sig=num('s-atom-sigma');
+  const r0=Math.pow(2,1/6)*sig, k=72*eps/(r0*r0);
+  const U=r=>4*eps*(Math.pow(sig/r,12)-Math.pow(sig/r,6));
+  const F=r=>(24*eps/r)*(2*Math.pow(sig/r,12)-Math.pow(sig/r,6));
+  const rP=r0+dr, rMin=0.9*sig, rMax=2.6*sig;
+  let s=setupCanvas(document.getElementById('cv-atom')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  let ch=new Chart(ctx,w,h); const Ucap=2*eps; ch.setRange(rMin,rMax,-eps*1.25,Ucap);
+  let xt=niceTicks(rMin,rMax,5), yt=niceTicks(-eps,Ucap,5);
+  ch.grid(xt,yt); ch.axes('bond separation r (σ)','energy U (ε)',xt,yt,2,1); ch.hLine(0,COL.axis,[2,2]); ch.hLine(-eps,COL.ref,[4,3]);
+  let pts=[]; for(let i=0;i<=300;i++){const r=rMin+(rMax-rMin)*i/300; let u=U(r); if(u>Ucap)u=Ucap; pts.push([ch.toX(r),ch.toY(u)]);} drawLine(ctx,pts,COL.truth,2.4);
+  const dwin=Math.max(0.02,Math.abs(dr)); let hp=[]; for(let i=0;i<=60;i++){const r=r0-dwin+(2*dwin)*i/60; const u=-eps+0.5*k*(r-r0)*(r-r0); if(u<=Ucap&&r>=rMin)hp.push([ch.toX(r),ch.toY(u)]);} drawLine(ctx,hp,COL.neo,2,[6,4]);
+  ch.vLine(r0,COL.ref,[3,3]); ctx.save();ctx.fillStyle=COL.truth;ctx.beginPath();ctx.arc(ch.toX(r0),ch.toY(-eps),3.5,0,2*Math.PI);ctx.fill();ctx.restore();
+  const uHarm=-eps+0.5*k*(rP-r0)*(rP-r0);
+  ctx.save();ctx.fillStyle=COL.vec;ctx.beginPath();ctx.arc(ch.toX(rP),ch.toY(Math.min(U(rP),Ucap)),5,0,2*Math.PI);ctx.fill();
+  ctx.strokeStyle=COL.neo;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ch.toX(rP),ch.toY(Math.min(uHarm,Ucap)),5,0,2*Math.PI);ctx.stroke();ctx.restore();
+  ch.legend([{label:'U(r) Lennard-Jones',color:COL.truth},{label:'harmonic (spring)',color:COL.neo}],ch.m.l+6,ch.m.t+8);
+  ctx.save();const iy=ch.m.t+12;ctx.fillStyle='#94a3b8';ctx.beginPath();ctx.arc(w-78,iy,6,0,2*Math.PI);ctx.fill();ctx.beginPath();ctx.arc(w-78+18*(rP/r0),iy,6,0,2*Math.PI);ctx.fill();ctx.restore();
+  s=setupCanvas(document.getElementById('cv-atom2')); if(!s)return; ctx=s.ctx;w=s.w;h=s.h;
+  ch=new Chart(ctx,w,h); const Fcap=4*eps/sig; ch.setRange(rMin,rMax,-Fcap,Fcap);
+  xt=niceTicks(rMin,rMax,5); yt=niceTicks(-Fcap,Fcap,5);
+  ch.grid(xt,yt); ch.axes('bond separation r (σ)','force F (ε/σ)',xt,yt,2,1); ch.hLine(0,COL.axis,[]);
+  pts=[]; for(let i=0;i<=300;i++){const r=rMin+(rMax-rMin)*i/300; let f=Math.max(-Fcap,Math.min(Fcap,F(r))); pts.push([ch.toX(r),ch.toY(f)]);} drawLine(ctx,pts,COL.truth,2.4);
+  let hl=[]; for(let i=0;i<=60;i++){const r=rMin+(rMax-rMin)*i/60; const f=-k*(r-r0); if(Math.abs(f)<=Fcap)hl.push([ch.toX(r),ch.toY(f)]);} drawLine(ctx,hl,COL.neo,2,[6,4]);
+  ch.vLine(r0,COL.ref,[3,3]); const fHooke=-k*(rP-r0);
+  ctx.save();ctx.fillStyle=COL.vec;ctx.beginPath();ctx.arc(ch.toX(rP),ch.toY(Math.max(-Fcap,Math.min(Fcap,F(rP)))),5,0,2*Math.PI);ctx.fill();
+  ctx.strokeStyle=COL.neo;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ch.toX(rP),ch.toY(Math.max(-Fcap,Math.min(Fcap,fHooke))),5,0,2*Math.PI);ctx.stroke();ctx.restore();
+  ch.legend([{label:'F(r) = −dU/dr',color:COL.truth},{label:'Hooke −k(r−r₀)',color:COL.neo}],ch.m.l+6,ch.m.t+8);
+  const ferr=Math.abs(F(rP)-fHooke)/(Math.abs(F(rP))||1e-9)*100, uerr=Math.abs(U(rP)-uHarm)/eps*100;
+  const rFmax=Math.pow(26/7,1/6)*sig;
+  setStat('st-atom',[
+    {k:'equilibrium r₀ = 2^(1/6)σ',v:fmt(r0,3)+' σ₀'},
+    {k:'well depth U(r₀)',v:'−'+fmt(eps,2)+' ε₀'},
+    {k:'spring const k = 72ε/r₀²',v:fmt(k,1)},
+    {k:'probed r = r₀+Δr',v:fmt(rP,3)+' σ₀'},
+    {k:'true force F(r)',v:fmt(F(rP),3)},
+    {k:'Hooke −kΔr',v:fmt(fHooke,3)},
+    {k:'force error',v:fmt(ferr,1)+' %',hi:true},
+    {k:'energy error',v:fmt(uerr,1)+' %'}
+  ]);
+  if(rP>rFmax) setVerdict('vd-atom','bad','Past the bond-breaking force.','Beyond r ≈ '+fmt(rFmax,2)+'σ the true attraction weakens toward zero — the bond fails — while the Hooke line keeps pulling harder forever. The spring picture is gone.');
+  else if(ferr>25) setVerdict('vd-atom','bad','Anharmonic regime.','At Δr = '+fmt(dr,2)+'σ the spring model is '+fmt(ferr,0)+'% wrong: the asymmetric well is steep in compression, soft in tension.');
+  else if(ferr>5) setVerdict('vd-atom','warn','Spring approximation fraying.','Force error '+fmt(ferr,0)+'%. The parabola still hugs the well near r₀, but anharmonicity is creeping in.');
+  else setVerdict('vd-atom','good','Hooke is essentially exact here.','For |Δr|/r₀ = '+fmt(Math.abs(dr)/r0,3)+' the harmonic parabola tracks the true bond (force error '+fmt(ferr,1)+'%). This is the microscopic origin of the spring.');
+}
+/* ---------- persistent connected network (tab 2) ----------
+   A coherent mesh — crosslink nodes joined by curved semiflexible strands —
+   built ONCE per material and then deformed continuously by the sliders, so
+   tuning Lp / crosslink density / γ morphs a single spanning network (the
+   connected look of the Hydrogel Network Formation module) instead of
+   re-scattering disjoint random noodles on every redraw. */
+let microNet=null, microKey='';
+function buildMicroNet(mat,w,h){
+  const rng=mulberry32(mat==='paam'?101:mat==='collagen'?202:303);
+  const pad=28, cols=mat==='paam'?8:6, rows=mat==='paam'?7:6;
+  const dx=(w-2*pad)/(cols-1), dy=(h-2*pad)/(rows-1), nodes=[];
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)
+    nodes.push({x:pad+c*dx+(rng()-0.5)*dx*0.5, y:pad+r*dy+(rng()-0.5)*dy*0.5, deg:0});
+  const id=(r,c)=>r*cols+c, edges=[];
+  const add=(a,b)=>{ edges.push({a,b,phase:rng()*6.283}); nodes[a].deg++; nodes[b].deg++; };
+  const pC=mat==='paam'?0.94:0.66;   // PAAM = dense isotropic mesh; collagen/ECM sparser & branchier
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const a=id(r,c);
+    if(c<cols-1&&rng()<pC) add(a,id(r,c+1));
+    if(r<rows-1&&rng()<pC) add(a,id(r+1,c));
+    if(r<rows-1&&c<cols-1&&rng()<(mat==='paam'?0.3:0.5)) add(a,id(r+1,c+1));
+    if(r<rows-1&&c>0&&rng()<(mat==='paam'?0.18:0.42)) add(a,id(r+1,c-1)); }
+  return {nodes,edges};
+}
+function microGiant(net){ const n=net.nodes.length, par=new Array(n); for(let i=0;i<n;i++)par[i]=i;
+  const f=a=>{ while(par[a]!==a){ par[a]=par[par[a]]; a=par[a]; } return a; };
+  for(const e of net.edges){ const ra=f(e.a),rb=f(e.b); if(ra!==rb)par[ra]=rb; }
+  const sz={}; for(let i=0;i<n;i++){ const r=f(i); sz[r]=(sz[r]||0)+1; }
+  let gr=-1,g=0; for(const r in sz){ if(sz[r]>g){g=sz[r];gr=+r;} }
+  return {f,giantRoot:gr,giant:g};
+}
+function drawMicro(){
+  const lp=num('s-micro-lp'), xlink=num('s-micro-xlink'), gamma=num('s-micro-gamma'), mat=scen.micro;
+  let s=setupCanvas(document.getElementById('cv-micro')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  ctx.save();ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,w,h);ctx.strokeStyle=COL.grid;ctx.strokeRect(0.5,0.5,w-1,h-1);ctx.restore();
+  const key=mat+'|'+Math.round(w)+'|'+Math.round(h);
+  if(!microNet||microKey!==key){ microNet=buildMicroNet(mat,w,h); microKey=key; }
+  const net=microNet, matColor=mat==='paam'?COL.paam:mat==='collagen'?COL.collagen:COL.ecm;
+  const cl=microGiant(net);
+  // floppiness from persistence length: flexible (low Lp) → wavy strands; semiflexible (high Lp) →
+  // taut. Shear pulls semiflexible fibrils straight (bending → stretching), so waviness fades with γ.
+  const straight=Math.min(1, lp/(mat==='paam'?70:150));
+  const floppy=Math.max(0,(1-straight))*(mat==='paam'?1:(1-Math.min(0.9,gamma/0.5)));
+  const shear=(x,y)=>[x+gamma*(y-h/2),y];
+  ctx.lineCap='round';
+  for(const e of net.edges){
+    const A=net.nodes[e.a],B=net.nodes[e.b], pa=shear(A.x,A.y), pb=shear(B.x,B.y);
+    const inGiant=cl.f(e.a)===cl.giantRoot;
+    const dx=pb[0]-pa[0],dy=pb[1]-pa[1],L=Math.hypot(dx,dy)||1, px=-dy/L, py=dx/L;
+    const amp=floppy*Math.min(L*0.3,20), seg=12, pts=[];
+    for(let i=0;i<=seg;i++){ const t=i/seg, env=Math.sin(Math.PI*t), off=amp*env*Math.sin(t*4.2+e.phase);
+      pts.push([pa[0]+dx*t+px*off, pa[1]+dy*t+py*off]); }
+    let col=matColor; if(mat==='ecm')col=e.phase<2.1?COL.collagen:(e.phase<3.6?COL.good:COL.ecm);
+    if(inGiant) drawLine(ctx,pts,col,mat==='paam'?1.6:2.2);
+    else drawLine(ctx,pts,'rgba(148,163,184,0.5)',1.2);
+  }
+  ctx.lineCap='butt';
+  // junctions: covalent crosslink (filled) vs physical entanglement (hollow), gated by crosslink density
+  const covFrac=mat==='paam'?0.92:mat==='collagen'?0.12:0.45, rng2=mulberry32(mat==='paam'?7:mat==='collagen'?8:9);
+  ctx.save();
+  for(let i=0;i<net.nodes.length;i++){ const nd=net.nodes[i]; if(nd.deg<2)continue; const p=shear(nd.x,nd.y);
+    if(rng2()<covFrac*Math.min(1,xlink/2)){ ctx.fillStyle=COL.truth;ctx.beginPath();ctx.arc(p[0],p[1],4,0,2*Math.PI);ctx.fill(); }
+    else { ctx.strokeStyle=COL.axis;ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(p[0],p[1],4,0,2*Math.PI);ctx.stroke(); } }
+  ctx.restore();
+  ctx.save();ctx.font='11px sans-serif';ctx.textAlign='left';
+  ctx.fillStyle=COL.truth;ctx.beginPath();ctx.arc(16,h-24,4,0,2*Math.PI);ctx.fill();ctx.fillStyle=COL.text;ctx.fillText('covalent crosslink',26,h-24);
+  ctx.strokeStyle=COL.axis;ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(16,h-10,4,0,2*Math.PI);ctx.stroke();ctx.fillStyle=COL.text;ctx.fillText('entanglement',26,h-10);ctx.restore();
+  s=setupCanvas(document.getElementById('cv-micro2')); if(!s)return; ctx=s.ctx;w=s.w;h=s.h;
+  const G=0.6*xlink, gmax=0.5, gc=0.55, G0=mat==='paam'?G:G*0.35;
+  const sigFn=g=> mat==='paam'? G*g : G0*g/(1-Math.pow(Math.min(g,gc*0.99)/gc,2));
+  let ymax=Math.max(sigFn(gmax)*1.1,G0*gmax*1.5,0.4); ymax=Math.min(ymax,sigFn(0.45)*1.4+1);
+  let ch=new Chart(ctx,w,h); ch.setRange(0,gmax,0,ymax);
+  let xt=niceTicks(0,gmax,5), yt=niceTicks(0,ymax,5);
+  ch.grid(xt,yt); ch.axes('shear strain γ','shear stress σ (kPa)',xt,yt,2,2);
+  drawLine(ctx,[[ch.toX(0),ch.toY(0)],[ch.toX(gmax),ch.toY(Math.min(G0*gmax,ymax))]],COL.ref,1.5,[5,4]);
+  let pts=[]; for(let i=0;i<=120;i++){const g=gmax*i/120; let sg=sigFn(g); if(sg>ymax*1.25)sg=ymax*1.25; pts.push([ch.toX(g),ch.toY(sg)]);} drawLine(ctx,pts,matColor,2.6);
+  if(gamma>0){ ch.vLine(gamma,COL.warn,[4,3]); ctx.save();ctx.fillStyle=matColor;ctx.beginPath();ctx.arc(ch.toX(gamma),ch.toY(Math.min(sigFn(gamma),ymax*1.25)),5,0,2*Math.PI);ctx.fill();ctx.restore(); }
+  ch.legend([{label:mat==='paam'?'PAAM σ=Gγ':mat==='collagen'?'Collagen':'ECM',color:matColor},{label:'linear ref',color:COL.ref}],ch.m.l+6,ch.m.t+8);
+  const dg=2e-3, Kc=(sigFn(Math.min(gamma+dg,gc*0.97))-sigFn(Math.max(gamma-dg,0)))/(2*dg), ratio=Kc/(G0||1);
+  setStat('st-micro',[
+    {k:'material',v:mat==='paam'?'PAAM':mat==='collagen'?'Collagen-I':'ECM'},
+    {k:'chain type',v:lp<20?'flexible (Lp ≪ ξ)':'semiflexible (Lp ~ ξ)'},
+    {k:'persistence length Lp',v:fmt(lp,0)+' nm'},
+    {k:'linear modulus G₀',v:fmt(G0,2)+' kPa'},
+    {k:'tangent modulus K(γ)',v:fmt(Kc,2)+' kPa',hi:true},
+    {k:'stiffening K/G₀',v:fmt(ratio,1)+'×'}
+  ]);
+  if(mat==='paam') setVerdict('vd-micro','good','Linear elastic random mesh.','Flexible chains pinned at covalent crosslinks shear affinely, so σ=Gγ stays a straight line (K/G₀≈1×). Stiffness is set by crosslink density alone — the tunable, bioinert substrate (Tse &amp; Engler 2010).');
+  else if(ratio<1.5) setVerdict('vd-micro','good','Soft, bending-dominated (for now).','At low strain the semiflexible fibrils bend cheaply, so the network is compliant and nearly linear. Push γ up to pull fibrils taut.');
+  else if(ratio<10) setVerdict('vd-micro','warn','Strain-stiffening is kicking in.','As noodles reorient toward the shear, bending gives way to stretching: K is already '+fmt(ratio,1)+'× the initial slope and the curve is peeling off the dashed line.');
+  else setVerdict('vd-micro','bad','Far from linear: K ~ σ.','K has climbed '+fmt(ratio,0)+'× — collagen/ECM stiffen >100× below ~10% strain (Licup et al. 2015). A Hookean spring badly underestimates stress here.');
+}
+function drawThermal(){
+  const temp=num('s-thermal-temp'), ext=num('s-thermal-ext'), lp=num('s-thermal-lp'), N=num('s-thermal-N'), b=num('s-thermal-b');
+  const kBT=4.1*temp, L=N*b;
+  const wlc=x=>(kBT/lp)*(1/(4*Math.pow(1-Math.min(x,0.985),2))-0.25+x);
+  const fjc=x=>(3*kBT/b)*x;   /* FJC Hookean limit in fractional extension: 3kBT/(Nb²)·x_abs = (3kBT/b)·(x/L); uses Kuhn length b (= 2·Lp when consistent) */
+  let s=setupCanvas(document.getElementById('cv-thermal')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  const pad=42, x0=pad, x1=pad+(w-2*pad)*Math.max(0.06,ext), yc=h/2;
+  ctx.save();ctx.strokeStyle=COL.axis;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x0,yc-28);ctx.lineTo(x0,yc+28);ctx.stroke();
+  for(let i=-3;i<=3;i++){ctx.beginPath();ctx.moveTo(x0,yc+i*9);ctx.lineTo(x0-8,yc+i*9-7);ctx.stroke();}ctx.restore();
+  const M=Math.max(10,Math.round(N)), slack=1-ext, amp=(h*0.22)*slack*Math.min(1.3,0.4+0.6*temp);
+  const shape=(t,ph)=>{const env=Math.sin(Math.PI*t);return yc+env*amp*(0.6*Math.sin(t*7+ph)+0.4*Math.sin(t*13-ph*1.3));};
+  for(let g=2;g>=0;g--){ const ph=animClock*2.2-g*0.5; let pts=[]; for(let i=0;i<=M;i++){const t=i/M;pts.push([x0+(x1-x0)*t,shape(t,ph)]);}
+    drawLine(ctx,pts,g===0?COL.rec:'rgba(37,99,235,'+(0.10*(3-g))+')',g===0?2.4:1.2); }
+  { const ph=animClock*2.2; ctx.save();ctx.fillStyle=COL.truth; const stp=Math.max(1,Math.round(M/14));
+    for(let i=0;i<=M;i+=stp){const t=i/M;ctx.beginPath();ctx.arc(x0+(x1-x0)*t,shape(t,ph),2.6,0,2*Math.PI);ctx.fill();}ctx.restore(); }
+  ctx.save();ctx.fillStyle=COL.vec;ctx.beginPath();ctx.arc(x1,yc,5,0,2*Math.PI);ctx.fill();ctx.restore();
+  arrow(ctx,x1,yc-22,x1-Math.min(64,6+wlc(ext)*8),yc-22,COL.vec,2);
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText('x/L = '+fmt(ext,2)+'   f (restoring)',(x0+x1)/2,yc-amp-12);
+  ctx.textAlign='left';ctx.fillText('anchored end',x0+2,yc+44);
+  s=setupCanvas(document.getElementById('cv-thermal2')); if(!s)return; ctx=s.ctx;w=s.w;h=s.h;
+  const ymax=Math.max(wlc(0.88),1)*1.1;
+  let ch=new Chart(ctx,w,h); ch.setRange(0,0.98,0,ymax);
+  let xt=niceTicks(0,0.98,5), yt=niceTicks(0,ymax,5);
+  ch.grid(xt,yt); ch.axes('extension x/L','force f (pN)',xt,yt,2,2);
+  let pw=[]; for(let i=0;i<=160;i++){const x=0.98*i/160; let f=wlc(x); if(f>ymax*1.3)f=ymax*1.3; pw.push([ch.toX(x),ch.toY(f)]);} drawLine(ctx,pw,COL.truth,2.6);
+  let pf=[]; for(let i=0;i<=80;i++){const x=0.98*i/80; const f=fjc(x); if(f<=ymax*1.3)pf.push([ch.toX(x),ch.toY(f)]);} drawLine(ctx,pf,COL.neo,2,[6,4]);
+  ch.vLine(ext,COL.warn,[4,3]); ctx.save();ctx.fillStyle=COL.warn;ctx.beginPath();ctx.arc(ch.toX(ext),ch.toY(Math.min(wlc(ext),ymax*1.3)),5,0,2*Math.PI);ctx.fill();ctx.restore();
+  ch.legend([{label:'WLC (Marko–Siggia)',color:COL.truth},{label:'FJC Hookean limit',color:COL.neo}],ch.m.l+6,ch.m.t+8);
+  const kspring=3*kBT/(N*b*b), R0=b*Math.sqrt(N);
+  setStat('st-thermal',[
+    {k:'thermal energy kBT',v:fmt(kBT,2)+' pN·nm'},
+    {k:'extension x/L',v:fmt(ext,2)},
+    {k:'WLC force f',v:fmt(wlc(ext),3)+' pN',hi:true},
+    {k:'FJC Hookean f',v:fmt(fjc(ext),3)+' pN'},
+    {k:'spring k=3kBT/Nb²',v:fmt(kspring,4)+' pN/nm'},
+    {k:'unstretched √⟨R²⟩₀',v:fmt(R0,0)+' nm'},
+    {k:'WLC scale kBT/Lp',v:fmt(kBT/lp,3)+' pN'}
+  ]);
+  if(ext>0.85) setVerdict('vd-thermal','bad','Entropy exhausted — force diverging.','Near the contour length almost no fluctuating conformations remain, so f blows up as 1/(1−x/L)². A real chain would now load backbone bonds or rupture — the entropic-spring picture breaks down.');
+  else if(ext>0.30) setVerdict('vd-thermal','warn','Leaving the linear regime.','The chain is running out of slack; the WLC curve has pulled above the FJC Hookean line and the simple k=3kBT/Nb² spring underestimates the force.');
+  else setVerdict('vd-thermal','good','Hookean entropic spring.','At small extension f≈(3kBT/Nb²)x — a linear spring whose stiffness scales with kBT, so it gets <em>stiffer when hotter</em> (rubber elasticity). The FJC line and WLC curve overlap here.');
+}
+/* ---------- persistent element scaffold (tab 4) ----------
+   One connected network of crosslink junctions, cached by canvas size. Springs,
+   entanglements and dangling ends are drawn from STABLE ordered lists, so moving
+   a slider adds/removes the last element of that kind rather than reshuffling the
+   whole picture — the same continuous, coherent mesh as the Microstructure tab. */
+let elemNet=null, elemKey='';
+function buildElementsNet(w,h){
+  const rng=mulberry32(31), pad=46, cols=5, rows=5, nodes=[];
+  const dx=(w-2*pad)/(cols-1), dy=(h-2*pad)/(rows-1);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)
+    nodes.push([pad+c*dx+(rng()-0.5)*dx*0.45, pad+r*dy+(rng()-0.5)*dy*0.45]);
+  const id=(r,c)=>r*cols+c, edges=[];
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const a=id(r,c);
+    if(c<cols-1)edges.push([a,id(r,c+1)]);
+    if(r<rows-1)edges.push([a,id(r+1,c)]);
+    if(r<rows-1&&c<cols-1)edges.push([a,id(r+1,c+1)]);
+    if(r<rows-1&&c>0)edges.push([a,id(r+1,c-1)]); }
+  const shuf=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); const t=a[i];a[i]=a[j];a[j]=t; } return a; };
+  shuf(edges);   // first Ns of the shuffled adjacency list form a coherent, stable spring set
+  const springEdges=edges.map(e=>({a:e[0],b:e[1],phase:rng()*6.283}));
+  const dOrder=shuf(nodes.map((_,i)=>i));
+  const dangles=dOrder.map(i=>({node:i, ang:rng()*6.283, len:26+rng()*30}));
+  const ents=[]; for(let i=0;i<24;i++) ents.push([pad+rng()*(w-2*pad), pad+rng()*(h-2*pad)]);
+  return {nodes,springEdges,dangles,ents};
+}
+function drawElements(){
+  const Ns=Math.round(num('s-elements-strands')), Ne=Math.round(num('s-elements-entang')), Nd=Math.round(num('s-elements-dangle')), T=num('s-elements-temp');
+  const mode=scen.elements;
+  let s=setupCanvas(document.getElementById('cv-elements')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  ctx.save();ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,w,h);ctx.strokeStyle=COL.grid;ctx.strokeRect(0.5,0.5,w-1,h-1);ctx.restore();
+  const key=Math.round(w)+'|'+Math.round(h);
+  if(!elemNet||elemKey!==key){ elemNet=buildElementsNet(w,h); elemKey=key; }
+  const net=elemNet, classify=(mode==='pinned-vs-dangle');
+  const springsOn=(mode==='all'||mode==='springs'||classify), dashOn=(mode==='all'||mode==='dashpots'||classify);
+  const al=on=>on?1:0.12;
+  const nSpr=Math.min(Ns,net.springEdges.length), nEnt=Math.min(Ne,net.ents.length), nDan=Math.min(Nd,net.dangles.length);
+  // junctions = endpoints of the active springs plus the anchors of active dangling ends
+  const drawn=new Set();
+  for(let i=0;i<nSpr;i++){ drawn.add(net.springEdges[i].a); drawn.add(net.springEdges[i].b); }
+  for(let i=0;i<nDan;i++) drawn.add(net.dangles[i].node);
+  // SPRINGS — strands pinned at BOTH ends between crosslinks
+  ctx.save();ctx.globalAlpha=al(springsOn);
+  for(let i=0;i<nSpr;i++){ const e=net.springEdges[i], a=net.nodes[e.a], bn=net.nodes[e.b];
+    const dx=bn[0]-a[0],dy=bn[1]-a[1],L=Math.hypot(dx,dy)||1,px=-dy/L,py=dx/L; let pts=[];
+    for(let j=0;j<=20;j++){const t=j/20,wob=Math.sin(t*Math.PI)*Math.sin(t*Math.PI*3+e.phase)*4;pts.push([a[0]+dx*t+px*wob,a[1]+dy*t+py*wob]);}
+    drawLine(ctx,pts,classify?COL.spring:COL.rec,1.5);
+    springGlyph(ctx,a[0]+dx*0.36,a[1]+dy*0.36,a[0]+dx*0.64,a[1]+dy*0.64,COL.spring,1.6);
+  } ctx.restore();
+  // DASHPOTS — entanglements (slip-links) + dangling ends (one free end)
+  ctx.save();ctx.globalAlpha=al(dashOn);
+  for(let i=0;i<nEnt;i++){ const p=net.ents[i]; dashpotGlyph(ctx,p[0],p[1],classify?COL.warn:COL.dashpot); }
+  for(let i=0;i<nDan;i++){ const d=net.dangles[i], a=net.nodes[d.node],ex=a[0]+Math.cos(d.ang)*d.len,ey=a[1]+Math.sin(d.ang)*d.len;
+    const col=classify?COL.bad:COL.dashpot; ctx.strokeStyle=col;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(a[0],a[1]);
+    for(let j=1;j<=8;j++){const t=j/8;ctx.lineTo(a[0]+(ex-a[0])*t+Math.sin(t*9)*3,a[1]+(ey-a[1])*t);}ctx.stroke();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex,ey,3,0,2*Math.PI);ctx.fill();ctx.stroke(); } ctx.restore();
+  ctx.save();ctx.fillStyle=COL.text;net.nodes.forEach((nd,i)=>{ if(!drawn.has(i))return; ctx.beginPath();ctx.arc(nd[0],nd[1],3.5,0,2*Math.PI);ctx.fill(); });ctx.restore();
+  ctx.save();ctx.font='11px sans-serif';ctx.textAlign='left';
+  springGlyph(ctx,10,h-24,34,h-24,COL.spring,1.6);ctx.fillStyle=COL.text;ctx.fillText('spring = strand between crosslinks',42,h-24);
+  dashpotGlyph(ctx,18,h-10,COL.dashpot);ctx.fillText('dashpot = entanglement / dangling end',42,h-10);ctx.restore();
+  const Ndash=Ne+Nd, phi=Ns/(Ns+Ndash||1), kBT=4.1*(T/300), Geq=Ns*kBT; /* ∝ ν·kBT — a relative index (a true modulus needs /volume); scales with strand count and T as taught */
+  setStat('st-elements',[
+    {k:'springs (effective strands) ν ∝',v:String(Ns)},
+    {k:'dashpots (entang + ends)',v:String(Ndash)},
+    {k:'elastic fraction ν/(ν+dash)',v:fmt(phi,2),hi:true},
+    {k:'G_eq ∝ ν·k_BT (relative index)',v:fmt(Geq,0)},
+    {k:'k_BT scale at T',v:fmt(kBT,2)+' pN·nm'},
+    {k:'load path',v:'only springs set G_eq'}
+  ]);
+  if(mode==='springs') setVerdict('vd-elements','good','Springs carry the equilibrium load.','Only strands pinned at both ends (highlighted) store energy reversibly and set G_eq=ν·kBT; here ν ∝ '+Ns+' strands. Everything dimmed contributes nothing at long times.');
+  else if(mode==='dashpots') setVerdict('vd-elements','warn','Dashpots dissipate — they do not hold.','Entanglements slide and dangling ends drag through the mesh: they add viscosity/loss but vanish from the load path at long times, so they never enter G_eq.');
+  else setVerdict('vd-elements','good','Two primitives, one network.','Elastic fraction = '+fmt(phi,2)+'. Strands between crosslinks → springs (set G_eq); entanglements + dangling ends → dashpots (set η). Convert a dangling end into a crosslink and ν — and the stiffness — go up.');
+}
+function drawLump(){
+  const einf=num('s-lump-einf'), e2=num('s-lump-e2'), eta=num('s-lump-eta'), phi=num('s-lump-phi'), spread=num('s-lump-spread'), morph=num('s-lump-morph');
+  const test=scen.lump, E0=einf+e2, tauS=eta/Math.max(e2,0.001), tauE=tauS*(E0/Math.max(einf,0.001));
+  let s=setupCanvas(document.getElementById('cv-lump')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  ctx.save();ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,w,h);ctx.strokeStyle=COL.grid;ctx.strokeRect(0.5,0.5,w-1,h-1);ctx.restore();
+  const p=morph, rng=mulberry32(5), cx=w/2, cy=h/2;
+  ctx.save();ctx.globalAlpha=(1-p)*0.85;
+  for(let i=0;i<36;i++){ const x0=24+rng()*(w-48),y0=20+rng()*(h-40),x1=x0+(rng()-0.5)*120,y1=y0+(rng()-0.5)*80;
+    const col=rng()<phi?COL.dashpot:COL.spring;
+    const ax=x0+(cx-x0)*p,ay=y0+(cy-y0)*p,bx=x1+(cx-x1)*p,by=y1+(cy-y1)*p; let pts=[];
+    for(let j=0;j<=10;j++){const t=j/10,L=Math.hypot(bx-ax,by-ay)||1,px=-(by-ay)/L,py=(bx-ax)/L,wob=Math.sin(t*Math.PI*4)*4*(1-p);pts.push([ax+(bx-ax)*t+px*wob,ay+(by-ay)*t+py*wob]);}
+    drawLine(ctx,pts,col,1.3);
+  } ctx.restore();
+  ctx.save();ctx.globalAlpha=p; const topY=h*0.26,botY=h*0.74,leftX=w*0.36,rightX=w*0.64,midY=(topY+botY)/2;
+  ctx.strokeStyle=COL.text;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(leftX-12,topY);ctx.lineTo(rightX+12,topY);ctx.stroke();ctx.beginPath();ctx.moveTo(leftX-12,botY);ctx.lineTo(rightX+12,botY);ctx.stroke();
+  springGlyph(ctx,leftX,topY,leftX,botY,COL.spring,2);
+  springGlyph(ctx,rightX,topY,rightX,midY,COL.spring,2); dashpotGlyph(ctx,rightX,(midY+botY)/2,COL.dashpot);
+  ctx.strokeStyle=COL.text;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(rightX,midY);ctx.lineTo(rightX,(midY+botY)/2-6);ctx.stroke();ctx.beginPath();ctx.moveTo(rightX,(midY+botY)/2+6);ctx.lineTo(rightX,botY);ctx.stroke();
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle=COL.spring;ctx.fillText('E∞ (permanent) = '+fmt(einf,1),leftX,botY+15);ctx.fillStyle=COL.dashpot;ctx.fillText('E₂ (relaxes) = '+fmt(e2,1),rightX,topY-6);ctx.fillStyle=COL.axis;
+  arrow(ctx,cx,botY+6,cx,botY+26,COL.vec,2);ctx.fillText(test==='relax'?'hold ε':'hold σ',cx,botY+40);ctx.restore();
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillText(p<0.99?('averaging micro elements… '+fmt(p*100,0)+'%'):'one Standard Linear Solid',12,16);
+  s=setupCanvas(document.getElementById('cv-lump2')); if(!s)return; ctx=s.ctx;w=s.w;h=s.h;
+  const Nel=24, rng2=mulberry32(99), taus=[]; for(let i=0;i<Nel;i++){const g=Math.sqrt(-2*Math.log(rng2()||1e-9))*Math.cos(2*Math.PI*rng2());taus.push(tauS*Math.pow(10,spread*g));}
+  if(test==='relax'){
+    const tmax=6*tauS, ymax=Math.max(E0*1.15,1); let ch=new Chart(ctx,w,h); ch.setRange(0,tmax,0,ymax);
+    let xt=niceTicks(0,tmax,5),yt=niceTicks(0,ymax,5); ch.grid(xt,yt); ch.axes('time t (s)','relaxation modulus E(t) (kPa)',xt,yt,tmax<5?1:0,1);
+    ch.hLine(einf,COL.good,[5,4]); ch.hLine(E0,COL.ref,[3,3]);
+    for(let i=0;i<Nel;i++){ let pts=[];for(let j=0;j<=60;j++){const t=tmax*j/60;pts.push([ch.toX(t),ch.toY(einf+e2*Math.exp(-t/taus[i]))]);} drawLine(ctx,pts,'rgba(100,116,139,0.16)',1); }
+    let mean=[];for(let j=0;j<=120;j++){const t=tmax*j/120;let sum=einf;for(let i=0;i<Nel;i++)sum+=(e2/Nel)*Math.exp(-t/taus[i]);mean.push([ch.toX(t),ch.toY(sum)]);} drawLine(ctx,mean,COL.rec,1.6);
+    let lump=[];for(let j=0;j<=120;j++){const t=tmax*j/120;lump.push([ch.toX(t),ch.toY(einf+e2*Math.exp(-t/tauS))]);} drawLine(ctx,lump,COL.truth,2.6);
+    ch.vLine(tauS,COL.warn,[4,3]);
+    ch.legend([{label:'lumped SLS',color:COL.truth},{label:'mean',color:COL.rec},{label:'individual τᵢ',color:'#94a3b8'}],ch.m.l+6,ch.m.t+8);
+  } else {
+    const tmax=6*tauE, J0=1/E0, Jinf=1/Math.max(einf,0.05), ymax=Jinf*1.15; let ch=new Chart(ctx,w,h); ch.setRange(0,tmax,0,ymax);
+    let xt=niceTicks(0,tmax,5),yt=niceTicks(0,ymax,5); ch.grid(xt,yt); ch.axes('time t (s)','creep compliance J(t) (1/kPa)',xt,yt,tmax<5?1:0,2);
+    ch.hLine(J0,COL.ref,[3,3]); ch.hLine(Jinf,COL.good,[5,4]);
+    let lump=[];for(let j=0;j<=120;j++){const t=tmax*j/120;lump.push([ch.toX(t),ch.toY(J0+(Jinf-J0)*(1-Math.exp(-t/tauE)))]);} drawLine(ctx,lump,COL.truth,2.6);
+    ch.vLine(tauE,COL.warn,[4,3]); ch.legend([{label:'lumped SLS J(t)',color:COL.truth}],ch.m.l+6,ch.m.t+8);
+  }
+  setStat('st-lump',[
+    {k:'instantaneous E₀ = E∞+E₂',v:fmt(E0,1)+' kPa'},
+    {k:'equilibrium E∞',v:fmt(einf,1)+' kPa'},
+    {k:'relaxation time τσ = η/E₂',v:fmt(tauS,1)+' s',hi:true},
+    {k:'creep time τε = τσ·E₀/E∞',v:fmt(tauE,1)+' s'},
+    {k:'transient fraction φ',v:fmt(phi,2)},
+    {k:'τ-spread',v:fmt(spread,2)+' dec'}
+  ]);
+  if(einf<0.25) setVerdict('vd-lump','bad','No permanent network — lumps to a fluid.','With E∞→0 the equilibrium modulus collapses, so stress relaxes ALL the way down (Maxwell fluid) and creep grows without bound — an uncrosslinked melt. Raise E∞ to recover a solid.');
+  else if(spread>0.35) setVerdict('vd-lump','warn','Broad spectrum — one τ is approximate.','Elements relax over a wide range of τᵢ, so the true response is a sum of exponentials; the single-SLS line (dark) deviates from the population mean (blue), though E₀ and E∞ stay correct.');
+  else setVerdict('vd-lump','good','Faithful lump — one SLS captures the gel.','The single SLS sits on the population mean: stress starts at E₀='+fmt(E0,1)+' kPa and relaxes over τσ='+fmt(tauS,1)+' s to a finite E∞='+fmt(einf,1)+' kPa — a viscoelastic solid, exactly what permanent crosslinks give.');
+}
+function drawIntegrin(){
+  const P=num('s-integrin-force'), E=num('s-integrin-E'), rstar=num('s-integrin-r'), nu=0.45, ra=0.6;
+  const uz=r=>P*(1-nu*nu)/(Math.PI*E*Math.max(r,ra)); // u_z in µm: P[nN]·(1−ν²)/(π·E[kPa]·r[µm]) — SI factors cancel
+  let s=setupCanvas(document.getElementById('cv-integrin')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  const surfY=h*0.46;
+  ctx.save();ctx.fillStyle='#eef2f7';ctx.fillRect(0,surfY,w,h-surfY);ctx.strokeStyle=COL.axis;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(0,surfY);ctx.lineTo(w,surfY);ctx.stroke();ctx.restore();
+  ctx.save();ctx.fillStyle='rgba(37,99,235,0.12)';ctx.strokeStyle='#2563eb';ctx.lineWidth=1.4;ctx.beginPath();ctx.ellipse(64,surfY-30,54,26,0,0,2*Math.PI);ctx.fill();ctx.stroke();ctx.restore();
+  ctx.save();ctx.fillStyle='#db2777';ctx.fillRect(50,surfY-4,30,8);ctx.fillStyle=COL.axis;ctx.font='10px sans-serif';ctx.textAlign='left';ctx.fillText('integrin / focal adhesion',46,surfY+18);ctx.restore();
+  const N=10, x0=80, rmax=20, pxPerUm=(w-x0-24)/rmax, refY=surfY-2;
+  let prev=null;
+  for(let i=0;i<=N;i++){ const r=ra+(rmax-ra)*i/N, x=x0+r*pxPerUm, u=uz(r), dx=Math.min(u*7,x-x0-2), xd=x-dx;
+    ctx.strokeStyle=COL.ref;ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,refY,3,0,2*Math.PI);ctx.stroke();
+    if(dx>2)arrow(ctx,x,refY,xd,refY,COL.vec,1.2);
+    if(prev)drawLine(ctx,[prev,[xd,refY]],COL.rec,1.3);
+    ctx.fillStyle=COL.rec;ctx.beginPath();ctx.arc(xd,refY,3.2,0,2*Math.PI);ctx.fill(); prev=[xd,refY]; }
+  arrow(ctx,x0,refY,x0-Math.min(54,8+P*0.45),refY,COL.vec,2.4);
+  ctx.fillStyle=COL.vec;ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('P',x0-Math.min(54,8+P*0.45)-8,refY-7);
+  ctx.fillStyle=COL.axis;ctx.font='10px sans-serif';ctx.fillText('distance from adhesion r →  (displacement shrinks with r)',w/2,h-8);
+  s=setupCanvas(document.getElementById('cv-integrin2')); if(!s)return; ctx=s.ctx;w=s.w;h=s.h;
+  const ytop=uz(ra)*1.08; let ch=new Chart(ctx,w,h); ch.setRange(0,rmax,0,Math.max(ytop,0.05));
+  let xt=niceTicks(0,rmax,5),yt=niceTicks(0,ytop,5); ch.grid(xt,yt); ch.axes('distance r (µm)','displacement u_z (µm)',xt,yt,0,2);
+  let pts=[];for(let i=0;i<=160;i++){const r=ra+(rmax-ra)*i/160;pts.push([ch.toX(r),ch.toY(Math.min(uz(r),ytop))]);} drawLine(ctx,pts,COL.truth,2.6);
+  if(scen.integrin==='compare'){ const c=uz(2)*4; let p2=[];for(let i=0;i<=160;i++){const r=ra+(rmax-ra)*i/160;p2.push([ch.toX(r),ch.toY(Math.min(c/(r*r),ytop))]);} drawLine(ctx,p2,COL.neo,1.8,[5,4]); }
+  ctx.save();ctx.fillStyle=COL.rec;for(let i=0;i<=N;i++){const r=ra+(rmax-ra)*i/N;ctx.beginPath();ctx.arc(ch.toX(r),ch.toY(Math.min(uz(r),ytop)),3,0,2*Math.PI);ctx.fill();}ctx.restore();
+  ch.vLine(rstar,COL.warn,[4,3]); ctx.save();ctx.fillStyle=COL.warn;ctx.beginPath();ctx.arc(ch.toX(rstar),ch.toY(Math.min(uz(rstar),ytop)),5,0,2*Math.PI);ctx.fill();ctx.restore();
+  ch.legend([{label:'u_z ∝ 1/r (Boussinesq)',color:COL.truth}].concat(scen.integrin==='compare'?[{label:'1/r² contrast',color:COL.neo}]:[]),ch.m.l+6,ch.m.t+8);
+  const reachR=P*(1-nu*nu)/(Math.PI*E*0.1);
+  setStat('st-integrin',[
+    {k:'u_z at integrin (r=r_a)',v:fmt(uz(ra),3)+' µm'},
+    {k:'u_z at probe r*',v:fmt(uz(rstar),3)+' µm',hi:true},
+    {k:'ratio u_z(r*)/u_z(2µm)',v:fmt(uz(rstar)/uz(2),2)+'×'},
+    {k:'half-displacement at',v:fmt(2*rstar,1)+' µm'},
+    {k:'reach (u_z=0.1µm) at',v:fmt(reachR,1)+' µm'}
+  ]);
+  if(scen.integrin==='compare') setVerdict('vd-integrin','warn','Fiber matrices can beat 1/r.','Real collagen/fibrin is nonlinear and strain-stiffening, so force can propagate farther (slower decay) than the linear 1/r law; the dashed 1/r² curve is just a point-source contrast, not the gel\'s true law.');
+  else if(rstar<2*ra) setVerdict('vd-integrin','warn','Near-field / large-strain — idealization strained.','The point-force law is singular at r=0 and only a far-field, small-strain approximation; the near-integrin number is unreliable.');
+  else setVerdict('vd-integrin','good','Clean 1/r decay.','u_z(r*) = '+fmt(uz(rstar),3)+' µm; doubling r* to '+fmt(2*rstar,1)+' µm halves it to '+fmt(uz(2*rstar),3)+' µm. Stiffer gels move less (u_z ∝ 1/E) — the basis of rigidity sensing.');
+}
+function drawMacro(){
+  const N=Math.round(num('s-macro-nadh')), P=num('s-macro-force'), E=num('s-macro-stiff'), Rcell=num('s-macro-radius');
+  let s=setupCanvas(document.getElementById('cv-macro')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  ctx.save();ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,w,h);ctx.strokeStyle=COL.grid;ctx.strokeRect(0.5,0.5,w-1,h-1);ctx.restore();
+  const patch=60, pad=22, sc=(Math.min(w,h)-2*pad)/patch, ox=(w-patch*sc)/2, oy=(h-patch*sc)/2, cu=patch/2;
+  const m=(x,y)=>[ox+x*sc,oy+y*sc];
+  const adh=[]; for(let a=0;a<N;a++){const th=2*Math.PI*a/N - Math.PI/2; adh.push([cu+Rcell*Math.cos(th),cu+Rcell*Math.sin(th)]);}
+  const nu=0.45, c=(1-nu*nu)/Math.PI, rcore=1.6, G=18, capU=patch/G*0.92, exalt=8; // patch grid is in µm; c = Boussinesq constant; exalt = visual exaggeration for the drawn grid only
+  const uTrue=(x,y)=>{let ux=0,uy=0; for(const ad of adh){const dx=ad[0]-x,dy=ad[1]-y,d=Math.hypot(dx,dy)||1e-3,dd=Math.max(d,rcore),mag=c*P/(E*dd); ux+=mag*dx/d; uy+=mag*dy/d;} return [ux,uy];}; // true surface displacement in µm
+  ctx.save();for(let i=0;i<=G;i++){let row=[],col=[];for(let j=0;j<=G;j++){row.push(m(patch*i/G,patch*j/G));col.push(m(patch*j/G,patch*i/G));}drawLine(ctx,row,'#e2e8f0',1);drawLine(ctx,col,'#e2e8f0',1);}ctx.restore();
+  const def=(i,j)=>{const x=patch*i/G,y=patch*j/G,u=uTrue(x,y);let ux=u[0]*exalt,uy=u[1]*exalt;const um=Math.hypot(ux,uy);if(um>capU){ux*=capU/um;uy*=capU/um;}return m(x+ux,y+uy);};
+  ctx.save();for(let i=0;i<=G;i++){let row=[],col=[];for(let j=0;j<=G;j++){row.push(def(i,j));col.push(def(j,i));}drawLine(ctx,row,'#0d9488',1.2);drawLine(ctx,col,'#0d9488',1.2);}ctx.restore();
+  const cc=m(cu,cu);
+  ctx.save();ctx.fillStyle='rgba(37,99,235,0.10)';ctx.strokeStyle='#2563eb';ctx.lineWidth=1.4;ctx.beginPath();ctx.ellipse(cc[0],cc[1],Rcell*sc*0.92,Rcell*sc*0.92,0,0,2*Math.PI);ctx.fill();ctx.stroke();ctx.restore();
+  ctx.save();for(const ad of adh){const pa=m(ad[0],ad[1]);ctx.fillStyle=COL.vec;ctx.beginPath();ctx.arc(pa[0],pa[1],3+P*0.05,0,2*Math.PI);ctx.fill();
+    const dx=cc[0]-pa[0],dy=cc[1]-pa[1],L=Math.hypot(dx,dy)||1,al=Math.min(18,6+P*0.4);arrow(ctx,pa[0],pa[1],pa[0]+dx/L*al,pa[1]+dy/L*al,COL.vec,1.4);}ctx.restore();
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillText('grey = reference grid   teal = deformed   orange = adhesions',10,h-8);
+  const peak=uTrue(cu+Rcell-2,cu), peakNm=Math.hypot(peak[0],peak[1])*1000;
+  const far=uTrue(cu+2*Rcell,cu), farNm=Math.hypot(far[0],far[1])*1000, Us=N*P*P/E;
+  setStat('st-macro',[
+    {k:'adhesions N',v:String(N)},
+    {k:'pull per adhesion / total',v:fmt(P,0)+' / '+fmt(P*N,0)+' nN'},
+    {k:'gel stiffness E',v:fmt(E,0)+' kPa'},
+    {k:'peak displacement (edge)',v:fmt(peakNm,0)+' nm',hi:true},
+    {k:'displacement at 2R',v:fmt(farNm,0)+' nm'},
+    {k:'strain energy ~ N·P²/E (rel.)',v:fmt(Us,0)},
+    {k:'net force (symmetric ring)',v:'≈ 0 nN'}
+  ]);
+  if(N<=3) setVerdict('vd-macro','warn','Lumpy, localized field.','With so few adhesions you see individual 1/r dimples, not a smooth field; the gel between them is barely pulled. Superposition is still exact — the aggregate just looks discrete.');
+  else if(peakNm<5) setVerdict('vd-macro','bad','Field below resolution.','On this stiff gel with weak pulls, displacements fall under bead-tracking resolution (~few nm). Same forces, but rigidity hides the deformation — why stiffer matrices report smaller displacements.');
+  else setVerdict('vd-macro','good','Coherent contraction field.','Many overlapping 1/r pulls superpose into a smooth inward displacement ring under the cell — the macroscopic deformation a TFM experiment measures. Net force ≈ 0 by symmetry, yet stored strain energy is large.');
+}
+function drawInfer(){
+  const trueF=num('s-infer-trueF'), Et=num('s-infer-Etrue'), Ea=num('s-infer-Eassumed'), nu=num('s-infer-nu'), rMeas=num('s-infer-rMeas'), beadN=Math.round(num('s-infer-beadN')), noise=num('s-infer-noise');
+  const uz=(F,E,r)=>F*(1-nu*nu)/(Math.PI*E*Math.max(r,0.3)); // u_z in µm: F[nN]·(1−ν²)/(π·E[kPa]·r[µm]) — SI factors cancel
+  const rMin=1, rMax=20, noiseAt=i=>{const rr=mulberry32(1000+i);return (rr()*2-1)*noise;};
+  const rs=[]; for(let i=0;i<beadN;i++)rs.push(rMin+(rMax-rMin)*i/(beadN-1));
+  let mi=0,best=1e9; for(let i=0;i<beadN;i++){const d=Math.abs(rs[i]-rMeas);if(d<best){best=d;mi=i;}}
+  const rm=rs[mi], umeas=uz(trueF,Et,rm)+noiseAt(mi), Finf=Math.PI*Ea*rm*umeas/(1-nu*nu); // inverse: F=πE·r·u/(1−ν²)
+  let s=setupCanvas(document.getElementById('cv-infer')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  const surfY=h*0.52; ctx.save();ctx.fillStyle='#eef2f7';ctx.fillRect(0,surfY,w,h-surfY);ctx.strokeStyle=COL.axis;ctx.beginPath();ctx.moveTo(0,surfY);ctx.lineTo(w,surfY);ctx.stroke();ctx.restore();
+  ctx.save();ctx.fillStyle='rgba(37,99,235,0.14)';ctx.strokeStyle='#2563eb';ctx.beginPath();ctx.arc(34,surfY,12,0,2*Math.PI);ctx.fill();ctx.stroke();ctx.restore();
+  arrow(ctx,34,surfY,34-Math.min(40,8+trueF*0.06),surfY,COL.vec,2.2);ctx.fillStyle=COL.vec;ctx.font='12px sans-serif';ctx.fillText('F',8,surfY-6);
+  const x0=58, pxw=(w-x0-20)/rMax, umaxRef=uz(trueF,Et,rMin)||1;
+  for(let i=0;i<beadN;i++){const x=x0+rs[i]*pxw,u=uz(trueF,Et,rs[i])+(noise>0?noiseAt(i):0),dx=Math.min(Math.max(u/umaxRef,0)*70,x-x0-2);
+    ctx.strokeStyle=COL.ref;ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,surfY-2,3,0,2*Math.PI);ctx.stroke();
+    if(dx>1)arrow(ctx,x,surfY-2,x-dx,surfY-2,(i===mi?COL.warn:COL.vec),i===mi?2:1.1);
+    ctx.fillStyle=(i===mi?COL.warn:COL.rec);ctx.beginPath();ctx.arc(x-dx,surfY-2,(i===mi?4.5:3),0,2*Math.PI);ctx.fill();
+    if(i===mi){ctx.strokeStyle=COL.warn;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x-dx,surfY-2,8,0,2*Math.PI);ctx.stroke();} }
+  ctx.fillStyle=COL.axis;ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('distance r (µm) · gold = measurement bead · displacement ∝ 1/r',w/2,h-8);
+  s=setupCanvas(document.getElementById('cv-infer2')); if(!s)return; ctx=s.ctx;w=s.w;h=s.h;
+  const ytop=uz(trueF,Et,rMin)*1.15; let ch=new Chart(ctx,w,h); ch.setRange(0,rMax,0,Math.max(ytop,1e-3));
+  let xt=niceTicks(0,rMax,5),yt=niceTicks(0,ytop,5); ch.grid(xt,yt); ch.axes('distance r (µm)','displacement u_z (µm)',xt,yt,0,3);
+  let tp=[];for(let i=0;i<=160;i++){const r=rMin+(rMax-rMin)*i/160;tp.push([ch.toX(r),ch.toY(Math.min(uz(trueF,Et,r),ytop))]);} drawLine(ctx,tp,COL.truth,2.4);
+  let ip=[];for(let i=0;i<=160;i++){const r=rMin+(rMax-rMin)*i/160;ip.push([ch.toX(r),ch.toY(Math.min(Math.max(uz(Finf,Ea,r),0),ytop))]);} drawLine(ctx,ip,COL.rec,2,[6,4]);
+  ctx.save();for(let i=0;i<beadN;i++){const u=uz(trueF,Et,rs[i])+(noise>0?noiseAt(i):0);ctx.fillStyle=(i===mi?COL.warn:COL.rec);ctx.beginPath();ctx.arc(ch.toX(rs[i]),ch.toY(Math.min(Math.max(u,0),ytop)),(i===mi?5:3),0,2*Math.PI);ctx.fill();}ctx.restore();
+  ch.vLine(rm,COL.warn,[4,3]);
+  ch.legend([{label:'true field',color:COL.truth},{label:'inferred fit',color:COL.rec}],ch.m.l+6,ch.m.t+8);
+  const ratio=Finf/trueF;
+  setStat('st-infer',[
+    {k:'true force F_true (hidden)',v:fmt(trueF,0)+' nN'},
+    {k:'u at measurement bead',v:fmt(umeas,3)+' µm'},
+    {k:'inferred force F_inferred',v:fmt(Finf,0)+' nN',hi:true},
+    {k:'error F_inf / F_true',v:fmt(ratio,2)+'×'},
+    {k:'stiffness ratio E_a/E_true',v:fmt(Ea/Et,2)+'×'},
+    {k:'decay u_z(r*) / u_z(2r*)',v:fmt(uz(trueF,Et,rm)/uz(trueF,Et,2*rm),2)+'×'}
+  ]);
+  if(scen.infer==='known'&&Math.abs(Ea/Et-1)<0.02&&noise===0) setVerdict('vd-infer','good','Exact inversion — the gel told us the force.','With the true material and clean data, F_inferred = πEr·u/(1−ν²) equals F_true and the dashed inferred field lies on the true field through every bead. The well-posed limit.');
+  else if(noise===0&&Math.abs(Ea/Et-1)>=0.02) setVerdict('vd-infer','warn','Wrong modulus → proportionally wrong force.','Displacements are perfect, yet F_inferred is off by exactly E_assumed/E_true = '+fmt(Ea/Et,2)+'×. F scales one-for-one with the assumed stiffness — always state E and ν with a TFM number.');
+  else if(noise>0&&rm>0.6*rMax) setVerdict('vd-infer','warn','Far-field datum → noise amplified.','Out here u_z is tiny (1/r decay), so noise is a large fraction of signal; dividing by a noisy near-zero displacement makes F_inferred swing. Pick beads where the gel actually moved.');
+  else if(noise>0&&Math.abs(ratio-1)>0.5) setVerdict('vd-infer','bad','Inference unreliable here.','From one noisy displacement the inferred force is '+fmt(ratio,2)+'× the truth. Real TFM fits the whole field and regularizes the ill-posed inverse (Module 2).');
+  else setVerdict('vd-infer','good','Recovered, with scatter.','With the correct material and a near-field bead, the inferred force tracks the truth despite noise. Averaging many beads would tighten it further.');
+}
+function drawNormalize(){
+  const F=num('s-normalize-F'), A=num('s-normalize-A'), disp=num('s-normalize-disp'), Lref=num('s-normalize-L'), Esoft=num('s-normalize-Esoft'), Erat=num('s-normalize-Eratio');
+  const Estiff=Esoft*Erat, mode=scen.normalize, sigma=F/A, eps=disp/Lref;
+  let s=setupCanvas(document.getElementById('cv-normalize')); if(!s)return; let ctx=s.ctx,w=s.w,h=s.h;
+  function band(surfY,E,label){ ctx.save();ctx.strokeStyle=COL.ref;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(20,surfY);ctx.lineTo(w-20,surfY);ctx.stroke();ctx.restore();
+    const u0px=Math.min((F/(E*A))*40,h*0.16);
+    let pts=[];for(let i=0;i<=80;i++){const t=i/80,x=20+(w-40)*t,xx=(t-0.5)*6;pts.push([x,surfY+u0px*Math.exp(-xx*xx)]);}
+    drawLine(ctx,pts,COL.def,2.2);
+    ctx.save();ctx.fillStyle=COL.truth;for(let i=0;i<=12;i++){const t=i/12,x=20+(w-40)*t,xx=(t-0.5)*6;ctx.beginPath();ctx.arc(x,surfY+u0px*Math.exp(-xx*xx),2.1,0,2*Math.PI);ctx.fill();}ctx.restore();
+    arrow(ctx,w/2,surfY-20,w/2,surfY-1,COL.vec,2);
+    ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillText(label+'  E='+fmt(E,1)+' kPa   peak u₀ ≈ '+fmt(F/(E*A),2)+' (∝1/E)',22,surfY-24); }
+  band(h*0.34,Esoft,'soft gel'); band(h*0.82,Estiff,'stiff gel');
+  ctx.fillStyle=COL.axis;ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText('Same force F — different displacement because E differs',w/2,14);
+  s=setupCanvas(document.getElementById('cv-normalize2')); if(!s)return; ctx=s.ctx;w=s.w;h=s.h;
+  const emax=0.3, ymax=Math.max(Estiff*emax,sigma*1.25,1);
+  let ch=new Chart(ctx,w,h); ch.setRange(0,emax,0,ymax);
+  let xt=niceTicks(0,emax,5),yt=niceTicks(0,ymax,5); ch.grid(xt,yt); ch.axes('strain ε','traction stress σ (kPa)',xt,yt,2,1);
+  drawLine(ctx,[[ch.toX(0),ch.toY(0)],[ch.toX(emax),ch.toY(Math.min(Esoft*emax,ymax))]],COL.rec,2.4);
+  drawLine(ctx,[[ch.toX(0),ch.toY(0)],[ch.toX(emax),ch.toY(Math.min(Estiff*emax,ymax))]],COL.neo,2.4);
+  if(mode==='fixed-disp'){ ch.vLine(eps,COL.axis,[4,3]); ctx.save();ctx.fillStyle=COL.rec;ctx.beginPath();ctx.arc(ch.toX(Math.min(eps,emax)),ch.toY(Math.min(Esoft*eps,ymax)),5,0,2*Math.PI);ctx.fill();ctx.fillStyle=COL.neo;ctx.beginPath();ctx.arc(ch.toX(Math.min(eps,emax)),ch.toY(Math.min(Estiff*eps,ymax)),5,0,2*Math.PI);ctx.fill();ctx.restore(); }
+  else if(mode==='fixed-force'){ ch.hLine(Math.min(sigma,ymax),COL.axis,[4,3]); const es=Math.min(sigma/Esoft,emax),est=Math.min(sigma/Estiff,emax); ctx.save();ctx.fillStyle=COL.rec;ctx.beginPath();ctx.arc(ch.toX(es),ch.toY(Math.min(sigma,ymax)),5,0,2*Math.PI);ctx.fill();ctx.fillStyle=COL.neo;ctx.beginPath();ctx.arc(ch.toX(est),ch.toY(Math.min(sigma,ymax)),5,0,2*Math.PI);ctx.fill();ctx.restore(); }
+  ch.legend([{label:'soft σ=E_soft·ε',color:COL.rec},{label:'stiff σ=E_stiff·ε',color:COL.neo}],ch.m.l+6,ch.m.t+8);
+  const nrows=[{k:'traction stress σ = F/A',v:fmt(sigma,2)+' kPa',hi:true}];
+  if(mode==='fixed-force'){ nrows.push(
+    {k:'soft strain ε = σ/E_soft',v:fmt(sigma/Esoft,3)},
+    {k:'stiff strain ε = σ/E_stiff',v:fmt(sigma/Estiff,3)},
+    {k:'strain ratio (soft/stiff) = E_ratio',v:fmt(Erat,1)+'×'}); }
+  else { nrows.push(
+    {k:'imposed strain ε = Δx/L',v:fmt(eps,3)},
+    {k:'soft σ = E_soft·ε',v:fmt(Esoft*eps,2)+' kPa'},
+    {k:'stiff σ = E_stiff·ε',v:fmt(Estiff*eps,2)+' kPa'},
+    {k:'stress ratio = E_ratio',v:fmt(Erat,1)+'×'}); }
+  nrows.push({k:'soft u₀ vs stiff u₀ (∝1/E)',v:fmt(F/(Esoft*A),2)+' / '+fmt(F/(Estiff*A),2)});
+  setStat('st-normalize',nrows);
+  if(mode==='collapse'||Erat===1) setVerdict('vd-normalize','good','One material-independent law.','With equal moduli the two stress–strain lines coincide. Once force is normalized to traction (Pa) and displacement to strain, a single law σ=Eε describes the cell\'s pull regardless of cell or contact size — a portable traction field.');
+  else if(eps>0.15) setVerdict('vd-normalize','warn','Leaving the linear regime.','ε = '+fmt(eps,2)+' is large; real gels strain-stiffen and σ=Eε is only leading-order. Normalization still holds, but the straight-line modulus does not.');
+  else if(A<=4) setVerdict('vd-normalize','warn','Tiny contact, huge traction.','σ = F/A = '+fmt(sigma,2)+' kPa. Because traction is force per area, shrinking the adhesion inflates the stress even at fixed force — the normalizing area must be the true load-bearing contact.');
+  else if(mode==='fixed-force') setVerdict('vd-normalize','good','Same force, different deformation.','The same traction σ = '+fmt(sigma,2)+' kPa gives ε_soft = '+fmt(sigma/Esoft,3)+' but only ε_stiff = '+fmt(sigma/Estiff,3)+'. A stiffer matrix deforms less under the identical pull (u ∝ 1/E).');
+  else setVerdict('vd-normalize','good','Same strain, different stress.','The identical imposed strain ε = '+fmt(eps,3)+' gives σ_soft = '+fmt(Esoft*eps,2)+' but σ_stiff = '+fmt(Estiff*eps,2)+' kPa, a factor of E_ratio. Strain is geometry; stress is material — exactly what σ=Eε encodes.');
+}
+
+/* ---- init ---- */
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

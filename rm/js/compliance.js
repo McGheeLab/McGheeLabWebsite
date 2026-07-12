@@ -99,7 +99,7 @@ async function loadAndRender() {
 
   const tab = TABS.find(t => t.key === activeTab);
   const data = await api.load(tab.path);
-  const items = data[tab.dataKey];
+  const items = (data && data[tab.dataKey]) || [];
 
   if (items.length === 0) {
     content.innerHTML = `<div class="empty-state">No ${tab.label} protocols yet. Click "+ Add Protocol" to get started.</div>`;

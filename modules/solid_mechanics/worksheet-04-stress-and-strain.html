@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 4: Stress and Strain — Solid Mechanics Foundations</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Solid Mechanics Foundations · Lesson 4 Worksheet</div>
+  <h1>Stress and Strain — Why Force and Displacement Aren't Enough</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="04-stress-and-strain.html"><b>04-stress-and-strain.html</b></a>.
+  <b>Predict first</b>, then experiment, record, and explain. Today you'll catch the same steel
+  giving two different answers — and then fix it with two clever divisions.
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>Same steel, different curve</h2>
+  <p class="goal">Goal: prove that a force–displacement curve describes an OBJECT, not a material.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p>Two rods of the SAME steel, one thick &amp; short, one thin &amp; long, pulled by the same
+  force, will stretch… &nbsp;☐ the same amount &nbsp; ☐ differently.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Rod A (thick, short)</b> (d = 20 mm, L = 1 m). Set the pull to 15 kN. Record
+    the stiffness k and the stretch ΔL from the stats.</li>
+    <li>Click <b>Rod B (thin, long)</b> (d = 10 mm, L = 2 m) at the same 15 kN. Record both.</li>
+    <li>From Rod B, double ONLY the diameter (10 → 20 mm). Record k. Then set d back to 10 and
+    halve ONLY the length (2 → 1 m). Record k.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>d (mm)</th><th>L (m)</th><th>k (N/m)</th><th>ΔL at 15 kN</th></tr>
+    <tr><td class="lab">Rod A</td><td>20</td><td>1</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Rod B</td><td>10</td><td>2</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B, diameter doubled</td><td>20</td><td>2</td><td class="fill"></td><td>—</td></tr>
+    <tr><td class="lab">B, length halved</td><td>10</td><td>1</td><td class="fill"></td><td>—</td></tr>
+  </table>
+  <p>Rod A is about <span class="blank"></span>× stiffer than Rod B.
+  Doubling the diameter multiplied k by <span class="blank"></span>
+  <span class="hint">(careful — diameter, not area!)</span>.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>A handbook can't print a force–stretch curve for "steel." Why not?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>Two divisions fix everything</h2>
+  <p class="goal">Goal: show that stress σ = F ÷ A and strain ε = ΔL ÷ L₀ collapse every rod onto ONE material line.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>At F = 15 kN, set three wildly different rods (table below). For each, record stress σ,
+    strain ε, and the ratio σ ÷ ε from the stats panel.</li>
+    <li>Watch the two plots as you change geometry: the F–ΔL line moves, but where does your dot
+    land on the σ–ε plot every single time?</li>
+    <li>Slowly raise F until the verdict warns you about yield. Record that force for
+    d = 10 mm.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>d (mm)</th><th>L (m)</th><th>σ (MPa)</th><th>ε (%)</th><th>σ ÷ ε (GPa)</th></tr>
+    <tr><td>10</td><td>2</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>25</td><td>0.5</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>40</td><td>3</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>σ ÷ ε came out the same every time: about <span class="blank"></span> GPa. That number
+  belongs to &nbsp;☐ the rod &nbsp; ☐ the steel itself.</p>
+  <p>With d = 10 mm, the yield warning appeared near F ≈ <span class="blank"></span> kN.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>Stress asks "how hard is each atomic chain pulled?" and strain asks "how far is each bond
+  stretched?" Use those two phrases to explain why the numbers stopped depending on geometry:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Contact: the thumbtack principle</h2>
+  <p class="goal">Goal: same force, different contact area → wildly different stress, and a "bulb" of stress hiding under the surface.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p>Halving the contact width will multiply the pressure by… &nbsp;☐ ½ &nbsp; ☐ 2 &nbsp; ☐ 4.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Set the force to 500 N. Record the mean pressure at contact widths 80, 40, 8, and 2 mm.</li>
+    <li>At w = 40 mm, read the "depth where the stress halves" stat. Halve the width to 20 mm
+    and read it again — how does the bulb's reach scale with the contact size?</li>
+    <li>Keep shrinking the width until the verdict turns red ("punch-through"). Record that
+    width.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Contact width w (mm)</th><td>80</td><td>40</td><td>8</td><td>2</td></tr>
+    <tr><th>Mean pressure (MPa)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Depth where stress halves: at w = 40 mm ≈ <span class="blank"></span>; at w = 20 mm ≈
+  <span class="blank"></span>. The verdict turned red at w ≈ <span class="blank"></span> mm.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>Use today's idea to explain BOTH: why snowshoes keep you on top of snow, and why a stiletto
+  heel dents a wooden floor that a boot never would:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Young's modulus: one number per material</h2>
+  <p class="goal">Goal: use E to identify materials, and meet Poisson's ratio (pull it longer, it gets thinner).</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Steel</b> (E = 200 GPa) and set stress to 150 MPa. Record strain and the
+    stretch of a 1 m rod.</li>
+    <li>Click <b>Rubber band</b> at the same 150 MPa. Record both. Read the verdict.</li>
+    <li>Mystery materials: dial E to each value in the table and write down the "nearest
+    material" the sim names.</li>
+    <li>Back on Steel: slide Poisson's ratio ν from 0 to 0.49 and watch the block's sides as it
+    stretches.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>ε (%)</th><th>ΔL of a 1 m rod</th></tr>
+    <tr><td class="lab">Steel at 150 MPa</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Rubber at 150 MPa</td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <table class="data">
+    <tr><th>You dialed E =</th><td>69 GPa</td><td>10 GPa</td><td>1100 GPa</td></tr>
+    <tr><th>Nearest material</th><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>With ν = 0.3, when the block stretched longer its sides got…
+  &nbsp;☐ fatter &nbsp; ☐ thinner &nbsp; ☐ unchanged.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>Why can E = 200 GPa go in a handbook while "k = 8 × 10⁶ N/m" cannot?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — design challenge</h2>
+  <p>You must hang a 50 kN load (about a small truck) from a steel rod, keeping the stress under
+  the 250 MPa yield limit. Use Tab 2 to find the smallest whole-millimeter diameter that stays
+  safe:</p>
+  <p>Smallest safe diameter d = <span class="blank"></span> mm, giving σ = <span class="blank"></span> MPa.</p>
+  <p>Hand-check with A = F ÷ σ: to keep σ at 250 MPa you need
+  A = 50,000 N ÷ 250,000,000 Pa = <span class="blank"></span> m². Does a circle of your chosen
+  diameter have at least that area? &nbsp;☐ yes ☐ no</p>
+  <p>Finally: your rod passes the stress check. Give one reason a careful engineer might STILL
+  choose a thicker rod. <span class="hint">Lessons 2 and 3 both offer good answers.</span></p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Worksheet 4 of 5</footer>
+</body>
+</html>

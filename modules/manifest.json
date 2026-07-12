@@ -1,11 +1,20 @@
 {
   "folders": {
+    "foundations": {
+      "label": "Lab Foundations",
+      "files": [
+        {
+          "name": "overview.html",
+          "title": "Lab Foundations: Start Here — Getting Started in the Lab"
+        }
+      ]
+    },
     "bme295c": {
       "label": "BME295C",
       "files": [
         {
           "name": "lesson-01.html",
-          "title": "Lesson 1: Welcome \u2014 BME 295C"
+          "title": "Lesson 1: Welcome — BME 295C"
         }
       ]
     },
@@ -13,15 +22,163 @@
       "label": "BME576",
       "files": [
         {
-          "name": "01_experimental_design.html",
-          "title": "Module 12: Design of Experiments \u2014 Multiplexed Cytokine Assay"
+          "name": "mc_interactive_explorer.html",
+          "title": "Module 10: Uncertainty & Error Propagation — Engineering Cancer Course"
         },
         {
-          "name": "01_parameter_estimation.html",
-          "title": "Model Calibration & Parameter Estimation \u2014 Interactive Explorer"
+          "name": "11_parameter_estimation.html",
+          "title": "Model Calibration & Parameter Estimation — Interactive Explorer"
+        },
+        {
+          "name": "12_experimental_design.html",
+          "title": "Module 12: Design of Experiments — Multiplexed Cytokine Assay"
+        },
+        {
+          "name": "13_model_validation.html",
+          "title": "Module 13: Model Validation — Engineering Cancer Course"
+        }
+      ]
+    },
+    "tfm": {
+      "label": "TFM (Biomechanics 466/566)",
+      "files": [
+        {
+          "name": "01-hydrogels-and-cell-forces.html",
+          "title": "Module 1: Hydrogels & Cell Forces — From Atoms to Deformation"
+        },
+        {
+          "name": "02-hydrogel-network-formation.html",
+          "title": "Module 2: How a Hydrogel Grows — Monomers to Network"
+        },
+        {
+          "name": "03-ball-indentation-hydrogels.html",
+          "title": "Module 3: Mechanical Indentation of Hydrogels — Ball-on-Gel"
+        },
+        {
+          "name": "traction-force-microscopy.html",
+          "title": "Module 4: Traction Force Microscopy — Measuring Cell Forces"
+        }
+      ]
+    },
+    "solid_mechanics": {
+      "label": "Solid Mechanics Foundations",
+      "files": [
+        {
+          "name": "overview.html",
+          "title": "Solid Mechanics Foundations: Start Here — Course Overview"
+        },
+        {
+          "name": "01-atoms-as-springs.html",
+          "title": "Lesson 1: Atoms as Springs — Why Materials Stretch"
+        },
+        {
+          "name": "02-grains-and-boundaries.html",
+          "title": "Lesson 2: Grains — Why Metals Bend Before They Break"
+        },
+        {
+          "name": "03-honey-cheese-metal-diamond.html",
+          "title": "Lesson 3: Honey, Cheese, Metal, Diamond — Force vs. Displacement"
+        },
+        {
+          "name": "04-stress-and-strain.html",
+          "title": "Lesson 4: Stress and Strain — Why Force and Displacement Aren't Enough"
+        },
+        {
+          "name": "05-loading-modes.html",
+          "title": "Lesson 5: Loading Modes — Tension, Compression, Bending, Torsion"
+        },
+        {
+          "name": "worksheet-01-atoms-as-springs.html",
+          "title": "Worksheet 1: Atoms as Springs (printable)"
+        },
+        {
+          "name": "worksheet-02-grains-and-boundaries.html",
+          "title": "Worksheet 2: Grains and Boundaries (printable)"
+        },
+        {
+          "name": "worksheet-03-honey-cheese-metal-diamond.html",
+          "title": "Worksheet 3: Honey, Cheese, Metal, Diamond (printable)"
+        },
+        {
+          "name": "worksheet-04-stress-and-strain.html",
+          "title": "Worksheet 4: Stress and Strain (printable)"
+        },
+        {
+          "name": "worksheet-05-loading-modes.html",
+          "title": "Worksheet 5: Loading Modes (printable)"
+        }
+      ]
+    },
+    "optics": {
+      "label": "Optics Foundations",
+      "files": [
+        {
+          "name": "overview.html",
+          "title": "Optics Foundations: Start Here — Course Overview"
+        },
+        {
+          "name": "01-light-and-matter.html",
+          "title": "Lesson 1: Light & Matter — Why Things Absorb Color"
+        },
+        {
+          "name": "02-reflection-and-tir.html",
+          "title": "Lesson 2: Color, Reflection & Trapped Light"
+        },
+        {
+          "name": "03-lenses.html",
+          "title": "Lesson 3: Bending Light — Lenses"
+        },
+        {
+          "name": "04-scattering-and-metamaterials.html",
+          "title": "Lesson 4: Scattering, Index Matching & Metamaterials"
+        },
+        {
+          "name": "05-coherence-and-microscopy.html",
+          "title": "Lesson 5: Coherence, Interference & the Microscope"
+        }
+      ]
+    },
+    "surface_functionalization": {
+      "label": "Surface Functionalization Foundations",
+      "files": [
+        {
+          "name": "overview.html",
+          "title": "Surface Functionalization Foundations: Start Here — Course Overview"
+        },
+        {
+          "name": "01-surface-energy-and-adsorbed-water.html",
+          "title": "Lesson 1: Surfaces Are Hungry — Surface Energy & Adsorbed Water"
+        },
+        {
+          "name": "02-plasma-treatment.html",
+          "title": "Lesson 2: Plasma Treatment — Energizing Gas to Rewrite a Surface"
+        },
+        {
+          "name": "03-silanes.html",
+          "title": "Lesson 3: Silanes — Molecular Paint for Surfaces"
+        },
+        {
+          "name": "04-roughness-and-superhydrophobicity.html",
+          "title": "Lesson 4: Roughness — How Texture Makes Water Bounce"
+        },
+        {
+          "name": "worksheet-01-surface-energy.html",
+          "title": "Worksheet 1: Surface Energy & Adsorbed Water (printable)"
+        },
+        {
+          "name": "worksheet-02-plasma-treatment.html",
+          "title": "Worksheet 2: Plasma Treatment (printable)"
+        },
+        {
+          "name": "worksheet-03-silanes.html",
+          "title": "Worksheet 3: Silanes (printable)"
+        },
+        {
+          "name": "worksheet-04-roughness.html",
+          "title": "Worksheet 4: Roughness & Superhydrophobicity (printable)"
         }
       ]
     }
   },
-  "generated": "2026-04-09T13:23:30"
+  "generated": "2026-07-10T00:00:00"
 }

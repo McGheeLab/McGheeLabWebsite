@@ -1273,7 +1273,7 @@ body {
    MOBILE
    ═══════════════════════════════════════════════════════════ */
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .hud-layout {
     flex-direction: column;
   }
@@ -1842,7 +1842,7 @@ body {
    RESPONSIVE — New Components
    ═══════════════════════════════════════════════════════════ */
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .hud-rundown-card {
     padding: .5rem .55rem;
   }

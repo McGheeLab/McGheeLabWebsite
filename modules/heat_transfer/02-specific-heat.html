@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Specific Heat — Holding the Jiggle — Heat Transfer Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Specific Heat — Holding the Jiggle</h1>
+  <p class="subtitle">Heat Transfer Foundations · Lesson 2 of 6 — On a summer afternoon the
+  beach sand burns your bare feet while the ocean one step away stays cool. Same sun, same hours
+  of heating. The difference is <b>specific heat</b>: how much jiggle a kilogram of stuff can
+  swallow before its temperature climbs.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="hold">1 · Some Materials Hold More Jiggle</button>
+  <button class="tab-btn" data-tab="qmcdt">2 · Q = mcΔT</button>
+  <button class="tab-btn" data-tab="rate">3 · Heating Takes Time</button>
+  <button class="tab-btn" data-tab="levelup">4 · Level Up: Calorimetry &amp; Dulong–Petit</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: hold -->
+<section id="tab-hold" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: same burner, different block — who heats up first?</h2>
+    <p>Lesson 1's punchline: <b>temperature is jiggle</b> — the random vibration of atoms. A
+    burner is just a machine that pours jiggle into whatever sits on it, at a steady rate we
+    call <b>power</b>, \(P\), measured in watts (1&nbsp;W = 1 joule of energy per second).
+    Put two identical blocks on two identical burners and every second each block swallows
+    exactly the same number of joules.</p>
+    <p>So they heat up together, right? No — and that's the whole lesson. Materials differ
+    wildly in how many joules it takes to push 1&nbsp;kilogram up by 1&nbsp;degree. That number
+    is the <b>specific heat</b>, \(c\), in joules per kilogram per kelvin (a step of 1&nbsp;K is
+    the same size as a step of 1&nbsp;°C). Real values: water <b>4186</b>, air <b>≈1005</b>
+    (per kilogram — though a kilogram of air fills a whole bedroom), aluminum <b>897</b>,
+    dry sand <b>≈830</b>, copper <b>385</b>&nbsp;J/kg·K. Water needs almost eleven times more
+    energy per degree than copper — it is a <b>heat sponge</b>.</p>
+    <div class="equation-box">
+      $$ \frac{dT}{dt} \;=\; \frac{P}{m\,c} $$
+    </div>
+    <p>Read it like a sentence: the rate the temperature \(T\) climbs with time \(t\) equals the
+    power \(P\) coming in, divided by the mass \(m\) (kg) times the specific heat \(c\). Bigger
+    burner → faster climb. Bigger block, or spongier material → slower climb. That's the beach:
+    the sun delivers roughly the same power to every square meter, but dry sand
+    (\(c \approx 830\)) climbs about five times faster per kilogram than sea water
+    (\(c \approx 4186\)) — and only a thin top layer of sand takes the hit, while the ocean
+    stirs its heat downward. Burnt feet, cool waves.</p>
+    <div class="worked-example">
+      <p>Put a 1000&nbsp;W burner under 1&nbsp;kg of copper:
+      \(dT/dt = 1000/(1 \times 385) \approx 2.6\ \text{°C/s}\) — a 40&nbsp;°C rise in about
+      15&nbsp;seconds. The same burner under 1&nbsp;kg of water:
+      \(1000/(1 \times 4186) \approx 0.24\ \text{°C/s}\), so the same 40&nbsp;°C rise takes
+      about 167&nbsp;seconds. The ratio is exactly the ratio of the specific heats:
+      \(4186/385 \approx 10.9\). Same energy in — copper just has nowhere spongy to put it,
+      so its temperature shoots up.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Specific heat \(c\) = joules needed to raise 1&nbsp;kg of a material by 1&nbsp;K.</li>
+        <li>Under steady power, temperature climbs at \(P/(mc)\) — the product \(mc\) acts as
+        one number, the object's "thermal mass."</li>
+        <li>Water (4186&nbsp;J/kg·K) is the everyday champion sponge; metals like copper (385)
+        heat up ~10× faster per kilogram.</li>
+        <li>The burning beach is specific heat in action: dry sand ≈ 830 vs water ≈ 4186.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Run <b>Water vs copper</b>. Copper's thermometer sprints to the 60&nbsp;°C finish
+      line while water crawls — check the <b>Speed ratio</b> stat: ≈&nbsp;10.9×.</li>
+      <li>Switch to the beach scenario, <b>Water vs dry sand</b>. The ratio drops to
+      ≈&nbsp;5× — that gap is your burnt feet versus the cool ocean.</li>
+      <li>Crank <b>Burner power</b> from 200 to 3000&nbsp;W. Both blocks speed up, but the
+      ratio never budges. Power sets the pace; \(c\) picks the winner.</li>
+      <li>Double <b>Block mass</b>. The on-screen race looks the same, but watch the finish
+      times in the stats double — the clock, not the picture, carries the physics: \(m\) and
+      \(c\) enter the equation the same way.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="hold" data-scen="watercu" onclick="setScen('hold','watercu')">Water vs copper</button>
+    <button class="scen-btn" data-tab="hold" data-scen="watersand" onclick="setScen('hold','watersand')">Beach: water vs dry sand</button>
+    <button class="scen-btn" data-tab="hold" data-scen="cual" onclick="setScen('hold','cual')">Copper vs aluminum</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Burner power <span id="v-hold-p">1000 W</span></label>
+        <input type="range" id="s-hold-p" min="200" max="3000" step="50" value="1000">
+      </div>
+      <div class="ctrl-group">
+        <label>Block mass (each) <span id="v-hold-m">1.00 kg</span></label>
+        <input type="range" id="s-hold-m" min="0.2" max="3" step="0.1" value="1">
+      </div>
+      <div class="stats" id="st-hold"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The race: same power into each block — first thermometer to the 60 °C line wins</div>
+        <canvas id="cv-hold" width="640" height="320"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Temperature vs time · finish flags at 60 °C · grey dashes = before your change</div>
+        <canvas id="cv-hold2" width="640" height="250"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-hold"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: qmcdt -->
+<section id="tab-qmcdt" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the energy bill for a temperature change — Q = mcΔT</h2>
+    <p>Tab&nbsp;1 was about <em>rates</em>. Now ask the total-cost question: how many joules
+    does it take to warm this much stuff by this many degrees? Multiply the three knobs
+    together. We call the energy \(Q\) (joules), and the temperature <em>change</em>
+    \(\Delta T\) ("delta-T", in kelvin — a rise of 1&nbsp;K is the same as a rise of
+    1&nbsp;°C):</p>
+    <div class="equation-box">
+      $$ Q \;=\; m\,c\,\Delta T $$
+    </div>
+    <p>Three knobs, all fair: twice the mass \(m\), twice the energy. Twice the temperature
+    rise \(\Delta T\), twice the energy. And \(c\) is the <b>price per kilogram per degree</b> —
+    water charges 4186&nbsp;J for every kg-degree, copper only 385. On the chart below, \(Q\)
+    versus \(\Delta T\) is a straight line through zero with slope \(mc\): the steeper the
+    line, the spongier your block. Slide \(c\) around and you're sliding between real
+    materials — the verdict box will tell you which one you're closest to.</p>
+    <div class="worked-example">
+      <p>Pasta water: bring 1&nbsp;kg of water (about a litre) from 20&nbsp;°C to 100&nbsp;°C,
+      so \(\Delta T = 80\ \text{K}\). Then
+      \(Q = 1 \times 4186 \times 80 = 334{,}880\ \text{J} \approx 335\ \text{kJ}\).
+      If a 2&nbsp;kW burner delivered every joule into the pot, that's
+      \(335{,}000 / 2000 \approx 167\ \text{s} \approx 2.8\ \text{minutes}\). Your stove takes
+      longer because plenty of those joules heat the kitchen instead of the water.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>\(Q = mc\Delta T\): energy = mass × specific heat × temperature change.</li>
+        <li>On a \(Q\) vs \(\Delta T\) plot, the slope is \(mc\) — steeper line = more energy
+        per degree.</li>
+        <li>Only the <em>change</em> \(\Delta T\) matters here, not the starting temperature.</li>
+        <li>Boiling a litre of pasta water costs ≈ 335&nbsp;kJ — about 2.8 minutes of a
+        2&nbsp;kW burner at 100% efficiency.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Take the <b>Water</b> scenario with \(m = 1\) kg and \(\Delta T = 80\) K and confirm
+      the pasta number: \(Q \approx 335\) kJ in the stats.</li>
+      <li>Switch to <b>Copper</b> with the same \(m\) and \(\Delta T\): \(Q\) collapses to
+      ≈&nbsp;31&nbsp;kJ. Compare the two lines' slopes on the chart — that gap is 10.9×.</li>
+      <li>Double <b>Mass</b> and halve <b>ΔT</b>. Did \(Q\) change? Why not? (It's a
+      product — the knobs trade off exactly.)</li>
+      <li>Slide <b>Specific heat</b> away from the presets and watch the verdict hunt for the
+      nearest material. Park it at 1005: that's a kilogram of <em>air</em> — cheap to heat,
+      but it fills a bedroom.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="qmcdt" data-scen="water" onclick="setScen('qmcdt','water')">Water (c = 4186)</button>
+    <button class="scen-btn" data-tab="qmcdt" data-scen="aluminum" onclick="setScen('qmcdt','aluminum')">Aluminum (897)</button>
+    <button class="scen-btn" data-tab="qmcdt" data-scen="sand" onclick="setScen('qmcdt','sand')">Dry sand (830)</button>
+    <button class="scen-btn" data-tab="qmcdt" data-scen="copper" onclick="setScen('qmcdt','copper')">Copper (385)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Mass <span id="v-qmcdt-m">1.00 kg</span></label>
+        <input type="range" id="s-qmcdt-m" min="0.1" max="5" step="0.1" value="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Specific heat <span id="v-qmcdt-c">4186 J/kg·K</span></label>
+        <input type="range" id="s-qmcdt-c" min="100" max="4200" step="1" value="4186">
+      </div>
+      <div class="ctrl-group">
+        <label>Temperature change ΔT <span id="v-qmcdt-dt">80 K</span></label>
+        <input type="range" id="s-qmcdt-dt" min="1" max="80" step="1" value="80">
+      </div>
+      <div class="stats" id="st-qmcdt"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Your block, its thermometer, and the energy tank it must drink</div>
+        <canvas id="cv-qmcdt" width="640" height="260"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Q vs ΔT — slope is mc · reference materials dashed · grey = before</div>
+        <canvas id="cv-qmcdt2" width="640" height="290"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-qmcdt"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: rate -->
+<section id="tab-rate" class="tab-content">
+  <div class="background-section">
+    <h2>Background: heating takes time — power is the slope</h2>
+    <p>Put Tabs 1 and 2 together and you can predict the whole heating curve. Start at
+    temperature \(T_0\) (that's the temperature at time zero — tap water is about 20&nbsp;°C),
+    pour in power \(P\), and the temperature at any later time \(t\) is:</p>
+    <div class="equation-box">
+      $$ T(t) \;=\; T_0 + \frac{P\,t}{m\,c} $$
+    </div>
+    <p>It's a straight line. The <b>slope</b> is \(P/(mc)\): power on top, thermal mass on the
+    bottom. Same burner under a kettle, a big soup pot, and a copper pan gives three very
+    different waits — not because the burner changed, but because \(mc\) did. Triple the water
+    and the line goes three times shallower; swap water for copper and it rockets.</p>
+    <p>One honest warning: this straight line assumes <em>every joule stays put</em>. Real
+    objects leak heat to the room while you heat them — the hotter they get, the faster they
+    leak — so the real curve sags below the line and eventually flattens. We'll build that
+    leak properly when we meet moving air in Lesson&nbsp;5. The line is a good friend early in
+    the heating and an optimist late in it.</p>
+    <div class="worked-example">
+      <p>Kettle: \(P = 2000\ \text{W}\), \(m = 1\ \text{kg}\) water, 20&nbsp;→&nbsp;100&nbsp;°C.
+      Slope \(= 2000/(1 \times 4186) \approx 0.48\ \text{°C/s}\) (about 29&nbsp;°C per
+      minute), so \(t = 80/0.48 \approx 167\ \text{s} \approx 2.8\ \text{min}\). Now a
+      1.5&nbsp;kg copper pan on the same burner: slope
+      \(= 2000/(1.5 \times 385) \approx 3.5\ \text{°C/s}\) — it covers the same 80&nbsp;°C in
+      about 23&nbsp;seconds. That's why an empty pan scorches before you've found the oil.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Under constant power, temperature rises along a straight line with slope
+        \(P/(mc)\).</li>
+        <li>Same power, bigger \(mc\) → shallower slope → longer wait. The kettle-vs-soup-pot
+        difference is pure thermal mass.</li>
+        <li>Low-\(c\) metals respond in seconds — great for pans, dangerous for fingers.</li>
+        <li>Real objects also <em>lose</em> heat while heating, so this no-loss line is an
+        upper bound (Lesson&nbsp;5 fixes it).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load the <b>Kettle</b> scenario. Read the slope (≈ 29&nbsp;°C/min) and the time to
+      100&nbsp;°C (≈ 2.8&nbsp;min) from the stats, and find the dot where the line crosses the
+      boiling mark.</li>
+      <li>Switch to <b>Soup pot</b>: triple the water on a weaker burner. The slope flattens
+      and the wait stretches past 11&nbsp;minutes.</li>
+      <li>Switch to <b>Copper pan</b>: same 2&nbsp;kW as the kettle but \(mc\) is tiny — 80&nbsp;°C
+      in ≈ 23&nbsp;s. Watch the verdict flag it.</li>
+      <li>Build the worst case: <b>Power</b> at 200&nbsp;W and <b>Mass</b> at 5&nbsp;kg of
+      water. Over two hours to boil — in real life the pot would leak heat almost as fast as
+      that little burner supplies it, and you'd wait forever. That leak is Lesson&nbsp;5.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="rate" data-scen="kettle" onclick="setScen('rate','kettle')">Kettle (2 kW, 1 kg water)</button>
+    <button class="scen-btn" data-tab="rate" data-scen="soup" onclick="setScen('rate','soup')">Soup pot (1.5 kW, 3 kg)</button>
+    <button class="scen-btn" data-tab="rate" data-scen="pan" onclick="setScen('rate','pan')">Copper pan (2 kW, 1.5 kg)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Power <span id="v-rate-p">2000 W</span></label>
+        <input type="range" id="s-rate-p" min="200" max="3000" step="50" value="2000">
+      </div>
+      <div class="ctrl-group">
+        <label>Mass <span id="v-rate-m">1.00 kg</span></label>
+        <input type="range" id="s-rate-m" min="0.2" max="5" step="0.1" value="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Specific heat <span id="v-rate-c">4186 J/kg·K</span></label>
+        <input type="range" id="s-rate-c" min="100" max="4200" step="1" value="4186">
+      </div>
+      <div class="stats" id="st-rate"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">T(t): the climb to 100 °C — slope P/(mc) · grey dash = before your change</div>
+        <canvas id="cv-rate" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Time from 20 °C to 100 °C — your settings vs the classics</div>
+        <canvas id="cv-rate2" width="640" height="190"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-rate"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: levelup -->
+<section id="tab-levelup" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: calorimetry, and why (per mole) all metals hold the same</h2>
+    <p>Time for the real machinery. Drop a hot block into a bath of water inside an insulated
+    cup, so no energy escapes. The block cools, the water warms, and they meet at one final
+    temperature \(T_f\). Energy conservation writes itself: whatever the block loses, the
+    water gains. With block mass \(m_1\), specific heat \(c_1\), starting temperature \(T_1\),
+    and water \(m_2\), \(c_2 = 4186\ \text{J/kg·K}\), \(T_2\):</p>
+    <div class="equation-box">
+      $$ m_1 c_1 (T_f - T_1) \;=\; -\,m_2 c_2 (T_f - T_2)
+      \qquad\Rightarrow\qquad
+      T_f \;=\; \frac{m_1 c_1 T_1 + m_2 c_2 T_2}{m_1 c_1 + m_2 c_2} $$
+    </div>
+    <p>\(T_f\) is a <b>weighted average</b> of the two starting temperatures, and the weights
+    are the heat capacities \(m_i c_i\) (units J/K — joules per kelvin for the whole object).
+    Whoever holds more jiggle per degree drags the average toward themselves. This is
+    <b>calorimetry</b>: run it backwards and a measured \(T_f\) hands you an unknown \(c_1\) —
+    which is exactly how the specific heats in the tables were measured.</p>
+    <p>Now the atomic punchline. Lesson&nbsp;1 said each atom in a solid stores an average
+    thermal energy of about \(3k_BT\), where \(k_B = 1.38\times10^{-23}\ \text{J/K}\) is the
+    Boltzmann constant. So each atom contributes about \(3k_B\) of heat capacity — regardless
+    of what atom it is. Count one mole of atoms (\(N_A = 6.022\times10^{23}\), Avogadro's
+    number) and you get the <b>Dulong–Petit law</b>:</p>
+    <div class="equation-box">
+      $$ C_{\text{molar}} \;\approx\; 3 N_A k_B \;=\; 3R \;\approx\; 24.9\ \text{J/mol·K}
+      \qquad\qquad c \;=\; \frac{3R}{M} $$
+    </div>
+    <p>Here \(R = 8.314\ \text{J/mol·K}\) is the gas constant and \(M\) is the molar mass —
+    the mass of one mole of the substance. Per <em>mole</em>, nearly every simple solid stores
+    the same. The wild per-kilogram differences in the tables are mostly just atom-counting:
+    a kilogram of aluminum (light atoms) contains far more atoms than a kilogram of lead
+    (heavy atoms), so it holds far more jiggle. Water breaks the pattern from the other side:
+    its <em>molecules</em> also tumble and flex, storing extra energy — about
+    75&nbsp;J/mol·K, tripling the metal value — which is why it's the champion sponge. (One
+    caveat you'll meet in statistical mechanics: at low temperatures vibrations "freeze out"
+    quantum-mechanically and Dulong–Petit fails — see Kittel, Ch.&nbsp;5.)</p>
+    <div class="worked-example">
+      <p>Drop 100&nbsp;g of copper at 100&nbsp;°C into 200&nbsp;g of water at 20&nbsp;°C.
+      Numerator: \(0.1 \times 385 \times 100 = 3850\) and
+      \(0.2 \times 4186 \times 20 = 16{,}744\), summing to \(20{,}594\). Denominator:
+      \(38.5 + 837.2 = 875.7\ \text{J/K}\). So
+      \(T_f = 20{,}594 / 875.7 \approx 23.5\ \text{°C}\) — the water barely notices a
+      boiling-hot lump of metal, because its heat capacity outweighs the copper's
+      \(837.2/38.5 \approx 22\times\). And the Dulong–Petit check: copper's molar mass is
+      \(M = 63.5\ \text{g/mol}\), so \(c = 24.9/0.0635 \approx 392\ \text{J/kg·K}\) —
+      measured value 385, within 2%, from nothing but \(3k_B\) per atom.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>In an insulated mix, \(T_f\) is the heat-capacity-weighted average of the starting
+        temperatures.</li>
+        <li>The weights \(m_i c_i\) (J/K) decide everything: water baths dominate metal blocks.</li>
+        <li>Dulong–Petit: per mole, simple solids all store \(\approx 3R \approx 24.9\)
+        J/mol·K — each atom carries \(\approx 3k_B\), straight from Lesson&nbsp;1's
+        \(3k_BT\).</li>
+        <li>Per-kilogram \(c = 3R/M\): light atoms → many atoms per kg → big \(c\). Water's
+        extra molecular motions make it the outlier.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load <b>Copper into water</b> and verify the worked example: \(T_f \approx 23.5\)
+      °C in the highlighted stat, and both curves converging to it.</li>
+      <li>Switch to <b>Aluminum into water</b> — same 100&nbsp;g, same 100&nbsp;°C, but
+      \(T_f\) jumps to ≈ 27.7&nbsp;°C. Why? Lighter atoms: a kilogram of aluminum simply
+      contains more atoms, so it brought more jiggle (\(c = 897\) vs 385).</li>
+      <li>Try the <b>Big hot splash</b>: 1&nbsp;kg of copper at 300&nbsp;°C into 200&nbsp;g of
+      water. \(T_f\) computes above 100&nbsp;°C — and the verdict flags that our equation
+      quietly broke, because real water would boil away first (phase changes are extra
+      energy bookkeeping we haven't done).</li>
+      <li>Read the bar chart: five metals cluster at \(3R\) while water towers at ≈ 75
+      J/mol·K. Predict gold's specific heat from \(3R/M\) with \(M = 197\) g/mol
+      (\(\approx 126\) J/kg·K), then compare with the measured 129.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="levelup" data-scen="copper" onclick="setScen('levelup','copper')">Copper into water (the classic)</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="aluminum" onclick="setScen('levelup','aluminum')">Aluminum into water</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="splash" onclick="setScen('levelup','splash')">Big hot splash (1 kg, 300 °C)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Block mass m₁ <span id="v-levelup-m1">0.10 kg</span></label>
+        <input type="range" id="s-levelup-m1" min="0.05" max="1" step="0.01" value="0.1">
+      </div>
+      <div class="ctrl-group">
+        <label>Block start T₁ <span id="v-levelup-t1">100 °C</span></label>
+        <input type="range" id="s-levelup-t1" min="40" max="300" step="1" value="100">
+      </div>
+      <div class="ctrl-group">
+        <label>Block specific heat c₁ <span id="v-levelup-c1">385 J/kg·K</span></label>
+        <input type="range" id="s-levelup-c1" min="100" max="1000" step="1" value="385">
+      </div>
+      <div class="ctrl-group">
+        <label>Water mass m₂ <span id="v-levelup-m2">0.20 kg</span></label>
+        <input type="range" id="s-levelup-m2" min="0.05" max="2" step="0.01" value="0.2">
+      </div>
+      <div class="ctrl-group">
+        <label>Water start T₂ <span id="v-levelup-t2">20 °C</span></label>
+        <input type="range" id="s-levelup-t2" min="5" max="40" step="1" value="20">
+      </div>
+      <div class="stats" id="st-levelup"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Drop it in: the hot block enters the bath — colours equalize at T_f</div>
+        <canvas id="cv-levelup" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Both temperatures converge to T_f (time constant illustrative · grey dash = before)</div>
+        <canvas id="cv-levelup2" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Per mole, metals all store alike: C ≈ 3R (Dulong–Petit)</div>
+        <canvas id="cv-levelup3" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-levelup"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>Y. A. Çengel &amp; A. J. Ghajar, <i>Heat and Mass Transfer: Fundamentals and
+    Applications</i>, 5th ed., McGraw-Hill (2015) — Ch. 1 (specific heats, energy balance
+    on heated systems).</li>
+    <li>D. Halliday, R. Resnick &amp; J. Walker, <i>Fundamentals of Physics</i>, 10th ed.,
+    Wiley (2013) — Ch. 18 (heat capacity, calorimetry and mixing problems).</li>
+    <li>C. Kittel, <i>Introduction to Solid State Physics</i>, 8th ed., Wiley (2005) — Ch. 5
+    (lattice heat capacity; Dulong–Petit law and its low-temperature breakdown).</li>
+    <li><i>CRC Handbook of Chemistry and Physics</i>, CRC Press — specific-heat data
+    (water 4186, aluminum 897, dry sand ≈ 830, copper 385, air c<sub>p</sub> ≈ 1005 J/kg·K;
+    molar masses).</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Lesson 2 of 6 — Next: walls between hot and
+cold — how fast does heat cross a boundary?</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 2: Specific Heat — Holding the Jiggle
+   ================================================================ */
+
+/* --- material data (CRC Handbook values, J/kg·K) --- */
+const MAT = {
+  water:    { c: 4186, label: 'Water',    col: COL.accent, fill: '#dbeafe' },
+  copper:   { c: 385,  label: 'Copper',   col: COL.orange, fill: '#ffedd5' },
+  aluminum: { c: 897,  label: 'Aluminum', col: COL.teal,   fill: '#ccfbf1' },
+  sand:     { c: 830,  label: 'Dry sand', col: '#b45309',  fill: '#fef3c7' }
+};
+const HOLD_PAIRS = {
+  watercu:   ['water', 'copper'],
+  watersand: ['water', 'sand'],
+  cual:      ['copper', 'aluminum']
+};
+
+/* --- control state --- */
+let activeTab = 'hold';
+const scen = { hold: 'watercu', qmcdt: 'water', rate: 'kettle', levelup: 'copper' };
+
+const FMT = {
+  'hold-p':      v => fmt(v, 0) + ' W',
+  'hold-m':      v => fmt(v, 2) + ' kg',
+  'qmcdt-m':     v => fmt(v, 2) + ' kg',
+  'qmcdt-c':     v => fmt(v, 0) + ' J/kg·K',
+  'qmcdt-dt':    v => fmt(v, 0) + ' K',
+  'rate-p':      v => fmt(v, 0) + ' W',
+  'rate-m':      v => fmt(v, 2) + ' kg',
+  'rate-c':      v => fmt(v, 0) + ' J/kg·K',
+  'levelup-m1':  v => fmt(v, 2) + ' kg',
+  'levelup-t1':  v => fmt(v, 0) + ' °C',
+  'levelup-c1':  v => fmt(v, 0) + ' J/kg·K',
+  'levelup-m2':  v => fmt(v, 2) + ' kg',
+  'levelup-t2':  v => fmt(v, 0) + ' °C'
+};
+
+const SCEN = {
+  hold: {
+    watercu:   {},
+    watersand: {},
+    cual:      {}
+  },
+  qmcdt: {
+    water:    { 's-qmcdt-c': 4186 },
+    aluminum: { 's-qmcdt-c': 897 },
+    sand:     { 's-qmcdt-c': 830 },
+    copper:   { 's-qmcdt-c': 385 }
+  },
+  rate: {
+    kettle: { 's-rate-p': 2000, 's-rate-m': 1,   's-rate-c': 4186 },
+    soup:   { 's-rate-p': 1500, 's-rate-m': 3,   's-rate-c': 4186 },
+    pan:    { 's-rate-p': 2000, 's-rate-m': 1.5, 's-rate-c': 385 }
+  },
+  levelup: {
+    copper:   { 's-levelup-m1': 0.1, 's-levelup-t1': 100, 's-levelup-c1': 385, 's-levelup-m2': 0.2, 's-levelup-t2': 20 },
+    aluminum: { 's-levelup-m1': 0.1, 's-levelup-t1': 100, 's-levelup-c1': 897, 's-levelup-m2': 0.2, 's-levelup-t2': 20 },
+    splash:   { 's-levelup-m1': 1,   's-levelup-t1': 300, 's-levelup-c1': 385, 's-levelup-m2': 0.2, 's-levelup-t2': 20 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => {
+      const tab = tabOfSlider(sl.id);
+      if (BASE[tab]) GHOST[tab] = BASE[tab];   // remember "before" for comparison
+      updateReadout(sl); refreshActiveTab();
+    });
+    sl.addEventListener('change', () => { commitBase(tabOfSlider(sl.id)); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  GHOST[tab] = null;                           // scenario press resets the ghost
+  commitBase(tab);
+  if (tab === 'hold') HD.key = null;           // restart the race from t = 0
+  if (tab === 'levelup') LV.key = null;        // re-drop the block
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation pattern (house-standard for this course) --- */
+let animId = null, animT = 0;
+const ANIMATED = { hold: true, levelup: true };
+function tick(){ animT += 1 / 60; refreshActiveTab(); animId = requestAnimationFrame(tick); }
+function startAnim(){ if (!animId && ANIMATED[activeTab]) animId = requestAnimationFrame(tick); }
+function stopAnim(){ if (animId){ cancelAnimationFrame(animId); animId = null; } }
+
+/* --- small shared drawing bits --- */
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+function fmtTime(s){
+  if (!isFinite(s)) return '—';
+  if (s < 90) return fmt(s, 0) + ' s';
+  if (s < 5400) return fmt(s / 60, 1) + ' min';
+  return fmt(s / 3600, 1) + ' h';
+}
+/* stable jitter phases (seeded, per plan: no Math.random() per frame) */
+const HOLD_PH = (() => {
+  const r = mulberry32(7), a = [];
+  for (let i = 0; i < 64; i++) a.push(r() * Math.PI * 2);
+  return a;
+})();
+
+/* --- course-standard energy colour ramp: t in [0,1], cold → hot --- */
+function energyColor(t){ // t in [0,1], cold -> hot
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[37,99,235],[147,197,253],[248,250,252],[251,146,60],[220,38,38]];
+  const x = t*(stops.length-1), i = Math.min(stops.length-2, Math.floor(x)), f = x-i;
+  const c = stops[i].map((v,j)=>Math.round(v+(stops[i+1][j]-v)*f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+/* --- "before" ghost snapshots: any slider move keeps the previous state
+       as a dashed grey ghost; scenario buttons reset it --- */
+const PARAMS = {
+  hold:    () => ({ P: num('s-hold-p'), m: num('s-hold-m'), pair: scen.hold }),
+  qmcdt:   () => ({ m: num('s-qmcdt-m'), c: num('s-qmcdt-c'), dT: num('s-qmcdt-dt') }),
+  rate:    () => ({ P: num('s-rate-p'), m: num('s-rate-m'), c: num('s-rate-c') }),
+  levelup: () => ({ m1: num('s-levelup-m1'), T1: num('s-levelup-t1'), c1: num('s-levelup-c1'),
+                    m2: num('s-levelup-m2'), T2: num('s-levelup-t2') })
+};
+const GHOST = { hold: null, qmcdt: null, rate: null, levelup: null };
+const BASE = {};
+function tabOfSlider(id){ return id.slice(2).split('-')[0]; }   // 's-hold-p' → 'hold'
+function commitBase(tab){ if (PARAMS[tab]) BASE[tab] = PARAMS[tab](); }
+function ghostFor(tab){
+  const g = GHOST[tab]; if (!g) return null;
+  return JSON.stringify(g) === JSON.stringify(PARAMS[tab]()) ? null : g;
+}
+
+/* --- restartable animation state (re-keyed on any slider/scenario change) --- */
+const HD = { key: null, start: 0 };    // hold: race clock
+const LV = { key: null, start: 0 };    // levelup: drop-in + convergence clock
+
+/* --- shared physical-picture primitives --- */
+function bigText(ctx, x, y, text, color, px, align){
+  ctx.save(); ctx.fillStyle = color; ctx.font = 'bold ' + px + 'px sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+function callout(ctx, x, y, text, color, px){
+  ctx.save(); ctx.font = 'bold ' + px + 'px sans-serif';
+  const tw = ctx.measureText(text).width;
+  ctx.fillStyle = 'rgba(255,255,255,.88)';
+  ctx.fillRect(x - tw / 2 - 5, y - px - 3, tw + 10, px + 8);
+  ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+function flame(ctx, x, baseY, h, ph){
+  const fh = Math.max(4, h + 0.16 * h * Math.sin(animT * 9 + ph));
+  const fw = Math.max(5, fh * 0.42);
+  ctx.fillStyle = 'rgba(249,115,22,.85)';
+  ctx.beginPath(); ctx.moveTo(x - fw, baseY); ctx.lineTo(x + fw, baseY);
+  ctx.lineTo(x, baseY - fh); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(250,204,21,.9)';
+  ctx.beginPath(); ctx.moveTo(x - fw * 0.45, baseY); ctx.lineTo(x + fw * 0.45, baseY);
+  ctx.lineTo(x, baseY - fh * 0.55); ctx.closePath(); ctx.fill();
+}
+/* atom grid inside a square block: per-atom fill = energyColor(t01),
+   jiggle amplitude ∝ amp (deterministic: animT + mulberry32 phases) */
+function atomGrid(ctx, x0, top, side, t01, amp, phOff){
+  const n = Math.max(3, Math.round(side / 20));
+  const rad = Math.max(2.6, Math.min(5, side / n * 0.28));
+  for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) {
+    const k = r * n + q;
+    const px = x0 + side * (q + 0.5) / n + amp * Math.sin(animT * 6.3 + HOLD_PH[(phOff + k) % 64]);
+    const py = top + side * (r + 0.5) / n + amp * Math.cos(animT * 7.1 + HOLD_PH[(phOff + k + 32) % 64]);
+    ctx.fillStyle = energyColor(t01);
+    ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(71,85,105,.45)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+}
+
+/* ---------------- TAB 1: hold (ANIMATED) ---------------- */
+function drawHoldBlock(ctx, cx, mat, T, phOff){
+  const bw = 130, bh = 95, top = 105, x0 = cx - bw / 2;
+  // hotplate + flames
+  ctx.fillStyle = '#94a3b8'; ctx.fillRect(cx - 60, 228, 120, 8);
+  ctx.fillStyle = '#475569'; ctx.fillRect(cx - 8, 236, 16, 10);
+  for (let i = -1; i <= 1; i++) {
+    const fx = cx + i * 32;
+    const fh = 16 + 5 * Math.sin(animT * 9 + i * 2.1 + phOff);
+    ctx.fillStyle = 'rgba(249,115,22,.85)';
+    ctx.beginPath(); ctx.moveTo(fx - 7, 226); ctx.lineTo(fx + 7, 226);
+    ctx.lineTo(fx, 226 - fh); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(250,204,21,.9)';
+    ctx.beginPath(); ctx.moveTo(fx - 3, 226); ctx.lineTo(fx + 3, 226);
+    ctx.lineTo(fx, 226 - fh * 0.55); ctx.closePath(); ctx.fill();
+  }
+  // block
+  ctx.fillStyle = mat.fill; ctx.fillRect(x0, top, bw, bh);
+  ctx.strokeStyle = mat.col; ctx.lineWidth = 2; ctx.strokeRect(x0, top, bw, bh);
+  // jiggling atoms — amplitude grows with temperature (Lesson 1 tie-in)
+  const amp = 1.2 + 3.4 * (T - 20) / 40;
+  let k = 0;
+  for (let r = 0; r < 3; r++) for (let q = 0; q < 4; q++) {
+    const px = x0 + 25 + q * 27 + amp * Math.sin(animT * 6.3 + HOLD_PH[phOff + k]);
+    const py = top + 22 + r * 26 + amp * Math.cos(animT * 7.1 + HOLD_PH[phOff + k + 32]);
+    ctx.fillStyle = mat.col;
+    ctx.beginPath(); ctx.arc(px, py, 4.5, 0, 7); ctx.fill();
+    k++;
+  }
+  caption(ctx, cx, 96, mat.label + ' · c = ' + mat.c, COL.ink, true);
+  // thermometer (scale 20–65 °C, finish line at 60)
+  const tx = cx + 92, tTop = 100, tBot = 205;
+  const yOf = tv => tBot - (tv - 20) / 45 * (tBot - tTop);
+  ctx.fillStyle = '#f1f5f9'; ctx.fillRect(tx - 6, tTop, 12, tBot - tTop);
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(tx - 6, yOf(T), 12, tBot - yOf(T));
+  ctx.beginPath(); ctx.arc(tx, tBot + 9, 10, 0, 7); ctx.fill();
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1; ctx.strokeRect(tx - 6, tTop, 12, tBot - tTop);
+  drawLine(ctx, tx - 11, yOf(60), tx + 11, yOf(60), COL.ink, 1.5);
+  caption(ctx, tx, yOf(60) - 6, '60', COL.axis);
+  caption(ctx, tx, tBot + 34, fmt(T, 0) + ' °C', '#ef4444', true);
+}
+
+function drawHold(){
+  const P = num('s-hold-p'), m = num('s-hold-m');
+  const pair = HOLD_PAIRS[scen.hold] || HOLD_PAIRS.watercu;
+  const A = MAT[pair[0]], B = MAT[pair[1]];
+  const T0 = 20, RISE = 40, TCAP = T0 + RISE;
+  const rateA = P / (m * A.c), rateB = P / (m * B.c);  // K/s — dT/dt = P/(mc)
+  const tA = RISE / rateA, tB = RISE / rateB;
+  const tSlow = Math.max(tA, tB);
+  const RACE = 12, HOLD = 2.5;                          // wall-clock seconds per loop
+  const wall = animT % (RACE + HOLD);
+  const simT = Math.min(wall, RACE) / RACE * tSlow;     // deterministic from animT
+  const TA = Math.min(TCAP, T0 + rateA * simT);
+  const TB = Math.min(TCAP, T0 + rateB * simT);
+
+  // physical picture
+  const { ctx, w } = setupCanvas(document.getElementById('cv-hold'));
+  caption(ctx, w / 2, 20,
+    'identical burners: ' + fmt(P, 0) + ' W into each ' + fmt(m, 2) + ' kg block',
+    COL.ink, true);
+  drawHoldBlock(ctx, 170, A, TA, 0);
+  drawHoldBlock(ctx, 450, B, TB, 12);
+
+  // temperature-vs-time chart with live dots
+  const c2 = setupCanvas(document.getElementById('cv-hold2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const mins = tSlow > 240, u = mins ? 60 : 1;
+  const xMax = tSlow * 1.06 / u;
+  ch.setRange(0, xMax, 18, 66);
+  ch.grid(); ch.axes('time (' + (mins ? 'min' : 's') + ')', 'temperature (°C)');
+  ch.hLine(TCAP, COL.muted, [4, 4]);
+  const pA = [], pB = [];
+  for (let i = 0; i <= 200; i++) {
+    const t = tSlow * 1.06 * i / 200;
+    pA.push([t / u, Math.min(TCAP, T0 + rateA * t)]);
+    pB.push([t / u, Math.min(TCAP, T0 + rateB * t)]);
+  }
+  ch.plot(pA, A.col, 2.5); ch.plot(pB, B.col, 2.5);
+  ch.dot(simT / u, TA, A.col, 5); ch.dot(simT / u, TB, B.col, 5);
+  ch.legend([{ label: A.label, color: A.col }, { label: B.label, color: B.col },
+             { label: 'finish 60 °C', color: COL.muted, dash: [4, 4] }]);
+
+  const fast = tA < tB ? A : B, slow = tA < tB ? B : A;
+  const fastT = tA < tB ? TA : TB, slowT = tA < tB ? TB : TA;
+  const ratio = slow.c / fast.c;
+  setStat('st-hold', [
+    { label: A.label + ' (c = ' + A.c + ')', value: fmt(rateA * 60, 1) + ' K/min' },
+    { label: B.label + ' (c = ' + B.c + ')', value: fmt(rateB * 60, 1) + ' K/min' },
+    { label: fast.label + ' finishes in', value: fmtTime(Math.min(tA, tB)) },
+    { label: slow.label + ' finishes in', value: fmtTime(tSlow) },
+    { label: 'Speed ratio', value: fmt(ratio, 1) + '×', highlight: true }
+  ]);
+
+  if (wall >= RACE)
+    setVerdict('vd-hold', 'good',
+      'Race over: ' + fast.label.toLowerCase() + ' finished ' + fmt(ratio, 1) + '× sooner.',
+      'Both blocks swallowed exactly the same joules every second. ' + slow.label +
+      ' just needs ' + fmt(ratio, 1) + '× more energy per degree (c = ' + slow.c + ' vs ' +
+      fast.c + ' J/kg·K), so the same power lifts its temperature ' + fmt(ratio, 1) +
+      '× slower. That is all specific heat is: how much jiggle a kilogram holds per degree.');
+  else
+    setVerdict('vd-hold', '',
+      'Racing… ' + fast.label + ': ' + fmt(fastT, 1) + ' °C · ' + slow.label + ': ' +
+      fmt(slowT, 1) + ' °C at t = ' + fmtTime(simT) + '.',
+      'Same burner, same mass, same clock — but the block with the smaller c climbs faster, ' +
+      'and its atoms jiggle visibly harder. Power changes how fast BOTH climb; only c (and m) ' +
+      'decides who wins.');
+}
+
+/* ---------------- TAB 2: qmcdt ---------------- */
+function drawQmcdt(){
+  const m = num('s-qmcdt-m'), c = num('s-qmcdt-c'), dT = num('s-qmcdt-dt');
+  const Q = m * c * dT;                 // J
+  const t2kW = Q / 2000;                // s at a 2 kW burner
+  const NEAR = [['water', 4186], ['air (a whole kg of it)', 1005],
+                ['aluminum', 897], ['dry sand', 830], ['copper', 385]];
+  let near = NEAR[0], nd = Infinity;
+  for (const nm of NEAR) { const d = Math.abs(c - nm[1]) / nm[1]; if (d < nd) { nd = d; near = nm; } }
+
+  // block + thermometer picture
+  const { ctx, h } = setupCanvas(document.getElementById('cv-qmcdt'));
+  drawLine(ctx, 40, 205, 300, 205, COL.axis, 1.5);
+  const side = Math.min(150, Math.max(24, 62 * Math.sqrt(m)));
+  const hue = 220 - 200 * dT / 80;      // blue (cool) → red (hot)
+  ctx.fillStyle = 'hsl(' + fmt(hue, 0) + ',70%,80%)';
+  ctx.fillRect(170 - side / 2, 205 - side, side, side);
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 2;
+  ctx.strokeRect(170 - side / 2, 205 - side, side, side);
+  caption(ctx, 170, 40, 'block size ∝ mass · colour ∝ ΔT', COL.muted);
+  caption(ctx, 170, 226, fmt(m, 2) + ' kg · c = ' + fmt(c, 0) + ' J/kg·K', COL.ink, true);
+
+  const tx = 470, tTop = 30, tBot = 190;
+  const yOf = tv => tBot - tv / 110 * (tBot - tTop);
+  ctx.font = '10px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = COL.axis;
+  for (let tv = 0; tv <= 100; tv += 20) {
+    drawLine(ctx, tx - 12, yOf(tv), tx - 6, yOf(tv), COL.axis, 1);
+    ctx.fillText(fmt(tv, 0), tx - 15, yOf(tv));
+  }
+  ctx.fillStyle = '#f1f5f9'; ctx.fillRect(tx - 6, tTop, 12, tBot - tTop);
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(tx - 6, yOf(20 + dT), 12, tBot - yOf(20 + dT));
+  ctx.beginPath(); ctx.arc(tx, tBot + 9, 10, 0, 7); ctx.fill();
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1; ctx.strokeRect(tx - 6, tTop, 12, tBot - tTop);
+  drawLine(ctx, tx - 14, yOf(20), tx + 14, yOf(20), COL.ink, 1.5, [3, 3]);
+  caption(ctx, tx + 52, yOf(20) + 4, 'start 20 °C', COL.axis);
+  arrow(ctx, tx + 28, yOf(20), tx + 28, yOf(20 + dT), '#ef4444', 2);
+  caption(ctx, tx + 74, (yOf(20) + yOf(20 + dT)) / 2 + 4, 'ΔT = ' + fmt(dT, 0) + ' K', '#ef4444', true);
+  caption(ctx, tx, h - 8, 'final ' + fmt(20 + dT, 0) + ' °C', COL.ink, true);
+
+  // Q vs ΔT chart
+  const c2 = setupCanvas(document.getElementById('cv-qmcdt2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const qMax = m * Math.max(4186, c) * 80 / 1000;
+  ch.setRange(0, 80, 0, qMax * 1.05);
+  ch.grid(); ch.axes('temperature change ΔT (K)', 'energy Q (kJ)');
+  for (const key of ['water', 'aluminum', 'copper']) {
+    const rm = MAT[key];
+    ch.plot([[0, 0], [80, m * rm.c * 80 / 1000]], rm.col, 2, [6, 4]);
+  }
+  ch.plot([[0, 0], [80, m * c * 80 / 1000]], COL.purple, 2.5);
+  ch.dot(dT, Q / 1000, COL.purple, 6);
+  ch.legend([{ label: 'water', color: MAT.water.col, dash: [6, 4] },
+             { label: 'aluminum', color: MAT.aluminum.col, dash: [6, 4] },
+             { label: 'copper', color: MAT.copper.col, dash: [6, 4] },
+             { label: 'your block', color: COL.purple }]);
+
+  setStat('st-qmcdt', [
+    { label: 'Energy Q = mcΔT', value: fmt(Q / 1000, 1) + ' kJ', highlight: true },
+    { label: 'Time at 2 kW', value: fmtTime(t2kW) },
+    { label: 'Slope mc', value: fmt(m * c, 0) + ' J/K' },
+    { label: 'Nearest material', value: near[0] }
+  ]);
+
+  if (nd < 0.08)
+    setVerdict('vd-qmcdt', 'good', 'That block is basically ' + near[0] + '.',
+      'Q = ' + fmt(m, 2) + ' × ' + fmt(c, 0) + ' × ' + fmt(dT, 0) + ' = ' + fmt(Q / 1000, 1) +
+      ' kJ. A 2 kW burner running flat out would take ' + fmtTime(t2kW) + ' to deliver that. ' +
+      'On the chart, a steeper line means a bigger mc — more of a heat sponge.');
+  else
+    setVerdict('vd-qmcdt', '', 'c = ' + fmt(c, 0) + ' J/kg·K — between everyday materials.',
+      'No common substance sits exactly here (closest: ' + near[0] + ' at ' + near[1] +
+      ' J/kg·K). The physics doesn\'t care: Q = mcΔT = ' + fmt(Q / 1000, 1) +
+      ' kJ either way — ' + fmtTime(t2kW) + ' of a 2 kW burner.');
+}
+
+/* ---------------- TAB 3: rate ---------------- */
+function drawRate(){
+  const P = num('s-rate-p'), m = num('s-rate-m'), c = num('s-rate-c');
+  const T0 = 20, TT = 100;
+  const slope = P / (m * c);            // K/s
+  const t100 = (TT - T0) / slope;       // s
+  const mc = m * c;                     // J/K
+
+  // T(t) line
+  const c1 = setupCanvas(document.getElementById('cv-rate'));
+  const ch = new Chart(c1.ctx, c1.w, c1.h);
+  const mins = t100 > 240, u = mins ? 60 : 1;
+  const xMax = t100 * 1.3 / u;
+  ch.setRange(0, xMax, 15, 118);
+  ch.grid(); ch.axes('time (' + (mins ? 'min' : 's') + ')', 'temperature (°C)');
+  ch.hLine(100, COL.bad, [5, 4]);
+  ch.plot([[0, T0], [xMax, T0 + slope * xMax * u]], COL.accent, 2.5);
+  ch.vLine(t100 / u, COL.muted, [3, 3]);
+  ch.dot(t100 / u, 100, COL.accent, 6);
+  ch.legend([{ label: 'T(t) — slope P/(mc)', color: COL.accent },
+             { label: 'boiling 100 °C', color: COL.bad, dash: [5, 4] }]);
+
+  // time-to-target bars
+  const c2 = setupCanvas(document.getElementById('cv-rate2'));
+  const rows = [
+    ['Your settings', t100, COL.accent],
+    ['Kettle · 2 kW · 1 kg water', 80 / (2000 / (1 * 4186)), COL.teal],
+    ['Soup pot · 1.5 kW · 3 kg water', 80 / (1500 / (3 * 4186)), COL.orange],
+    ['Copper pan · 2 kW · 1.5 kg', 80 / (2000 / (1.5 * 385)), COL.purple]
+  ];
+  const maxV = Math.max(...rows.map(r => r[1]));
+  c2.ctx.font = '11px sans-serif'; c2.ctx.textBaseline = 'alphabetic';
+  rows.forEach((r, i) => {
+    const y = 20 + i * 42, bw = (c2.w - 130) * r[1] / maxV;
+    c2.ctx.textAlign = 'left';
+    c2.ctx.fillStyle = '#334155'; c2.ctx.fillText(r[0], 12, y);
+    c2.ctx.fillStyle = r[2]; c2.ctx.fillRect(12, y + 5, Math.max(3, bw), 14);
+    c2.ctx.fillStyle = COL.ink; c2.ctx.fillText(fmtTime(r[1]), 12 + Math.max(3, bw) + 8, y + 16);
+  });
+
+  setStat('st-rate', [
+    { label: 'Slope P/(mc)', value: fmt(slope * 60, 1) + ' K/min', highlight: true },
+    { label: 'Thermal mass mc', value: fmt(mc, 0) + ' J/K' },
+    { label: 'Time 20 → 100 °C', value: fmtTime(t100) },
+    { label: 'Energy 20 → 100 °C', value: fmt(mc * 80 / 1000, 0) + ' kJ' }
+  ]);
+
+  if (t100 < 60)
+    setVerdict('vd-rate', 'warn', 'Scorching fast: 100 °C in ' + fmtTime(t100) + '.',
+      'With mc = ' + fmt(mc, 0) + ' J/K, the slope is ' + fmt(slope, 2) +
+      ' °C every second. Low-c metal pans cross the whole cooking range in seconds — ' +
+      'this is why an empty pan scorches before you\'ve found the oil.');
+  else if (t100 <= 900)
+    setVerdict('vd-rate', 'good', 'Kettle territory: 100 °C in ' + fmtTime(t100) + '.',
+      'Slope = P/(mc) = ' + fmt(slope * 60, 1) + ' K/min. Same power with a bigger mc would ' +
+      'tilt the line shallower; a smaller mc would tip it steeper. The burner sets the joules ' +
+      'per second — the thermal mass decides what those joules are worth in degrees.');
+  else
+    setVerdict('vd-rate', 'warn', 'A long wait: ' + fmtTime(t100) + ' to reach 100 °C.',
+      'At this shallow slope the no-loss straight line is now a lie: a real pot leaks heat to ' +
+      'the room faster and faster as it warms, so it would sag below this line and might never ' +
+      'boil at all. Heat loss gets its own machinery in Lesson 5.');
+}
+
+/* ---------------- TAB 4: levelup ---------------- */
+function drawLevelup(){
+  const m1 = num('s-levelup-m1'), T1 = num('s-levelup-t1'), c1v = num('s-levelup-c1');
+  const m2 = num('s-levelup-m2'), T2 = num('s-levelup-t2');
+  const C1 = m1 * c1v, C2 = m2 * 4186;               // heat capacities, J/K
+  const Tf = (C1 * T1 + C2 * T2) / (C1 + C2);
+  const Qx = C1 * (T1 - Tf);                          // J handed from block to water
+
+  // converging temperatures (exponential approach; same τ for both keeps
+  // the energy balance exact at every instant — τ itself is illustrative)
+  const cc = setupCanvas(document.getElementById('cv-levelup'));
+  const ch = new Chart(cc.ctx, cc.w, cc.h);
+  const tau = 30, tEnd = 150;
+  let yLo = Math.min(T1, T2) - 5, yHi = Math.max(T1, T2) + 5;
+  if (yHi - yLo < 10) { yLo -= 5; yHi += 5; }
+  ch.setRange(0, tEnd, yLo, yHi);
+  ch.grid(); ch.axes('time (s)', 'temperature (°C)');
+  ch.hLine(Tf, COL.warn, [5, 4]);
+  const pH = [], pW = [];
+  for (let i = 0; i <= 200; i++) {
+    const t = tEnd * i / 200, e = Math.exp(-t / tau);
+    pH.push([t, Tf + (T1 - Tf) * e]);
+    pW.push([t, Tf + (T2 - Tf) * e]);
+  }
+  ch.plot(pH, COL.orange, 2.5);
+  ch.plot(pW, COL.accent, 2.5);
+  ch.dot(0, T1, COL.orange, 5); ch.dot(0, T2, COL.accent, 5);
+  ch.legend([{ label: 'hot block', color: COL.orange },
+             { label: 'water bath', color: COL.accent },
+             { label: 'T_f = ' + fmt(Tf, 1) + ' °C', color: COL.warn, dash: [5, 4] }]);
+
+  // Dulong–Petit bar chart: measured c × molar mass M (CRC values)
+  const c2 = setupCanvas(document.getElementById('cv-levelup2'));
+  const DP = [['Al', 24.2], ['Fe', 25.1], ['Cu', 24.5], ['Au', 25.4], ['Pb', 26.5], ['Water', 75.4]];
+  const L = 54, R = 14, top = 16, base = c2.h - 34, ymax = 85;
+  const yOf = v => base - v / ymax * (base - top);
+  c2.ctx.font = '10px sans-serif'; c2.ctx.textAlign = 'right'; c2.ctx.textBaseline = 'middle';
+  for (let v = 0; v <= 80; v += 20) {
+    drawLine(c2.ctx, L, yOf(v), c2.w - R, yOf(v), COL.grid, 1);
+    c2.ctx.fillStyle = COL.axis; c2.ctx.fillText(fmt(v, 0), L - 6, yOf(v));
+  }
+  drawLine(c2.ctx, L, base, c2.w - R, base, COL.axis, 1.5);
+  const n = DP.length, bw = (c2.w - L - R) / n;
+  DP.forEach((d, i) => {
+    const x = L + i * bw + bw * 0.18, wid = bw * 0.64;
+    c2.ctx.fillStyle = d[0] === 'Water' ? COL.accent : COL.teal;
+    c2.ctx.fillRect(x, yOf(d[1]), wid, base - yOf(d[1]));
+    caption(c2.ctx, x + wid / 2, yOf(d[1]) - 5, fmt(d[1], 1), COL.ink);
+    caption(c2.ctx, x + wid / 2, base + 16, d[0], COL.axis, true);
+  });
+  drawLine(c2.ctx, L, yOf(24.94), c2.w - R, yOf(24.94), COL.warn, 1.5, [5, 4]);
+  caption(c2.ctx, c2.w - R - 78, yOf(24.94) - 7, '3R ≈ 24.9 J/mol·K', COL.warn, true);
+  caption(c2.ctx, c2.w / 2, c2.h - 4, 'molar heat capacity = measured c × molar mass M', COL.muted);
+
+  setStat('st-levelup', [
+    { label: 'Final temperature T_f', value: fmt(Tf, 1) + ' °C', highlight: true },
+    { label: 'Block m₁c₁', value: fmt(C1, 1) + ' J/K' },
+    { label: 'Water m₂c₂', value: fmt(C2, 1) + ' J/K' },
+    { label: 'Energy handed over', value: fmt(Qx / 1000, 2) + ' kJ' },
+    { label: 'Water warms by', value: fmt(Tf - T2, 1) + ' K' }
+  ]);
+
+  const ratio = C2 / C1;
+  if (T1 <= T2)
+    setVerdict('vd-levelup', 'warn', 'Your "hot" block is not hotter than the bath.',
+      'With T₁ = ' + fmt(T1, 0) + ' °C at or below T₂ = ' + fmt(T2, 0) +
+      ' °C, heat flows the other way: the water warms the block and T_f = ' + fmt(Tf, 1) +
+      ' °C sits at or below the water\'s start. The weighted-average formula handles it without ' +
+      'blinking — conservation of energy doesn\'t care which way the jiggle moves.');
+  else if (Tf >= 100)
+    setVerdict('vd-levelup', 'bad', 'T_f = ' + fmt(Tf, 1) + ' °C — the model just broke.',
+      'The formula says the mix settles above water\'s boiling point, but real water would boil ' +
+      'first, and turning liquid into steam swallows energy our equation never budgeted for ' +
+      '(latent heat — a different bookkeeping). Trust the algebra only below 100 °C.');
+  else if (ratio >= 5)
+    setVerdict('vd-levelup', 'good', 'Textbook calorimetry: the water barely notices.',
+      'The bath\'s heat capacity (' + fmt(C2, 0) + ' J/K) outweighs the block\'s (' + fmt(C1, 0) +
+      ' J/K) by ' + fmt(ratio, 1) + '×, so T_f = ' + fmt(Tf, 1) +
+      ' °C lands close to the water\'s start — it warmed only ' + fmt(Tf - T2, 1) +
+      ' K while the block plunged ' + fmt(T1 - Tf, 1) + ' K. Water\'s huge c makes it the ideal ' +
+      'reference fluid for measuring everyone else\'s.');
+  else
+    setVerdict('vd-levelup', 'warn', 'The block is thermally heavyweight here.',
+      'Block and bath heat capacities are comparable (m₂c₂/m₁c₁ = ' + fmt(ratio, 1) +
+      '), so T_f = ' + fmt(Tf, 1) + ' °C lands well between the two starts and the water jumps ' +
+      fmt(Tf - T2, 1) + ' K. Real calorimeters keep the bath dominant so the unknown sample ' +
+      'perturbs it only gently.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { hold: drawHold, qmcdt: drawQmcdt, rate: drawRate, levelup: drawLevelup };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopAnim(); else startAnim();
+});
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

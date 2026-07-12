@@ -4,6 +4,5323 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.325] - 2026-07-11
+
+**Protocol importer + `/protocol-import` skill catch-up — both now
+understand every block kind added in Releases 1–4. Closes FuturePlan
+03.**
+
+### Added
+- **Importer validation for the new kinds**
+  ([`rm/js/protocol-import.js`](../../rm/js/protocol-import.js)
+  `validate`): `callout` type check (warn + default note), `calculator`
+  outputs need `name`+`expr` (error) / warn on no inputs+outputs,
+  `builder` warns on missing dataset or dims, `layoutMap` warns on
+  missing dataset, and any kind outside the known set warns (it coerces
+  to `step` on import). New `KNOWN_KINDS` + `CALLOUT_TYPES` constants
+  kept in sync with `ProtocolSchemas`.
+- **Importer summary counts**
+  ([`rm/js/protocol-import.js`](../../rm/js/protocol-import.js)
+  `summarize`): counts heading/callout/docHeader/table/kv/timeline/
+  calculator/builder/layoutMap; the import preview
+  ([`rm/js/protocols.js`](../../rm/js/protocols.js)) surfaces the
+  widget counts (only when present, to stay compact).
+- **Skill documentation**
+  ([`.claude/skills/protocol-import/SKILL.md`](../../.claude/skills/protocol-import/SKILL.md)):
+  updated closed kind list, a new "Document-chrome & widget kinds"
+  section with a compact JSON example + attrs reference per kind, the
+  inline vocabulary grammar (`[!pill:]` / `` `code` `` / `~sub~` /
+  `^sup^`), formula-vs-calculator-vs-builder selection guidance, and an
+  expanded validation checklist. Claude can now generate importable
+  protocols using the full widget set.
+
+### Changed
+- Skill guidance: emit `callout` (not legacy `note`/`safety`) for new
+  protocols.
+- `sw.js` `CACHE_VERSION` → 297.
+
+### Review fixes (adversarial pre-push review, folded into this release)
+- **XSS** ([`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)): the
+  calculator computed-table header interpolated the author-supplied
+  column `align` raw into an `innerHTML` attribute — settable via the
+  import JSON path (bypassing the editor `<select>`) and executing in a
+  *reader's* session on a shared protocol. Rebuilt the header via DOM
+  (`th.style.textAlign`) like the body cells; no raw `align` remains.
+- **Firestore save break** ([`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js)):
+  clearing a calculator computed-table column's decimals set the field
+  to `undefined`, which is written into the `tree` payload — Firestore
+  throws on `undefined` (no `ignoreUndefinedProperties` configured),
+  silently failing every subsequent save. Now deletes the key instead.
+- **Stale downstream widgets** ([`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)):
+  builder Add / Add all / Clear / remove-row registered the dataset but
+  nothing in doc view listened to `protocol-vars-changed`, so layout
+  maps + computed tables only repainted when a slider fired
+  `recompute()`. Added a doc-view listener that re-runs all refreshers
+  (fingerprint guard prevents a re-register loop).
+- **Silent plate overflow** ([`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)):
+  layout maps dropped dataset rows past the grid capacity with no
+  warning; now shows an "N of M conditions don't fit" notice.
+- **Minor**: `python` added to the importer's `KNOWN_KINDS` (was
+  emitting a mislabeled unknown-kind warning); heading/docHeader counts
+  added to the import preview; SKILL.md detection table now emits
+  `callout` types instead of the legacy `note`/`safety` kinds.
+- Known/accepted residual: mathjs `evaluate` has no complexity budget,
+  so a pathological author expression (e.g. `1:1e9`) can hang a
+  reader's tab — unchanged from V3.117's accepted admin-trust threat
+  model; a mathjs sandbox is deferred.
+
+### Deploy
+- FTP only (importer + protocols.js + protocol-doc.js +
+  protocol-blocks.js + skill doc). No firestore.rules / index /
+  functions changes.
+- Plan: [`CodeLog/ClaudesPlan/V3.325_protocol_import_catchup.md`](../ClaudesPlan/V3.325_protocol_import_catchup.md)
+
+## [V3.324] - 2026-07-11
+
+**Protocols Builder interactive builder + plate map — parameter sliders
+with monotonic constraints, combination assembler producing named
+datasets, and dataset-driven well-plate grids. FuturePlan 03,
+Release 4. With Release 3's calculator this completes the gold-standard
+design panel: build conditions → compute per-condition volumes → see
+the plate.**
+
+### Added
+- **`builder` block**
+  ([`rm/js/protocol-schemas.js`](../../rm/js/protocol-schemas.js)
+  `newBuilder` + normalize defaults). Config (all plain JSON):
+  `attrs.dataset` (output name),
+  `attrs.params[{name,label,min,max,step,default,unit,lt}]` — sliders
+  published into the shared symbol table; `lt` names another param this
+  one must stay strictly below (the Lₛ<L_M<L_L monotonic chain,
+  enforced by clamping on input);
+  `attrs.dims[{field,label,source:'params'|'list',options,editable}]` —
+  one segmented picker each (`params` dims pick WHICH param and stamp
+  `field`/`field_label`/`field_value` on rows; `editable` list dims are
+  the ratio editor — doc-view users add/remove options per session);
+  `attrs.derived[{field,expr}]` per-row computed fields; and
+  `attrs.dedupe {when, ignore[]}` — rows where `when` (row-scope mathjs
+  expr) is truthy get `ignore` fields blanked before identity-keying,
+  merging duplicates (the gold standard's f=1 inert-merge).
+- **Doc-view builder panel**
+  ([`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)
+  `renderBuilder`): sliders, segmented pickers, `+ Add` / `Add all`
+  (cartesian product) / per-row remove / `Clear`. Assembly is
+  session-local; every change re-registers the dataset via
+  `ProtocolFormulas.registerDataset`, so Release-3 computed tables and
+  layout maps refresh live. Param-bound row values + derived fields
+  re-sync as sliders move (fingerprint-guarded against the
+  `protocol-vars-changed` feedback loop).
+- **Builder params feed the symbol table**
+  ([`rm/js/protocol-formulas.js`](../../rm/js/protocol-formulas.js)
+  `builderToFormulaEntries`, wired into `collectFormulas` and the doc
+  view's plain walker) — calculators reference `L_M` etc. directly.
+- **`layoutMap` block**
+  ([`rm/js/protocol-schemas.js`](../../rm/js/protocol-schemas.js)
+  `newLayoutMap`;
+  [`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)
+  `renderLayoutMap`): renders a named dataset as a plate grid —
+  `rows`/`cols` (default 4×6 = 24-well), `cellLabel`/`cellSub` per-row
+  expressions, `colorField` mapping distinct values to an 8-class
+  palette, spare wells auto-filled with `spareLabel`. A/B/C row headers
+  + numeric column headers; refreshes on every dataset/vars change.
+- **Editor renderers**
+  ([`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js)
+  `renderBuilder` / `renderLayoutMap`): config grids (params, dims with
+  CSV option lists, derived, dedupe) and plain fields respectively;
+  interactivity lives in the doc view.
+
+### Changed
+- The calculator's private array-grid editor hoisted to module level as
+  `_arrayGridEditor` (+ new `csv` field kind) and shared by the builder
+  editor ([`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js)).
+- Doc view loads mathjs when builders/layout maps are present even with
+  zero formula entries
+  ([`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)).
+- "+ add block" menu adds `builder`, `layoutMap`
+  ([`rm/js/protocol-editor.js`](../../rm/js/protocol-editor.js)).
+- `sw.js` `CACHE_VERSION` → 295.
+
+### Deploy
+- FTP only. No firestore.rules / index / functions changes.
+- Plan: [`CodeLog/ClaudesPlan/V3.324_protocol_builder_layoutmap.md`](../ClaudesPlan/V3.324_protocol_builder_layoutmap.md)
+
+## [V3.323] - 2026-07-11
+
+**PMR period lifecycle (FuturePlan 04, Release C2, closing Workstream
+C). Periods archive out of the ever-growing select, and a period can
+carry an optional 1:1 meeting date.**
+
+### Added
+- **`archived` flag on `_index` period rows**
+  ([`rm/js/pmr.js`](../../rm/js/pmr.js) `setPeriodArchived`): archived
+  periods are hidden from the period select unless the new
+  `🗃 N archived` toolbar toggle is on (the open period always stays
+  listed); archived options carry an `· archived` suffix.
+  `saveIndexEntry` preserves the flag (it never rewrites unknown row
+  fields).
+- **Archive action**: `🗃 Archive` / `↶ Unarchive` button next to
+  Submit-for-1:1 (self-view only) —
+  [`rm/pages/pmr.html`](../../rm/pages/pmr.html) toolbar.
+- **`meeting_date`** (optional `YYYY-MM-DD | null`) on the period doc:
+  🗓 date input in the toolbar (read-only in admin/mentor view),
+  backfilled by `hydrateDoc`. Reserved consumer: FuturePlan 05's
+  meeting-reminder push.
+
+### Changed
+- `sw.js` `CACHE_VERSION` → 294.
+
+### Deploy
+- FTP only (pmr.js, pmr.html, sw.js). `_index` lives under the
+  owner-writable userData pmr wildcard — no rules change. The 4106-line
+  pmr.js monolith split stays deferred (run architecture-pass first).
+
+## [V3.322] - 2026-07-11
+
+**PMR guided periods (FuturePlan 04, Release C1). Creating a period is
+a guided dialog instead of a raw `window.prompt`, and the "Add a weekly
+entry first" dead-end is gone — the current week auto-creates.**
+
+### Added
+- **Guided new-period dialog** ([`rm/js/pmr.js`](../../rm/js/pmr.js)
+  `openNewPeriodDialog` + `createPeriodGuided`): suggestion chips from
+  the previously-unused `suggestedPeriods()` (already-created semesters
+  render disabled), a custom-slug field (→ `custom-<slug>`), and
+  **copy-forward checkboxes** — goals, project overview, and reference
+  links deep-copy from the most-recently-updated period with
+  `discussed_at` reset so items land in the active lists.
+- **Auto-week**: `switchToPeriod` appends the current week when the doc
+  is editable, has zero weekly entries, and the period hasn't ended
+  (old archives are never polluted); `openPullIntoWeek` creates the
+  week instead of alerting (anchor rect captured before the re-render;
+  read-only view still no-ops). **(pre-push review fix)** auto-week is
+  gated on `wasLoaded || inIndex` so it fires only for periods that
+  already exist or were just created via the dialog — NOT for a
+  suggested semester the user merely previews from the dropdown, which
+  would otherwise silently persist that period + a week into the index.
+
+### Changed
+- `wireNewPeriodButton` now just gates read-only view and opens the
+  dialog; the raw `prompt()` is gone.
+- `sw.js` `CACHE_VERSION` → 293.
+
+### Deploy
+- FTP only (pmr.js, sw.js).
+
+## [V3.321] - 2026-07-11
+
+**Activity overhaul — consumers (FuturePlan 04, Release B3, closing
+Workstream B). PMR, the dashboard, and the lab-wide stats table switch
+from hours to event counts.**
+
+### Changed
+- **PMR Activity block** ([`rm/js/pmr.js`](../../rm/js/pmr.js)): opens
+  with a per-day heatmap strip for the period (5-level green scale,
+  schedule markers excluded); entry rows drop the hours column and the
+  pending badge. Week grouping + "✓ discussed" archive unchanged.
+- **PMR Stats block**: event counts by top-level category + events/day
+  sparkline (was confirmed minutes; the "confirm hours to populate
+  stats" dead-end is gone).
+- **Dashboard** ([`rm/js/dashboard.js`](../../rm/js/dashboard.js)):
+  "Lab Activity (7d)" hours card → **My Activity** — personal streak
+  (empty today tolerated) + this-week event count, linking to the
+  tracker tab; one 60-day own-user read instead of the shareActivity
+  fan-out on every dashboard load.
+- **Lab stats** ([`rm/js/activity-summary.js`](../../rm/js/activity-summary.js)):
+  Events / Active Days / Breakdown columns + Total Events summary cards
+  (counts, both entry shapes; legacy dismissed + schedule markers
+  excluded). `shareActivity` rules gate unchanged; "not sharing" notice
+  now points at Settings → Profile.
+- `sw.js` `CACHE_VERSION` → 292.
+
+### Deploy
+- FTP only (pmr.js, dashboard.js, activity-summary.js, sw.js).
+
+## [V3.320] - 2026-07-11
+
+**Activity overhaul — one activity surface (FuturePlan 04, Release B2).
+The tracker tab becomes a single glanceable page: GitHub-style calendar
+heatmap, streaks, per-category counts, recent feed. The 2152-line
+hours-centric tracker is rewritten to ~400 lines.**
+
+### Changed
+- **[`rm/js/activity-tracker.js`](../../rm/js/activity-tracker.js)
+  rewritten from scratch**: one `ActivitySignals.listEvents` read (53
+  weeks) → pure-DOM 53-week calendar heatmap (shade = events/day: 0 / 1
+  / 2–3 / 4–6 / 7+), current + best streaks, per-category counts for a
+  7/30/90-day range (category = `categoryPath[0..1]` falling back to a
+  prettified source — this is the FuturePlan 04 open-question-2 taxonomy
+  prune), recent-activity feed, "Coming up" lane (schedule events), and
+  a minimal quick-log input (→ `manual` work event). Styles
+  self-injected; mounts at `#tracker-root`. **Deleted**: daily hours
+  view, pending-banner call sites, voice input, AI bulk-parse,
+  Anthropic categorize, Naive Bayes ML train/predict, weekly drag-drop
+  planner, analytics charts, category manager, hours-centric settings,
+  huddle/calendar-suggest integrations.
+- **[`rm/pages/activity-overview.html`](../../rm/pages/activity-overview.html)**:
+  tracker tab's script list shrinks to just activity-tracker.js
+  (rm-categories.js, Google GSI, calendar-service.js no longer loaded);
+  the `?tab=` shell keeps overview/timeline/email/lab-stats untouched.
+- **[`rm/pages/training-rm-daily-research.html`](../../rm/pages/training-rm-daily-research.html)**:
+  the "confirm hours in the pending banner" quiz copy reworded to
+  zero-click auto-tracking.
+- `sw.js` `CACHE_VERSION` → 291.
+
+### Deploy
+- FTP only.
+
+## [V3.319] - 2026-07-11
+
+**Activity overhaul — the confirm loop is dead (FuturePlan 04, Release
+B1). Auto-capture stops writing hours and `status:'pending'`; new
+entries are lightweight events `{date, source, categoryPath, text,
+kind:'work'|'schedule'}` in the same `trackerEntries/{uid}/entries`
+collection, deterministic ids kept for idempotency. Legacy hours-era
+entries are never rewritten and stay readable.**
+
+### Changed
+- **[`rm/js/activity-signals.js`](../../rm/js/activity-signals.js)
+  rewritten**: `upsert` writes the event shape only (no
+  status/duration/milestone/auto_hours_estimate; new `kind` field);
+  legacy `confirmed`/`dismissed` docs are never touched by re-fires;
+  legacy `pending` docs are upgraded in place (hours-era fields
+  FieldValue.delete()d). `removeSchedule` now deletes the event doc
+  (was: status 'dismissed'). New canonical reader
+  `listEvents(uid,{from,to})`; `listConfirmed`/`listForPeriod` stay as
+  compatibility aliases (PMR consumes them until B3). **Deleted**:
+  `confirm()`, `dismiss()`, `listPending()`, `renderPendingBanner()`
+  (the nag banner), `renderComingUp()` — sole caller is
+  activity-tracker.js, rewritten in V3.320 (same FTP).
+- **[`rm/js/page-time-tracker.js`](../../rm/js/page-time-tracker.js)**
+  (stays as the presence signal): writes drop
+  status/duration/auto_hours_estimate/milestone, add `kind:'work'`;
+  `logged_windows` kept purely for cross-tab 10-min-window idempotency;
+  legacy pending docs upgraded in place; freeze guard for legacy
+  confirmed/dismissed docs unchanged.
+
+### Added
+- **recordWork producers reintroduced** (removed in V3.226 because of
+  confirm burden — that burden is gone):
+  [`rm/js/lab-notebook.js`](../../rm/js/lab-notebook.js) `saveEntry()`
+  success → one `rm-notebook` event per entry per day
+  (categoryPath `['research','notebook']`);
+  [`rm/js/protocol-editor.js`](../../rm/js/protocol-editor.js)
+  `markDirty()` first edit of the day → `rm-protocols` event;
+  [`rm/js/paper-editor.js`](../../rm/js/paper-editor.js) first `input`
+  of the day (editable only) → `rm-paper-editor` event.
+  [`rm/pages/paper-builder.html`](../../rm/pages/paper-builder.html)
+  now loads activity-signals.js.
+- `sw.js` `CACHE_VERSION` → 290.
+
+### Deploy
+- FTP only. firestore.rules unchanged (same collection, owner-write).
+  Rollback: revert the client — old entries were never rewritten.
+
+## [V3.318] - 2026-07-11
+
+**Protocols Builder calculator — rich inputs (sliders / number rows),
+hero-card outputs, and computed tables over named datasets. FuturePlan
+03, Release 3.**
+
+### Added
+- **`calculator` block**
+  ([`rm/js/protocol-schemas.js`](../../rm/js/protocol-schemas.js)
+  `newCalculator` + normalize defaults):
+  `attrs.inputs[{name,label,widget:'slider'|'number',min,max,step,unit,rangeHint,default}]`,
+  `attrs.outputs[{name,label,expr,unit,decimals}]` (hero cards),
+  `attrs.table {dataset, columns[{label,expr,align,mono,decimals}]}`
+  (computed table). All plain JSON on the attrs Y.Map.
+- **Engine: calculators feed the shared symbol table**
+  ([`rm/js/protocol-formulas.js`](../../rm/js/protocol-formulas.js)):
+  `collectFormulas` (Y walker) and the doc view's plain walker now
+  visit `calculator` blocks via the new shared
+  `calculatorToFormulaEntries(block)` — inputs become variables, each
+  output becomes an expression entry — so `buildSymbolTable` is reused
+  unchanged and `[!var:]` tokens / docHeader chips / later formulas see
+  calculator values.
+- **Named datasets registry**
+  ([`rm/js/protocol-formulas.js`](../../rm/js/protocol-formulas.js)):
+  `registerDataset(name, rows)` / `getDataset(name)` /
+  `listDatasets()`; registering re-emits `protocol-vars-changed` so
+  computed tables refresh. Session-scoped. Release 4's builder block
+  is the producer; this release ships the seam.
+- **`evalExpression(expr, table, math, extraScope?)`**
+  ([`rm/js/protocol-formulas.js`](../../rm/js/protocol-formulas.js)):
+  evaluates a mathjs expression under the numeric symbol-table scope
+  with per-row fields merged on top (row shadows globals); returns
+  `{value}` or `{error}`. Powers computed-table cells.
+- **Editor renderer**
+  ([`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js)
+  `renderCalculator`): config grids for inputs / outputs / table
+  columns + dataset name, plus a live outputs preview refreshing on
+  `protocol-vars-changed`. The interactive controls render in the doc
+  view; the editor stays the authoring surface.
+- **Doc-view renderer**
+  ([`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)
+  `renderCalculator`): slider rows with live value + unit + range hint
+  (or number inputs per `widget`) writing session-local overrides,
+  hero-card grid for outputs, and the computed table evaluating each
+  column expression per dataset row (numbers formatted per column
+  `decimals`, strings pass through, per-cell ⚠ on eval error, hint row
+  when the dataset isn't registered).
+
+### Changed
+- "+ add block" menu adds `calculator`
+  ([`rm/js/protocol-editor.js`](../../rm/js/protocol-editor.js)).
+- `sw.js` `CACHE_VERSION` → 289.
+
+### Deploy
+- FTP only. No firestore.rules / index / functions changes.
+- Plan: [`CodeLog/ClaudesPlan/V3.318_protocol_calculator.md`](../ClaudesPlan/V3.318_protocol_calculator.md)
+
+## [V3.317] - 2026-07-11
+
+**Task Marketplace — existing flows redirect through the market
+(FuturePlan 04, Release A3, closing Workstream A). The marketplace is
+now the only cross-user task channel: Send-to-teammate is a directed
+handoff post (auto-accepted for admins), the Tasks workspace can offer
+subtasks to the board or ask for help, and the legacy Sharing page
+folds into the market's Assignments view. Huddle help-requests stay
+separate (different domain).**
+
+### Added
+- **Assignments view on the market page**
+  ([`rm/js/task-market.js`](../../rm/js/task-market.js)): Board |
+  Assignments tabs (`?view=assignments` deep-link). Feeds folded from
+  sharing.js as filters — Sent by me (collectionGroup `tasks` where
+  `createdByUid==me`), Assigned to me (`api.subscribe('tasks/assigned.json')`),
+  Lab-wide (admin) — with open/all/done status filter, paper/task kind
+  chips, overdue + market-origin chips, →tasks/→paper links. Feeds
+  attach lazily on first tab open. (Paper-comment lazy expansion from
+  sharing.js intentionally dropped.)
+- **Embedded composer mode** (task-market.js): `ensureBoot()` separates
+  auth+roster from board wiring, so tasks.html loads the script purely
+  for `TASK_MARKET.openComposer` — no board listener without `#tm-board`;
+  modal styles inject on demand. Composer accepts `prefill.due`.
+- **Workspace → market**
+  ([`rm/js/tasks-buckets.js`](../../rm/js/tasks-buckets.js)): subtask
+  rows gain a `⇄ market` button opening a mini-menu — "📋 Offer to
+  market" / "🤝 Ask a teammate for help" — both prefill the composer
+  with the subtask text/notes/due + `source_ref {projectId, bucketId,
+  subtaskId}`. [`rm/pages/tasks.html`](../../rm/pages/tasks.html) loads
+  task-market.js.
+
+### Changed
+- **Send to teammate → market handoff**
+  ([`rm/js/task-assign.js`](../../rm/js/task-assign.js) `_submit`):
+  every send creates a directed `handoff` post in `taskMarket` carrying
+  the full task fields as `task_payload` (+ PMR backrefs as
+  `source_ref`). Admin senders: post born `'accepted'` with a
+  pre-generated `marketTaskId`, task materialized into the assignee's
+  queue in the same flow (stamped `marketPostId`) — identical end state
+  to before plus a board paper-trail. Non-admin senders: post born
+  `'open'`, no task write until the target accepts on the board;
+  `opts.onCreated` fires only when a task doc exists (admin path).
+  Toast copy distinguishes "sent" vs "posted — awaiting accept".
+- **Sharing page retired**:
+  [`rm/pages/sharing.html`](../../rm/pages/sharing.html) is now a
+  `<meta refresh>` redirect to `task-market.html?view=assignments`
+  (V3.53 wrapper-retirement pattern). `rm/js/sharing.js` is orphaned —
+  delete once the fold is verified in prod. Nav 'Sharing' entry removed;
+  the task-scheduling workflow seed swaps pageId `sharing` →
+  `task-market` in both [`rm/js/nav.js`](../../rm/js/nav.js)
+  `_WF_DEFAULT_SEEDS` and its
+  [`rm/js/page-registry.js`](../../rm/js/page-registry.js) mirror.
+- **Claim/accept atomicity** (task-market.js `claimLike`):
+  `marketTaskId` is pre-generated and written in the SAME update as the
+  status transition — the rules' transition machine rejects patches
+  after a post leaves `'open'`, so the V3.314 post-hoc stamp would have
+  been denied.
+- `sw.js` `CACHE_VERSION` → 288.
+
+### Deploy
+- FTP only (task-assign.js, task-market.js, tasks-buckets.js,
+  task-market.html, tasks.html, sharing.html, nav.js, page-registry.js,
+  sw.js). Rules carve-out (V3.313) and function phrasing (V3.314)
+  already deployed ahead of this.
+
+## [V3.316] - 2026-07-11
+
+**Protocols Builder rich tables, definition list, and timeline — three
+data-display block kinds. FuturePlan 03, Release 2.**
+
+### Added
+- **`table` block**
+  ([`rm/js/protocol-schemas.js`](../../rm/js/protocol-schemas.js)
+  `newTable`,
+  [`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js)
+  `renderTable`,
+  [`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js)
+  `renderGenericTable`): generic table with
+  `attrs.columns[{key,label,align,mono}]` + `attrs.rows[{key:val}]`.
+  Editor gives per-column alignment cycling (⇤/⇹/⇥), monospace toggle,
+  add/remove column + row; doc view renders cells through `renderProse`
+  so `[!var:]` chips / pills / `~sub~` work inside cells. Optional
+  caption via body.
+- **`kv` block** — definition/derivation list
+  (`attrs.items[{term,def}]`); doc view renders a two-column `<dl>`
+  with mono terms (the gold standard's appendix).
+- **`timeline` block** — horizontal track
+  (`attrs.marks[{at,label,sub,included}]`); doc view renders dots on a
+  rail with mono tick captions; `included:false` marks render dimmed +
+  struck. Optional track title via body.
+- All three store attrs as **plain JSON arrays** on the attrs Y.Map
+  (coarse-grained collaboration; safe since the V3.315 `dehydrateBlock`
+  Array.isArray fix). Editors re-render on remote attr changes only
+  when the block doesn't hold focus.
+
+### Changed
+- "+ add block" menu adds `table`, `kv`, `timeline`
+  ([`rm/js/protocol-editor.js`](../../rm/js/protocol-editor.js)).
+- **`materials` stays its own kind** (decision): its inventory
+  row-linking (Y.Array rows, item_ref chips, matcher) is deeply
+  Y-typed; rewiring it as a generic-table preset risks V3.121/V3.139
+  machinery for no user-visible gain.
+- `sw.js` `CACHE_VERSION` → 287.
+
+### Deploy
+- FTP only. No firestore.rules / index / functions changes.
+- Plan: [`CodeLog/ClaudesPlan/V3.316_protocol_tables_kv_timeline.md`](../ClaudesPlan/V3.316_protocol_tables_kv_timeline.md)
+
+## [V3.315] - 2026-07-11
+
+**Protocols Builder document chrome — stage headings, generalized
+callouts, branded document header, inline vocabulary, and a read-only
+document view with print-to-PDF export. FuturePlan 03, Release 1.**
+
+### Added
+- **Three new block kinds**
+  ([`rm/js/protocol-schemas.js`](../../rm/js/protocol-schemas.js) —
+  `PROTOCOL_BLOCK_KINDS`, `newHeading` / `newCallout` / `newDocHeader`
+  factories, `normalizeTree` defaults, `CALLOUT_TYPES` export):
+  - `heading` — stage code + title + optional top rule
+    (`attrs: {code, rule}`, body = title).
+  - `callout` — generalized callout with
+    `attrs.type ∈ critical | note | assume | timing`. Folds the legacy
+    `note`/`safety` kinds **at render level**: the dispatcher in
+    [`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js) routes
+    all three kinds through `renderCallout` (note→note,
+    safety→critical); stored docs are never bulk-rewritten — changing
+    the type select rewrites just that block to `kind:'callout'`.
+  - `docHeader` — document masthead:
+    `attrs: {brand, title, chips:[{text, var}]}`, body = subtitle.
+    `chips[].var` binds a chip to a live symbol-table value. Brand falls
+    back to `labConfig/branding` (best-effort read; FuturePlan 05 seam)
+    then "McGhee Lab".
+- **Inline vocabulary**
+  ([`rm/js/protocol-formulas.js`](../../rm/js/protocol-formulas.js)):
+  new `renderProse(raw, table?)` single-pass prose renderer —
+  `[!var:name]`, `[!inv:id]`, new `[!pill:kind:text]` tokens
+  (`functional`/`inert` styled tags), plus `` `code` ``, `~sub~`,
+  `^sup^` inline markup on plain segments. `textHasProse(text)` is the
+  fast-skip gate. `PILL_RE` exported.
+- **Session-local input overrides**
+  ([`rm/js/protocol-formulas.js`](../../rm/js/protocol-formulas.js)):
+  `buildSymbolTable(formulas, math, overrides?)` shadows variable
+  defaults with `{name → number}` values; `setOverride(name, value)` /
+  `getOverrides()` / `clearOverrides()` recompute + re-emit
+  `protocol-vars-changed`. Never persisted — powers the doc view now,
+  Release-3 calculator sliders later.
+- **Read-only document view**
+  ([`rm/js/protocol-doc.js`](../../rm/js/protocol-doc.js) NEW,
+  [`rm/css/protocol-doc.css`](../../rm/css/protocol-doc.css) NEW,
+  [`rm/pages/protocols.html`](../../rm/pages/protocols.html)):
+  `?protocol=<id>&view=doc` is a third page mode. Renders the projected
+  JSON `tree` (one Firestore read, no Yjs): branded masthead (first
+  `docHeader` block becomes the masthead), numbered stage headers from
+  section labels (`01 ·` style), continuous step numbers, color-coded
+  callouts (timing renders as a pill), materials tables with
+  inventory-resolved labels, figures, and **live calculator cards** per
+  formula block — number inputs recompute the symbol table locally and
+  refresh every var chip / masthead chip / output. `@media print`
+  strips chrome so browser print-to-PDF is the export; `🖨 Print / PDF`
+  toolbar button.
+- **Editor affordances**: `📄 Doc view` link in the editor topbar
+  ([`rm/pages/protocols.html`](../../rm/pages/protocols.html),
+  [`rm/js/protocol-editor.js`](../../rm/js/protocol-editor.js)); "+ add
+  block" menu now offers `callout`, `heading`, `docHeader` (replacing
+  `note`/`safety`); editor styles for the three new blocks in
+  [`rm/css/protocol-editor.css`](../../rm/css/protocol-editor.css).
+
+### Changed
+- `bindYTextWithVars` in
+  [`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js) delegates
+  to `ProtocolFormulas.renderProse` — its private two-grammar token
+  merge is deleted.
+- Inventory `🧪` insert button extends to `callout` bodies
+  (`bodyKindsWithInv`).
+- `sw.js` `CACHE_VERSION` → 286.
+
+### Bug Fixes
+- **`dehydrateBlock` mangled plain arrays**
+  ([`rm/js/protocol-blocks.js`](../../rm/js/protocol-blocks.js)): a
+  plain JSON array stored on an attrs Y.Map (e.g. `docHeader.chips`)
+  hit the generic `forEach` branch and dehydrated as a `{0:…, 1:…}`
+  object. Added an `Array.isArray` deep-clone branch.
+
+### Deploy
+- FTP only. No firestore.rules / index / functions changes — all new
+  state lives inside the existing protocol `tree`.
+- Plan: [`CodeLog/ClaudesPlan/V3.315_protocol_doc_chrome.md`](../ClaudesPlan/V3.315_protocol_doc_chrome.md)
+
+## [V3.314] - 2026-07-11
+
+**Task Marketplace — claim materialization + push notifications
+(FuturePlan 04, Release A2). Claiming an offer or accepting a directed
+handoff now copies the post's `task_payload` into the claimant's own
+task queue, and Cloud Functions push the three market notifications.**
+
+### Added
+- **`TASK_ASSIGN.writeTaskFor(assigneeUid, fields)`**
+  ([`rm/js/task-assign.js`](../../rm/js/task-assign.js)): the payload
+  build + `userData/{uid}/tasks/{taskId}` write extracted from `_submit`
+  so the marketplace can reuse it. Translates `source_ref.pmrPeriodId`
+  backrefs into the flat `source:'pmr'` + `pmrPeriodId/SectionId/
+  TargetId` fields PMR renders. `_submit` (modal flow) and its toast
+  retry now route through it.
+- **Claim materialization**
+  ([`rm/js/task-market.js`](../../rm/js/task-market.js) `materialize`):
+  on claim/accept the claimant writes the task into their **own** queue
+  (owner wildcard rule; `createdByUid` stays the post creator) with
+  `bucket:'assigned'`, `marketPostId`, and preserved PMR backrefs; the
+  post gets `marketTaskId` stamped back. `kind:'request'` claims
+  materialize nothing (claiming a request = "I'll find you work").
+- **`functions/task-market.js`** (new): `onMarketPostCreated` — directed
+  post → push the target (handoff phrasing when `open`, plain
+  task-sent phrasing when admin pre-`accepted`); `kind:'request'` →
+  push all admins; undirected offers stay silent. `onMarketPostUpdated`
+  — fires only on the `open → claimed/accepted/declined` edge → pushes
+  the creator. Both via `sendToUsers` with appKey `tasks`. Exported from
+  [`functions/index.js`](../../functions/index.js).
+- **Test types** ([`functions/test-notifications.js`](../../functions/test-notifications.js)):
+  `task-market-directed`, `task-market-claimed`, `task-market-request`.
+
+### Changed
+- **`onTaskAssigned`** ([`functions/tasks.js`](../../functions/tasks.js))
+  skips tasks carrying `marketPostId` — market-materialized copies are
+  self-written by the claimant (or announced by the market onCreate
+  push), so the legacy per-task push would be duplicate noise.
+- `sw.js` `CACHE_VERSION` → 285.
+
+### Bug Fixes
+- **test-notifications response crash**: the return payload referenced
+  an undefined `staleDeletes` (→ `staleOps.length`) — any admin test
+  send with stale tokens would have thrown.
+
+### Deploy
+- `firebase deploy --only functions`, then FTP (task-assign.js,
+  task-market.js, sw.js). No rules/index changes.
+
+## [V3.313] - 2026-07-11
+
+**Task Marketplace — model + board (FuturePlan 04, Release A1). One
+lab-scope board (`taskMarket/{postId}`) carries every cross-user task
+flow: PI posts claimable work (offer), members ask for work (request),
+owners ask a named teammate for help/take-over (handoff). Status
+transitions (claim / accept / decline / withdraw / complete) work
+end-to-end; claim materialization + push notifications land in V3.314.**
+
+### Added
+- **`taskMarket` rules block** ([`firestore.rules`](../../firestore.rules)):
+  lab-member read; create requires `createdByUid == auth.uid` and status
+  `'open'` (admin may create pre-`'accepted'` — reserved for V3.317's
+  direct-assign flow); update enforces the status transition machine
+  (creator: open→open/withdrawn, claimed|accepted→completed; claimant:
+  open→claimed|accepted stamping `claimedByUid == auth.uid`, only when
+  undirected or directed at them; target: open→declined); `createdByUid`
+  and `kind` immutable; delete creator-or-admin. **(pre-push review
+  hardening)** non-creator (claimant/target) transitions also require
+  `marketContentUnchanged()` — title / description / task_payload /
+  targetUid / source_ref must equal their prior values — so a claimant
+  can only move status + stamp themselves, never deface the shared board
+  or inject text into the creator's "your post was claimed" push.
+- **Board page** ([`rm/pages/task-market.html`](../../rm/pages/task-market.html)
+  + [`rm/js/task-market.js`](../../rm/js/task-market.js)): four live
+  columns — Open offers · Requests · Directed to me · My posts (resolved
+  posts collapse into a `<details>`). Single `onSnapshot` listener
+  (`created_at desc`, limit 300) feeds all columns client-side — no
+  composite index needed (resolves FuturePlan 04 open question 3;
+  firestore.indexes.json untouched). Composer modal (`openComposer`,
+  exported on `window.TASK_MARKET`) creates offer/request/handoff posts
+  with `task_payload {text, due_date, hours_estimate, self_importance,
+  notes}` + optional `source_ref`; "🙋 I need work" toolbar button
+  pre-fills a request post. Writes are direct per-doc `firebridge.db()`
+  ops — lab-scope `api.save` whole-list writes would violate the
+  transition rules.
+- **Route registration** ([`rm/js/api-routes.js`](../../rm/js/api-routes.js)):
+  `tasks/market.json` → lab-scope `taskMarket` collection (wrapKey
+  `posts`, SHORT cache, no JSON shadow) so explorer/migrate tooling sees
+  the collection.
+- **Nav entry** ([`rm/js/nav.js`](../../rm/js/nav.js)): 'Task Market'
+  (lab-member gate) in the Activity group; legacy 'Sharing' entry stays
+  until V3.317 folds its tabs into the market page.
+
+### Changed
+- `sw.js` `CACHE_VERSION` → 284.
+
+### Deploy
+- `firebase deploy --only firestore:rules`, then FTP (task-market.html,
+  task-market.js, nav.js, api-routes.js, sw.js).
+
+## [V3.312] - 2026-07-11
+
+**Alumni grouped by type on the public team page — the flat Alumni
+section subdivides by what each member was before graduating
+(`priorCategory`), and `masters` becomes a first-class category.
+Implements FuturePlan 02 in full (single release).**
+
+### Added
+- **`masters` category** ([`user-system.js`](../../user-system.js)):
+  added to `CATEGORIES` (label "Masters Student") and
+  `CATEGORY_DEFAULT_ROLE` (`editor`, matching grad/postdoc); inserted
+  after Graduate in both team-page category lists in
+  [`app.js`](../../app.js) (overlay `catLabels`/`catOrder` + static
+  `renderTeam` list). Admin user editor's category dropdown picks it up
+  automatically via `categoryOptions()`.
+- **Alumni subdivision** ([`app.js`](../../app.js), overlay Pass 3):
+  `cat === 'alumni'` branch groups members by `priorCategory` in display
+  order postdoc → grad ("PhD") → masters → undergrad → highschool;
+  missing/unknown `priorCategory` falls into a generic "Alumni" bucket
+  rendered last (subheader suppressed when it's the only group). Each
+  non-empty subsection gets an `.alumni-subheader` + its own
+  `.team-grid` and detail panel via `wireTeamDetailPanel`.
+- **`ALUMNI_PRIOR_CATEGORIES`** ([`user-system.js`](../../user-system.js))
+  + **Prior Category dropdown** in the admin user-editor edit panel
+  (`data-prior-uid`, non-guest rows) so existing alumni (e.g. MS
+  graduates) can be reclassified one-time by hand. Save handler writes
+  `priorCategory` only when changed; an explicit selection wins over the
+  flip-to-alumni auto-stamp.
+- **`.alumni-subheader`** ([`styles.css`](../../styles.css)) — scaled-down
+  section-heading style for the subsection headers.
+
+### Bug Fixes
+- **Self-service profile save now stamps `priorCategory`**
+  ([`user-system.js`](../../user-system.js) profile form handler): a user
+  flipping their own category active→alumni previously lost their prior
+  category (only the admin editor stamped it), which would have dropped
+  them into the generic Alumni bucket.
+
+### Changed
+- `sw.js` `CACHE_VERSION` → 283.
+
+### Deploy
+- FTP only (app.js, user-system.js, styles.css, sw.js). No
+  firestore.rules / schema / index changes — `category` and
+  `priorCategory` already exist on `users` docs.
+
+## [V3.311] - 2026-07-11
+
+**Missing-PDF queue: metadata-only library entries become a workable queue
+— filter to them, retry the open-access fetch, upload the PDF manually, or
+mark unobtainable — from the list and from the reader's dead end. Closes
+the rm/wishlist "no-pdf-found queue" item. (FuturePlan 01, Release 4.)**
+
+### Added
+- **`_pdfStatus(item)`** ([`rm/js/library.js`](../../rm/js/library.js)) —
+  ok | missing | unobtainable (`meta.library.pdf_status`, reversible).
+- **Toolbar chip "Missing PDFs (N)"**
+  ([`rm/pages/library.html`](../../rm/pages/library.html)): toggles the
+  queue filter (`_missingOnly`); count stays current every render; hidden
+  when nothing is missing.
+- **Row actions replace the passive "no PDF" label**: ↻ Retry (DOI-holding
+  rows — `LIBRARY_UPLOAD.unpaywallLookup`/`fetchPdfBlob`; stamps
+  `pdf_retry {attempts, last_at, last_error}`, CORS block also stamps
+  `pdf_candidate_url`; last error surfaces as the label's tooltip),
+  ⬆ Upload (hidden file input → `uploadPdf` into the same
+  `papers/{id}/{hash}.pdf` family → attaches to the SAME entry → ref parse
+  + SS enrich like a fresh ingest), 🚫 Mark unobtainable / ↩ clear.
+- **`_saveOne(item)`** — targeted `items/{id}.set` with serverTimestamp
+  `updatedAt` (V3.309 pattern) so row-level actions stop rewriting the
+  papers collection (star toggle still uses the legacy bulk path).
+- **Reader dead end is actionable**
+  ([`rm/js/library-paper.js`](../../rm/js/library-paper.js)
+  `_renderNoPdfActions`): same three actions, plus the known
+  `pdf_candidate_url` link ("open in a new tab, download, ⬆ upload here")
+  and the last retry error. Successful attach reloads the reader.
+
+### Changed
+- `sw.js` `CACHE_VERSION` → 282.
+
+### Deploy
+- FTP only.
+
+## [V3.310] - 2026-07-11
+
+**Citation flow inverted to reference-driven localization: inline markers
+are found by searching for each KNOWN reference's expected forms instead of
+blind token scanning; a new "All refs (N)" tab means the panel is never
+empty; failures explain themselves; and a library-wide audit harness
+measures coverage. Plus ↻ Refresh from DOI. (FuturePlan 01, Release 3.)**
+
+### Added
+- **Style detection + validation**
+  ([`rm/js/paper-citations.js`](../../rm/js/paper-citations.js)): the paper's
+  citation style is detected ONCE (`_detectStyle` — numeric-bracket /
+  numeric-paren / superscript / author-year; validated tallies, dominant
+  family wins, ≈tie → mixed). Page scans are then style-gated and every
+  match must resolve to a stored reference (`_filterValidated`) — killing
+  wrong-style noise (prose enumerations, historical author-year mentions)
+  and the "No matching reference parsed" clutter rows. With no stored refs
+  the legacy permissive behavior is kept.
+- **SS numbering-drift fix (`_applyAlignment`)**: stored Semantic Scholar
+  references are numbered by array index, but entries with no title/DOI are
+  dropped at normalize time — so `[12]` in the PDF could map to stored ref
+  #10. The printed reference list is regex-parsed from the PDF and stored
+  refs are re-numbered by DOI → surname+year → title-prefix alignment
+  (applied only when ≥50% align). Likely the single biggest cause of
+  "citations often incorrect in the left sidebar".
+- **"All refs (N)" tab** + full-document ref index (`_buildRefIndex`): one
+  row per stored reference with located-page chips (click → `gotoPage` +
+  marker flash); unlocated refs are visibly "not located" instead of
+  silently absent. Diacritic-insensitive author matching.
+- **Diagnostic card** instead of an empty panel: "no stored references —
+  add a DOI" / "references retrieved but no inline markers located", with
+  ↻ Re-detect, ⚡ Enrich from Semantic Scholar, ＋ Add DOI… (chains into
+  fullRefresh) actions.
+- **`PAPER_CITATIONS.analyzeDocument({items, refs})`** — headless pipeline
+  (alignment → detection → validated sweep) returning
+  `{style, refCount, locatedRefs, markerCount, perRef}`.
+- **New audit harness** ([`rm/pages/citation-audit.html`](../../rm/pages/citation-audit.html)
+  + [`rm/js/citation-audit.js`](../../rm/js/citation-audit.js)): admin-only,
+  read-only sweep of every stored paper with PDF + refs → per-paper style,
+  refs-located %, marker count, unlocated list, corpus totals. The
+  tune-against-real-papers loop the user asked for.
+- **New [`rm/js/library-refresh.js`](../../rm/js/library-refresh.js)** —
+  `LIBRARY_REFRESH.fullRefresh(item, {doi, interactive})`: identifier
+  lookup (param DOI → stored DOI/PMID/arXiv → **title-search fallback**
+  with confirm, which can discover a DOI for an identifier-less item) →
+  merge + targeted `items/{id}.set` → Unpaywall OA PDF attempt (CORS block
+  stamps `pdf_candidate_url`) → SS re-enrichment → regex ref-parse fallback
+  → summary toast. Reader sidebar gains **↻ Refresh from DOI**
+  ([`rm/js/library-paper.js`](../../rm/js/library-paper.js)).
+
+### Changed
+- `_scanPage` core extracted to `_matchItemsOnPage(items, pageNum,
+  wrapRect)` — pure over flat text items (`wrapRect=null` → fraction-math
+  rects), shared by the viewer flow, style detection, the ref index, and
+  the headless harness.
+- [`rm/js/library-upload.js`](../../rm/js/library-upload.js) exports
+  `unpaywallLookup` + `fetchPdfBlob` (used by fullRefresh; no duplication).
+- Script includes: `library-refresh.js` on library.html (papersScripts) and
+  library-paper.html.
+- `sw.js` `CACHE_VERSION` → 281.
+
+### Deploy
+- FTP only (no functions/rules changes).
+
+## [V3.309] - 2026-07-11
+
+**Library metadata editor: any paper's metadata can now be repaired in
+place — edit every field, or paste a DOI/PMID/arXiv id and pull the
+authoritative record with a per-field diff. Closes the wishlist dead end
+where a failed ingest lookup left `title=filename` forever. (FuturePlan 01,
+Release 2.)**
+
+### Added
+- **New module [`rm/js/library-edit.js`](../../rm/js/library-edit.js)** —
+  `LIBRARY_EDIT.open(item, {onSaved})` modal: title, authors (one
+  `Family, Given` per line; `Given Family` accepted), year, journal +
+  ISO/ISSN, volume/issue/pages, DOI/PMID/arXiv, URL, tags, abstract
+  (loads from and saves to the `items/{id}/details/main` extras subdoc
+  via `LIBRARY_EXTRAS` — never the main doc). **⇣ Fetch from identifier**
+  runs `LIBRARY_METADATA.lookup` (prod-capable since V3.308) and renders
+  a per-field diff table — blank fields pre-checked, conflicts unchecked
+  — "Apply selected" copies into the form; nothing persists until Save.
+  Save is **one targeted `items/{id}.set()`** with
+  `updatedAt: serverTimestamp()` (drives the api adapter's MAX(updatedAt)
+  cache probe) — never a collection rewrite. `item.id`/`citation_key`
+  never change implicitly; "Regenerate citation key" is opt-in.
+  `meta.lead_author`/`meta.target_journal` stay denormalized-consistent.
+  A repaired `source:'manual'` item becomes `source:'manual-edited'`.
+- **Entry points**: library list rows get a ✎ action button
+  ([`rm/js/library.js`](../../rm/js/library.js) `_renderRow` +
+  `data-act="edit-meta"` handler; onSaved swaps the row in memory, no
+  reload) and an amber **⚠ Fix metadata** button under the title when
+  `source==='manual'` or authors are empty (`_needsMetadataFix`). The
+  paper reader sidebar gets **✎ Edit metadata** below the metadata rows
+  ([`rm/js/library-paper.js`](../../rm/js/library-paper.js)
+  `_renderMetadata`). Script includes added to
+  [`rm/pages/library.html`](../../rm/pages/library.html) (papersScripts)
+  and [`rm/pages/library-paper.html`](../../rm/pages/library-paper.html)
+  (+ `library-metadata.js`, which the reader page didn't load before).
+
+### Changed
+- **[`firestore.rules`](../../firestore.rules) `items` update rule** gains
+  a lab-member clause for library entries
+  (`meta.library.is_library_entry == true`): members can update these
+  docs when `first_author_uids` is untouched (compared via
+  `.get(...,[])` — the key is normally absent) and `type` +
+  `is_library_entry` are pinned (no rewriting a doc out of paper/library
+  governance). Also un-breaks the row **star toggle** for non-admin
+  members, which the V3.135 paper rule had inadvertently blocked.
+  Admin / first-author / non-paper clauses unchanged.
+- `sw.js` `CACHE_VERSION` → 280.
+
+### Deploy
+- `firebase deploy --only firestore:rules` **before** the FTP push
+  (member-facing editor 403s otherwise). Test with a non-admin account.
+
+## [V3.308] - 2026-07-11
+
+**Library metadata lookup works in production. Add-by-DOI, PDF-ingest DOI
+sniffing, and extension-capture enrichment previously rode dev-only
+`server.py` endpoints and silently failed on mcgheelab.com — every manual
+upload landed as `source:'manual'` with `title=filename`. (FuturePlan 01,
+Release 1.)**
+
+### Added
+- **New Cloud Function `libraryLookup`**
+  ([`functions/library-lookup.js`](../../functions/library-lookup.js),
+  registered in [`functions/index.js`](../../functions/index.js)): CORS +
+  Bearer-ID-token `onRequest` proxy (same pattern as `deletePaper`) that
+  resolves `{doi|pmid|arxiv_id|title}` into the unified metadata shape —
+  1:1 JS ports of server.py's `_csl_to_unified` / `_lookup_crossref` /
+  `_lookup_crossref_title` / `_lookup_pubmed` / `_lookup_arxiv`, so the
+  response stays byte-compatible with `buildPaperItem()`. Node 20 native
+  fetch (no new deps), CrossRef polite-pool User-Agent, 15 s per-upstream
+  timeout. Gate: authenticated + `users/{uid}.role != 'guest'` (403
+  otherwise). Not-found returns `200 {"error"}` (server.py convention);
+  upstream failure returns `502`.
+- **`metadataCache/{sha1(kind:key)}` Firestore cache** for identifier
+  lookups (`{kind, key, result, fetched_at}`, 30-day TTL, error results
+  and title queries never cached; `{refresh:true}` bypasses the read).
+  Deny-all client rules block added to
+  [`firestore.rules`](../../firestore.rules) — the Admin SDK bypasses it.
+- **`title_guess` from first-page extraction**
+  ([`rm/js/library-metadata.js`](../../rm/js/library-metadata.js)): the
+  largest-font text run on page 1 (≥1.15× median line height, contiguous
+  lines joined, 15–300 char sanity window) — a far better title-search
+  query than the old "first line longer than 12 chars" heuristic.
+
+### Changed
+- **`LIBRARY_METADATA.lookup()` branches on runtime**: local dev keeps the
+  `server.py` `/api/library/lookup` path (falling through to the Cloud
+  Function on 404/network failure, e.g. Live Server); the static deploy
+  calls `libraryLookup` with `Authorization: Bearer <idToken>` and throws
+  "Sign in to look up paper metadata." when signed out. All four call
+  sites (ingest, add-by-identifier, `library-sync.js` capture enrichment,
+  `library-upload.js` `fromDoi`) work on prod with no changes of their own.
+- **`extractFirstPage()` is client-side-first on both runtimes** via
+  `PDF_VIEWER.extractTextItemsFromPdf` (already loaded on library.html);
+  the server endpoint remains only as a local-dev fallback when
+  `PDF_VIEWER` is absent. Returns `{text, doi_guess, arxiv_guess,
+  title_guess}`.
+- **`PDF_VIEWER.extractTextItemsFromPdf(source, opts)`**
+  ([`rm/js/pdf-viewer.js`](../../rm/js/pdf-viewer.js)) gains optional
+  `opts.maxPages` (backward-compatible) so first-page sniffing doesn't
+  parse whole PDFs.
+- **Title-search results now require user confirmation before applying**
+  ([`rm/js/library.js`](../../rm/js/library.js) `_confirmTitleMatch`):
+  both the ingest fallback (no DOI/arXiv on page 1) and the
+  add-by-identifier free-text path show the matched title / authors /
+  year / journal in a confirm dialog — a fuzzy CrossRef hit is never
+  silent-applied. Declining at ingest keeps the PDF with its own
+  `title_guess` (better than the old filename-as-title dead end).
+- `sw.js` `CACHE_VERSION` → 279.
+
+### Deploy
+- `firebase deploy --only functions:libraryLookup` and
+  `firebase deploy --only firestore:rules` **before** the FTP push.
+
+## [V3.307] - 2026-07-11
+
+**Data Visualizations mobile, take 3: full-viewer page is now a clean full-screen
+column on phones — legend removed, presets full-width at the bottom, and the SPA
+bottom tab bar no longer covers them.**
+
+### Bug Fixes
+- **Viewer bottom-left colorbar removed on mobile**
+  ([`DataIllustrations/viewer3d.html`](../../DataIllustrations/viewer3d.html)):
+  the flow-speed `#legend` (gradient scale) is hidden at `max-width:820px` so
+  the bottom is reserved purely for the preset quick-links, which now span the
+  **full width** at the bottom (`left:10px; right:10px`) with
+  `env(safe-area-inset-bottom)` padding to clear the phone home indicator.
+- **SPA bottom tabs no longer cover the viewer's links**
+  ([`app.js`](../../app.js), [`styles.css`](../../styles.css)): the full-viewer
+  route (`#/data/{vizId}`) now sets a `body.data-viewer-env` class. On mobile
+  (`max-width:767px`) that hides the SPA `.bottom-tabs`/`.group-sheet` and turns
+  `.viz-viewer-section` into a `position:fixed` flex column spanning exactly
+  from the banner bottom to the screen bottom — the bar + saved-views strip take
+  their natural height and the iframe (`flex:1`) fills the rest. Previously the
+  iframe ran ~48px under the fixed tab bar, hiding the viewer's bottom presets.
+  The `#/data` gallery is unaffected (keeps its tabs); leaving the route clears
+  the class and restores the tabs.
+- **Save box + saved-views strip showed for logged-out visitors**: their base
+  `display:inline-flex`/`display:flex` rules out-specified the `hidden`
+  attribute's UA `display:none`, so the "Save view" input/button (and an empty
+  strip gap) rendered for everyone. Added `.viz-save-controls[hidden],
+  .viz-views-strip[hidden]{ display:none !important }`. This was the cause of
+  the oversized (148px) viewer bar on mobile.
+- **Viewer bar kept to one compact row on mobile**: the back link stays fixed
+  and the title ellipsizes (`flex:1 1 0; text-overflow:ellipsis`) instead of
+  wrapping to a second row (bar 148px → 47px).
+- Desktop full-viewer layout unchanged; verified alongside phone widths
+  (390/375px) via headless-browser measurements.
+- `sw.js` `CACHE_VERSION` → 278.
+
+## [V3.306] - 2026-07-11
+
+**Data Visualizations viewer mobile layout, take 2: the preset quick-links move
+to the bottom so they stop colliding with the top-left Controls toggle.**
+
+### Bug Fixes
+- [`DataIllustrations/viewer3d.html`](../../DataIllustrations/viewer3d.html)
+  mobile (`max-width:820px`): the `☰ Controls` toggle button (top-left,
+  z-index 8) sat on the same row as the preset pill bar and overlapped its
+  left ~66px, covering the first preset(s). Moved the preset pills to the
+  **bottom row** (`bottom:10px; left:170px; right:10px`, beside the legend)
+  so the entire top row is free — the top-left Controls toggle and top-right
+  gimbal no longer collide with anything. To make room beside the presets,
+  the legend's long grains caption (`.legend-note`, new class) is hidden on
+  mobile so the legend stays narrow (bottom-left). Trimmed the open Controls
+  panel's mobile `max-height` (`100vh - 130px` → `100vh - 175px`) so its
+  content-box padding/border no longer let it reach the new bottom preset
+  row. Desktop layout unaffected (presets stay centered at the top, toggle
+  hidden, grains caption shown). Verified via headless-browser 2D-overlap
+  checks at 390px/375px (toggle/presets/legend/gimbal all mutually clear,
+  open panel clears the presets) and 1400px (no regression).
+- `sw.js` `CACHE_VERSION` → 277.
+
+## [V3.305] - 2026-07-11
+
+**Data Visualizations: promoted to a first-class nav item under Research, and
+the gallery cards are now image-forward (the visualization preview IS the card).**
+
+### Added
+- **Data Visualizations in the site nav** ([`index.html`](../../index.html)):
+  `#/data` is now a direct link labeled "Data Visualizations" under the
+  **Research** heading in all three nav surfaces — the desktop Research
+  dropdown (between Projects and News), the mobile Research group sheet, and
+  the legacy drawer fallback. `NAV_GROUPS.data = 'research'` (already set in
+  V3.301) means the Research group button highlights when you're on `#/data`.
+  The in-page gateway card on the Research stories page is retained as a
+  secondary entry point.
+
+### Changed
+- **Gallery cards are image-forward** ([`app.js`](../../app.js) `wireVizGallery`,
+  [`styles.css`](../../styles.css)): each card is now dominated by the actual
+  visualization preview image (the saved-view poster, else the manifest
+  `thumb`), with the title as a caption overlaid on a bottom gradient scrim
+  and the "Interactive 3D" badge moved to the top-right so it clears the
+  caption. The description paragraph and the tag / saved-view-count badges
+  were removed from the card face (description is preserved as the link's
+  hover tooltip) so the card is "just an image of the visualization you're
+  going to get into." Card aspect ratio 16:10 → 4:3 with a subtle
+  hover zoom on the image.
+- `sw.js` `CACHE_VERSION` → 276.
+
+## [V3.304] - 2026-07-11
+
+**External teacher & student platform: outside teachers can now sign in, request
+a class built from the lab's interactive modules, get their own class instance
+with a 6-character join code for their students, write admin-moderated reviews,
+and be featured on the People page. Two new RM admin panels (Teachers, Guests)
+give the PI oversight. Plan: `CodeLog/ClaudesPlan/V3.304_teacher_student_classes.md`.**
+
+Teachers and students keep `role:'guest'` — RM and lab data stay sealed. All
+class capabilities flow from `schedules.ownerUid` + `enrollments` membership,
+enforced server-side by firestore.rules. Module gating is a soft gate (JS checks
+enrollment before rendering; the static module HTML remains fetchable by URL —
+accepted trade-off).
+
+### Added
+- **[teacher-classes.js](../../teacher-classes.js)** (new, loaded after
+  class-builder.js, precached in sw.js) — all teacher/student surface code:
+  - `renderTeacherDashboard/wireTeacherDashboard` — class-request form (module
+    sets from `modules/manifest.json`), request history with status chips,
+    per-class block (granted folders, `enrollmentOpen` toggle, join-code
+    copy/regenerate/disable, roster with remove), public teacher-profile form
+    (draft/submit, photo via existing crop/upload pipeline to
+    `users/{uid}/teacher-photo`), "my review" card.
+  - `renderStudentDashboard/wireStudentDashboard` — join-by-code, my classes,
+    my review.
+  - `wireTeacherClassPage(scheduleId, schedule)` — the student-facing class
+    page: sign-in CTA → join-code entry → module list, dispatched from
+    class-builder when `schedule.kind === 'teacher-class'`.
+  - `joinClassWithCode(code)` — validates `joinCodes/{CODE}` (doc id IS the
+    code), checks `enrollmentOpen`, creates `enrollments/{scheduleId}_{uid}`,
+    flips a plain guest's category to `student`. Idempotent re-join.
+  - `tcCanViewModules(classId, schedule)` — module-viewer soft gate (enrolled
+    student / owning teacher / admin).
+  - `renderClassReviewsSection` (approved-reviews strip on #/classes) and
+    `renderFeaturedTeachersSection` (approved `teacherProfiles` cards + up to
+    2 featured reviews each, appended to the team page).
+- **New Firestore collections + rules blocks** ([firestore.rules](../../firestore.rules)):
+  `classRequests` (teacher creates pending, edits/withdraws while pending,
+  admin decides), `joinCodes` (get-by-exact-id for enrollment; `list`
+  owner/admin-only so codes stay secret despite public-read schedules),
+  `enrollments` (self-service create gated on a live join code via rules
+  `get()` — no Cloud Function; id must equal `${scheduleId}_${uid}`; student
+  self-updates limited to `status/studentName/updatedAt`), `reviews`
+  (public read only when `status=='approved'`; create requires actual
+  participation — schedule owner or enrolled student; admin moderates +
+  features), `teacherProfiles` (owner writes forced to draft/pending; only
+  admin lands `approved`, so edits auto-re-queue).
+- **Composite indexes** ([firestore.indexes.json](../../firestore.indexes.json)):
+  `reviews(status ASC, createdAt DESC)`, `classRequests(status ASC, createdAt DESC)`.
+- **RM Teachers panel** ([rm/pages/admin-teachers.html](../../rm/pages/admin-teachers.html),
+  [rm/js/admin-teachers.js](../../rm/js/admin-teachers.js)) — 4 tabs:
+  Class Requests (approve modal provisions the schedules doc with modules
+  expanded from the manifest + join code + category flip in one batch; deny
+  with reason), Teachers & Classes (rosters, codes, edit granted folders,
+  delete class), Featured Profiles (approve/hide with team-page-identical
+  preview), Reviews (all statuses, approve/reject/feature/delete).
+- **RM Guests panel** ([rm/pages/admin-guests.html](../../rm/pages/admin-guests.html),
+  [rm/js/admin-guests.js](../../rm/js/admin-guests.js)) — derived taxonomy
+  tiles (lab member → collaborator → teacher → student → unclassified guest),
+  searchable table with recategorize / hide / delete-profile actions. Never
+  touches `role`.
+- **Guest dashboard CTAs** ([user-system.js](../../user-system.js)) — "Are you
+  a teacher?" (flips category → teacher panel) and "Have a class code?"
+  (join → student panel).
+- Two admin nav entries ([rm/js/nav.js](../../rm/js/nav.js)): Teachers, Guests.
+- Teacher outreach banner card on #/classes ([app.js](../../app.js)).
+- `tc-` component styles appended to [styles.css](../../styles.css).
+
+### Changed
+- **SECURITY — `users/{userId}` rules hardened** ([firestore.rules](../../firestore.rules)):
+  the old blanket owner-write let any signed-in user set `role:'admin'` on
+  their own profile (every gate in the system trusts that field). Owners can
+  no longer change `role`: creates must land `role:'guest'` unless carrying a
+  valid unused `inviteToken` whose invitation grants that role; updates must
+  keep `role` unchanged. `category` stays owner-writable (self-identify as
+  teacher/student grants no capabilities). Client pairing:
+  `Auth.register` now stamps `inviteToken` on the profile doc *before*
+  `markInvitationUsed` flips the token — **deploy rules and FTP in the same
+  sitting** and smoke-test both sign-in paths.
+- `schedules` update rule pins admin-granted fields on teacher classes
+  (owner cannot change `grantedFolders`, `ownerUid`, or `kind`); docs without
+  `kind` (the lab's own classes) keep the old behavior exactly.
+- `CATEGORIES` + `CATEGORY_DEFAULT_ROLE` gain `teacher` and `student`
+  (both default `role:'guest'`) ([user-system.js](../../user-system.js)).
+- `renderDashboard`/`wireDashboard` dispatch guest-role users by category to
+  the teacher/student panels; the basic profile card is factored into shared
+  `renderGuestProfileCard`/`wireGuestProfileCard` (exported on `McgheeLab`
+  along with `openCropModal`).
+- `wireClassPage` ([class-builder.js](../../class-builder.js)) dispatches
+  `kind:'teacher-class'` schedules to `McgheeLab.wireTeacherClassPage`;
+  `wireModuleViewer` soft-gates teacher-class modules via `tcCanViewModules`.
+- Team page ([app.js](../../app.js)) appends the featured-teachers section
+  after the lab sections; the `role !== 'guest'` overlay filter is untouched
+  (teachers render from `teacherProfiles`, never from `users`).
+- sw.js: `teacher-classes.js` added to `SHELL_URLS` (CACHE_VERSION bump
+  shared with the concurrent V3.30x releases).
+
+## [V3.303] - 2026-07-11
+
+**Data Visualizations viewer: fix mobile layout — the gimbal, Controls panel,
+and colorbar overlay were crowding and overlapping each other on phones.**
+
+### Bug Fixes
+- [`DataIllustrations/viewer3d.html`](../../DataIllustrations/viewer3d.html)
+  mobile (`max-width:820px`) layout:
+  - **Gimbal too big + overlapping Controls**: at phone widths the open
+    Controls panel (`#hud`, ~86vw wide) and the gimbal (`#gwrap`, top-right)
+    occupied overlapping screen regions, burying the iso/axis quick-links
+    under the settings panel. Shrunk the gimbal (`transform:scale(0.72)` →
+    `0.56`) and added `#hud.open ~ #gwrap{display:none}` so the gimbal is
+    hidden outright whenever Controls is open — the two were never usable
+    at the same time on a small screen anyway.
+  - **Quick-links vs. preset pills**: tightened the preset bar's right
+    gutter (`right:132px` → `106px`) to match the smaller gimbal footprint,
+    reclaiming scroll width for the preset pill strip with a clean 3-4px
+    gap instead of a several-px overlap.
+  - **Colorbar overlay in the way**: `updateCbarPos()` normally chases the
+    projected data bounding box, which on a phone can drift under the
+    gimbal, the Controls toggle, or the legend. Added a mobile branch that
+    pins it instead to a fixed safe column (`left:10px`, vertically
+    centered between the top toggle/preset row and the bottom legend);
+    narrowed the bar (`26px` → `16px`) and its labels via mobile-only CSS.
+  Desktop layout (no media query match) is untouched — verified via
+  headless-browser checks at 1400px (gimbal unscaled, Controls always
+  visible, colorbar full width) alongside 390px/375px phone widths (gimbal
+  hidden while Controls open, zero-overlap gutter, colorbar in its pinned
+  safe zone).
+- `sw.js` `CACHE_VERSION` → 275.
+
+## [V3.302] - 2026-07-11
+
+**Content-creation UX overhaul: safe, forgiving, and rewarding story/news
+authoring for students, plus a "My Lab Today" glance strip on the RM home
+page.** Driven by a full UX review of the content-creation flows (plan:
+`CodeLog/ClaudesPlan/V3.302_content_creation_ux.md`).
+
+### Security
+- **Closed the publish bypass** — `firestore.rules` now enforces the review
+  flow server-side. New helpers `canPublishContent()` (users/{uid}.role in
+  admin/editor) and `statusIsUnpublished()`; `stories`, `newsPosts`, and
+  `projectPackages` create/update require
+  `status in ['draft','pending','changes-requested']` unless the writer can
+  publish. Previously any signed-in contributor could write
+  `status:'published'` directly and skip admin review. Deploy with
+  `firebase deploy --only firestore:rules`.
+
+### Added
+- **Propose-a-project flow** (`user-system.js`) — the story editor's Project
+  select gains "✏️ Propose a new project…" revealing a name field; the story
+  saves `proposedProjectTitle` (no `projectId`). The admin pending queue
+  shows a "💡 Proposed project" badge and its Approve button becomes
+  "Create project & approve" (creates the `projectPackages` doc, links
+  `projectId`/`projectTitle`, clears the proposal). Editors/admins who
+  publish directly get the project auto-created in `saveStory`. Students are
+  no longer hard-blocked when no admin-created project matches their story.
+- **Draft autosave + unload guard** (`user-system.js`, both editors) — new
+  Editor Kit helpers `createEditorAutosave` / `claimEditorLifecycle`: 30s
+  debounced autosave of drafts, `beforeunload` guard while dirty, "Draft
+  autosaved ✓" status flash. Autosave never fires for pending/published docs
+  (an automatic save can't unpublish anything); a `changes-requested` doc
+  autosaves without losing that status.
+- **Up-front doc ids** — `DB.newDocId(coll)`; both editors mint the
+  Firestore id before first save, so section media, video, and news cover
+  uploads land at `stories/{id}/…` / `news/{id}/…` instead of orphaned
+  `draft_<ts>` / `temp_<ts>` Storage folders. First save stamps `createdAt`.
+- **Request-changes review flow** — admin queue "Reject" replaced by
+  "Request changes" with a required inline note; sets new status
+  `changes-requested` + `reviewNote` + `reviewedAt` (extended
+  `DB.updateStoryStatus/updateNewsStatus(id, status, extra)`). The author
+  sees the note as an orange banner in the editor (`#editor-review-banner`)
+  and on their dashboard list rows; approval clears the note.
+- **Dashboard status strip** (`renderDashStatusStrip`, `#dash-status-strip`)
+  — one banner per in-flight piece: ⏳ awaiting review, ✏️ needs changes
+  (with the admin's note), 🎉 published in the last 14 days (dismissible;
+  dismissal remembered in localStorage since contributors can no longer
+  write to published docs).
+- **Markdown-lite in section text** — `renderRichText()` (exported as
+  `McgheeLab.renderRichText`): escapes all HTML then applies `**bold**`,
+  `*italic*`, `[text](https://url)` and newline→`<br>`. Used by
+  `buildStoryHTML` in `app.js` (public research/news feeds + preview);
+  formatting hint added under every section textarea.
+- **True preview** — `app.js` exports `McgheeLab.buildStoryFeedCard` /
+  `buildNewsFeedCard`; both editors' Preview now renders the exact public
+  feed card (auto-expanded, social actions hidden via CSS) instead of a
+  hand-rolled approximation.
+- **RM "My Lab Today" strip** (`rm/js/home-feed.js`, new; loaded by
+  `rm/index.html` above the workflow chooser) — tiles for tasks due within
+  7 days (personal buckets + assigned, overdue flagged), unread chat
+  mentions (`chatReadState.mentionCount`), next lab meeting, and my
+  story/news review status (reads the parent site's `stories`/`newsPosts`
+  by `authorUid`, statuses filtered client-side — no composite index).
+  Every tile loads independently and hides on error/empty; strip renders
+  nothing if all tiles are empty. Styles in `rm/css/workflow.css`.
+- **`RM_DIALOG.prompt()`** (`rm/js/rm-dialog.js`, new) — promise-based
+  modal replacement for `window.prompt()` (Enter/Esc/backdrop handling,
+  RM light-theme styling, injected CSS). Loaded by `rm/index.html`,
+  `rm/pages/tasks.html`, `rm/pages/library.html`.
+
+### Changed
+- **Editor internals fully deduplicated** (`user-system.js`) — the Editor
+  Kit gains `setupSectionEditor({container, basePath, autosave})` (one
+  section-block engine: move/remove, image/video upload, V3.301 3D-viz
+  picks, restore, collect — blocks keyed by `data-section-id` so media
+  maps survive reorders) and `setupTeamPicker({…})` (mentor/contributor
+  selects + chips + collect/restore; `autosave` optional). The story,
+  news, AND project editors now consume these instead of three
+  copy-paste implementations; `newsSectionBlockHTML` +
+  `_newsSectionCounter` deleted (news uses the shared
+  `sectionBlockHTML`). Behavior deltas from unification: news section
+  videos restricted to mp4/webm ≤50 MB and stored at
+  `news/{id}/section_{sid}/video.{ext}` (was any `video/*` at
+  `…_video.{origExt}`; existing docs unaffected — URLs are stored on the
+  doc), news sections gain an `order` field, story section text is
+  trimmed on collect, story media input resets after selection, and
+  section move up/down now marks the draft dirty in both editors.
+- `rm/js/tasks-buckets.js` — `saveDoc()` failures now raise
+  `TOAST.error('Task save failed — recent edits are NOT saved', {retry})`
+  instead of only `console.error`; first successful save after a failure
+  shows `TOAST.success('Tasks saved')`. Four `prompt()` call sites (rename
+  task builder, new sub-bucket, child subtask, new task builder) now use
+  `RM_DIALOG.prompt` (with `window.prompt` fallback).
+- `rm/js/library.js` — DOI/PMID/arXiv add uses `RM_DIALOG.prompt`.
+- `rm/js/workflow-chooser.js` — custom-workflow rename uses
+  `RM_DIALOG.prompt`.
+- `user-system.js` — status badges render `changes-requested` as "changes
+  requested"; author dashboard list rows show the review note.
+- `user-styles.css` — status-banner/review-note/propose-project/
+  reject-note-form/rt-hint/preview-card styles.
+- `CLAUDE.md` — corrected the stale claim that all site content lives in
+  `content.json`; news/stories/projects/team are Firestore-driven via the
+  in-site dashboard editors.
+- **`sw.js`** — bumped `CACHE_VERSION` 271 → 272.
+
+## [V3.301] - 2026-07-11
+
+**Data Visualizations: the interactive 3D flow viewer joins the public site,
+with contributor-saved views embeddable in research stories and news.**
+
+### Added
+- **`#/data` — Data Visualizations section** ([`app.js`](../../app.js)):
+  gallery of all viewers registered in the new
+  [`DataIllustrations/manifest.json`](../../DataIllustrations/manifest.json)
+  (static registry, FTP deploy — same pattern as `modules/manifest.json`;
+  `id` is the stable key referenced by saved views, never rename it).
+  **All visualization folders are centralized under `DataIllustrations/`**:
+  each viz is a single HTML file or its own subfolder (folder-per-viz is
+  the convention as the collection grows). The manifest `file` field
+  accepts relative subpaths (e.g. `granular-flow/index.html`);
+  `vizViewerUrl()` sanitizes per-segment and drops `..`/`.` so
+  Firestore-sourced values can never escape the folder. The standalone
+  `granular-flow/` viewer folder moved from the repo root to
+  `DataIllustrations/granular-flow/`, and the granular-flow manifest
+  entry uses `Images/research/granular-flow-preview.jpg` as its gallery
+  thumb fallback. Default flow particles in `viewer3d.html` retuned to
+  speed 0.1 / size 0.7 / density 6 (base `P` + HTML sliders + the Hero
+  and Slow flow presets).
+  Reached from a gateway card on the Research page — deliberately no new
+  top-level nav item; `NAV_GROUPS.data = 'research'` keeps the Research
+  group highlighted. `#/data/{vizId}?view={viewId}` is the full viewer:
+  hero hidden, full-height iframe, back link, and a public saved-views
+  poster strip that applies a view in place via the viewer's new
+  `__applyConfig()` (no iframe reload).
+- **Saved view presets (contributor+)**: signed-in non-guests get a
+  "Save view" control on the full viewer page. `saveVizView({vizId, name,
+  config, posterBlob})` in [`user-system.js`](../../user-system.js)
+  pre-allocates the doc ref, runs the snapshot blob through the standard
+  `processImage()`/`uploadImageSet()` WebP pipeline to
+  `vizViews/{viewDocId}/poster/{thumb,medium,full}.webp`, then writes
+  `{vizId, name, config, poster, createdBy, createdByName, createdAt,
+  updatedAt}` to the new Firestore **`vizViews`** collection. New DB
+  methods `getVizViews(vizId)` / `getAllVizViews()` / `getVizView(id)` /
+  `deleteVizView(id)` use `where()`-only queries + client-side sort so no
+  composite index is needed.
+- **viewer3d.html config API** (all inline; the 4 MB `const GEOM` data
+  line untouched; file stays self-contained and `file://`-openable):
+  `window.__getConfig()` → `{v:1, st, P, camera:{q, dist, target}}`;
+  `window.__applyConfig(cfg)` (copies only the viewer's own `st`/`P` keys,
+  recomputes `zScale`/`target[2]`, rebuilds the grain mesh, syncs the HUD,
+  restores the quaternion camera); `window.__snapshotBlob()` → PNG Blob
+  (existing Snapshot button body refactored into a shared `bakeSnapshot()`);
+  **embed mode** `?embed=1` (CSS hides HUD/presets/gimbal/stats/legend/hint;
+  `#cv{pointer-events:none}` kills orbit/zoom; `#cbar`/`#axlab` stay — they
+  are part of the saved look); **`#cfg=<base64 JSON>` hash config** applied
+  before the first painted frame and re-applied on `hashchange`; rAF gate
+  `window.__setRunning(on)` + `visibilitychange` pause.
+- **Viz embeds in stories + news** (third section-media type beside
+  image/video): "🧊 Embed 3D visualization" button on section blocks in
+  both editors opens `openVizPicker()` — saved views grouped by
+  visualization as poster tiles. Selection stores a **denormalized**
+  `viz: {vizId, viewId, name, file, poster, config}` on the section
+  (mutually exclusive with image/video, both directions), so public feeds
+  need zero extra Firestore reads and published content keeps a frozen
+  "as-cited" look if a view is later edited/deleted. Both editor preview
+  modals show the poster + a 3D-view badge.
+- **Poster-until-visible public rendering**: `buildStoryHTML()` renders a
+  `.viz-embed` (poster `<img loading="lazy">` + full-cover overlay link
+  "Interactive 3D — click to explore" → `#/data/{vizId}?view={viewId}`).
+  `wireVizEmbeds()` (called from the research feed loader and the news
+  `renderList`) runs one IntersectionObserver per feed: scroll-in creates
+  the chrome-less live iframe (`?embed=1#cfg=…`, `pointer-events:none`,
+  fades in over the poster), scroll-out **removes** it — freeing the WebGL
+  context (browsers cap ~8–16/page) and ~50 MB of decoded buffers — with
+  at most `MAX_LIVE_VIZ = 2` live at once. Observers are pushed onto
+  `state.observers` so route changes disconnect them. Embeds inside
+  collapsed `.expandable-details[hidden]` have zero rect → the observer
+  fires naturally on expand.
+- **Security rules**: [`firestore.rules`](../../firestore.rules)
+  `vizViews/{viewId}` — public read (posters/configs render on public
+  pages); create by `isLabMember()` (contributor+; guests blocked) with
+  `createdBy` pinned to the caller; update/delete by creator or admin.
+  [`storage.rules`](../../storage.rules) `vizViews/{viewId}/**` — public
+  read, authenticated image write < 10 MB. Deploy with
+  `firebase deploy --only firestore:rules,storage`.
+- **CSS**: public pieces in [`styles.css`](../../styles.css)
+  (`.viz-gateway-card`, `.viz-gallery*`, `.viz-viewer-bar`,
+  `.viz-views-strip`/`.viz-view-thumb`, `.viz-frame*`, `.viz-embed*`);
+  editor pieces in [`user-styles.css`](../../user-styles.css)
+  (`.section-viz-btn`, `.viz-section-badge`, `.viz-picker-*`).
+
+### Changed
+- `sw.js` `CACHE_VERSION` 270 → 271. `DataIllustrations/viewer3d.html` is
+  intentionally NOT precached (4.3 MB would bloat the install-time shell
+  cache); N embeds on one page fetch it once via the HTTP cache.
+- Story/news section schema gains an optional `viz` field
+  (`{text, image, video, viz, imageAlt, order}`); existing content is
+  unaffected (`viz` is simply absent/null).
+
+### Out of scope (documented extension point)
+- Research projects render no embeds this version — their linked stories
+  carry them. `projectPackages` can later gain an optional `viz` field
+  rendered by `buildProjectExpandedHTML()` with the same `.viz-embed`
+  markup; zero schema migration needed.
+
+## [V3.300] - 2026-07-10
+
+**Surface Functionalization Foundations: a new four-lesson interactive course on
+how to make a surface do what you want, built from the atoms up.**
+
+### Added
+- **New standalone course `modules/surface_functionalization/`** — four
+  self-contained interactive lessons built per
+  [`modules/AUTHORING.md`](../../modules/AUTHORING.md), each opening at a
+  high-school level and escalating to a sophomore-undergraduate "level up" final
+  tab with the real governing equations and a worked example. MathJax CDN only;
+  no SPA header/Firebase; registered in
+  [`modules/manifest.json`](../../modules/manifest.json) under a new
+  `surface_functionalization` folder (label "Surface Functionalization
+  Foundations": overview + 4 lessons + 4 printable worksheets).
+  - **`01-surface-energy-and-adsorbed-water.html`** — Surface atoms are
+    energetically unbalanced (missing neighbors → net inward pull); surface
+    energy γ ≈ Nε/2A; ambient water adsorbs in BET multilayers; vacuum desorbs
+    it (slowly) with mean free path λ = k_BT/(√2πd²P) and Hertz–Knudsen monolayer
+    time. Tabs: `neighbors`, `energy`, `adsorb` (animated), `vacuum` (animated).
+  - **`02-plasma-treatment.html`** — Pump down (bares surface + lengthens
+    electron runways), strike an RF avalanche at the Paschen minimum, decode
+    plasma color as gas-specific line emission, and graft groups by gas
+    (O₂→ –OH, N₂→ –NH₂, CO₂→ –COO⁻) with contact-angle drop over treatment time.
+    Tabs: `pumpfirst`, `ignite` (animated Paschen), `color` (animated glow +
+    spectrum), `chemistry` (animated).
+  - **`03-silanes.html`** — Common Si head condenses onto surface –OH (releasing
+    HCl/methanol), the Goldilocks hydrolysis/condensation reaction (trace water
+    only), tail-sets-surface-energy (APTMS/PDMS/fluorosilane), and Young's
+    equation cos θ = (γ_sv − γ_sl)/γ_lv. Tabs: `head` (animated docking),
+    `reaction`, `tail`, `wetting`.
+  - **`04-roughness-and-superhydrophobicity.html`** — Texture as the missing
+    ingredient, Wenzel amplification (cos θ* = r cos θ), Cassie–Baxter trapped
+    air (cos θ* = f_s(cos θ+1) − 1, the lotus effect), Cassie↔Wenzel stability
+    criterion and irreversible impalement collapse, plus Sharklet
+    topography-driven anti-fouling. Tabs: `recap`, `wenzel`, `cassie`,
+    `super` (animated collapse).
+  - **`overview.html`** — course landing page modeled on
+    `modules/solid_mechanics/overview.html` (hero, 3-step how-to, lesson card
+    grid with lesson + worksheet links, tab-arc lines).
+  - **`worksheet-01…04-*.html`** — four printable Predict→Do→Record→Explain
+    worksheets, one per lesson, modeled on the `solid_mechanics` worksheet house
+    style; each references the paired lesson's actual sliders, scenarios, and
+    stat/verdict readouts.
+- All Canvas 2D simulations follow the course helper-library contract copied
+  verbatim from `modules/solid_mechanics/01-atoms-as-springs.html` (COL palette,
+  setupCanvas, Chart, glyphs, setStat/setVerdict) and the TFM
+  `startAnim()`/`stopAnim()` teardown pattern for animated tabs.
+
+### Changed
+- **`sw.js`** — bumped `CACHE_VERSION` 269 → 270 so the new course files are
+  fetched fresh.
+
+## [V3.299] - 2026-07-10
+
+**Optics Foundations: a new five-lesson interactive course on how light works,
+from a single atom to a microscope.**
+
+### Added
+- **New standalone course `modules/optics/`** — five self-contained interactive
+  lessons built per [`modules/AUTHORING.md`](../../modules/AUTHORING.md), each
+  opening at a high-school level and escalating to a sophomore-undergraduate
+  "level up" final tab with the real governing equations and a worked example.
+  MathJax CDN only; no SPA header/Firebase; registered in
+  [`modules/manifest.json`](../../modules/manifest.json) under a new `optics`
+  folder (label "Optics Foundations": overview + 5 lessons).
+  - **`01-light-and-matter.html`** — Light as an EM wave (`c=λf`), atomic
+    energy-level absorption (`E=hc/λ`), one atom → a solid's absorption band,
+    and the band gap that sets a material's color (`λc=1240/E_g`). Tabs:
+    `wave` (animated E/B wave + spectrum), `atom` (animated photon-meets-atom
+    resonance), `crystal` (line → band, reflected-color integration), `bands`
+    (band diagram + transmission edge, Si/CdS/diamond presets).
+  - **`02-reflection-and-tir.html`** — Color as reflected light, Snell
+    reflection/refraction, total internal reflection, and the critical angle /
+    frustrated-TIR principle behind optical fingerprint scanners.
+  - **`03-lenses.html`** — Curved-surface refraction → focusing, converging vs
+    diverging lenses, focal-plane image formation (three principal rays), and
+    thin-lens/lensmaker equations plus compound (two-lens) systems where
+    spacing shifts the focal plane.
+  - **`04-scattering-and-metamaterials.html`** — Index-mismatch scattering
+    (Beer–Lambert `T=exp(−μs·L)`), optical clearing via index matching
+    (scattering ∝ Δn²), layered scattering, and Rayleigh `1/λ⁴` scaling plus
+    phase-gradient metasurface (flat metalens) beam steering via the
+    generalized Snell's law.
+  - **`05-coherence-and-microscopy.html`** — Coherent vs incoherent light and
+    two-source interference, Young's double slit (`Δy=λL/d`), the microscope
+    light path, and the diffraction-limited resolution (`d=0.61λ/NA`) with a
+    widefield-vs-confocal comparison. Course capstone tying Lessons 1–4 together.
+  - **`overview.html`** — course landing page on the
+    `modules/heat_transfer/overview.html` pattern (module-header include +
+    class-aware lesson links, spectrum-bar hero theme).
+- **New reusable `self-check` component** (Optics Foundations) — a lightweight,
+  self-contained knowledge-check block: a question, 2–3 `.sc-opt` buttons with
+  `data-answer` and per-option `data-explain-{opt}` attributes, and a
+  `.sc-feedback` line. Wired by a shared `wireSelfChecks()` helper that shows
+  instant correct/wrong feedback with an explanation. Purely formative — nothing
+  written to Firestore or localStorage. 2–3 per lesson plus a harder challenge
+  check in each lesson's undergraduate final tab. CSS added to each module's
+  house stylesheet (`.self-check`, `.sc-q`, `.sc-opt`, `.sc-feedback`).
+- **Shared `wavelengthRGB(nm, alpha)` helper** — Bruton visible-spectrum
+  wavelength→RGB conversion added to the module helper library, used across the
+  optics lessons for physically-motivated color swatches and spectra.
+
+### Changed
+- **`sw.js`** — bumped `CACHE_VERSION` 268 → 269 so clients pick up the new
+  optics course assets promptly (modules are runtime-cached via
+  stale-while-revalidate; `modules/manifest.json` is fetched cache-busted by
+  `class-builder.js`).
+- **`modules/manifest.json`** — added the `optics` folder entry (6 files) and
+  refreshed `generated` to `2026-07-10`.
+
+## [V3.298] - 2026-07-08
+
+**Solid Mechanics Foundations: student worksheets, freeze animation, and course
+landing page.**
+
+### Added
+- **Worksheets** — five printable companion worksheets
+  (`modules/solid_mechanics/worksheet-0{1..5}-*.html`), one per lesson, for
+  high-school students. Each experiment targets one lesson tab with a
+  predict → experiment → record → explain cycle: predictions with checkbox
+  options, numbered slider/scenario procedures, data tables filled from the
+  sims' stats panels, and short-answer prompts; each worksheet ends with a
+  synthesis section. Self-contained HTML with print CSS (`@page` margins,
+  `break-inside: avoid`), no dependencies.
+- **`modules/solid_mechanics/02-grains-and-boundaries.html`** — Tab 2 gains a
+  live solidification animation above the background prose: crystals nucleate
+  at a rate set by a new **Cooling rate** slider (`s-grow-cool`), grow one cell
+  per growth tick, and freeze grain boundaries where frontiers collide
+  (Johnson–Mehl-style tessellation). "▶ Replay freeze" button; growth-tick
+  pacing adapts so slow and fast cools are both watchable; animation pauses
+  when the tab is hidden; live stats (% frozen, crystals nucleated, mean grain
+  size) and completion verdicts keyed to the cooling rate. Mosaic scenario
+  presets now also set the matching cooling rate.
+- **`modules/solid_mechanics/overview.html`** — course landing page following
+  the `modules/foundations/overview.html` infrastructure: dark-theme hero,
+  how-to-use steps, five lesson cards each pairing "Open lesson" (class-aware
+  `?class=` propagation, new-tab inside the SPA iframe) with a "Worksheet
+  (print)" link, plus a for-teachers note. Includes shared `module-header`
+  + Firebase header wiring.
+- **`modules/manifest.json`** — `solid_mechanics` folder now lists
+  `overview.html` first, then the five lessons and five worksheets.
+
+## [V3.297] - 2026-07-08
+
+**Solid Mechanics Foundations: story-continuity revisions to Lessons 1–2.**
+
+### Added
+- **`modules/solid_mechanics/02-grains-and-boundaries.html`** — new first tab
+  "A Lattice of Springs" (key `lattice`) bridging from Lesson 1: a solid is
+  atomic springs in every direction forming a lattice; defects make forces
+  distribute non-uniformly. Live 21×11 spring-network sim (scalar Gauss–Seidel
+  relaxation, seeded vacancies) with springs color-coded by carried force,
+  histogram of load sharing, and a "hottest spring ×share" concentration stat
+  (exactly 1.00× for a perfect lattice). Worked example cites the Kirsch
+  circular-hole factor of 3 (Timoshenko & Goodier added to sources). Module now
+  has five tabs; grain tab (`grow`) renumbered to 2 and its prose reframed:
+  a grain is a region of perfectly repeating lattice; boundaries form where
+  growing grains collide.
+- **`modules/solid_mechanics/01-atoms-as-springs.html`** — Tab 3 gains a
+  "Pull" displacement slider; every atomic bond-spring is now color-coded by
+  the force it carries (blue → amber → red, with a colorbar), stats report
+  force per spring and total (×M chains), and the prose states explicitly that
+  a hardware-store spring IS a bundle of atomic springs working together.
+
+### Changed
+- **`modules/solid_mechanics/01-atoms-as-springs.html`** — Tab 4
+  (Lennard-Jones) rewritten intuition-first: potential energy introduced via a
+  marble-in-a-bowl energy-valley picture with force = downhill slope, all
+  below calculus level; the derivative form `F = −dU/dr` and second-derivative
+  stiffness moved into a clearly-flagged "Advanced · needs calculus" box;
+  key-takeaways give both plain-language and calculus phrasings.
+
+## [V3.296] - 2026-07-08
+
+**New course: Solid Mechanics Foundations** — a five-lesson set of standalone
+interactive modules under `modules/solid_mechanics/`, following the pattern in
+[`modules/AUTHORING.md`](../../modules/AUTHORING.md). Each lesson opens at the
+high-school level and ends at the sophomore-undergraduate level, with a live
+canvas simulation on every tab (physical-picture canvas beside a plot canvas),
+scenario presets, live stats, and a narrating verdict box. Lessons build a
+single arc: atomic bonds → grains → force–displacement of real materials →
+stress & strain → loading modes.
+
+### Added
+- **`modules/solid_mechanics/01-atoms-as-springs.html`** — bonds as springs;
+  Hooke's law as the small-stretch limit of the interatomic force; series/parallel
+  bonds making a real spring; Lennard-Jones `F = −dU/dr` and `E ≈ k/r₀`.
+- **`modules/solid_mechanics/02-grains-and-boundaries.html`** — Voronoi
+  solidification; grain boundaries blocking dislocation slip; transgranular vs.
+  intergranular crack paths; Hall–Petch `σ_y = σ₀ + k_y/√d`.
+- **`modules/solid_mechanics/03-honey-cheese-metal-diamond.html`** — force vs.
+  displacement for four materials; rate dependence; spring/dashpot Maxwell &
+  Kelvin–Voigt models; stress relaxation and the Standard Linear Solid.
+- **`modules/solid_mechanics/04-stress-and-strain.html`** — why F–ΔL is an object
+  property; normalizing to `σ = F/A` and `ε = ΔL/L₀`; contact-stress bulbs
+  (Boussinesq); Young's modulus and Poisson's ratio.
+- **`modules/solid_mechanics/05-loading-modes.html`** — uniform tension/compression
+  (with buckling); beam bending `σ = My/I`; torsion `τ = Tr/J`; combined loading
+  and the section-shape game (`I = ∫y²dA`).
+- **`modules/manifest.json`** — new `solid_mechanics` folder entry (label
+  "Solid Mechanics Foundations") listing all five lessons; `generated` bumped to
+  2026-07-08.
+
+### Bug Fixes
+- **Shared module helper `setupCanvas` (all `modules/solid_mechanics/*.html`)** —
+  fixed a devicePixelRatio feedback loop that shrank every canvas to an error on
+  Retina displays. Setting `cv.width = w·dpr` reflects into the `width` content
+  attribute, which the next redraw re-read as the logical size, compounding the
+  backing store by ×dpr each interaction until it exceeded the browser's max
+  canvas dimension. The intrinsic logical size is now cached in `dataset` on the
+  first call and never re-read from the attribute.
+- **`modules/solid_mechanics/01-atoms-as-springs.html`** — Tab 2 (Hooke) plot now
+  zooms with the stretch window instead of auto-scaling to the compression-side
+  force spike (which flattened the Hooke line to invisibility); presets and
+  verdict thresholds recalibrated to physically realistic bond strains.
+- **`modules/solid_mechanics/04-stress-and-strain.html`** — Tab 4 (Young's modulus)
+  ladder-plot labels for steep reference lines no longer collide in the top-left
+  corner; they stack down the right edge.
+- **Shared plotting helper `niceTicks` (all `modules/solid_mechanics/*.html`)** —
+  tick values are rounded to avoid floating-point axis labels (e.g. `5.6e-17`
+  instead of `0`).
+
+## [V3.295] - 2026-06-27
+
+**Paper reader: two-column pages with a narrow/bridged gutter no longer leak
+highlights across the gutter.** Reported: on some papers the reader still
+didn't recognize the two-column split, so a highlight drawn in one column
+spanned into the other. Root cause was in `rm/js/pdf-viewer.js`'s reading-order
+builder (`_clusterAndSort`): it used a single DBSCAN flood-fill, which any one
+element touching both columns collapses into a single cluster — a gutter
+narrower than 1.5×line-height, or (the more common, previously-missed case) a
+full-width element flush against the body (title, spanning section heading, wide
+figure/table/equation, header/footer) whose own internal links bridge
+left↔right. Merged columns then sort line-by-line, interleaving the two columns
+in reading order, so `geom-selection`'s contiguous index-range slice grabs the
+neighbouring column.
+
+Reading order is now **column-major within horizontal bands**, derived from page
+geometry instead of flood-fill connectivity (which a single full-width element
+can collapse). Selection within a column can no longer leak across the gutter.
+
+### Changed
+- **`rm/js/pdf-viewer.js`** — `_clusterAndSort` is now a dispatcher: detect
+  column gutters, then order via `_orderByColumns` (banded column-major) when a
+  gutter exists, else the original `_orderByFloodFill` (unchanged DBSCAN — so
+  single-column / figure pages behave exactly as before). New pure, DOM-free
+  helpers lifted to module scope (unit-testable): `_lineSort`,
+  `_orderByColumns`, `_orderByFloodFill`, `_detectColumnGutters`.
+  - `_detectColumnGutters`: x-occupancy projection with the valley ceiling
+    anchored to the valley **floor** (not zero), so full-width content crossing
+    the gutter raises the floor without hiding the valley — this is the fix for
+    heading/abstract-heavy papers that previously read as one column. Very fine
+    bins + boundary-erosion term to catch narrow gutters; band centred on the
+    valley's emptiest plateau so a ragged edge doesn't drag it sideways. Per-row
+    "full-width vs clean" test by band occupancy (≥70% = full), two
+    median-smoothing passes, and a consistency guard (long contiguous clean run
+    + high clean fraction + two substantial slabs) so a typographic river inside
+    one column isn't mistaken for a gutter.
+  - **Pixel-projection pass** — new `_makePixelProbe(canvas, cssW, cssH)`
+    downsamples the rendered page canvas once (GPU `drawImage` + one
+    `getImageData`) into an ink grid and returns `pxInk(x1,y1,x2,y2)` → mean ink
+    density. The per-row clean test consults it: a row also counts as
+    full-width when non-text ink spans the band (ink at BOTH band edges), so an
+    image/figure/equation crossing the gutter — invisible to the text layer —
+    is handled. The both-edges check ignores a thin vertical column rule (which
+    inks only the band centre). Falls back to text-only if the canvas is
+    unavailable or `getImageData` throws.
+- **`sw.js`** — `CACHE_VERSION` 267 → 268.
+
+The `{index, cluster}` contract on text items and the `getTextItems()` API are
+unchanged, so `geom-selection.js`, `paper-citations.js`, `paper-search.js`, and
+`paper-overlay-import.js` need no changes (and benefit from the corrected
+ordering). Validated with a synthetic Node harness over realistic typesetting
+geometry: justified two-column **0% undetected, ~0.07% residual in-column
+drag-leak** (section-boundary edge cases; was effectively 100% before),
+single-column false-gutter ~1.6%, three-column ~96%, ~0.6 ms per 1200-item page.
+
+**Deploy:** client-only (`rm/` + `sw.js`) — FTP + hard-reload. No function or
+rules redeploy.
+
+## [V3.294] - 2026-06-27
+
+**Paper reader tabs — keep up to 10 papers open at once.** The library paper
+reader (`pages/library-paper.html`) gains a **tab strip**: every paper you
+open becomes a tab, and switching between them is **instant in-place** — no
+reload, no PDF re-render for a tab you've already visited, with each tab's
+scroll position and zoom preserved. Open papers persist across reloads
+(`localStorage: rm_lp_open_papers`), so every existing "open paper" link
+across RM (library list, citations, cited-by, PMR, grants, sharing) now lands
+as a focused/added tab. Capped at **10** simultaneous papers; opening an 11th
+closes the least-recently-active one.
+
+How it works: each *visited* tab owns a live `PDF_VIEWER` instance in its own
+`.lp-viewer-pane` inside `#lp-viewer-host` (only the active pane is shown, and
+it carries `id="lp-viewer"` so existing lookups resolve to it). The shared
+annotation/overlay/citation/search stack is **detached from the outgoing
+paper and re-attached to the incoming one** on each switch — which required
+hardening every singleton's teardown so re-init is leak-free.
+
+### Added
+- **`rm/pages/library-paper.html`** — `.lp-tabs#lp-tabs` strip + `#lp-viewer`
+  is now the host `#lp-viewer-host` (per-tab panes created lazily).
+- **`rm/js/library-paper.js`** — multi-tab manager: `bootOnce()`,
+  `activateTab(id)` / `closeTab(id)`, `_ensurePaneActive` (create-or-show pane
+  + lazy viewer), `_detachActive` / `_attachActive` (tear-down ↔ re-init the
+  singleton stack), tab persistence (`rm_lp_open_papers`), LRU eviction at the
+  10-tab cap, empty state. The old monolithic `init()` is gone.
+- **`rm/css/style.css`** — `.lp-tabs` / `.lp-tab` / `.lp-tab-close` /
+  `.lp-tab-new` strip styles, `.lp-viewer-host` / `.lp-viewer-pane`,
+  `.lp-empty`.
+
+### Changed
+- **`rm/js/paper-overlays.js`** — outside-click popover closer bound **once**
+  via a named `_onDocClick` handler (was re-added on every `_render()`);
+  `destroy()` now `removeEventListener`s it.
+- **`rm/js/paper-search.js`** — outside-click closer bound once via named
+  `_onDocClick`; new `destroy()` clears the debounce timer + listener + mount.
+- **`rm/js/paper-overlay-import.js`** — drag/drop listeners tracked and
+  re-targeted to the active pane (`_unwireDropZone`/`_wireDropZone(viewerEl)`,
+  `init({viewerEl})`); new `destroy()`. No more stacked drop handlers (which
+  fired `handleDrop` N times after N opens).
+- **`rm/js/paper-overlay-types.js`** — `init()` resets `_changeCallbacks`
+  (was never cleared → stacked the orchestrator's onChange); new `destroy()`.
+- **`rm/js/annotation-panel.js`** — `init()` resets `_filterCallbacks` + the
+  per-card `_expandedCards`/`_cardSection`/`_evidenceForm` maps so a tab
+  switch doesn't stack duplicate filter callbacks or grow unbounded.
+- **`rm/js/pdf-viewer.js`** — `destroy()` removes the container scroll
+  listener (captured handler ref) so destroy-on-tab-close doesn't leak it.
+- **`sw.js`** — `CACHE_VERSION` 266 → 267.
+- **`CodeLog/ClaudesPlan/V3.294_paper_reader_tabs.md`** — plan doc.
+
+**Deploy:** client-only (`rm/` + `sw.js`) — FTP + hard-reload. No Firestore
+rules / indexes / functions change (annotations still live at
+`papers/{id}/annotations`; tabs persist in localStorage only).
+
+## [V3.293] - 2026-06-26
+
+**Classifier Settings & Transparency page — tune the weights, see exactly why it decides.** A new page (`Settings → Classifier Settings`, also linked from the API Usage classifier card) exposes every knob the email-category classifier uses and explains its decisions feature-by-feature. All client-side, per-user, persisted to `userData/{uid}/emailArchive/classifierSettings` and applied on the Email page at boot.
+
+- **Feature weights** — sliders (0–3×) for **sender address**, **sender domain**, **subject keywords**, **body keywords**. Each multiplies that group's contribution to the score, so you can tell the model "trust the domain more, the body less." (Verified: boosting domain 3× sharpens a borderline NIH email from 0.28 → 0.57 confidence.)
+- **Activation & confidence** — sliders for min examples to activate, min confidence to use a model guess (vs. falling back to rules), Laplace smoothing α, and min examples/class.
+- **Live accuracy** — resubstitution accuracy (overall + per-category) recomputes as you move any slider, so the effect of a weight change is immediate. Labeled optimistic.
+- **Explain a prediction** — pick one of your training examples (or type sender/subject/snippet) and see the ranked category probabilities as bars, whether the result clears the activation gate, and a per-feature table showing which category each feature **favors** and how many times it was seen per category in training. Maximum transparency into the model's reasoning.
+- **Fallback rules (read-only)** — the deterministic `CATEGORY_RULES` tables (36 domain hints, 18 subject hints, 23 noise-subject + 18 noise-sender patterns) with their weights, so the fallback layer is as visible as the learned model.
+
+### Added
+- **`rm/pages/classifier-settings.html`** + **`rm/js/classifier-settings.js`** — NEW. The settings/transparency page (IIFE; weight + threshold sliders, live accuracy, per-email explain, rules tables). Lab-member gated.
+- **`rm/js/email-classifier.js`** — `configure(patch)` / `getConfig()` (tunable `minExamples`, `minPerClass`, `minConfidence`, `alpha`, per-group `weights{from,dom,s,b}`; defaults reproduce prior behavior). `explain(email)` returns ranked probabilities + per-class, per-feature contribution breakdown. Scoring refactored into a single weighted `_classLogScore()` shared by `_scores`/`explain` (weights multiply each feature group's log-prob; α now configurable).
+- **`rm/js/category-rules.js`** — `CATEGORY_RULES.describe()` exposes the rule tables (pattern/category/weight) read-only for the transparency view.
+- **`rm/js/api-routes.js`** — `email_archive/classifier_settings.json` → `userData/{uid}/emailArchive/classifierSettings`.
+- **`rm/js/nav.js`** — `Settings → Classifier Settings` (lab-member gated).
+- **`CodeLog/ClaudesPlan/V3.293_classifier_settings_transparency.md`** — plan doc.
+
+### Changed
+- **`rm/js/email-review.js`** — `boot()` calls `loadClassifierSettings()` (applies saved weights/thresholds via `EMAIL_CLASSIFIER.configure`) before training the classifier, so the Email page respects the user's tuning.
+- **`rm/pages/api-usage.html`** — classifier card links to the new settings page.
+- **`sw.js`** — `CACHE_VERSION` 265 → 266.
+
+**Deploy:** client-only (`rm/` + `sw.js`) — FTP + hard-reload. No function or rules redeploy (settings doc lives under the already-permitted `userData/{uid}/emailArchive/*`).
+
+## [V3.292] - 2026-06-26
+
+**Live-learning email category classifier — in-browser, free, reviewable.** Every email you hand-categorize now trains a real classifier that gets smarter as you go, and you can review all of its training data on the API Usage page. No LLM, no API key, no Cloud Function, no Python server — it's a Multinomial Naive Bayes model that trains *in the browser* from your corrections and is blended ahead of the deterministic rules.
+
+- **Guess priority is now model → rules → unknown.** The learned model wins once it has enough labeled data (≥12 examples) and is confident (top-class probability ≥0.6); below that the V3.289 rules carry the guess; if neither fires it stays `unknown`. Model-sourced guesses show a green **"learned"** badge (beside indigo **"guess"** for rules and amber **"edit"** for manual).
+- **Recheck-all-on-label.** Every time you categorize an email, the model retrains and **all other guessed/unknown rows are re-predicted in place** (manual labels are never touched). A correction propagates immediately — the quick-sort toast reports how many guesses were rechecked.
+- **Features:** exact sender (`from:`), sender domain (`dom:`), subject keywords (`s:`), and snippet/body-preview keywords (`b:`). (Body is the Gmail snippet only — the scraper still stores `format=metadata`, not full bodies.)
+- **Reviewable** on the API Usage page: a new top card shows training-example count, active/warming status, (optimistic) training accuracy, vocabulary size, per-category counts, the most-predictive signals per category, and the full training set (sender / subject / top features / label) with per-row delete.
+
+### Added
+- **`rm/js/email-classifier.js`** — NEW. `window.EMAIL_CLASSIFIER`: a self-contained Multinomial Naive Bayes (`featuresFor`, `train`, `ready`, `predict`, `rank`, `topTokens` [log-odds vs. rest], `stats`, `trainingAccuracy` [resubstitution], `domainOf`). Laplace smoothing α=1; gates: `MIN_EXAMPLES=12`, `MIN_PER_CLASS=2`, `MIN_CONFIDENCE=0.6`. Categories: research/teaching/service/admin/personal/noise (no `unknown` class).
+- **`rm/js/classifier-review.js`** — NEW. API-Usage page card renderer (IIFE; loads the training store via the api adapter, trains the model, renders summary + per-category signals + the training-set table with delete). Production-working — no Python server.
+- **`rm/js/email-review.js`** — `guessCategory()` (model→rule→unknown, single source of truth, used at load + recheck), `_recheckGuesses()` (re-predict all non-manual rows), `_trainingExampleFromEmail` / `_trainingExamplesArray` / `_retrainClassifier` / `loadClassifierTraining` / `saveClassifierTraining` / `recordTrainingExample` / `removeTrainingExample` / `_backfillTrainingFromLoaded`.
+- **`rm/js/api-routes.js`** — `email_archive/classifier_training.json` → `userData/{uid}/emailArchive/classifierTraining` (one doc, `{examples:{emailId:{label,sub,s,subj,snip,ts}}}` — a feature snapshot per hand-label, so the classifier + review need only this doc, no join with emailMessages).
+- **`rm/pages/api-usage.html`** — "Email category classifier — training data" card at the top (the page's only production-working card; the suggester cards below remain local-Python-dev only); loads `email-classifier.js` + `classifier-review.js`.
+- **`rm/pages/activity-overview.html`** — email tab loads `/rm/js/email-classifier.js` (after `category-rules.js`, before `email-review.js`).
+- **`CodeLog/ClaudesPlan/V3.292_email_live_classifier.md`** — plan doc.
+
+### Changed
+- **`rm/js/email-review.js`** — `_coerceLegacyEmailShape` uses `guessCategory()` (was rules-only). `renderQuickCategorize` ranks via the learned model when ready, else the rules. The three categorization paths (`quickSetCategory`, the full-picker `onChange`, `bulkReassignCategory`) now record a training example, retrain, and recheck guesses. `boot()` trains the classifier before loading year data and backfills pre-existing hand-labels into the training store on first load.
+- **`rm/js/email-review.js`** — "Clear override" no longer fetches the legacy `email_archive/by_year/<y>.json` (404 in prod) and no longer stamps a bogus `'rules'` source; it now drops the training example, retrains, and re-guesses via `_recheckGuesses()`.
+- **`sw.js`** — `CACHE_VERSION` 264 → 265.
+
+**Deploy:** client-only (`rm/` + `sw.js`) — FTP + hard-reload. No function/rules redeploy (the training doc lives under the already-permitted `userData/{uid}/emailArchive/*` path). The V3.290 `scrapeNow` change is still pending its own `firebase deploy --only functions:scrapeNow`.
+
+## [V3.291] - 2026-06-26
+
+**Email dates + display-cap fixes.** Three reported bugs, one shared root cause plus a fetch cap.
+
+- **Root cause (dates):** the Gmail scraper stores `date` as the raw RFC-2822 header string (`"Wed, 25 Jun 2026 14:30:00 -0700"`), but the renderer, the monthly timeline, and the date sort all assume an ISO `YYYY-MM-DD…` string. So `date.slice(0,7)` (timeline month key) produced `"Wed, 25"` → no bucket matched → the **Monthly email volume by category** chart was empty for scraped years; `date.slice(0,10)` showed `"Wed, 25 Ju"` in the date column; and `localeCompare` on those strings sorted **non-chronologically**.
+- **Fetch cap:** `EMAIL_PAGE_LIMIT` was 250, so of ~1000 scraped messages only the newest 250 loaded — most got rule-sorted into other categories, leaving ~150 visible under `unknown` ("1000 scraped, 150 shown").
+
+### Bug Fixes
+- **Monthly timeline empty / wrong for scraped mail (issue #1)** — `_coerceLegacyEmailShape` now normalizes `date` to ISO from the reliable `internalDate` epoch (fallback: parse the header string; last resort keep raw). The timeline's `slice(0,7)`/`slice(0,4)` month/year buckets, the year-review snapshot, and the date column all now read correct values.
+- **Only ~150 of ~1000 emails shown (issue #2)** — `EMAIL_PAGE_LIMIT` 250 → 2000 (matches the manual-backfill cap in `scrape-now.js`); `renderEmails` display cap 500 → 1000 with an accurate "showing first N of M" note. The always-fresh scrape already clears the per-year IndexedDB cache + refetches on load, so the raised cap applies on the next page load (no manual cache-bust).
+- **List not sorted by date/time (issue #3)** — `filterEmails` date sort now uses a numeric `emailTime(e)` helper (prefers `internalDate` ms, falls back to `Date.parse(date)`) instead of `localeCompare` on the raw string, so newest/oldest order is correct to the minute.
+- **"Top activities by volume" empty for scraped mail (issue #1, second panel)** — freshly-scraped/rule-guessed mail has no `activity_type`, so every row collapsed into the filtered-out `(unspecified)` bucket and the panel read empty. `renderActivityRollup` now falls back to the category when `activity_type` is absent, so the panel is useful before sub-categories are assigned and refines once they are.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 263 → 264.
+
+**Deploy:** client-only (`rm/` + `sw.js`) — FTP to godaddy + hard-reload. No function redeploy for V3.291 (the V3.290 `scrapeNow` change is still pending its own `firebase deploy --only functions:scrapeNow`).
+
+## [V3.290] - 2026-06-26
+
+**Email triage usability pass — one-click inline sorting, deeper backfill, uncategorized flag, working ✨ button.** Four follow-ups on top of the V3.289 rules pre-filter, all driven by hands-on use:
+
+1. **Inline one-click quick-sort for uncategorized mail.** Every row the rules left `unknown` now carries an always-open **"Sort into:"** pill bar directly under the row (no expand needed). The pills are *ranked* by the rules engine — the best guess is marked ★ and colored, the remaining real categories follow as lighter pills — so one click files the mail. A trailing **"more…"** opens the full category / sub-category picker for sub-category + task linking. Clicking a pill writes a manual `category_overrides` entry (same store the future LLM learns from) and the row immediately leaves the unknown state.
+2. **"Days back" backfill box.** A number input beside **Scrape now** controls how far back a *manual* scrape reaches (default 7, max 3650). Raise it after a long gap to recover missed mail. The background 10-min poll stays incremental (resumes from `lastSyncEpoch`); only a deliberate click backfills, and a backfill **bypasses the 60-s rate limit** + **paginates** (up to 2000 messages) instead of silently stopping at one 200-message page.
+3. **Uncategorized visual flag.** Unsorted rows get a red inset left "tab" (`box-shadow`, no layout shift) plus a small red dot beside the category cell, so unfiled mail is obvious while scanning.
+4. **✨ disposition button no longer 404s.** It called `/api/refine-disposition`, which exists only on the local Python dev server — in production it 404'd three times and `alert()`ed a failure. It now computes a disposition (actionable / reminder / info) **client-side** from category + subject signals (instant, offline, no API key), highlighting the matching chip as a hint to confirm. Consistent with the rules-only direction; the LLM refiner remains the deferred next step.
+
+### Added
+- **`rm/js/category-rules.js`** — `CATEGORY_RULES.rank(email)`: returns confidence-sorted `[{category, score, confidence}]` (best guess first; definite-noise collapses to a single `noise` candidate; no-rule-match returns `[]`). Scoring core extracted into a shared `scoreEmail()` that both `guess()` and `rank()` call (no behavior change to `guess()`).
+- **`rm/js/email-review.js`** — `renderQuickCategorize(e)` (the ranked "Sort into:" pill bar) + `quickSetCategory(e, category)` (one-click manual override, category-only); `guessDisposition(e)` (rule-based actionable/reminder/info heuristic); `_readScrapeDays()` (reads + clamps the days input).
+- **`rm/pages/activity-overview.html`** — "days back" number input (`#email-scrape-days`) in the email toolbar beside **Scrape now**.
+- **`CodeLog/ClaudesPlan/V3.290_email_triage_usability.md`** — plan doc.
+
+### Changed
+- **`functions/scrape-now.js`** — `scrapeGmail(db, uid, days)` accepts an optional backfill window: when `days` is set the query uses `newer_than:${days}d` (ignores `lastSyncEpoch`) and lists up to 2000 ids; incremental scrapes stay at one 200-id page. New `listMessageIds(accessToken, q, cap)` follows `nextPageToken`. The request handler parses + clamps `req.body.days` (1–3650) and **skips the rate-limit check** for a gmail backfill. **Redeploy with `firebase deploy --only functions:scrapeNow`.**
+- **`rm/js/email-review.js`** — `onScrapeEmailsNow` reads the days input for *manual* clicks only and passes `days` in the POST body; status messages reflect the window ("Fetching last N days…" / "…(last N days)."). `renderEmailEntry` flags uncategorized rows (red inset tab + dot) and appends the quick-sort bar. The ✨ disposition handler is now a synchronous local guess (no `fetch`, no `alert`); its tooltip + the chip-hint tooltip say "Suggested (rule)" for rule-sourced suggestions.
+- **`sw.js`** — `CACHE_VERSION` 262 → 263.
+
+### Bug Fixes
+- **✨ "Refine with AI" disposition button threw 404s** (`/api/refine-disposition` is local-dev-only) and surfaced an `alert('Refine failed…')`. Replaced with an instant client-side rule-based disposition guess — no network, works in production.
+- **Manual scrape couldn't reach old mail** — both scrape paths resumed from `lastSyncEpoch` and grabbed a single 200-message page, so mail older than the last sync (or beyond 200 in a gap) was unreachable. The days box + paginated backfill recover it on demand.
+
+## [V3.289] - 2026-06-26
+
+**Free client-side rules pre-filter — scraped email auto-sorts into real categories.** After V3.288 made scraped mail visible, it all landed in one `unknown` bucket (the production Gmail scraper writes raw metadata with no category; the ML/LLM categorizer is local-Python-only and never runs in prod). This ships the cheapest win: a faithful JS port of the lab's existing rules pre-pass (`ResearchManagement/scripts/email_classify_rules.py` + `email_noise_rules.py`) that runs **at render time in the browser** — no LLM, no API key, no Cloud Function, no Firestore writes, no ongoing cost. Sender-domain + subject-keyword hints + definite-noise rules sort mail into research/teaching/service/admin/personal/noise; only mail no rule matches stays `unknown`. Guesses show a tentative **"guess"** badge and never override a manual category; correcting one persists via the existing `category_overrides` path. (The Haiku 4.5 few-shot LLM guesser — auto-on-scrape + a one-time Batch backlog pass, "learns as you correct" with no retraining — remains the documented next step; design in `CodeLog/ClaudesPlan/V3.289…` notes + the V3.288 investigation.)
+
+### Added
+- **`rm/js/category-rules.js`** — NEW. `window.CATEGORY_RULES.guess(email)` + `classifyNoise(subject, sender)`: a 1:1 port of the Python `classify_one` / `classify_noise` (36 DOMAIN_HINTS, 18 SUBJECT_HINTS, 23 noise-subject + 18 noise-sender patterns; identical categories/weights/thresholds; noise override → `conf 0.95`; top-category by summed weight; `needs_llm = conf<0.6` + tie-break). Adversarially verified pattern-by-pattern against the source. Two intentional hardening deltas vs. Python: senders are lowercased (RFC-5321 case-insensitive domains) and inputs `.trim()`med (JS `$` doesn't match before a trailing newline) — documented in-file.
+- **`CodeLog/ClaudesPlan/V3.289_email_rules_prefilter.md`** — plan doc.
+
+### Changed
+- **`rm/js/email-review.js`** — `_coerceLegacyEmailShape` now, for mail with no backfilled/manual category, runs `CATEGORY_RULES.guess()` and stamps the resulting category with `category_source: 'rule'` (falls back to `'unknown'` when no rule matches), instead of V3.288's flat `'unknown'` default. `applyOverrideToEmail` still runs after, so a manual override wins; `hasRealCategory()` treats a rule guess as a real bucket. Email rows render a small indigo **"guess"** badge for `category_source === 'rule'` (beside the amber **"edit"** badge for `'manual'`).
+- **`rm/pages/activity-overview.html`** — email tab loads `/rm/js/category-rules.js` before `email-review.js`.
+- **`sw.js`** — `CACHE_VERSION` 261 → 262.
+
+## [V3.288] - 2026-06-25
+
+**Always-fresh email scraping — zero-button, hardened, inline connect.** Email Review (the `?tab=email` view on `activity-overview.html`) no longer relies on the user pressing a button to see new mail. Three layers now keep it current: (1) the server scheduled scrape runs **every 10 minutes** (was 15) for every connected user, even when no page is open; (2) on page load the tab fires an immediate background sync and then polls every 10 minutes while it's open, visible, and online; (3) the manual **Scrape now** button stays, but is hardened. First-time / disconnected users see a self-contained **Connect Gmail** card right on the email tab that runs the OAuth popup inline (no trip to Settings) and syncs on success. The originating bug: the entire manual-scrape feature was uncommitted/undeployed local work, so production served an older `email-review.js` with no handler — the button had no listener and clicking did nothing. The resilient delegated wiring + cache-version discipline below close that class of failure.
+
+### Changed
+- **`functions/gmail-scraper.js`** — `scrapeGmailForAllUsers` schedule `every 15 minutes` → `every 10 minutes`; header + cost comments updated. No logic change (still a `collectionGroup('private').where('provider','==','gmail')` sweep over all connected users). Redeploy with `firebase deploy --only functions:scrapeGmailForAllUsers`.
+- **`rm/js/email-review.js`** — `onScrapeEmailsNow(opts)` now takes `{quiet}`: manual clicks (`quiet:false`) keep the button takeover + toasts; background calls (`quiet:true`) use terse status and no toasts. Added a `navigator.onLine` guard as the **first** check (the offline silent-failure that prompted this), a `TypeError`/`Failed to fetch` network-error branch (distinct "Couldn't reach the server" message vs. real server errors), and an `_emailScrape` coordinator (`inFlight` re-entrancy guard + `lastAttempt` throttle). `loadSummary()` now treats an empty Firestore mailbox as a valid empty paged summary instead of falling through to the legacy on-disk archive (which threw in production).
+- **`rm/js/oauth-connections.js`** — extracted the private `connect()` body into a reusable `connectGoogle({onDone, onError})`; `connect(provider)` is now a thin wrapper. Exposed `connectGoogle` + `isGmailConnected()` on `window.OAUTH_CONNECTIONS` so the email tab can drive the same combined Gmail+Calendar consent + first-sync flow.
+
+### Added
+- **`rm/js/email-review.js`** — `wireScrapeEmailsNowButton()` rewritten as a **delegated** `document` click listener registered at module-eval time (not only inside `boot()`), so the button responds even if `boot()` bails. `_emailStartPoll()`/`_emailStopPoll()` (10-min `setInterval` gated on `visibilityState==='visible'` + `navigator.onLine`, with throttled `visibilitychange`/`online`/`pagehide` catch-up). `_isGmailConnected()` (direct read of `userData/{uid}/private/gmailCredential.refreshTokenStored`). `_renderConnectGmailEmptyState()` + `_connectGmailInline()` — the inline Connect-Gmail card. `boot()` is now connection-aware: connected → on-load sync + poll; disconnected with nothing cached → connect card.
+- **`rm/pages/activity-overview.html`** — email tab now also loads `https://accounts.google.com/gsi/client` + `/rm/js/oauth-connections.js` so the inline connect popup works there.
+- **`CodeLog/ClaudesPlan/V3.288_always_fresh_email_scraping.md`** — plan doc (includes the deploy checklist; the bug was a half-deploy).
+- **`sw.js`** — `CACHE_VERSION` bump 259 → 261 (260 superseded by the same-version follow-up fixes below).
+- **`rm/js/email-review.js`** — `hasRealCategory(c)` helper (true only for a real, user/classifier-assigned category, not the `'unknown'` default).
+- **`rm/js/oauth-connections.js`** — `ensureGisLoaded()` (lazy GIS-SDK loader, cached promise, reuses an existing tag); exposed on `window.OAUTH_CONNECTIONS`.
+
+### Bug Fixes
+- **Dead "Scrape now" button** — root cause was a half-deploy (handler code present locally, absent on the served build) compounded by the network-first SW serving stale JS while offline. Shipping the committed feature + the delegated wiring + the offline guard means the button now always reacts (scrapes, or says why it can't), instead of silently doing nothing.
+- **Scraped emails never appeared in the list** — the scrapers write raw mail with no `category`, and `filterEmails()` drops any row whose category isn't in the active set (`undefined` never matches), so freshly-scraped mail was silently hidden ("106 of 250"). `_coerceLegacyEmailShape` now defaults `category` to `'unknown'` (already in the default visible set), surfacing new mail immediately for both existing and new docs. `hasRealCategory()` keeps the three task-linking gates (related-tasks panel, `+ new task` label, create-task guard + tag path) treating `'unknown'` as not-yet-categorized so they still prompt for a real category. (Auto-classification of scraped mail server-side remains a separate feature — today's pipeline is Python/local-only.)
+- **Double "cache MISS → refresh" on load** — the on-load background sync fired un-awaited while the offline→online `catchUp` listener double-fired. `_emailStartPoll` is now `async`, awaits the initial sync exactly once (guarded by `_emailScrape.didInitialSync`) before wiring the `visibilitychange`/`online` listeners, so the freshness sync runs once without disturbing the 10-min poll.
+- **Chrome `document.write` warning for `gsi/client`** — the Google Identity SDK was eagerly `document.write`'d on the email tab (parser-blocking cross-site; may be blocked on poor networks). Removed from the email tab's script list; `connectGoogle()` is now `async` and `await`s `ensureGisLoaded()`, which injects `<script async>` on first connect. (Tracker tab's eager load left as-is — separate follow-up.)
+
+### Deploy (must do all — the original bug was a half-deploy)
+1. Reconnect to the internet. 2. `firebase deploy --only functions:scrapeGmailForAllUsers`. 3. Commit all changed files (CACHE_VERSION included). 4. Cyberduck FTP the repo to godaddy. 5. Hard-reload `mcgheelab.com/rm/` so SW v260 activates.
+
+## [V3.287] - 2026-06-16
+
+**Lab Foundations overview module.** A beginner-facing entry point for a series of topic-organized, lab-based learning tracks. It orients a newcomer (what's available, how the series works) and links straight into the modules for the track their project needs. The first live track is **Hydrogel Mechanics** (the four TFM modules: hydrogels & cell forces → network formation → ball indentation → traction force microscopy); **Microscopy Basics**, **Cell Culture & Sample Prep**, and **Data Analysis & Modeling** are scaffolded as "coming soon" placeholders. Shipped as a standalone learning module (not a new SPA route) so it reuses the existing module/manifest/class plumbing and drops into the Firestore class the user already created — attach `foundations/overview.html` as the first (order 0) lesson via the class-builder admin UI.
+
+### Added
+- **`modules/foundations/overview.html`** — new self-contained overview page. Follows `modules/_template.html` conventions (shared `module-header.css` + `module-header.js` + Firebase compat SDK so it renders class prev/next when opened with `?class=`). Dark-theme layout: hero ("one-stop shop" framing), "How to use this series" 3-step row, "Topic tracks" auto-fit grid (one `Available` card with four linked module rows + three `Coming soon` cards), closing note. Inline `getClassId()` script makes each track link class-aware: resolves `classId` from the page's own `?class=` param, else from the parent SPA hash (`#/classes/{id}/...`) when running inside the sandboxed module-viewer iframe; in-iframe links open in a new tab carrying `?class=` (top-navigation is sandboxed off) so the target module renders its own correct prev/next, while standalone links navigate in place. Falls back to bare `../tfm/<file>` paths when there's no class context.
+- **`modules/manifest.json`** — new `foundations` folder section (label "Lab Foundations", placed first) registering `overview.html` as "Lab Foundations: Start Here — Getting Started in the Lab" so it's selectable in the class-builder module picker.
+- **`CodeLog/ClaudesPlan/V3.287_lab_foundations_overview.md`** — plan doc.
+- **`sw.js`** — `CACHE_VERSION` bump 258 → 259.
+
+### Notes
+- **Coming-soon tracks are placeholders** sketching the intended series shape; only Hydrogel Mechanics links to real files today. Rename/repopulate as content lands.
+- **No SPA router, nav, or `content.json` changes** — the overview is a learning module attached to an existing Firestore class, so the series lives entirely in the modules/class layer.
+
+## [V3.286] - 2026-06-09
+
+**Course Assessment tab.** End-of-course feedback form for BME 295C — students fill it out before they leave Friday so the admin has structured signal for the next cohort. Students see a focused form: 4 Likert / pick course-level questions, 4 free-text course-level questions, an optional per-speaker block (1-5 stars + comment per speaker, grouped by day), an opt-in anonymous checkbox, and a single submit button. Admin gates the assessment via a new `assessmentState: 'closed' | 'open' | 'locked'` field (default `closed`); the dashboard adds four new admin-only panels (gate + summary + CSV exports / course-level histograms / open-ended responses grouped by question / per-speaker results with mean star + recent comments). Save path inherits all V3.285 hardening: visible `showDropReason` early-return banners, in-flight guard against double-clicks, autosave-clearTimeout to kill race-clobbers, V3.285-style `gateStateAtWrite` audit stamp on every payload. Per-student doc keyed by `auth.uid` at `schedules/bme295c/assessments/{uid}`; Firestore rules restrict reads to self + global/class admin and writes to self.
+
+### Added
+- **`class-builder.js`** — `BME_ASSESS_COURSE_QS` constant: 8 course-level questions (`overall`, `prepared`, `pace`, `groups`, `liked_most`, `improve`, `recommend_text`, `staff_shoutout`) with `type: 'stars' | 'pick' | 'text'`, labels, and placeholders. Hardcoded — these are course-shape, not content-shape; promotion to admin-editable is a V3.286+ candidate.
+- **`class-builder.js`** — `renderBmeAssessmentBody(editing)` student-facing render. Five visibility branches: admin-on-this-tab → pointer to dashboard panels; signed-out → sign-in callout; signed-in-no-roster → "ask your instructor"; `assessmentState === 'closed'` → "opens after Friday's closing session" callout; `'open'` → full form; `'locked'` → read-only view of saved answers. Per-speaker block grouped by day, mirroring the schedule tab cadence.
+- **`class-builder.js`** — `wireBme295cAssessment()` handlers: course-level + per-speaker star pickers (with inline `.cb295-*-star-clear` rendering), 3-way pick buttons, free-text textareas with 800ms debounce (mirrors V3.251 `_bmeResponseSaveTimers`), per-speaker comment inputs, anonymous checkbox, submit/unlock button with V3.285 `_bmeAssessmentSubmitInFlight` guard + clearTimeout of pending autosave + 30s safety-net + `.finally(release)` cleanup.
+- **`class-builder.js`** — `saveBmeAssessment(payload, statusOverride)` save path. Preconditions surface visible drop reasons via the V3.285 `showDropReason` pattern: not signed in, not on roster, `assessmentState !== 'open'`, `_adminViewOverride?.type === 'student'`. Payload includes `ratings/picks/texts/perSpeaker/anonymous/status/campusAtWrite/rosterIdAtWrite/gateStateAtWrite/lastEditedBy/lastEditedName/lastEditedAt/appVersion`; `testMode` tag if `_classData.testMode` is on; `submittedAt` only on first transition to submitted.
+- **`class-builder.js`** — admin dashboard panels: `renderBmeAssessmentGatePanel` (state pill + Open/Lock/Re-open buttons + submission count + per-campus breakdown + CSV-export buttons), `renderBmeAssessmentHistogramsPanel` (per-question text-bar histograms for stars + picks; mean + bucket counts), `renderBmeAssessmentFreetextPanel` (grouped `<details>` per text question, one row per non-empty response with name/anonymous byline + tooltip resolving to real name for follow-up), `renderBmeAssessmentSpeakerPanel` (per-speaker row grouped by day, mean stars + recent 3 comments inline + `<details>` for the rest).
+- **`class-builder.js`** — `setBmeAssessmentState(next)` writer + `attachBmeAssessmentsListener` / `detachBmeAssessmentsListener` + `_bmeAssessmentsUnsub` module state. Twin of the V3.251 dashboard listener; updates `_bmeDashboardData.assessments` (new Map) on docChange and refreshes the dashboard if it's the active tab.
+- **`class-builder.js`** — `bmeAssessmentsNumericCSV()` / `bmeAssessmentsTextCSV()` / `bmeDownloadAssessmentsCSV(kind)`. Numeric CSV: one row per submitted assessment with columns for every star/pick/per-speaker-stars. Free-text CSV: one row per (student × non-empty text question + per-speaker comment) so admin can sort/filter in a spreadsheet. RFC 4180 escaping; test-mode rows excluded.
+- **`class-builder.js`** — section registration plumbing: `SECTION_REG.assessment295c`, `DEFAULT_SCHEDULES['bme295c'].tabs` new tab inserted before `tab_295c_admin`, `wireClassPage` migration block (clones the seed tab into existing schedule docs that lack it), `assessmentState` init block (default `closed`), `renderSectionBody` switch case, `wireBme295cAssessment` invocation from `renderActiveTab`, `loadBme295cData` per-user assessment-doc prefetch (skipped for `_adminViewOverride` previews), `_bmeAssessment` / `_bmeAssessmentSaveTimer` / `_bmeAssessmentSubmitInFlight` module state.
+- **`firestore.rules`** — new `match /assessments/{uid}` block inside `match /schedules/{scheduleId}`. Read: self OR `isAdmin()` OR class admin via `classAdminEmails`. Create/update: self only, with paranoid `lastEditedBy == auth.uid` check. Delete: global admin only. Stricter than `groupResponses` (public read) because free-text feedback is sensitive.
+- **`styles.css`** — new `.cb295-assess-*` selectors. Student form: `panel`, `head`, `closed-strip` (re-themed pending-strip), `locked-strip`, `course`, `q`, `q-label`, `star-row` + `star` + `star-on` + `star-clear` (5-star adaptation of V3.280 gradebook stars), `pick-row` + `pick-btn` + `pick-btn-active` (re-themed V3.281 alertness picks), `textarea`, `readonly-text`, `speakers` (collapsible group), `speaker-day-group` + `speaker-day-head`, `speaker-row` + `speaker-name` + `speaker-stars` + `speaker-star` + `speaker-comment`, `footer` + `anon-row` + `submit-row` + `status` + `disclaimer`. Admin panels: `gate-row` + `gate-stats` + `gate-actions`, `hist-q` + `hist` + `hist-row` + `hist-label` + `hist-bar-wrap` + `hist-bar` + `hist-count`, `ft-q` + `ft-row` (+ `ft-row-anon` dashed amber variant) + `ft-text` + `ft-byline`, `spk-day-group` + `spk-day-head`, `spk-row` + `spk-name` + `spk-mean` + `spk-stars` + `spk-comments` + `spk-comment` (+ `spk-comment-anon` variant) + `spk-comment-by` + `spk-rest`. Mobile breakpoint at 720 px reflows per-speaker rows to a single column. `.cb295-assess-submit.cb295-response-submit-failed` shares the V3.285 red-flash animation.
+- **`CodeLog/ClaudesPlan/V3.286_bme295c_course_assessment.md`** — synthesized plan from the Explore × 2 + Plan workflow.
+- **`sw.js`** — `CACHE_VERSION` bump 257 → 258.
+
+### Notes
+- **Why the form is hardcoded, not in `content.json`:** these are course-shape questions, not content-shape. They don't vary per cohort; if a future cohort wants different questions, V3.286+ can promote the `BME_ASSESS_COURSE_QS` array to an admin-editable field on the schedule doc.
+- **Anonymity is honor-system.** The docId is the student's uid (so they can edit their own draft from any device), `payload.anonymous` flag is a display preference that the admin UI honors; admin can still resolve the real name via `lastEditedName` for follow-up if needed (tooltip shows it). A future strong-anonymity v2 would need a random docId + a Cloud Function stripping `lastEditedBy` before admin reads.
+- **`_adminViewOverride` guard.** Save path bails with the visible "admin preview can't submit" reason if admin is in V3.248 view-as-student mode, so the admin's uid never gets a feedback doc written under it with the student's name.
+- **No content.json read or modification.** Assessment is fully driven by `class-builder.js` constants + schedule-doc `assessmentState`.
+- **CSS reuses V3.285 `cb295-submit-failed-flash` animation** for the submit-button red flash via the multi-selector at the top of the V3.285 block.
+
+## [V3.285] - 2026-06-09
+
+**BME 295C submit reliability hardening — 5 fixes ship together to repair "some groups couldn't submit".** Workflow audit (`wf_622dff3f-796`, 4 trace + 2 verify + 1 synthesize agents) found 14 code bugs across the submit pipeline. Ranked verdict: overwhelmingly a code issue, not a student issue — pre-V3.285 the submit button could be clicked with literally zero visible feedback in five distinct silent-drop paths, AND the legacy `entry.groupNumber` fallback in `bmeGetGroupForDay` was routing every Tue-Fri save to the Monday docId for any student whose admin hadn't auto-assigned past day 1. V3.285 ships every high-severity fix from the audit + adds forensic instrumentation (`gateStateAtWrite` payload stamp) so future regressions show up in Firestore directly.
+
+### Changed
+- **`class-builder.js`** — `saveBmeGroupResponsePrompts` early-return preconditions (Fix 1, audit rank 2). Pre-V3.285: each precondition (no auth / no roster entry / no day group / no campus) hit `console.warn` + `return;` with no UI feedback — student clicked submit and saw nothing change. Now: `statusEl` is looked up BEFORE the preconditions; a `showDropReason(reason, consoleArgs)` helper writes `Cannot submit — <reason>` to the status footer AND adds `.cb295-response-submit-failed` to the submit button for a 6s red flash + box-shadow pulse. Specific reasons surfaced: "not signed in (session expired)", "you're not on the class roster", "your group for {day} has not been assigned yet — ask your instructor", "no campus set on your roster row — ask your instructor". console.warns stay for admin debugging.
+- **`class-builder.js`** — `bmeGetGroupForDay` legacy `entry.groupNumber` fallback DROPPED (Fix 2, audit rank 1). Pre-V3.285: when `dailyGroups[day]` was missing, the function fell back to `entry.groupNumber` (which was set as a side-effect of any auto-assign — typically Monday's value). For every student whose admin hadn't auto-assigned past day 1, Tue-Fri docIds collided with their Monday cell. Admin's live monitor for Tuesday read `dailyGroups[Tuesday]` (undefined → no T-column), so submitted docs appeared missing. With the fallback removed, unassigned days return `null` → save path hits Fix 1's visible "your group has not been assigned" banner → student knows to ping the admin instead of submitting into thin air.
+- **`class-builder.js`** — submit-handler triple race-condition fix (Fix 3, audit ranks 8 + 12 + ancillary cancel-strand). New `_bmeSubmitInFlight = new Set()` module-level state, keyed by speakerSlug. Submit click flow now: (a) dedup via `_bmeSubmitInFlight.has(slug)` (rank 12 — pre-V3.285 a double-click wiped the first modal); (b) `clearTimeout(_bmeResponseSaveTimers[slug])` to kill the pending 800ms autosave so it can't race the submit's `merge: true` write and clobber `status: 'submitted'` back to `'draft'` (rank 8); (c) `btn.disabled = true` + 30s safety-net timer so the button can't strand indefinitely; (d) `.finally(finish)` on both unlock and submit paths so the in-flight Set + disabled state always clear; (e) new `onCancel` callback path on `openBmeAttendanceModal` — pre-V3.285 dismissing the modal via X / Cancel / overlay click stranded the submit button disabled forever.
+- **`class-builder.js`** — `openBmeAttendanceModal(slug, prompts, onConfirm, onCancel)` signature extended. Internal `confirmed` flag separates cancel-close from confirm-close; the close() helper fires `onCancel` only when `!confirmed`. Confirm paths (`cb295-att-allpresent`, `cb295-att-confirm`) set `confirmed = true` before calling `close()`. Early-return preconditions (`!auth?.currentUser`, `!entry`) also fire `onCancel` so the submit-handler in-flight guard releases even if the modal never opens.
+- **`class-builder.js`** — gate state check at the top of `saveBmeGroupResponsePrompts` (Fix 5a, audit rank 6). Reads `bmeGetDiscussionState(speakerSlug)`; if not `'open'`, fires the same visible-drop UX as Fix 1 with reason "discussion is {state} — admin hasn't released it yet". Pairs with Fix 4's onSnapshot to keep the client cache fresh so this never fires under normal conditions; the explicit check is the defense-in-depth against any stale-cache window.
+- **`class-builder.js`** — `gateStateAtWrite: bmeGetDiscussionState(slug)` stamped on every response payload (Fix 5b). Forensic field. Admin can retroactively detect gate bypasses by filtering `groupResponses` for `gateStateAtWrite !== 'open'`. Pre-V3.285 there was no audit trail for gate-state at the moment of write.
+
+### Added
+- **`class-builder.js`** — `attachBmeScheduleListener()` / `detachBmeScheduleListener()` + `_bmeScheduleUnsub` module state (Fix 4, audit rank 5). Student-side onSnapshot subscription on `schedules/bme295c` itself, parallel to the V3.251 `groupResponses` listener. Splices whitelisted admin-mutable fields (`discussionState`, `dailyAttendance`, `studentRoster`, `instructors`, `classAdminEmails`, `testMode`, `speakerVideos`) into the live `_classData` on every change, then calls `refreshCanvas()`. Re-runs the email→roster lookup so `_bmeRosterEntry.dailyGroups` updates when admin runs auto-assign for a new day — the student's next save uses the correct group without a reload. Admin view is excluded (admin's own writes already trigger refreshCanvas via persistAll, and the snapshot echo would cause stutter / could revert a field mid-edit). Attached in `wireClassPage` after `loadBme295cData`; detached in `cleanupListeners`. Whitelist excludes `tabs`/`sections`/`modules`/`grades` — those don't change mid-class and grades is admin-only anyway.
+- **`class-builder.js`** — `flushPendingResponseAutosaves()` (Fix 4 data-loss guard, caught by V3.285 verification workflow `wf_59c667e1-689`). Pre-fix the schedule onSnapshot triggered `refreshCanvas()` which destroyed live textareas while the 800ms autosave debouncer was still pending; the timer then fired against the rebuilt-from-cache DOM and silently overwrote the student's unsaved keystrokes. Now: before the splice + rebuild, every pending response autosave timer is cleared, the live textarea values are captured into `_bmeGroupResponses` so the rebuild rehydrates with the in-flight text instead of the stale cache, and the actual Firestore write is deferred ~50ms (after refreshCanvas mounts the new statusEl + submit button) so Fix 1's `showDropReason` can surface any save failure visibly.
+- **`class-builder.js`** — `buildBmeResponseShell` new branch for signed-in students with a campus but no `dailyGroups[day]`. Pre-V3.285 they fell through to the generic "sign in to participate" fallback, which was wrong (they ARE signed in — admin just hasn't auto-assigned that day). New `.cb295-response-no-group-strip` callout shows the actionable message instead: "Your group for {day} hasn't been assigned yet. Ask your instructor to run group assignment so you can participate."
+- **`class-builder.js`** — `_bmeSubmitInFlight = new Set()` module-level state for submit dedup (above).
+- **`styles.css`** — new selectors `.cb295-response-no-group-strip` (purple-tinted callout matching the pending/locked strip family) and `.cb295-response-submit.cb295-response-submit-failed` (red background + box-shadow pulse animation `cb295-submit-failed-flash`). The latter is added by Fix 1's `showDropReason` and auto-removed after 6s.
+- **`CodeLog/ClaudesPlan/V3.285_bme295c_submit_reliability.md`** — synthesizes the audit + fix plan.
+- **`sw.js`** — `CACHE_VERSION` bump 256 → 257.
+
+### Notes
+- **Verdict: overwhelmingly code, not students.** Audit found 14 code bugs vs 2 student-side causes (stale auth token, oversized doc — both rare and visible-error). The five silent-drop paths pre-V3.285 are why students "submitted but it didn't go through".
+- **Forward-compat.** Pre-V3.285 docs without `gateStateAtWrite` are still valid — the field is purely additive. Admin can filter for its absence (`!gateStateAtWrite` in the console) to spot V3.284-or-earlier residue, which is useful for the V3.284 orphan-drafts recovery flow.
+- **Deferred from the audit:** rank 9 (unlock-walk-away leaves doc as draft) and rank 10 (empty-prompts ack alert) — both are real but lower-severity and require a deeper UX redesign of the attendance modal. V3.286 candidates.
+
+## [V3.284] - 2026-06-09
+
+**BME 295C group response routing fix.** Audit of the discussion workflow uncovered two production-breaking docId mismatches that silently dropped student saves and hid responses from the admin live monitor + gradebook. (1) `bmeSpeakerDay` returned `"Monday, June 8"` straight from `content.json` while `dailyGroups` was keyed by the bare weekday `"Monday"`, so `bmeGetGroupForDay(entry, day)` returned null for every speaker and the save path bailed with no UI signal. (2) The save path resolved campus via `bmeEffectiveCampus(entry, _bmeProfile)` (honors override) but admin readers (live monitor column build, gradebook per-talk lookup, grade-discussions panel) used raw `student.campus`, so any student with a campus override produced a doc the admin grid could never see. Both fixed; defensive console.warn instrumentation added at every save + load + docId construction site so any future regression surfaces immediately in DevTools instead of silently dropping. Per the user's constraint ("ensure any already submitted groups are not deleted in this update"), no destructive migration ships — instead an **Orphaned response docs** read-only block surfaces under the live monitor, listing every Firestore doc whose id doesn't match the post-fix `(bmeStudentCampus × dailyGroup × speakerSlug)` expected by any current roster student, with **View** (opens the read-only response modal) + **Copy text** (places the 3 prompt bodies on the clipboard so admin can paste into the correct cell) buttons. Audit + fixes designed via a Workflow run (Explore → Trace → Critique → Synthesize, 3–4 parallel agents per phase).
+
+### Changed
+- **`class-builder.js`** — `bmeSpeakerDay(slug)` now strips the date suffix (`"Monday, June 8"` → `"Monday"`) at the boundary and warns to console when the normalized weekday is absent from `bmeCourseDays()`. Two callers that bypassed normalization with `sp.day || bmeSpeakerDay(sp.slug)` (`renderBmeGradeDiscussionsPanel`, `bmeComputeStudentGrade`) are flipped to plain `bmeSpeakerDay(sp.slug)`.
+- **`class-builder.js`** — new `bmeStudentCampus(entry)` helper near `bmeEffectiveCampus`; single source of truth for "which campus bucket does this student's response live under?". Every admin docId construction site flipped from raw `student.campus`: `bmeStudentGotDiscussionCredit`, `bmeComputeStudentGrade` (3 sites in the perTalk row + response lookup), `bmeLiveMonitorInner.campusGroups`, `renderBmeGradeDiscussionsPanel.collectGroups`. The `_bmeDashboardData?.responses?.get(bmeResponseDocId(studentCampus, group, slug))` lookup at the bottom of `bmeComputeStudentGrade` also flips through this helper.
+- **`class-builder.js`** — `bmeResponseDocId(campus, group, slug)` adds defensive `console.warn` when campus isn't `'Tucson'` or `'Phoenix'` or when group isn't a finite number; surfaces both root-cause bugs immediately if they ever regress.
+- **`class-builder.js`** — `saveBmeGroupResponsePrompts` precondition check broken out: the previous single-line `if (!auth?.currentUser || !entry || !dayGroup || !effCampus) return;` is replaced by per-field branches that each `console.warn` the missing field + relevant context (entry id, day, dailyGroups map). Before V3.284 a save dropped silently with no UI feedback; now any drop is visible in DevTools with enough context to diagnose.
+- **`class-builder.js`** — `loadBme295cData` integrity check: per-speaker loop logs a warn when `bmeSpeakerDay(slug)` returns a value not in `bmeCourseDays()` OR when the signed-in viewer has no group assigned for that day. Catches the failure mode before any docs are fetched.
+
+### Added
+- **`class-builder.js`** — `renderBmeOrphanedDraftsBlock()`. Admin-only. Walks `_bmeDashboardData.responses` and lists every doc whose id isn't in the set of expected ids built from `roster × days × speakers`. Rows sort submitted-first (most important to recover) and render docId · status pill · word count + last-editor + relative time · **View** · **Copy text**. Block hides itself entirely when there are no orphans, so a clean Firestore stays clean. Slotted inside `renderBmeLiveMonitorPanel` so it lives below the monitor grid; `rerenderBmeLiveMonitor` re-renders both together so live updates stay in sync.
+- **`class-builder.js`** — `wireBmeLiveMonitorCells` extended with handlers for `.cb295-orphan-view` (reuses `openBmeMonitorCellModal`) and `.cb295-orphan-copy` (builds a plaintext blob of all 3 prompt bodies + header metadata, writes to clipboard via `navigator.clipboard.writeText`, briefly toggles button text to "Copied ✓"). Slug-aware doc id parsing (`id.endsWith('-' + sp.slug)`) — necessary because some speaker slugs contain dashes (e.g. `Mario_Romero-Ortega`, `Nan-kuei_Chen`), so a naive `id.split('-').pop()` would mis-identify the speaker.
+- **`class-builder.js`** — roster panel campus chip now surfaces V3.272 campus overrides. When `bmeStudentCampus(s) !== s.campus`, the chip pair renders `T` (roster Tucson) `→ P` (effective Phoenix) with an amber dashed border on the override half + a tooltip explaining the routing consequences. Direct response to the user's report that the roster panel and live monitor / grade-discussions surfaces disagreed on group placement — the divergence is now visible at a glance in the panel that drives admin's mental model.
+- **`class-builder.js`** — `loadBmeDashboardData` post-load integrity sweep: console.warns lists of students with campus override, no campus, and no dailyGroups. Single grep-able log so future "wrong group routing" reports start with a clear roster snapshot in DevTools.
+- **`styles.css`** — new selectors `.cb295-orphan-block`, `.cb295-orphan-rows`, `.cb295-orphan-row`, `.cb295-orphan-id`, `.cb295-orphan-meta`. Amber dashed border to mark the block as a recovery surface, not normal content. New `.cb295-roster-extras-chip-override` for the roster-panel override arrow chip.
+- **`sw.js`** — `CACHE_VERSION` bump 255 → 256.
+
+### Notes
+- **No deletions.** The orphan block is purely informational; existing draft + submitted docs at stale ids are preserved as Firestore records. A future V3.285 can ship the destructive re-key migration once the schema is verified, leaving a `migratedTo` tombstone on the old doc.
+- **Why a UI surface, not a script.** Plan called out two options: a one-shot admin button that copies docs to the new id + tombstones the old, OR a read-only "Orphaned drafts" subsection. The user's "ensure any already submitted groups are not deleted" guidance steered us to (2) — admin manually pastes the recovered text into the right cell so the integrity decision stays human.
+
+## [V3.283] - 2026-06-08
+
+**Dedicated "Grade discussions by group" admin panel.** V3.280's group-quality stars were edited from inside the per-student detail modal — admin had to drill into one student to grade a shared-by-group response, which scaled poorly with 22 students × 10 talks. New top-level panel renders one `<details>` section per speaker; expanding shows every (campus × group) row with status pill + word count + per-response attendance ratio + a 1–3 star picker + a "View" button that opens the existing read-only response modal. Stars write through the same `bmeSetDiscussionQuality` writer the detail modal already used, so the two surfaces stay in lock-step. Per the user's spec, the stored stars apply to ALL students in the group (the composite math at `bmeComputeStudentGrade` already multiplies each member's discussion fraction by `stars/3`).
+
+### Added
+- **`class-builder.js`** — `renderBmeGradeDiscussionsPanel()`. One `<details>` per speaker (today is open + accented blue via `cb295-grade-disc-speaker-today`); inside each, one `.cb295-grade-disc-row` per (campus, group) combo. Per-row layout: campus-color group label chip · status pill (submitted/draft/—) · word count + present/total · 3-star picker + × clear · View button. Summary shows `graded/total` + `submitted` counts. Group list built from the same roster + dailyGroups walk the live monitor uses, so T1..Tn / P1..Pn ordering matches.
+- **`class-builder.js`** — `renderBmeAdminDashBody` composition now slots the new panel between Gradebook and Discussion Gates.
+- **`class-builder.js`** — `wireBme295cAdminDash` extended: panel-scoped `.cb295-grade-disc-panel .cb295-gradebook-star` clicks → `bmeSetDiscussionQuality(campus, group, slug, stars)`; `.cb295-gradebook-star-clear` → null (back to ungraded = neutral); `.cb295-grade-disc-view` → `openBmeMonitorCellModal(docId)` (the V3.251 read-only response modal). Star and clear handlers `stopPropagation` so they don't bubble up and close the parent `<details>`.
+- **`styles.css`** — new selectors: `.cb295-grade-disc-panel`, `.cb295-grade-disc-speaker` (+ `[open]` + `-today` blue-accent), `.cb295-grade-disc-summary` (custom rotating-▸ marker), `.cb295-grade-disc-rows`, `.cb295-grade-disc-row`, `.cb295-grade-disc-label` (+ `-tucson` blue / `-phoenix` amber color variants), `.cb295-grade-disc-status`, `.cb295-grade-disc-meta`, `.cb295-grade-disc-stars`, `.cb295-grade-disc-view`. Mobile breakpoint at 720 px reflows the row to stack stars + view below the meta line.
+- **`sw.js`** — `CACHE_VERSION` bump 254 → 255.
+
+### Notes
+- **No new data model.** The panel reads + writes the same `_classData.grades.discussionQuality[campus-group-slug]` map that V3.280 introduced + the per-student modal continues to use. So a star set from this panel updates the modal immediately on next refresh and vice versa.
+- **Test rows.** `bmeIsTestRosterEntry` filter is NOT applied here (unlike the gradebook table) because TEST_* students still get assigned to groups by the auto-assigner and the group's response is still a real doc worth grading — filtering would orphan the group's row from the panel without removing the underlying group itself.
+
+## [V3.282] - 2026-06-08
+
+**Discussion prompts hidden from students until admin opens the gate.** V3.269 introduced the per-speaker discussion gate (pending → open → locked) but the *prompts themselves* stayed visible on every Modules-tab card for pending speakers — only the textareas were disabled. Per the user's request, students now see only the abstract + a "Discussion not yet open" callout until the admin clicks **Open** on the Discussion Gates panel for that speaker. Admin viewers continue to see the prompts (with a small "admin preview — pending" tag) so they can review content before release. Locked state still shows everything in read-only mode so students can see what their group submitted.
+
+### Changed
+- **`class-builder.js`** — `renderBmeModulesBody` per-speaker template now branches on `gateState === 'pending' && _viewType !== 'admin'`: that branch renders a `.cb295-mod-pending-callout` (amber dashed border, ⏳ icon) in place of the `<h4>Discussion prompts</h4>` + `<ol>` list + response shell. All other states (open / locked) + admin previews keep their existing render. Admin-pending preview adds a small "admin preview — pending" caps tag next to the prompts header so admin doesn't forget the students can't see this yet.
+- **`styles.css`** — new selectors `.cb295-mod-pending-callout` (dashed amber callout) + `.cb295-mod-pending-preview-tag` (small caps chip).
+- **`sw.js`** — `CACHE_VERSION` bump 253 → 254.
+
+### Notes
+- Admin gating uses `_viewType === 'admin'` — the same gate that admin role + the V3.247 class-admin email list both flow through. **View-as → Student** in the toolbar (V3.248) flips `_viewType` to `'public'`, so admin can verify the student-side hidden view without signing out.
+- The card itself still expands when a student clicks the summary — only the *content inside the body* differs. So the basic name/day/time/talk-title summary remains discoverable.
+
+## [V3.281] - 2026-06-08
+
+**Alertness moves from per-talk to per-day + lives next to the Daily Attendance checklist.** V3.280 stored alertness per-(student × speaker), shown as a 22 × 10 matrix in the gradebook. Per the user's request, alertness now keys by DAY: 5 ratings per student instead of 10, and the picker sits right next to each student's present/absent checkbox in the **Daily attendance** panel — so the admin scores engagement in the same moment they confirm who showed up. The inline alertness matrix in the gradebook is deleted.
+
+### Changed
+- **`class-builder.js`** — alertness storage shape: `grades.alertness[day][rosterId] = { rating, ratedBy, ratedAt }` (was `grades.alertness[speakerSlug][rosterId]`). Helper signatures updated: `bmeGetAlertness(day, rosterId)`, `bmeSetAlertness(day, rosterId, rating)`.
+- **`class-builder.js`** — `bmeComputeStudentGrade` now walks `bmeCourseDays()` to compute alertness `mean / 3` across rated days (was `mean / 3` across rated talks). New `perDay: [{ day, rating }]` field on the return alongside the existing `perTalk` array. Composite math, weight redistribution, and the null-handling unchanged.
+- **`class-builder.js`** — `renderBmeDailyAttendancePanel` rows are now `.cb295-att-student-row` containers wrapping the existing `.cb295-att-student` label PLUS three `.cb295-att-alert-btn` (1/2/3) buttons + a `.cb295-att-alert-clear` (×). Buttons are `disabled` when the student is marked explicitly absent (alertness has no meaning for an absent student). Panel header copy updated to mention engagement rating.
+- **`class-builder.js`** — `wireBme295cAdminDash` attendance section binds `cb295-att-alert-btn` clicks → `bmeSetAlertness(day, studentId, rating)` and `cb295-att-alert-clear` → `bmeSetAlertness(day, studentId, null)`.
+- **`class-builder.js`** — per-student gradebook detail modal (`openBmeStudentGradeModal`) gains a new "Daily engagement" section (one row per course day with present/absent state + 3-button picker + clear). Removed the per-talk alertness picker that lived inside each talk row. `wireBmeStudentGradeModal` reads `data-day` (not `data-speaker-slug`) and respects the `disabled` attribute.
+- **`class-builder.js`** — `renderBmeGradebookPanel` no longer renders the inline alertness matrix `<details>` or its 22×10 table. Panel header copy now reads "alertness flows from the per-day engagement rating in the Daily attendance panel". The matrix-input change handler in `wireBme295cAdminDash` is gone too.
+- **`class-builder.js`** — V3.281 migration in `wireClassPage` prunes any `grades.alertness` top-level keys that aren't valid day names (Monday–Friday). Slug-keyed entries from pre-V3.281 testing are dropped on first admin load; day-keyed entries pass through unchanged. Idempotent.
+- **`styles.css`** — new selectors: `.cb295-att-student-row` (+ `-absent` variant) wrapper grid, `.cb295-att-alert-row` (inline picker container), `.cb295-att-alert-btn` (+ `-active` + `:disabled`), `.cb295-att-alert-clear` (× button), `.cb295-gradebook-modal-alertness` (grid container for the per-day section), `.cb295-gradebook-modal-alert-day` (one row per day with 3-col grid). **Removed** selectors (no live consumers after the matrix JS removal): `.cb295-gradebook-matrix-wrap`, `.cb295-gradebook-matrix-scroll`, `.cb295-gradebook-matrix`, `.cb295-gradebook-matrix-rowhead`, `.cb295-gradebook-matrix-cell`, `.cb295-gradebook-matrix-input` (per the verification-workflow follow-up sweep).
+- **`sw.js`** — `CACHE_VERSION` bump 252 → 253.
+
+## [V3.280] - 2026-06-08
+
+**BME 295C admin gradebook.** New dashboard panel that aggregates per-student grades from three signals: (1) attendance, derived from `_classData.dailyAttendance` (V3.279); (2) discussion participation, derived from `groupResponses/{id}.attendance.presentIds` (V3.252) gated by submitted status + optional group-quality stars; (3) alertness, a manual 1–3 rating per (student, talk) the admin sets from a detail modal or an inline bulk-entry matrix. Composite total is a weighted average (default 40/30/30; configurable). Per-student detail modal: excused-day toggles, per-talk grading rows, free-form admin comment. CSV export for the registrar. Plan synthesized by a 4-phase Workflow run (explore × 3 → design × 3 → adversarial critique → final synthesis); folded HYBRID + SIMPLE's CSV + COMPREHENSIVE's free-rider helper + critique fixes.
+
+### Added
+- **`class-builder.js`** — new schedule-doc field `grades: { weights, alertness, discussionQuality, comments, excused }`. Helpers near `bmeIsPresentOnDay`: `bmeGetGradesObj` (defensive backfill on read), `bmeGradeWeights` (normalizes to sum 100), `bmeIsTestRosterEntry`, `bmeIsPresentForGrade` (explicit-present semantics — overrides `bmeIsPresentOnDay`'s default-present for grading), `bmeIsExcused`, `bmeStudentGotDiscussionCredit` (free-rider gate: requires submitted + present-on-response), `bmeGetAlertness`, `bmeGetDiscussionQuality`, `bmeGetStudentComment`, writers `bmeSetAlertness` / `bmeSetDiscussionQuality` / `bmeSetStudentComment` / `bmeSetExcused` / `bmeSetGradeWeights`, `bmeComputeStudentGrade` (returns per-talk breakdown + composite total ∈ [0,100]), `bmeGradesToCSV` (RFC 4180 escapes, sorted by total desc, TEST rows excluded).
+- **`class-builder.js`** — composite formula: weights normalized to sum 100; alertness weight is redistributed proportionally to attendance + discussion when the admin hasn't rated any alertness for that student (prevents "20 free points from not grading"); ungraded group quality = neutral (full credit, NOT zero multiplier); ungraded alertness talks excluded from denominator; excused days excluded from both attendance numerator + denominator.
+- **`class-builder.js`** — `renderBmeGradebookPanel()` admin dashboard card. Table: Name · Att% · Disc% · Alert% · Total pill (green/amber/red) · Comment · Open. Sorted by total desc. Weight inputs + Σ indicator (red when ≠100) + Export CSV button in the header. Inline `<details>` "Alertness matrix" with one `<input type="number" min="1" max="3">` per (student × speaker) cell for bulk entry (lets admin rate ~220 cells without opening 22 modals).
+- **`class-builder.js`** — `openBmeStudentGradeModal(rosterId)`: avatar + composite header, excused-day checkboxes, per-talk rows showing attendance pill / response status + word count / 3-star group quality picker (shared across the group's response) / 3-button alertness picker for THIS student / clear buttons, and a free-form admin comment textarea (500ms debounce). Autosave on every change — no Save button.
+- **`class-builder.js`** — `wireBme295cAdminDash` extended: row click + Open button → modal; weight inputs → debounced `bmeSetGradeWeights`; matrix `<input>` change → `bmeSetAlertness` (empty / out-of-range → null); Export CSV → blob + auto-download `bme295c-grades-YYYYMMDD.csv`.
+- **`class-builder.js`** — V3.280 migration in `wireClassPage` seeds `grades` with default weights + empty sub-maps if missing. Idempotent. `persistAll` payload extended to include `grades` (same trap V3.270/V3.271/V3.272/V3.279 fixed).
+- **`styles.css`** — new selectors: `.cb295-gradebook-panel`, `.cb295-gradebook-weights` (+ `-input` / `-sum` / `-sum-bad` / `-export-btn`), `.cb295-gradebook-table` + `-tablewrap` + `-row-clickable` + `-cell-name`, `.cb295-gradebook-pill` (+ `-ok` / `-mid` / `-low`), `.cb295-gradebook-matrix-wrap` / `-scroll` / `-matrix` / `-rowhead` / `-cell` / `-input`, `.cb295-gradebook-modal` + `-header` + `-avatar` + `-composite` + `-excused` + `-day` + `-talk` (+ `-head` / `-row`), `.cb295-gradebook-stars` + `-star` (+ `-on` / `-clear`), `.cb295-gradebook-alert-btns` + `-alert-btn` (+ `-active` / `-clear`), `.cb295-gradebook-comment`.
+- **`CodeLog/ClaudesPlan/V3.280_bme295c_gradebook.md`** — final implementation plan (synthesized by Workflow run wf_6fd9de49-2b2).
+- **`sw.js`** — `CACHE_VERSION` bump 251 → 252.
+
+### Notes
+- **No Firestore rule changes.** `grades` lives at the top level of the schedule doc (`schedules/bme295c`), which already grants admin/class-admin write + public read. Comments are technically public-readable for any signed-in user — matches the V3.244 / V3.247 / V3.279 trust model.
+- **Test row filter.** `bmeIsTestRosterEntry` (id prefix `TEST_`) excludes injected debug students from both the gradebook table AND the CSV export, so QA inserts don't pollute the gradebook.
+- **Explicit-present requirement for grading.** `bmeIsPresentForGrade` requires the student's id to be in `dailyAttendance[day].presentIds`. Default-present (no record yet) is used by `bmeIsPresentOnDay` for group assignment but is the WRONG default for grading — fixes the leak the workflow critique flagged where a no-show could get 100% attendance until the admin actively recorded the day.
+- **Free-rider gate.** Discussion credit requires `groupResponses/{...}.attendance.presentIds.includes(student.id)`. If the per-response attendance field is missing on a legacy doc, no credit is awarded (don't auto-credit absent groupmates).
+
+## [V3.279] - 2026-06-08
+
+**Per-day attendance gating for daily-group assignment.** Course week is live, so the admin needs to assign groups based on who actually showed up — not the full roster. New **Daily attendance** dashboard card with one section per course day (Mon–Fri); admin checks who's present, then clicks "Assign {Day}'s groups" to rotate only the present students into groups. Absent students get `dailyGroups[day]` cleared (no group for that day; their card shows "Groups not yet assigned" until they show up). Re-running on a different day preserves the other days' assignments. The existing bulk **Auto-assign daily groups** button still does all 5 days assuming everyone present — useful for the initial seed pass before students start signing in / out across the week.
+
+### Added
+- **`class-builder.js`** — new state field `_classData.dailyAttendance: { [day]: { presentIds, absentIds, recordedAt, recordedBy } }`. Defaults to `{}`; entries are written by the panel's Save button.
+- **`class-builder.js`** — helpers `bmeGetDailyAttendance(day)` + `bmeIsPresentOnDay(studentId, day)` (defaults-present when no attendance recorded, so existing bulk-assign still works without a per-day attendance pass).
+- **`class-builder.js`** — `autoAssignBmeSingleDay(day)`: per-campus single-day rotation. Filters that campus's members to only `bmeIsPresentOnDay(id, day)`; absent students get `dailyGroups[day]` deleted. Pair-count score reads every OTHER day's existing assignments (across the FULL campus roster, not just present today) so the re-roll for `day` still minimizes overlap with the rest of the week. Doubles the trial count to 400 vs. the bulk path's 250 since absentees often make the present set small + the search space tighter.
+- **`class-builder.js`** — writers `setBmeDailyAttendance(day, presentIds, absentIds)` (stamps the entry with serverTimestamp + recordedBy) and `assignBmeGroupsForDay(day)` (calls the single-day reassign + persists + refreshes the canvas).
+- **`class-builder.js`** — `renderBmeDailyAttendancePanel()` dashboard card. One `<details>` section per course day (today is open + accented blue). Each section has Tucson + Phoenix checklists with default-checked checkboxes (per `bmeIsPresentOnDay` default-present), a status pill ("Not recorded" or "X present · Y absent · Nm ago"), Mark-all-present / Mark-all-absent toolbar shortcuts, Save attendance, and "Assign {Day}'s groups". The Assign button saves the current checkbox state first, then runs the single-day reassign — so the admin's visible intent is what gets persisted, not stale stored attendance.
+- **`class-builder.js`** — `wireBme295cAdminDash` adds three handler families: `cb295-att-mark-all` (toggles all checkboxes for a day), `cb295-att-save` (collects + persists), `cb295-att-assign` (confirm dialog → save attendance → reassign).
+- **`class-builder.js`** — V3.279 migration in `wireClassPage` initializes `_classData.dailyAttendance = {}` once if missing. `persistAll` extended to include the field in its saveData payload (same trap V3.270/V3.271/V3.272 fixed for other admin-editable schedule fields).
+- **`styles.css`** — new selectors: `.cb295-att-panel`, `.cb295-att-day` (+ `-today` blue-accent + `[open]` border), `.cb295-att-day-summary` (custom rotating-▸ marker), `.cb295-att-today-pill` (blue caps chip), `.cb295-att-status-empty` / `.cb295-att-status-recorded` (grey vs green status pills), `.cb295-att-checklist-grid` (auto-fit Tucson + Phoenix columns), `.cb295-att-checklist h5`, `.cb295-att-students`, `.cb295-att-student` (+ `-absent` strikethrough + 50% opacity for unchecked), `.cb295-att-day-actions`.
+- **`sw.js`** — `CACHE_VERSION` bump 250 → 251.
+
+### Notes
+- Default-present semantics matter for the existing flow: if admin runs the bulk **Auto-assign daily groups** without taking attendance first, every roster student gets a group on every day. Use **Assign {Day}'s groups** in the new panel for the attendance-aware path.
+- The per-response attendance modal from V3.252 (group-mate present/absent on the discussion-response submit) is unrelated — different data model (per-response, not per-day), different consumer (display in the live monitor's modal, not group assignment).
+
+## [V3.278] - 2026-06-05
+
+**Roster & daily groups: signed-in students now light up the whole row.** The existing per-row "In" badge column was easy to miss when scanning 22 rows. Now any row whose student has a matching `users/{uid}` doc (i.e. has signed in to the site at least once) gets a green left-accent + faint green tint. A new "X/N signed in" chip on the panel header gives the running count at a glance.
+
+### Added
+- **`class-builder.js`** — `signedIn` moved out of the badge-cells branch into per-row scope so the `<tr>` rendering can pick it up. Test-injected rows that are also signed in keep the amber test background but get the green accent on the left edge.
+- **`class-builder.js`** — `renderBmeRosterMgmtPanel` header now also includes a `signedInCount/total signed in` chip (only when the dashboard cache has loaded — before that it's omitted to avoid showing a misleading 0).
+- **`styles.css`** — new selectors: `tr.cb295-roster-row-signedin` (green tint + inset left-edge shadow), `tr.cb295-roster-row-signedin.cb295-roster-test-row` (amber test bg preserved + green accent), `.cb295-roster-signedin-chip` (small green pill in the header).
+- **`sw.js`** — `CACHE_VERSION` bump 249 → 250.
+
+### Notes
+- "Signed in" matches by `users/{uid}.email` against `roster[i].email` (case-insensitive). Students who happen to sign in with a different Google account than the email on the roster won't be picked up — admin would need to update the roster row's email to match the Google account, or the student would need to sign in with the listed email.
+
+## [V3.277] - 2026-06-05
+
+**Roster & daily groups: Student ID / Email / Campus / High School collapsed into one per-row Details cell.** The table was getting unwieldy — 11 columns wide between name, the 4 identity fields, the 5-day groups grid, and the 4 completion badges. Collapsed those four identity columns into a single `<details>` cell so the columns admin scans during class (Name, Groups, completion badges) stay legible without a horizontal scroll. Each row's details summary shows a small campus chip (T blue / P amber / — grey) so the campus split is visible at a glance without expanding. Expand all / Collapse all buttons on the toolbar.
+
+### Changed
+- **`class-builder.js`** — `renderBmeRosterMgmtPanel` row template replaces the four `<td>` cells (Student ID muted text, Email input, Campus select, High School input) with one `.cb295-roster-extras-cell` containing a `<details>` element. Summary: campus chip + "Details" tag. Body: 2-column grid of label + field (read-only Student ID; existing inputs preserved with their original `.cb295-roster-email` / `.cb295-roster-campus` / `.cb295-roster-highschool` classes so the change handlers in `wireBme295cRoster` still fire on edits).
+- **`class-builder.js`** — `<thead>` row collapses to one `<th>Details</th>` column.
+- **`class-builder.js`** — `wireBme295cRoster` wires two new toolbar buttons: **Expand all details** flips every `<details>.cb295-roster-extras open = true`; **Collapse all** flips them to `false`. Both are pure DOM-side toggles — no schedule write.
+
+### Added
+- **`styles.css`** — new selectors: `.cb295-roster-extras-cell` (column width hint), `.cb295-roster-extras` (font sizing + details container), `.cb295-roster-extras > summary` (custom rotating-▸ marker, no default disclosure triangle, click-zone padding), `.cb295-roster-extras-summary-hint` (small "DETAILS" caps tag), `.cb295-roster-extras-chip` (+ `-tucson` blue / `-phoenix` amber / `-none` grey variants for the campus initial chip), `.cb295-roster-extras-body` (2-col grid with subtle background + border), `.cb295-roster-extras-field` (`display: contents` so the inputs join the parent grid).
+- **`sw.js`** — `CACHE_VERSION` bump 248 → 249.
+
+## [V3.276] - 2026-06-05
+
+**Parking cost note on the Tucson location.** Students now see "Daily max: $9 at either garage." under the Health Sciences / Highland parking buttons on the syllabus location card and as a small italic line under the building / room line on the schedule-tab top bar.
+
+### Added
+- **`modules/bme295c/content.json`** — Tucson `locations[0]` gains a `parkingNote` string.
+- **`class-builder.js`** — `renderBmeSyllabusBody` location card renders `<p class="cb295-loc-parkingnote">` below the links when `l.parkingNote` is set; `renderBmeScheduleBody` top-bar card renders the same note inline under the room line. Both are gated on the field being present, so Phoenix (no `parkingNote`) shows nothing extra.
+- **`styles.css`** — small italic + muted styling for `.cb295-loc-parkingnote` (syllabus, .8rem) and `.cb295-locbar-parkingnote` (top bar, .72rem).
+- **`sw.js`** — `CACHE_VERSION` bump 247 → 248.
+
+## [V3.275] - 2026-06-05
+
+**Tucson location now lists Highland Garage as a second parking option** alongside the existing Health Sciences Garage. Both render as `🅿️` buttons on the syllabus location card and on the schedule-tab top bar.
+
+### Added
+- **`modules/bme295c/content.json`** — Tucson `locations[0]` gains a new `parkingOptions: [{ label, url }]` array carrying both garages. Legacy `parkingUrl` is kept on the entry for any older client; new code prefers the array.
+- **`class-builder.js`** — `renderBmeSyllabusBody` location cards + `renderBmeScheduleBody` top-bar cards both now iterate `parkingOptions` when present and fall back to the single `parkingUrl` otherwise. Each option emits a `🅿️ <Label>` button, so the buttons read "🅿️ Health Sciences Garage" and "🅿️ Highland Garage" on Tucson; Phoenix's single-option entry continues to read "🅿️ Parking" (compact) / "🅿️ Parking info" (syllabus) via the fallback path.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bump 246 → 247.
+
+## [V3.274] - 2026-06-05
+
+**Tucson room is HSIB 880 for the whole week.** Earlier copy on the syllabus + schedule top-bar said Room 444 plus a "Room change" warning callout listing per-day exceptions. Confirmed the room is consistently HSIB 880 Mon–Fri, so the warning is gone.
+
+### Changed
+- **`modules/bme295c/content.json`** — `locations[0].room` flipped 444 → 880; `locations[0].roomNote` dropped entirely. The room-change warning rendered by `renderBmeSyllabusBody` (gated on `l.roomNote` being truthy) now stays hidden. Map / parking URLs untouched.
+- **`sw.js`** — `CACHE_VERSION` bump 245 → 246 so the new value flows through the precache instead of waiting on a stale-while-revalidate next visit.
+
+## [V3.273] - 2026-06-03
+
+**YouTube talk recordings on the Learning Modules tab.** After each BME 295C talk, the admin uploads the recording to YouTube as **Unlisted**, then pastes the link into a new **Talk videos** card on the Admin Dashboard. The video renders inside a 16:9 frame above the discussion prompts on that speaker's Modules-tab card; iframe is lazy-loaded so the modules tab doesn't pull 10 YouTube embeds on initial paint. Speakers without a video show no block at all (no empty placeholder). The user explicitly chose YouTube unlisted over a Firebase Storage upload path to avoid per-view bandwidth costs — YouTube absorbs all of that for free regardless of how many students hit play.
+
+### Added
+- **`class-builder.js`** — new helpers `bmeYoutubeIdFrom(input)` (parses watch?v=ID / youtu.be/ID / /embed/ID / /v/ID / /shorts/ID / bare 11-char id; returns null on no match), `bmeGetSpeakerVideoId(slug)` (resolves the id from `_classData.speakerVideos[slug]`), `bmeGetSpeakerVideoRaw(slug)` (raw stored value for the admin form).
+- **`class-builder.js`** — `renderBmeModulesBody` renders a `<div class="cb295-mod-video"><iframe src="https://www.youtube.com/embed/{id}?rel=0&modestbranding=1" loading="lazy" allowfullscreen></iframe></div>` above the abstract when a video id is set; otherwise the block is omitted entirely. `loading="lazy"` defers the embed until the student expands the `<details>` card.
+- **`class-builder.js`** — new `renderBmeSpeakerVideosPanel()` dashboard card (sits between Instructors and Roster). One row per speaker in schedule order with a status pill (`No video` grey, `▶ YouTube` red), a URL/id textbox, **Save** button, an **↗ Open on YouTube** sanity-check link when set, and a **×** Remove button. Inline cost note: "YouTube embeds are free — no bandwidth charges no matter how many students watch."
+- **`class-builder.js`** — new `setBmeSpeakerVideo(slug, raw)` writer validates input via `bmeYoutubeIdFrom`. Null → surfaces the per-row `.cb295-speaker-video-err` strip; valid → stores the original input (URL or id) on `_classData.speakerVideos[slug]`; empty → deletes the entry. Then `persistAll` + `refreshCanvas`.
+- **`class-builder.js`** — `wireBme295cAdminDash` binds Save (collect the input's value), Remove (confirm + clear), and an `input` listener that hides the error strip as soon as the admin starts typing again.
+- **`class-builder.js`** — V3.273 migration in `wireClassPage` initializes `_classData.speakerVideos = {}` once if the field is missing. Idempotent.
+- **`class-builder.js`** — `persistAll` payload extended to include `speakerVideos` (same trap V3.270/V3.271/V3.272 fixed for the other admin-editable schedule fields).
+- **`styles.css`** — new selectors: `.cb295-mod-video` (16:9 wrapper with rounded corners + dark border), `.cb295-mod-video iframe` (absolutely positioned to fill); `.cb295-speaker-video-hint` (blue-tinted info callout at the top of the admin card), `.cb295-speaker-video-row` (per-speaker row container), `.cb295-speaker-video-row-head` (name + day/time + status pill in a flex line), `.cb295-speaker-video-row-form` (input + Save + open-link + remove in a wrap row), `.cb295-speaker-video-input`, `.cb295-speaker-video-pill` (+ `-yt` red variant), `.cb295-speaker-video-open` (small "↗ Open on YouTube" link).
+- **`sw.js`** — `CACHE_VERSION` bump 244 → 245.
+
+### Notes
+- **No new Firestore rule and no storage rule changes** — the video link lives on the schedule doc (admins + class admins already have write access via V3.247), and YouTube hosts the bitmaps so Firebase Storage is uninvolved. No deploy step beyond shipping the static files.
+- **Cost answer for the admin's question** ("will I ever have to pay for people accessing the video?"): No, not via this path. YouTube serves unlimited embed views for free regardless of view count. The only ask is that the admin sets each upload to **Unlisted** in YouTube Studio so the link is share-required.
+
+## [V3.272] - 2026-06-03
+
+**Students can now self-select which campus they'll attend from.** Campus on `studentRoster[i].campus` is admin-only writable (per the schedule-doc Firestore rule), so to let students change campus without rule changes the bio modal now writes a per-student override to `users/{uid}.bme295c.campus` — a doc each student already owns and can write. Readers pass through a new `bmeEffectiveCampus(entry, profile)` helper that prefers the override when present; group banner mates, attendance modal group resolution, and the response-doc id (so submissions go to the right group's bucket) all use it. Admin's roster table + auto-assign algorithm still read the canonical roster.campus — admin re-runs auto-assign after students settle to re-balance groups across the new cohort.
+
+### Added
+- **`class-builder.js`** — new helpers near `bmeNormalizeResponse`: `bmeEffectiveCampus(entry, profile)` returns `profile.campus || entry.campus`; `bmeProfileFor(entry)` resolves the user-doc `bme295c` payload from `_bmeProfile` (own), `_bmeOtherProfileCache` (sidebar / dashboard cached), or `_bmeDashboardData.profilesByEmail` (admin dashboard load).
+- **`class-builder.js`** — bio modal `cb295-modal-prealloc-campus` row is now a `<select id="cb295-profile-campus">` with Tucson / Phoenix options (own-profile only; admin-edit-other still shows read-only). Pre-fills from `profile.campus || preallocated.campus`. Hint copy: "Changing campus shifts which group you're in. Your instructor may re-run group assignments before class."
+- **`class-builder.js`** — `saveBmeProfile` payload now includes `campus` when own-profile and the select element is present. Empty string means "no override; fall back to the roster's admin-assigned campus." Reuses the existing 600 ms debounced autosave via `scheduleSave`.
+- **`class-builder.js`** — `bmeMatesForDay`, `openBmeAttendanceModal` group-member filter, and `saveBmeGroupResponsePrompts` doc-id construction now all read through `bmeEffectiveCampus`. The group banner header sub-text + `loadBme295cData` response prefetch also pick up the override.
+
+### Notes
+- Admin views (roster panel, count chips, auto-assign algorithm, live monitor campus grouping) still read `roster.campus` — the canonical admin-assigned campus. Admin re-runs **Auto-assign daily groups** after students settle to integrate overrides into the official group plan.
+- **`sw.js`** — `CACHE_VERSION` bump 243 → 244.
+
+## [V3.271] - 2026-06-03
+
+**Admin-controlled discussion gates + chat auto-tag follows the gate.** Each speaker's discussion now has a per-speaker state machine on the schedule doc — `pending → open → locked` — set manually by the course admin from the Admin Dashboard. Default is `pending`, so until the admin clicks **Open** after a talk, students see a notice strip ("Discussion not yet open — your instructor will release this after the talk") instead of editable textareas. Click **Lock** when discussion is over and the response goes greyed-out read-only. The next-pending speaker in schedule order gets an "Up next" blue accent on its discussion card so both students and admin see what's coming. The Course Chat header + per-message `speakerSlug` auto-tag now follow the admin's open speaker first, falling back to the time-based detection only when no speaker is open — so clicking Open on Chen instantly sets the chat to "Currently live: Chen" and every chat message from then on is tagged with Chen until the admin Locks or Opens someone else.
+
+### Added
+- **`class-builder.js`** — new helpers near `bmeCurrentLiveSpeaker`: `bmeGetDiscussionState(slug)` (returns `'pending'` for missing entries), `bmeIsDiscussionOpen` / `bmeIsDiscussionLocked`, `bmeNextPendingSpeakerSlug()` (first pending in schedule order — drives "Up next" highlight), `bmeAdminOpenSpeakerSlug()` (first open in schedule order — drives the chat). `setBmeDiscussionState(slug, nextState)` is the single writer: mutates `_classData.discussionState`, marks dirty, persists via `persistAll`, refreshes the canvas. Validates `nextState` against the allowed enum.
+- **`class-builder.js`** — `bmeCurrentLiveSpeaker` rewired: admin's open speaker wins, the existing time-based logic is the fallback. Existing call sites (Course Chat header in `renderBmeChatBody`, `sendBmeChatMessage`'s `speakerSlug` auto-tag) pick up the new return value automatically — no other code changes needed for the chat integration.
+- **`class-builder.js`** — `buildBmeResponseShell` reads `bmeGetDiscussionState` and adds two new render branches for otherwise-eligible viewers: `pending` shows a `cb295-response-pending-strip` callout ("Discussion opens after the talk"), `locked` shows a `cb295-response-locked-strip` callout + the saved-meta footer. `canEdit` now also requires `state === 'open'`.
+- **`class-builder.js`** — `renderBmeModulesBody` per-prompt block uses the same gate. Locked prompts paint the saved text in a new `cb295-discussion-input-locked` block. Each `<details>` card gets `data-discussion-state="..."` + state-specific CSS classes (`cb295-mod-card-state-{pending,open,locked}`), plus the next-pending speaker gets `cb295-mod-card-next-up` (blue accent left-border + "Up next" chip in the summary). Open cards get a green "Open" chip; locked cards get an amber "Closed" chip + 55% opacity.
+- **`class-builder.js`** — per-row Open/Lock toggle on the Live Discussion Monitor row header. Three button states cycle `Open → Lock → Reopen`; status pill (`cb295-discgate-pill-{pending,open,locked}`) renders in the matching color. `wireBmeLiveMonitorCells` binds the toggle clicks (with `stopPropagation` so the cell click handler doesn't fire).
+- **`class-builder.js`** — new `renderBmeDiscussionGatesPanel()` dashboard card. Top callout: "Currently open: {Speaker}" with a Lock button (when something's open), or "Up next: {Speaker}" with an Open button (when something's pending), or an all-done message. List of every speaker below with status pill + Open/Lock/Reopen + Reset (visible only when state is open or locked). `wireBme295cAdminDash` binds the row + callout buttons.
+- **`class-builder.js`** — V3.271 migration in `wireClassPage` initializes `_classData.discussionState = {}` on the schedule doc when missing. Idempotent — no-op once the field exists.
+- **`class-builder.js`** — `persistAll` now includes `discussionState` in its `saveData` payload (same trap that V3.270 fixed for `instructors` / `classAdminEmails` / `testMode`).
+- **`styles.css`** — new selectors: `.cb295-mod-card-state-{pending,open,locked}`, `.cb295-mod-card-next-up`, `.cb295-mod-card-locked`, `.cb295-mod-card-{nextup,open,locked}-badge`; `.cb295-response-pending-strip` (amber callout), `.cb295-response-locked-strip` (orange callout), `.cb295-discussion-input-locked` (dashed muted background); `.cb295-discgate-pill` + `-pending`/`-open`/`-locked` color variants; `.cb295-discgate-row-btn` (compact monitor row button); `.cb295-discgate-panel`, `.cb295-discgate-callout` + `-nextup`/`-live`/`-done` variants, `.cb295-discgate-callout-label`, `.cb295-discgate-callout-btn`, `.cb295-discgate-rows`, `.cb295-discgate-row` (+ `[data-state]` color), `.cb295-discgate-row-info`, `.cb295-discgate-row-actions`. Mobile breakpoint at 520px stacks the row.
+- **`sw.js`** — `CACHE_VERSION` bump 242 → 243.
+
+### Notes
+- **No Firestore rule change** — `groupResponses` write rule stays `request.auth != null`. Gating is client-side only; server-side enforcement of `state === 'open'` would require a per-write cross-doc `get()` on the schedule. Same trust model as the test-mode tag (V3.250) and class-admin email list (V3.247).
+- **Student real-time updates** — students see admin state changes on next page interaction / canvas refresh. A live `onSnapshot` for non-admins is a follow-up; for the in-class workflow ("I'm about to open Chen — refresh your page") the instructor will tell students to refresh.
+
+## [V3.270] - 2026-06-03
+
+**Instructor photo + bio + class admins + test mode now actually persist.** `persistAll()` (the canonical schedule-save path used by the autosave loop + every per-section save handler) was only including `tabs / sections / modules / studentRoster` in its Firestore payload. Other admin-editable fields on `_classData` — `instructors` (photo + bio + contact from the V3.267 Instructors panel), `classAdminEmails` (V3.247 class-admin invite list), and `testMode` (V3.250) — were getting written into the in-memory `_classData` but never reaching Firestore. Because `ScheduleDB.saveSchedule` uses `set({ merge: true })`, the server-side values stayed as they were before the edit, and on reload the page either fell back to the static `content.json` (for instructors) or showed the previous persisted value (for classAdminEmails/testMode if they'd been saved through a direct path elsewhere). Reported as "I uploaded all the instructor info and photos but they're gone after reload."
+
+### Changed
+- **`class-builder.js`** — `persistAll()` payload now includes `instructors` (when array-valued on `_classData`), `classAdminEmails` (when array-valued), and `testMode` (when boolean). Field-presence guards mean schedules that don't have these fields still save the same minimal payload as before — no schema change for non-BME schedules.
+- **`sw.js`** — `CACHE_VERSION` bump 241 → 242.
+
+### Fix flow
+- Open the admin dashboard → Instructors panel.
+- The photos + bios that were entered before V3.270 are gone (they never made it to Firestore). Re-enter them once.
+- Click **Save instructor edits**, or just upload a new photo (its handler also calls `persistAll`). The new payload now carries `instructors` to the server.
+- Hard-reload to verify — the values should now survive.
+
+## [V3.269] - 2026-06-03
+
+**Admin "Edit my profile" routes to the Instructors panel, not the student bio modal.** The admin check-in strip's button previously fired `openBmeBioModal` — but that modal is shaped for students (today's group, mate photos, BME interest field) and doesn't fit an admin who has no roster entry. Now an admin click switches to the Admin Dashboard tab and scrolls to the Instructors panel (V3.267), which is the right place to edit photo + bio + contact info.
+
+### Changed
+- **`class-builder.js`** — admin check-in strip button id renamed from `cb295-open-bio-modal` → `cb295-admin-edit-profile` so it doesn't share the student modal handler.
+- **`class-builder.js`** — `renderBmeInstructorsPanel` section element gains `id="cb295-instructors-panel"` as a scroll target.
+- **`class-builder.js`** — `wireBme295cCheckin` adds a new handler for `cb295-admin-edit-profile`. Finds the tab containing `adminDash295c`, calls `switchTab(adminTab.id)` if not already active, then `requestAnimationFrame` → `document.getElementById('cb295-instructors-panel').scrollIntoView({ behavior:'smooth', block:'start' })`. The rAF defers the scroll until after `refreshCanvas` has swapped the canvas innerHTML, so the panel exists in the DOM when we look for it.
+- **`sw.js`** — `CACHE_VERSION` bump 240 → 241.
+
+## [V3.268] - 2026-06-03
+
+**Live monitor table renders properly now.** V3.266 flipped rows/columns but the existing `.cb295-monitor-cell { display: flex }` rule applied directly to the `<td>` elements broke table layout in Chromium — `<td>` with `display: flex` falls out of the table flow and renders as a stacked block. Result: instead of the intended `Lecture × T1..Tn,P1..Pn` grid, every cell rendered in a single vertical column. Fixed by moving the flex column to a new `.cb295-monitor-cell-inner` child `<div>`, leaving the `<td>` as a normal table cell.
+
+### Changed
+- **`styles.css`** — `.cb295-monitor-cell` now styles a real `<td>` (border, background, padding, hover lift); flex layout moved to `.cb295-monitor-cell-inner` for stacking the words/status/attendance/timestamp children. `min-width` dropped from 96px to 80px so a 7-column grid fits without horizontal scroll on a typical admin screen.
+- **`class-builder.js`** — `renderCell` wraps its inner spans in `<div class="cb295-monitor-cell-inner">` (both empty and filled variants) to match the new CSS structure.
+- **`sw.js`** — `CACHE_VERSION` bump 239 → 240.
+
+## [V3.267] - 2026-06-03
+
+**Instructor profile photo + bio on the admin dashboard.** The V3.261 Instructors panel only had name/role/department/office/email fields — no avatar, no bio. Added a photo upload button + bio textarea per instructor row; both stamp onto the schedule's `instructors[]` array (same source-of-truth as the other fields). Photo + bio now render in the chat sidebar avatars, the instructor info modal, and the syllabus instructor cards. Photo uploads land at `class-profile-photos/bme295c/{adminUid}/instructor-{idx}.{ext}` so the existing storage.rules `request.auth.uid == userId` gate is satisfied — every admin uploads under their own uid.
+
+### Added
+- **`class-builder.js`** — `renderBmeInstructorsPanel` row now has a two-column layout: a left photo column (preview frame + Upload/Replace photo button + status text) and the right field grid. A bio textarea spans the full width of the field grid below the existing inputs. Empty state shows the instructor's name initial in a 96×96 placeholder chip.
+- **`class-builder.js`** — new `.cb295-instructor-photo-input[data-idx]` change handler in `wireBme295cAdminDash`. Uploads to Firebase Storage at `class-profile-photos/bme295c/{adminUid}/instructor-{idx}.{ext}` via `firebase.storage().ref(path).put(file)`, then writes `{photoUrl, photoStoragePath}` onto `_classData.instructors[idx]` and `persistAll()`. Surgical preview swap (no canvas redraw) + chat sidebar refresh via `refreshBmeChatMembersAside()`.
+- **`class-builder.js`** — bio textarea shares the `.cb295-instructor-field` class with the inputs, so the existing V3.261 Save handler picks it up automatically (writes `instructors[idx].bio`).
+- **`class-builder.js`** — `openBmeInstructorViewModal` shows the photo (when set) instead of just the initial chip, plus a new `.cb295-profile-view-bio` block at the bottom of the modal with the saved bio (line-break-preserved escape).
+- **`class-builder.js`** — chat sidebar `instructorRow` swaps the `<span class="cb295-chat-member-avatar">{initial}</span>` for an `<img>` when `inst.photoUrl` is set (same pattern as student avatars from V3.260).
+- **`class-builder.js`** — syllabus `instructorCards` map now renders a 72×72 `.cb295-instructor-card-photo` at the top of each card (with `-blank` fallback for the initial), and appends the bio (when set) below the contact lines.
+- **`styles.css`** — new selectors: `.cb295-instructor-edit` now uses a `grid-template-columns: 96px 1fr` two-column layout (collapses to single-column under 520px), `.cb295-instructor-edit-photo`, `.cb295-instructor-photo-frame` (+ `img` rule for object-fit cover), `.cb295-instructor-photo-placeholder`, `.cb295-instructor-photo-btn` (file-input wrapper styled as a button), `.cb295-instructor-photo-status`, `.cb295-instructor-bio-group`, `.cb295-instructor-bio`, `.cb295-instructor-card-photo` (+ `-blank`), `.cb295-instructor-bio-text`, `.cb295-profile-view-bio`.
+- **`sw.js`** — `CACHE_VERSION` bump 238 → 239.
+
+## [V3.266] - 2026-06-03
+
+**Live discussion monitor flipped to lectures × groups.** The monitor was previously two per-campus tables (rows = group numbers, columns = speakers). Replaced with a single unified table — rows = lectures in schedule order, columns = groups labeled `T1, T2, …, Tn, P1, P2, …, Pn` (T for Tucson, P for Phoenix). Tucson columns get a blue header chip, Phoenix columns amber; a thin divider sits between the two campus runs. Lectures-as-rows means each lecture's coverage across all groups reads horizontally on one line, which is how admins talk about "who's done with Romero-Ortega's prompts yet."
+
+### Changed
+- **`class-builder.js`** — `bmeLiveMonitorInner` rebuilt: builds `[{campus, group, label}]` columns by walking the roster's daily groups per campus, then renders a single `<table>` with a `<th class="cb295-monitor-rowhead">` per speaker (day chip + first name) and a `<th class="cb295-monitor-grouphead">` per group column. Tucson columns use `-tucson` modifier (blue), Phoenix `-phoenix` (amber). Inserts `cb295-monitor-grouphead-newcampus` / `cb295-monitor-cell-newcampus` on the boundary column for a visual divider. Empty-state branch now triggers when no groups are populated anywhere (was: per-campus empty branches).
+- **`styles.css`** — new selectors: `.cb295-monitor-grouphead` + `-tucson` / `-phoenix` / `-newcampus` modifiers, `.cb295-monitor-cell-newcampus` (matching divider on body cells), `.cb295-monitor-rowhead-body` / `-day` / `-name` (stacked day + speaker name in the row header).
+- **`sw.js`** — `CACHE_VERSION` bump 237 → 238.
+
+## [V3.262] - 2026-06-03
+
+**Prominent Map + Parking buttons on the syllabus and a quick-access bar at the top of the schedule.** The Google Maps / Parking links were previously thin text links buried at the bottom of each location card; now they render as proper button-style chips (blue for the map, amber for parking) so students can spot them at a glance. A new compact location bar at the top of the Schedule tab mirrors the same buttons next to "Tucson · HSIB Room 444" / "Phoenix · BSPB Room E115" — so a student loading the Schedule on their phone the morning of a session doesn't have to flip back to the syllabus to find the address.
+
+### Added
+- **`class-builder.js`** — `renderBmeSyllabusBody` location links now render as `.cb295-loc-link` chips inside `.cb295-loc-links` flex wrap. Map link gets `cb295-loc-link-map` (blue accent); parking + parking-PDF get `cb295-loc-link-parking` (amber accent). Emojis (📍 / 🅿️) prefix each label.
+- **`class-builder.js`** — `renderBmeScheduleBody` builds a `locBar` block from `content.json.locations` and emits it at the top of the schedule body (above "Daily schedule"). Each campus card shows campus + building + room on the left and shorter Map / Parking / PDF buttons on the right.
+- **`styles.css`** — new selectors: `.cb295-loc-links` (chip wrap), `.cb295-loc-link` (base button), `.cb295-loc-link-map` / `.cb295-loc-link-parking` (color variants). New `.cb295-locbar` + `-grid` + `-card` + `-text` + `-links` for the schedule top bar (left-blue accent border, auto-fit grid, smaller chip padding).
+- **`sw.js`** — `CACHE_VERSION` bump 234 → 235.
+
+## [V3.261] - 2026-06-03
+
+**Admin moderation pack — edit student/admin bios, delete stuck responses, chat message avatars, editable instructor info.**
+
+Four related pieces:
+
+1. **Admin can edit any student's bio** + **admin can edit their own bio**. `openBmeBioModal(opts)` + `saveBmeProfile(opts)` now accept an optional `targetUid` so the same modal serves three flows: the student editing their own profile (existing), the admin editing their own profile (V3.261 new), and the admin moderating any student's profile (V3.261 new). Admin entry points: an "Edit my profile" button on the admin check-in strip, plus an "Edit as admin" button on the profile-view modal that opens when admin clicks a student in the chat sidebar. The cache `_bmeOtherProfileCache` now stamps `_uid` on each entry so the admin-edit button knows which `users/{uid}` doc to target without an extra email lookup.
+2. **Delete a stuck/test response.** The live-monitor cell modal grows a destructive "Delete response" button (visible only when the cell already has a doc). Click → confirm → `groupResponses/{id}` deleted; the live listener fans the change out so the grid cell resets to empty within the second.
+3. **Chat message bubble avatars.** Each chat message now renders the author's profile photo as the bubble icon (was: 🙋 / 💬 emoji). Lookup order: `m.authorPhotoUrl` (denormalized on the doc at send time — works for admins / non-roster authors whose photos aren't in the chat cache), then `_bmeOtherProfileCache.get(authorEntry.id).photoUrl` for older messages, then fall back to the message-type emoji. Anonymous messages still show the emoji (no photo leak, even for admin viewers).
+4. **Editable instructor info.** Admin Dashboard gains an "Instructors" card with one editable row per instructor (name / role / department / office / email). Saving writes the array to `schedules/{id}.instructors`, which now overrides `content.json.instructors` everywhere it's read (syllabus tab, chat members sidebar, instructor-info modal) via a new `bmeGetInstructors()` helper. content.json values are still the fallback so the page renders even before the admin saves any edits.
+
+### Added
+- **`class-builder.js`** — `openBmeBioModal(opts = {})` accepts `{ targetUid, targetEntry, targetName, targetEmail }`. When set, the title becomes "Edit {Name}'s profile (admin)", the photo upload is hidden (Storage rules prevent admin writes to a student's `class-profile-photos/.../{userId}/...` path), a one-shot Firestore fetch populates the textareas from the target's user doc, and saves go to `users/{targetUid}.bme295c` instead of the current user's doc. `data-dirty` markers on the textareas prevent the async fetch from overwriting in-progress admin edits.
+- **`class-builder.js`** — `saveBmeProfile(opts = {})` honors `opts.targetUid` + `opts.targetEntry`. For admin-edit-other writes, only `bio`, `interest`, and `updatedAt` are merged (photo fields are skipped so the existing photo isn't clobbered). Cache update keys off `opts.targetEntry.id` and preserves the existing cached photo URL.
+- **`class-builder.js`** — admin check-in strip ([renderBmeCheckinBody](class-builder.js)) gains "Edit my profile" before the "Sign out" button. Wires through the shared `cb295-open-bio-modal` handler with no opts (own-profile flow).
+- **`class-builder.js`** — profile-view modal footer ([openBmeProfileViewModal](class-builder.js)) gains an "Edit as admin" button when `_viewType === 'admin'`. Click → look up target uid (from cache or a one-shot email query) → close the view modal → open the bio modal in admin-edit mode targeting that uid.
+- **`class-builder.js`** — `_bmeOtherProfileCache` value shape extended with `_uid`. All five write sites updated: `loadBmeChatProfiles` (own + bulk), `seedBmeChatCacheFromDashboard`, `saveBmeProfile`, `uploadBmeProfilePhoto`, `openBmeProfileViewModal`. Readers that look for `photoUrl`/`bio`/`interest` are unaffected.
+- **`class-builder.js`** — `openBmeMonitorCellModal` ([live-monitor cell modal](class-builder.js)) gains a "Delete response" button (footer, left side, secondary style) when the cell has a doc. Handler confirms, calls `.delete()`, removes the entry from `_bmeDashboardData.responses` so the rerender picks up the change ahead of the snapshot listener.
+- **`class-builder.js`** — `sendBmeChatMessage` includes `authorPhotoUrl: _bmeProfile?.photoUrl || ''` on the payload (skipped when anonymous so the photo doesn't leak via raw doc inspection). Existing chat docs without the field fall through to the cache lookup.
+- **`class-builder.js`** — `renderBmeChatMessage` picks an avatar via lookup order: `m.authorPhotoUrl` → roster cache → emoji fallback. Anonymous messages always use the emoji. The chat-msg-icon grid slot renders an `<img class="cb295-chat-msg-icon cb295-chat-msg-icon-photo">` when a photo is found.
+- **`class-builder.js`** — `bmeGetInstructors()` helper returns `_classData.instructors` when non-empty, falling back to `_bmeContent.instructors`. Three call sites updated (syllabus tab body, chat sidebar `renderBmeChatMembersAside`, `openBmeInstructorViewModal`).
+- **`class-builder.js`** — `renderBmeInstructorsPanel()` admin-dashboard card with one editable row per instructor (name / role / department / office / email fields). Wired by `wireBme295cAdminDash`: save handler reads the form, writes `_classData.instructors`, calls `persistAll()`, then `refreshBmeChatMembersAside()` so the sidebar picks up the changes without a full canvas redraw.
+- **`styles.css`** — new selectors: `img.cb295-chat-msg-icon-photo` (32×32 circular bubble avatar with `display:block` so the bitmap renders despite the parent class's flex centering), `.cb295-instructor-edit` (+ `-fields` / `-actions`), `.cb295-instructor-field` (small form-input styling matching the roster table's inputs).
+- **`sw.js`** — `CACHE_VERSION` bump 233 → 234.
+
+## [V3.260] - 2026-06-03
+
+**Photos still didn't render after V3.259 because the same CSS gotcha was repeated on the avatar elements.** V3.259 split the joint selector for `.cb295-profile-view-photo` so `<img>` no longer got `display: flex`. But the chat sidebar avatars (`.cb295-chat-member-avatar`) and the group-banner mate avatars (`.cb295-mate-photo`) had the same shape — base class sets `display: flex` for the initials chip; render path slaps the same class on the `<img>` for the photo variant; image collapses to zero size because flex layout on a replaced element drops the bitmap. Added `img.<class> { display: block }` overrides so the actual photos render.
+
+### Changed
+- **`styles.css`** — `img.cb295-chat-member-avatar-img { display: block; object-fit: cover; padding: 0; }` (was missing the `display: block` override, so the 28×28 sidebar avatars were invisible whenever a photoUrl was set).
+- **`styles.css`** — new rule `img.cb295-mate-photo { display: block }` so the group-banner mate-grid 34×34 photos render. The initials-chip `<div>` keeps `display: flex` for vertical centering.
+- **`sw.js`** — `CACHE_VERSION` bump 232 → 233.
+
+## [V3.265] - 2026-06-03
+
+**Defensive fix for the role-clobbering bug that demoted Cason to guest.** The website's user-management page ([user-system.js:4438](../../user-system.js#L4438) `loadUsers()`) uses a 4-role taxonomy (`admin / editor / contributor / guest`), but RM's admin-permissions page writes from a 10-role taxonomy (`admin / pi / postdoc / phd / masters / undergrad / staff / collaborator / member / guest`). When a user's `users/{uid}.role` was set via RM to a value the website's dropdown didn't recognise (e.g. `phd`), no `<option>` got `selected`, the browser fell back to displaying the first option as the dropdown's visible value, and the next Save silently wrote that wrong value back to Firestore. This is how Cason got demoted to `guest` — the admin saved his row for an unrelated reason (chat toggle, bio edit, category change) and the stale dropdown value rode along.
+
+Two-part fix: (1) the row render now prepends a sticky `<option value="phd" selected>Unknown: phd — keep as is</option>` so the dropdown's `.value` round-trips the stored role even when it's outside the page's taxonomy. (2) the Save handler now compares `roleSel.value` to the loaded `user.role` and skips the role write entirely when unchanged, so unrelated edits can't clobber the role going forward. Belt-and-suspenders — either guard alone closes the bug, but having both means future taxonomy drift can't reopen it.
+
+### Changed
+- **`user-system.js`** — `loadUsers()` row render computes `knownRole = ROLES.hasOwnProperty(u.role)` and conditionally prepends the unknown-role placeholder. Adds a small `admin-guest-badge`-styled chip next to the user's name when the role is out-of-taxonomy ("phd", "postdoc", etc.) so it's visually clear that the role is managed in RM Admin Permissions.
+- **`user-system.js`** — Save handler ([user-system.js:4551](../../user-system.js#L4551)) reorders to load the `user` object early, then only writes `role` when `roleSel.value !== (user.role || '')`. Other fields (category, bio, name, github, chatAccess, priorCategory) keep their original behavior.
+- **`sw.js`** — `CACHE_VERSION` bump 237 → 238 (already applied externally).
+
+### Investigation notes
+- The two bootstrap paths (`user-system.js:googleLogin` + `rm/js/profile-bootstrap.js`) are both correctly idempotent — they only create a `role:'guest'` doc when no doc exists. Neither could have caused this.
+- Long-term fix is to unify the role taxonomies. Easiest path: make the website's `ROLES` map a superset that includes RM's lab-role values, so the dropdown can natively render every role. Deferred — this defensive fix is enough to keep production safe in the meantime.
+
+## [V3.264] - 2026-06-03
+
+**Inclusive Access $75 textbook fee opt-out notice on the syllabus.** Students see a $75 textbook charge on top of the $176 application + tuition total; since BME 295C doesn't use a textbook they need to opt out themselves via D2L (the Bookstore + Bursar can't remove the charge on their end). Added a prominent amber callout at the top of the syllabus walking through the 4-step opt-out flow with a deep link to D2L. Hidden automatically when `content.feeNotice` is removed, so this is reusable / cleanable for future semesters.
+
+### Added
+- **`modules/bme295c/content.json`** — new top-level `feeNotice` block with `title`, `body`, and `steps[]` (mixed array of strings + `{ label, href }` objects for steps that need a link). First step is the D2L sign-in link; the remaining three are the in-D2L navigation path.
+- **`class-builder.js`** — `renderBmeSyllabusBody` now renders a `<section class="cb295-fee-notice">` at the very top of the syllabus when `content.feeNotice` is present. Each `steps[]` entry becomes a numbered `<li>`; entries shaped `{ label, href }` render as external links (`target="_blank"` + `rel="noopener"`), plain strings render as text.
+- **`styles.css`** — new selectors: `.cb295-fee-notice` (amber-tinted card with thicker left border to read as a callout), `.cb295-fee-notice-header` (+ `-icon`), `.cb295-fee-notice-steps` (compact ordered list using the existing `#5baed1` accent for links).
+- **`sw.js`** — `CACHE_VERSION` bump 236 → 237.
+
+## [V3.263] - 2026-06-03
+
+**Instructor email consolidated on `mcgheealex@gmail.com`.** Admin signs in with the gmail account, but `content.json` listed the instructor entry as `mcgheealex@arizona.edu`, so the chat sidebar's `inst.email === viewerEmail` check failed — the admin's own row wasn't recognized as themselves, and the instructor info modal showed an email different from the one they signed in with. All hardcoded instructor email references switched to `mcgheealex@gmail.com` so the chat (and contact-instructor mailto links across the page) match the actual sign-in identity.
+
+### Changed
+- **`modules/bme295c/content.json`** — `instructors[0].email` switched from `mcgheealex@arizona.edu` to `mcgheealex@gmail.com`. Other instructor entries (Monique Martinez, Diana Wilson) unchanged.
+- **`class-builder.js`** — three `mailto:mcgheealex@arizona.edu` contact links (check-in-no-roster strip, enroll-page hint, enroll-no-roster fallback) now point to `mcgheealex@gmail.com`. Anchor text matches.
+- **`sw.js`** — `CACHE_VERSION` bump 235 → 236.
+
+## [V3.259] - 2026-06-03
+
+**Three Course Chat fixes.** (1) Admin viewers no longer see a misleading "Welcome … Groups not yet assigned" check-in strip; admins-without-a-roster-row now get a dedicated "Admin view" strip that explains why there's no group and points at the Viewing-as toolbar. (2) Sidebar avatars + the profile-view modal photo now actually appear: a CSS bug was applying `display: flex` to the `<img>` element (a stray duplicate `display:` declaration on the `.cb295-profile-view-photo img, .cb295-profile-view-photo .cb295-mate-photo` joint selector). (3) When clicking a classmate from the chat sidebar fetches a fresh `users/{uid}.bme295c` doc, the sidebar's avatar refreshes immediately — no need to switch tabs to see the photo.
+
+### Changed
+- **`class-builder.js`** — `renderBmeCheckinBody` now branches earlier: when `signedIn && isAdmin && !entry`, it returns a tailored "Admin view" strip (uses class-admin-specific copy when `_isClassAdminOnly`). The previous shared path with `preallocated = { name: 'admin', campus: '—' }` led to "Groups not yet assigned" copy that didn't apply to admins.
+- **`class-builder.js`** — `loadBmeDashboardData` post-load hook now also calls `seedBmeChatCacheFromDashboard()` + `refreshBmeChatMembersAside()` when the chat tab is active, so dashboard-loaded `users/{uid}.bme295c` photos populate the sidebar (in addition to the V3.256 `loadBmeChatProfiles()` path).
+- **`class-builder.js`** — new helper `seedBmeChatCacheFromDashboard()` folds any profiles the dashboard loader already pulled (`_bmeDashboardData.profilesByEmail`) into `_bmeOtherProfileCache` keyed by student id; only writes if no existing cache entry already has a `photoUrl`, so a freshly-uploaded photo isn't overwritten by stale dashboard data.
+- **`class-builder.js`** — `openBmeProfileViewModal` now tries both the lowercased and as-typed email when the user-doc lookup misses (defensive against any mixed-case email stored in `users/{uid}.email`). Photo render path emits a plain `<img>` (no extra `.cb295-mate-photo` class, which was triggering the broken flex CSS even after the split). After a fresh fetch lands a profile with `photoUrl`, it calls `refreshBmeChatMembersAside()` so the sidebar avatar updates immediately.
+- **`styles.css`** — split `.cb295-profile-view-photo img, .cb295-profile-view-photo .cb295-mate-photo { … display:block; … display:flex; … }` into two separate rule blocks. `<img>` gets `display:block` + `object-fit:cover`; the initial-letter chip keeps `display:flex` for vertical centering.
+- **`sw.js`** — `CACHE_VERSION` bump 231 → 232.
+
+## [V3.258] - 2026-06-03
+
+**Backfill rename of legacy "Live Q&A" tab on persisted schedule docs.** V3.257 renamed the chat tab in `DEFAULT_SCHEDULES`, `SECTION_REG`, and the chat header, but the `name` field on existing `schedules/bme295c.tabs[]` entries (and their `sections[]`) was still the V3.251 string `"Live Q&A"` — so the tab bar showed the old label until someone edited the schedule manually. Added a one-shot migration in `wireClassPage` that rewrites any tab or chat-section named `"Live Q&A"` (or its HTML-encoded variant `"Live Q&amp;A"`) to `"Course Chat"`. Runs once per admin visit; idempotent.
+
+### Changed
+- **`class-builder.js`** — new V3.257-companion migration block in `wireClassPage` after the chat-tab-existence check. Walks `schedule.tabs` immutably (returns new arrays, only when something actually changed), persists via `ScheduleDB.saveSchedule`, re-resolves the schedule. Only fires when at least one tab or section still has the old label.
+
+## [V3.257] - 2026-06-03
+
+**BME 295C Tucson room change for Mon Jun 8 + Wed Jun 10, and "Live Q&A" tab renamed to "Course Chat".** HSIB 444 is hosting a conference those two days, so class moves to **HSIB 880** (same A/V setup, recording works unchanged). Tue/Thu/Fri remain in HSIB 444. Signs will be posted at HSIB 444 day-of so students who miss the announcement still find the right room. Separately: the chat tab was labelled "Live Q&A" since V3.251 but the actual usage pattern is broader (introductions, daily check-ins, casual cross-campus conversation, not just Q&A during talks), so the user-facing label is now "Course Chat".
+
+### Changed
+- **`modules/bme295c/content.json`** — Tucson location entry gets a new `roomNote` string describing the Mon/Wed override. Phoenix entry unchanged.
+- **`class-builder.js`** — `renderBmeSyllabusBody` location card renderer now surfaces `l.roomNote` as an amber-bordered callout under the building/room line. Skipped when the field is absent, so Phoenix renders as before.
+- **`class-builder.js`** — Component label `chat295c` (line 31), tab `name` + section `name` in the V3.251 migration block (lines 175 + 177), the chat header `<h3>` in `renderBme295cChat` (line 5769), and the test-mode "off" hint copy (line 4034) all renamed from "Live Q&A" to "Course Chat". Internal keys (`chat295c`, `tab_295c_chat`, `_bmeChatUnsub`, `loadBmeChatProfiles`, `_bmeOtherProfileCache`, etc.) unchanged — rename is user-facing only. Code-comment occurrences of "Live Q&A" preserved as historical context.
+- **`modules/bme295c/Summer 2026 Syllabus (BME 295C).md`** — Locations bullet rewritten to call out the per-day room split. Day 1 and Day 3 tables get a blockquote room-change banner and HSIB 880 baked into the 8:30 AM Tucson row.
+- **`sw.js`** — `CACHE_VERSION` bump 230 → 231.
+
+## [V3.256] - 2026-06-03
+
+**Chat tab now uses uploaded bios + photos.** The Live Q&A members sidebar (V3.253) previously sourced avatars from `_bmeDashboardData.profilesByEmail` (admin-only) and `_bmeOtherProfileCache` (only filled when someone clicks a profile-view modal). For a regular student opening the chat tab, neither was populated, so every avatar fell back to a letter placeholder — including their own, even right after uploading a bio + photo. Fixed by bulk-loading every roster student's `users/{uid}.bme295c` profile into the cache when the chat tab is wired, and seeding the viewer's own `_bmeProfile` into the cache up front so the just-uploaded photo appears immediately without a round-trip.
+
+### Added
+- **`class-builder.js`** — new `loadBmeChatProfiles()` lazy loader. Seeds `_bmeOtherProfileCache.set(viewer.id, _bmeProfile)` first (immediate own-photo display), then chunks the rest of the roster into 10-email batches via `users.where('email', 'in', chunk)` (same pattern as `loadBmeDashboardData`), keyed back into the cache by roster student id. Idempotent via `_bmeChatProfilesLoaded` flag.
+- **`class-builder.js`** — new `refreshBmeChatMembersAside()` does a surgical DOM swap of just the `.cb295-chat-members` aside (rebuilds the sidebar HTML, re-binds member click handlers) so loading new profiles doesn't blow away the feed scroll position or open modals.
+- **`class-builder.js`** — `wireBme295cChat` fires `loadBmeChatProfiles()` (fire-and-forget) after the initial sidebar render so avatars stream in.
+- **`class-builder.js`** — `saveBmeProfile()` + `uploadBmeProfilePhoto()` both push the just-saved profile into `_bmeOtherProfileCache` keyed by the viewer's roster id and call `refreshBmeChatMembersAside()` — so as soon as you click Save on the bio modal or finish a photo upload, the chat sidebar's avatar updates in place. Also means the profile-view modal opens with the fresh data the next time someone (the viewer or anyone else) clicks the viewer's name.
+- **`sw.js`** — `CACHE_VERSION` bump 229 → 230.
+
+## [V3.255] - 2026-06-02
+
+**Copy tweaks on the BME 295C discussion page.** Two strings updated based on feedback:
+
+- Group banner footer: "Something off? Email the instructor." → "Something off? **Send Chat to instructor**." The mailto link is replaced with an inline link-styled button that switches to the Live Q&A tab (V3.251) so the student can post directly instead of opening their email client.
+- Response box banner: "Pick one writer per group. Agree among yourselves who's writing — only one student per group should be typing at a time." → "Pick one writer per group — this submission will be assigned to all students in this group." Communicates the group-credit consequence rather than just the polite "only one writer" norm.
+
+### Added
+- **`class-builder.js`** — `#cb295-goto-chat` button wired inside `wireBmeRotationChips()` (the banner's existing wiring seam). On click, finds the tab containing `chat295c` and calls `switchTab(chatTab.id)`. Falls back to no-op if no chat tab exists on the schedule.
+- **`styles.css`** — new `.cb295-link-btn` selector (used by the Send-Chat button). Strips browser button chrome, keeps the existing `#5baed1` accent + underline so it reads as a link.
+- **`sw.js`** — `CACHE_VERSION` bump 228 → 229.
+
+## [V3.254] - 2026-06-02
+
+**Discussion edit boxes co-located with each prompt + roster columns widened.** V3.252 rendered the 3 per-prompt textareas stacked at the bottom of each speaker card, away from the prompts shown above — visually they read as "one big response box that happens to be split". Now each `<li>` in the discussion list embeds its own textarea + word count right below the prompt + "Dig deeper" details, so editing happens in context. The wrapping response shell (banner + submit footer) lives below the `<ol>` and just owns the cross-prompt total + submit button. Read-only viewers see the saved text inline per prompt too. Also widened the Roster & daily groups columns (Student ID / Email / Campus / High School) which were getting squished by the badge columns added in V3.252.
+
+### Added
+- **`class-builder.js`** — `renderBmeModulesBody` builds each `<li class="cb295-discussion-item">` with an inline `.cb295-discussion-input` block: a textarea (editable for group members) or read-only response text (for signed-out / non-group viewers). Per-prompt word count `.cb295-response-wordcount-per` sits right under the textarea.
+- **`class-builder.js`** — new `buildBmeResponseShell(speaker, signedIn)` replaces `buildBmeResponseBox`. Returns only the banner ("Pick one writer per group") + footer (total word count, status, submit button). Read-only path returns a small meta line ("Submitted · Last edited by X · 87 words total") or "No response yet" — no more duplicated prompt panels.
+- **`styles.css`** — new `.cb295-discussion-input` block (+ `.cb295-discussion-input-readonly` variant) styles the inline textarea/read-only block under each prompt. Textarea picks up the existing `.cb295-response-text-input` class for its base styling and adds a min-height + focus accent.
+- **`styles.css`** — explicit `min-width` floors on `.cb295-roster-email` (220px), `.cb295-roster-campus` (110px), `.cb295-roster-highschool` (180px), and the Student ID column (110px, no-wrap). Padding bumped to `.35rem .55rem` so the values aren't cramped against the borders. Daily-groups column bumped from 220px to 230px.
+- **`sw.js`** — `CACHE_VERSION` bump 227 → 228.
+
+### Removed
+- **`class-builder.js`** — `buildBmeResponseBox` (replaced by `buildBmeResponseShell`). The three `<div class="cb295-response-prompt-block">` blocks that V3.252 rendered inside the response box are no longer built there — they're now individual `.cb295-discussion-input` blocks living inside each prompt `<li>`.
+
+## [V3.253] - 2026-06-02
+
+**Members sidebar on the Live Q&A tab.** The chat tab now ships a left sidebar listing every instructor (from `content.json.instructors`) and every roster student alphabetically, each row clickable. Student rows open the existing profile-view modal (V3.251); instructor rows open a new read-only info modal showing role / department / office / email. The current viewer's own row is highlighted with a blue accent. Sidebar collapses to a 220-px-tall scrollable strip above the chat on screens narrower than 720 px.
+
+### Added
+- **`class-builder.js`** — `renderBmeChatMembersAside()` renders the `<aside>` with two sections (Instructors, Students); students sorted by first name; current viewer flagged via `cb295-chat-member-self`. Student rows reuse `_bmeDashboardData.profilesByEmail[*].bme295c.photoUrl` (or `_bmeOtherProfileCache`) for the avatar when available, else show a colored initial chip.
+- **`class-builder.js`** — `renderBmeChatBody` now wraps the chat in a `.cb295-chat-shell` two-column grid with the new sidebar on the left.
+- **`class-builder.js`** — `openBmeInstructorViewModal(idx)` + `closeBmeInstructorViewModal()` render a small read-only modal for instructors, reusing the `.cb295-profile-view-modal` markup so styles are shared with the student profile-view modal.
+- **`class-builder.js`** — `wireBme295cChat` wires member-row clicks ahead of the signed-in gate so public viewers can browse the class roster + faculty too. Student clicks → `openBmeProfileViewModal`, instructor clicks → `openBmeInstructorViewModal`.
+- **`styles.css`** — new selectors: `.cb295-chat-shell` (grid), `.cb295-chat-members` (sidebar container), `.cb295-chat-members-header` / `-group` / `-list`, `.cb295-chat-member` (clickable row + `-self`/`-instructor`/`-student` modifiers), `.cb295-chat-member-avatar` (+ `-img` for photo), `.cb295-chat-member-body` / `-name` / `-meta` / `-you` / `-campus`. Mobile breakpoint at 720 px stacks the sidebar above the chat with `max-height: 220px`.
+- **`sw.js`** — `CACHE_VERSION` bump 226 → 227.
+
+## [V3.252] - 2026-06-02
+
+**BME 295C admin dashboard cleanup + per-prompt responses + live monitor + attendance.** Three connected changes that consolidate the dashboard, restructure how groups submit discussion responses, and give the admin a real-time monitoring view during class:
+
+1. **Removed the duplicate Students-status panel.** The standalone "Students (N)" grid is gone. Its signals (signed-in, bio, photo, response count) are now compact ✓/— badge columns on each row of the **Roster & daily groups** panel, plus the per-row "View as" button moved there too. One place to manage + monitor.
+2. **Per-prompt response model + attendance check.** Each speaker has 3 discussion prompts; the response box now renders **3 separate labelled textareas** (one per prompt) instead of a single blob. A soft banner nudges groups to pick one writer (last-write-wins; no hard lock). On Submit, an **attendance modal** asks "Are all your group mates present?" — clicking "No, mark absences" reveals a checklist of group members for that day. The doc gains `attendance: { presentIds, absentIds, recordedBy, recordedAt }` and `prompts: {0,1,2}`. Legacy `text`-shaped docs are normalized at read time (fold into `prompts[0]`); first new write flips them to the new shape. Empty-prompt submit is allowed with a soft-warning checkbox in the modal.
+3. **Live discussion monitor.** New dashboard card with a per-campus grid (rows = groups, columns = speakers). Cells are color-coded empty/draft/submitted, show total word count + attendance ratio + relative timestamp. Updates in real time via `onSnapshot` on `groupResponses` — no page refresh. Click a cell to expand into a read-only modal showing all 3 prompts + named attendance breakdown (admin sees names; peer-facing response card hides attendance entirely). Listener lifecycle is tab-scoped — attaches on dashboard entry, detaches on tab switch or page navigation.
+
+### Added
+- **`class-builder.js`** — `bmeNormalizeResponse(raw)` helper folds legacy `text` into `prompts[0]` for transparent back-compat at read time; wrapped into `loadBme295cData`, `loadBmeDashboardData`, and the new onSnapshot path.
+- **`class-builder.js`** — `saveBmeGroupResponsePrompts(slug, prompts, statusOverride, extras)` replaces V3.244's `saveBmeGroupResponse`. Writes `prompts: {0,1,2}` + `wordCount` (sum across all three) + optional `extras.attendance`. Preserves V3.250 `testMode` tagging.
+- **`class-builder.js`** — `buildBmeResponseBox` rewritten to render 3 labelled `<textarea class="cb295-response-text-input" data-prompt-idx="...">` blocks per speaker plus per-prompt word-count + a footer total. Read-only view shows only non-empty prompts as labelled panels; attendance data is hidden from peers (admin-only).
+- **`class-builder.js`** — `wireBme295cModules` input handler reads all 3 textareas via new `bmeReadPromptsFromDom(slug)` and autosaves the full `prompts` map (debounced 800ms). Submit handler routes through `openBmeAttendanceModal(slug, currentPrompts, onConfirm)` for new submissions; unlock (submitted → draft) skips the modal.
+- **`class-builder.js`** — `openBmeAttendanceModal` + `closeBmeAttendanceModal` + `bmeMakeAttendance(presentIds, absentIds)`. Two-stage modal: initial Yes/No, "No" reveals checklist of group members for that day (sourced from `bmeGetGroupForDay`). Empty-prompt warning surfaces inline with a confirm checkbox; gate fires on either "Yes all present" or the final checklist confirm. Reuses the `cb295-modal-overlay` shell.
+- **`class-builder.js`** — `renderBmeRosterMgmtPanel` gains compact ✓/— badge columns (In · Bio · Pic · Resp) sourced from `_bmeDashboardData.profilesByEmail` + a reverse uid→email lookup for response counts. Placeholders (`…`) render until the dashboard cache lands. Per-row `.cb295-roster-viewas` button replaces the deleted student-grid "View as".
+- **`class-builder.js`** — module state `_bmeDashboardUnsub` + `_bmeMonitorTickInterval`. `attachBmeDashboardListener()` opens an `onSnapshot` on `schedules/{id}/groupResponses`, updates `_bmeDashboardData.responses` per `docChanges()` delta, and calls `rerenderBmeLiveMonitor()` (surgical innerHTML swap of `#cb295-live-monitor` — preserves scroll). `detachBmeDashboardListener()` releases both the snapshot and the 30s timestamp-refresh interval; called from `cleanupListeners()` on page nav and from `switchTab()` when the next tab isn't the admin dashboard.
+- **`class-builder.js`** — `renderBmeLiveMonitorPanel()` + `bmeLiveMonitorInner()` build per-campus grid tables (rows = group numbers derived from `_classData.studentRoster` × `bmeGetGroupForDay` across all days; columns = speakers in schedule order). Cells use `cb295-monitor-cell-{empty,draft,submitted}` classes. `wireBmeLiveMonitorCells()` binds click → `openBmeMonitorCellModal(docId)`.
+- **`class-builder.js`** — `openBmeMonitorCellModal(docId)` + `closeBmeMonitorCellModal` render a read-only modal with the 3-prompt block + named attendance (admin-only by virtue of the dashboard tab gate) + metadata footer.
+- **`class-builder.js`** — `switchTab()` now detaches the live listener when the next tab doesn't contain `adminDash295c`. `wireBme295cAdminDash` re-attaches via `attachBmeDashboardListener()` if `_bmeDashboardData` is already cached.
+- **`styles.css`** — new selectors: `.cb295-response-banner`, `.cb295-response-prompt-block` (+ `-readonly`), `.cb295-response-prompt-label`, `.cb295-response-text-input` (with focus state), `.cb295-response-wordcount-per`; `.cb295-att-body`, `.cb295-att-warning`, `.cb295-att-list`; `.cb295-roster-badge-col`, `.cb295-roster-badge-loading`, `.cb295-roster-badge-count`; `.cb295-live-dot` (pulsing green via `@keyframes cb295-live-pulse`), `.cb295-monitor-campus` (+ `-title`), `.cb295-monitor-grid`, `.cb295-monitor-rowhead`, `.cb295-monitor-colhead` (+ `-day` / `-name`), `.cb295-monitor-cell` (with `-empty` / `-draft` / `-submitted` modifiers + hover lift), `.cb295-monitor-words`, `.cb295-monitor-status`, `.cb295-monitor-attendance`, `.cb295-monitor-when`, `.cb295-monitor-modal-prompt`, `.cb295-monitor-modal-attendance`.
+- **`sw.js`** — `CACHE_VERSION` bump 225 → 226.
+
+### Removed
+- **`class-builder.js`** — `studentGridPanel` template + `submittedByEmail` aggregation block + `statusRows` map inside `renderBmeAdminDashBody`; orphaned `.cb295-dash-view-student` handler block in `wireBme295cAdminDash`.
+- **`class-builder.js`** — `saveBmeGroupResponse(slug, text, ...)` replaced by `saveBmeGroupResponsePrompts`. The new path no longer writes the `text` field; legacy docs continue to read via the normalizer until their next write upgrades them.
+
+### Changed
+- **`class-builder.js`** — `loadBmeDashboardData()` keeps the one-shot `.get()` for the initial paint then calls `attachBmeDashboardListener()` to switch to live updates for the rest of the page session.
+
+## [V3.251] - 2026-06-02
+
+**Live Q&A chat for BME 295C.** New "Live Q&A" tab between Learning Modules and Admin Dashboard hosts a real-time public chat scoped to the class. Students can post two message types — **🙋 Ask** (raised-hand question for the speaker, admin can mark answered) and **↗ Send** (general chat). The chat is always open (no time gating) so students can hang out before/between/after talks; when a talk is in progress according to the schedule + current time, new messages auto-tag with that speaker's slug. Each post can go out as the author OR anonymously (per-message toggle, opt-in, resets after send). Author names are clickable — opens a read-only profile-view modal showing photo, bio, BME interest, campus, high school, and the 5-day group rotation. Students can @-mention each other (typing `@` opens an autocomplete dropdown of roster first names); mentioned students see their messages highlighted with an amber accent. Real-time updates via Firestore `onSnapshot`. Test-mode integration: messages written during test mode are tagged + included in the existing wipe button. Requires `firebase deploy --only firestore:rules` after pulling.
+
+### Added
+- **`class-builder.js`** — `SECTION_REG['chat295c']` and a new `tab_295c_chat` tab in `DEFAULT_SCHEDULES['bme295c'].tabs` (between modules and admin-dashboard). New `case 'chat295c'` in `renderSectionBody` + new `wireBme295cChat()` call in `wireCanvas`. New module state: `_bmeChatMessages` (current snapshot), `_bmeChatUnsub` (onSnapshot teardown), `_bmeChatScrollPinned` (auto-scroll behavior), `_bmeMentionState` (in-progress @-mention prefix), `_bmeOtherProfileCache` (lazy cache for the profile-view modal).
+- **`class-builder.js`** — `subscribeBmeChat()` opens an `onSnapshot` on `schedules/{id}/classQA orderBy createdAt asc limit 500`; `cleanupListeners()` invokes the unsubscribe on navigation away. `renderBmeChatFeedInPlace()` rebuilds only the feed's inner HTML on each snapshot so the textarea keeps focus; auto-scrolls to bottom only when the user was pinned there. `_bmeChatScrollPinned` is updated by a scroll listener (distance < 80px from bottom = pinned).
+- **`class-builder.js`** — `renderBmeChatBody()` renders the live-speaker header, scrollable feed, and input area (textarea + anonymous checkbox + Ask/Send buttons + autocomplete dropdown). `renderBmeChatMessage(m)` builds individual bubbles with raised-hand (🙋) or chat (💬) icon, clickable author name, time, optional speaker badge, "answered" tag, mention chips, and admin moderation controls (mark answered + delete).
+- **`class-builder.js`** — `sendBmeChatMessage(type)` resolves the viewer's roster entry, extracts @-mentions via `bmeExtractMentions(text)`, writes the doc with `messageType`, `anonymous`, `authorUid/Name/Email`, `speakerSlug` (from `bmeCurrentLiveSpeaker()`), `mentions[]`, `testMode` (if active). Optimistically clears the textarea + anonymous checkbox; restores text on failure.
+- **`class-builder.js`** — `markBmeQuestionAnswered(msgId, value)` writes `answered/answeredBy/answeredAt` via merge-set; admin-only (Firestore rule enforces).
+- **`class-builder.js`** — `bmeCurrentLiveSpeaker()` maps today's day name (from `bmeTodayCourseDay()`) to that day's sessions in `content.json`, finds the session whose time bracket contains now, returns the `speakerSlug` or null. `bmeParseTimeStr()` parses "8:30 AM" strings to minutes-since-midnight.
+- **`class-builder.js`** — `bmeBuildMentionIndex()` walks the roster building token→studentId + studentId→token maps; disambiguates name collisions with `firstname_l` (last-initial) and falls through to id-suffix when even that's ambiguous. `bmeMentionSuggest(prefix, limit)` returns the top suggestions sorted by token length then alpha. `bmeExtractMentions(text)` resolves all `@token` substrings against the index, returning a unique array of mentioned student IDs. `bmeRenderMentionsInHtml(escapedText)` wraps recognized mentions in clickable `<span class="cb295-chat-mention">` chips — operates on already-escaped HTML so the chips stay XSS-safe.
+- **`class-builder.js`** — `updateBmeMentionDropdown()` is called on every `input` event in the textarea; it walks backward from the cursor looking for an `@` at the start of a token, populates the dropdown with matches, and stores the in-progress state in `_bmeMentionState`. `applyBmeMention(studentId)` replaces the in-progress `@prefix` with `@canonicalToken ` and moves the cursor past it. `hideBmeMentionDropdown()` clears state + hides the popup. Keyboard nav: ArrowUp/Down rotates the active item, Enter/Tab applies it, Escape hides.
+- **`class-builder.js`** — `openBmeProfileViewModal(studentId)` opens a read-only modal showing photo, name, pronouns, campus, high school, 5-day group rotation, bio, and BME interest. Pulls user doc on-demand (cached in `_bmeOtherProfileCache`); falls back gracefully if the student has no email or no user doc. `closeBmeProfileViewModal()` removes the overlay.
+- **`class-builder.js`** — V3.251 migration in `wireClassPage` inserts the Live Q&A tab into legacy schedule docs (right before the admin tab, or appended if no admin tab is present). Idempotent.
+- **`class-builder.js`** — `exitBmeTestMode({ wipe: true })` now batch-deletes tagged classQA docs in addition to tagged groupResponses (500-doc batches). Resets `_bmeChatMessages = []` on exit so the freshly-cleared state renders immediately.
+- **`class-builder.js`** — `loadBmeDashboardData()` also pulls the full classQA collection into `_bmeDashboardData.chatMessages` so the test-mode panel can report a tagged-chat count alongside the response count.
+- **`class-builder.js`** — `renderBmeTestModePanel()` adds a "Tagged chat" stat row; hint copy mentions chat alongside group responses.
+- **`firestore.rules`** — new `match /classQA/{messageId}` block inside `match /schedules/{scheduleId}`. Read: any signed-in user. Create: signed-in + `request.resource.data.authorUid == request.auth.uid` (prevents spoofing). Update + delete: global admin OR class admin via `resource.data.get('classAdminEmails', [])` cross-doc lookup.
+- **`styles.css`** — new selectors: `.cb295-chat`, `.cb295-chat-header`, `.cb295-chat-header-sub`, `.cb295-chat-live`, `.cb295-chat-feed`, `.cb295-chat-empty`, `.cb295-chat-msg` (+ `-message`/`-raised_hand`/`-answered`/`-anon`/`-mention-me` modifiers), `.cb295-chat-msg-icon`, `.cb295-chat-msg-body`, `.cb295-chat-msg-meta`, `.cb295-chat-msg-anon-tag`, `.cb295-chat-msg-time`, `.cb295-chat-msg-speaker-badge`, `.cb295-chat-msg-answered-tag`, `.cb295-chat-msg-text`, `.cb295-chat-msg-controls`, `.cb295-chat-mark-answered`, `.cb295-chat-delete`, `.cb295-chat-input-area` (+ `-signedout`), `.cb295-chat-input-wrap`, `.cb295-chat-input`, `.cb295-chat-anon-row`, `.cb295-chat-actions`, `.cb295-chat-send-question`, `.cb295-chat-hint`, `.cb295-chat-author-link`, `.cb295-chat-mention`, `.cb295-chat-mention-dropdown`, `.cb295-chat-mention-item` (+ `-active`), `.cb295-profile-view-modal`, `.cb295-profile-view-body`, `.cb295-profile-view-photo`, `.cb295-profile-view-fields`.
+- **`sw.js`** — `CACHE_VERSION` bump 224 → 225.
+
+### Deploy
+- Run `firebase deploy --only firestore:rules` after pulling — the client-side UI works without it but production Firestore will block writes to `classQA` until the new rule is live.
+
+## [V3.250] - 2026-06-02
+
+**Test mode + one-click wipe for BME 295C.** Admins can now flip a "Test mode" switch on the Admin Dashboard, exercise the full class flow end-to-end (auto-assign rotations, sign-in as test students via View-as, submit fake responses, invite test class admins, etc.), then click **Wipe test data & exit** to clean up before going live. The mechanism is a single `testMode` boolean on the schedule doc: while it's true, every group-response write gets a `testMode: true` tag, and the wipe queries that tag to delete only the tagged docs (real student work is untouched). Wipe also strips all `TEST_*` students from the roster and clears the class-admin email list. Manually-added students (`MAN_*` prefix) and the real student roster survive. A red top-of-page banner is shown to admins whenever test mode is on so it can't be forgotten.
+
+### Added
+- **`class-builder.js`** — `DEFAULT_SCHEDULES['bme295c'].testMode = false` on the seed. `saveBmeGroupResponse` now sets `payload.testMode = true` on writes when `_classData.testMode === true`; the field is omitted (rather than written as `false`) otherwise, so the wipe query matches only tagged docs.
+- **`class-builder.js`** — `renderBmeTestModePanel()` renders a dashboard card showing the on/off state plus live counts of: tagged responses (read from `_bmeDashboardData.responses`), TEST_* students on the roster, class admins on the invite list. Controls swap between **Enter test mode** (off) and **Exit test mode (keep data)** + **Wipe test data & exit** (on). Card is gated on global admin (since the underlying Firestore `groupResponses` delete rule is `isAdmin()`); class admins don't see it.
+- **`class-builder.js`** — `enterBmeTestMode()` flips the flag, idempotently injects 4 test students (only if none exist yet), persists, then re-runs `wireClassPage` to refresh the dashboard + banner. `exitBmeTestMode({ wipe })` either flips the flag without touching data, or (when `wipe: true`) queries `schedules/{id}/groupResponses where testMode == true`, batch-deletes in chunks of 500 (Firestore limit), strips TEST_* students from `_classData.studentRoster`, resets `classAdminEmails = []`, then persists + reloads. Strong destructive-action confirm pops before the wipe.
+- **`class-builder.js`** — top-of-page red banner rendered in `buildCanvasHTML` when `_realIsAdmin && _classData.testMode === true`. Lives above the View-as toolbar so it's the first thing visible. Class admins / students don't see it (admin-only visibility, per your choice).
+- **`styles.css`** — new selectors: `.cb295-testmode-banner` (+ icon + text) for the top banner, `.cb295-testmode-card-on` (red-tinted dashboard card when test mode is active), `.cb295-testmode-pill` (small ON chip in the card header), `.cb295-testmode-stats` (3-column counts grid), `.cb295-testmode-actions` (button row), `.cb295-testmode-wipe` (destructive button styling), `.cb295-testmode-hint`.
+- **`sw.js`** — `CACHE_VERSION` bump 223 → 224.
+
+## [V3.249] - 2026-06-02
+
+**All BME 295C admin controls live on the Admin Dashboard tab.** The Class Admins panel and the Roster & Daily Groups panel were both moved off the Learning Modules → Student Roster section and onto the Admin Dashboard tab, so admins have one place to manage everything. The Learning Modules tab is now purely student-facing (discussion modules + rotation banner). Roster Management gains a new **+ Add student** button that opens a modal for entering Name / Empl ID (optional, auto-generates `MAN_N` if blank) / Email / Campus / Pronouns / High school, plus a per-row `×` Remove button on every roster row so admins can delete entries without going through the Firestore console.
+
+### Added
+- **`class-builder.js`** — `renderBmeClassAdminsPanel()` and `renderBmeRosterMgmtPanel()` extracted from `renderBmeRosterBody`. Each returns a `<section class="cb295-dash-card">` so they slot directly into the dashboard layout.
+- **`class-builder.js`** — `renderBmeAdminDashBody` composes panels in order: Class metadata → Class admins → Roster & daily groups → Students (status grid) → Recent activity.
+- **`class-builder.js`** — new **+ Add student** button in the roster toolbar. `openBmeAddStudentModal()` builds the modal, validates email format, dedupes against existing emails / ids, auto-generates an id with prefix `MAN_N` (counter increments across clicks) if the admin leaves the Empl ID field blank, then appends to `_classData.studentRoster` and persists. `closeBmeAddStudentModal()` removes the overlay.
+- **`class-builder.js`** — per-row `×` Remove button on every roster row (`.cb295-roster-remove[data-idx]`). Click → confirm → `splice` out of the array → persist + refresh.
+- **`class-builder.js`** — `wireBme295cAdminDash` now also calls `wireBme295cRoster()` so all the roster toolbar handlers (auto-assign, clear, test students, daily-group inputs, class-admin add/remove/copy, plus the new add/remove student) attach when the dashboard tab is active. The legacy `wireBme295cRoster()` call from the Learning Modules tab is now a no-op (the section's body is a redirect message with no inputs).
+- **`class-builder.js`** — V3.249 migration in `wireClassPage` strips any `roster295c` section from every tab's `sections` array (runs before the V3.248 admin-tab migration). Removes the section from `DEFAULT_SCHEDULES['bme295c'].tabs` so new schedule docs never include it.
+- **`styles.css`** — new selectors: `.cb295-add-student-form` (modal inputs/labels), `.cb295-add-student-row` (2-col mobile-collapsing grid for Campus + Pronouns), `.cb295-roster-remove` (compact × button). `cb295-modal-footer` gains a `gap` for the Cancel/Save button spacing.
+- **`sw.js`** — `CACHE_VERSION` bump 222 → 223.
+
+### Changed
+- **`class-builder.js`** — `renderBmeRosterBody` now returns a short redirect message ("Roster + class admin management moved to the Admin Dashboard tab…") for legacy schedule docs that still list the section before the V3.249 migration removes it.
+
+## [V3.248] - 2026-06-02
+
+**View-as preview + Admin Dashboard tab for BME 295C.** Admins (global or class) now see a "Viewing as" toolbar above the tab bar with three modes — **Admin** (default), **Student** (impersonate a roster entry via picker), **Public** (signed-out preview). Switching modes triggers a fresh data load + canvas re-render so the impersonated viewer sees exactly what that student/visitor would see, while a yellow toolbar at the top makes the override impossible to forget. A new **Admin Dashboard** tab (admin-only, hidden from non-admins by tab-level visibility filter) is appended to the BME 295C page and surfaces: (1) class metadata + raw schedule-doc inspector, (2) per-student status grid (signed-in?, bio, interest, photo, today's group, response count, last edit time) with one-click "View as" per row, (3) activity log of the latest 25 events (profile edits, group response submissions, schedule edits) sorted by recency.
+
+### Added
+- **`class-builder.js`** — module state: `_adminViewOverride` (`null`|`{type:'public'}`|`{type:'student',studentId}`), `_realIsAdmin` / `_realIsClassAdminOnly` (captured before override so the toolbar persists), `_bmeDashboardData` / `_bmeDashboardLoading` (lazy dashboard cache).
+- **`class-builder.js`** — `buildViewAsToolbar()` renders the strip; `wireViewAsToolbar()` binds clicks/select; `setAdminViewOverride(next)` updates state and re-runs `wireClassPage` to refresh `_bmeRosterEntry`, `_bmeProfile`, `_viewType`, groupmates, etc. Placed above the existing preview banner + tab bar inside `buildCanvasHTML`.
+- **`class-builder.js`** — `wireClassPage` now records the "real" admin role before applying the override, then forces `isAdmin = false` + skips speaker matching + nulls `useKeyAuth` whenever an override is active. `loadBme295cData` resolves a synthetic viewer identity from the override (public → no roster match, student → match by studentId).
+- **`class-builder.js`** — `buildTabBar` filters `_tabs` by `tab.adminOnly` against `_viewType === 'admin'`; the currently-active tab id is preserved (so switching back to admin lands on the same tab) but a non-admin viewing the override falls through to the first visible tab. New `cb-tab-admin-tag` chip rendered alongside the tab name for admin-only tabs.
+- **`class-builder.js`** — new `SECTION_REG['adminDash295c']` entry + new tab in `DEFAULT_SCHEDULES['bme295c'].tabs` (id `tab_295c_admin`, `adminOnly: true`, containing a single `adminDash295c` section). `buildSectionBlockHTML` hides the dashboard section for non-admins via the existing pattern used for `roster295c`.
+- **`class-builder.js`** — `loadBmeDashboardData()` fetches user profiles in 10-email chunks via `users.where('email', 'in', chunk).get()` (3 reads for 22 students) + every doc in `schedules/bme295c/groupResponses` (one collection read). Result cached in `_bmeDashboardData`; subsequent dashboard re-renders use cache. `renderBmeAdminDashBody()` kicks off the load on first render and shows a loading strip until data resolves; on completion, refreshes the canvas if the dashboard tab is still active.
+- **`class-builder.js`** — `renderBmeAdminDashBody()` outputs three `<section class="cb295-dash-card">` panels: class metadata grid (title/subtitle/semester/dates/owner uid/class admins/last-edit timestamp/roster size) with a raw-JSON `<details>` inspector; per-student status table with ✓/— cells for sign-in/bio/interest/photo + today's group #, response count, last-edit relative time, and a per-row "View as" button that jumps into student-impersonation mode; activity log `<ul>` of the latest 25 events colored by kind (profile / response / schedule). `fmtRelativeTime` helper formats timestamps as "Xs/m/h/d ago".
+- **`class-builder.js`** — `wireBme295cAdminDash()` wires the metadata edit button (delegates to existing `openSettings()`) + per-student View-as buttons. `wireCanvas` routes to it when the dashboard section is active.
+- **`class-builder.js`** — V3.248 migration in `wireClassPage` appends the admin tab to legacy schedule docs that don't already have an `adminDash295c` section anywhere in `tabs`. Uses the seed tab from `DEFAULT_SCHEDULES` cloned via `JSON.parse(JSON.stringify(...))` so the migration doesn't share references with the in-memory seed.
+- **`styles.css`** — new selectors: `.cb295-viewas` + `.cb295-viewas-label` / `-btn` / `-btn-active` / `-student` / `-note` for the toolbar; `.cb-tab-admin-tag` for the admin-only tab badge; `.cb295-dash` + `-loading` / `-card` / `-card-header` / `-meta-grid` / `-meta-row` / `-meta-label` / `-meta-val` / `-inspector` / `-pre` / `-tablewrap` / `-table` / `-yes` / `-no` / `-activity` / `-activity-item` / `-activity-time` (with kind variants `-profile` / `-response` / `-schedule`).
+- **`sw.js`** — `CACHE_VERSION` bump 221 → 222.
+
+### Changed
+- **`class-builder.js`** — `renderBmeCheckinBody` derives `isAdmin` from `_viewType` indirectly through the standard path (no change), but the override now flows through `_viewType` so the check-in body shows the public/student strip when previewing.
+
+## [V3.247] - 2026-06-02
+
+**Class admins for BME 295C.** Course owner can now delegate full class-admin powers (roster editing, daily-group auto-assign, test-students injection, response moderation) to a couple of co-instructors without granting them global admin role. A new "Class admins" panel at the top of the admin roster section lists current co-admins, accepts a new email via inline form, and provides a per-admin "Copy invite link" button that puts a ready-to-send message on the clipboard. Once the recipient signs in to `#/classes/bme295c` with that email, they're elevated automatically; both the client and Firestore rules check `schedules/bme295c.classAdminEmails`. Class-admin scope is intentionally narrow — they get global-admin-equivalent powers on this one class page only, no rights to other classes, RM, or admin-permissions.
+
+### Added
+- **`firestore.rules`** — extended `match /schedules/{scheduleId}` update/delete rule to also allow writes when `request.auth.token.email in resource.data.get('classAdminEmails', [])`. Uses `.get(field, default)` so the rule is safe on legacy docs that don't have the field. Owner (`ownerUid`) + global admin paths preserved.
+- **`class-builder.js`** — new module state `_isClassAdminOnly` (true when user is a class admin but not a global admin) drives a friendlier check-in banner for first-time class-admin sign-in.
+- **`class-builder.js`** — `wireClassPage` resolves a `classAdminEmails` list off the schedule doc (case-insensitive), elevates `isAdmin` to true if the signed-in user's email is in the list, and sets `_isClassAdminOnly` accordingly. Runs before all subsequent admin-gated rendering.
+- **`class-builder.js`** — `DEFAULT_SCHEDULES['bme295c'].classAdminEmails = []` on the seed; existing docs without the field fall back to the empty default via `.get(..., [])` both client-side and in the rule.
+- **`class-builder.js`** — new "Class admins" panel (`.cb295-classadmins`) prepended to `renderBmeRosterBody`. Lists the course owner as a non-removable row (when the current viewer is the owner), then each entry of `classAdminEmails` with Copy-invite-link + Remove buttons, then an inline `<form>` to add a new admin. Hint copy explains the invite flow.
+- **`class-builder.js`** — `wireBme295cRoster` adds three handlers: form submit → email validation + dedupe + append + persist; per-row Remove → confirm + filter + persist; per-row Copy invite link → assembles a short message (`"You've been added as a class admin for BME 295C..."` + URL + target email), writes via `navigator.clipboard.writeText` with a textarea/execCommand fallback, then flashes the button green for 1.8s. Failure surfaces "Copy failed" inline.
+- **`class-builder.js`** — `renderBmeCheckinBody` treats class admins as admins for the "not on roster" guard (so they don't see the "your email isn't on the roster" rejection), and when admin without an entry shows a tailored banner pointing them at the Learning Modules → Student Roster section.
+- **`styles.css`** — new selectors: `.cb295-classadmins`, `.cb295-classadmins-header`, `.cb295-classadmin-list` / `-row` / `-owner` / `-email` / `-tag` / `-add` / `-hint` / `-copy-ok`, `.cb295-admin-note-classadmin`. Blue-tinted panel matching the existing `#5baed1` accent; owner row tinted; remove button uses the existing `btn-secondary`; "Copied!" feedback flashes green via `.cb295-classadmin-copy-ok`.
+- **`sw.js`** — `CACHE_VERSION` bump 220 → 221.
+
+### Deploy
+- Run `firebase deploy --only firestore:rules` after pulling — the client UI works without it, but writes to `classAdminEmails` will be blocked for non-owners + non-global-admins until the rule is live.
+
+## [V3.246] - 2026-06-02
+
+**Daily group rotation for BME 295C.** Discussion groups now change every day across Mon–Fri so each student works with as many different classmates as possible. Each roster entry stores `dailyGroups: { Monday: n, Tuesday: n, Wednesday: n, Thursday: n, Friday: n }` per campus; the `groupNumber` field is kept as a back-compat fallback (= Monday's group). The admin "Auto-assign daily groups" button runs a heuristic across all five days per campus that, for each day after Day 1, evaluates ~250 random Fisher–Yates shuffles and picks the partition whose total prior-pair-overlap score is lowest — bringing repeat pairings close to zero on classes of ~10/campus. Student dashboard shows today's group + a clickable 5-day rotation strip at the top of the Modules tab; per-speaker response boxes use that speaker's day's group # for the Firestore doc ID. Admin roster section gains a "+ Add 4 test students" / "Clear test students" pair for QA — fake students are prefixed `TEST_` and tinted amber so they can't be confused with real entries.
+
+### Added
+- **`class-builder.js`** — new day-aware helpers near `bmeResponseDocId`: `bmeCourseDays()` (reads `_bmeContent.schedule[].day`, falls back to Mon–Fri), `bmeSpeakerDay(speakerSlug)`, `bmeGetGroupForDay(entry, day)` (reads `dailyGroups[day]`, falls back to `groupNumber`), `bmeTodayCourseDay()` (maps the calendar to a course-week day or null outside June 8–12), `bmeDefaultDisplayDay()`, `bmeMatesForDay(entry, day)`, `bmeAllMatesUnion(entry)`.
+- **`class-builder.js`** — `autoAssignBme295cGroups` rewritten to generate per-day rotation. For each campus: writes `entry.dailyGroups[day]` for every course day, optimizing each day's partition against prior days via a 250-trial shuffle + a pair-count score. Day 1 is unconstrained (single trial); each subsequent day picks the partition with minimum sum of prior-pair counts inside any group. Legacy `entry.groupNumber` is mirrored to Day 1.
+- **`class-builder.js`** — module state `_bmeBannerFocusDay` lets a rotation-chip click swap the banner's focus day without re-rendering the whole modules section. Reset on `loadBme295cData`.
+- **`class-builder.js`** — new `wireBmeRotationChips()` extracted from `wireBme295cModules` so the chip click can rebind only chips after replacing the banner in place (avoids double-binding response autosave handlers).
+- **`class-builder.js`** — `buildBmeGroupBanner` now renders a "current group" header (today's day if in-week, otherwise first scheduled day), a 5-button day strip (each labeled "Mon #2", "Tue #3", …, with `cb295-rotation-chip-today` highlighting today), and a mates grid scoped to the focus day. Removed the legacy "Confirm my group" button since groups now change daily.
+- **`class-builder.js`** — `buildBmeResponseBox` and `saveBmeGroupResponse` look up the speaker's day via `bmeSpeakerDay(slug)`, then read/write the doc keyed by `${campus}-${dayGroup}-${speakerSlug}` so Monday Group #2 and Tuesday Group #2 (which are different cohorts under rotation) keep separate response docs. Response payload now includes `day` for downstream querying.
+- **`class-builder.js`** — `loadBme295cData` loads the union of groupmate profiles across all five days (so any day's mates have photos/bios available), and per-speaker response preload uses that speaker's day's group #.
+- **`class-builder.js`** — check-in greeting shows "Today's group: #N" (or "{Day}'s group: #N" outside the course week). Bio modal grows a "Daily groups" row with five chips (Mon Tue Wed Thu Fri), today highlighted. Enroll-success page lists the user's group # for each course day below the welcome line.
+- **`class-builder.js`** — admin roster table replaces the single Group # cell with five per-day number inputs (`.cb295-roster-daily[data-day]`); editing any cell writes to `entry.dailyGroups[day]` and re-syncs `entry.groupNumber` to Day 1 for back-compat. Header row labels the 5 inputs (Mon · Tue · Wed · Thu · Fri).
+- **`class-builder.js`** — admin roster toolbar gains "+ Add 4 test students" (always visible) and "Clear test students" (visible only when test entries exist). `addBmeTestStudents()` appends 4 fake entries with id prefix `TEST_N` (counter ensures uniqueness across repeated clicks), alternating Tucson/Phoenix and assigning placeholder emails (`test.student{N}@local.test`) + made-up high schools. Test rows render with an amber `TEST` tag inline next to the name and a tinted background.
+- **`class-builder.js`** — V3.246 migration in `wireClassPage` walks the persisted roster after the V3.244/V3.245 migrations. For any entry without a `dailyGroups` map (or with no day populated): if `groupNumber` is set, mirrors it across all five days; otherwise initializes `dailyGroups: {}`. Idempotent — re-running the migration on already-migrated data is a no-op.
+- **`styles.css`** — new selectors: `.cb295-rotation-strip`, `.cb295-rotation-chip` (with `-focus` + `-today` modifiers), `.cb295-daily-chip` (bio modal) with `-today` modifier, `.cb295-roster-daily-cell` + `.cb295-roster-daily-row` (grid of 5 inputs in the admin roster), `.cb295-roster-toolbar-sep` (vertical divider in the toolbar), `.cb295-roster-test-row` / `.cb295-roster-test-tag` / `.cb295-roster-clear-test` (amber tinting + TEST tag chip + the destructive button styling).
+- **`sw.js`** — `CACHE_VERSION` bump 219 → 220.
+
+### Changed
+- **`class-builder.js`** — `wireBme295cRoster` change-listener selector expanded from `.cb295-roster-group` to `.cb295-roster-daily`; the daily input handler reads `data-day` and writes to the per-day map; `cb295-clear-groups` now clears both `groupNumber` and `dailyGroups`.
+
+### Removed
+- **`class-builder.js`** — "These are my groupmates — confirm" button on the group banner is no longer rendered (the underlying `confirmBmeGroup` function is kept but unreachable). With rotating groups, a single per-class confirmation didn't fit the daily model — leaving the function in place so a future per-day variant can hook into the same `users/{uid}.bme295c.groupConfirmedKey` shape if needed.
+
+## [V3.245] - 2026-06-02
+
+**BME 295C roster auto-populated from the UAccess admissions extract.** The roster seed in [class-builder.js](../../class-builder.js) `BME295C_ROSTER_SEED` now ships with every student's `email`, `campus`, and `highSchool` pre-filled from `modules/bme295c/students.md` (which itself was derived from `RPT_AD_ALL_NDS_APPS_BMEHSND-30355797.xlsx`). Campus is assigned by home city — Tucson/Vail → Tucson (13 students), Phoenix/Chandler/Gilbert/Tempe → Phoenix (9 students). Two students missing from the prior 20-entry seed are added: Kopp, Abigail (24122754, AP/DATA) and Ung, Yvie (24122574). High school is surfaced read-only in the student bio modal alongside Name / Student ID / Email / Campus / Group and is editable in the admin Student Roster section. A V3.245 one-shot migration in `wireClassPage` backfills empty `email` / `campus` / `highSchool` / `pronouns` from the new seed onto the persisted `schedules/bme295c.studentRoster` and appends Kopp + Ung if not already present; admin-entered values are preserved (only empty fields get overwritten).
+
+### Added
+- **`class-builder.js`** — `BME295C_ROSTER_SEED` extended with `email`, `campus`, `highSchool` fields populated for all 22 students; entries for Kopp, Abigail and Ung, Yvie added.
+- **`class-builder.js`** — new V3.245 migration block in `wireClassPage` runs after the V3.244 layout migration. Walks the persisted roster, fills any empty `email` / `campus` / `highSchool` / `pronouns` from the seed (matched by Empl ID), appends seed entries whose ID isn't on the persisted roster, then writes back via `ScheduleDB.saveSchedule` only if `changed`. Admin overrides survive — the migration only fills empties.
+- **`class-builder.js`** — `renderBmeRosterBody` admin table gains a "High School" column with a free-text input (`.cb295-roster-highschool[data-idx]`); `wireBme295cRoster` adds it to the change-listener selector and writes back to `entry.highSchool`.
+- **`class-builder.js`** — `openBmeBioModal` shows a new "High school" row in the preallocated info grid, between Email and Campus.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` bump 218 → 219.
+
+## [V3.244] - 2026-06-01
+
+**BME 295C class page.** New three-tab public page at `#/classes/bme295c` for the Summer 2026 one-week summer course (June 8–12 2026, 20 high-school students across UA Tucson and UA Phoenix). Syllabus tab includes a student check-in card; students sign in with the email pre-registered for the course, see their preallocated info (name, student ID, pronouns, group #) and edit a short bio + BME interest + profile photo. Schedule tab renders the day-by-day session grid plus a speaker lineup with photos and full abstracts. Learning Modules tab shows expandable per-speaker discussion cards with three prompts (main always visible, follow-ups in a `Dig deeper` toggle), plus a "Your group" chip resolved from email-in-roster. Admin gets a hidden Student Roster section with email/campus/group editors and an "Auto-assign groups" button that splits each campus pool into groups of 3–4.
+
+### Added
+- **`class-builder.js`** — five new `SECTION_REG` entries (`checkin295c`, `syllabus295c`, `schedule295c`, `modules295c`, `roster295c`) and matching `renderSectionBody` cases. New `loadBme295cData()` preloads `modules/bme295c/content.json` + the signed-in user's `users/{uid}.bme295c` profile + groupmate profiles (≤3 reads). New render helpers `renderBmeCheckinBody`, `renderBmeSyllabusBody`, `renderBmeScheduleBody`, `renderBmeModulesBody`, `renderBmeRosterBody`, `buildBmeGroupChip`. New `saveBmeProfile()` debounced autosave to `users/{uid}.bme295c.{bio,interest,photoUrl,photoStoragePath}`. New `uploadBmeProfilePhoto()` uploads to `class-profile-photos/bme295c/{uid}/photo.{ext}`. New `autoAssignBme295cGroups()` runs a Fisher-Yates shuffle per campus and divides into groups of 3–4 via `Math.round(n/3.5)`.
+- **`class-builder.js`** — rewrote `DEFAULT_SCHEDULES['bme295c']` with the new three-tab layout and a `studentRoster` seed derived from `modules/bme295c/students.md` (20 entries, email/campus/group blank). Added a one-time migration in `wireClassPage` that overlays any pre-V3.244 schedule doc with the new layout while preserving `ownerUid` and any populated roster.
+- **`class-builder.js`** — `persistAll` now writes `studentRoster` alongside `tabs`/`sections`/`modules`. `buildSectionBlockHTML` hides `roster295c` entirely for non-admin viewers (no empty section frame).
+- **`modules/bme295c/content.json`** — single source of truth for static course content: course metadata, locations + parking, instructors, objectives, materials, policies, day-by-day schedule, 10 speaker entries (with photo path, day/time/campus, talk title, abstract), and per-speaker discussion points (three main prompts each with three follow-up sub-bullets).
+- **`modules/bme295c/speaker-photos/`** — folder renamed from `speaker photos/` so URLs don't need encoding.
+- **`storage.rules`** — new `match /class-profile-photos/{classId}/{userId}/{file=**}` rule. Public read, write only when `request.auth.uid == userId`, 5 MB cap, image MIME only.
+- **`styles.css`** — ~280 LOC `.cb295-*` namespace: check-in two-column card, syllabus key-facts grid, location/instructor cards, policy `<details>` blocks, day-by-day schedule grid, speaker lineup grid with abstract expanders, discussion card with `<summary>` photo + "Dig deeper" toggles, group chip with mate photos, admin roster table, mobile-stack breakpoints at 640 px.
+- **`sw.js`** — `CACHE_VERSION` bump 213 → 214.
+
+### Changed
+- **`class-builder.js`** — added module state `_bmeContent`, `_bmeProfile`, `_bmeGroupProfiles`, `_bmeRosterEntry`, `_bmeProfileSaveTimer` to support the new section renderers without triggering Firestore reads during render.
+
+## [V3.243] - 2026-05-19
+
+**Mentor assignments on the permissions page.** Admin can now designate one or more lab members as the **mentor** of another lab member. Mentors get the same cross-user PMR access an admin has when viewing a student's PMR — read every block, post comments on barriers / weekly entries / paper-writing, and assign tasks via the `+ Assign task` button — without granting them blanket admin rights. The mentee's `barriers`, `weekly_entries`, and `project_overview` stay read-only for mentors via the existing `isReadOnlyView()` gate. Stored at `users/{menteeUid}.mentor_uids: string[]`. Driven by: a grad student supervising a rotation / undergrad mentee should be able to read + comment on their mentee's PMR without giving them full admin rights.
+
+### Added
+- **`firestore.rules`** — new `isMentorOf(menteeUid)` helper does one `get()` on `users/{menteeUid}` and checks `request.auth.uid in data.mentor_uids` (via `hasAny`). Cost: one extra `get` per rule evaluation, only triggered when a non-owner / non-admin tries to access a PMR path. Extended the `userData/{userId}/pmr/{periodId}` read/write rule and the `userData/{userId}/pmr/{periodId}/comments/{commentId}` read/create rules to allow mentors. Comment update/delete stays owner-or-admin only (no need for mentor cleanup powers).
+- **`rm/pages/admin-permissions.html`** — 4th hub tab "Mentors" plus its tab-visibility CSS, plus `.perm-mentor-row` / `.perm-mentor-mentee` / `.perm-mentor-chips` / `.perm-mentor-chip` / `.perm-mentor-add` styles. The tab panel lists every non-admin lab member sorted role-then-name; each row has the mentee's name + role tag on the left, the current mentor chips in the middle (× button per chip to remove), and an "+ Add mentor…" select on the right populated with all other lab members not already assigned. Changed rows tint amber. Header doc explains the access scope. Title becomes "Admin · Mentor Assignments · McGhee Lab" on `?tab=mentors`.
+- **`rm/js/admin-permissions.js`** — `mentorAssignments: Map<menteeUid, Set<mentorUid>>` is the working state. `loadUsers()` seeds both `mentorAssignments` and `initialState.mentor` from each `users/{uid}.mentor_uids` array as it reads the collection (no extra round-trip). `renderMentorList()` builds the rows; `onMentorAdd` / `onMentorRemove` mutate the map and call `syncMentorPendingEdit()` which keeps a single `pendingEdits` entry per mentee keyed `mentor:<menteeUid>` (collapses any number of UI clicks into one save). `saveAll` batches one `db().collection('users').doc(menteeUid).set({mentor_uids, updatedAt}, {merge:true})` per changed mentee, atomically with the existing user-permissions / workflow / tracking writes. `revertAll` restores from `initialState.mentor` and re-renders. `applySearchFilter` extends to filter mentor rows on this tab.
+- **`rm/js/pmr.js`** — new `state.menteeUids: Set<uid>` plus `loadMyMentees()` which fires one `users where mentor_uids array-contains state.user.uid` query at boot for non-admins (admins skip — they see everyone via the existing rail). Single-field array-contains; no composite index needed. Runs in the existing boot `Promise.all`. `canViewUid(uid)` is the new gate: self, admin, or uid in menteeUids. `renderRail()` extends — rail renders if `isAdmin || menteeUids.size > 0`. For non-admin mentors the lab-member pool filters to self + mentees only; the heading becomes "Mentees" instead of "Lab members". `switchToUser()`'s defensive bounce-to-self now uses `canViewUid()`, so a non-admin mentor can click into any of their mentees' PMRs. Cross-user `loadIndex` / `loadPmrDoc` / `attachLiveSync` already branch on `uid === state.user.uid` (not on `state.isAdmin`), so they work for mentors with no further changes — the firestore.rules update is what actually permits the reads.
+- **`sw.js`** — `CACHE_VERSION` 212 → 213.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.243_mentor_assignments.md](../ClaudesPlan/V3.243_mentor_assignments.md).
+- **Deploy order matters.** Ship the rules first (`firebase deploy --only firestore:rules`) — without that, admin can save assignments but mentors won't actually be able to read their mentees' PMR docs. Then Cyberduck-FTP the repo for the `rm/` + `sw.js` changes.
+- **Scope is PMR only.** Mentor doesn't get access to the mentee's tasks queue, lab notebook, calendar, or any other personal data — those stay owner-only. The existing `userData/{userId}/{document=**}` wildcard rule still locks everything else down by `isOwner(userId) || isShared(resource.data)`. Adding mentor access to other surfaces is a follow-up plan.
+- **Mentor edits are blocked client-side, not in rules.** A mentor *could* technically write to the PMR doc since the rules grant them read+write (same as researcher_uids). The reason: keeping rules simple and matching admin's cross-user model. Defense-in-depth happens client-side via `isReadOnlyView()` which short-circuits `scheduleSave` / `saveDoc` and disables contentEditable on every block when viewing someone else's PMR. If a future malicious mentor tampers with the client to bypass that, follow-up work could split the rule into read-only for mentors. Today's threat model treats mentors as trusted lab members.
+- **No notifications yet.** A mentor doesn't get pinged when their mentee updates the PMR or vice-versa; they have to actively click into the mentee in their rail. Push-notification hookup is in the mobile-apps wishlist item.
+- **No mentee-facing surface yet.** The mentee doesn't see "Alex and Suraj are your mentors" anywhere — they just see new commenters show up. Could add a `Mentors: …` chip in the PMR header in a follow-up.
+
+## [V3.242] - 2026-05-18
+
+**Training breakpoint standardization — Phase 3b housekeeping.** Final cleanup ship of the mobile-compatibility plan. After V3.241 closed Phase 4, `rm/css/training.css` was still carrying 10 non-canonical `@media (max-width: ...)` queries with 7 distinct breakpoints (420×2, 520, 600, 720×3, 820, 900×2) — leftover from before V3.232's two-breakpoint discipline. V3.242 rounds all 10 to the canonical 640px (phone) and 1024px (tablet) values. Most changes tighten the phone/tablet edge slightly with no visible regression; the one notable behavior change is `.milestone-timeline` on iPad portrait (1024px) which now shows 2 cols instead of 5 — acceptable trade-off for V3.233's "tablet is a real target" theme. The 3-tier waterfall on `.milestone-timeline` (5 desktop → 2 tablet → 1 phone) is preserved by mapping its 720→1024 and 420→640 in sync.
+
+### Changed
+- **`rm/css/training.css`** — 10 `@media` lines rounded to 640/1024: `.scenario-bar` 420→640, `.panel` 900→1024, `.chart-row` 720→640, `.training-layout` 900→1024, `.arc-controls` 600→640, `.voice-grid` 720→640, `.triangle-layout` 820→1024, `.assessment-row` 520→640, `.milestone-timeline` waterfall 720→1024 + 420→640. New explanatory comment above the milestone-timeline pair so future passes don't accidentally collapse the two-step waterfall into one rule.
+- **`sw.js`** — `CACHE_VERSION` 211 → 212.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.242_training_breakpoints.md](../ClaudesPlan/V3.242_training_breakpoints.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **Mobile/tablet compatibility master plan is now fully shipped.** Every item from the original Phase 1–4 scope has landed: V3.232 design tokens, V3.233 shell adaptation, V3.235 side drawers, V3.236 page anchor, V3.237 calendar phone cards, V3.238 tasks inbox phone, V3.239 chat composer, V3.241 desktop-only interstitial, V3.242 training breakpoint cleanup.
+- **Other page-specific CSS files** (chat 600/700/400; equipment 768; lab-notebook 720; meetings 700; procurement 700; scheduler 600; activity-tracker 700) still carry their own non-canonical breakpoints. The mobile plan is now in maintenance mode — each gets standardized when its page is rewritten, not on a separate cleanup pass.
+- **Rollback** — `git revert` of this commit restores V3.241. CSS-only; no JS, no HTML, no data-model changes.
+
+## [V3.241] - 2026-05-18
+
+**Desktop-only interstitial — Phase 4 of mobile compatibility.** Eleven RM pages fundamentally need a wide screen — multi-pane iframes (split-view, workflow-shell), admin matrices (admin-migrate / admin-permissions / admin-tracker-migrate), financial dashboards with charts (budget / finance / analytics), grant + CV editors (grants / cv-editor), and the cross-user kanban (lab-tasks). Forcing them into a phone viewport would degrade desktop without delivering a usable phone experience. V3.241 ships an opt-in interstitial: at ≤640px these pages render a full-screen card explaining the page is desktop-first plus a "Try anyway" escape hatch (sessionStorage-scoped dismissal) and a "← Back to RM home" button. Other pages are unaffected.
+
+### Added
+- **`rm/js/desktop-only-guard.js` (new)** — ~90-line self-contained IIFE. At DOMContentLoaded, checks `<body class="rm-desktop-only">` + `window.innerWidth ≤ 640` + `sessionStorage rm_desktop_only_dismissed != '1'`. When all three hold, injects a `.rm-desktop-only-overlay` card with title, body copy, "← Back to RM home" link (navigates to `/rm/`), and "Try anyway" button (sets sessionStorage and removes the overlay). Resize-back-to-desktop tears the overlay down; resize-down-to-phone re-shows it (unless dismissed). Escape key acts the same as "Try anyway". Focus lands on the "Try anyway" button so screen readers announce the dialog and keyboard users can interact immediately. No dependencies — runs before firebridge / nav state resolves. Idempotent: `window.DESKTOP_ONLY_GUARD` guards against double-init.
+- **`rm/css/style.css`** — `.rm-desktop-only-overlay` + `.rm-desktop-only-card` + title/body/actions/btn (primary + secondary) rules (~80 lines). Overlay is `position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(15,23,42,0.92)`. Card is 360px max-width, centered, with `var(--safe-top)` / `var(--safe-bottom)` padding so notched phones don't clip it. Buttons hit `var(--tap-min)` 44px. `rm-desktop-only-fade-in` 0.2s keyframe animation on appearance.
+
+### Changed
+- **11 Tier C HTML pages** — `<body>` gains `rm-desktop-only` class (preserving existing classes on `split-view.html` and `workflow-shell.html`). `<script src="/rm/js/desktop-only-guard.js">` loads immediately after `nav.js`. Adopters: `split-view`, `workflow-shell`, `admin-migrate`, `admin-permissions`, `admin-tracker-migrate`, `budget`, `finance`, `analytics`, `grants`, `cv-editor`, `lab-tasks`.
+- **`sw.js`** — `CACHE_VERSION` 210 → 211.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.241_desktop_only_interstitial.md](../ClaudesPlan/V3.241_desktop_only_interstitial.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **Why an opt-in body class instead of URL matching** — keeps the "desktop-only" decision visible in each page's own HTML rather than scattered across a central registry. Easier to audit, easier to revoke (just drop the class), no maintenance debt as new pages ship.
+- **Why sessionStorage instead of localStorage** — per-session dismissal means a returning user sees the warning again on a fresh tab. The intent is to discourage phone use of tier-C pages, not permanently silence the warning. A user who explicitly chooses to work on a phone can dismiss once per session.
+- **Desktop ≥641px unaffected.** Guard runs but immediately returns when `window.innerWidth > 640`. No DOM injection. No CSS impact.
+- **Other admin pages** (`email-review.html`, `chemicals.html` admin tabs, etc.) — not gated. Easy to opt in later by adding the body class + script tag.
+- **Phase 4 of the mobile-compatibility master plan is complete.** Phase 3b housekeeping remains: training.css breakpoint cleanup (7 scattered values). The phone-native and desktop-only behaviors the master plan called for are all shipped: V3.232 tokens, V3.233 shell, V3.235 drawers, V3.236 anchor, V3.237 calendar, V3.238 tasks inbox, V3.239 chat composer, V3.241 desktop-only interstitial.
+
+### Rollback
+- `git revert` of this commit restores V3.240. Or, to revert just the interstitial without the version bump: drop the `rm-desktop-only` class from the 11 body tags (or remove the script tags). The CSS rules + JS file are dormant without the body class.
+
+## [V3.240] - 2026-05-18
+
+**Paper Export Workspace now lists every compiled PDF + flags stale builds.** V3.231 shipped the export workspace with one viewer pane and no memory: every compile produced a new PDF, the old ones lived in Firestore but the UI didn't surface them, and nothing told the author whether the PDF they were looking at matched the current draft. V3.240 adds (a) a **Compile history** panel listing every compile for this paper with View + Delete buttons, (b) **auto-load of the newest PDF** when the workspace opens so authors no longer need to re-compile to see the most recent build, and (c) a **staleness banner** above the history panel — green "Latest PDF matches the current draft" or amber "Draft has changed since the latest compile" with click-to-recompile.
+
+### How staleness works
+At compile time, the Cloud Run service hashes the full bundle (every `.tex` + `.bib` file's `<relpath>\n<content>`, sorted by relpath, joined with `\n---FILE---\n`, sha256) and persists `bundleHash` on `paperExports/{paperId}/compiles/{compileId}`. The client re-runs the same hash over its current bundle (via the existing `PaperExportTex.buildBundle()`) and compares to the newest compile's stored hash. The hash is deterministic across Node and the browser (Web Crypto SHA-256) because both sides operate on the same file representation. Pre-V3.240 compiles don't have `bundleHash` — the banner falls back to a neutral "Re-compile to enable change-detection" message in that case.
+
+### Added
+- **`rm/pages/paper-export.html`** — new `<div class="px-section">` between "LaTeX add-ons" and "Figure defaults" containing the staleness banner (`#px-staleness`) + the compile list (`#px-compile-list`).
+- **`rm/css/paper-export.css`** — `.px-compile-list` (per-row card grid: timestamp / addons / View button / Delete button), `.px-compile-list li.is-active` (blue tint on the row whose PDF is currently mounted), `.px-staleness.is-fresh` (green banner), `.px-staleness.is-stale` (amber banner, click-to-recompile cursor).
+- **`rm/js/paper-export.js`** — new state fields `compiles`, `compilesUnsub`, `activeCompileId`, `localBundleHash`, `yjsObserveCleanup`. New functions: `_compilesRef()` (Firestore query ordered by `triggeredAt` desc, limit 50), `_subscribeCompiles()` (live `onSnapshot` listener that re-renders the list, refreshes staleness, and auto-mounts the newest compile on first load), `_renderCompileList()`, `_formatWhen()` (relative-time formatter), `_viewCompile()` (mints a fresh Storage download URL via `firebase.storage().ref(...).getDownloadURL()` since the 1-hour signed URL on the compile doc may have expired), `_deleteCompile()` (deletes Storage object then Firestore doc, soft-fails on missing Storage objects), `_hashBundle()` (Web Crypto SHA-256 over the sorted file list), `_refreshStaleness()` (re-builds + hashes + compares), `_watchYjsForStaleness()` (Yjs `update` observer with 800ms debounce so the banner flips amber the moment the author edits the doc).
+- **`functions/paper-compile/server.js`** — `bundleHash` computed via `crypto.createHash('sha256')` over the same file representation before Tectonic runs, persisted on the compile doc alongside the existing fields.
+
+### Changed
+- **`firestore.rules`** — `match /paperExports/{paperId}/compiles/{compileId}` splits the old `allow write: if false` into `allow create, update: if false` (still Admin-SDK-only) and `allow delete: if isLabContributor()` so the UI's Delete button can clean up old compiles.
+- **`storage.rules`** — `match /paperExports/{paperId}/{allPaths=**}` does the same split: `create`/`update` still blocked, `delete` allowed for any signed-in user (the paired Firestore rule's `isLabContributor()` is the real gate; deleting just the Storage PDF without the Firestore doc would orphan the record, and `_deleteCompile` always does both).
+- **`sw.js`** — `CACHE_VERSION` 208 → 209.
+
+### Notes
+- **No client-side compile quota.** The existing `--max-instances 3` on the Cloud Run service + 90s timeout means concurrent compile spam caps at ~3 simultaneous, and bad actors are gated by Firebase token + lab-member role at the proxy. Add a per-user daily compile counter if abuse becomes real.
+- **History query limit is 50.** First 50 most-recent compiles surface in the panel; older ones still exist in Firestore + Storage but require a manual lookup. A scheduled cleanup function for ≥30-day-old compiles is still scoped for Phase 2.
+- **Cloud Run server.js + firestore.rules + storage.rules all need redeploy** for this version to work end-to-end:
+  ```bash
+  firebase deploy --only firestore:rules,storage:rules
+  cd functions/paper-compile && gcloud run deploy paper-compile --source . --region us-central1 --port=8080 --no-allow-unauthenticated --memory 1Gi --timeout 90 --max-instances 3 --set-env-vars FIREBASE_STORAGE_BUCKET=mcgheelab-f56cc.firebasestorage.app
+  ```
+  Plus Cyberduck-FTP the rm tree for the client-side changes. Old V3.231 compiles in production will render in the history panel with the neutral "Re-compile to enable change-detection" staleness state — they don't break, they just don't surface a fresh/stale verdict until they're regenerated.
+
+## [V3.239] - 2026-05-18
+
+**Chat phone composer keyboard fix — Phase 3b of mobile compatibility.** The chat-layout at ≤700px (existing rule) lets `.chat-layout` flow into document scroll so the composer (`.chat-input-area`) sits in normal flex flow at the bottom of `.chat-main`. When iOS opens its keyboard, the visual viewport shrinks by ~270px and the composer — being part of document flow — stays at its original position, hidden behind the keyboard. The send button at 38×38 was also below the 44px Apple HIG tap-target minimum. V3.239 pins `.chat-input-area` to the viewport bottom via `position: fixed` at ≤640px. iOS Safari 15+ tracks the visual viewport for fixed-positioned elements when the keyboard opens, so the composer rides up with the keyboard automatically — no `visualViewport` JS handler needed. `.chat-main` gets 80px bottom padding so the last messages aren't hidden behind the floating composer. Composer + send button bump to 44px tap targets. `var(--safe-bottom)` padding clears the iOS home indicator on notched phones.
+
+### Changed
+- **`rm/css/chat.css`** — new `@media (max-width: 640px)` block appended after the existing 400px block (~30 lines). `.chat-input-area { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; padding-bottom: calc(.5rem + var(--safe-bottom)); box-shadow: 0 -2px 8px rgba(0,0,0,0.08) }` — composer floats above iOS keyboard. `.chat-main { padding-bottom: 80px }` — reserves space at the bottom of the messages list for the fixed composer. `.chat-input { min-height: 44px }`, `.chat-send-btn { min-width: 44px; min-height: 44px }` — Apple HIG / WCAG 2.5.5 tap targets. `.chat-thread-input { padding-bottom: calc(.5rem + var(--safe-bottom)) }` — same safe-area treatment for the full-screen thread overlay's composer.
+- **`sw.js`** — `CACHE_VERSION` 208 → 209.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.239_chat_phone_composer.md](../ClaudesPlan/V3.239_chat_phone_composer.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **No JS changes — and no `visualViewport` handler needed.** iOS Safari 15+ correctly tracks the visual viewport for `position: fixed` elements when the on-screen keyboard opens. A `visualViewport.resize` + `translateY` JS handler was the standard fix before iOS 15 but adds complexity and a transient mis-positioning during transition. The McGhee Lab's user base is on iOS 15+.
+- **Real-device test recommended** — Chrome DevTools doesn't faithfully simulate the iOS keyboard. Verify on a real iPhone: tap textarea, type, confirm composer stays visible above the keyboard, last message stays readable above the composer.
+- **Desktop ≥641px unchanged.** All new rules are scoped inside `@media (max-width: 640px)`.
+
+### Out of scope (Phase 3b continued)
+- Training breakpoint cleanup (7 scattered values in `training.css`).
+- Tier C desktop-only interstitial.
+- `visualViewport` JS fallback for pre-iOS-15 — not needed for current user base.
+
+## [V3.238] - 2026-05-18
+
+**Tasks inbox phone layout — Phase 3b of mobile compatibility.** The `.inbox-row` rule used by the Tasks inbox (`/rm/pages/tasks.html?tab=inbox`), the Completed Tasks archive (`?tab=archive`), and the cross-user `lab-tasks.html` view rendered as a flex-row with a 14px checkbox, ellipsis-truncated title, and the project/bucket crumb hidden on phone (V3.233 baseline). That's the daily phone use case the user listed first ("Check my task inbox / mark done") and it was the second-worst remaining phone offender after V3.237's calendar fix. V3.238 expands the existing 4-line `@media (max-width: 640px)` block into a 2-row card layout: row 1 = checkbox + dot + main (title + crumb) + open-link; row 2 = meta chips left-aligned under main. Title wraps to 2 lines instead of truncating. Checkbox grows to 20px. Project/bucket crumb visible again (V3.233 had hidden it). Tap targets ≥36px via `var(--sp-3)` padding on the row. Desktop ≥641px unchanged.
+
+### Changed
+- **`rm/css/style.css`** — `@media (max-width:640px)` block under `.inbox-row` rules (previously 4 lines: hide crumb, drop meta max-width) expanded to ~30 lines: `.inbox-row { display: grid; grid-template-columns: auto auto 1fr auto; grid-template-areas: "check dot main open" ". . meta meta"; column-gap: var(--sp-2); row-gap: var(--sp-1); padding: var(--sp-3); align-items: start }`. Children get grid-area assignments. `.inbox-row input[type=checkbox]` grows from 14×14 to 20×20. `.inbox-title` drops `white-space: nowrap` so it wraps. `.inbox-crumb` restored to `display: block` (V3.233 had `display: none`). `.inbox-meta` `justify-content: flex-start; max-width: 100%`. `.inbox-open` gets `min-width: 28px; text-align: center; font-size: 16px; padding: var(--sp-1) var(--sp-2)` for a real tap area.
+- **`sw.js`** — `CACHE_VERSION` 207 → 208.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.238_tasks_inbox_phone.md](../ClaudesPlan/V3.238_tasks_inbox_phone.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **Lab notebook camera capture verified separately** — `<input type="file" id="ln-camera-input" accept="image/*" capture="environment">` is already in `rm/pages/lab-notebook.html:26`. The "verify capture=environment" item in the master plan was satisfied before V3.238; no changes needed.
+- **Why surface the crumb on phone** — V3.233 hid it to save horizontal space, but the crumb is the answer to "mark which task in which project?" — critical context when scanning today's items. The 2-row layout has the room.
+- **No JS changes** — existing click handlers on `.inbox-row` (open task detail) and `[type=checkbox]` (mark done) work unchanged. Only the grid template moves.
+- **`.inbox-row.completed-row` variant inherits** the grid template since `.completed-row` only adds border/title color overrides; the layout cascades.
+
+### Out of scope (Phase 3b continued)
+- Sticky inbox-composer (textarea pinned to iOS keyboard) — defer.
+- Chat sticky composer with `visualViewport` — separate ship.
+- Training breakpoint cleanup (7 scattered values).
+- Tier C desktop-only interstitial.
+
+## [V3.237] - 2026-05-15
+
+**Calendar / activity-row phone card layout — Phase 3b of mobile compatibility.** The `.yr-line` (7 columns: select / caret / date / main / meta / stars / actions) and `.ch-line` (6 columns: date / cat / main / meta / stars / actions) activity rows used by `activity-overview.html`, `calendar.html`, and `email-review.html` were hardcoded to a desktop grid totaling ~680px minimum width. On a 390px iPhone they overflowed by ~280px — V3.236's `overflow-x: hidden` clipped the overflow cleanly but the user couldn't see meta / stars / actions. V3.237 collapses both rows to a 2-row card layout at ≤640px using `grid-template-areas`: title + sub wraps to 2 lines under a left-edge selector, date + meta + stars stack below, actions stay pinned right. Desktop ≥641px is byte-identical to V3.236. Plus housekeeping: three more scattered breakpoints rounded to the canonical 640/1024 set (huddle 700×2 → 640; year-review .yr-analytics 900 → 1024; email-review .ch-analytics 900 → 1024).
+
+### Changed
+- **`rm/css/style.css`** — new `@media (max-width: 640px)` block under `.yr-line` rule body remaps the 7-column grid to a 3-column / 3-row `grid-template-areas` layout. `var(--tap-min-compact) 1fr auto` columns. Caret column hidden (the row-expand interaction is already tap-anywhere). Title + sub lose their `white-space: nowrap` so they wrap to 2 lines instead of truncating. Padding bumps to `var(--sp-2) var(--sp-3)`. Stars and meta both visible on the card. Parallel block under `.ch-line` does the same for the 6-column grid: row 1 = main + actions, row 2 = date + meta + stars, row 3 = category chip full-width.
+- **`rm/css/huddle.css`** — `@media (max-width: 700px)` × 2 → `(max-width: 640px)`. Phone-stack rules for `.hud-layout` (sidebar flips to top horizontal scroll), `.hud-rundown-card` (tighter padding), `.hud-join-request` (flex column).
+- **`rm/css/year-review.css`** — `@media (max-width:900px)` → `(max-width:1024px)` on `.yr-analytics` grid collapse. iPad-portrait now also gets the single-column analytics panel.
+- **`rm/css/email-review.css`** — same `900px → 1024px` standardization for `.ch-analytics`.
+- **`sw.js`** — `CACHE_VERSION` 205 → 206.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.237_calendar_phone_cards.md](../ClaudesPlan/V3.237_calendar_phone_cards.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **Why a 2-row card vs hiding columns** — hiding date/meta/stars on phone throws away the most-used metadata. A 2-row card keeps all the same info but lets the user read top-to-bottom instead of fighting a horizontal scroll. Same Firestore data, same row-click handler — only the grid template changes.
+- **Touched files only** — page-specific CSS files still carry their own non-canonical breakpoints (chat 600/700/400; equipment 768; lab-notebook 720; meetings 700; procurement 700; scheduler 600; activity-tracker 700; training 420/520/600/720×3/820/900). Each will standardize as its page gets phone-attention in subsequent V3.238+ ships.
+- **Desktop unchanged at ≥1024px.** All new rules are scoped inside `@media (max-width: 640px)` or `(max-width: 1024px)` blocks; nothing in the desktop cascade was touched.
+
+### Out of scope (Phase 3b continued)
+- Tasks inbox sticky composer + 44px tap rows — JS + CSS, separate ship.
+- Lab notebook camera-capture verification + composer.
+- Chat sticky composer with `visualViewport` resize handler.
+- Training breakpoint standardization (7 scattered values across many features) — separate cleanup ship.
+- Tier C desktop-only interstitial.
+
+## [V3.236] - 2026-05-15
+
+**Anchor the page on phone — Phase 3a polish.** User report after V3.235: "*the pages on the phone feel loose, if i move to the left or the right the page moves around loose as well.*" Two mobile-browser defaults made full-bleed phone layouts feel disconnected — any descendant slightly wider than the viewport (drawer transforms, KaTeX subpixel rounding, PDF canvas) opened a horizontal scroll the body could drag through, and vertical scroll bounced past content edges via iOS Safari's rubber-band. V3.236 adds a single ≤640px block to [rm/css/tokens.css](../../rm/css/tokens.css) that locks both axes on the `<html>` + `<body>` elements so every RM page stays anchored on phones. Tablet + desktop are unaffected. Internal scroll containers (PDF viewer, comment lists, chat threads, paragraph editor) keep their own overflow.
+
+### Changed
+- **`rm/css/tokens.css`** — new `@media (max-width: 640px) { html, body { overflow-x: hidden; overscroll-behavior: none; } body { max-width: 100vw; } }` block. `overflow-x: hidden` clips any horizontal overflow from descendants so the body can no longer be dragged sideways; `overscroll-behavior: none` kills the rubber-band on the vertical axis; `max-width: 100vw` on body is belt-and-suspenders against any legacy rule that might set a wider `min-width`. Both `html` and `body` get the lock because iOS Safari historically split scroll-behavior properties between the two — the cross-browser-safe form is to apply to both.
+- **`sw.js`** — `CACHE_VERSION` 204 → 205.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.236_phone_anchor.md](../ClaudesPlan/V3.236_phone_anchor.md).
+- **The V3.235 `.rm-mobile-drawer-locked` body class still wins** when a drawer is open — it adds `position: fixed; width: 100%` for full scroll arrest with the iOS-friendly scroll-position save. The V3.236 rules layer underneath as the default-state behavior.
+- **`overflow-x: hidden` does not break `.top-nav`'s `position: sticky`.** The well-known sticky trap applies when an ancestor has `overflow: hidden` and the sticky element is supposed to scroll within that ancestor — here the sticky is anchored to the viewport via the document scroll, and `overflow-x: hidden` doesn't create a new vertical scroll context (the vertical axis stays visible/auto, owned by the viewport).
+- **Tablet + desktop unchanged.** Rules are scoped to `@media (max-width: 640px)` — `≥641px` browsers see no behavior change vs V3.235.
+- **Out of scope** — per-page `touch-action` tuning, iOS pinch-zoom prevention. Wait for specific complaints.
+- **Rollback** — `git revert` of this commit restores V3.235 behavior. The rule is additive in a `@media` block.
+
+## [V3.235] - 2026-05-15
+
+**Mobile side-drawer pattern — Phase 3a of mobile compatibility.** The two pages with the heaviest side-context-menu UX (paper-builder editor, library-paper reader) now convert their left + right panes into swipe-in drawers on phone (≤640px). On desktop and tablet (≥641px) the new classes are inert — panes render in their natural flex/grid flow exactly as today. The same reusable `.rm-mobile-drawer-*` opt-in pattern can be adopted by any future page with side context menus. User direction: "*paper writer still needs some work. think about the left and right context menus becoming swipe in from the side when we are on the phone version. paper reader and probably other pages can also do the same thing where if there is a set context menu that would otherwise overshadow the phone screen.*"
+
+### Added
+- **`rm/js/mobile-drawers.js` (new)** — `~100`-line self-contained IIFE exposing `window.MOBILE_DRAWERS.init(host, { leftToggle, rightToggle, onOpen, onClose })`. Injects a `.rm-mobile-drawer-backdrop` element if not present, wires backdrop click + Escape key to close the active drawer, toggles `data-drawer="left|right"` on the host element, and locks/unlocks body scroll via `body.rm-mobile-drawer-locked` + an iOS-Safari `position: fixed; top: -<scrollY>px` save/restore. Returns `{ open, close, toggle, host }`. Idempotent — caches the wired API on the host element so re-init is a no-op.
+- **`rm/css/style.css` `.rm-mobile-drawer-*` block (~120 lines)** — reusable opt-in pattern. `.rm-mobile-drawer-host` (container, carries `data-drawer` attribute), `.rm-mobile-drawer-left` / `.rm-mobile-drawer-right` (panes), `.rm-mobile-drawer-backdrop` (overlay), `.rm-mobile-drawer-toggle` + `.rm-mobile-drawer-toggle-badge` (toggle buttons + optional count badge). At ≤640px panes go `position: fixed; top: 0; bottom: 0; width: 85vw; max-width: 360px`, slide off via `transform: translateX(±100%)`, slide back to `translateX(0)` when host has matching `data-drawer="left|right"`. `var(--safe-top)` / `var(--safe-bottom)` padding handles iOS notch + home indicator. `overscroll-behavior: contain` prevents drawer scroll-chaining to the page underneath. Toggle buttons are `display: none` baseline, `display: inline-flex` at ≤640px.
+- **`rm/css/style.css` `.lp-mobile-bar` block** — phone-only toolbar at the top of `.lp-main` in library-paper. Three children: `ℹ️ Info` toggle (left), centered title (`.lp-mobile-title`), `📝 Notes` toggle (right). Hidden above 640px. The phone block also overrides `.lp-page { padding: 0; max-width: none }` for full-bleed PDF, sets `.lp-split-3 { grid-template-columns: 1fr; height: calc(100vh - 56px - var(--safe-top)) }` so only `.lp-main` is in flow (the drawer panes are removed via `position: fixed`), and hides the in-pane collapse arrows `.lp-collapse-btn` / `.lp-expand-btn` since the drawers toggle externally now.
+- **`rm/pages/paper-builder.html` editor topbar buttons** — two `<button class="rm-mobile-drawer-toggle pe-mobile-toggle">` injected into `.pe-topbar`: `☰ Outline` (`#pe-mobile-left-toggle`) opens the sidebar drawer, and `💬 Comments` (`#pe-mobile-right-toggle`) opens the comments-pane drawer with a count badge (`#pe-mobile-right-toggle-badge`) showing total open comments.
+- **`rm/pages/library-paper.html` mobile bar** — new `<div class="lp-mobile-bar">` inside `.lp-main` above `.lp-viewer` holding `ℹ️ Info`, paper title, `📝 Notes` toggles.
+- **`rm/js/paper-editor.js` `_updateMobileRightBadge`** — keeps the `💬 Comments` toggle badge in sync with the total open-comment count. Called from `recomputeCommentCounts()`. Badge shows `[hidden]` when zero, otherwise the count (`99+` cap).
+
+### Changed
+- **`rm/pages/paper-builder.html` editor `<div class="pe-page paper-editor-mode">`** gains `.rm-mobile-drawer-host`; `<aside class="pe-sidebar">` gains `.rm-mobile-drawer-left`; `<aside class="pe-comments-pane">` gains `.rm-mobile-drawer-right`. Editor-mode script-load list now includes `/rm/js/mobile-drawers.js` before `paper-editor.js`.
+- **`rm/pages/library-paper.html` `<div class="lp-split lp-split-3">`** gains `.rm-mobile-drawer-host`; `<aside class="lp-side">` gains `.rm-mobile-drawer-left`; `<aside class="lp-annotations">` gains `.rm-mobile-drawer-right`. Script list now loads `/rm/js/mobile-drawers.js` before `library-paper.js`.
+- **`rm/js/paper-editor.js`**
+  - `recomputeCommentCounts()` now also calls `_updateMobileRightBadge()` so the phone toggle stays in sync.
+  - `closeComments()` extended to also call `host._rmMobileDrawersWired.close()` so the existing close-X inside the comments pane retracts the drawer (otherwise `[hidden]` would hide the pane while `data-drawer="right"` stuck around with an empty backdrop).
+  - New `_wireMobileDrawers()` runs on DOMContentLoaded. Wires the two topbar toggle buttons via `MOBILE_DRAWERS.init`. `onOpen('right')` ensures `commentsPaneEl.hidden = false` and defaults `commentsState.filter = 'view'` when no block is focused (so the drawer always renders content), then calls `renderCommentsList()`.
+- **`rm/js/library-paper.js`**
+  - New `_wireMobileDrawers()` called from `init()` after `_wireToolbar()`.
+  - New `_updateMobileTitle(title)` syncs `#lp-mobile-title` text. Called from `_renderMetadata` so the phone toolbar shows the paper title once it loads.
+- **`rm/css/paper-editor.css`** — phone-block tightens `.pe-topbar` (gap 8px, padding 8/12px) and shrinks `.pe-title-input` to font-size 15px with `min-width: 0`. The existing `flex-wrap: wrap` handles wrapping when the four topbar items (☰ Outline, ← back, title, 💬 Comments) compete for room.
+- **`sw.js`** — `CACHE_VERSION` 203 → 204.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.235_mobile_drawers.md](../ClaudesPlan/V3.235_mobile_drawers.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **Why side-drawers vs the V3.231 plan's "bottom sheet + tabs" approach** — side-drawers give consistent left/right semantics across both pages, leave the underlying content (paragraph editor, PDF) full-bleed underneath, and create a reusable pattern any future page with side context menus can opt into. The original "comments as bottom sheet" + "library-paper as 3-tab" plan was discarded after the user explicitly asked for side-swipe drawers across both pages.
+- **Desktop ≥1024px unchanged.** Drawer classes are inert above 640px — the panes render in their natural flex/grid flow. The `.rm-mobile-drawer-toggle` buttons in `.pe-topbar` + `.lp-mobile-bar` are `display: none` above 640px so they don't appear on desktop.
+- **Tablet 641-1024px** continues to use the V3.233 stacked layout for library-paper and the desktop 3-col layout for paper-builder. If the stacked tablet UX proves awkward for PDF reading, promoting drawers to ≤1024px is a one-line CSS change.
+- **Out of scope** — touch-edge-swipe-to-open gestures (drawers open via button tap only); other Tier A pages (tasks inbox, chat, lab notebook, huddle/training/people, calendar); Tier C desktop-only interstitial. All deferred to Phase 3b/4.
+- **Rollback** — `git revert` of this commit restores V3.234. The drawer classes on `.pe-page`, `.pe-sidebar`, `.pe-comments-pane`, `.lp-split-3`, `.lp-side`, `.lp-annotations` are inert above 640px — removing the CSS pattern + the JS file fully undoes the feature. No data-model changes.
+
+## [V3.234] - 2026-05-15
+
+**Synology integration — Phase 1: external links on every relevant RM doc.** Students can paste arbitrary URLs (Synology share links, Drive links, anything) onto lab-notebook entries, task project buckets, project / item cards, and paper drafts. Each link carries an optional `🔌 Private (UA VPN)` toggle that surfaces a "🔌 VPN" badge — Phase 1 acknowledges that DSM stays off the public internet at UA, so share URLs only resolve when the user is on UA VPN; the badge is the inline hint. Phase 2 (browser-direct File Station API to auto-list `proj_{id}` folders) layers on top of this without re-doing the data model. Auto-detection of private hostnames is deferred to Phase 2 once the production NAS hostname is locked in.
+
+### Added
+- **`rm/js/external-links.js` (new)** — shared `window.EXTERNAL_LINKS` namespace exposing `mount({container, getLinks, setLinks, readOnly, title})` and `hydrate(arr)`. Mirrors the [`section-comments.js`](../../rm/js/section-comments.js) pattern: a parameterized primitive each surface plugs into with its own persistence. Renders a collapsible "🔗 Linked files (N)" block with: a list of `[label] [↗ open] [🔌 VPN?] [🗑]` rows, an add form (URL input + label input + private checkbox + Add button), and an empty-state hint. Each link is `{id, url, label, private, addedAt, addedByUid}`. `normalizeUrl` prepends `https://` when the user pastes a schemeless host, and `hydrate` coerces legacy/missing fields. URL clicks open in a new tab with `rel="noopener noreferrer"`. Default collapsed iff the list is empty.
+- **`rm/css/style.css`** — `.ext-links-*` classes (header / toggle / caret / title / count / body / empty / list / row / link / label / url / vpn / del / form / inputs / private / add) plus an `.ext-links-popover` variant used by the paper-editor topbar mount. Color palette is the standard lab grayscale + a warm amber for the VPN badge.
+
+### Changed
+- **`rm/js/notebook-schemas.js`** — `notebookEmptyEntry()` adds `externalLinks: []`. `notebookHydrate(d)` runs `window.EXTERNAL_LINKS.hydrate(d.externalLinks)` when the helper is loaded, falling back to plain array coercion for back-compat. Legacy entries without the field load cleanly.
+- **`rm/js/lab-notebook.js`** — `renderEditor()` injects a `<div id="ln-ext-links">` placeholder after `renderRefsHtml(...)`; `wireEditor()` mounts `EXTERNAL_LINKS` into it wired to `state.doc.externalLinks` with the existing `scheduleSave()` autosave. Owner-only surface, so `readOnly: false` is hard-coded for the current user.
+- **`rm/js/tasks-buckets.js`** — added at the **project bucket** (tier 1) level, NOT sub-bucket (tier 2) or subtask (tier 3) — files are typically project-scoped, and adding at tier 1 avoids cluttering the already-heavy Subtask schema. `render()` calls a new `renderExternalLinksBlock(p)` helper between `renderTaskBuilderHead(p)` and `renderSuggestedFromCategories(p)`; helper mounts `EXTERNAL_LINKS` wired to `taskBuilder.externalLinks` with `scheduleSave()`. Skipped on the `proj-inbox` reserved task builder. No schema-doc update needed — the array is created lazily on first access.
+- **`rm/js/projects.js`** — `renderCard(item)` (when expanded) injects a `<div data-ext-links-mount>` placeholder between `renderItemHero(item)` and `renderItemDetailAccordions(item)`; mounts `EXTERNAL_LINKS` wired to `item.externalLinks` with `saveItemSurgical(item)`. Honours the existing `_canEditPaper(item)` gate — non-first-author co-authors on paper items see the block in `readOnly: true` mode. Works for every item type (paper / grant / course / tool / etc.) because every item is a row in `items.json`.
+- **`rm/js/paper-editor.js`** — topbar gains a "🔗 Linked files (N)" button next to the Versions / Export-LaTeX buttons. Click toggles a positioned `.ext-links-popover` rendering the shared component. Backed by direct `firebridge.db().collection('items').doc(paperId)` reads/writes (same collection as `projects.js` — externalLinks are shared between the card view and the editor, single source of truth). A `.onSnapshot` subscription keeps the button's count badge live across tabs and collaborators. `readOnly` mirrors `state.editable` so non-author viewers see the list but can't add / remove.
+- **`rm/pages/lab-notebook.html`** — added `<script src="/rm/js/external-links.js">` before `lab-notebook.js`.
+- **`rm/pages/tasks.html`** — added the script after `activity-signals.js`; loads alongside the static head scripts so it's available before `tasks-buckets.js` is `document.write`-injected.
+- **`rm/pages/projects.html`** — added the script before `projects.js`.
+- **`rm/pages/teaching.html`** — same.
+- **`rm/pages/paper-builder.html`** — added the script before the per-mode `document.write` block, so both list mode and editor mode can use `window.EXTERNAL_LINKS`.
+- **`sw.js`** — `CACHE_VERSION` 202 → 203. RM tree is network-first per [sw.js:109](../../sw.js#L109), so the new `external-links.js` is picked up by the runtime cache automatically without a `SHELL_URLS` entry.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.234_external_links.md](../ClaudesPlan/V3.234_external_links.md).
+- **No new collection, no rule change.** The field is purely additive on existing docs that lab members already write: `userData/{uid}/notebook/{entryId}`, `userData/{uid}/buckets/{taskBuilderId}`, `items/{itemId}`. The `items/{itemId}` update rule already gates writes appropriately (lab member for non-paper items; first-author OR admin for paper items).
+- **Paper drafts write to `items/{paperId}`, not `papers/{paperId}`.** `papers/{paperId}` is the library reader collection (PDF + annotations + Yjs) and is admin-write only by rule. The paper-editor's `state.meta` is loaded from `projects/papers.json` (legacy route), but the canonical paper item now lives in `items.json` (V3.130 unification), and the projects.js card view writes there. Storing externalLinks on `items/{paperId}` means the same field shows up whether you open the paper from the projects page or from the paper editor.
+- **Out of scope (Phase 2):** Synology File Station API integration, hostname-based auto-detection of `private: true`, DSM API token storage, CORS configuration on the DSM side, "Open in Synology" deep links, per-student DSM accounts. See the open questions at the bottom of [V3.234_external_links.md](../ClaudesPlan/V3.234_external_links.md).
+- **Yjs left untouched.** Adding `externalLinks` to the Yjs paper body would require a Y.Array of Y.Maps with crash-safe init guards (cf. V3.230 fix); external links don't need CRDT semantics because they're not edited at the character level. The top-level `items/{paperId}` doc is the right home.
+
+## [V3.233] - 2026-05-15
+
+**Mobile/tablet shell adaptation — Phase 2 of mobile compatibility.** Wires the V3.232 design tokens into the global shell (`.page` wrapper, top nav, dropdown menus, three core modal classes) and standardizes the 6 scattered shell-level breakpoints (640 / 700 / 720 × 3 / 800 / 860 / 880 × 2) to the two canonical values 640px (phone) and 1024px (tablet-and-below). Three user-facing improvements: `.page` padding now adapts to viewport size via the `--page-pad-*` tokens (24px desktop → 16px tablet → 12px phone); top nav at ≤640px collapses link labels (`Workflows`, `All Pages`, `Split`, `My Workflows`) leaving emoji-only buttons so the brand + 4 icons comfortably fit a 390px iPhone; nav dropdowns at ≤640px slide up from the bottom as full-width bottom sheets with iOS home-indicator padding instead of falling out from under their triggers. Three core modal classes (`.modal`, `.pin-modal`, `.ev-modal`) get `var(--safe-top) + var(--safe-bottom)` subtracted from their `max-height` so close buttons stay reachable above the home indicator on notched phones. Page-specific CSS files (chat.css, equipment.css, lab-notebook.css, etc.) keep their own non-standard breakpoints; they'll standardize as their pages are rewritten in Phase 3.
+
+### Changed
+- **`rm/css/style.css`** — `.page { max-width: var(--page-max-w); padding: var(--page-pad-desktop) }` replaces the hardcoded `1200px` / `24px`. New `@media (max-width: 1024px)` block above the existing 640px block: `.page { padding: var(--page-pad-tablet) }`. Expanded the 640px block: `.page` padding → `var(--page-pad-mobile)`, `.top-nav { padding: 0 var(--sp-3); gap: var(--sp-1) }` + `.top-nav .nav-label { display: none }` so icon-only labels show, `.top-nav a` / `.top-nav .nav-dropdown-trigger` shrink padding to `var(--sp-2)`, `.nav-dropdown.open .dropdown-menu` becomes a bottom-anchored full-width sheet (`position: fixed; bottom: 0; padding: var(--sp-2) 0 calc(var(--safe-bottom) + var(--sp-2)); z-index: var(--z-drawer); border-radius: 12px 12px 0 0`), `.dropdown-menu a` get `min-height: var(--tap-min-compact)` so 36px tap targets. Three modal `max-height` rules updated: `.modal` 85vh → `calc(85vh - var(--safe-top) - var(--safe-bottom))`; `.pin-modal` 80vh → `calc(80vh - ...)`; `.ev-modal` 88vh → `calc(88vh - ...)`. Six scattered breakpoints rounded: `@media (max-width:720px)` × 3 (`.focus-row-head`, `.arc-row`, `.inbox-crumb`) → 640px; `@media (max-width:860px)` (`.buk-layout`) → 1024px; `@media (max-width:880px)` × 2 (`.lp-split`, `.lp-split-3`) → 1024px.
+- **`rm/css/workflow-shell.css`** — `@media (max-width: 800px)` → `@media (max-width: 1024px)` so iPad-portrait already gets popouts-as-overlays. Tablet users no longer fight a 460px-wide popout against a 564px-wide main pane.
+- **`rm/css/split-view.css`** — `@media (max-width: 700px)` → `@media (max-width: 640px)` so iPad-portrait keeps side-by-side panes (512px each, tight but usable); only phones stack vertically.
+- **`rm/js/nav.js`** — `makeTopLink(label, href, isActive)` (~line 1155) splits the `"🗂 Workflows"`-style label into a leading icon text-node + `<span class="nav-label">Workflows</span>` child so the 640px CSS rule `.top-nav .nav-label { display: none }` can hide just the label on phone. Match pattern `/^(\S+)\s+(.+)$/` separates leading icon from rest; the no-icon fallback keeps original `textContent` behavior. `_wfPinCustomWorkflows` (~line 1265) trigger gets the same treatment for `"⭐ My Workflows"`. The `.nav-dropdown-trigger::after { content: ' \25BE' }` caret rule is untouched — pseudo-elements aren't affected by inserting child nodes.
+- **`sw.js`** — `CACHE_VERSION` 201 → 202.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.233_mobile_shell.md](../ClaudesPlan/V3.233_mobile_shell.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **Desktop unchanged at ≥1280px.** All `.page` padding / `.top-nav` / dropdown / modal rules cascade through the desktop default unchanged; the new behavior only kicks in at ≤1024px (tablet) and ≤640px (phone).
+- **Page-specific breakpoints intentionally untouched.** chat.css (600/700/400), equipment.css (768), lab-notebook.css (720), meetings.css (700), huddle.css (700×2), procurement.css (700), scheduler.css (600), activity-tracker.css (700), training.css (420×2/520/600/720×3/820/900×2), year-review.css (900), email-review.css (900) keep their existing non-standard values. Each gets standardized when its page is rewritten in Phase 3.
+- **Phase 3** (next ship) — Tier A phone-native pages: tasks inbox sticky composer + 44px tap rows; lab notebook camera-capture verification; calendar `.yr-line` / `.ch-line` 2-row card layout; chat sticky composer + `visualViewport` keyboard handler; huddle / training / people column stacking; paper-builder sidebar drawer + comments bottom sheet; library-paper 3-tab phone layout (`📄 PDF` / `ℹ️ Details` / `💬 Notes`).
+- **Rollback** is `git revert` of this commit — the `.nav-label` spans added by nav.js are inert when the matching CSS rule isn't loaded (they just render as inline text, identical to V3.232 behavior).
+
+## [V3.232] - 2026-05-15
+
+**Mobile/tablet design tokens — Phase 1 of mobile compatibility.** New foundation file [rm/css/tokens.css](../../rm/css/tokens.css) defines CSS custom properties for spacing, font scale, breakpoint values, touch sizing, page padding, iOS safe-area insets, and a z-index ladder — every RM page now loads it before `style.css` so downstream phases can reference the tokens. Three iOS-Safari fixes ship alongside: 16px minimum input font (prevents auto-zoom on focus), `touch-action: manipulation` on buttons / nav links (drops the 300ms tap delay), and `@media (hover: none)` rules that suppress sticky-highlight states on cards / nav links / calendar rows when the user taps on a touch device. Zero behavior change on desktop — tokens are defined but not yet consumed by existing CSS. Phases 2–4 (shell adaptation, Tier A page rewrites, Tier C interstitial) follow in subsequent versions.
+
+### Added
+- **`rm/css/tokens.css` (new)** — `:root` block: spacing `--sp-1` 4px → `--sp-10` 40px (8-pt grid); font scale `--fs-xs` 11px → `--fs-3xl` 28px (kept in px to avoid churning 21 sibling CSS files); breakpoint values `--bp-phone` 640px / `--bp-tablet` 1024px / `--bp-desktop` 1280px (reference-only — CSS custom properties cannot be used inside `@media` queries, so subsequent phases use literal pixel values); touch sizing `--tap-min` 44px (Apple HIG / WCAG 2.5.5) / `--tap-min-compact` 36px; page padding `--page-pad-mobile` 12px / `--page-pad-tablet` 16px / `--page-pad-desktop` 24px / `--page-max-w` 1200px; safe-area `--safe-top` / `--safe-bottom` / `--safe-left` / `--safe-right` from `env(safe-area-inset-*, 0px)`; z-index ladder `--z-nav` 100 / `--z-dropdown` 150 / `--z-drawer` 200 / `--z-modal` 1000 / `--z-toast` 1500. Three global rules: `input, select, textarea { font-size: max(16px, var(--fs-base)) }` (iOS no-zoom); `button, .btn, .top-nav a, .dropdown-menu a { touch-action: manipulation }` (no 300ms tap delay); `@media (hover: none) { ... }` block that resets `:hover` states on `.card`, `.top-nav a`, `.dropdown-menu a`, `.yr-line`, `.ch-line`, `.lib-line` so taps don't leave a stuck highlight. `@supports (padding: env(safe-area-inset-top))` pads `body` with `--safe-top` / `--safe-bottom` so the iOS notch / home-indicator don't clip content.
+
+### Changed
+- **66 × `rm/pages/*.html` + [rm/index.html](../../rm/index.html)** — added `<link rel="stylesheet" href="/rm/css/tokens.css">` immediately before the existing `style.css` link, preserving indentation. Affected pages: every page that loads `style.css`. Skipped: 14 redirect-stub pages that meta-refresh to a unified shell and load no CSS (activity-tracker / tasks-inbox / tasks-archive / tasks-add / year-review / paper-editor / library-comments / library-public / important-people / funding / email-review / cv-overview / activity-summary / purchase-requests).
+- **`sw.js`** — `CACHE_VERSION` 200 → 201. RM tree is already network-first per [sw.js:109](../../sw.js#L109), so `tokens.css` is picked up by the runtime cache automatically without an entry in `SHELL_URLS`.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.232_mobile_tokens.md](../ClaudesPlan/V3.232_mobile_tokens.md). Full mobile-compatibility plan: `~/.claude/plans/i-want-to-make-rosy-scott.md`.
+- **Zero behavior change vs V3.231.** Tokens are defined but no existing CSS references them yet — visual output is byte-for-byte identical on desktop. The three iOS-Safari fixes (input zoom, tap delay, hover suppression) are user-facing improvements but only manifest on touch devices.
+- **Phase 2** (next ship) — global shell adaptation: `.page` padding migrates to `var(--page-pad-*)`, the 6 scattered breakpoints in `style.css` and 21 page-specific CSS files standardize to the two breakpoints `640px` / `1024px`, top-nav `_wfPinCustomWorkflows` gains a narrow-screen `⋯` overflow trigger, modal scroll cap honors `var(--safe-bottom)`. Phase 3 — Tier A phone-native pages (tasks inbox, lab notebook, calendar, chat, huddle, training, people, paper-builder, library-paper). Phase 4 — `rm/js/desktop-only-guard.js` interstitial for genuinely desktop-only pages (split-view, workflow-shell, admin tools, budget / finance / analytics, grant-editor, cv-editor, lab-tasks).
+- **Rollback** is `git revert` of this commit. Tokens are additive; the 66 page edits each just add one `<link>` line.
+
+## [V3.231] - 2026-05-15
+
+**Paper Export Workspace replaces the prompt-driven LaTeX dialog.** Hitting "Export LaTeX" on a paper used to open a `window.prompt()` asking for `preview` vs `in_place` and write `.tex` + `.bib` to a sibling repo via the local Python dev server. V3.231 swaps that for a dedicated workspace page at [rm/pages/paper-export.html](../../rm/pages/paper-export.html) — pick a journal template, toggle LaTeX add-ons, override figure / table / equation defaults, run pre-flight lints, compile to PDF on a Tectonic-backed Cloud Run service, and preview the result inline. A "Download bundle (.zip)" button preserves the local-disk workflow for anyone compiling with `latexmk` off-platform. The compile service is scaffolded in [functions/paper-compile/](../../functions/paper-compile/) but not yet deployed; until `PAPER_COMPILE_URL` is wired in [rm/js/paper-export.js](../../rm/js/paper-export.js), the Compile button surfaces a clear "service not configured" panel pointing users at the .zip path.
+
+### Added
+- **`rm/pages/paper-export.html` (new)** — two-column workspace page. Left column: template select, add-on checkboxes, figure/table/equation default override selects, pre-flight checks panel, action buttons (Run checks / Compile / Download .zip). Right column: pdf.js preview pane reusing `window.PDF_VIEWER.create` from [rm/js/pdf-viewer.js](../../rm/js/pdf-viewer.js).
+- **`rm/css/paper-export.css` (new)** — page-specific layout (`.px-page`, `.px-split`, `.px-config`, `.px-preview`, `.px-addon`, `.px-warning`, `.px-error`, `.px-lint-list`, `.px-log`).
+- **`rm/js/paper-export.js` (new)** — orchestrator. Reads `?paper=<id>`, loads paper meta from `projects/papers.json`, opens a `PaperYjs.connect` handle (read-only use), loads / creates the per-paper compile config doc at `paperExports/{paperId}` via direct `firebridge.db()` ref (the adapter doesn't pattern-match wildcard paths), and wires the action buttons. `_buildBundleNow()` calls `PaperExportTex.buildBundle({template, overrides, addons, yDoc, fullItemsByKey, titleOverride})`; the `.zip` path streams via JSZip; the compile path POSTs the bundle to `PAPER_COMPILE_URL` with a Firebase ID-token bearer header.
+- **`rm/js/paper-export-config.js` (new)** — `PaperExportConfig.populateTemplateSelect`, `renderAddons` (reads `PaperExportTex.ADDON_REGISTRY` so the build pipeline and UI consume the same registry), `bindOverrides` (figure placement / width, table booktabs vs grid, table placement, equation display env), and `checkConflicts(templateId, enabledIds)` for the hard-conflict warnings rendered above the config form.
+- **`rm/js/paper-export-lints.js` (new)** — `PaperExportLints.runAll(bundle, addonIds)` returns `[{id, level: 'err'|'warn'|'ok', message, count?}]`. `checkRefs` greps every `\label{}` across the bundle and surfaces any `\ref/\cref/\Cref/\eqref` that doesn't resolve. `checkCitations` walks the generated `.bib` for the commented `% @misc{<key>, ...}` placeholder pattern emitted by `buildBibtex` for missing keys. `checkFloatOrder` warns when figure labels with numeric suffixes appear out of monotonic order. `checkShellEscape` flags enabled add-ons whose `requires_shell_escape` is true so the compile service can be configured before submit.
+- **`rm/js/paper-export-tex.js`** — `window.PaperExportTex.buildBundle({paperId, templateId|template, overrides, addons, yDoc, citationByKey, fullItemsByKey, leadAuthor, titleOverride})` (pure, no I/O) returns `{files, citationKeys, warnings, tree, mainTex, bibText, template}`. `mergeTemplateWithOverrides(template, overrides)` deep-merges per-paper figure/table/equation defaults over the template before rendering. `applyAddons(basePreamble, addonIds, templateId)` composes the final preamble by appending each enabled add-on's snippet and returns soft-conflict warnings. `ADDON_REGISTRY` is a curated 8-entry list (`lineno`, `setspace-double`, `microtype`, `cleveref`, `hyperref-colors`, `anonymize`, `placeins`, `twocolumn`) — each entry carries `{id, label, preamble, requires_shell_escape, incompatible_with: {templates, addons}, notes}`.
+- **`functions/paper-compile/` (new directory)** — Cloud Run service skeleton. `Dockerfile` ships a `node:20-bookworm-slim` base with the static Tectonic 0.15.0 binary, `biber`, and `chktex`. `server.js` is an Express app: verifies the Firebase ID-token bearer header, mirrors `firestore.rules` `isLabMember()` by requiring a non-guest `users/{uid}` doc, writes the bundle to a per-compile `/tmp` working dir (with a path-traversal guard), runs Tectonic, uploads the produced PDF to Firebase Storage at `paperExports/{paperId}/compiles/{compileId}.pdf`, writes the Firestore record at `paperExports/{paperId}/compiles/{compileId}` (admin-SDK write bypasses rules), and returns `{pdfUrl, log, compileId, warnings}` with a 1-hour signed URL. `README.md` documents the `gcloud run deploy` command + IAM roles needed.
+
+### Changed
+- **`rm/js/paper-editor.js`** — `exportBtnEl` click handler now calls `openExportWorkspace()` which navigates to `/rm/pages/paper-export.html?paper=<id>`. The legacy `openExportDialog` (preview / in-place prompt → POST to `/api/paper/export-tex`) is preserved as a non-wired function so admins can fall back via the JS console for the local-repo in-place export workflow.
+- **`firestore.rules`** — new `match /paperExports/{paperId}` block (lab-read, lab-contributor write) plus nested `match /paperExports/{paperId}/compiles/{compileId}` (lab read, no client writes — only the Cloud Run service writes via Admin SDK).
+- **`storage.rules`** — new `match /paperExports/{paperId}/{allPaths=**}` rule allowing authenticated reads (PDFs aren't sensitive once a member can read the source paper) and blocking client writes (Admin SDK bypasses).
+- **`sw.js`** — `CACHE_VERSION` 199 → 200.
+
+### Deploy postmortem — architecture changed mid-ship
+
+Original plan: browser → public Cloud Run (`paper-compile`) directly, authenticated at the app layer via Firebase ID token. Spent ~5 hours after the V3.231 code landed trying to make public Cloud Run access work. Every public request to `paper-compile-*.run.app` returned **Google's Frontend Load Balancer 404** ("Error 404 (Not Found)!!1" with Google logo + `referrer-policy: no-referrer` header) — not a 403, not an Express 404, not auth-related. Container logs showed only the very first authenticated `gcloud run services proxy` request reaching the container; every subsequent public curl never logged.
+
+Things we tried that didn't fix it:
+- `gcloud run services add-iam-policy-binding ... --member=allUsers --role=roles/run.invoker` (binding got silently stripped on subsequent Console UI changes)
+- Toggling Cloud Console's **Authentication → Allow public access** radio
+- `gcloud run services update ... --ingress=all` (was already default-all)
+- Redeploying multiple times with `--allow-unauthenticated` flag
+- Adding explicit `app.listen(PORT, '0.0.0.0', ...)` in case Node defaulted to IPv6 wildcard (right idea, didn't help here)
+- Hitting from a different network (home wifi, ruled out UofA firewall)
+- Both URL formats — project-number (`paper-compile-665438582202.us-central1.run.app`) and hash-based (`paper-compile-6zcsqhynhq-uc.a.run.app`)
+
+Root cause: unknown — likely an inherited org-level policy in this GCP project that strips `allUsers/run.invoker` from individual Cloud Run services. Visible symptom matches the **"default URLs disabled"** Cloud Run feature or an `iam.allowedPolicyMemberDomains` org constraint, but neither showed in `gcloud beta run services describe` annotations and the user couldn't see project-org policies in the Console.
+
+**What shipped instead:** browser → public Firebase Function `paperCompile` → private Cloud Run `paper-compile`. The Firebase Function inherits Firebase's working public-ingress wiring (same path used by `gmail-scraper`, `calendar-proxy`, `chat`, etc. that are already live in this project). Adds ~150–300ms latency per compile vs direct Cloud Run, which is negligible for a 5–30s LaTeX compile.
+
+### Added (additional files post-postmortem)
+- **`functions/paper-compile-proxy.js` (new)** — `paperCompile` HTTP function (Firebase Functions v2, public). Verifies the caller's Firebase ID token, mirrors `isLabMember()` by reading `users/{uid}.role`, mints a GCP identity token via the metadata server (audience = Cloud Run URL), forwards the request body to Cloud Run with that token in `Authorization` + verified `X-User-Uid` / `X-User-Role` headers, streams the response back. ~120 lines, no extra npm deps (Node 20 native `fetch`).
+
+### Changed (additional, post-postmortem)
+- **`functions/paper-compile/server.js`** — `verifyToken` middleware now trusts `X-User-Uid` + `X-User-Role` headers set by the Firebase Function proxy instead of verifying a Firebase ID token directly. Cloud Run IAM (only the Functions runtime SA has `run.invoker`) is the actual security boundary; the proxy did the user verification. Legacy direct-Firebase-token verification path was dropped — the service isn't publicly reachable anymore so the direct path can't be exercised.
+- **`functions/index.js`** — `require('./paper-compile-proxy')` and export `paperCompile`.
+- **`rm/js/paper-export.js`** — `PAPER_COMPILE_URL` now points at `https://us-central1-mcgheelab-f56cc.cloudfunctions.net/paperCompile` (the Firebase Function), not the Cloud Run service URL.
+
+### Live cloud config (as of ship)
+- **Cloud Run service `paper-compile`** in region `us-central1`, deployed from `functions/paper-compile/`. Private (`--no-allow-unauthenticated`). Env var `FIREBASE_STORAGE_BUCKET=mcgheelab-f56cc.firebasestorage.app` (the newer Firebase storage URL suffix — *not* the legacy `*.appspot.com`; the default bucket for this project was created post-October-2024 and got the new naming). Memory 1 GiB, timeout 90 s, max instances 3. Container image built by Cloud Build from the in-repo Dockerfile (Tectonic 0.15.0 + biber + chktex on `node:20-bookworm-slim`).
+- **IAM on `paper-compile` Cloud Run**: `roles/run.invoker` bound to `serviceAccount:mcgheelab-f56cc@appspot.gserviceaccount.com` (the Firebase Functions runtime SA). No `allUsers` binding. Plus the existing project-level grants for the compute SA (`roles/datastore.user`, `roles/storage.objectAdmin`, `roles/iam.serviceAccountTokenCreator` on itself for signed-URL minting).
+- **Firebase Function `paperCompile`**: public, v2, region `us-central1`, memory 512 MiB, timeout 120 s, max instances 3. Reachable at `https://us-central1-mcgheelab-f56cc.cloudfunctions.net/paperCompile`. CORS=true (set in the `onRequest` opts) so the browser preflight passes.
+
+### Redeploy cheat sheet (when changes land in either Function or Cloud Run)
+```bash
+# Cloud Run (when functions/paper-compile/ changes)
+cd functions/paper-compile
+gcloud run deploy paper-compile --source . --region us-central1 --port=8080 --no-allow-unauthenticated --memory 1Gi --timeout 90 --max-instances 3 --set-env-vars FIREBASE_STORAGE_BUCKET=mcgheelab-f56cc.firebasestorage.app
+
+# Firebase Function (when functions/paper-compile-proxy.js changes)
+cd ../..
+firebase deploy --only functions:paperCompile
+
+# One-time IAM (already done — only re-run if the runtime SA changes)
+gcloud run services add-iam-policy-binding paper-compile --region=us-central1 \
+  --member=serviceAccount:mcgheelab-f56cc@appspot.gserviceaccount.com \
+  --role=roles/run.invoker
+
+# Smoke test
+curl -i https://us-central1-mcgheelab-f56cc.cloudfunctions.net/paperCompile
+# → HTTP/2 200 ok body "paperCompile proxy ok"
+```
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.231_paper_export_workspace.md](../ClaudesPlan/V3.231_paper_export_workspace.md).
+- **Service worker caching lesson learned** — during the deploy we burned ~30 min on what looked like the function not working but was actually a stale `paper-export.js` cached by `mcgheelab-shell-v206` (and HTTP-layer caching feeding the SW a stale copy on reinstall). DevTools → Application → Service Workers → Unregister + Application → Clear site data wasn't enough; needed to manually delete the cache entry via `caches.open(name).then(c => c.delete('/rm/js/paper-export.js'))` from the console. For future cloud-config changes that depend on a paired client-side JS update, **verify with `curl -s https://mcgheelab.com/rm/js/paper-export.js | grep -A1 URL_PATTERN`** before chasing server-side bugs.
+- **Engine choice — Tectonic over full TeX Live.** ~50 MB binary vs ~2 GB image, reproducible CTAN auto-fetch, faster cold start. The 8-entry add-on registry is Tectonic-safe (no `minted` / shell-escape needed); if a future template requires shell-escape we'll either bundle Pygments in the container or drop that add-on from the registry. Most journal classes (Elsevier `elsarticle`, IEEE `IEEEtran`, ACM `acmart`, revtex4-2) work on Tectonic out of the box. Proprietary fonts (Nature, some Springer) remain an upload-flow problem we'll solve in Phase 2 with a journal-styles library.
+- **Persistence — shared per-paper Firestore doc, not Yjs.** `paperExports/{paperId}` holds the compile config (templateId, addons, overrides) so collaborators see the same journal target without broadcasting compile-config diffs on every keystroke; compile history lives in `paperExports/{paperId}/compiles/{compileId}` so the parent doc doesn't grow unboundedly. The adapter at [rm/js/api-firestore-adapter.js](../../rm/js/api-firestore-adapter.js) does exact-path lookups (no wildcards) so reads/writes go through `firebridge.db()` directly — same precedent as `papers/{paperId}/yjs_*` and the PMR cross-user reads.
+- **Phase 2 (out of scope here):** lab-wide `.cls` / `.bst` / `.sty` upload library at Storage path `journal-styles/{slug}/*`, figure-fetch step inside the Cloud Run service so `\includegraphics{}` resolves against `paper-figures/{paperId}/*`, per-user daily compile quota, scheduled 7-day TTL cleanup of compile artifacts, latexdiff revision tracking, and the IMRAD writing-guideline panel inspired by scitex-writer.
+
+## [V3.230] - 2026-05-15
+
+**Fix paper creation crash on template seed.** Right after V3.229 shipped, creating a paper through the new one-click research-view flow crashed in `appendSectionFromTree` with `TypeError: Cannot read properties of undefined (reading 'insert')`. Root cause was a latent Yjs 13 quirk: `m.set('label', new Y.Text(''))` followed by `m.get('label').insert(0, sec.label)` inside the same transact returns undefined for the `get` when `m` was ALSO freshly integrated in that transact. V3.229 made the seed path easy to reach, exposing the bug. V3.230 swaps the set-then-get-then-insert pattern for the `new Y.Text(initialString)` constructor form (already in use at [rm/js/paper-editor.js:199](../../rm/js/paper-editor.js#L199) for the title), and keeps a local reference to the `children` Y.Array instead of round-tripping through `m.get('children')`.
+
+### Bug fixes
+- **`rm/js/paper-editor.js`** — `appendSectionFromTree` and `appendBlockFromTree` no longer use the `set('foo', new Y.Text('')); m.get('foo').insert(...)` pattern. `label` is constructed as `new Y.Text(sec.label ? String(sec.label) : '')` and set directly. Same for `skeleton` / `body` on blocks. The `children` Y.Array is held in a local `childrenArr` variable that's used both to set on the parent map and to pass to nested `appendBlockFromTree` calls — eliminates the get-after-set round-trip that Yjs 13 doesn't reliably resolve inside the same transact when the parent is also freshly integrated.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 198 → 199.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.230_seed_template_ytext_fix.md](../ClaudesPlan/V3.230_seed_template_ytext_fix.md).
+- The bug was latent because seed-template only runs on first connect to a brand-new paper. V3.229's "+ Add Item" type=paper → `?new=1` deep-link → fill modal → save → editor flow makes that path trivial to reach, surfacing the crash.
+- The `new Y.Text(initialString)` form is documented in Yjs 13's public API and is the form already in use at line 199 for the meta `title`. No new Yjs dependency or version change.
+
+## [V3.229] - 2026-05-15
+
+**Research view, paper-builder, and grant-builder now share their lists.** Before V3.229, creating a paper in the paper-builder left the Research page (`projects.html` with `PAGE_CATEGORY='research'`) unaware of it, and vice-versa — each surface read from its own store (`projects/papers.json` vs `items.json` vs `grantDrafts/`). V3.229 makes the research view render paper cards from `projects/papers.json` and grant cards from the `grantDrafts/` Firestore collection (alongside the four legacy items.json awarded-grant rows that the draft schema can't yet model). Items.json paper rows — all duplicates of paper-builder entries — are filtered out of the research view. "+ Add Item" type=paper/grant on the research page redirects into the matching builder's create modal via a new `?new=1` deep-link.
+
+### Added
+- **`rm/js/projects.js`** — module-level state `_canonicalPapersRaw`, `_grantDraftsCache`, `_virtualItems`, `_virtualGrantIds`. Helpers `_buildVirtualPaperItem(row)` / `_buildVirtualGrantItem(doc)` materialize the builder-owned source rows into the items.json item shape so the existing pin-grid renderer treats them uniformly; each carries a `_builderHref` field that the click handler uses to deep-link rather than expand inline. `_rebuildVirtualItems()` rebuilds the virtual list from the two caches and the in-flight `_virtualGrantIds` Set. `_loadGrantDrafts()` does the Firestore-direct `firebridge.db().collection('grantDrafts').get()` once per `loadAll()` on the research page (skipped on teaching/service pages and when firebridge isn't ready). `_filterItemsForCategory(allItems)` centralizes the items.json filter rules (category match, library-entry exclusion, paper-type exclusion, grant-id dedup vs virtual entries) and appends `_virtualItems` — replaces five duplicated inline filter blocks at `_reloadItems`, the edit-save handler, the delete handler, the add-save handler, and the live-sync subscriber.
+- **`rm/js/paper-builder.js`** — after the initial `load()` resolves, reads `?new` from `URLSearchParams`; if set to `1`, calls `openModal()` so the create modal appears immediately. Lets the research view deep-link into paper creation in one click.
+- **`rm/js/grant-builder.js`** — same `?new=1` post-load hook inside the `firebridge.onAuth` user-resolved branch.
+
+### Changed
+- **`rm/js/projects.js`** — `loadAll()` now also stashes `results[5].papers` into `_canonicalPapersRaw`, awaits `_loadGrantDrafts()` into `_grantDraftsCache`, and runs `_rebuildVirtualItems()` before applying the filter, so the first render already includes virtual items. The `.pin-box` grid-level click handler at the render path now checks the clicked item's `_builderHref` and `window.location.href`s straight to the builder instead of toggling `_expandedId` — virtual paper/grant cards become single-click shortcuts. `openAddForm(type)` short-circuits with a redirect to `/rm/pages/paper-builder.html?new=1` or `/rm/pages/grant-builder.html?new=1` when `type === 'paper'` / `'grant'`; other types still flow through the existing `openForm` path.
+- **`sw.js`** — `CACHE_VERSION` 197 → 198.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.229_unify_papers_grants_in_research_view.md](../ClaudesPlan/V3.229_unify_papers_grants_in_research_view.md).
+- No data migration runs in this version. The two items.json paper rows (`gels-technology`, `microscope-enabled-bioprinter-system-for-multi-modal-biological-analysis`) are already duplicates of paper-builder entries (`gels-paper`, `mebp-paper`) and are now hidden from the research view; they remain in Firestore and items.json for now in case anything still references their slugs. The two drafting items.json grants (`prostate-gels-r01`, `mri-lymphatic-r01`) continue to show on the research view from items.json and will be migrated into `grantDrafts/` in a follow-up version. The four active/awarded items.json grants (`mcghee-startup`, `mcghee-triff`, `cancer-engineering-prostate`, `cancer-engineering-tf-elisa`) intentionally stay in items.json because their awarded-grant fields (`award_number`, `funding_account_ids`, `start_date`, `end_date`, `total_budget`) aren't modeled in the draft-centric grantDrafts schema.
+- The research view doesn't subscribe to `projects/papers.json` or `grantDrafts/` for live tab-to-tab sync — only `items.json` has the live-sync wiring today. Creating a paper or grant in the builder is reflected on the research page after the next page reload. Acceptable as a phase-1 trade-off; live-sync wiring for the two builder sources is a follow-up.
+
+## [V3.228] - 2026-05-15
+
+**Per-page activity tracking mode is now admin-configurable.** V3.226 silently tracks 10-minute active windows on every RM page; V3.228 lets the admin override this per page on `/rm/pages/admin-permissions.html?tab=tracking`. Each page can be set to **Tracked** (default — per-page daily entry), **Never** (no write — activity is invisible), or **Admin work** (activity rolls into one shared daily "Admin work" entry instead of a per-page entry). The page-time-tracker reads the config once after auth resolves; missing slugs default to Tracked. `pmr` is no longer hard-skipped by the tracker (admin can now mark it Never if desired); Activity Overview stays hard-skipped because logging time spent confirming tracker entries would be circular.
+
+### Added
+- **`rm/pages/admin-permissions.html`** — third tab `?tab=tracking` with help copy + list container. Hub-tabs builder picks up the new entry alongside Users × Pages and Default Workflows × Pages. New CSS for `.perm-tracking-list` / `.perm-tracking-group-head` / `.perm-tracking-row` / `.perm-tracking-name` / `.perm-tracking-slug` / `.perm-tracking-select` / `.perm-tracking-row.is-changed`.
+- **`rm/js/admin-permissions.js`** — `trackerSlugForHref(href)` collapses tab-suffixed registry ids (`activity-overview__tab__tracker`) back to the base pathname slug the page-time-tracker actually keys on. `distinctTrackingPages()` walks `PAGE_REGISTRY.list` and dedupes by base slug, dropping hard-skipped slugs. `loadTrackingConfig()` reads `labConfig/pageTracking` into the new `trackingModes` Map<slug, mode> and `initialState.tracking`. `renderTrackingList()` builds the per-page rows grouped by nav section, each row a `<select>` with options Tracked / Never / Admin work. `onTrackingChange` pushes a `{type:'tracking', slug, mode}` edit into the existing `pendingEdits` Map and toggles the `.is-changed` row class. `saveAll` writes `labConfig/pageTracking.modes` as a fresh map (omitting `tracked` since it's the default) when any tracking edit is pending. `revertAll` repopulates `trackingModes` from `initialState.tracking` and re-renders.
+
+### Changed
+- **`rm/js/page-time-tracker.js`** — header comment updated. `SKIP_SLUGS` slimmed to `{'activity-overview':true, '':true}` (dropped `pmr` — admin can set it Never in the new UI if desired). New `_mode` + `_configLoaded` state vars (default `'tracked'`). New `loadModeForSlug()` fetches `labConfig/pageTracking` once after auth; sets `_mode` if a config entry exists. New `effectiveTarget()` returns `{slug, name, kind}` per mode: `'admin'` collapses to `{slug:'admin-work', name:'Admin work', kind:'admin-work'}` so all admin-flagged pages aggregate into a single daily entry at `auto-pagetime-admin-work-<date>`; otherwise per-page as before. `shouldTrack()` early-returns when `_mode === 'never'`. `logActiveWindow` routes via `effectiveTarget()`: doc id, `text` ("Admin work" vs "Active on <PageName>"), `categoryPath` default (`['admin']` for admin mode), and `source_ref.{kind,id}` all swap. `start()` calls `loadModeForSlug()` after `firebridge.onAuth` resolves and then fires the first `throttledActivity` tick. `window.PageTimeTracker.mode()` exposes the resolved mode for console debugging.
+- **`sw.js`** — `CACHE_VERSION` 196 → 197.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.228_admin_page_tracking_mode.md](../ClaudesPlan/V3.228_admin_page_tracking_mode.md).
+- The config is stored at `labConfig/pageTracking` with shape `{modes: {[slug]: 'never'|'admin'}, updatedAt}`. `'tracked'` is omitted because it's the default — keeps the doc compact and makes "missing slug = tracked" the explicit invariant. Authenticated read + admin write via the existing `labConfig/{docId}` rule in `firestore.rules`; no rules change required.
+- Admin-mode entries share doc id `auto-pagetime-admin-work-<date>` across every flagged page, so the user gets ONE row to confirm in the tracker pending banner per day for all admin-work pages combined.
+- Config is fetched once per page load (no `onSnapshot`); a stale mode for the duration of one session is acceptable, since admin re-configurations are rare and only affect future windows.
+
+## [V3.227] - 2026-05-15
+
+**Calendar ratings + category overrides survive event-id changes.** Same day as V3.225, the user found that 153 ratings and 201 category overrides on the Calendar History tab had silently gone missing after a sync. Root cause was an id-format mismatch: the original `/api/calendar/outlook-events` endpoint and the `backfill_email_calendar_to_firestore.py` one-shot keyed events differently (`{16-char-hex}` vs `archive-{16-char-hex}`), and ratings/overrides are keyed by id. On-the-fly recovery remapped 146/153 ratings and 195/201 overrides by trying prefix variants; V3.227 ships the structural fix so this can't happen again. The trick: alongside each rating and override, also store the event's `{title, start_at}` as an `event_meta[id]` sidecar. At render time, if the id-keyed lookup misses, fall back to matching by `(title, YYYY-MM-DD)` against the sidecar. Re-keyed events transparently reattach to their old ratings without rewriting the doc.
+
+### Added
+- **`rm/js/calendar.js`** — schema additions on the two per-user Firestore docs `userData/{uid}/calendarArchive/ratings` and `.../categoryOverrides`: each now carries an `event_meta: { <id>: { title, start_at } }` sidecar populated by every new rating/override write. New module-level helpers `calRatingFor(e)`, `calOverrideFor(e)`, `_setCalRating(e, v)`, `_setCalOverride(e, partial)`, plus `_rebuildRatingMetaIndex()` / `_rebuildOverrideMetaIndex()` that build a `"title|YYYY-MM-DD"` → id reverse index from the sidecar on load and after every mutation. Helpers do id-keyed direct lookup first, then fall back to the signature match — render path stays O(1) for the common case.
+
+### Changed
+- **`rm/js/calendar.js`** — `loadCalendarHistoryData` now initializes `ratings.event_meta` on load and unpacks the overrides doc into separate `CAL_HISTORY_STATE.overrides` + `._overrideMeta` slots (previous code threw away every field except `overrides`). `saveCalendarRatings` and `saveCalendarOverrides` rewritten to write explicit `{by_event, by_sub_category, event_meta}` and `{overrides, event_meta}` payloads — drops any derived/underscore-prefixed fields like `_sigToId` from the persisted doc. All four rating-read sites (in `renderCalHistAnalytics`, the group-row star bar, and the per-event row) swapped to `calRatingFor(e)`. All four override-write sites (bulk recategorize, single-event picker, task-attach mirror) swapped to `_setCalOverride(e, partial)`. The legacy duplicate `calRatingFor` further down in the file (which only did the direct lookup, no fallback) deleted — JS function-declaration hoisting meant it was already shadowing my new one until removed. Live-sync `apply` callbacks now also unpack `event_meta` from the remote snapshot and call the rebuild helpers so remote updates from another tab keep the reverse index in sync.
+- **`sw.js`** — `CACHE_VERSION` 195 → 196.
+
+### Bug fixes
+- **Calendar ratings + categories silently disappear after any sync that re-keys events.** Reported by user 2026-05-15 after the V3.225 scrape; recovered via prefix-remap dry-run/commit pair. V3.227 makes the renderer survive future re-keyings without manual recovery.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.227_calendar_rating_meta_sidecar.md](../ClaudesPlan/V3.227_calendar_rating_meta_sidecar.md).
+- The 146 ratings recovered in V3.225 work via the direct id-keyed path (the recovery already rewrote the keys). They'll gain `event_meta` entries lazily — next time the user clicks a star on a recovered event, the meta is stamped. No regression in the meantime.
+- Year-review's rating/override write path (`rm/js/year-review.js:1391-1431`) wasn't touched. Same fix would apply if needed; calendar.js is the primary write surface and history bug. Follow-up if year-review surfaces the same silent loss.
+- Signature uses `start_at.slice(0, 10)` (the YYYY-MM-DD prefix) rather than the full ISO string so timezone-normalized re-emits of the same event (`+00:00` vs `+TZID`) still match.
+
+## [V3.226] - 2026-05-15
+
+**Silent 10-minute-window page activity tracker replaces the per-action confirm-hours popup.** V3.160's pattern fired `ActivitySignals.recordWork(...)` on every notebook save / protocol create / etc., which surfaced a toast asking the user to confirm hours. User feedback: the popup over-populates and is annoying. V3.226 strips the toast entirely and replaces the per-action triggers with a passive page-time tracker that listens for any user activity (keydown/click/input/change/wheel/touch) and writes one pending tracker entry per page-per-day. Each 10-minute window with at least one event adds 10 minutes to that entry; idle windows contribute nothing. The user adjusts hours when they review the entry on the activity tracker page — there's no longer any in-page confirm UI.
+
+### Added
+- **`rm/js/page-time-tracker.js`** (new) — self-installing IIFE. Derives a page slug from `location.pathname` (e.g. `/rm/pages/lab-notebook.html` → `lab-notebook`), listens for `keydown`, `mousedown`, `touchstart`, `input`, `change`, `wheel` events with a 1-second throttle, and on the first event in each 10-min local-time window writes / updates `trackerEntries/{uid}/entries/auto-pagetime-<slug>-<date>`. Doc shape: `{date, text:'Active on <PageName>', categoryPath:[], duration:N*10, source:'rm-page-time', source_ref:{kind:'page-time', id:slug, path:pathname}, status:'pending', auto_hours_estimate:N*10/60, logged_windows:[...]}` where `logged_windows` is a deduped sorted list of 0..143 window indices. Skips when `document.hidden`, when no user is signed in, or when the slug is in `SKIP_SLUGS` (`activity-overview`, `pmr` — the tracker UI itself and the heavy reviewer surface). Once the user confirms or dismisses the entry, the writer freezes for that date so confirmed hours aren't overwritten by further activity. Exposes `window.PageTimeTracker.{slug, pageName, currentWindow, flush}` for debugging.
+- **`rm/js/nav.js`** — appends `<script src="/rm/js/page-time-tracker.js" async>` to `document.head` at module load (idempotent via `window.__rmPageTimeTrackerInjected`). Since every RM page already loads `nav.js`, the tracker now runs everywhere without per-page edits.
+
+### Changed
+- **`rm/js/activity-signals.js`** — `recordWork` and `recordSchedule` no longer call `showToast` after a successful upsert. The toast plumbing (`ensureToastStack`, `showToast`, `TOAST_STACK`) is removed, as is `showToast` from `window.ActivitySignals.*` — no callers used it outside the now-deleted internal hooks. Pending entries still surface in the activity-overview pending banner via `renderPendingBanner` unchanged.
+- **`rm/js/lab-notebook.js`** — `pingTrackerForEntry` removed entirely, along with its call site after `saveIndex` in the save path. Notebook entries no longer auto-create a per-entry pending tracker row; the new page-time tracker handles "time spent in the notebook" as a unified daily entry.
+- **`rm/js/protocols.js`** — `ActivitySignals.recordWork(...)` call in the protocol-create modal removed. Same rationale as lab-notebook.
+- **`sw.js`** — `CACHE_VERSION` 194 → 195.
+
+### Removed
+- **`ActivitySignals.showToast`** export and the in-page toast that read "Logged to tracker — confirm hours" with "Open tracker" / "Undo" buttons. The CSS file `rm/css/activity-signals.css` still defines `.activity-signals-toast-*` styles; left in place for now since they're harmless dead CSS, but a future tidy-up could prune them.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.226_silent_page_time_tracker.md](../ClaudesPlan/V3.226_silent_page_time_tracker.md).
+- Why one entry per page per day, not per active window: the user explicitly wanted a single row to adjust hours on. Per-window rows would produce up to 144 entries/day per page on the tracker, which is unworkable.
+- `recordSchedule` is preserved for tasks and meetings — those produce forward-dated "Coming up" entries on the activity tracker, which is a separate flow from work-completed and doesn't fire popups.
+
+## [V3.225] - 2026-05-15
+
+**Calendar page no longer 404s on production.** Three render paths on `pages/calendar.html` — the Outlook Events tab, the Full Calendar tab, and the Availability tab — were still calling the legacy `/api/calendar/outlook-events` endpoint that only exists in the local `server.py` dev runtime. On the static deploy at `mcgheelab.com/rm/` there is no `/api/` surface (see [rm/js/runtime-mode.js](../../rm/js/runtime-mode.js)), so all three were 404ing with "Failed to fetch resource" entries in the console. The History tab already migrated to per-user `userData/{uid}/calendarEvents` (populated by the `scrapeCalendarForAllUsers` Cloud Function from Google Calendar). V3.225 brings Outlook Events + Availability onto the same Firestore subcollection with a windowed query, and retires the Full Calendar tab outright since its only purpose was to iframe an Outlook web embed whose URL came from the dead endpoint.
+
+### Changed
+- **`rm/js/calendar.js`** — `renderOutlookEvents` rewritten to query `userData/{uid}/calendarEvents` for `start_at` in `[today, today+90d)`, capped at 800 docs, and map Firestore field names (`summary/start_at/end_at/recurring_event_id`) to the legacy event shape (`title/start/end/recurring`) the existing render helpers expect. Lexicographic ISO comparison handles both timed events (`2026-05-15T17:35:00Z`) and all-day events (`2026-05-15`) in a single query.
+- **`rm/js/availability.js`** — `availFetchEvents` migrated to the same Firestore source. Window is `daysAheadHint + 30` clamped to `[60, 180]` days; cap raised from 800 to 1200 because availability can pull a wider window than the Outlook tab.
+- **`rm/pages/calendar.html`** — "Outlook Events" tab renamed "Upcoming Events" (data source moved to Google Calendar long ago; "Outlook" was a legacy artifact). Internal `data-tab="outlook"` value left unchanged so the existing `switchTab` dispatch keeps working.
+- **`sw.js`** — `CACHE_VERSION` 193 → 194.
+
+### Removed
+- **Full Calendar tab** in `rm/pages/calendar.html` + `renderFullCalendar()` function and the `else if (tab === 'fullcal')` branch in `switchTab` ([rm/js/calendar.js](../../rm/js/calendar.js)). The tab only existed to iframe `embed_url` from the dead `/api/calendar/outlook-events` response, and the Google Calendar replacement doesn't have an analogous public embed URL stored in Firestore.
+
+### Bug fixes
+- **404s on `/api/calendar/outlook-events?days=1` and `?days=90`** when loading `mcgheelab.com/rm/pages/calendar.html`. Reproduced by user 2026-05-15.
+
+### Notes
+- Plan doc: [CodeLog/ClaudesPlan/V3.225_calendar_firestore_migrate.md](../ClaudesPlan/V3.225_calendar_firestore_migrate.md).
+- Empty-state copy points users to the email-review settings page if Google Calendar OAuth hasn't been authorized yet — that's where the Cloud Function picks up credentials from.
+
+## [V3.224] - 2026-05-14
+
+**Coauthors popover restyled to match the references / citation picker.** V3.223 shipped a custom-styled popover for the Coauthors button; user wanted it to look like the rest of the editor's pickers. Reused the `.pe-cite-popover` shell + `.pe-cite-pop-title` / `.pe-cite-pop-list` / `.pe-cite-pop-row` row primitives instead of a parallel `.pe-coauthor-pop-*` style, and switched positioning to the same `position: fixed` + anchor-rect math `openCitationPopover` uses (`pop.style.left = Math.max(10, Math.min(window.innerWidth - 470, rect.left)) + 'px'; pop.style.top = Math.max(10, rect.bottom + 6) + 'px';`) so the popover drops right under the Coauthors button.
+
+### Changed
+- **`rm/js/paper-editor.js`** — `openInviteDialog` (the V3.223 popover) rebuilt with `pe-cite-popover pe-coauthor-popover` shell, `pe-cite-pop-title` header, `pe-cite-pop-list` body, and per-row `pe-cite-pop-row` + `pe-cite-pop-row-body` markup (with `pe-cite-pop-key` for name + `pe-cite-pop-meta` for email — same typography as the citation picker). Custom header + close button dropped — Esc / click-outside / clicking the Coauthors button again still close the popover. Position swapped to `position: fixed` with the same `Math.max/min` clamps as `openCitationPopover`.
+- **`rm/css/paper-editor.css`** — `.pe-coauthor-pop-*` parallel styles deleted. New compact override block keeps only what's unique to the picker: the hint banner, the per-row tinted backgrounds (`[data-role="first"]` amber, `[data-role="cofirst"]` yellow, `[data-role="coauthor"]` green) with a `filter: brightness(0.97)` hover so the row's role-tint stays visible instead of being clobbered by the base `.pe-cite-pop-row:hover` blue, plus the avatar dot and the role-select sizing. The row gets `flex-direction: row` to override the base `pe-cite-pop-row`'s column layout (needed for avatar-left / select-right).
+- **`sw.js`** — `CACHE_VERSION` 192 → 193.
+
+### Bug fixes
+- None — pure restyle.
+
+### Notes
+- The role-tinted hover uses `filter: brightness(0.97)` instead of overriding `background:` so the tint hue is preserved (otherwise `.pe-cite-pop-row:hover { background: #eff6ff; }` would clobber the amber/yellow/green tint on every hover).
+
+## [V3.223] - 2026-05-14
+
+**Paper editor — Coauthors button now opens a context-menu popover with a per-user role picker instead of the legacy `window.prompt`-by-email flow.** Click "Coauthors" in the topbar to open a popover anchored under the button listing every visible lab member (`LAB_USERS.isVisible`). Each row has a per-user role select with four options: Not on paper / Coauthor / First author / Co-first author. Up to two users can hold "first author" status — one as primary (`lead_author_uid`, existing) and one as `co_first_author_uid` (new optional field). Picking First on a new user demotes the prior holder to Coauthor automatically; same rule for Co-first. Every change saves to `data/projects/papers.json` immediately and re-stamps `members[]` / `member_uids[]` via `syncPaperMembers` so PMR's per-student rollup stays consistent. Closes on Esc, click-outside, the × button, or clicking the Coauthors button again.
+
+### Added
+- **`rm/js/paper-editor.js`** — replaces the V3.96-era `openInviteDialog` (which ran a `window.prompt` and called `firebridge.queryWhere('users', ...)` to resolve uid by email) with a proper popover. New module-level helpers: `_closeCoauthorPop`, `_coauthorPopOutside`, `_coauthorPopEsc`, `_onCoauthorRoleChange(user, role)`. The popover loads lab users via `api.load('lab/users.json')` (same source `task-assign.js` uses), filters with `LAB_USERS.isVisible`, sorts by name, and renders one row per user with an avatar dot (`PaperYjs.colorForUid(uid)`), name + email, and a four-option `<select>`. `_onCoauthorRoleChange` strips the user from every prior role then writes them into the new one — picking First on user X with existing lead Y demotes Y to Coauthor, same for Co-first. Co-first authors are also added to `coauthor_uids[]` so the existing Firestore rule that grants edit access on `array-contains coauthor_uids` still works.
+- **`rm/css/paper-editor.css`** — `.pe-coauthor-pop` (positioned popover, max 480px tall, shadow), `.pe-coauthor-pop-header` / `-close` / `-hint` / `-list`, `.pe-coauthor-row` with per-state tints (`[data-role="first"]` amber, `[data-role="cofirst"]` yellow, `[data-role="coauthor"]` green), `.pe-coauthor-avatar` (28px circle), `.pe-coauthor-name` / `-email` (two-line label), `.pe-coauthor-role` (select with blue focus).
+
+### Schema
+- **`data/projects/papers.json` rows** gain an optional `co_first_author_uid: string` field. Used in the editor topbar and (future) on rendered author lists. Existing readers (PMR, paper-yjs, isLeadAuthor) only look at `lead_author_uid` and `coauthor_uids[]` — both unchanged. The co-first author is also in `coauthor_uids[]` so they get edit access via the existing array-contains rule path.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 191 → 192.
+
+### Bug fixes
+- None — UX replacement of the prompt-based flow.
+
+### Notes
+- The popover doesn't enforce "every paper needs a lead." Clearing the current lead (by changing them to None or Coauthor) leaves `lead_author_uid` empty until the user picks a new one. Existing consumers gracefully handle empty lead (`isLeadAuthor` returns false; PMR just doesn't show the paper under any student's roll-up).
+- Co-first author is *additive* to lead, not a replacement — both are "first authors" on the paper, but they're stored as two separate single-uid fields so the existing reader logic doesn't need to learn array semantics. Future cleanup could promote both to a `first_author_uids: string[]` of 1–2 entries.
+
+## [V3.222] - 2026-05-14
+
+**Self-lock outline systematically debugged — five fixes layered to cover every plausible failure mode after V3.219–V3.221 still didn't paint the holder's color around the focused block.** A walk through the data path turned up four candidate failures: (1) `colorForUid` returned modern space-separated HSL `hsl(120 70% 45%)` which some engines parse as invalid → `--pe-lock-color` falls back to gray and the outline looks "unchanged"; (2) the V3.220 optimistic patch was gated by `isPresenceLeader`, so in two-tab sessions where the focused tab is the follower the local UI never claimed the lock; (3) every Firestore presence snapshot overwrote `presenceCache` with whatever was in the cloud — which for follower tabs is the *leader's* `focusBlockId`, not the local one — clobbering the optimistic patch within 100–300 ms; (4) the V3.221 CSS rule (`box-shadow` + `border-color`) was load-order- / cache-dependent, so a stale service-worker copy could ship without it. V3.222 ships all four fixes plus a fifth belt-and-suspenders: also stamp `box-shadow` + `border-color` INLINE in `refreshBlockLock` so the visual change happens even if the CSS rule never reaches the page.
+
+### Changed
+- **`rm/js/paper-yjs.js`**
+  - `colorForUid` switched from CSS Color 4 space-separated HSL (`hsl(120 70% 45%)`) to the universally-supported comma form (`hsl(120, 70%, 45%)`). The space form silently became invalid in some engines we still need to support, which made `--pe-lock-color: hsl(...)` resolve to the fallback gray.
+  - `setFocusBlock` no longer gates the optimistic local-cache patch on `isPresenceLeader`. Follower tabs now also patch their local `presenceCache` so the user editing in a follower tab sees their own lock locally.
+  - `presence.onSnapshot` callback now overrides self's `focusBlockId` with the local `presenceState.focusBlockId`. Two reasons: (a) follower tabs receive snapshots where the *leader* wrote the focus value, not us — without the override, every snapshot tick clobbered our local focus; (b) the local value is always fresher than the Firestore round-trip. If the snapshot doesn't contain a self row at all (first-focus race before Firestore has reflected the write), a synthetic self entry is added so the lock UI doesn't depend on the round-trip arriving.
+- **`rm/js/paper-blocks.js`** — `refreshBlockLock` now ALSO sets `blockWrap.style.boxShadow = '0 0 0 3px ' + color; blockWrap.style.borderColor = color;` inline on the self branch, and clears both inline properties on the `other` / no-holder branches. Inline styles win over the CSS rule unconditionally — no `!important` battle, no risk of the CSS rule being stale or shadowed by an unexpected selector.
+- **`sw.js`** — `CACHE_VERSION` 190 → 191.
+
+### Bug fixes
+- **Self-lock outline never showing the holder's color after V3.219–V3.221** — root cause was a stack of three latent issues (HSL syntax, follower-tab gate, snapshot-clobber) any one of which could individually mask the visual change. V3.222 fixes all three and adds the inline-style fallback so even a future CSS-load issue can't reproduce this class of bug.
+
+### Notes
+- The inline-style fallback duplicates the V3.221 CSS rule but is harmless: the CSS rule is still in place, and when the inline style is set, the cascade applies the inline value. When the inline style is cleared (no holder / other holder), the CSS rule falls back to whatever it was.
+- The synthetic self entry in the snapshot callback fires only when `presenceState.focusBlockId` is non-null AND Firestore didn't return a self row — a narrow window that exists at most for the first ~300 ms after the first focus event.
+
+## [V3.221] - 2026-05-14
+
+**Self-lock visual still wasn't showing in V3.220 — switch from `outline` to `box-shadow` + recolor full block border.** User reported "the section that I am on still doesn't change its outline color" after V3.219/V3.220 shipped. Best explanation: `outline` was getting suppressed in production by an ancestor stacking context, and `border-left` only changed one edge so the color flip wasn't unmistakable. V3.221 swaps the lock-self treatment to a `box-shadow`-based ring (universally rendered, no offset / clipping issues, no ancestor-stacking sensitivity) and recolors all four sides of the block's border via `border-color` with `!important` to defeat the base `.pe-block` `border: 1px solid #e5e7eb` longhand without rewriting the base rule.
+
+### Changed
+- **`rm/css/paper-editor.css`** — `.pe-block[data-locked="self"]` now reads `border-color: var(--pe-lock-color, #9ca3af) !important; box-shadow: 0 0 0 3px var(--pe-lock-color, #9ca3af) !important;` (replaces V3.219's `outline: 2px solid …; outline-offset: 2px; border-left: 3px solid …`). The `--pe-lock-color` JS path is unchanged — same custom property set inline from `refreshBlockLock` based on the holder's presence color.
+- **`sw.js`** — `CACHE_VERSION` 189 → 190.
+
+### Bug fixes
+- **Self-lock outline wasn't visually changing in production**: outline rendering can be quietly clipped or suppressed depending on ancestor layout — box-shadow is more dependable, and combining it with a full-border recolor makes the state change unmistakable even if one of the two layers fails to render.
+
+### Notes
+- The `!important` is a deliberate trade-off to defeat `.pe-block`'s base `border: 1px solid #e5e7eb` longhand. The cleaner alternative would be hoisting the base border to a CSS custom property too, but that's a larger refactor and this is a single-rule override that's easy to audit.
+
+## [V3.220] - 2026-05-14
+
+**Two paper-editor fixes from another in-app pass on V3.216–V3.219.** (1) Self-lock outline was waiting for the Firestore presence-write round-trip to bounce back through `onSnapshot` before painting, which felt like "nothing happens when I click into a block" for the ~200ms latency window — `setFocusBlock` in `paper-yjs.js` now patches the local `presenceCache` synchronously before the Firestore write, so the holder's color outline appears instantly on focus. The eventual real snapshot overwrites the same entry with identical data, so the optimistic patch is invisible to remote clients. (2) The V3.218 hover-glow on body highlights ↔ panel comment cards blinked aggressively when the cursor passed quickly across a highlight (mouseout → blink off → mouseover → blink on, repeated per pixel). Replaced the immediate on/off toggle with a per-commentId 1s decay timer: mouseover fires immediately; mouseleave schedules removal after 1000ms; re-entering during the decay cancels the pending removal. Same timer reused for both hover directions since the commentId is the natural key on either side. Also dropped the leftover V3.217 green `box-shadow` under `.pe-block[data-locked="self"]` so the V3.219 holder-color outline isn't layered under a low-opacity green ring.
+
+### Changed
+- **`rm/js/paper-yjs.js`** — `setFocusBlock(blockId)` now patches the local `presenceCache` and fires `presenceListeners` synchronously after kicking off the async Firestore write. The patch is gated by `isPresenceLeader` so a follower tab (which doesn't write presence at all) doesn't get a phantom self-lock that the snapshot wouldn't confirm.
+- **`rm/js/paper-editor.js`** — `_setBodyHighlightHover(commentId, on)` rewritten as a per-commentId decay timer: applies the `.pe-comment-highlight-hover` (body span) + `.pe-comment-anchor-hover` (panel card) classes immediately on `on=true`; schedules removal in 1s on `on=false`; re-entering during the decay clears the pending timer. New `_paintHoverForCommentId(id, on)` helper does the actual class-toggle pass on both surfaces in one call. `_installCommentHoverLink`'s `mouseover` / `mouseout` handlers now loop over every id in the highlight's `data-comment-ids` and feed each through the decay path.
+- **`rm/css/paper-editor.css`** — `.pe-block[data-locked="self"]` V3.217 first-cut rule (`box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18)`) removed; the V3.219 outline + border-left rule at the bottom of the file is now the sole self-lock visual treatment.
+- **`sw.js`** — `CACHE_VERSION` 188 → 189.
+
+### Bug fixes
+- **Self-lock outline never appearing in single-tab sessions** — the presence listener fires on the *server's* echo of our write, which has ~100–300ms latency on production Firestore. Combined with the user's natural ~200ms click-to-look reaction time, the outline arrived after the user had already concluded "this is broken." Optimistic local patch fixes the perception. Real-world latency to remote clients is unchanged; they still see the outline appear after their own subscription tick.
+
+### Notes
+- The 1s decay was picked from "snappy enough that intentional moves still feel responsive, slow enough that micro-jitter across a span boundary doesn't blink." Adjustable via `HOVER_DECAY_MS` if it turns out to feel sluggish.
+- The optimistic presence patch keeps `lastSeen: Date.now()` for the local entry instead of a serverTimestamp placeholder — the value gets clobbered by the next real snapshot within ms, so a one-tick wall-clock vs. server-clock skew is acceptable.
+
+## [V3.219] - 2026-05-14
+
+**Three more paper-editor follow-ups from the in-app review.** (1) Self-held section lock outline + badge now use the holder's presence color (the same hue rendered in their avatar dot) instead of a hardcoded blue, so each user sees their own personal color around the blocks they own. (2) Comments pane auto-scopes to the currently focused paragraph — moving the caret to a new block in block-mode swaps the pane's `activeBlockId` so that paragraph's comments show by default without needing to click the toolbar `💬` button. (3) In-body comment highlights are no longer click-to-filter — `_installHighlightClickHandler` removed, cursor on `.pe-comment-highlight` / `.pe-comment-highlight-resolved` reverts to `text` so clicks place a caret like any other prose. The V3.218 two-way hover-glow link remains the entire interaction for highlights.
+
+### Changed
+- **`rm/js/paper-editor.js`**
+  - `ctx.onFocusBlock(blockId)` now also calls a new internal `_maybeRefocusCommentsPane(blockId)` that updates `commentsState.activeBlockId` + clears `pendingAnchor` / `anchorFilterIds` + refreshes the pane's context label + re-renders the list. No-op when the pane is closed, when the filter is `'view'` (handles itself), or when the new block is already the active one.
+  - `_installHighlightClickHandler` and its installation call removed; click events on highlights now fall through to the contenteditable's native selection behavior. `openCommentsForBlockWithAnchorIds` is retained but no longer reachable from the UI (kept available for future surfaces; ~15 lines of dead code).
+- **`rm/js/paper-blocks.js`** — `refreshBlockLock` now sets `blockWrap.style.setProperty('--pe-lock-color', holder.color)` for the self-holder branch too (it already did for the remote branch). The `removeProperty` happens on the no-holder branch so the variable doesn't bleed across state transitions.
+- **`rm/css/paper-editor.css`**
+  - `.pe-block[data-locked="self"]` swaps the hardcoded blue (V3.218) for `var(--pe-lock-color, #9ca3af)` on both `outline` and `border-left`. `.pe-block-lock-badge.pe-block-lock-self` re-grayed (`rgba(0,0,0,0.03)` background, `var(--pe-lock-color)` border) so the badge text doesn't fight the badge border for visual weight when the personal color is a low-contrast hue.
+  - `.pe-comment-highlight` / `.pe-comment-highlight-resolved` `cursor: pointer` → `cursor: text` since the click-to-filter handler is gone.
+- **`sw.js`** — `CACHE_VERSION` 187 → 188.
+
+### Bug fixes
+- None — three follow-up tweaks on top of V3.216–V3.218.
+
+### Notes
+- The pane-follows-focus behavior only fires in `'block'` filter mode. In `'view'` mode (the V3.204 "Paragraphs in view" option) the panel already shows everything currently on-screen, so retargeting to a single block would be a regression.
+- Self-lock color falls back to `#9ca3af` (neutral gray) if `--pe-lock-color` isn't set — this only happens for the one repaint frame between block mount and the first `refreshBlockLock` call, so it's effectively invisible.
+
+## [V3.218] - 2026-05-14
+
+**Paper editor follow-ups to V3.216 + V3.217 from a one-pass review of the feature in-app.** Three small UX fixes layered on the freshly shipped highlight + lock work: (1) anchored comment highlights now stay painted while the paragraph is focused so the writer can see which prose is being discussed while they're editing it; (2) hover over a comment card in the side panel glows the matching body highlight, and hover over a body highlight glows every card carrying a matching id — two-way visual link; (3) self-held section locks paint a blue outline around the entire block (not just a green left-edge accent) so the holder can see at a glance which block they own, matching the "blue = you" convention used elsewhere in RM. No schema changes; no plan doc (small enough to live in the V3.216/V3.217 plan retrospectives).
+
+### Changed
+- **`rm/js/paper-editor.js`**
+  - `applyCommentHighlightsToBlock` no longer skips when `document.activeElement === rootEl`. The chip-mode DOM (text nodes + atomic `data-src` chip elements) is structurally identical at the text-node level to the blur-mode DOM, our highlight wrappers carry no `data-src` so `serializeChipDom` recurses through them losslessly, and we only repaint on focus / blur / comments-changed (not per-keystroke) — so caret position isn't disturbed mid-edit.
+  - `bindYTextToContentEditable`'s focus handler now calls `fireOnRendered()` after `el.innerHTML = renderChipsOnlyHtml(src)` so highlights re-overlay on top of the chip-mode swap. Same change in the focused-while-remote-update branch of the Y.Text observer.
+  - `_renderCommentCard` stamps `data-comment-id` on each card and attaches mouseenter/mouseleave handlers that toggle `.pe-comment-highlight-hover` on every body highlight whose `data-comment-ids` list includes the card's id.
+  - One delegated document-level `mouseover` / `mouseout` handler (`_installCommentHoverLink`) toggles `.pe-comment-anchor-hover` on every comment card matching the hovered highlight's `data-comment-ids`. `mouseout` skips child-to-parent transitions via `e.relatedTarget` containment check.
+- **`rm/css/paper-editor.css`**
+  - `.pe-block[data-locked="self"]` switches from green left-edge accent to a blue `outline: 2px solid #2563eb; outline-offset: 2px` + blue left edge. `.pe-block-lock-badge.pe-block-lock-self` recolored to a matching blue palette (`#eff6ff` / `#bfdbfe` / `#1d4ed8`).
+  - New `.pe-comment-highlight-hover` (deeper amber fill + amber outline) and `.pe-comment-anchor-hover` (amber outline + shadow on the comment card) rules for the two-way hover glow.
+- **`sw.js`** — `CACHE_VERSION` 186 → 187.
+
+### Bug fixes
+- None — three small follow-up tweaks, no regressions to fix.
+
+### Notes
+- The "highlights visible while editing" change accepts a known caret-loss-on-first-focus from the V3.159 chip-mode swap (`el.innerHTML = renderChipsOnlyHtml(...)` already wipes the caret before any highlight wrapping happens). The V3.218 change doesn't make this worse — it just stacks one more DOM mutation after the swap.
+- Hover-link uses native CSS classes rather than inline styles so it composes cleanly with existing `.pe-comment-highlight` / `.pe-comment-highlight-resolved` rules without specificity battles.
+- Lock-holder outline picks blue because amber is the comment-highlight color and green was the V3.217 first cut — blue distinguishes "this is mine" from both the comment surface and the prior lock-self palette.
+
+## [V3.217] - 2026-05-14
+
+**Paper editor: soft per-block section locking surfaces who is editing a paragraph during multi-user co-authoring.** Two coauthors editing the same paragraph is technically safe under Yjs (the CRDT merges) but produces a confusing keystroke-fight. V3.217 promotes the existing `papers/{paperId}/presence/{uid}.focusBlockId` into a soft per-block lock: the first user to focus a block holds it (deterministic smallest-UID tie-break under contention so both clients agree), every other client sees the block visibly locked (with the holder's name + presence-color dot) and cannot place a cursor / type into it. The holder also sees their own self-badge so it's obvious *they* are the one blocking the other side. Stale locks self-clear via three mechanisms: the existing 30s `PRESENCE_STALE_MS` filter in `paper-yjs.js` (disconnect backstop), a per-block 30s idle timer in `paper-blocks.js` (no input → release), and 250ms-debounced blur release (focus leaves the block → release). `paper-yjs.js` is unchanged. Plan: [`CodeLog/ClaudesPlan/V3.217_paper_section_locks.md`](../ClaudesPlan/V3.217_paper_section_locks.md).
+
+### Added
+- **`rm/js/paper-blocks.js`** — Each paragraph block toolbar gains a `<span class="pe-block-lock-badge">` after the presence dots; `refreshBlockLock(blockWrap, bdEl, badgeEl, ctx, blockId)` paints either a green "You" badge for the self-holder or a "Locked by Alex" badge with the holder's color dot for non-holders, and walks every `[contenteditable]` descendant inside the block setting it to `'false'` when a remote holder is detected. New helpers `_setBlockEditablesLocked(blockWrap, ctx, locked)`, `_showLockToast(x, y, holder)` (single shared `.pe-lock-toast` element, auto-hides after 1.8s — triggered by a wrap-level click handler when `data-locked="other"`). Release wiring: per-block `_scheduleRelease()` (250ms-debounced `focusout` → `setFocusBlock(null)`, skipped when `e.relatedTarget` is still inside the same block so intra-block toolbar clicks don't drop the lock) + `_bumpIdleTimer()` (30s no-input release), both delegated at wrap level via `focusin` / `focusout` / `input` so skeleton bullets share the same timers as the body. `_selfOwnsThisBlock()` guard reads `ctx.getSelfFocusBlockId()` so a stale closure can't stomp on a lock the user has since moved to a sibling block. Self-badge click manually releases. `wrap.input` re-acquires the lock if the idle timer dropped it while the user remained focused. `paper-presence-changed` listener now calls `refreshBlockLock` alongside `refreshBlockPresence`.
+- **`rm/js/paper-editor.js`** — `renderSection` exposes three new helpers on `ctx`: `getLockHolderForBlock(blockId)` (filters `state.presenceList` by `focusBlockId === blockId`, deterministic smallest-uid tie-break), `releaseLock()` (thin wrapper over `state.conn.setFocusBlock(null)`), and `getSelfFocusBlockId()` (reads own presence record's `focusBlockId` so timers can detect "I've moved on" and skip a stale release).
+- **`rm/css/paper-editor.css`** — `.pe-block-lock-badge` (rounded-pill, neutral default / green self), `.pe-block-lock-self`, `.pe-block-lock-dot`, `.pe-block-lock-name`, `.pe-block[data-locked="other"]` (dimmed body, `not-allowed` cursor, `--pe-lock-color` left-edge accent set inline from the holder's presence color), `.pe-block[data-locked="self"]` (subtle green ring), `.pe-lock-toast` (dark pill with amber border).
+- **`CodeLog/ClaudesPlan/V3.217_paper_section_locks.md`** — plan doc.
+
+### Files NOT changed
+- **`rm/js/paper-yjs.js`** — the 30s idle release lives entirely in `paper-blocks.js` since that's where the block-level focus events fan in. The existing 30s `PRESENCE_STALE_MS` check in `paper-yjs.js` is the disconnect backstop and was already in place.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 185 → 186.
+
+### Bug fixes
+- None — new feature.
+
+### Notes
+- Skeleton bullets share the lock: their `ctx.onFocusBlock(blockId)` call already claims the parent block's lock on focus, and `refreshBlockLock` toggles `contenteditable` on every descendant so bullets are locked too when the block is held by someone else.
+- No "force-steal" affordance in this version — stale locks self-clear within 30s via the presence-stale check or the new idle timer, fast enough that the UX surprise of yanking control away from a still-active holder isn't worth the affordance.
+
+## [V3.216] - 2026-05-14
+
+**Paper editor: visual highlight on commented text — V3.204 anchor schema now produces visible amber-tinted spans on the exact prose each comment targets.** Hovering shows the comment count via `title` tooltip; clicking opens the comments side panel filtered to those specific comment IDs (with a yellow scope chip and a clear-`×` to restore the full block thread). Resolved-only spans render as a thin dotted underline instead of the amber fill so the reader can tell active discussion from settled discussion at a glance. Highlights live-update as comments are added, resolved, or deleted via the existing `paper-comment-counts-changed` event; they're skipped while the paragraph is focused (chip-source mode is on and the user is editing) and reappear on blur. Plan: [`CodeLog/ClaudesPlan/V3.216_paper_comment_highlights.md`](../ClaudesPlan/V3.216_paper_comment_highlights.md).
+
+### Added
+- **`rm/js/paper-editor.js`** — `_mergedAnchorRangesForBlock(blockId)` walks `commentsState.docs`, drops comments without numeric `anchorStart`/`anchorEnd`, sorts by start, and merges overlapping ranges into a flat non-overlapping list (each merged range carries the union of comment IDs covering it + a `hasOpen` flag — open beats resolved when both intersect the same span). `applyCommentHighlightsToBlock(rootEl, blockId)` does a single document-order DOM walk counting source-space char offsets the same way as the V3.191 chip-aware walker (text-node `nodeValue.length`, chip `data-src.length`, `<br>` = 1), splits text nodes intersecting a merged range, wraps the middle slice with `<span class="pe-comment-highlight">` (open) or `<span class="pe-comment-highlight-resolved">` (all-resolved), stamps `data-comment-ids` (semicolon-joined) + `data-block-id` + a `title` like `"3 comments"`. Idempotent — existing wrappers are unwrapped before re-wrapping. `commentsState` gains `anchorFilterIds` (array of comment IDs); `renderCommentsList` narrows the list to those IDs when set and renders an amber `.pe-comments-anchor-scope` chip with a clear-`×`. New `openCommentsForBlockWithAnchorIds(blockId, label, ids)` is the click-target for highlight clicks; forces filter mode to `'block'` so scope is unambiguous. Single delegated document-level click handler for `.pe-comment-highlight, .pe-comment-highlight-resolved` calls it. `window.PaperComments.applyHighlights` exported for `paper-blocks.js`.
+- **`rm/js/paper-blocks.js`** — `renderParagraph` passes `onRendered: el => PaperComments.applyHighlights(el, blockId)` into the body bind so highlights overlay every full HTML render (initial mount, blur, remote update while unfocused, equation-library refresh). `paper-comment-counts-changed` listener now also repaints highlights when the body isn't focused, so adds / resolves / deletes propagate live without a paragraph re-render.
+- **`rm/css/paper-editor.css`** — `.pe-comment-highlight` (amber fill, hover-darkens, pointer cursor), `.pe-comment-highlight-resolved` (dotted underline, hover-solid), `.pe-comments-anchor-scope` (flex row, amber-tinted, with `.pe-comments-scope-clear` × button).
+- **`CodeLog/ClaudesPlan/V3.216_paper_comment_highlights.md`** — plan doc.
+
+### Changed
+- **`rm/js/paper-editor.js`** — `bindYTextToContentEditable` accepts an optional `opts.onRendered(el)` callback that fires after every `applyRendered` call. `applyRendered` accepts a matching `onAfterRender` parameter and threads it through the lazy-KaTeX fallback path so highlights also paint after the deferred re-render once the math library loads.
+- **`sw.js`** — `CACHE_VERSION` 183 → 185 (V3.216 bump, V3.217 follow-up).
+
+### Bug fixes
+- None — new feature.
+
+### Notes
+- Anchor offsets are still V3.204's source-space snapshot (not CRDT pointers), so highlights can become stale on subsequent edits to the paragraph. The stored `anchorText` keeps the comment legible regardless; this is the same trade-off V3.204 took.
+- No new Firestore rules or composite indexes — the new fields ride on the existing `papers/{paperId}/comments/{commentId}` doc shape from V3.204.
+
+## [V3.215] - 2026-05-14
+
+**RM PCard Business Purpose Helper page — focused builder that drafts the UA Business Purpose statement for the Engineering Business Center-North (EBC-N) pcard form.** User picks an expense type from pill buttons (Equipment / Supplies / Conference travel / Sponsor review / Software / Membership / Business meal / Publication / Other), fills 3–5 conditional text fields, and copies a 1–3 sentence UA-compliant statement into the form's "Business Purpose - Benefit to the University" field. Click-to-copy chips at the top of the page hold the user's persistent defaults (Dept BME-(2328), Name, Email, PCard last-4). Reference content (other form-field tips, links to UA Business Purpose Guide + Reasonable Expense Guide) is tucked behind one collapsed `<details>` at the bottom. Initial cut of V3.215 included a full EBC-N field cheatsheet, three reasonable-expense tests, an AICPA/HEFC code table, a documentation checklist, and a verbatim good-vs-weak examples gallery — user pushed back ("this page is terrible"), so the page was rebuilt as a focused single-purpose tool and the reference content was dropped. Statement templates apply the UA 5/6-W framework (What/Why/Who/How/Where/When) drawn from <https://finance.arizona.edu/accounting/business-purpose>. No Firestore reads/writes — self-contained client-side.
+
+### Added
+- **`rm/pages/pcard-helper.html`** (new) — single-column layout (760px max-width), three numbered sections top-to-bottom: (1) expense-type pill picker + optional tip banner, (2) conditional input fields per template, (3) green-tinted output card with character count + Copy button. Above section 1: a row of click-to-copy chips holding `Dept: Biomedical Engineering-(2328) / Name: Alexander McGhee / Email: mcgheealex@arizona.edu / PCard: 3230` — each chip writes just the value (not the label) to the clipboard. Below section 3: a single collapsed `<details>` titled "Other PCard form field tips" listing terse one-liners for Receipt $$, Capital Asset?, Tax Exempt?, Asset Location, File Upload, Funding Account, Additional Comments, and used-equipment Sole Source Justification, plus links to UA's Business Purpose Guide + Reasonable Expense Guide. Page-local styles inline (pill component, chip strip, output card gradient, collapse marker arrow).
+- **`rm/js/pcard-helper.js`** (new, ~360 lines) — `EXPENSE_TYPES` registry keyed by expense kind; each entry declares `label` (long), `pill` (short pill label), optional `tip` ({kind: info/warn/good, text}), `fields` (array of `{key, label, placeholder, hint?, value?, textarea?}`), and `render(values)` that produces the 1–3 sentence statement using `DEFAULTS` (PI title, lab name, affiliation, department, pcard last-4, email). Equipment template emits a cost-comparison clause when vendor type is reseller / refurbished / used. Sponsor-review uses `the ${sponsor}` (works for any sponsor regardless of vowel) instead of the old `a ${sponsor}` which produced "to attend a Office of Naval Research…". Publication template capitalizes the first letter of the charge-kind via `capFirst()` so output reads "Open-access fee to Journal of Biomechanics…" not lowercase. Conference travel picks "a"/"an" for the presentation-format article. State is in-memory only; switching expense types preserves any field values the user already typed for the same `key`. Click-to-copy chips at the top of the page render in `renderDefaults()`. Pill picker re-renders on select and replaces the dropdown from the first cut.
+- **`CodeLog/ClaudesPlan/V3.215_pcard_helper.md`** — plan doc, rewritten to describe the focused-tool design (added revision note documenting why the first cut was scrapped).
+
+### Changed
+- **`rm/js/nav.js`** — Lab Admin group gains a "Pcard Helper" entry, positioned between "Procurement" and "Receipts & Budget" so the procurement workflow links sit together. No `gate:` field — page is information-only and useful even when signed out.
+- **`sw.js`** — `CACHE_VERSION` 81 → 184 (one bump for V3.215, second bump for the redesign so any tester who hit the first cut's cached HTML picks up the new layout).
+
+### Bug fixes
+- None — new feature.
+
+## [V3.213] - 2026-05-14
+
+**Page→collection map audit + fill: closes the 26 unmapped pageIds the V3.212 migration warned about.** V3.212's `node scripts/migrate_user_permissions_add_collections.js` dry-run surfaced pageIds in production `userPermissions/{uid}` docs that didn't have entries in `PAGE_COLLECTIONS` — harmless under V3.212 (no rule clause uses `collabMay` yet), but must be filled before V3.214 starts rule-gating since granting an unmapped page resolves to zero data access. Audited each unmapped pageId's JS for collection references and added 26 entries to both the browser map and the migration script's hand-mirror. Plan: `CodeLog/ClaudesPlan/V3.213_collaborator_map_audit.md`.
+
+### Added
+- **`rm/js/page-collections.js`** — 26 new `PAGE_COLLECTIONS` entries: `activity-overview__tab__tracker`, `activity-overview__tab__email`, `cv-editor`, `profile`, `settings`, `finance`, `huddle`, `chemicals`, `split-view`, plus the 17 training modules (`training-paper-writing`, `training-phd-triangle`, `training-scientific-communication`, `training-microscope-basics`, `training-image-analysis-basic`/`-intermediate`/`-advanced`, `training-spheroid-sizes`, `training-image-train`, `training-cell-tracker`, `training-confocal`, `training-imagej-fiji`, `training-epifluorescence`, `training-rm-essentials`, `training-rm-papers`, `training-rm-tasks-pmr`, `training-rm-daily-research`). All training entries + the user-scoped utility pages (cv-editor / profile / settings / finance / activity-overview tabs) map to `['labConfig']` only — their data is either owner-locked (`userData/{uid}/*`, `cvData/{uid}`, `userSettings/{uid}`) or static. `huddle` is the only meaningful addition: `[huddleConfig, huddleHelpRequests, huddlePlans, huddleRundown, labConfig]`; `huddleSettings/{uid}` excluded since it's owner-locked. `chemicals` maps to `[inventory, labConfig]` (it's a filtered view of inventory). `split-view` is `[labConfig]` (shell only — iframes own their data).
+- **`scripts/migrate_user_permissions_add_collections.js`** — same 26 entries mirrored into the hand-copy of the map at the top of the file.
+
+### Changed
+- Re-ran `node scripts/migrate_user_permissions_add_collections.js --commit` against production after the map fill. **14 docs touched, 0 unchanged, 0 skipped, 0 unmapped warnings** — every existing collaborator/lab-member userPermissions doc that held the `huddle` pageId now has the four huddle collections in its `allowedCollections`. The training / activity-tabs / utility-page entries contributed nothing to the union for existing docs (all `[labConfig]`, which was already present).
+- **`sw.js`** — `CACHE_VERSION` 182 → 183.
+
+### Bug fixes
+- None — pure infrastructure expansion.
+
+### Files NOT changed
+- `firestore.rules` is unchanged. V3.213 still ships zero rule clauses using `collabMay` — V3.214 starts that pass with the research-IP collections (papers, drafts, grantDrafts + subcollections, biosketches, facilitiesDocs, items, paperTemplates, protocols + yjs_*/versions/details).
+
+### Deploy
+- No rules deploy needed (firestore.rules unchanged).
+- Migration script already re-committed against production above.
+- FTP `rm/js/page-collections.js`, `scripts/migrate_user_permissions_add_collections.js`, and `sw.js` so the new mappings reach the browser for future admin-matrix saves.
+
+## [V3.212] - 2026-05-13
+
+**Foundation for hard data-layer enforcement of the page-allow matrix on collaborators. Ships the rules helpers, denormalized `userPermissions/{uid}.allowedCollections` field, page→collection map, admin matrix UI changes, and a one-shot migration script — but does NOT gate any rule clause yet.** V3.213 and V3.214 will incrementally apply `&& collabMay('<coll>')` to actual reads, starting with research-IP collections (papers, drafts, grantDrafts, biosketches, facilitiesDocs, items, paperTemplates, protocols + subcollections). Phased because the project has no Firestore rules unit tests, no emulator configured, and a single production project — a single 30-rule deploy without a migration would lock every existing collaborator out. Master plan with full 19-entry risk register at `~/.claude/plans/think-about-all-the-quiet-badger.md`; project-local mirror at `CodeLog/ClaudesPlan/V3.212_collaborator_data_layer_phase1.md`.
+
+### Added
+- **`firestore.rules`** — new helpers `isCollaborator()` and `collabMay(coll)` directly above `isLabContributor()`. `isCollaborator()` reads `users/{uid}.category == 'collaborator'` — same doc `isLabMember()` and `isAdmin()` already read, so the `get()` is deduped within a rule evaluation (no extra cost). `collabMay(coll)` short-circuits on `!isCollaborator()` so the `userPermissions/{uid}` read only fires for collaborators; reads `allowedCollections` via `.data.get('allowedCollections', [])` (defaults to empty array if the field is missing, preventing rule-throw on partially-migrated docs). 1 net new `get()` per evaluation for collaborator requests; 0 for everyone else. Adding `collabMay` to a rule that already calls `isLabContributor()` (the heaviest existing helper at 2 reads) totals 3 reads — well under Firestore's 10-read budget. **No rule clause uses these helpers yet** — V3.213/V3.214 will.
+- **`rm/js/page-collections.js`** (NEW, ~100 lines) — `window.PAGE_COLLECTIONS` exports `{map, collectionsFor(pageIds), unmappedPageIds(pageIds)}`. The `map` is a hand-curated `pageId → string[]` mapping covering ~25 pages most likely to be granted to a collaborator (library, paper-builder, pmr, meetings, chat, lab-notebook, protocols, dashboard, grants, etc.). `collectionsFor` returns the sorted-deduped union of collections required by any pageId in the input array — this is the denormalization function used by both the admin matrix UI (runtime) and the migration script (one-shot). Owner-locked subcollections (`userData/{uid}/...`) are intentionally excluded — already gated by `isOwner` in rules. `users` is excluded (public-read). `labConfig` is included on every page because the workflow chip strip + nav hit it.
+- **`scripts/migrate_user_permissions_add_collections.js`** (NEW, ~150 lines) — Node + firebase-admin one-shot migration. Walks every `userPermissions/{uid}` doc, computes `allowedCollections` from `allowedPageIds` via a hand-mirrored copy of the page-collections map (with a "keep in sync" note), writes back via `.set({...}, {merge: true})`. Default dry-run; `--commit` flag actually writes. Skips docs with no `allowedPageIds`, warns on unmapped pageIds, idempotent on re-runs (computed = existing → skip write). Requires `GOOGLE_APPLICATION_CREDENTIALS` env var OR `scripts/service-account.json` (now gitignored).
+- **`rm/pages/admin-permissions.html`** + **`rm/js/admin-permissions.js`** — new "Recompute all collaborator grants" admin button in the toolbar. Walks every `userPermissions/{uid}` doc and re-derives `allowedCollections` from its current `allowedPageIds` via `window.PAGE_COLLECTIONS.collectionsFor`. Use after editing the pageId → collection map so existing grants pick up new mappings without forcing manual re-saves. Idempotent: skips writes where computed equals stored. Reports `touched`/`unchanged`/`skipped` counts in the status line.
+
+### Changed
+- **`rm/js/admin-permissions.js`** — the per-user save (~line 675) now writes both `allowedPageIds` AND `allowedCollections` in the same `.set({...}, {merge:true})` call. Collections are computed via `window.PAGE_COLLECTIONS.collectionsFor` at save time. Falls back to an empty `allowedCollections` array if the helper isn't loaded (defensive — shouldn't happen since `page-collections.js` is loaded by `admin-permissions.html`).
+- **`rm/js/firebase-bridge.js`** `loadAccessGrant()` (~line 222) — now also reads the `allowedCollections` field off `userPermissions/{uid}` and caches it on `_accessGrant.allowedCollections`. Exposed for debugging / future client-side use; `canAccessPage()` continues to consult `allowedPageIds` only. The server-side `collabMay(coll)` helper in rules is the authoritative gate.
+- **`rm/index.html`**, **`rm/pages/workflow-shell.html`**, **`rm/pages/split-view.html`**, **`rm/pages/admin-permissions.html`** — load `/rm/js/page-collections.js` immediately after `page-registry.js`. Both are global-window IIFEs; the convention keeps them together for future use.
+- **`.gitignore`** — `scripts/service-account.json` added so the Firebase service account JSON used by the migration script never lands in git.
+- **`sw.js`** — `CACHE_VERSION` 181 → 182.
+
+### Bug fixes
+- None — pure infrastructure add.
+
+### Deploy notes
+**V3.212 ships zero behavioral changes for collaborators.** Helpers are defined but no rule clause uses them. The migration script populates `allowedCollections` on existing `userPermissions` docs before any rule-tightening deploy lands, so V3.213/V3.214's gating clauses find the field already present.
+
+Deploy order:
+1. `node scripts/migrate_user_permissions_add_collections.js` (dry run — inspect output).
+2. `node scripts/migrate_user_permissions_add_collections.js --commit` (actually write).
+3. `firebase deploy --only firestore:rules` from the McGheeLabWebsite repo root (rules now include the unused helpers).
+4. Cyberduck-FTP the updated client files (`sw.js`, `rm/js/page-collections.js`, `rm/js/admin-permissions.js`, `rm/js/firebase-bridge.js`, `rm/pages/admin-permissions.html`, `rm/index.html`, `rm/pages/workflow-shell.html`, `rm/pages/split-view.html`).
+
+Rollback: `firebase firestore:rules:rollback` reverts rules; re-FTP the prior commit's client files; the new `allowedCollections` field on existing docs is harmless to leave in place since old client + rules code ignore it.
+
+## [V3.211] - 2026-05-13
+
+**Paper builder: when the comments pane is open, highlighting auto-stages the anchor in a "New comment" section above the textbox — no floating button click needed.** User report: "when the comment pane is already open, any highlighted text will appear in a new comment section of the pane close to the comment textbox, as the user comments, the comment will be linked to the text." V3.210 introduced the highlight-anchored comment via a floating "💬 Comment" button — but when the pane was already open, the user still had to round-trip through that button. V3.211 makes the pane-open path direct: highlight any text in any paragraph body → the snippet shows up immediately in a new "New comment" section directly above the composer textbox → start typing → post → the comment is linked to that exact text.
+
+### Added
+- **`rm/pages/paper-builder.html`** — composer wrapped in a new `<div class="pe-comments-new">` block with a `<div class="pe-comments-new-title">New comment</div>` label. The `<div class="pe-comments-anchor-preview" id="pe-comments-anchor-preview">` moved inside this wrapper, sitting between the title and the textarea so the snippet is visually attached to the comment being authored. The wrapper is sticky-bottom (`flex-shrink: 0` keeps it pinned in the pane's flex column).
+- **`rm/css/paper-editor.css`** — V3.211 styles: `.pe-comments-new` (bottom-pinned column with top border), `.pe-comments-new-title` (10px uppercase gray label), and a `.pe-comments-new .pe-comments-anchor-preview` rule that rebounds the V3.210 anchor preview with 14 px side margins + a rounded 4 px border (the amber tint stays from V3.210 so the snippet still reads as "highlighted"). `.pe-comments-composer` border-top removed since the parent `.pe-comments-new` now owns the visual divider.
+
+### Changed
+- **`rm/js/paper-editor.js`** — `_installCommentSelectionWatcher`'s `selectionchange` handler now branches on pane-open state. When `commentsPaneEl && !commentsPaneEl.hidden`: hide the floating "💬 Comment" button (it's redundant), switch `commentsState.activeBlockId` to the selection's block if different (so a highlight in a sibling paragraph re-targets the pane to that paragraph), refresh the context label + composer state + list (in `block` filter mode), and assign `commentsState.pendingAnchor = {anchorStart, anchorEnd, anchorText}` so `_refreshAnchorPreview()` paints the snippet directly above the textbox. When the pane is closed: the V3.210 floating-button flow runs unchanged (button anchors to the selection rect, click stages the anchor and opens the pane).
+- **`sw.js`** — `CACHE_VERSION` 180 → 181.
+
+### Notes
+- **Auto block-switch is intentional.** If the user has the pane open viewing block A's comments and highlights text in block B, the pane re-targets to block B and stages the anchor. The user can immediately type the new comment without re-clicking. View-mode (V3.210 `filter === 'view'`) doesn't re-render the list on block switch because the list already shows everything in view — only the composer's target changes.
+- **Floating button still useful when pane is closed.** It's the discovery affordance for the first-time user who hasn't opened the comments pane yet. Once the pane is open, the floating button stays hidden so the user's gaze can stay on the in-pane workflow.
+- **No data-model changes.** Anchor field shape (`anchorStart`, `anchorEnd`, `anchorText`) and `papers/{paperId}/comments/{commentId}` schema are unchanged from V3.210.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v180`.
+
+## [V3.210] - 2026-05-13
+
+**Paper builder: highlight-anchored comments + filter toggle between "this paragraph" and "paragraphs in view".** User report: "in paper writer, I want to be able to highlight text in a paragraph and comment on it specifically. In the comments panel there should be a toggle between only comments in this paragraph, and comments for the paragraphs in view." Pre-V3.210 the Phase D comments system bound every comment to a single `blockId` — a block-level (paragraph-wide) anchor — and the panel only showed comments for one active block at a time. V3.210 keeps the block-level path as a default and adds two coupled enhancements: (1) **text-range anchors**: a floating "💬 Comment" button follows any non-collapsed text selection inside a paragraph body, and clicking it stages the source-space `(anchorStart, anchorEnd, anchorText)` for the next comment so the comment card visibly carries the highlighted snippet; (2) **filter toggle**: a dropdown in the comments-pane header switches between "This paragraph only" (legacy block scope) and "Paragraphs in view" (all comments whose `blockId` is currently visible in the viewport). The selected filter persists across reloads via `localStorage.rm_paper_comments_filter`.
+
+### Added
+- **`rm/pages/paper-builder.html`** — comments pane gains two new top-level slots between the header and the list: `<div class="pe-comments-filterbar">` (label + `<select id="pe-comments-filter">` with two options `block` / `view`) and `<div class="pe-comments-anchor-preview" id="pe-comments-anchor-preview" hidden>` (shows the staged highlight snippet before posting).
+- **`rm/js/paper-editor.js`** — `commentsState` gains two new fields: `filter` (`'block'` | `'view'`, persisted) and `pendingAnchor` (`null` | `{anchorStart, anchorEnd, anchorText}`). Five new module-level element refs (`commentsFilterEl`, `commentsAnchorPreviewEl`, `commentsFloatingBtnEl`, plus the `_commentScrollRefreshTimer` debouncer).
+- **`rm/js/paper-editor.js`** — new `_ensureCommentFloatingBtn()` + `_installCommentSelectionWatcher()` install a global `selectionchange` listener that detects a non-collapsed selection inside a `.pe-block-content[contenteditable]` paragraph body (excluding skeleton bullets and non-paragraph contenteditables like table cells), measures the selection's bounding rect, positions a `.pe-comment-floating-btn` just below the selection, and stashes a candidate anchor `{paragraphEl, blockId, anchorStart, anchorEnd, anchorText}` on the button. The selection-change listener gates on `.pe-block[data-block-id]` ancestry so the floating button only appears in paper-writer contenteditables, not in other panels.
+- **`rm/js/paper-editor.js`** — `_charOffsetFromContainer(rootEl, container, offset)` is the V3.191 chip-aware walker without the Selection dependency. It walks text-node lengths and atomic-chip `data-src.length` byte counts so the saved anchor offsets stay in source-space. `_startCommentOnSelection()` reads the floating button's staged anchor, hides the button, switches the filter back to `'block'` (the natural scope for a freshly-anchored comment), and calls `openCommentsForBlock(blockId, blockLabel, anchor)`.
+- **`rm/js/paper-editor.js`** — `_renderCommentCard(c)` factored out so the list renderer can reuse it for both block-scope and view-scope. Cards now also render a `<div class="pe-comment-anchor-snippet">` line ABOVE the meta row when the comment carries an `anchorText` — a yellow-left-bordered italic snippet showing exactly what text the commenter targeted.
+- **`rm/js/paper-editor.js`** — `_visibleBlockIds()` walks `document.querySelectorAll('.pe-block[data-block-id]')` on demand and returns `{set, order}` of block IDs whose `getBoundingClientRect()` intersects the viewport. Cheap (no IntersectionObserver overhead for the common "I'm just scrolling, not toggling filters" case); refreshed by a 120 ms-debounced `scroll` listener that fires `renderCommentsList()` only when the pane is open in `view` mode. View-mode rendering groups by `blockId` with a clickable `.pe-comments-block-header` that scrolls + flashes the source paragraph on click.
+- **`rm/js/paper-editor.js`** — `_refreshAnchorPreview()` renders the staged anchor as a yellow `.pe-comments-anchor-preview` strip with a `Commenting on:` label + the snippet + a `×` clear button that detaches the anchor (collapses the comment back to block-scope before posting). `_refreshCommentsComposerState()` disables the textarea + Post button when no block is active (e.g. in `view` mode with no recent paragraph click), with a placeholder hinting "Click a paragraph or highlight text to start a comment…".
+- **`rm/css/paper-editor.css`** — V3.210 styles: `.pe-comments-filterbar` + nested label/select, `.pe-comments-anchor-preview` + label / snippet / clear button (amber theme so the anchor is unmistakable), `.pe-comment-anchor-snippet` (per-card snippet with amber left-border), `.pe-comments-scope-label` + `.pe-comments-block-header` (uppercase blue, clickable to scroll-to-block), `.pe-comment-floating-btn` (round blue pill with shadow, position:absolute z-index 4200).
+
+### Changed
+- **`rm/js/paper-editor.js`** — `subscribeComments` Firestore snapshot handler now refreshes the list when EITHER `activeBlockId` is set (legacy) OR the filter is `'view'` (so new comments appearing in any visible block surface immediately).
+- **`rm/js/paper-editor.js`** — `openCommentsForBlock(blockId, blockLabel, anchor)` accepts an optional third arg; stages it as `pendingAnchor` and runs `_refreshAnchorPreview()`. Composer focuses the textarea so the user can type immediately after clicking "💬 Comment".
+- **`rm/js/paper-editor.js`** — `submitComment` folds in the staged anchor as three additional doc fields (`anchorStart`, `anchorEnd`, `anchorText` capped at 500 chars) when present. Clears `pendingAnchor` + the preview strip after post.
+- **`rm/js/paper-editor.js`** — `closeComments` clears `pendingAnchor` and hides the floating button so a stale anchor can't leak into the next open.
+- **`sw.js`** — `CACHE_VERSION` 179 → 180.
+
+### Notes
+- **Anchor offsets are a snapshot, not a CRDT pointer.** If the paragraph body is edited after the comment is posted, the byte offsets `anchorStart` / `anchorEnd` can become stale relative to the live text. The comment still renders correctly — the snippet is stored alongside the offsets — but the offsets themselves aren't re-anchored. Yjs RelativePosition-backed re-anchoring is a separate effort and out of scope for V3.210.
+- **No visual highlight on the doc yet.** V3.210 surfaces the snippet inside the comment card but doesn't draw an underline on the paragraph itself. The user's ask was the comment-on-selection + filter toggle; in-doc range highlights for resolved/unresolved comments can ship as a follow-up if it's useful.
+- **No new Firestore rules.** New fields (`anchorStart`, `anchorEnd`, `anchorText`) ride on the existing `papers/{paperId}/comments/{commentId}` doc shape; the V3.103 lab-readable comment path is unchanged. Backward-compat: old comments without anchor fields render as block-level (legacy behavior).
+- **Filter persistence.** `localStorage.rm_paper_comments_filter` records the last-chosen filter so re-opening the paper resumes in the same mode.
+- **Composer disabled in view mode without a click.** In `view` mode the textarea + Post button are disabled until the user clicks a paragraph (sets `activeBlockId`) OR highlights text + clicks the floating "💬 Comment" button (sets `activeBlockId` + stages the anchor). Prevents posting a comment with no target paragraph.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v179`.
+
+## [V3.209] - 2026-05-13
+
+**Add new user category `collaborator` for external partners: granted page access via the admin page-allow matrix; auto-hidden from public + internal directories.** Distinct from V3.208's per-user `hidden` flag — collaborators are a category-level concept with their own access semantics (no implicit default-workflow baseline; admin grants every page explicitly). Lab members still get the implicit baseline; only `collaborator` skips it. Plan: `CodeLog/ClaudesPlan/V3.209_collaborator_category.md`.
+
+### Added
+- **`rm/js/people.js`** — `collaborator` added to `PEOPLE_CAT_ORDER` (between `alumni` and `guest`), `PEOPLE_CAT_LABEL`, `LAB_FIELDS[0].options` (Edit Lab Profile category select), `changeRole` form options, and `openInviteForm` options. The People page filter tabs surface "Collaborator (N)" for admins; row chips render the category label like any other tier.
+- **`rm/js/equipment.js`** — `collaborator` added to `CATEGORY_ORDER` at the same rank position, so `categoryRank` / `isBelowCategory` treat collaborators as low-rank (similar to alumni/guest) for any equipment-borrowing logic that keys off it.
+
+### Changed
+- **`rm/js/firebase-bridge.js`** `LAB_USERS.isVisible(u)` — now also auto-hides `u.category === 'collaborator'` for non-admin viewers. The 14 internal people-list call sites already use this helper (V3.208), so collaborators disappear from PMR left rail, task-assign picker, chat sidebar, sharing picker, meeting attendees, dashboard active-members, procurement requesters, protocol authors, activity summary, grant facilities roster, lab-tasks, tasks-buckets, cv-overview, and the RM People page (for non-admins) without per-site changes.
+- **`rm/js/firebase-bridge.js`** `canAccessPage(pageId)` — for users with `category === 'collaborator'` and no `userPermissions/{uid}.allowedPageIds` entry, returns `false` instead of the implicit default-workflow baseline. Admin must explicitly grant every page through `/rm/pages/admin-permissions.html`. The "enhanced access via the matrix" semantic.
+- **`app.js`** — public website `#/team` filter additionally excludes `u.category === 'collaborator'`.
+- **`sw.js`** — `CACHE_VERSION` 178 → 179.
+
+### Bug fixes
+- None — pure feature add.
+
+### Note on scope
+`canAccessPage` is a UI gate (workflow chip strips, page discovery), **not** a security boundary. A collaborator who guesses or saves a URL can still load any page that doesn't gate itself with `canAccessPage` on entry. Real security lives in `firestore.rules`, which currently gates by `role` (`isLabMember()`, `isAdmin()`) and not by `category` or `userPermissions`. Tightening `firestore.rules` to honor per-user `allowedPageIds` is a separate, larger change — deferred.
+
+## [V3.208] - 2026-05-12
+
+**Add `hidden` flag on `users/{uid}` so admins can mark any lab member — PI, postdoc, grad, undergrad, highschool, alumni — as off-directory without revoking RM access.** Hidden users still have full lab-member access (sign in, see dashboard, get assigned tasks); they're just filtered out of every people list except for admins. The `hidden` checkbox appears on both the `Role` form (so the flag can be set at promotion time) and the `Edit Lab Profile` form (so it can be toggled later), regardless of category. Admins see hidden users everywhere with a small "hidden" chip on the people page for clarity. Plan: `CodeLog/ClaudesPlan/V3.208_hidden_user_flag.md`.
+
+### Added
+- **`rm/js/firebase-bridge.js`** — new `window.LAB_USERS.isVisible(u)` helper. Returns `true` iff `u.role && u.role !== 'guest'` AND (`!u.hidden` OR the signed-in viewer is admin). Centralizes the visibility predicate so the 14 people-list call sites in RM share one rule and future people-lists pick up the policy by using the helper.
+- **`rm/js/people.js`** — `LAB_FIELDS` and `changeRole` form both gain a `hidden` checkbox ("Hidden from public + internal directories"). Row render shows a `<span class="chip chip-amber">hidden</span>` when `u.hidden === true` so admins can tell at a glance. Counts in the filter-tab badges also respect the admin-bypass so the "All (N)" badge matches the displayed row count for non-admins.
+
+### Changed
+- **`app.js`** — public website `#/team` filter at line 567 now excludes `u.hidden`. Parent SPA doesn't load firebridge, so the filter is inlined.
+- **`rm/js/people.js`** — non-admin viewers of the RM people page now filter out hidden users at render time (the people page itself is the canonical "internal people link").
+- 14 internal people-list call sites swap their `u.role && u.role !== 'guest'` filter to `LAB_USERS.isVisible(u)`: `pmr.js` (left rail + admin student picker), `task-assign.js` (assignee picker), `meetings.js` (meeting attendee picker), `protocol-editor.js` (author picker), `activity-summary.js` (admin activity feed), `grant-facilities.js` (facilities doc roster), `lab-tasks.js`, `tasks-buckets.js` (subtask assignee), `sharing.js` (share-with picker), `procurement.js` (requester picker), `dashboard.js` (active-members tile + shared-activity rollup + CV staleness check — 3 spots), `chat.js` (add-admin select), `cv-overview.js`.
+- **`sw.js`** — `CACHE_VERSION` 177 → 178.
+
+### Bug fixes
+- None — pure feature add.
+
+## [V3.207] - 2026-05-12
+
+**Fix: library page showed "No papers yet" after V3.206 when local dev couldn't resolve the new route.** User report: "now the page just says No papers yet — drop a PDF onto the upload zone above to get started." The new `library/papers.json` route works in production (Firestore returns `where('type','==','paper')` rows directly), but in local dev the shadow-JSON fallback hits `/api/data/library/papers.json` which server.py doesn't ship — so an empty-or-not-yet-migrated Firestore items collection collapsed to an empty page.
+
+### Bug fixes
+- **`rm/js/library.js`** — `_load` now retries against the original `items.json` route + filters client-side for `type === 'paper'` when the V3.206 fast-path returns zero papers. Harmless in production: Firestore returns rows directly and the fallback branch never fires. A console `[library] V3.206 fast-path empty; fell back to items.json` log surfaces when it does kick in so the local-dev case stays visible. Existing `is_library_entry` filter still applied after the merge.
+- **`sw.js`** — `CACHE_VERSION` 176 → 177.
+
+## [V3.206] - 2026-05-12
+
+**Library load: server-side type filter, heavy-fields subdoc split, chunked render, debounced search, LONG cache.** User report: "the papers in the library take a really long time to load." Seven-front attack on the dominant costs in [rm/js/library.js](rm/js/library.js)'s list load + paint. Plan: `CodeLog/ClaudesPlan/V3.206_library_load_perf.md`.
+
+### Added
+- **New route `library/papers.json`** registered in [rm/js/api-routes.js](rm/js/api-routes.js): `scope:'lab', collection:'items', wrapKey:'papers', where:['type','==','paper'], discriminator:{field:'type',value:'paper'}, shadowJson:true, cache:LONG`. Server-side type filter drops every grant / course / tool from the read — for a typical lab with 200 library papers and ~50 other items, that's a ~20% read-cost cut plus all the inline-meta payload those non-paper docs carry. LONG TTL (4 hr) instead of MEDIUM (30 min) because the MAX(`updatedAt`) cheap-freshness probe handles invalidation; sitting on a stale cache for 30 min vs 4 hr makes zero difference in correctness and saves 7 unnecessary refresh-fetches per active day.
+- **`rm/js/library-extras.js`** (NEW, ~120 lines) — heavy library fields move from inline `meta.library.{abstract,tldr,references,cited_by,…}` to a per-item subdoc `items/{itemId}/details/main`. Exposes `LIBRARY_EXTRAS.{load(itemId, itemInline), savePatch(itemId, patch), delete(itemId), stripInline(item)}`. `load` returns the subdoc when present and falls back to the inline `meta.library.*` fields for unmigrated rows (no breaking change for existing data — gradual migration on every paper-reader open). `savePatch` is a `.set({...}, {merge:true})` on the single subdoc so persisting a 100-row reference parse no longer rewrites the whole items collection. `stripInline` clears the inline copy so the main item doc stays light once a row has been migrated.
+- **Firestore rule** for `items/{itemId}/details/{detailId}` in [firestore.rules](firestore.rules) — lab read + write, admin delete. Cascade delete still happens server-side in the existing `deletePaper` Cloud Function.
+
+### Changed
+- **`rm/js/library.js`** — `_load` now reads `library/papers.json` and projects into `_libraryPapers`; old `_items` parallel array kept as an alias for back-compat with `LIBRARY_UPLOAD.findDuplicate(items)` / `LIBRARY_SYNC.syncPendingCaptures(items)` (both walk the array for dedup and benefit from operating on the smaller paper-only set). `_saveItems` writes through the new route; the route's `where` clause keeps the collection-replace batch scoped so non-paper items survive a library write. `_handleFiles`, `_wireDoiAdd`, the delete handler, and the star-toggle handler all updated to mutate `_libraryPapers` directly.
+- **Chunked render in `rm/js/library.js`** — `_render` paints the first 50 rows synchronously, then schedules the remainder in 100-row batches via `requestIdleCallback`. A monotonic `_renderToken` cancels in-flight batches when a new render starts (filter change, sort toggle, star click). With 1000 papers, first paint drops from ~250 ms to ~15 ms; the rest streams in over a few idle slices. Falls back to `setTimeout` on browsers without `requestIdleCallback`.
+- **Debounced search input in `rm/js/library.js`** — `_wireSearch` collapses N keystrokes into one render via a 150 ms debounce timer. Cancel-on-rekey via `clearTimeout`.
+- **Memoized parsed query in `rm/js/library.js`** — `_render` caches the last `_parseQuery(_filterText)` result keyed on the filter text. Sort toggles, star clicks, and tag-chip clicks rerun `_render` without touching the search box; the parse used to fire on every one.
+- **`rm/js/paper-citations.js`** — `init` reads `meta.library.references` for back-compat, then kicks off a `LIBRARY_EXTRAS.load(itemId, _item)` and adopts those refs if the viewer parse hasn't won yet. New parses persist via the host page's `onCacheRefs` hook into the extras subdoc instead of items.json.
+- **`rm/js/library-paper.js`** — `onCacheRefs` writes to `LIBRARY_EXTRAS.savePatch` (single 1-doc write) instead of `api.save('items.json')` (collection-replace batch). Old code path preserved as a fallback if `LIBRARY_EXTRAS` is unavailable.
+- **`rm/js/library-upload.js`** — both `parseAndCacheRefs` (V3.93 regex parse at import time) and `enrichItemFromSemanticScholar` (V3.112 SS enrichment) now write `{abstract, tldr, references, references_*, cited_by, cited_by_*, semantic_scholar_id, semantic_scholar_fetched_at}` via `LIBRARY_EXTRAS.savePatch`. SS-wins rule preserved: `parseAndCacheRefs` calls `LIBRARY_EXTRAS.load` first and bails if `references_source === 'semantic_scholar'`.
+- **`rm/js/paper-cited-by.js`** — `init` falls back to `LIBRARY_EXTRAS.load(itemId, _item)` if `meta.library.cited_by` isn't inline. New cached cited-by data lands in the extras subdoc via the SS enrichment path above.
+- **`rm/pages/library-paper.html`** + **`rm/pages/library.html`** — load `/rm/js/library-extras.js` before the consumers (paper-citations / paper-cited-by on the reader, library-upload on the library tab).
+- **`sw.js`** — `CACHE_VERSION` 175 → 176.
+
+### Bug fixes
+- None — pure perf + storage layout.
+
+## [V3.205] - 2026-05-12
+
+**Console-error sweep: compliance crash, tasks-bucket index, papers-doc permissions, deprecated slider-vertical.**
+
+### Bug Fixes
+- **`rm/js/compliance.js`** — `loadAndRender` crashed with `Cannot read properties of undefined (reading 'length')` for any user whose IRB/IACUC tab returned a Firestore-empty document (no `protocols` array). Guarded the read: `const items = (data && data[tab.dataKey]) || []` so the empty-state path renders instead of throwing.
+- **`firestore.indexes.json`** — the `tasks.bucket` `fieldOverrides` entry only listed `COLLECTION_GROUP` scope, which silently dropped the default single-field `COLLECTION` index. That broke every subcollection query of the form `userData/{uid}/tasks where('bucket','==', X)` (inbox/daily/weekly/monthly/annual/assigned) with `failed-precondition`. Added the missing `COLLECTION_ASC` index entry alongside the existing collection-group one.
+- **`firestore.rules`** — added a top-level `match /papers/{paperId}` rule. The collection was previously only covered by subcollection rules (annotations, yjs_*, blocks, snapshots, comments), so any document-level read — including PMR's `collection('papers').where('authorUids','array-contains', uid)` — returned `permission-denied`. New rule allows read by admin or any caller whose uid is in the doc's `authorUids[]`; writes stay admin-only until the metadata-sync from `data/projects/papers.json` lands. Deploy with `firebase deploy --only firestore:rules,firestore:indexes`.
+- **`rm/css/training.css`** — replaced the deprecated `appearance: slider-vertical` (`-webkit-appearance` + standard form) on `.arc-controls input[type="range"]` with the standardized `writing-mode: vertical-lr; direction: rtl;` pattern. Removes the Chrome deprecation warnings printed on every training-tempo page render.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 174 → 175 (force shell refresh after the compliance + training-css edits).
+
+## [V3.204] - 2026-05-12
+
+**PMR section reorder: persistence fix + new Move-to-top / Move-to-bottom buttons.** User reported "the state of the PMR should be persistent, so if we move sections around, they should not go back to default on the next reload" plus a feature ask: add move-to-top and move-to-bottom alongside the existing ▲ / ▼ single-step arrows.
+
+### Added
+- **`rm/js/pmr.js`** — new `moveSectionToTop(key)` and `moveSectionToBottom(key)` helpers. Both materialize the full effective order, splice the target out, and `unshift` / `push` it. New centralized `_applyOrder(order, toastMsg)` helper that all three move functions (top, up/down, bottom) share: it sets `state.doc.section_order`, cancels any pending debounced save, fires `saveDoc()` immediately so the write commits before a quick page-close can lose it, re-renders, and fires a `TOAST.success` confirming the move (silent for single-step arrows since the visual reorder is itself the confirmation).
+- **`rm/js/pmr.js`** — `buildReorderControls` now renders a 4-button cluster on every block header: `⤒` Move to top, `▲` Move up, `▼` Move down, `⤓` Move to bottom. Each button auto-disables when it would be a no-op (already at top / already at bottom). Pulled out a small `_btn(label, title, disabled, onClick)` factory inside the function so all four buttons share styling.
+
+### Changed
+- **`rm/js/pmr.js`** — reorder writes are now immediate (not 400ms-debounced). The debounce was the suspected culprit for the "reverts on reload" complaint: a user clicking reorder then immediately closing the tab could lose the change if the debounce fired after unload. `_applyOrder` clears `state.saveTimer` and calls `saveDoc()` directly. Other PMR edits (typing in a barrier description, etc.) still go through `scheduleSave` since those high-frequency events benefit from debouncing.
+
+### Persistence verification
+The save→reload→read path was already correct at the schema level (V3.193): `emptyDoc.section_order = []`, `hydrateDoc` preserves whatever Firestore returns, `effectiveSectionOrder` reads from `state.doc.section_order` and only falls back to `DEFAULT_SECTION_ORDER` keys when the saved order is missing keys. The fix here is to ensure the write actually commits before the user has a chance to reload — V3.204 calls `saveDoc()` synchronously inside the click handler instead of queuing a debounced save.
+
+- **`sw.js`** — `CACHE_VERSION` 173 → 174.
+
+## [V3.203] - 2026-05-12
+
+**Paper builder sidebar gets a Paragraph-skeleton tab that auto-mirrors the focused block's skeleton bullets.** User report: "When in the paper writer, we want to be able to show the skeleton view of the paragraph we are working on. This should be in the left column currently called outline. Make two tabs in this section one for paper outline and one for current paragraph skeleton. as we move to another paragraph, the skeleton for that paragraph is auto-loaded in for quick reference." Pre-V3.203 the sidebar was a single section-list outline. V3.203 wraps that in a two-tab nav (Outline / Paragraph) and adds a read-only paragraph-skeleton mirror that auto-loads the current block's `skeleton_items` whenever focus moves between paragraphs.
+
+### Added
+- **`rm/pages/paper-builder.html`** — sidebar `<aside class="pe-sidebar">` restructured: `<div class="pe-sidebar-tabs" role="tablist">` with two `<button class="pe-sidebar-tab" data-sidebar-tab="outline|paragraph">` tabs above two `<div class="pe-sidebar-tab-content" data-sidebar-tab="…">` panels. Outline panel keeps the legacy `<ul id="pe-outline">` + `+ Add section` button verbatim. Paragraph panel mounts a new `<div id="pe-paragraph-skel">` container that JS fills with the focused block's skeleton mirror. Default tab is Outline; localStorage key `rm_paper_sidebar_tab` restores the last-selected tab on next page load.
+- **`rm/js/paper-editor.js`** — three new private helpers driving the mirror: `_findBlockMapById(blockId)` walks `paperMap.sections → children` to find a block by id; `_updateSidebarParagraphMirror(el)` resolves the parent `.pe-block[data-block-id]` ancestor and switches the mirror to that block's `skeleton_items` Y.Array, tearing down the previous block's `observeDeep` subscription and binding a fresh one; `_renderSidebarParagraphSkeleton(blockMap, skItems)` paints the mirror — block-kind header line + an indented `<ul.pe-sidebar-skel-list>` of bullets, each with depth-based padding (8 + depth*14 px), a `⚑` flag span when `claim_id` is set, the bullet text (or "(empty bullet)" placeholder), and a click handler that scrolls + focuses the matching in-doc bullet via `[data-block-id="..."] [data-item-id="..."] .pe-skeleton-bullet`.
+- **`rm/js/paper-editor.js`** — `_setSidebarTab(name)` switches active tab + persists to `localStorage.rm_paper_sidebar_tab`; one-shot IIFE wires `.pe-sidebar-tab` click handlers + restores the saved tab on mount.
+- **`rm/css/paper-editor.css`** — V3.203 styles: `.pe-sidebar-tabs` (sticky top, flex 50/50 buttons with bottom-border active state), `.pe-sidebar-tab` + `.active` (blue accent + soft blue background), `.pe-sidebar-tab-content`, `.pe-sidebar-empty` (italic gray placeholder), `.pe-sidebar-skel-header` (uppercase 10px gray kind label), `.pe-sidebar-skel-list` + `.pe-sidebar-skel-item` (hover light-gray with left-blue accent, click cursor), `.pe-sidebar-skel-item-claim` (amber background to surface flagged bullets at a glance), `.pe-sidebar-skel-flag` (amber `⚑`), `.pe-sidebar-skel-text`, `.pe-sidebar-skel-empty-bullet`. `.pe-sidebar` itself switches to `display: flex; flex-direction: column` and drops the wholesale top/bottom padding so the tab nav can stick to the top edge.
+
+### Changed
+- **`rm/js/paper-editor.js`** — `rememberFocus(el)` now calls `_updateSidebarParagraphMirror(el)` at the end of its V3.40 caret-tracking body. Since `rememberFocus` is bound on `keyup` / `mouseup` / `input` on every contenteditable (paragraph body OR skeleton bullet), the mirror updates the instant the caret enters a new block.
+- **`sw.js`** — `CACHE_VERSION` 172 → 173.
+
+### Notes
+- **Live-syncs to local skeleton edits.** The mirror's `observeDeep` on the block's `skeleton_items` Y.Array means typing in any bullet (or adding / removing / re-ordering bullets) updates the sidebar in real time. Tearing down the observer when focus moves to a different block keeps subscription count to 1 at any given moment.
+- **Click-to-focus.** Clicking a bullet in the mirror scrolls the doc to that bullet AND focuses the bullet's contenteditable — convenient when the user is browsing the mirror and wants to jump back to a specific point.
+- **Empty / non-paragraph blocks.** Figures, tables, and equation blocks have no `skeleton_items` Y.Array. The mirror shows the block kind in the header + an empty-state message; no clickable bullets.
+- **No new Firestore reads.** All data sourced from the already-mounted `paperMap` Y.Doc; the observer is in-memory only.
+- **No data-model changes.** `skeleton_items` schema (V3.115) and `claim_id` pointers (V3.104) are unchanged.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v172` and pick up the new HTML/CSS/JS.
+
+## [V3.202] - 2026-05-12
+
+**Cross-user task assignment from "Send to Teammate": three bugs ate newly-assigned tasks on the student's side.** User reported assigning a task to a student via the admin "Send to Teammate" flow → success toast → task didn't appear on the student's PMR Open Tasks block or Tasks-page dashboard. Root cause was a stack of three independent issues, all fixed:
+
+1. **PMR's "Assigned by teammates" project group was collapsed by default** since V3.198 wrapped every Open Tasks project group in a `<details>` collapsed-by-default for compactness. The newly-assigned task WAS rendering — just hidden behind a header the student didn't notice. V3.202 expands this specific group (and only this one — other project groups stay collapsed) and gives it a high-contrast amber background + 📥 emoji prefix + "Assigned by teammates · N open" summary so it pops at the top of the Open Tasks block.
+
+2. **PMR's Open Tasks block didn't live-subscribe to `tasks/assigned.json`** — it only called `api.load` at boot. The route has `cache: MEDIUM` (30 min TTL), so a freshly-assigned task wouldn't surface until a hard reload or 30-min cache expiry. V3.202 adds `attachAssignedTasksLiveSync()` that registers `api.subscribe('tasks/assigned.json', …)` after boot; every snapshot fires `loadOpenTasks() → renderBody()` so new assignments appear within seconds. Detached and re-attached in `switchToUser` so cross-user admin view (where the adapter would route the subscription to the wrong uid) doesn't try.
+
+3. **Tasks-dashboard subscription dropped the first fire after a cache-stale boot.** The dashboard's `api.subscribe('tasks/assigned.json', …)` callback had a `firstFire` flag that skipped `render()` on the first snapshot, assuming it duplicated the data `loadAssignedTasks()` had already fetched at boot. But `loadAssignedTasks` reads through the cache; if the cache held a stale empty array, the subscription's first fire WAS the fresh data (including the new task) and silently got swallowed. State updated, render skipped. V3.202 drops the firstFire optimization — duplicate renders are cheap, and a missed render is a real bug.
+
+### Added
+- **`rm/js/pmr.js`** — new module-level `_assignedTasksUnsub`; new `attachAssignedTasksLiveSync()` + `detachAssignedTasksLiveSync()` helpers that subscribe to `tasks/assigned.json` via the adapter's onSnapshot path (bypasses the 30-min cache). Called after `switchToPeriod` in `boot()` and re-established in `switchToUser` (only when viewing self).
+
+### Changed
+- **`rm/js/pmr.js`** — the synthetic "Assigned by teammates" project group in `renderOpenTasksBlock` is now `<details open>` with an amber background (`#fef3c7` / `#fde68a` border, `#92400e` text) and "📥 Assigned by teammates · N open" summary. Other project groups continue to render collapsed-by-default per V3.198.
+- **`rm/js/tasks-dashboard-buckets.js`** — removed the `firstFire` skip from the `tasks/assigned.json` subscription so every snapshot fires `render()`.
+- **`rm/js/task-assign.js`** — write is now awaited instead of fire-and-forget. The submit button flips to "Sending…" + cancel disables until the Firestore set resolves. On success: modal dismisses + toast. On failure: modal stays open with the error inline (red text) plus a hint if the message contains "permission/denied/insufficient" suggesting the assignee may need to sign into RM once so profile-bootstrap creates their `users/{uid}` profile doc (required by the `userData/{userId}/tasks/{taskId}` create rule). New `console.info('[task-assign] task <id> written to userData/<uid>/tasks')` log on every successful write for DevTools-side verification.
+
+### Bug fixes
+- Newly-assigned tasks now appear in the PMR Open Tasks block within seconds (was: required 30-min cache TTL or hard reload).
+- Newly-assigned tasks now render on the tasks dashboard's "📥 Assigned to me" section immediately (was: dropped silently if the cache held a stale empty array at boot).
+- The admin no longer sees "Task sent to X" when the write actually failed.
+- **`sw.js`** — `CACHE_VERSION` 171 → 172.
+
+## [V3.201] - 2026-05-12
+
+**Paper-writing peer-review &amp; revision training (V3.188) added — 8th and final entry in the paper-writing series.** Alex requested a training covering both sides of the peer-review process: what reviewers actually do to vet a paper, and how authors should respond to reviewer comments. V3.163's overview has a brief revision-letters section (§ 7); V3.188 expands it into a full training with tone discipline + a response-letter builder.
+
+### Added
+- **`rm/pages/training-paper-peer-review.html`** (~430 lines) — lecture-style page (sticky TOC + 10 sequential sections) on both sides of peer review. Sections: why peer review exists / the reviewer's six jobs (rigor, novelty, completeness, writing, unstated-limitations, suggested-additions) / what reviewers actually look at when reading (title → figures → last Intro paragraph → Results → Discussion → Methods, NOT in document order) / six comment types (methodological, statistical, literature, interpretation, stylistic, scope-creep) — interactive classifier embedded here / the author's job (point-by-point, every comment, manuscript references, respectful tone, engagement-not-compliance) / three response shapes (agreement / partial / disagreement with worked-example templates) / how to disagree (5 rules: specific, evidence-backed, acknowledge concern, never personal, change something even when defending) / the editor as ally (override scope-creep, mediate disagreements, when to invite their help) / common author failure modes (ignoring, defensiveness, capitulation, scope creep, missing deadline) / capstone response-letter builder.
+- **`rm/js/training-paper-peer-review.js`** (~370 lines) — module renderer with two interactive widgets. (1) **Reviewer-comment classifier** — paste a comment, regex heuristics across 6 categories (each with 6–9 trigger patterns covering keyword phrases like `p-value`, `did not cite`, `should also test`, `over-interpret`, `confusing`, `did not control for`); classifier picks the highest-scoring category and surfaces a category-specific response-template paragraph. Includes 5 preset example comments (one per category except stylistic since stylistic comments self-explain). (2) **Response-letter builder capstone** — form: response-shape dropdown (agree/partial/disagree) + reviewer comment + your response + specific change + manuscript reference. "Add this response" button appends to a stacking preview that renders the canonical "italicized comment / response: [opening template by shape] + your text + change + reference" format. Tone checker runs a regex pass for defensive phrasing (`the reviewer (has misunderstood|is wrong|is mistaken)`, `obviously`, `as we clearly stated`, etc.) — flags inline with the "we may have presented this poorly" reframing suggestion. Warnings on disagreements missing manuscript refs (read as hand-waving), agreements missing a specific change ("we thank the reviewer" without substance = hollow), and short responses under 30 characters. "Clear all" button resets the stacking preview.
+- **`CodeLog/ClaudesPlan/V3.188_training_paper_peer_review.md`** — plan doc, status BUILT.
+
+### Changed
+- **`rm/js/training.js`** — new MODULES entry under Foundations (slug `paper-peer-review`, available: true, position 10 — right after V3.187 Abstract). Foundations grows from 9 cards to 10. Total curriculum: 16 of 21 modules live.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.201.
+- **`sw.js`** — `CACHE_VERSION` 171 → 172.
+
+### Notes
+- V3.188 is the **8th and final** entry in the paper-writing series — covering submission through revision is now complete: V3.163 overview → V3.182 craft → V3.183 Introduction → V3.184 Methods → V3.185 Results → V3.186 Discussion → V3.187 Abstract → V3.188 peer review. Foundations is now 10/10 if you count this; the curriculum gained a tenth Foundations slot rather than re-counting the 9 to 10.
+- The comment classifier is heuristic, not a true NLP model. It catches the most obvious keyword patterns; weird or hybrid comments will misclassify or fall to "couldn't classify" with a soft-warning verdict. That's deliberate — students should read every comment carefully, not rely on a regex tool to categorize.
+- The tone checker covers the 9 most-frequent defensive phrasings (`the reviewer has misunderstood`, `obviously`, `as we clearly stated`, `unfounded`, `unnecessary`, etc.). It's intentionally conservative — false negatives are okay, but every false positive at least makes the student double-check the phrasing.
+- The response-letter builder stacks blocks in memory only (no Firestore writes). Refreshing the page clears the letter. If we want a persistent response-letter workspace later, integrate with `paper-builder.html` rather than reinventing here.
+- Foundations category status: 10/10 cards Available. Total curriculum: 16 of 21 (76%). Remaining: Using RM 4/5, Image analysis concepts 3/3, Image analysis software 5/5.
+- Plan: `CodeLog/ClaudesPlan/V3.188_training_paper_peer_review.md`.
+
+## [V3.200] - 2026-05-12
+
+**Training section relocated under Operations in `nav.js`.** Alex requested moving the Training page into the Operations group. The standalone `Training` top-level group (with 27 children — the landing page + 26 individual training slugs) is replaced with a single `Training` entry as the first child of `Operations`. Individual training pages remain on disk and are discoverable through the categorized grid on `/rm/pages/training.html` itself.
+
+### Changed
+- **`rm/js/nav.js`** — removed the entire `Training` top-level group entry (was sitting between `Research` and `Operations`, ran from line 56 to line 84 — 28 lines + children). Added `{ label: 'Training', href: '/rm/pages/training.html' }` as the first child of the `Operations` group's children array. Operations grows from 5 children (Chat / Huddle / Meetings / Scheduler / Equipment) to 6 children with Training at the top. Top-level NAV_ITEMS group count goes from 7 (Dashboard / Activity / Research / Training / Operations / Lab Admin / Settings) to 6.
+- **`sw.js`** — `CACHE_VERSION` 169 → 170.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.200 with one-paragraph note on the nav reorganization.
+
+### Notes
+- **Side effect:** the 26 individual training pages no longer appear in the All Pages tile grid at `?view=all-pages` (only the Training landing does), and they're no longer addable to custom workflows via the strip's "+ Add page" picker. The landing page at `/rm/pages/training.html` remains the canonical discovery surface — its categorized grid (Foundations / Using RM / Microscopy / Image analysis — concepts / Image analysis — software) is unchanged and now-V3.182–V3.187-complete shows 15 of 20 cards as Available. Direct URLs (e.g. `/rm/pages/training-paper-paragraphs.html`) still work; the trainings just aren't crawlable from RM's page-map anymore.
+- **If individual trainings need workflow-addability later** — e.g. a "Paper writing" custom workflow that includes `training-paper-introduction.html` as a chip — re-add them as a sub-list under the Training entry in `Operations.children`, OR re-introduce a separate Training top-level group. The current state optimizes for "use the landing page" over "use the All Pages grid"; future need may flip that.
+- **No changes to** `rm/js/training.js` (the landing grid renderer is unaffected) or any of the per-training HTML/JS files. The landing page and individual trainings are identical to what V3.199 left.
+- Plan: no separate plan doc — single-line nav change.
+
+## [V3.199] - 2026-05-12
+
+**Paper-writing series complete — all 5 section-specific trainings shipped.** V3.197 set up the series + built V3.182 (paragraphs, voice, scope) as the foundation. V3.199 ships the 5 remaining modules (V3.183–V3.187 plan slots, V3.199 changelog entry) so the lab now has end-to-end coverage of every section of a scientific paper. Foundations category is now 9/9. Each section module reuses the V3.182 vocabulary (the four voices + paragraph skeleton variants) so they read as a coherent series, not as standalone documents.
+
+### Added — 5 lecture pages + JS
+- **`rm/pages/training-paper-introduction.html`** (~280 lines) + **`rm/js/training-paper-introduction.js`** (~140 lines) — the 3-paragraph funnel (broad context → contested gap → claim). Compare-bar widgets on ¶1 and ¶2 (good vs mediocre examples written about a single example finding: edge density × stiffness × invasion). Last-paragraph builder capstone: 3 input lines (hypothesis / approach / headline finding) → canonical Storyteller-voice 3-sentence elevator pitch with "Here we show..." closing. Warnings for sub-25-character findings, for "we investigated" phrasing that describes activity rather than result, for over-200-char Methods-creep approach lines.
+- **`rm/pages/training-paper-methods.html`** (~310 lines) + **`rm/js/training-paper-methods.js`** (~110 lines) — recipe-not-storytelling discipline. Methods-vs-Intro compare-bar showing the same factual content rendered correctly (Technician) vs migrated to the wrong section (Storyteller in Methods). 12-item completeness checklist covering cells / antibodies / other reagents / equipment / acquisition / sample prep / analysis / statistics / data / code / versions / supplementary delegation; progress bar with green-when-complete copy.
+- **`rm/pages/training-paper-results.html`** (~290 lines) + **`rm/js/training-paper-results.js`** (~200 lines) — Reporter voice + figure-anchored prose. Reporter-vs-Advocate compare-bar showing five Advocate verbs ("strikingly," "importantly," "remarkably," "likely because," "possibly") all migrated into a single bad paragraph for visual contrast. Figure-alignment checker capstone: paste a paragraph, the tool splits sentences, regex-flags advocate words (highlighted red inline), checks for figure references (`Fig.`/`Figure`/`panel`), checks for inline statistics (`p=`/`n=`/`t-test`/etc.), highlights quantitative claims missing figure citations amber, emits a verdict naming each issue.
+- **`rm/pages/training-paper-discussion.html`** (~340 lines) + **`rm/js/training-paper-discussion.js`** (~170 lines) — the four jobs (interpret / situate / limit / project) + implication ladder + Advocate voice. Limitation honesty meter: 7-step slider with example phrasings ranging from "over-claimed: prove + universally" (level 1) through "strong with humility" (lab's target zone at 3–5) to "cowardly: more work is needed" (level 7); each level explains why reviewers will react. 12-item four-jobs coverage checklist.
+- **`rm/pages/training-paper-abstract.html`** (~330 lines) + **`rm/js/training-paper-abstract.js`** (~180 lines) — the 8-second-skim test. Structured-vs-unstructured compare-bar showing the same content with `<strong>Background.</strong>` labels vs as free-form prose. Word-budget tool: paste an Abstract, choose a journal limit (150/250/300/unlimited); tool counts total words, splits sentences, classifies each as motivation/method/result/impact via cue-word heuristics (e.g. `\bwe (show|find|demonstrate)\b` → result, `\bimplication\b` → impact), computes per-part word% against target 20/20/40/20 distribution, emits warnings on >20% deviation, ceiling violations, missing Result or Impact sentences, or under-60% headroom.
+
+### Changed
+- **`rm/js/training.js`** — `MODULES.paper-introduction.available`, `.paper-methods.available`, `.paper-results.available`, `.paper-discussion.available`, `.paper-abstract.available` all flipped `false` → `true`. Foundations category is now 9/9 — every Foundations card is a live link.
+- **`CodeLog/ClaudesPlan/V3.183_…` through `V3.187_…`** — all 5 plan-doc status headers flipped from PLANNED to BUILT.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.199.
+- **`sw.js`** — `CACHE_VERSION` 168 → 169.
+
+### Notes
+- All 5 modules reuse the V3.182 vocabulary (four voices, paragraph skeleton variants, scope ladder) and cross-link back to it. Students should work through V3.182 first; the section modules don't re-teach voice + skeleton, they assume it.
+- The Results page's figure-alignment checker is a regex heuristic — it catches the most common patterns but can be fooled (e.g. a sentence that genuinely shouldn't cite a figure, like a methods-recap opener, may get amber-flagged). The verdict text explicitly says "most should" cite a figure, not "all must." Treat it as a calibration tool, not a hard linter.
+- The Abstract's sentence-classifier is also heuristic: cue words like "we show" → result, "implication" → impact. Sentences with no cue words default to motivation. The classifier is good enough to surface a badly-skewed budget (90% motivation, 5% result) but won't perfectly split every Abstract.
+- The Limitation honesty meter (V3.186) sits at scope-dial level 4 in the lab's target zone; the dial deliberately maps "over-claimed" (low numbers, reviewer flag) → "over-hedged" (high numbers, also reviewer flag). The sweet spot is 3–5; everything else has explanatory copy on why reviewers react.
+- The paper-writing series is now complete (7 of 7: V3.163 overview + V3.182 craft + V3.183–V3.187 sections). Foundations 9/9. Total curriculum: 15 of 20 modules live (75%). Remaining: Using RM 4 modules (V3.178–V3.181) + Image analysis concepts 3 modules + Image analysis software 5 modules.
+- Plan: 5 per-section plan docs V3.183–V3.187, all status-marked BUILT.
+
+## [V3.198] - 2026-05-12
+
+**PMR Activity weeks + Open Tasks project groups now collapsed by default; Activity weeks gain the archive treatment.** Two related UX issues — long PMRs were a wall-of-rows that buried the section headers below the fold. V3.198 wraps each Activity week and each Open-Tasks project group in a collapsed `<details>` so the student sees a tidy header list first and expands only what they want to discuss. Each Activity week also gets a `✓ discussed` toggle (same green/grey style as the V3.193 archive system) that moves the week into the section's Archive collapsed-section.
+
+### Added
+- **`rm/js/pmr.js`** — new `state.doc.activity_archive: { [weekKey]: discussed_at_iso }` field (`emptyDoc` carries it; `hydrateDoc` backfills as `{}` for older docs). New `renderActivityWeek(wk, entries, isArchivedView)` renders one week as a collapsed `<details>` with a summary line showing `2026-W19 · 8 entries` and (in the active view) a green `✓ discussed` button to the right; click stores `state.doc.activity_archive[wk] = isoNow()` and re-renders so the week slides into the section's Archive `<details>` at the bottom. `renderActivityList` rewritten: splits weeks into active/archived via the archive map; active weeks render in flow, archived weeks pipe through `renderItemArchive` (the same shared helper the other sections use, so the visible "Archive (N)" + filter input + restore behavior is uniform). Empty-state path now also renders the archive section so the system is discoverable on fresh PMRs.
+
+### Changed
+- **`rm/js/pmr.js`** — `renderOpenTasksBlock`'s per-project header was a static `<div>`; now each project group is a `<details>` collapsed by default with a summary line `Project title · N open`. The "Assigned by teammates" synthetic group gets the same treatment for consistency. Students with 5+ active projects now see one screenful of headers instead of needing to scroll past every bucket.
+- **`sw.js`** — `CACHE_VERSION` 167 → 168.
+
+## [V3.197] - 2026-05-12
+
+**Paper-writing training expanded into a 7-part series — sentence-level craft module shipped.** Alex flagged that the V3.163 paper-writing overview is one training but should be a series: per-section deep dives (Abstract / Intro / Methods / Results / Discussion) plus a foundation module on sentence-level craft (paragraph skeletons, the four voices, narrative scope). V3.197 adds six new plan slots V3.182–V3.187 under Foundations, ships **V3.182 paper-writing — paragraphs, voice & scope** end-to-end as the foundation that the section-specific trainings will reference back to, and marks the other five (V3.183 Introduction, V3.184 Methods, V3.185 Results, V3.186 Discussion, V3.187 Abstract) as Coming Soon. The V3.163 entry is retitled "Paper writing — overview" to position it as the gateway to the series.
+
+### Added — 6 plan docs
+- **`CodeLog/ClaudesPlan/V3.182_training_paper_paragraphs.md`** — sentence-level craft. The paragraph skeleton (claim / evidence / link + section variants), the four voices (Reporter / Storyteller / Advocate / Technician), narrative scope, zoom-out-keep-focus techniques. BUILT.
+- **`CodeLog/ClaudesPlan/V3.183_training_paper_introduction.md`** — the 3-paragraph funnel (broad context → gap → claim). Interactive widgets: funnel diagram, gap-statement generator, last-paragraph builder.
+- **`CodeLog/ClaudesPlan/V3.184_training_paper_methods.md`** — recipe not storytelling. Methods-vs-Intro toggle, completeness checker for cells / reagents / equipment / parameters / analysis / statistics / data availability.
+- **`CodeLog/ClaudesPlan/V3.185_training_paper_results.md`** — figure-anchored prose in Reporter voice. Figure-prose alignment checker, Reporter-vs-Advocate toggle.
+- **`CodeLog/ClaudesPlan/V3.186_training_paper_discussion.md`** — interpret / situate / limit / project. Four-jobs checklist, limitation-honesty meter, Discussion-vs-Results separator.
+- **`CodeLog/ClaudesPlan/V3.187_training_paper_abstract.md`** — survive the 8-second skim. Word budgeting (150 / 250 / 300), structured-vs-unstructured comparator.
+
+### Added — V3.182 prototype
+- **`rm/pages/training-paper-paragraphs.html`** (~480 lines) — lecture-style page (sticky TOC + 10 sequential `.training-section` blocks). Four interactive widgets: (1) **Skeleton ↔ prose transformer** — cycle through 4 worked examples (Results / Intro / Discussion / Methods), toggle between skeleton view and rendered-prose view. (2) **Voice grid** (static markup) — same paragraph topic rendered in all 4 voices side-by-side with per-voice trait labels. (3) **Scope dial** — 10-step slider with per-step text examples of the same project ranging from "Cancer kills millions" (level 1) to "BT-549 spheroids in 1.5 vs 4.5 kPa with StarDist edge segmentation" (level 10); each level shows where this scope belongs in a paper. (4) **Paragraph builder capstone** — section + voice + skeleton-type + 3 input lines → rendered paragraph with voice-specific transition templates (e.g. Advocate voice prepends "Our results suggest that...", Storyteller voice inserts "However...Here..." transitions). Critiques: warns when voice doesn't match section (e.g. Storyteller in Results) and when skeleton doesn't match section (e.g. CGN in Methods).
+- **`rm/js/training-paper-paragraphs.js`** (~330 lines) — module renderer. `EXAMPLES` table holds 4 skeleton+prose pairs. `SCOPE_LEVELS` is a 10-row table of (where-it-belongs + example-text) pairs. `RECOMMENDED` maps each section to its recommended voice + skeleton list. `renderParagraph(voice, l1, l2, l3)` is the voice-specific paragraph composer with 4 transition templates. `refreshBuilder()` validates required fields, computes voice/skeleton mismatch warnings, renders the paragraph + warning list. Standard TOC scroll-spy + auth gate via `firebridge.whenAuthResolved`.
+- **`rm/css/training.css`** — V3.182 batch: `.skeleton-stage` + `.stage-nav` (skeleton/prose toggle pill buttons), `.skel-skeleton` (gray-bordered monospace) vs `.skel-prose` (green-bordered prose), `.voice-grid` (2×2 → 1col at 720px), `.voice-card` with `.is-reporter` (green) / `.is-storyteller` (blue) / `.is-advocate` (orange) / `.is-technician` (gray) color variants on the left border + voice-name color. `.scope-dial` with `.scope-meter` slider + `.scope-example` callout. `.para-output` capstone print block.
+
+### Changed
+- **`rm/js/training.js`** — Foundations category grows from 3 modules to 9. V3.163 retitled "Paper writing — overview" and updated to reference the series. 6 new MODULES entries: `paper-paragraphs` (available: true) + `paper-introduction` / `paper-methods` / `paper-results` / `paper-discussion` / `paper-abstract` (available: false). Order matches pedagogical flow.
+- **`rm/js/nav.js`** — Training group grows by 6 children. Order: paragraphs → Introduction → Methods → Results → Discussion → Abstract.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.197.
+- **`sw.js`** — `CACHE_VERSION` 166 → 167.
+
+### Notes
+- V3.182 is the foundation other section-specific trainings reference back to. V3.183–V3.187 should assume the student already knows the four voices + paragraph skeleton vocabulary; don't re-teach.
+- The paragraph builder's voice-specific transition templates (e.g. Advocate voice prepends "Our results suggest that...") are deliberately a bit on-the-nose so the difference between voices is immediately legible. Real prose uses the same moves more subtly.
+- Foundations now has 9 cards on the landing page (PhD triangle / Scientific communication / Paper-writing × 7). If this grows further, consider splitting Paper-writing into its own category.
+- 10 of 20 modules in the curriculum are now live (50%). Foundations 3/9 available; Microscopy 4/4; Using RM 1/5; Image analysis 0/3; Image analysis software 0/5. (Foundations count was 3 before V3.197; V3.197 added 6 to the planned count, of which 1 is built.)
+- Plan: `CodeLog/ClaudesPlan/V3.182_training_paper_paragraphs.md` (and V3.183–V3.187 for the queued modules).
+
+## [V3.196] - 2026-05-12
+
+**Citation popover: surface claims + linked highlights for the current paragraph.** User report: "when we add a claim to a sentence, then go read papers and add evidence to the claims we compile a list of highlights for each claim. What we want to be able to do is enhance the citation picker such that it detects all of the claims associated with the current paragraph we are on, then in the picker it opens with all of the citations relavent to that claim that we have organized. If we expand a citation in the picker it will show us all of the highlights linked to that claim and paper." Pre-V3.196 the citation popover only knew about the library — it didn't surface the work the writer had already done linking highlights to specific claims via the V3.104 paper-bullet-claims + V3.103 lit-review evidence flow. V3.196 wires the popover to the existing claim/annotation graph: when opened from a paragraph, it detects the bullet-level `claim_id` pointers in the block's `skeleton_items`, looks up each claim's `supporting_evidence_ids` + `counter_evidence_ids`, resolves the linked papers to their library citation_keys, and Firestore-fetches each annotation doc for the highlight text. The result renders as a "Claims for this paragraph" section above the search list, with each claim as a card, each card listing the linked citations as checkbox-rows (sharing the V3.157 multi-pick selection state), and each citation row carrying an expand-arrow that reveals the highlight text(s) + stance pills.
+
+### Added
+- **`rm/js/paper-editor.js`** — three new private helpers driving the V3.196 claim-context section: `_blockIdOfParagraph(paragraphEl)` walks up to `.pe-block[data-block-id]`; `_claimIdsForBlock(blockId)` iterates `paperMap.sections → children` to find the block then reads its `skeleton_items` Y.Array and collects non-null `claim_id` values in document order; `_loadClaimContext(paragraphEl)` returns a promise resolving to `[{ claim: {id, statement, status}, papersByKey: { <citationKey>: {paperId, citationKey, title, firstAuthor, year, evidence: [{annId, stance, text, comment}]} } }, …]`. Claims come from the `PaperBulletClaims.getClaim(claimId)` local cache (already subscribed via the editor mount), papers come from `state.citationByKey` / `state.citationList` (V3.40 library index keyed by `itemId`), and annotation texts come from one batched `Promise.all` of `papers/{paperId}/annotations/{annId}` Firestore reads (typical paragraph: ~3 claims × ~5 evidence highlights = 15 docs, one round trip).
+- **`rm/js/paper-editor.js`** — `citationPopoverState` gains four new fields: `paragraphEl` (the source paragraph), `claimContext` (the resolved tree, `null` while loading), `claimContextLoading` (true between open and resolve), and `expandedClaimEvidence` (`Set<"claimId|citationKey">` for the per-row expand-arrow toggle). All four are cleared on `hide()` so a stale paragraph reference can't bleed between popover opens.
+- **`rm/js/paper-editor.js`** — new `_refreshClaimsBar()` render path inside the popover. Renders each claim as a `.pe-cite-pop-claim-card` with the claim statement + status pill at the top and each linked paper as a `.pe-cite-pop-claim-paper` row. The row's left-side `.pe-cite-pop-row-check` reuses the V3.157 multi-pick checkbox; clicking the row body toggles the citation in `selectedKeys` (so the user can commit via the same `Insert N` button as the rest of the popover). The stance badge cluster (`N for` / `N against`) summarises evidence counts. The expand-arrow `▶`/`▼` toggles per-(claim, paper) visibility of a `.pe-cite-pop-claim-evidence` block listing each highlight's `target.pages[*].selectors.textQuote.exact` text, stance pill, and any `comment` the user attached at highlight time.
+- **`rm/js/paper-editor.js`** — `openCitationPopover` gains a new `opts.paragraphEl` field. When provided, the popover kicks off `_loadClaimContext(paragraphEl)` immediately; a "Loading claim context…" placeholder shows in the claim bar until the promise resolves. The resolve handler guards against stale popover state (`paragraphEl` reassigned to a new paragraph by a subsequent open) before applying.
+- **`rm/css/paper-editor.css`** — V3.196 styles: `.pe-cite-pop-claims` (sky-blue context bar with internal scroll and a top header), `.pe-cite-pop-claim-card` (white card with sky-blue border), `.pe-cite-pop-claim-statement` (bold dark-blue with right-aligned status pill), `.pe-cite-pop-claim-status` plus per-status variants (`supported` green / `contested` red / `disproven` amber), `.pe-cite-pop-claim-paper` + hover/checked states, `.pe-cite-pop-claim-stance-for` / `-against` pills, `.pe-cite-pop-claim-expand` arrow button, `.pe-cite-pop-claim-evidence` indented sub-block, `.pe-cite-pop-claim-evrow` per-highlight row with stance pill + italic quote + optional comment.
+
+### Changed
+- **`rm/js/paper-editor.js`** — Cmd+K handler now passes `paragraphEl: lastFocusedEditable` to `openCitationPopover` so the keyboard shortcut also gets the claim-context section.
+- **`rm/js/paper-equations.js`** — toolbar `+ Cite` action's `_openCitationPopoverFallback` looks up the paragraph element (prefers `_state.savedEl` when it's a contenteditable, falls back to `PaperEditor.getLastFocusedEditable()`) and passes it as `paragraphEl`.
+- **`rm/js/paper-editor.js`** — the popover's `refresh()` call chain now invokes `_refreshClaimsBar()` alongside `_refreshSelectedBar()` and `_refreshCommitBtn()` so the claim cards update in lockstep with the rest of the popover state (selection toggles, search input changes, expand-arrow clicks).
+- **`sw.js`** — `CACHE_VERSION` 163 → 164.
+
+### Notes
+- **Click-to-edit on existing citation chips already uses this.** The V3.157 `_openCitationEditor(paragraphEl, …)` flow passes the chip's paragraph element through, so editing an existing citation now also surfaces the paragraph's claims + linked highlights. The user can add a missing citation from a previously-linked highlight without leaving the popover.
+- **Picker selection state is shared.** The claim-card checkbox routes to the same `selectedKeys` Set as the search-list checkboxes. A user can select two citations from claim-context AND one from a free-text library search, then commit all three as one `[@k1; @k2; @k3]` Pandoc group via the V3.157 multi-pick path.
+- **Paragraph with no claims.** The claim bar stays hidden (`hidden` attribute set, `innerHTML = ''`) so the popover keeps its V3.157 layout. No extra latency when the paragraph has no claim_ids in `skeleton_items`.
+- **Paper without a library entry.** When a claim's `evidence_for_claim_ids` points to a paper that isn't in the items.json library (rare — usually the library is the source of papers the lab annotates), that paper is skipped during the resolve step. The other linked papers still render. The skipped paper isn't pickable because it has no citation_key to insert.
+- **No new Firestore rules or indexes.** Reads only existing paths: `papers/{paperId}/annotations/{annId}` (V3.103 highlights, already lab-readable) and the in-memory `PaperBulletClaims` cache (already subscribed by the editor mount).
+- **No data-model changes.** Claims, annotations, and `skeleton_items[].claim_id` are all V3.104+ schema that V3.196 only reads.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v163`.
+
+## [V3.195] - 2026-05-12
+
+**Fix: paper drafts now actually appear in the paper-reader's "Link to draft" picker.** User report: "in paper reader, the link to draft is not working. I is supposed to be able to select from all of the papers in draft stage in paper builder which we currently have three, but it doesnt show any." V3.106's loader change was correct, but a defensive guard at the top of `_loadAllDrafts()` short-circuited the whole function before it ran.
+
+### Bug fixes
+- **`rm/js/paper-overlays.js`** — `_loadAllDrafts()` guarded on `window.api`, but `api` is declared with top-level `const` in `rm/js/util.js`. In a non-module script `const` / `let` bindings are script-globals but do NOT attach to `window`, so `window.api === undefined`, the guard tripped, and the function returned `[]` immediately. The function's own body uses bare `api.load(...)` (resolved via lexical scope), which is why every other call site keeps working — the guard was the only place looking at `window.api`. Changed to `typeof api === 'undefined' || !api.load`. Same pattern fixed in `rm/js/yr-shared.js`'s `mergeSeedsIntoTree` (the category-seed merger used by the email-review / calendar picker loaders — silently skipping seed paths until now).
+- **`sw.js`** — `CACHE_VERSION` 162 → 163.
+
+Plan: `CodeLog/ClaudesPlan/V3.195_link_to_draft_window_api_guard.md`.
+
+## [V3.194] - 2026-05-12
+
+**Tasks ↔ PMR: `＋ PMR` button on every subtask row + bidirectional completion sync.** User asked for: (a) "for any task, we can select add to PMR and it adds it to the PMR for the current week", and (b) "if we complete a task from either the PMR view or the task page, the task should mark as complete everywhere". V3.194 implements both flows via a new shared bridge module so neither page needs to know about the other's internals.
+
+### Added
+- **`rm/js/task-pmr-sync.js`** (NEW, ~250 lines) exposes `window.TASK_PMR_SYNC` with three functions: `addSubtaskToCurrentWeek(subtask, project, bucket)` picks the most-recently-updated PMR period from `userData/{uid}/pmr/_index`, finds the week containing today (or auto-creates a Mon–Sun week if none matches), picks a destination subsection (prefers "Reading/Writing" for writing-category buckets, "Experimental update" otherwise), and pushes an item with `source_subtask_id = subtask.id`. Idempotent — re-clicking on a subtask already in this week shows a toast and skips the write. `syncSubtaskDoneToPMR(subtaskId, isDone)` scans the current PMR period's `weekly_entries[*].subsections[*].items[]` for items whose `source_subtask_id === subtaskId` and flips their `status` to `done` / `in_progress`. `syncPMRItemDoneToSubtask(sourceSubtaskId, isDone)` walks all of the user's `userData/{uid}/buckets/{projectId}` docs looking for a subtask with the matching id (recursing into `children[]`), flips its `done` + `done_at` fields, writes the single bucket doc that owned the subtask. All three bypass the route adapter and use direct `firebridge.db()` refs so the helper is independent of either page's lazy route registrations.
+- **`rm/js/tasks-buckets.js`** — `renderSubtaskRow` gains a `＋ PMR` button (purple pill) next to the existing `→ task builder` button. Click → fire-and-forget `TASK_PMR_SYNC.addSubtaskToCurrentWeek(st, project, bucket)`; success/info toast surfaces the destination week+subsection.
+
+### Changed
+- **`rm/js/tasks-buckets.js`** — the checkbox `change` handler + the inline-edit body's `✓ Mark complete` / `↶ Undo completion` buttons all fire `TASK_PMR_SYNC.syncSubtaskDoneToPMR(st.id, done)` after the existing tracker dispatch. Fire-and-forget; the PMR page's live-sync onSnapshot picks it up if the user has it open in another tab.
+- **`rm/js/pmr.js`** — `renderItem` (the weekly-entry row) status-change handler now guards on `item.source_subtask_id` AND a done/not-done line crossing, then calls `TASK_PMR_SYNC.syncPMRItemDoneToSubtask(item.source_subtask_id, isDone)`. Mirrors the back-link the other direction.
+- **`rm/pages/tasks.html`** + **`rm/pages/pmr.html`** — load `/rm/js/task-pmr-sync.js` after `task-assign.js`.
+- **`sw.js`** — `CACHE_VERSION` 161 → 162.
+
+### Bug fixes
+- None — net-new feature.
+
+## [V3.193] - 2026-05-12
+
+**PMR polish: four user-reported issues fixed in one ship.** User filed (1) reference links should auto-import anything they've created, (2) sections should be rearrangeable up/down, (3) every section should have a "new" + "archive" portion where checking off an item as discussed moves it to a collapsed searchable archive, (4) Goals section should be bullet-list-first with sub-list support.
+
+### Added
+- **Shared archive pattern** in `rm/js/pmr.js`. Single `discussed_at: ISO string | null` field on every archivable item across the doc. New helpers: `splitArchive(items) → {active, archived}`; `buildDiscussedToggle(item, onChange)` renders the green "✓ discussed" / grey "↶ restore" button + short-circuits in read-only view; `renderItemArchive(label, archived, renderItemFn)` is a collapsed `<details>` with a free-text `<input type="search">` that filters by `JSON.stringify(item).toLowerCase().includes(q)` (good enough until volumes grow). Applied to barriers, reference_links, project_overview, weekly_entries (per-week), discussion, figure_reviews, and paper_writing (which keeps its `discussed_at` on `state.doc.paper_writing[]` entries keyed by `paper_id` since the drafts themselves come from a live Firestore query).
+- **Rearrangeable sections**. New `state.doc.section_order: string[]` schema field carries the student's preferred section order; new constants `DEFAULT_SECTION_ORDER` + `SECTION_LABELS`; new helpers `effectiveSectionOrder()` (merges `section_order` with the default, appending any new section keys so future additions don't disappear from older docs), `moveSection(key, delta)`, `buildReorderControls(sectionKey)` (renders `▲`/`▼` arrow buttons that swap positions), `decorateBlockHead(blockEl, sectionKey)` (injects the arrows into the block's H2). `renderBody` now iterates `effectiveSectionOrder()` instead of a hardcoded array, looking up the renderer in a new `SECTION_RENDERERS` map. Hidden in read-only view (admin viewing a student doesn't reorder the student's PMR).
+- **Reference links auto-import**. New `⤓ Auto-fill from my work` button on the Reference links block + `autoFillReferenceLinks()` async function that pulls from five sources and dedupes by URL+label: (1) `userData/{uid}/notebook/_index` entries → `notebook` kind, (2) `protocols where authorUids array-contains uid` → `protocol` kind, (3) `state.paperDrafts` from the V3.157 query → `other` kind, (4) `state.indexDoc.periods` excluding the current period → `past_pmr` kind, (5) `grantDrafts where authorUids array-contains uid` → `fellowship` kind. Owner-only; admin viewing a student doesn't auto-pull (would defeat the student's curation choices). Re-runs are idempotent thanks to dedup.
+- **Goals as bullet lists**. `renderGoalCard` body switched from plain contentEditable to a `<ul><li>…</li></ul>` root. New helpers: `coerceGoalHtmlToList(html)` normalizes legacy plain-text goal bodies into list shape on load (splits on `<br>` / `</p>` / `\n`, wraps each line in `<li>`, leaves already-list-shaped HTML alone); `goalHasContent` + `showGoalPlaceholder` manage the placeholder state via a `placeholder-shown` class. Enter creates a new `<li>` (browser default); `Tab` → `document.execCommand('indent')` creates nested `<ul>`; `Shift+Tab` → `outdent`. On every `input`, re-coerce to ensure deletes that empty the body don't leave a bare text node.
+
+### Changed
+- **`rm/js/pmr.js`** — `emptyDoc` carries `section_order: []`; `hydrateDoc` backfills `section_order` as an array for older docs. `renderBody` iterates `effectiveSectionOrder()` and decorates each block head with reorder arrows. `renderRefRow` / `renderBarrierCard` / `renderProjectRow` / `renderWeek` / `renderDiscCard` / `renderFigureReviewCard` / `renderPaperDraftRow` all gain a `buildDiscussedToggle` call in their action row; their delete handlers use `array.indexOf(item)` fallbacks so split-rendering (active vs archived) doesn't corrupt splice indices.
+- **`sw.js`** — `CACHE_VERSION` 160 → 161.
+
+## [V3.192] - 2026-05-12
+
+**Grant ↔ Paper integration via the overlay system.** Connects the V3.179 grant writer to the lab's existing paper-overlay infrastructure (V3.103) so the user's "Claude in the sibling repo runs a lit review → highlights show up on the paper" workflow extends to grants. Each grant gets a `repo_path` for its sibling lit-review repo, the grant editor surfaces a Linked Papers panel + drop zone for AI-generated `.paper-overlay.md` files, those files upload to the grant card and auto-tag the referenced paper, the paper reader gains a type-filter pill bar and colored highlights, and the paper-overlay skill learns `grant:` + `type:` frontmatter. (Originally planned as V3.187 → V3.188 → V3.189 three-phase rollout; those slots were taken by today's concurrent ships so all three slices land as V3.192. Slices preserved in the plan doc as A / B / C for clarity.) Plan: `CodeLog/ClaudesPlan/V3.192_grant_paper_overlays.md`.
+
+### Added (slice A — linkage core)
+- **`rm/pages/grant-builder.html`** — `repo_path` input in the grant editor toolbar (autosaves). New "Linked Papers" sidebar panel below the existing "Attached" block with a **+ Link** picker button, a list of library papers tagged with this grant, and a `.paper-overlay.md` drop zone. Loads `firebase-storage-compat.js` since the overlay drop zone uploads to Firebase Storage.
+- **`rm/js/grant-editor.js`** — wires repo_path autosave, renders the Linked Papers panel by reading `items.json` for papers whose `meta.library.linked_drafts` contains this grant id, picker prompts user for a library paper and writes the grant id into `meta.library.linked_drafts`, untag button reverses it, paper click opens `/rm/pages/library-paper.html?id=<paperId>&draft=<grantId>` so the paper reader auto-activates this grant's overlay.
+- **`rm/js/paper-overlays.js`** — `_loadAllDrafts()` now also enumerates the V3.179 `grantDrafts/{id}` collection alongside items.json `type:'grant'`, deduped by id so legacy items take precedence. `_refreshLinkedDrafts()` resolves grant titles from grantDrafts when the id isn't found in items.json. `_loadActive()` honors `?draft=<id>` (or `?grant=<id>`) URL param by activating only that draft for the session — the persisted per-paper active set is left intact so a later visit without the param restores the user's state.
+
+### Added (slice B — overlay upload + annotation_type)
+- **`rm/js/grant-editor.js`** — overlay drop zone uploads `.paper-overlay.md` files to `grant-overlays/{grantId}/{sha256}.md` in Firebase Storage (1 MB cap; sha256 dedup so re-drops are idempotent). Registers metadata at `grantDrafts/{grantId}/overlays/{sha256}` with `{fileName, fileHash, fileSize, storagePath, downloadUrl, paperId, paperDoi, draftId, overlayTitle, uploadedBy, uploadedAt}`. Pre-parses the file's frontmatter to extract `paper_id`, auto-tags that paper with this grant id (so the paper appears in the Linked Papers panel before the user even opens the paper reader). Click-fallback opens an OS file picker. "Uploaded overlays" sub-list shows each upload with an "open & import" deep-link to the paper reader carrying `?import=<overlayId>&draft=<grantId>`.
+- **`rm/js/paper-overlay-import.js`** — new closed enum `VALID_TYPES = {evidence, method, result, limitation, claim, note, question}`. Validator reads `type:` per highlight, validates against the enum, defaults to `'note'`. `annotation_type` stamped on each created annotation. Frontmatter `grant:` and `grant_id:` aliased to `draft_id:` (legacy `bucket_id:` still accepted) so overlay files generated inside a grant repo target the V3.179 grant scope cleanly. Preview modal shows a type chip per highlight row.
+- **`rm/js/library-paper.js`** — when the URL carries `?import=<overlayId>&draft=<grantId>`, auto-fetches the overlay file from Storage (reads metadata from `grantDrafts/{grantId}/overlays/{overlayId}`, fetches `downloadUrl`, wraps the markdown text as a synthetic `File`) and hands it to `PAPER_OVERLAY_IMPORT.handleDrop()` so the existing import modal materializes the highlights. Lets a collaborator without the sibling repo materialize highlights by clicking "open & import" in the grant card.
+- **`firestore.rules`** — new rule block `grantDrafts/{grantId}/overlays/{overlayId}`: lab read, member create where `uploadedBy == auth.uid`, lab update, creator-or-admin delete. Doc id = file content sha256 (idempotent re-uploads).
+- **`storage.rules`** — new `grant-overlays/{grantId}/*` block: lab read, lab write, 1 MB cap. Markdown files only by convention (no MIME guard since markdown lacks a standard content type).
+
+### Added (slice C — type filter UI + colored highlights)
+- **`rm/js/paper-overlay-types.js`** (~140 lines, new) — closed 7-type enum + per-type filter UI for the paper reader. Exposes `PAPER_OVERLAY_TYPES.{init, refresh, getFilterFn, getColorForAnnotation, getActiveTypes, onChange}`. Renders 7 toggleable pill buttons in stable order (Evidence green / Method blue / Result purple / Limitation red / Claim yellow / Note grey / Question orange) with per-type count badges. Inactive pills render outlined-only; pills with zero count fade to 45% opacity. Active set persists per-paper in `localStorage["rm_lp_types_<paperId>"]`; defaults to all 7 active.
+- **`rm/pages/library-paper.html`** — new `lp-types-anchor` mount point between the overlays anchor and the search anchor; loads `/rm/js/paper-overlay-types.js`.
+- **`rm/js/library-paper.js`** — `_applyFilter` chains the type filter alongside the existing panel + overlay filters (`panelFn AND overlayFn AND typeFn`). Type-pill changes re-run the composed filter, mirroring the PAPER_OVERLAYS.onChange handler. Counts refresh after annotations mount.
+- **`.claude/skills/paper-overlay/SKILL.md`** — example overlay rewritten to use `grant:` + `type:` per highlight; format rules section documents the three scope aliases (`grant:` / `draft_id:` / `bucket_id:`) and the 7-value annotation_type enum with use-case guidance for each.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 159 → 160.
+
+### Notes
+- **Reuses the V3.103 draft-overlay machinery verbatim.** No new "third overlay scope" — grant draft ids are just additional draft ids in the existing generic system. The annotation's `cite_in_drafts` array already carries them; the paper's `meta.library.linked_drafts` already lists them. The only schema delta is the new `annotation_type` field, which is purely additive (legacy annotations without it filter as `'note'` by default).
+- **Auto-stub on overlay import not yet wired.** If the `.paper-overlay.md` references a `paper_id` that isn't in the library, the import fails today rather than stubbing a library entry. Deferred to V3.193+ along with cross-paper annotation-type rollups in the grant editor (e.g. "evidence highlights across all 14 linked papers").
+- **Annotation-type for hand-created highlights** — the paper reader's annotation panel doesn't yet expose a type picker for hand-created highlights; they default to `'note'`. The type filter still applies to them. A type-picker UI lands in V3.193+.
+- **Letter-of-support uploads** still V3.183+.
+- Plan: `CodeLog/ClaudesPlan/V3.192_grant_paper_overlays.md`.
+
+## [V3.191] - 2026-05-12
+
+**Paper builder: paragraphs stay in chip-mode while focused — raw `[@cite]` / `[!fig:…]` / `[!eqi:…]` / `[!eqr:…]` / `[!tab:…]` tokens never appear in the visible text.** User report: "in the paper editor, I never want to see the [@citation], [!fig:fig:me3b], or any other raw text versions, I want to show only the styalized version. If we need to edit them, the stylized verison should be editable just like the citation version is currently. The issue is that while im writing, i dont want to see the [stuff]." Pre-V3.191 the contenteditable swapped to plain source text on focus so the user could type — exposing every bracket token as raw text while they edited. V3.191 keeps the rendered chips visible even when focused, making them atomic (`contenteditable="false"`) so the caret flows around them; the chips remain clickable for the V3.157-style edit popover (currently citations only; other chip kinds get the same treatment in a follow-up).
+
+### Added
+- **`rm/js/paper-editor.js`** — new `renderChipsOnlyHtml(source)` renderer. Wraps every bracket token in an atomic `contenteditable="false"` span stamped with a uniform `data-src="<original-token>"` attribute. Everything else — including markdown source (`**bold**`, `*italic*`, `~sub~`, `^sup^`, `` `code` ``) and inline math source (`$…$`) — is left as escaped text so the user can still type/edit those characters directly. Newlines render as `<br>`. Used by the focus handler + Y.Text observer in `bindYTextToContentEditable`. Exposed on `window.PaperEditor.renderChipsOnlyHtml` so paper-equations.js can build chip DOM nodes for picker-driven inserts.
+- **`rm/js/paper-editor.js`** — new `serializeChipDom(el)` walker reads a chip-mode contenteditable back to its source string. Text nodes contribute their `nodeValue`; chip elements (any element with `data-src`) contribute their `data-src` (the original source token); `<br>` contributes `'\n'`; everything else recurses for inner content. Exposed on `window.PaperEditor.serializeChipDom`. The serialization is byte-exact with the source string `renderChipsOnlyHtml` was called with, so the binding's input-handler diff against `lastValue` produces correct Y.Text mutations.
+- **`rm/js/paper-editor.js`** — every chip renderer (`renderCitationChip` / `renderInlineEqLibraryChip` / `renderEqRefChip` / `renderFigRefChip` / `renderTabRefChip`) now stamps `contenteditable="false"` and `data-src="<exact source token>"` on the wrapping span. Cite chips: `data-src="[@k1; @k2]"`. Inline-eq chips: `data-src="[!eqi:<id-or-slug>]"`. Eq-ref chips: `data-src="[!eqr:<label>]"`. Fig-ref chips: `data-src="[!fig:<label>[:<panel>]]"` (panel suffix preserved when present). Tab-ref chips: `data-src="[!tab:<label>]"`. Unknown-key/label variants stamp the same `data-src` so the bad reference round-trips losslessly to source on serialize (instead of decaying to `[?…]`).
+- **`rm/js/paper-equations.js`** — `_insertAtSavedCaret(text)` detects when `text` is a bracket token (starts with `[@` or `[!` and ends with `]`) and inserts it as a chip DOM element via `range.insertNode(chipNode)` rather than `document.execCommand('insertText', ...)`. The chip is built by calling `PaperEditor.renderChipsOnlyHtml(text)` and unpacking the result into a `<template>` element to extract the live `<span data-src=...>` node. Caret moves to the position just after the inserted chip. Fires a synthetic `input` event so the V3.159 chip-mode input handler picks up the change and updates Y.Text. Plain (non-bracket) text falls back to the legacy execCommand path.
+
+### Changed
+- **`rm/js/paper-editor.js`** — `bindYTextToContentEditable`'s focus handler: instead of `el.textContent = yText.toString()` (V3.107 source-swap), now does `el.innerHTML = renderChipsOnlyHtml(yText.toString())` so chips appear immediately on focus and stay rendered through typing. `lastValue` is set to `yText.toString()` directly (the source string) rather than `el.textContent` (which in chip-mode would return the chips' visible labels, not the source token). The input handler reads via `serializeChipDom(el)` instead of `el.textContent` for the same reason. The Y.Text observer's focused-branch now repaints via `renderChipsOnlyHtml` for remote edits (caret position falls back to end-of-element across the innerHTML swap; local edits never reach this branch due to the `transaction.origin === 'local-input'` early-return).
+- **`rm/js/paper-editor.js`** — `readCaretCharOffset(el)` and `setCaretCharOffset(el, offset)` rewritten as chip-aware walkers. Pre-V3.191 they counted `pre.toString().length` and `textNode.length`, which in chip-mode counts the chip's visible label length (e.g. `"Smith 2024"` = 10) instead of the source-token length (e.g. `"[@smith2024]"` = 12). The new walkers count `node.dataset.src.length` for atomic chip nodes and use parent-relative positions (before/after the chip) when placing the caret. This keeps `lastFocusedCaret` in source-space consistently, so `insertCitationKeysAtFocus` and friends restore the caret to the correct source position.
+- **`rm/js/paper-equations.js`** — `_rangeFromCharOffset(el, offset)` and `_readCharOffset(el, endContainer, endOffset)` got the same chip-aware rewrite. The toolbar-button mousedown caret-save and the picker-driven insertions both go through these, so they all keep source-space consistency in chip-mode paragraphs.
+- **`rm/js/paper-editor.js`** — `replaceParagraphRange(paragraphEl, srcStart, srcEnd, newText)` (V3.157 chip-edit commit) extended to walk both text nodes AND atomic chips when locating `srcStart` / `srcEnd`. Chips are atomic so the range aligns to chip boundaries (before/after the chip node) rather than trying to set caret inside them. When inserting non-empty `newText`, builds the replacement as a chip span via `renderChipsOnlyHtml(newText)` and uses `range.insertNode(chipNode)` — so the new citation chip appears as an atomic span immediately rather than as raw `[@k1; @k2]` text the user would see for a frame before the next render.
+- **`sw.js`** — `CACHE_VERSION` 158 → 159.
+
+### Notes
+- **What does NOT auto-chip while typing.** If the user types `[@smith2024]` raw into a focused paragraph, it stays as raw text until they blur and refocus (next focus cycle re-runs `renderChipsOnlyHtml` against the current source). This is acceptable because picker-driven insertion (the V3.158 `+ Cite` / `+ Eq` / `+ Fig` / `+ Table` / `+ Inline Eq` buttons + Cmd+K) all go through `_insertAtSavedCaret` which now inserts as chip DOM directly. Manual typing of tokens is rare and the user is presumably aware they're typing source.
+- **Markdown source remains visible.** `**bold**` / `*italic*` / `~sub~` / `^sup^` / `` `code` `` and `$math$` are NOT atomic chips — they stay as raw markdown source while focused, exactly as they did pre-V3.191. The user complained specifically about bracket tokens (`[@…]`, `[!…]`), not markdown — and converting those to atomic chips would prevent the user from extending or modifying their boundaries. They render on blur as today.
+- **Click-to-edit on citations** (V3.157) still works — the cite chip's V3.157 click-mousedown-capture handler unchanged; `_openCitationEditor` calls the V3.191 chip-aware `replaceParagraphRange` to commit edits. Click-to-edit for fig/tab/eqr/eqi chips is not in V3.191 — those chip kinds still scroll-to-block on click (existing behavior). Add edit popovers for them in a follow-up when there's a clear UX for "change this reference's label".
+- **Y.Text remote-edit-during-focus repaint.** When a coauthor's edit arrives while the local user is focused on the same paragraph, the V3.159 observer repaints via `renderChipsOnlyHtml` and the caret jumps to end-of-element. Better caret preservation across the innerHTML swap is possible (track source-space offset, walk new DOM for the corresponding position) but adds complexity for an uncommon case in single-user editing. Out of scope.
+- **No data-model changes.** Y.Text source is unchanged — same `[@k1; @k2]`, `[!eqi:hookes-law]`, etc. tokens as before. The chip-mode rendering is a visual layer only.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v158`.
+
+## [V3.190] - 2026-05-12
+
+**Paper-reader citation finder — additional styles + diagnostic improvements.** Follow-up to V3.188. User reported that two papers still misbehave: a Springer CMLS paper (`10.1007/s00018-025-06036-6`) shows zero citations despite the journal's stated `[N]` bracket style, and a Frontiers in Molecular Biosciences paper (`10.3389/fmolb.2022.998475`) surfaces only ~half its cites. V3.190 ships three targeted fixes plus a stronger diagnostic so we can pinpoint the CMLS root cause from a console paste.
+
+### Changed
+- **`rm/js/paper-citations.js`** —
+  - **Always-on diagnostic.** `_scanPage` now logs `console.info('[paper-citations] p.N matches: …')` for EVERY page, including zero-match pages (logs `(none)` then). Previously only logged on ≥1 match, which is exactly the wrong polarity for diagnosing why a paper produces zero citations.
+  - **Debug text dump.** Set `window.__PAPER_CITATIONS_DEBUG__ = true` to additionally log the first ~400 chars of the page's joined text layer and `medianH` / `items.length`. Lets the user paste back a console fragment that reveals what the citation tokens actually look like (bracket vs paren vs superscript, ASCII vs unicode, etc.).
+  - **Surname particles.** New `_PARTICLE_SRC` prefix prepended to `_SURNAME_SRC` — `[A-Z][A-Za-zÀ-ɏ'\-]+` becomes `(?:(?:van|von|der|den|de|del|della|le|la|du|ten|ter|d['’])\s+){0,2}[A-Z][A-Za-zÀ-ɏ'\-]+`. 0-2 lowercase particles can precede the capitalised core, catching `(van der Berg, 2020)`, `(de Vries, 2019)`, `(von Hippel and Pasta, 1962)`, `(le Carré, 2020)`, `(d'Arbeloff, 2019)`. The particle group is greedy on 0-2 repeats and backtracks to 0 when no capitalised word follows. Overreach into body prose is bounded because particle-surnames only fire inside `_scanAuthorYearGroup` / `_scanNarrative`, both gated by a year following the author.
+  - **3+ author cites.** `_AUTHOR_GROUP_SRC`'s second branch rewritten as `(?:\s*,\s*SURNAME)*\s*,?\s*(?:and|&)\s+SURNAME`. Catches `(Smith, Jones, and Williams, 2021)`, `(Murray, Lopez, Wang, and Chen, 2022)`, and any longer chain. 1-author and 2-author cites still work via the 0-iteration path of the new repeat.
+- **`sw.js`** — `CACHE_VERSION` 156 → 157.
+
+### Notes
+- The CMLS paper is the more interesting case. Its stated journal style is `[N]` bracketed Vancouver numbers, which V3.188's `RE_NUMERIC` already covers — so if the V3.190 always-on diagnostic shows `matches: (none)` on body pages, the failure is one of: (a) the PDF uses unusual bracket codepoints (e.g. `〔〕`, `［］`, font-mapped variants), (b) the PDF text layer is empty or image-based, or (c) the body text contains no actual `[N]` tokens despite the style guide (e.g. the typesetter switched to superscripts in production). The `__PAPER_CITATIONS_DEBUG__` text-sample dump will reveal which. **Until the user pastes that back, V3.190 doesn't try to "fix" CMLS blindly** — adding unicode bracket variants speculatively risks false positives elsewhere.
+- The Frontiers paper improvements (particle prefixes + 3-author cites) ship without needing console feedback because the failure modes are predictable from the body-prose conventions in molecular-biosciences cites.
+- All numeric variants still emit `kind: 'numeric'` and all author-year variants still emit `kind: 'authoryear'`; `_matchedRef` and the sidebar render paths still require zero changes.
+- Plan: `CodeLog/ClaudesPlan/V3.190_citation_extra_styles.md`.
+
+## [V3.189] - 2026-05-12
+
+**PMR bucket lifecycle: mark complete + archive.** Wishlist item "PMR bucket lifecycle (mark complete + archive)" — the project-management loop didn't close before. Pre-V3.189 a bucket whose every subtask was `done` stayed in PMR's Open Tasks block forever (the rollup only filtered `!done` subtasks, so it just silently emptied out) and stayed in the Tasks-page workspace cluttering the active list. There was no "I'm done with this whole bucket" affordance and no archive surface, so completed work never tidied up. V3.189 adds a `bucket.archived: boolean` + `bucket.completed_at: ISO string` (both additive — no migration), the Mark-complete + Restore buttons, an Archived buckets collapsed section on both PMR's Open Tasks and on each Tasks-page task builder, and refactors PMR's Open Tasks roll-up from project→flat-subtasks to project→**bucket**→subtasks (per the wishlist's "organize as main task buckets → subtasks"). Scope is owner-only for V1; admin cross-user mark-complete is a follow-up because `userData/{uid}/buckets` isn't admin-readable today (PMR's `loadOpenTasks` already short-circuits for cross-user view).
+
+### Added
+- **`rm/js/pmr.js`** — new `state.bucketSummaries` populated by `loadOpenTasks` alongside `state.openTasks` (per-bucket: `{projectId, projectTitle, bucketId, bucketTitle, bucketCategory, bucketSubCategory, totalSubtasks, doneSubtasks, allDone, archived, completedAt}`). Skips the synthetic `proj-inbox`/`buk-inbox-unfiled` (proposed-task scratch) and skips `proposed:true` subtasks from the counts. New `renderBucketGroup(summary, rows)` renders one bucket-framed group with a header showing N/M progress + a `✓ Mark complete` button when `allDone && !isReadOnlyView`. Buckets with rows-but-not-all-done render normally; buckets with `allDone=true` and zero open rows still render the header + button (otherwise the affordance never surfaces). New `renderArchivedBucketsSection(summaries)` is a collapsed `<details>` listing archived buckets newest-first with a `↶ restore` button. New `markBucketComplete(projectId, bucketId, bucketTitle)` confirms + calls `updateBucketArchived(projectId, bucketId, true)`; new `unarchiveBucket(...)` mirrors for restore. `updateBucketArchived` does a targeted read-modify-write on `userData/{uid}/buckets/{projectId}` (the per-project doc in the buckets subcollection) rather than rewriting the whole subcollection via `api.save('tasks/buckets.json', ...)`, then reloads `loadOpenTasks` + `renderBody` so the bucket moves between active and archived sections instantly. Read-only-view guard short-circuits both mark and restore (admin cross-user mark-complete is deferred).
+- **`rm/js/tasks-buckets.js`** — `renderBucket` gains an inline `✓ Mark complete` button on the bucket header when `rollupBucket(b).open === 0 && rollupBucket(b).done > 0 && !b.archived`. New `renderArchivedBucketsForProject(project, archivedBuckets)` + `renderArchivedBucketRow(project, bucket)` render a per-project Archived-buckets collapsed accordion at the bottom of each task builder, sorted newest-completed-first with a `↶ restore` button per row.
+
+### Changed
+- **`rm/js/pmr.js`** — `renderOpenTasksBlock` switched from project→flat-rows to project→bucket→rows. The synthetic "Assigned by teammates" project (which doesn't appear in `state.bucketSummaries`) gets a fallback render path so cross-user assignments still surface.
+- **`rm/js/tasks-buckets.js`** — main bucket loop now skips `b.archived` from the active list and accumulates archived buckets into a `archivedHere[]` list that renders as a collapsed accordion at the bottom of the task builder (after `renderAddBucket`).
+- **`sw.js`** — `CACHE_VERSION` 156 → 157.
+- **`rm/wishlist.md`** — moves "PMR bucket lifecycle (mark complete + archive)" from PMR ↔ Lab Notebook to the Done archive.
+
+## [V3.188] - 2026-05-12
+
+**Paper-reader citation finder now covers every common in-text citation style.** User reported three papers where the left-rail "Citations on page N" panel was empty or undercounting: a Nature Sci Reports paper (`10.1038/s41598-2025-25381-x`) uses Vancouver superscript numerals with no brackets, a Springer CMLS paper (`10.1007/s00018-2025-06036-6`) uses bracketed/round-paren Vancouver numbers, and a Frontiers paper (`10.3389/fncel.2019.00230`) uses APA author-year with semicolon clusters — pre-V3.188 the scanner only knew `[N]` bracket and single-cite `(Author, YEAR)` patterns, so superscripts, round-paren numerics, multi-cite clusters, multi-year cites, and narrative cites all silently dropped. V3.188 refactors `_scanPage` in `rm/js/paper-citations.js` into six independent sub-scanners running in sequence and de-duped at the end, so adding a new style is a self-contained block rather than a new branch in a tangled regex.
+
+### Changed
+- **`rm/js/paper-citations.js`** — `_scanPage` rewritten as a multi-pass scanner. New patterns / passes:
+  - **`numeric:bracket`** — refined `RE_NUMERIC` to allow padding `[ 12 ]`. (Regression-safe for prior IEEE-style cites.)
+  - **`numeric:paren`** — new `RE_PAREN_NUMERIC` matches `(12)`, `(1, 2)`, `(12–14)`. Gated by new helper `_isParenNumericInProse` which walks back over whitespace and rejects the token unless the preceding non-whitespace char is alphanumeric — prevents enumerated list markers like ":\n(1) intro (2) results" or equation numbers from surfacing as fake citations.
+  - **`numeric:super-unicode`** — new `RE_UNICODE_SUPER` matches runs of unicode super-digits `[⁰¹²³⁴⁵⁶⁷⁸⁹]` plus connectives (commas, dashes, whitespace). New helper `_translateSuperscripts` rewrites each codepoint to its ASCII digit so `_expandNumericInner` can chew the cluster.
+  - **`numeric:super-geom`** — new geometric superscript detector. Iterates text items, picks ones whose `height < 0.78 × medianH` AND whose text is a pure digit-cluster AND whose preceding item is body-height and ends in a letter or closing bracket/paren. Catches the Nature/Sci-Reports PDF case where superscripts are extracted as plain ASCII digits in a smaller-font span rather than unicode supers.
+  - **`authoryear:single|cluster|multiyear`** — replaces the old single-cite `RE_AUTHOR_YEAR`. New flow: `RE_PAREN_GROUP` matches the whole `(…)` group → split inner on `;` → run a non-global `RE_AY_INNER` on each segment → for each segment, also scan trailing `, YYYY` for same-author multi-year cites. So `(Smith et al., 2019; Jones et al., 2020)` surfaces two rows; `(Smith et al., 2019, 2020)` surfaces two rows. Surname char class extended from `[A-Z][A-Za-zÀ-ſ'-]+` to `[A-Z][A-Za-zÀ-ɏ'\-]+` (Latin Extended-A + Extended-B).
+  - **`authoryear:narrative`** — new `RE_NARRATIVE` matches `Smith et al. (2020)` or `Smith et al. (2019, 2020)` where the author sits outside the parens.
+  - **Match dedupe** — unicode-super + geom-super can both fire on the same digit span, and cluster + narrative can overlap; new dedupe pass collapses matches sharing `(page, refKey)` whose rects overlap.
+  - **Per-pass diagnostic** — `console.info('[paper-citations] p.N matches: …')` summarizes per-`kindLabel` counts. Helps the user (and future me) spot which pattern fired (or didn't) when opening an unfamiliar paper. Set `window.__PAPER_CITATIONS_DEBUG__ = true` to log even on pages with zero matches.
+- **`sw.js`** — `CACHE_VERSION` 154 → 155.
+
+### Notes
+- All numeric variants emit `kind: 'numeric'` and all author-year variants emit `kind: 'authoryear'`, so `_matchedRef` and the sidebar render paths required zero changes — `kindLabel` is the only new field and it's diagnostic-only.
+- Out of scope for V3.188: roman-numeral cites (`[ii]`, `[IV]`), letter footnotes (`[a]`, `^b`), bare-digit-after-word cites with no separator markers (`text1,2,3` in normal body height — too risky to detect without false-positive flood; users with such papers will still see citations via the references-side parser, just not the inline scanner).
+- Plan: `CodeLog/ClaudesPlan/V3.188_citation_styles_comprehensive.md`.
+
+## [V3.187] - 2026-05-12
+
+**Training: Daily Research Workflow in RM.** Ships the V3.178-planned training module that walks a lab member through how the four daily-research pages (activity tracker, lab notebook, library, protocols) connect to each other and to PMR. Pre-V3.187 the [training landing grid](../../rm/pages/training.html) had this card greyed out as "coming soon — see plan V3.178"; new lab members had no guided introduction to the cross-page integration model that V3.160 + V3.161 set up. V3.187 closes that gap with an 8-section lecture-style module + 3 interactive widgets + a 5-question quiz + an 11-item daily-rhythm checklist. (Version V3.178 had already been used by the unrelated grants-facilities-biosketch ship on 2026-05-11; the plan filename stays `V3.178_training_rm_daily_research.md`, the ship gets a fresh version number.)
+
+### Added
+- **`rm/pages/training-rm-daily-research.html`** (~590 lines) — module page mirroring the V3.177 RM Essentials layout. 10 sections: Lab Research workflow flowchart, Activity tracker, Lab notebook, Library, Protocols, How they talk to each other, How they feed PMR, Capstone scenario, Quiz, Daily-rhythm checklist. Inline `<style>` block adds three widget-specific CSS chunks (flowchart nodes, tracker sim banner, notebook simulator) so the page is self-contained without expanding `training.css`.
+- **`rm/js/training-rm-daily-research.js`** (~310 lines) — three interactive widgets plus the standard TOC scroll-spy / picker-style quiz / progress-bar checklist pattern from V3.177:
+  - **Workflow flowchart** — 6-node grid (tracker, library, projects, tasks, notebook, protocols). Click a node → detail panel renders that page's role + the downstream signals it produces (e.g. notebook → tracker pending entry + PMR figure reviews). Single-active state preserved in `activeFlowSlug`.
+  - **Tracker entry confirmer** — three mock pending entries mirroring the real banner's shape (`rm-notebook` / `rm-protocol` / `rm-task` source pills, prefilled hours from `hours_estimate`, ✓ / ✗ buttons). Confirm or dismiss → a live mock "PMR Activity" summary fills in below, grouping hours by top-level category. Demonstrates the V3.160 confirmation → PMR rollup chain without touching real data.
+  - **Notebook entry simulator** — title + date + sample microscopy image (inline SVG data URI so no Storage dependency) with a 📌 PMR badge. Clicking the badge toggles flagged state on the image AND reveals a preview card mimicking the V3.161 figure-review block that would appear in the student's next PMR.
+- **`rm/js/training.js`** — `rm-daily-research` MODULES entry flipped `available: false → true`. Card now navigates to the module page; "Coming soon — see plan V3.178" tooltip removed.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 153 → 154.
+- **`CodeLog/ClaudesPlan/V3.178_training_rm_daily_research.md`** — status header flipped from "PLANNED" to "BUILT (2026-05-12)" with file path back-references.
+
+### Notes
+- The 3 widgets are stateful but **not persisted** to Firestore — they're purely pedagogical, like the V3.184 SNR calculator sliders. Refreshing the page resets them. If users complain about losing checklist progress, V3.187.1 can wire the checklist to `userData/{uid}/trainingProgress.dailyResearch.toolkit`, mirroring the pattern other training modules use.
+- The capstone scenario (Section 8) is **written as a 9-step walkthrough**, not interactive. A future v.next could turn it into a guided wizard with step-by-step "do this, then continue" prompts; V3.187 ships the prose version because the same walk can be done in a real RM session in 18 minutes and the walkthrough text is enough scaffolding.
+- Cross-links in the module bottom-out at V3.179 (Tasks & PMR — next training module in the rm-hub category) and V3.180 (Papers in RM). Those modules are still `available: false`; the cross-links exist so when they ship the prose doesn't need re-editing.
+- Plan: `CodeLog/ClaudesPlan/V3.178_training_rm_daily_research.md`.
+
+## [V3.186] - 2026-05-12
+
+**PMR gains a Goals section with four time horizons.** User asked for "short term goals and long term goals: Short = this semester, long = this year, this PhD journey, as well as beyond the PhD" so the student can articulate what they're aiming for and the 1:1 conversation has somewhere to anchor "why are we doing this." Pre-V3.186 PMR had no goals surface — students described week-to-week activity in `weekly_entries` and barriers in `barriers[]`, but the multi-year arc lived nowhere; admin had no place to ask "is this still aligned with where you want to be in five years?". V3.186 adds a `Goals` block at the top of `renderBody`'s block list (frames everything below) with four rich-text cards: This semester / This year / PhD journey / Beyond PhD. Each card has a contentEditable body, a `last_updated` timestamp displayed in the header, and a per-horizon comment thread so admin and student can talk about each horizon separately without polluting the others.
+
+### Added
+- **`rm/js/pmr.js`** — new `GOAL_HORIZONS` constant lists the four horizons with `{key, label, hint, placeholder}`. New `emptyGoals()` helper produces a four-key object used by both `emptyDoc()` (so fresh PMR docs include goals) and `hydrateDoc()` (backfills any horizon missing from older docs). New `renderGoalsBlock()` renders a responsive grid (auto-fit / minmax(280px, 1fr)) of four `renderGoalCard()` instances; each card has an indigo left-border, a horizon label header with last-updated chip, a placeholder-bearing contentEditable body (focus clears placeholder, blur restores it if empty), and a `💬` toggle that opens a per-horizon comment thread via `buildCommentToggle(card, 'goals', horizon.key, ...)`. The section also has its own thread at `section_id='goals', target_id=null` for cross-horizon discussion. Block inserted at index 0 of `renderBody`'s block list so goals appear above Project overview — they frame the rest of the doc.
+
+### Changed
+- **`rm/js/pmr.js`** — `emptyDoc()` carries a new `goals: emptyGoals()` field; `hydrateDoc()` backfills `d.goals` and every per-horizon entry for docs created before V3.186. Read-only-view guard already inherited via `isReadOnlyView()` — admin viewing a student's PMR sees the goals but cannot edit them (contentEditable=false, scheduleSave short-circuits).
+- **`sw.js`** — `CACHE_VERSION` 152 → 153.
+
+## [V3.185] - 2026-05-12
+
+**Grant Drafts on the RM home dashboard.** Two-line surfacing follow-up to V3.179. Without this, the grant writer was one nav-click off the dashboard and a user had no quick signal they had a draft sitting at `needs-review` or a deadline approaching. V3.185 adds a "Grant Drafts" card to the cards grid (slotted between Calendar and Proposals — logical pipeline: Drafts → Proposals → Awards) and injects open-draft deadlines into the existing Deadlines table alongside calendar deadlines.
+
+### Changed
+- **`rm/js/dashboard.js`** — Hoisted a `grantDrafts` variable to `_runDashboard()`'s outer scope. New card section reads `grantDrafts` directly via `firebridge.db().collection('grantDrafts').get()` (gated on `firebridge.isLabMember()` so guest signins don't 403; wrapped in try/catch so transient failures skip the card silently rather than crash the dashboard, mirroring the Protocols + Library card pattern). Card shows count of drafts with `status` ∈ {draft, internal-review} + the soonest `deadlineISO` among them; links to `/rm/pages/grant-builder.html`. Deadlines-table block (line ~450) iterates the same `grantDrafts` array and pushes entries with `category: 'grant'` into `allDeadlines` for drafts where (a) `deadlineISO` is non-empty and not `'TBD'`, (b) status is `draft` or `internal-review` (excludes submitted/awarded/declined whose deadlines are historical), (c) `daysUntil(deadlineISO)` is null or ≥ -7 (within the same 7-day-grace window the rest of the table uses).
+- **`sw.js`** — `CACHE_VERSION` 151 → 152 (subsequent bump to 153 by V3.186).
+
+### Notes
+- The "Proposals" card (unchanged) reads `funding/proposals.json` — the institutional accounting record post-submission. The new "Grant Drafts" card reads `grantDrafts` — in-progress drafts being authored in the V3.179 grant writer. Both cards coexist intentionally: Drafts = "what am I writing right now", Proposals = "what's submitted to sponsors".
+- Card is lab-wide (not "drafts assigned to me") — `grantDrafts` is a lab-shared collection so a co-PI's draft surfaces on every lab member's dashboard, matching the existing Proposals/Papers cards' lab-wide semantics. Per-user filtering would need a `pi.uid` composite index; deferred until usage shows it's needed.
+- Plan: `CodeLog/ClaudesPlan/V3.185_grants_dashboard_surfacing.md`.
+
+## [V3.184.2] - 2026-05-12
+
+**Camera-selection training: Andor lineup refreshed + expanded 24 → 28 cameras.** Third pass on the V3.184 catalog after the user pointed at Andor's current sCMOS-for-life-science page. Two issues: (1) Andor rebranded their lineup — what V3.184.1 called "Zyla 4.2 PLUS" is now sold as **ZL41 Cell 4.2**, and "Sona 4.2B-11" is now **Sona-11 32 mm**; (2) Andor's lineup grew four new variants in 2024-2026 that weren't represented in the catalog.
+
+### Changed
+- **`rm/js/training-camera-selection.js`** — Renamed `Andor Zyla 4.2 PLUS` → `Andor ZL41 Cell 4.2`; refined specs from the current Andor page (read noise 1.1 → 0.9 e-, USB 3.0 fps 100 → 53; the 100 fps figure was the Camera Link mode, not the USB-3.0 mode the lab would actually use). Renamed `Andor Sona 4.2B-11` → `Andor Sona-11 (32 mm)`. **Added four new Andor entries:** **ZL41 Cell 5.5** ($19k, 5.5 MP front-illum, 64% QE, 0.9 e- rolling / 2.3 e- global — rare global-shutter option for tracking / machine-vision-style work); **Sona-11 22 mm** ($20k, 2 MP, 11 µm BSI, 95% QE, 70 fps — smaller-sensor Sona-11 variant); **Sona Extreme** ($28k, 4.2 MP 6.5 µm BSI, 95% QE, sub-1 e- read noise, -45 °C deep cooling, 43 fps USB 3.0 / 135 fps CoaXPress — flagship deep-cooled BSI); **CB2 24B** ($32k, 24.5 MP BSI 2.74 µm pixels, 75% QE, 1.3 e- read noise, 106 fps full-res / 386 fps binned via CoaXPress + 10 GigE — high-res high-speed for developmental biology, needs a frame grabber so not plug-and-play USB).
+- **`rm/pages/training-camera-selection.html`** — Tab 1 worked-example + Tab 5 capstone background updated to "28 cameras". Tab 5's vendor-list line in the background paragraph now spells out the full Andor lineup (ZL41 Cell 4.2 / Cell 5.5 / Sona-11 22mm / Sona-11 32mm / Sona Extreme / CB2 24B / iXon Ultra 888 EMCCD) so a buyer can see every option before tweaking sliders.
+- **`sw.js`** — `CACHE_VERSION` 157 → 158.
+
+### Notes
+- Andor specs confirmed via WebFetch of `andor.oxinst.com/products/scmos-for-life-science`.
+- Camera Link / CoaXPress fps figures are NOT used in scoring — the catalog's `fps` field reports the USB-3.0 figure (or full-frame if interface is irrelevant for the comparison), because USB-3.0 is the plug-and-play default on the Ti-E and Ti2-U. CoaXPress requires a separate frame grabber + workstation upgrade.
+- **ZL41 Cell 5.5 global shutter** is unusual — most lab fluorescence cameras are rolling shutter. Global shutter eliminates the rolling-shutter distortion artifact when imaging fast-moving objects (e.g., a free-swimming organoid, a vibrating cantilever, fast bead flow in microfluidics). Trade: lower QE and higher read noise in global mode.
+- **CB2 24B caveat** — CoaXPress isn't a USB-class plug-and-play interface. Buying this camera = also buying a CoaXPress frame grabber PCIe card + a workstation that has a free PCIe slot for it. Worth knowing before recommending.
+
+## [V3.184.1] - 2026-05-12
+
+**Camera-selection training: catalog expanded 16 → 24 cameras.** User flagged that the initial V3.184 catalog under-represented Tucsen and skipped Thorlabs entirely, and asked specifically about the Tucsen Libra 25 (a 25 mm BSI sensor that's a credible Iris 15 alternative on the sensitivity axis). The Libra 25 was confirmed via the vendor page: 5.3 MP, 7.52 µm pixels, 25 mm diagonal, 92% peak QE BSI, 1.0 e- read noise, <0.01 e-/pix/s dark current, 14/16-bit, USB 3.0, TEC-cooled to 0 °C. Adding it forced a broader sweep of Tucsen's full lineup (Aries / Libra / FL / Dhyana families on `tucsen.com/scmos/`) plus Thorlabs' Zelux / Quantalux / Kiralux families — both of which had been omitted from V3.184's initial pass.
+
+### Changed
+- **`rm/js/training-camera-selection.js`** — `CATALOG` reorganized into three tiers (budget / mid / premium) and grew from 16 to 24 entries. **New Tucsen entries:** Libra 25 ($14k, 25 mm BSI, 92% QE, 7.52 µm pixels, 1 e- read noise — the direct Iris-15-on-sensitivity alternative); Aries 6504 Pro ($19k, 4.2 MP BSI 95% QE, 0.43 e- read noise — Tucsen's Fusion-BT-class flagship); FL-26BW ($13k, 26 MP BSI Sony IMX571, deep cooled to −25 °C, ultra-low dark current — chemiluminescence + long-exposure dim fluorescence); FL-20BW ($7k, 20 MP cooled CMOS Sony IMX183, sub-1 e- read noise — cheapest "real" 20 MP fluorescence camera); Dhyana 95V2 ($14k, 4 MP 11 µm BSI GSENSE400BSI — Sona competitor with large pixels). **New Thorlabs entries:** Zelux CS165MU ($700, 1.6 MP CMOS Sony IMX273 — cheapest catalog entry, brightfield only); Quantalux CC215MU ($5k, 2.1 MP cooled sCMOS, 1 e- read noise, 61% QE at 600 nm — cheapest cooled scientific sCMOS); Kiralux CC126MU ($4k, 12.3 MP cooled CMOS Sony IMX304 — mid-budget well-stained fluorescence). Catalog cheapest entry drops from $2k (FLIR Blackfly) to $700 (Thorlabs Zelux).
+- **`rm/pages/training-camera-selection.html`** — Tab 1 worked-example rewritten around the three-trade structure (same-FOV-better-sensitivity = Libra 25, same-FOV-cheapest = Dhyana 4040, smaller-FOV-premium-sensitivity = Fusion BT / Prime BSI Express) instead of just naming a single answer. Tab 5 background lists the new 24-camera lineup so the user can see the vendor coverage before tweaking sliders. Budget slider min lowered $2k → $500 + step $1k → $500 so the Thorlabs Zelux is reachable.
+- **`rm/js/training-camera-selection.js`** `drawPick` empty-state copy updated: cheapest fluorescence-capable camera is now the Thorlabs Quantalux CC215MU at $5k, not the ORCA-Spark at $6k.
+- **`CodeLog/ClaudesPlan/V3.184_training_camera_selection.md`** — Catalog section appended with a "V3.184.1 expansion" block listing the 8 additions (net 16 → 24) and their rationale.
+- **`sw.js`** — `CACHE_VERSION` 155 → 156.
+
+### Notes
+- Tucsen page-source verified by WebFetch (`tucsen.com/libra-25-product/`, `fl-26bw-product/`, `fl-20-product/`, `super-resolution-microscopy-srm-camera-dhyana-95v-tucsen-product/`, `scmos/`); Thorlabs Zelux / Quantalux / Kiralux specs from `thorlabs.com/item/*` family pages via web search (Thorlabs renders product specs in JS, so WebFetch surfaces only the page header — search snippets carried the spec data).
+- Tucsen prices flagged as ballparks — Tucsen typically lands 30-50% under Photometrics/Hamamatsu but exact academic quote depends on regional distributor (Axiom Optics in the US).
+- The Libra 25's 7.52 µm pixels are coarser than the Iris 15's 4.25 µm — same 25 mm FOV at the sample but 3× fewer pixels and under-sampled below ~40× mag. This trade is now called out in the Tab 1 worked-example.
+
+## [V3.184] - 2026-05-12
+
+**Training: Selecting a Camera for the Inverted Microscope.** New module in the Microscopy category, slotted after V3.167 image-train as the natural follow-on — image-train teaches optics up to the sensor; this one teaches the sensor itself plus the buying decision. Trigger: Alex was asked which camera to buy as a "Photometrics Iris 15 alternative" at ~$15k; the answer always depends on whether the project cares about FOV, sensitivity, or speed, so this module makes that decision interactive instead of asking Alex every time. Five-tab interactive notebook following the V3.167 image-train pattern (same `.tab-bar` / `.background-section` / `.student-task` / `.scenario-bar` / `.panel` / `.signoff-sheet` CSS — no new styles required).
+
+### Added
+- **`rm/pages/training-camera-selection.html`** (~370 lines) — 5-tab module. Tab 1 Sensor Types compares the 5 sensor families (Industrial CMOS / sCMOS front-illum / sCMOS BSI / qCMOS / EMCCD) with peak QE, read noise, fps, price band, best-for, and avoid-for. Tab 2 Specs Deciphered walks the 6 datasheet specs that actually decide (QE, read noise, pixel size, sensor size, dynamic range, frame rate) with units, typical ranges, trade-offs, and "matters most when" callouts. Tab 3 Modality Matcher swaps spec priorities for 10 imaging modalities (brightfield, phase / DIC, epi-well-stained, epi-dim, TIRF, spinning-disk, live-cell time-lapse, calcium, single-molecule, TFM bead tracking) with a recommended sensor family + budget band + canonical pick. Tab 4 SNR Calculator drives 6 sliders (signal, background, QE, read noise, dark current, exposure) into `SNR = (S·QE)/√(S·QE + B·QE + Nread² + D·t)`, identifies the dominant noise term (shot / read / dark / background), and renders a simulated noisy 80×36 pixel grid of a Gaussian object using Box-Muller + a seeded `mulberry32` PRNG so the image is stable across redraws. Tab 5 Capstone is a budget + modality + priority-toggle selector that scores all 15 catalog cameras against the chosen modality's Tab-3 priorities and renders a printable top-5 shortlist with 2025-2026 ballpark prices, key specs, and per-camera blurbs.
+- **`rm/js/training-camera-selection.js`** (~720 lines) — renderer with 5 redraw functions, scenario-bar wiring, `getCanvasCtx` DPR-aware canvas helper, `FAMILIES` table (5 entries), `SPECS` table (6 entries), `MODALITIES` table (10 entries × 6 priority axes), `CATALOG` table (15 cameras: FLIR Blackfly S, Hamamatsu ORCA-Spark / Flash 4.0 V3 / Fusion BT / Quest 2 / Lightning, Tucsen Dhyana 400BSI V3 / 4040 V2, Photometrics Iris 9 / Iris 15 / Prime 95B / Prime BSI Express / Kinetix, Andor Zyla 4.2 PLUS / Sona 4.2B-11 / iXon Ultra 888 EMCCD). Scoring computes per-axis 0-3 scores from each camera's specs (`qeScore` from peak QE, `rnScore` from read noise, `pxScore` from pixel-pitch proximity to 6.5 µm, `fovScore` from diagonal, `drScore` from bit depth, `fpsScore` from log-fps), weighted sum against the modality's priority vector, plus explicit bonuses for the "I also need large FOV / fast / lowest noise" checkboxes and penalties for industrial-CMOS-into-fluorescence and EMCCD-when-not-needed. Catalog prices are flagged on-page as 2025-2026 ballparks needing live quotes.
+- **`rm/js/training.js`** — new `MODULES` entry in the `microscopy` category: `{ slug: 'camera-selection', icon: '📷', title: 'Selecting a camera', available: true, planVersion: 'V3.184' }`. Microscopy category goes from 4 → 5 modules; total curriculum now 9 of 21 modules available (Foundations 3/3, Using RM 1/5, Microscopy 5/5, Analysis 0/3, Tools 0/5).
+- **`CodeLog/ClaudesPlan/V3.184_training_camera_selection.md`** — plan doc with goal, slot in curriculum, per-tab content spec, full catalog, cross-links, and out-of-scope notes (color cameras, line-scan, ICCD, confocal detectors).
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 150 → 151.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.184.
+
+### Notes
+- No new CSS — the module reuses every primitive already in [`rm/css/training.css`](../../rm/css/training.css) (`.tab-bar` / `.background-section` / `.student-task` / `.scenario-bar` / `.panel` / `.signoff-sheet` / `.equation-box` / `.worked-example` / `.val-verdict` / `.insight`). Print stylesheet from V3.164 already strips chrome on Cmd+P so the Tab 5 shortlist becomes a clean procurement attachment.
+- **Pedagogy choice:** modality → priority vector → camera shortlist, not "here are all the specs in a table." Students leave with a defensible answer to "which camera should we buy" rather than a memorized comparison they'll forget by the next purchase cycle. The Iris 15 question from real life is worked as an example in Tab 1.
+- **No prerequisite gate** — unlike V3.164 microscope-basics (required before AX-R confocal), this isn't a hardware-access trainer; anyone planning a purchase can use it without a sign-off.
+- Plan: `CodeLog/ClaudesPlan/V3.184_training_camera_selection.md`.
+
+## [V3.179] - 2026-05-11
+
+**Grant Writing workflow — Phase 2 (Grant Writer + Budget Editor).** Second slice of the five-phase Grant Writing stack. V3.178 shipped the auto-generated artifacts (biosketch + facilities); V3.179 ships the writing tools — a block-based grant editor and a multi-year budget editor — so a lab member can author a full grant draft end-to-end inside RM. Per the user's directive ("do the grants portal + scraper last"), the federal grants portal + scraper (V3.181) and AI "match my idea" matcher (V3.182, depends on portal data) are deferred to ship together as the discovery half of the workflow. The original V3.180 Yjs CRDT collaborative editor is **deferred to V3.183+** — V3.179 ships a single-author non-Yjs editor with the same on-disk data shape as the paper writer's Y.Doc materialization, so the Yjs upgrade lands additively (hydrate the JSON tree → Y.Doc on first connect). Trade-off: no real-time collab now; grants are typically authored by one PI so the trade is acceptable for V1. Net: ~700 lines of editor instead of cloning ~7000 lines from `paper-editor.js` / `paper-yjs.js`. Plans: [V3.179 plan doc](../ClaudesPlan/V3.179_grant_writer.md). Roadmap: [`~/.claude/plans/just-like-we-have-jiggly-cupcake.md`](../../../.claude/plans/just-like-we-have-jiggly-cupcake.md).
+
+### Added — Grant writer
+- **`rm/pages/grant-builder.html`** — unified list+editor shell mirroring `paper-builder.html`. `?grant=<id>` switches to editor mode; absent param renders the list. Per-mode scripts loaded via `document.write`. Reuses `paper-editor.css` primitives (`.pe-page`, `.pe-topbar`, `.pe-layout`, `.pe-sidebar`, `.pe-main`, `.pe-block`, `.pb-card`, `.pb-modal`) so the grant writer matches paper-writer ergonomics.
+- **`rm/js/grant-schemas.js`** (~330 lines) — closed vocabularies for the grant tree. **GRANT_SECTION_KINDS** = 29 NIH/NSF/DOD section types (specific-aims, significance, innovation, approach, approach-aim, project-summary, project-description, intellectual-merit, broader-impacts, references, biosketch-ref, budget, budget-justification, facilities, vertebrate-animals, human-subjects, select-agents, letters-of-support, data-management-plan, education-plan, mentoring-plan, …). **SECTION_STYLE** carries advisory `pageBudget` per section kind (e.g. specific-aims=1pg, R01 research-strategy=12pg). **GRANT_BLOCK_KINDS** extends paper-blocks with grant-specific: `aim-bullets`, `budget-table`, `personnel-table`, `compliance-row`, `letter-card`. **GRANT_TEMPLATES** = 5 starters (`nih-r01` 16-section, `nih-r21` 12-section, `nsf-standard` 11-section, `nsf-career` 14-section, `blank`). Factories: `shortId`, `newSection`, `newParagraph`, `newAimBullets`, `newBudgetTable`, `newPersonnelTable`, `newComplianceRow`, `newLetterCard`, `seedBlocksForSection` (per-kind default block seed), `newTree`, `normalizeTree`, `styleFor`.
+- **`rm/js/grant-builder.js`** (~220 lines) — list view + new-grant modal. Reads `grantDrafts` collection directly via `firebridge.db()` (no JSON shadow, no api-routes registration — Firestore-native). Cards show title + agency + mechanism + deadline countdown + template tag. Modal collects title + template + mechanism + agency + deadline, creates a new doc with `tree` seeded via `GrantSchemas.newTree(templateId, title)`, then redirects to `?grant=<newId>`.
+- **`rm/js/grant-editor.js`** (~600 lines) — single-author block editor with 700ms-debounced autosave to `grantDrafts/{id}.tree`. Renders six block kinds: **paragraph** (contenteditable rich text with focus border + autosave on input), **aim-bullets** (hypothesis textarea + grid of Aim cards with title + summary + remove + add aim), **budget-table** (inline summary chip + "Open budget editor" button that mounts the budget modal), **personnel-table** (4-col inline editable table), **compliance-row** (yes/no/N/A radio buttons), **letter-card** (writer/institution/role placeholder; upload integration is V3.183). Section outline sidebar with click-to-activate; section header has inline label editing + delete; "+ Add section" prompt walks the user through the 29 section kinds. Cross-page integration: **+ Biosketch** + **+ Facilities** toolbar buttons pick from V3.178 collections, stamp the id onto `attachments.{biosketchVariantIds,facilitiesDocIds}[]`, write reciprocal backrefs (`biosketches/{uid}/variants/{vid}.grantDraftIds`, `facilitiesDocs/{id}.attachedTo`). **Export LaTeX** + **Print → PDF** buttons.
+- **`rm/js/grant-export-tex.js`** (~170 lines) — LaTeX bundle export. Walks the section/block tree, emits a single self-contained `.tex` source (article class, 11pt Helvetica, 0.5" margins, packages: geometry, graphicx, amsmath, enumitem, titlesec). Per-block converters: `paragraphToTex` (strips HTML tags via DOM), `aimBulletsToTex` (textbf hypothesis + itemize of aims), `budgetTableToTex` (multi-year tabular from `budgetSummary`), `personnelTableToTex` (tabular from rows), `complianceRowToTex` (Q/A), `letterCardToTex` (placeholder line referencing attachment). Downloads `<grant-title>.tex` via Blob.
+
+### Added — Budget editor
+- **`rm/js/grant-budget-model.js`** (~140 lines) — pure calc functions, no DOM, testable in isolation. **personnelCost** computes `salary × effort × (1+escalation)^yearIdx + fringe` with per-row fringe rate selection (academic/summer/postdoc/student). **categoryTotals** aggregates per-category direct totals (personnel, fringe, equipment, supplies, travel, publications, consultants, subawardsDirect, subawardsIndirect, otherDirect, directs). **mtdcBase** implements the standard NIH MTDC exclusion rules: `directs − equipment(≥excludeAbove) − subawardDirects(>$25k each) − subawardIndirects` (each subaward's first $25k is included; the rest is excluded). **idcAmount** = `mtdcBase × rate`. **yearSummary** returns `{totals, mtdcBase, indirects, total}` for one year. **aggregateYears** rolls Y1..Y5 into a grand total + per-year breakdown for `budgetSummary` denormalization.
+- **`rm/js/grant-budget.js`** (~420 lines) — budget modal mounted by the editor's `budget-table` block. Y1–Y5 tabs (always rendered; unsaved years are local-only until edited). Modular ↔ detailed toggle. Detailed mode renders 7 category cards (Personnel with per-row salary/effort/fringe inputs + auto-computed Salary+Fringe column, Equipment, Supplies, Travel, Consultants, Subawards, Other direct) + a Settings card with publications budget / IDC rate / IDC basis (MTDC/TDC) / escalation. Modular mode hides line items and shows a single $25k-step input (NIH modular ceiling = $250k/yr direct). Footer shows live "this year" totals (directs, MTDC base, indirect amount + rate, year total) + "all years" grand total. 700ms-debounced autosave writes the year doc to `grantDrafts/{id}/budget/{year}` and a denormalized summary back to `grantDrafts/{id}.budgetSummary`.
+
+### Added — Firestore schema
+- **`grantDrafts/{grantId}`** — lab read, lab-member write (co-PIs + collaborators can edit collaboratively; creator + admin delete). Fields: `title`, `status` ∈ {draft, internal-review, submitted, awarded, declined}, `mechanism`, `agency`, `programOfficer`, `pi: {uid, name}`, `coIs[]`, `collaborators[]`, `deadlineISO`, `submittedAt`, `awardedAt`, `fundingId` (populated on submission), `opportunityId` (populated when started from a portal NOFO — V3.181), `budgetSummary: {directs, indirects, total, years[]}`, `attachments: {biosketchVariantIds[], facilitiesDocIds[]}`, `tree: {meta, sections[]}` (the entire section/block tree as JSON), `createdBy`, `createdAt`, `updatedAt`.
+- **`grantDrafts/{grantId}/budget/{year}`** — Y1..Y5 per-project-year budget docs. Lab read/write. Fields: `year`, `mode`, `modularAmount`, `fringeRates`, `idc`, `escalation`, `personnel[]`, `equipment[]`, `supplies[]`, `travel[]`, `consultants[]`, `subawards[]`, `otherDirect[]`, `publications`, `computedTotals`, `updatedAt`.
+- **Reserved for V3.183+** — Yjs subcollections (`yjs_snapshot`, `yjs_updates`, `presence`, `comments`) are commented out in the rules block so the future collab upgrade lands without a rules migration.
+
+### Changed
+- **`firestore.rules`** — added `match /grantDrafts/{grantId}` + `match /grantDrafts/{grantId}/budget/{year}` rule blocks. Yjs subcoll rules reserved as commented stubs. Dry-run deploy compiles cleanly.
+- **`rm/js/nav.js`** — enabled the **Grants** child under the Research dropdown (was hidden in V3.178 pending V3.179). `grant-writing` workflow seed updated: pageIds now includes `grant-builder` first; description updated to mention "(last) idea-to-grant matcher backed by the federal opportunities portal."
+- **`sw.js`** — `CACHE_VERSION` 149 → 150.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.179.
+
+### Notes
+- **Yjs deferral, on the record.** The original approved plan called for cloning `paper-yjs.js` + `paper-editor.js` (~4400 + 390 lines) for collaborative editing. V3.179 ships a single-author editor instead — same on-disk data shape (section/block tree at `grantDrafts/{id}.tree`) as the paper writer's Y.Doc materialization, so a V3.183 Yjs upgrade can hydrate the JSON tree into a Y.Doc on first connect and take over without a migration. Grants are typically authored by one PI; revisit collab once usage proves it's needed.
+- **No JSON shadow.** `grantDrafts` is a Firestore-native collection. Calls go through `firebridge.db().collection('grantDrafts')` directly, not the discriminated-route adapter pattern that `funding`/`projects`/`inventory` use. This matches the `protocols` collection's setup and avoids per-user JSON contamination.
+- **LaTeX export is V1.** The exporter emits one self-contained `.tex` file (article class). No agency-specific class file (NIH/NSF have specific templates) — V3.183+ work. No BibTeX yet — references section renders as a plain paragraph block that the user fills manually; full citation library integration (mirroring paper-citations.js) lands in V3.183+.
+- **Letter-of-support uploads + PDF integration** deferred to V3.183.
+- **Compliance auto-fill** from `compliance/iacuc.json` + `compliance/irb.json` deferred to V3.183.
+- **Award → Project transition** (auto-create matching `funding/{id}` account doc when status flips to 'awarded') deferred to V3.183.
+- Plan: `CodeLog/ClaudesPlan/V3.179_grant_writer.md`.
+
+## [V3.178] - 2026-05-11
+
+**Grant Writing workflow — Phase 1 (Facilities + Biosketch).** First slice of a five-phase Grant Writing stack that mirrors the Paper Writer architecture. V3.178 ships the two proposal artifacts that piggyback on existing data: a **Biosketch generator** (NIH 5-page / NSF / DOD) sourced from `cvData/{uid}` with per-proposal tailored Personal Statement + Contributions, and a **Facilities & Other Resources doc generator** that auto-aggregates the `inventory`, `equipment`, and `users` collections into editable boilerplate. No Yjs, no Cloud Functions, no scraper — pure client-side render over Firestore. Subsequent phases V3.179–V3.182 add the grant opportunities portal (scraper + browse), the Yjs grant writer, the budget editor, and the AI "match my idea to grants" tool, respectively. See [V3.178 plan](../ClaudesPlan/V3.178_grants_facilities_biosketch.md) and [`~/.claude/plans/just-like-we-have-jiggly-cupcake.md`](../../../.claude/plans/just-like-we-have-jiggly-cupcake.md) for the full roadmap.
+
+### Added
+- **`rm/pages/grant-biosketch.html`** + **`rm/js/grant-biosketch.js`** (~520 lines) + **`rm/js/grant-biosketch-export.js`** (~120 lines) — biosketch variant manager. Left rail lists variants; right pane renders the NIH 5-page / NSF / DOD section tree. Editable surfaces are `contenteditable` `<div>`s bound to variant fields; autosave fires 600 ms after the last keystroke. NIH "Contributions to Science" supports up to 5 entries with per-entry title + narrative + citations (refs by `_id` from `cvData.journals` + `cvData.conferences`). NSF "Synergistic Activities" supports up to 5 free-form entries. Positions/Honors/Publications render live from `cvData` so a CV edit elsewhere in RM immediately reflects. Print → PDF uses `window.print()` against `grant-doc.css`. Export DOC packages the rendered HTML as `application/msword` (Word/Docs/LibreOffice open this natively).
+- **`rm/pages/grant-facilities.html`** + **`rm/js/grant-facilities.js`** (~430 lines) — Facilities & Other Resources doc generator. On create, runs the aggregator: inventory items with `category=='equipment'` OR `unit_price>=$5k` (grouped by subcategory) + bookable shared instruments from the `equipment` collection + personnel narrative derived from the `users` collection. Sections (Facilities / Equipment / Computing / Office / Other Resources) are stored as HTML strings; users edit inline. "Regenerate" re-runs the aggregator and rewrites only the sections the user hasn't customized (identified by hash-equality with the previous auto-generated HTML, stored as `autoSections`).
+- **`rm/css/grant-doc.css`** (~290 lines) — shared "proposal document" page styling for biosketch + facilities (and the V3.180 grant writer). 11pt Arial body, 0.5" margins, single-column. Screen view frames the document inside RM chrome; `@media print` strips chrome and applies `@page { size: letter; margin: 0.5in; }` for NIH-compliant output.
+- **`CodeLog/ClaudesPlan/V3.178_grants_facilities_biosketch.md`** — phase-1 plan doc with locked decisions, schema, rules, renderer specs, and verification steps.
+- **Firestore collections (new):**
+  - **`biosketches/{userId}`** with subcollection **`biosketches/{userId}/variants/{variantId}`** — lab-readable, owner-writable. Fields: `label`, `mechanism` ∈ {NIH-5pg, NSF, DOD}, `personalStatement`, `contributions[]`, `synergisticActivities[]`, `positions[]`, `productsOverride[]`, `grantDraftIds[]` (backref slot, populated by V3.180 grant writer), `generatedAt`, `sourceCvSnapshotHash`.
+  - **`facilitiesDocs/{docId}`** — lab-readable, lab-member-writable, creator-or-admin deletable. Fields: `label`, `scope`, `sections: { facilities, equipment, computing, office, otherResources }`, `autoSections` (mirror of last auto-generated values for stale-detection), `sourceHashes: { inventory, equipment, people }`, `attachedTo[]`, `generatedAt`, `createdBy`.
+
+### Changed
+- **`firestore.rules`** — added rule blocks for `biosketches/{userId}`, `biosketches/{userId}/variants/{variantId}`, and `facilitiesDocs/{docId}`. Biosketch variants: lab-wide read, owner-only write (co-PIs can review but not edit someone else's biosketch). Facilities docs: lab-wide read/write (collaborative boilerplate maintenance), creator-or-admin delete.
+- **`rm/js/nav.js`** — added two children under the existing **Research** dropdown after the Papers entry: **Biosketches** (`/rm/pages/grant-biosketch.html`) and **Facilities Doc** (`/rm/pages/grant-facilities.html`), both `gate: 'lab-member'`. Added a sixth default workflow seed in `_WF_DEFAULT_SEEDS`: **Grant Writing** (id: `grant-writing`, icon: 💰, pages: `grant-biosketch`, `grant-facilities`, `tasks`, `chat`). The `grant-builder` + `grant-portal` page ids will be appended to the workflow in V3.179/V3.180.
+- **`sw.js`** — `CACHE_VERSION` 148 → 149.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.178 with a new "Grants subsystem" section.
+
+### Notes
+- V3.178 deliberately avoids Yjs to keep the surface area small while validating the data model. The `biosketches/{uid}/variants/{vid}` and `facilitiesDocs/{docId}` schemas are designed so that V3.180's grant writer can `grantDrafts/{id}.attachments[]` reference them with no migration.
+- The biosketch export is HTML-Word (`.doc` with `application/msword` MIME), not OOXML. Word, Google Docs, and LibreOffice all open this natively. A true `.docx` exporter via JSZip + Open XML lands in V3.183+ if user demand warrants — for grant submission PDFs the print pipeline is more reliable anyway (NIH/NSF prefer styled PDFs).
+- Pivot-RP integration is deferred to V3.179 (per-user saved-search RSS ingestion + deep-link buttons in the portal).
+- DOD biosketch is V1-stubbed (currently mirrors NIH 5-page format with a header note). A proper CDMRP layout lands with the DOD-CDMRP template in V3.183+.
+- Plan: `CodeLog/ClaudesPlan/V3.178_grants_facilities_biosketch.md`.
+
+## [V3.177.1] - 2026-05-11
+
+**RM Essentials rewritten around workflow + power-user orientation.** Alex flagged the V3.177 first pass for leading with "what RM is" / "vanilla HTML/JS" / "Firestore is the source of truth" / sign-in mechanics — content that doesn't help a new lab member become productive. The rewrite is structured entirely around becoming a power user of RM's workflow paradigm; technical setup material has been deleted. New saved feedback memory `feedback_rm_trainings_power_user.md` captures the framing so V3.178–V3.181 don't repeat the mistake.
+
+### Changed
+- **`rm/pages/training-rm-essentials.html`** — full rewrite. Section list goes from "what RM is / signing in / home / workflows / All Pages / Split / profile / nav map / quiz / week-1 checklist" → "workflow paradigm / 5 default workflows / strip / split / cross-page integration / custom workflows / daily-weekly rhythm / power-user shortcuts / page inventory / power-user quiz / power-user toolkit." The "What RM is" section is gone. Sign-in / Firestore / service-worker / profile sections deleted; the few pieces that matter inline as parentheticals. The new central concept is **"workflows, not pages, are the unit of work"** — every section reinforces it. New sections that didn't exist in the first pass: **Cross-page integration** (V3.160 ActivitySignals — write in paper builder, get a pending tracker entry; click 📌 PMR on a notebook image, get a PMR figure card; etc.), **Custom workflows** (save-as-custom from a modified default), **Daily/weekly rhythm** (start-of-day / during / end-of-day / end-of-week cadence), and **Power-user shortcuts** (a catalogue of non-obvious moves — brand-dropdown switch, Cmd+K multi-pick, citation chip click-edit, ⊟ Split with pre-filled right pane, 📌 PMR badge, Pin to Bucket, comment threads on PMR blocks).
+- **`rm/pages/training-rm-essentials.html`** — quiz questions rewritten to test power-user knowledge instead of "where do I go" navigation. New questions: brand-dropdown vs round-tripping the home page; auto-pending tracker entries from paper writing vs manual re-typing; Cmd+K multi-pick for citation groups; 📌 PMR badge for notebook images; ⊟ Split for two-pane work; save-as-custom for repeated workflows.
+- **`rm/pages/training-rm-essentials.html`** — week-1 checklist replaced with **power-user toolkit checklist** (12 items: workflow switching via brand-dropdown / trusting cross-page integration / daily tracker confirmations / Split-view use / drag-reordered chips / at least one custom workflow saved / Cmd+K multi-pick / 📌 PMR flagging / Friday PMR weekly entries / Barriers-block same-day capture / weekly Proposed-Inbox triage / exiting workflows when done).
+- **`rm/js/training-rm-essentials.js`** — verdict text updated. Quiz: "you operate RM the way it was designed to be operated" (was "you know where everything lives"); misses point at Sections 3/5/8 (strip / integration / shortcuts) instead of Section 8 (nav map). Checklist: "Power-user toolkit adopted — start V3.178 next" (was "Week-1 complete — start V3.178 next"). Header comment updated to reflect new framing.
+- **`CodeLog/ClaudesPlan/V3.177_training_rm_essentials.md`** — Goal + Sections rewritten to match. Explicitly notes the prohibition on "what RM is" content.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.177.1 with one-paragraph mention of the rewrite + new feedback memory.
+- **`sw.js`** — `CACHE_VERSION` 147 → 148.
+
+### Added
+- **Saved memory:** `feedback_rm_trainings_power_user.md` — "RM trainings should focus on workflow + power-user orientation, not 'what RM is' technical setup." Applies to V3.177 (done) and the four remaining RM trainings V3.178–V3.181 when they're built.
+
+### Notes
+- The interactive widgets' DOM IDs and CSS classes are unchanged, so `rm/css/training.css` needs no edits.
+- The five default-workflow descriptions, the five-tier strip mechanics list, and the seven cross-page integration items in Section 5 should all stay in sync if RM changes. If you add a new auto-integration (e.g. V3.18x adds tracker entries from a new page), update Section 5.
+- The 12 toolkit habits in Section 11 are derived from the lab's actual sources of RM-power-user efficiency. They're not arbitrary — each maps to a real V3.x feature shipped between V3.40 (workflow strip launch) and V3.176.
+- Plan: `CodeLog/ClaudesPlan/V3.177_training_rm_essentials.md`.
+
+## [V3.177] - 2026-05-11
+
+**RM-onboarding curriculum bootstrapped — new "Using RM" category + first module shipped.** Alex flagged that new lab members need trainings on how to use RM itself (the lab's central hub), not just the conceptual + microscopy + image-analysis material the curriculum had focused on. V3.177 adds a new top-level **Using RM** category on the landing page, registers five planning docs (V3.177–V3.181), wires the slugs into `nav.js`, and ships **RM Essentials** (V3.177) end-to-end as the day-1 orientation module. Same plan-all-build-one pattern as V3.162.
+
+### Added — 5 plan docs
+- **`CodeLog/ClaudesPlan/V3.177_training_rm_essentials.md`** — day-1 orientation: sign-in, home, workflows, split view, profile, nav map, "where do I go?" quiz, week-1 checklist.
+- **`CodeLog/ClaudesPlan/V3.178_training_rm_daily_research.md`** — daily workflow: activity tracker, lab notebook, library, protocols + how they feed PMR.
+- **`CodeLog/ClaudesPlan/V3.179_training_rm_tasks_pmr.md`** — accountability: bucket + subtask model, Proposed Inbox, cross-user assignment, PMR weekly entries + barriers + paper-writing blocks.
+- **`CodeLog/ClaudesPlan/V3.180_training_rm_papers.md`** — papers in RM: library annotations, paper builder, citation drop, figure uploads, PMR paper-writing block. Pairs with V3.163.
+- **`CodeLog/ClaudesPlan/V3.181_training_rm_admin.md`** — admin-gated surfaces: compliance, chemical safety, inventory, procurement, equipment, analytics. PI + senior-member audience.
+
+### Added — RM Essentials prototype
+- **`rm/pages/training-rm-essentials.html`** (~410 lines) — lecture-style page (sticky TOC + 10 anchored sections) reusing V3.163's pattern. Three interactive widgets: (1) **Nav map grid** — clickable cards for the 6 nav groups (Activity / Research / Training / Operations / Lab Admin / Settings) that expand into a detail panel listing every page in that group with one-line descriptions and direct links. (2) **"Where do I go?" quiz** — 6 common new-member questions with multiple-choice answers, per-item explanations, re-pickable answers, running score with three-tier verdict (100% / ≥60% / lower). (3) **Week-1 checklist** — 10-item checkbox list with progress bar, same widget pattern as V3.163's submission checklist.
+- **`rm/js/training-rm-essentials.js`** (~270 lines) — module renderer. `NAV_MAP` is a 6-group table with `label`/`icon`/`desc`/`pages[]` rows (mirrors `nav.js` NAV_ITEMS but with prose descriptions). `renderNavGrid()` + `renderNavDetail()` swap the active-group highlight + detail panel; clicking a page link navigates into the real RM page. `wireQuiz()` runs the re-pickable quiz logic; `wireChecklist()` runs the progress bar; `wireToc()` runs the scroll-spy (same code as V3.163 / V3.176).
+- **`rm/css/training.css`** — V3.177 batch: `.nav-map-grid` (auto-fit 170px cards), `.nav-map-card{.is-active}` (blue border on selection), `.nav-map-detail` with `<li>` 160px-name + flex-desc layout. `.rm-quiz` + `.rm-quiz-item` with `.picked.correct/.wrong` button states + `.explain.shown` reveal panel. `.rm-quiz-score` summary panel.
+
+### Changed
+- **`rm/js/training.js`** — new `CATEGORIES` entry `{ key: 'rm-hub', label: 'Using RM', blurb: 'How to operate the lab\'s research-management hub itself.' }` slotted between Foundations and Microscopy. Five new MODULES entries: `rm-essentials` (available: true) + `rm-daily-research` / `rm-tasks-pmr` / `rm-papers` / `rm-admin` (available: false, coming soon). Landing page now shows 5 categories.
+- **`rm/js/nav.js`** — Training group grows from 15 to 20 children. Added 5 new training slugs in pedagogical order: RM essentials → daily research → tasks & PMR → papers → admin.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.177 with one-paragraph mention of the new RM-onboarding curriculum.
+- **`sw.js`** — `CACHE_VERSION` 146 → 147.
+
+### Notes
+- The nav-map widget mirrors `nav.js` NAV_ITEMS data verbatim with prose descriptions added. If `nav.js` gains pages, the nav-map widget will silently miss them until updated. Two-table-sync risk; consider auto-generating from NAV_ITEMS later if pages move often.
+- The 6 quiz questions are calibrated against the lab's actual RM surfaces (PMR for 1:1s, Tasks Inbox tab for assigned tasks, Library for annotation, Lab Notebook 📌 flag for PMR figure-flagging from V3.161, Activity Tracker for pending-entry confirmation from V3.160, Cmd+K multi-pick from V3.157). The explanations reference real version numbers so a student looking up the feature finds it documented.
+- Status across the curriculum: Foundations 3/3, Using RM 1/5, Microscopy 4/4, Analysis 0/3, Tools 0/5. Eight of twenty modules now live.
+- Plan: `CodeLog/ClaudesPlan/V3.177_training_rm_essentials.md`.
+
+## [V3.176] - 2026-05-11
+
+**Scientific communication training shipped — the spoken/visual counterpart to paper writing.** Alex requested a training on telling a scientific story for posters and presentations, centered on the idea that complexity and scope are inversely correlated with audience attention — good talks oscillate between narrow/deep and broad/recovery cycles; bad ones ramp monotonically into depth and lose the room. V3.176 is the new Foundations-category module that captures this; it slots between PhD triangle and paper writing on the landing page.
+
+### Added
+- **`rm/pages/training-scientific-communication.html`** (~470 lines) — lecture-style page reusing the V3.163 paper-writing pattern (sticky 220px TOC + 10 sequential `.training-section` blocks). Three meaningful interactive widgets: (1) **The attention arc** — 7 vertical sliders (one per "beat" of a hypothetical talk) drive a canvas that plots the user's complexity curve (blue) plus a derived audience-attention curve (green), with a red "you've lost them" band at attention < 30%. Five preset arc-shape buttons load canonical patterns (oscillating / monotonic deep dive / never-goes-deep / marathon / lightning). (2) **Protagonist picker** — 6 cards (cells / patient / lab / data / instrument / antagonist) with a click-to-swap detail block that retells the same example science story (edge density inverts stiffness-driven invasion) through six different protagonist framings. (3) **Storyboard builder** — 9-field form (format / topic / protagonist / hook / arc / 3 broad-reset beats / closing message) generates a printable single-page storyboard sheet with internal-consistency warnings (elevator pitch with multiple cycles → warn, seminar with only two cycles → warn, etc.).
+- **`rm/js/training-scientific-communication.js`** (~430 lines) — module renderer. Reuses the V3.163 TOC scroll-spy + V3.164+ canvas helpers. `attentionCurve(complexity)` runs a simple discrete dynamical system over 7 beats: `attention(t) = attention(t-1) + RECOVERY·(1-attention(t-1)) - DRAIN·complexity(t)`, clipped to [0,1], with `RECOVERY = 0.18` / `DRAIN = 0.030` tuned so a monotonic ramp collapses attention into the red zone and an oscillating arc stays near the green. `drawArc()` renders the danger band first, axes second, complexity (solid blue) and attention (dashed green) curves with per-point markers colored by zone, and emits a verdict string keyed on `lostBeats` / `maxComplexity` / `swing-count`. `PROTAGONISTS` is a 6-entry table whose `story` field is a per-protagonist retelling of the same finding. `drawStoryboard()` validates 7 required fields, emits issues + format-aware warnings (elevator + extra beats, seminar + missing third cycle, poster + personal-motivation hook), and renders a sign-off sheet auto-populated with today's date. Auth-gated init via `firebridge.whenAuthResolved`.
+- **`rm/css/training.css`** — V3.176 batch: `.arc-controls` (7-column grid of vertical sliders that downsize at 600px), `.arc-presets`, `.protagonist-grid` (auto-fit cards), `.protagonist-card{.is-active}` (blue border + tinted background on selection), `.protagonist-detail` with `.pd-h` / `.pd-sub` / `.pd-example` blocks, `.arc-grid` + `.arc-card` for the classic-story-arc reference panel.
+- **`CodeLog/ClaudesPlan/V3.176_training_scientific_communication.md`** — new plan doc.
+
+### Changed
+- **`rm/js/training.js`** — new MODULES entry for `scientific-communication` under Foundations, slotted between PhD triangle and paper writing.
+- **`rm/js/nav.js`** — new child under the Training group, in the same position.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.176 with one-paragraph mention of the new module.
+- **`sw.js`** — `CACHE_VERSION` 145 → 146.
+
+### Notes
+- Foundations category is now 3/3 — PhD triangle, scientific communication, paper writing. Alongside Microscopy (4/4), half the curriculum is live.
+- The attention model is intentionally simple — pedagogical clarity over physical fidelity. The constants are tuned so that monotonic ramps fail visibly and oscillating arcs succeed visibly. If a future iteration wants more nuance (e.g. format-specific timescales, or audience-experience effects), keep the simple model as the default view and add an "advanced" mode.
+- The protagonist library reuses ONE example finding across all six retellings (stiffness × edge density → invasion). This is intentional — the lesson is "same data, different framings," and the contrast is sharper when the underlying science is held constant.
+- The storyboard sheet doesn't persist to Firestore; it's session-only and meant to be printed. Same precedent as the V3.163 submission checklist.
+- The Foundations category position on the landing page has been re-ordered: PhD triangle → scientific communication → paper writing. The order matches the natural flow of "who you're becoming → how you communicate → how you write it down."
+- Plan: `CodeLog/ClaudesPlan/V3.176_training_scientific_communication.md`.
+
+## [V3.163] - 2026-05-11
+
+**Paper-writing training shipped — Foundations category 100% complete.** With V3.162 (PhD triangle) and V3.163 (paper writing) both live, the Foundations category on the landing page is now fully available. V3.163 is the second lecture-style training in the curriculum — single-scroll page, no tabs, sticky TOC. Covers 10 sections: why we write papers / figure-first drafting / IMRaD anatomy (with a good-vs-mediocre Introduction comparator) / citation discipline (with a 5-question quiz) / authorship / lab draft workflow / revision letters / journal selection / common failure modes / a 15-item ready-to-submit checklist with progress bar.
+
+### Added
+- **`rm/pages/training-paper-writing.html`** (~430 lines) — lecture-style page using the V3.162 PhD-triangle pattern (single-scroll `.training-module` with sequential `.training-section` blocks). New: `.training-layout` grid splits the body into a 220px sticky TOC sidebar + a flexible content column. Ten `<section>` blocks with stable anchor IDs (`sec-why`, `sec-figures`, `sec-imrad`, `sec-citations`, `sec-authorship`, `sec-workflow`, `sec-revision`, `sec-journal`, `sec-failure`, `sec-submit`). Three interactive widgets: a `.compare-bar` toggle for the Introduction good-vs-mediocre comparator (two `.compare-pane` blocks switched by `data-side`), a `.cite-quiz` with 5 yes/no items each carrying a `data-correct` answer and an `.explain` reveal panel, and a `.submit-checklist` with 15 `<label><input type="checkbox">` items + a `.submit-checklist-progress` counter + a `.submit-checklist-bar` fill. Layout collapses to a single column at 900px (the sticky TOC un-stickies on mobile).
+- **`rm/js/training-paper-writing.js`** (~150 lines) — module renderer. `wireToc()` builds the scroll-spy: a passive `scroll` listener throttled with `requestAnimationFrame` finds the last section whose top has crossed a 140px viewport threshold and toggles `.active` on the matching TOC link. `wireComparators()` is generic — any `.compare-bar` with `data-compare="<group>"` plus matching `[data-pane="<group>-good|bad"]` panes wires up; supports multiple comparators per page if future modules want them. `wireCiteQuiz()` lets users re-pick an answer (clears the previous pick), runs a running score across answered items, and emits a different summary message at all-answered (100% / ≥60% / lower). `wireSubmitChecklist()` toggles `is-checked` on `<label>` (line-through styling), recomputes the percentage bar, flips `is-done` class on both the progress text and the bar when all 15 items are checked. Auth-aware init via `firebridge.whenAuthResolved`.
+- **`rm/css/training.css`** — Lecture-module style block (~160 lines): `.training-layout` (grid 220px/1fr, collapses at 900px), `.training-toc` (sticky `top: 16px` with overflow-y handling for tall TOCs), `.training-toc a` + `.active` (left-border indicator on the active section). `.compare-bar` pill segmented control + `.compare-pane` with `.good` (green left-border + green-bg) and `.bad` (red) variants. `.cite-quiz-item` with claim + button row + `.explain` reveal; `.picked.correct` / `.picked.wrong` swap colors on the picked button. `.submit-checklist` + `.submit-checklist-progress`/`.submit-checklist-bar` for the live-progress widget. Theme-consistent with the existing `.training-callout` and `.insight` styles.
+- **`CodeLog/ClaudesPlan/V3.163_training_paper_writing.md`** — status marked BUILT.
+
+### Changed
+- **`rm/js/training.js`** — `MODULES.paper-writing.available` flips `false` → `true`. Foundations category is now 2/2 — the second category to hit 100% (Microscopy was the first at V3.167).
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.163 with one-paragraph note that Foundations is complete.
+- **`sw.js`** — `CACHE_VERSION` 144 → 145.
+
+### Notes
+- The lecture-style pattern (TOC + sequential prose sections + light interactive widgets) is now the second pedagogy template in the curriculum, alongside the MODULE_TEMPLATE 4–6-tab interactive notebook. Future text-heavy modules — most candidates for "soft-skills" trainings — should follow V3.163's pattern, not the interactive notebook one.
+- The citation quiz expects users to re-try items rather than locking answers — calibration is the goal, not testing. Score messaging is therefore re-computed every click rather than only at first-submission.
+- The submission checklist has no Firestore persistence; ticks are lost on refresh. Intentional — the checklist is a "right before you click submit" gut check, not a tracked workflow.
+- This is the third available Foundations + Microscopy category leaf. Status across the curriculum: Foundations 2/2, Microscopy 4/4, Image analysis (concepts) 0/3, Tools 0/5. Half the curriculum (6/14) is now live.
+- Plan: `CodeLog/ClaudesPlan/V3.163_training_paper_writing.md`.
+
+## [V3.167] - 2026-05-11
+
+**Image train & objectives training shipped — Microscopy category 100% complete.** V3.167 finishes the optics arc. With V3.164 (basics), V3.165 (epi-fluorescence), V3.166 (confocal), and now V3.167 (image train + objectives), every Microscopy-category card on the landing page is now an available, working module.
+
+### Added
+- **`rm/pages/training-image-train.html`** (~510 lines) — 5-tab interactive notebook. Tab 1 (Light Path): 7-component scenario bar (sample / coverslip / immersion / objective / tube lens / filter cube / port) drives a labeled scope schematic + stats panel (lab default / common mistake / fix). Tab 2 (Decoder): paste-or-pick objective marking; preset buttons for the lab's actual objectives; tokenized canvas display with color-coded chips per token kind (Plan / Apo / λ / mag / NA / immersion / ∞ / coverslip / WD); 9-row stats panel decoding each spec field. Tab 3 (Aberrations): 4 scenarios (design conditions / wrong coverslip / oil-into-aqueous / water-into-glycerol) + correction-collar slider + depth slider; XZ PSF cross-section canvas renders the bead warp from spherical aberration with collar correction (collar can only rescue scenarios where the mismatch is at the coverslip — flagged in the verdict). Tab 4 (FOV & Pixel Sampling): objective × tube-lens focal length × camera × emission λ × binning → computed system magnification (`M_sys = M_obj × f_tube / f_design`), pixel size at sample, Nyquist target (`λ / (4·NA)`), FOV box rendered to scale on canvas with a single Airy-disk bead drawn at true scale. Tab 5 (Pick an Objective): minimum-NA + minimum-WD sliders + immersion checkboxes + chromatic-correction dropdown → CATALOG-scored shortlist filtered by the spec, ranked by `NA·100 − aberration·60 − cost·5`; printable purchase-request sheet.
+- **`rm/js/training-image-train.js`** (~720 lines) — module renderer. `COMPONENTS` table holds name + default + mistake + fix per scope-train component. `FOV_OBJ` + `FOV_CAM` tables for Tab 4 computations. `CATALOG` is an 8-row objective table for the Tab 5 capstone shortlist. `parseObjective(s)` is the Tab 2 decoder — regex matches against `Plan`, `Apo/Fluor/Achr`, `λ`, magnification, NA, `Oil/Water/Gly`, `∞`, second `/ 0.NN` token (coverslip vs NA disambiguation), and `WD N`. `drawTrain()` lays out 7 components on a vertical optical axis with a dichroic-colored excitation ray and dashed emission. `drawDecoder()` renders a token chip ribbon with descriptions below each chip. `drawAberration()` warps a Gaussian PSF in Z with a sinusoidal skew proportional to `finalSpherical · collar`, with the catch that immersion-mismatch scenarios (`deep`, `glycerol`) ignore the collar — the model correctly refuses to "fix" what isn't fixable. `drawFOV()` scales the FOV box to fit the canvas with the aspect ratio preserved + a kbd-sized 8×8-pixel inset to visualize per-pixel sample size + an Airy-disk bead drawn at true scale for visual Nyquist intuition. `drawPurchase()` filters CATALOG against constraints, scores survivors, ranks them, renders the top 5 in the print sheet.
+- **`CodeLog/ClaudesPlan/V3.167_training_image_train.md`** — status marked BUILT.
+
+### Changed
+- **`rm/js/training.js`** — `MODULES.image-train.available` flips `false` → `true`. The Microscopy category on the landing page now shows 4/4 available — the first category to hit 100%.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.167 with one-paragraph note that the microscopy category is now complete.
+- **`sw.js`** — `CACHE_VERSION` 143 → 144.
+
+### Notes
+- The Tab 2 decoder is regex-based, not a full parser — it handles the lab's actual objective markings cleanly but can get tripped up by very non-standard Nikon strings (e.g. the rare "S Fluor" or "Plan-NEOFLUAR" formats). Add new patterns to `parseObjective()` if students bring in objectives that don't decode.
+- The Tab 3 aberration model uses a phenomenological sinusoidal skew of the Gaussian PSF — not a real wave-optics computation. The pedagogical points (collar helps with coverslip mismatch, collar can't fix immersion mismatch, over-correction flips the asymmetry) are conveyed correctly even though the literal PSF shape isn't physically exact.
+- The Tab 5 catalog is a static list inside `CATALOG`. As the lab buys new objectives, add rows there; the scoring function will pick them up automatically.
+- This is the fourth printable sign-off in the curriculum (V3.164 capstone, V3.165 time-lapse plan, V3.166 session plan, V3.167 purchase request). They all share the `.signoff-sheet` style and the `@media print` rules added in V3.164.
+- Plan: `CodeLog/ClaudesPlan/V3.167_training_image_train.md`.
+
+## [V3.165] - 2026-05-11
+
+**Epi-fluorescence (Ti-e / Ti2-U) training shipped end-to-end — the microscopy trio is complete.** With V3.164 (microscope basics) and V3.166 (AX-R confocal) already live, V3.165 finishes the lab's three operating scopes. New students now have an interactive walkthrough of both Nikon epi-fluorescence frames — the legacy Ti-e and the current Ti2-U — covering the light path, filter cubes, light sources, frame-specific operating differences, and a printable 8-hour live-cell time-lapse plan.
+
+### Added
+- **`rm/pages/training-epifluorescence.html`** (~480 lines) — 5-tab interactive notebook. Tab 1 (Light Path): cube scenario bar with 5 options including an intentional mismatched cube; canvas renders the source → ex filter → dichroic → objective → sample → emission filter → tube lens layout with excitation (solid) and emission (dashed) rays in cube-specific colors, plus a critical overlay when the mismatched cube is selected. Tab 2 (Filter Cubes): fluorophore + cube dropdowns drive a spectra canvas (380-750 nm axis) overlaying filter transmission bands (solid fills) with fluorophore ex/em gaussians (dashed); stats panel computes ex-overlap + em-overlap % via numerical gaussian integration over the band; verdict tiers no-signal / dim / acceptable / excellent. Tab 3 (Sources & Power): LED vs arc-lamp scenario bar + power + frames sliders; signal curve combines bleach (`exp(-k·t)`) with source drift (LED ≈ flat with tiny ripple, arc lamp 12% saturating drift + 5% oscillation). Tab 4 (Ti-e vs Ti2-U): scope toggle drives a side-by-side spec panel (body / source / PFS / stage / turret / software / best-at / quirks) plus a 6-step first-time-user checklist rendered into an ordered list per frame. Tab 5 (Capstone): 8-hour Ti2-U time-lapse plan with objective / exposure / binning / PFS / power / interval controls; verdict critiques light budget = `(power/10) × (exp/200) × frames` against tiered thresholds; printable sign-off sheet with date + blank trainee line.
+- **`rm/js/training-epifluorescence.js`** (~670 lines) — module renderer. Reuses the V3.164/V3.166 patterns: `getCanvasCtx` DPR-aware helper, `setActiveTab`/`redrawActiveTab` dispatch with rAF, component-local `state`, `firebridge.whenAuthResolved()` gated init. New: `CUBES` table (DAPI/GFP/mCherry/Cy5 + mismatched) with ex band / dichroic edge / em band / colors; `FLUORS` table with ex+em peak/sigma per dye. `drawLightPath()` lays out scope components and renders excitation + emission rays in cube colors with the mismatched cube getting a red overlay and crossed-out emission segment. `overlapBandWithGaussian(band, peak, sigma)` numerically integrates a gaussian over a bandpass interval — used by `drawCubePanel()` to compute ex/em overlap %. `drawSource()` plots signal = `exp(-k·t) × drift(t)` with k scaling 0.0003·power; LED drift is `1 - 0.003·sin(0.1t)`, arc lamp drift is `1 - 0.12·(1 - exp(-t/80)) + 0.05·sin(0.08t)`. `FRAMES` table holds 8 spec rows + 6-step checklist arrays per scope; `drawFramePanel()` populates the side-by-side from the table. `drawPlan()` checks: missing objective (blocker), 100× / FOV-too-small (warning), 60× oil 8-hour (warning), exposure > 1000 ms (warning), binning + high-NA (warning), PFS off (blocker), light budget > 600 (blocker) / > 300 (warning), interval > 15 (warning).
+- **`CodeLog/ClaudesPlan/V3.165_training_epifluorescence.md`** — status marked BUILT.
+
+### Changed
+- **`rm/js/training.js`** — `MODULES.epifluorescence.available` flips `false` → `true`. Microscopy category now shows three available cards (microscope basics, epi-fluorescence, confocal).
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.165 with one-paragraph mention of the microscopy trio being complete.
+- **`sw.js`** — `CACHE_VERSION` 142 → 143.
+
+### Notes
+- The cube transmission curves are rendered as solid rectangular bandpasses (idealized). Real filters have shoulders and OD-blocking complexity that aren't modeled here. For students who need exact spectra (e.g. when buying a new cube), point them at the Chroma / Semrock spectrum viewers.
+- The arc-lamp drift model is a heuristic — real bulb drift depends on age and warmup state. The pedagogy is "expect non-trivial drift on the Ti-e; expect rock-stable on the Ti2-U LED engine," which the model conveys correctly even if the exact numbers vary per session.
+- The 6-step checklists in Tab 4 capture the lab's current operating practice. If the Ti-e configuration or Ti2-U module set changes, edit the `FRAMES` table in `training-epifluorescence.js`.
+- The capstone is the second printable sign-off in the curriculum (V3.164 capstone being the first). Unlike V3.164, V3.165 is not a gate — the plan worksheet is for the student's own bench notes, not for Alex's approval.
+- Plan: `CodeLog/ClaudesPlan/V3.165_training_epifluorescence.md`.
+
+## [V3.166] - 2026-05-11
+
+**Confocal (Nikon AX-R) training shipped end-to-end — the AX-R training pair is complete.** V3.166 lands the second half of the AX-R gating arc. Students complete V3.164 microscope-basics + capstone sign-off (Alex initials), then work through this six-tab interactive notebook to learn the AX-R itself: pinhole and optical sectioning, scan-mode trade-offs (galvo vs. resonant + frame averaging), laser-line + fluorophore matching with live crosstalk estimation, Z-stack Nyquist sampling, photobleaching dose budget, and a printable session-plan worksheet that critiques the student's choices for the "100 μm spheroid, DAPI + AF488 + AF647, full Z-stack" scenario.
+
+### Added
+- **`rm/pages/training-confocal.html`** (~520 lines) — 6-tab interactive notebook. Header subtitle reminds the student of the V3.164 prerequisite with a direct link. Tab 1 (Pinhole): single AU slider drives two side-by-side canvases (widefield reference vs. confocal at current pinhole) + stats (computed section thickness, relative signal, rejection rating). Tab 2 (Scan Modes): galvo/resonant scenario bar + frame averaging slider; one canvas renders 9 cells with mode-and-averaging-dependent noise + per-frame SNR + bleach stats. Tab 3 (Lasers & Detectors): four fluorophore checkboxes (DAPI/GFP/mCherry/AF647) + acquisition-mode dropdown; spectra canvas plots gaussians on a 380-720 nm axis with the four AX-R laser positions banded; crosstalk panel computes Bhattacharyya-like overlap, applies a 10× attenuation for sequential acquisition, and tiers safe/marginal/unsafe. Tab 4 (Z-Stacks): objective + λ + total depth + sampling-rate radio buttons → computed Δz_Nyquist, Δz chosen, slice count, est. scan time, est. file size; XZ-bead-PSF canvas with red dashed lines at the chosen sampling. Tab 5 (Photobleaching): laser-power + dwell + frame-count sliders → exponential decay curve drawn in green/amber/red by viability tier; cumulative-dose readout + half-life + final-signal-fraction. Tab 6 (Session Worksheet): scan-mode + pinhole + acquisition + Z-step + total-dose controls → consistency checker + printable AX-R session plan sheet (date stamp + blank trainee line + pass/fail badge).
+- **`rm/js/training-confocal.js`** (~720 lines) — module renderer. Shared `getCanvasCtx(id)` (DPR-aware, falls back to width-attr for hidden tabs) + `makeRng(seed)` (LCG for deterministic sample rendering). `state` holds the six sub-states. `setActiveTab`/`redrawActiveTab` dispatch + `requestAnimationFrame` so canvases pick up real dimensions on tab switch. `drawSpheroidView(canvas, blendFactor, signalScale)` renders 110 deterministic "spheroid" dots with per-dot in-focus vs out-of-focus blur and opacity, used by both Tab 1 canvases. `drawScan()` synthesizes 9 cells per-pixel with box-Muller noise whose σ ∝ 1/√SNR; mode + N drive per-pixel-dwell, per-frame time, relative SNR (√N · base), and bleach. `FLUOR` table holds emission peak + σ + color per dye; `drawLasers()` plots gaussians, draws the four AX-R laser bands, and computes pairwise overlap via Bhattacharyya-like formula scaled 10× down for sequential acquisition. `Z_OBJ` table for the three AX-R-relevant objectives; `drawZStack()` computes `Δz_Nyquist = λ_em / (2·NA²·n)`, scales by sampling factor, renders an XZ Gaussian PSF with red-dashed sampling lines. `drawBleach()` computes dose ∝ laser × dwell, k = 0.007 × dose-per-frame so the default (10%, 2 μs) gives ~100-frame half-life; viability tiers at cumulative dose 12 / 30. `drawSession()` issues blockers (no pinhole picked, 5 AU pinhole, Z-step > 400 nm, dose > 70) vs warnings (DAPI simultaneous, sub-Nyquist Z-step, galvo + high dose, etc.); printable sheet auto-fills today's date.
+- **`CodeLog/ClaudesPlan/V3.166_training_confocal.md`** — status header marked BUILT.
+
+### Changed
+- **`rm/js/training.js`** — `MODULES.confocal.available` flips `false` → `true`. Landing card is now a live link.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.166 with one-paragraph mention of the AX-R training pair being complete.
+- **`sw.js`** — `CACHE_VERSION` 141 → 142.
+
+### Notes
+- The crosstalk model is intentionally a simplification — real spectral crosstalk is a function of detector window choice + dichroic transmission + sample brightness. The Bhattacharyya-like overlap captures the right qualitative ranking (DAPI ↔ GFP is the worst pair; 488 ↔ 640 is the safest); the absolute "bleed %" numbers should be read as "small / medium / large" rather than as predictions. If a future student wants precise predictions, point them at the manufacturer spectral viewer (FPbase / SearchLight).
+- Tab 5's photobleaching viability tiers (cumulative dose 12 / 30) are pedagogical thresholds calibrated to "matches lab gut feel," not absolute numbers — different fluorophores and cell types vary wildly. The right outcome for the student is internalizing "lower laser + more averaging" as the default move, not memorizing a specific dose number.
+- Tab 6's session sheet doesn't persist anywhere; the printout is the artifact. When `userData/{uid}/trainingProgress/{moduleId}` lands, V3.164 still gates V3.166's "officially complete" — V3.166 completion alone is necessary but not sufficient for AX-R access.
+- Plan: `CodeLog/ClaudesPlan/V3.166_training_confocal.md`.
+
+## [V3.164] - 2026-05-11
+
+**Microscope-basics training shipped end-to-end — the AX-R first-session gate is now an actual document a student can complete.** Plan V3.164 (landed in V3.162) is now built. The module is a 5-tab interactive notebook following the MODULE_TEMPLATE pattern: (1) Resolution & diffraction limit with a live two-Airy-disk separation slider and 1-D intensity profile; (2) NA / objectives / WD with the lab's actual five-objective inventory and a live light-cone canvas; (3) Köhler illumination with four misalignment scenarios rendered through a simulated eyepiece (uniform / vignette / low contrast / filament shadow); (4) Contrast mechanisms with four modalities (brightfield / phase / DIC / fluorescence) rendered on the same simulated cell field; (5) a Capstone sign-off worksheet that critiques the student's modality + objective + laser + sampling choices and either prints a passing sign-off sheet (for Alex to initial) or blocks approval and lists what to fix. The capstone is the actual gate — it implements the "real competency check" requirement saved in project memory after V3.162.1.
+
+### Added
+- **`rm/pages/training-microscope-basics.html`** (~440 lines) — 5-tab interactive notebook. Header subtitle calls out the required-before-AX-R role. Each tab follows the standard order (background → student task → scenario bar → panel). Scenario bars hold 4–5 buttons per tab; the panel uses the 280 / 1fr grid (controls + viz). Tab 1: source-separation slider + two canvases (Airy 2D field + 1-D sum profile) + computed Abbe / status / verdict stats. Tab 2: 5 objective buttons (4×/0.13, 20×/0.75, 25×/1.1 water — AX-R, 40×/1.3, 60×/1.4) × wavelength dropdown (450/510/595/670 nm); light-cone canvas + stats panel (resolution, DOF, relative light gathering). Tab 3: 4 alignment-mode buttons; simulated eyepiece canvas with vignette / low contrast / filament-shadow renderings. Tab 4: 4 modality buttons; same cell field rendered four different ways. Tab 5: 4 dropdowns/inputs (modality, objective, lasers checkboxes ×4, XY pixel size) + verdict box + printable sign-off sheet (`#cap-signoff`).
+- **`rm/js/training-microscope-basics.js`** (~640 lines) — module renderer. Tab dispatcher (`setActiveTab`, `redrawActiveTab`) re-renders the now-visible tab inside `requestAnimationFrame` so canvases pick up real dimensions. `getCanvasCtx(id)` is the DPR-aware container-sized canvas helper (handles hidden-tab fallback via the `width` attribute). `j1OverX(x)` is a piecewise Bessel-J1/x approximation (Abramowitz & Stegun polynomial below |x|<8, asymptotic form above). `airyIntensity(r, λ, NA)` returns normalized 2-D Airy intensity for the per-pixel summation in `drawResolution`. Module-level `state` holds the four tab states + the capstone form. `drawResolution()` renders pixel-by-pixel intensity (gamma-compressed for ring visibility) + a separate 1-D plot; verdict cases on `sep / abbe` ratio (<0.9 → unresolved, <1.25 → just-resolved, else → resolved). `drawNAPanel()` reads sin(θ) from `NA/n_index` and renders the light cone + theta arc + NA equation overlay. `KOHLER_TABLE` + `CONTRAST_TABLE` const tables drive the descriptive stats + verdicts for tabs 3-4. `drawKohler()` masks the eyepiece view through a circular clip path and switches gradient + content per mode. `drawContrast()` renders 22 deterministic cells (seeded RNG) with per-modality styling. `drawCapstone()` is the gating logic — produces `issues[]` (blockers) + `warnings[]` (notes), routes air objective + thick spheroid → critical, missing wanted lasers → critical, pixel size > 1.3× Nyquist → critical, pixel size > Nyquist → warning, etc.; Nyquist target = `λ_min / (4 · NA) / 1000` in μm using the shortest enabled laser. Sign-off sheet shows current config + today's date + blank trainee/supervisor lines; pass / fail badge swaps based on `issues.length`. `wireResize()` debounces window resize → `redrawActiveTab`. Auth-gated init via `firebridge.whenAuthResolved()`.
+- **`rm/css/training.css`** — V3.164 batch: full interactive-notebook style block (~280 lines). New: `.tab-bar`, `.tab-btn`, `.tab-content` with `order: 1..4` rules so source order (background → scenarios → panel → task) renders as the pedagogically correct visual order (background → task → scenarios → panel) via flexbox. `.background-section` (white card with shadow), `.equation-box` (mono font, light card), `.worked-example` (yellow left-border callout), `.student-task` (blue left-border callout with ordered list), `.scenario-bar` + `.scen-btn{.active}` (pill buttons; primary blue on active, stacks 1-per-row at 420px), `.panel` (2-col grid 280/1fr; stacks at 900px), `.ctrl-group` + `.ctrl-readout`, `.stats` + `.stat-row` (dashed bottom border per row), `.viz` + `.chart-row` (2-col, stacks at 720px), `.canvas-wrap` with `.is-light` variant (white background instead of black). `.val-verdict{.is-bad/.is-warning/.is-critical}` (green default; amber / red variants). `.insight` (violet left-border callout). `.signoff-sheet` + `.signoff-row` + `.signoff-pass` (green) / `.signoff-fail` (red) — the printable sign-off block. `@media print` hides the tab bar / scenarios / student-task / nav so a printed page reads as a clean sign-off form.
+
+### Changed
+- **`rm/js/training.js`** — `MODULES.microscope-basics.available` flips `false` → `true`. Landing card is now a real anchor link instead of a coming-soon placeholder.
+- **`CodeLog/ClaudesPlan/V3.164_training_microscope_basics.md`** — status header marked BUILT.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — version bumped to V3.164 with one-paragraph mention of the implemented module.
+- **`sw.js`** — `CACHE_VERSION` 140 → 141.
+
+### Notes
+- The sign-off sheet does NOT persist anything to Firestore — the printable page is the artifact. If completion tracking ever lands (`userData/{uid}/trainingProgress/{moduleId}`), V3.164 is the first module that should write to it, because its completion has real-world consequences (equipment access). Until then the "Trainee" + "Supervisor" lines on the printed sheet ARE the record.
+- Tab 1's Airy pattern is computed per-pixel in JS — not WebGL — so at typical canvas sizes (600 × 280) it's ~170 K Bessel evaluations per redraw. Slider input drags felt smooth at 60 fps during local testing on a 2021 MacBook Pro; if a slower machine drags, throttle the slider input handler with `requestAnimationFrame` debouncing.
+- The capstone Nyquist target uses the shortest enabled laser's emission wavelength (DAPI 450 nm if 405 enabled, else GFP 510, else AF647 670). This is a simplification — the strictest Nyquist comes from the shortest emission AND the brightest signal — but it's the right pedagogical answer for "what pixel size do I need."
+- Plan: `CodeLog/ClaudesPlan/V3.164_training_microscope_basics.md`.
+
+## [V3.162.2] - 2026-05-11
+
+**Training curriculum expanded with 5 software-focused trainings + landing page categorized.** Alex flagged during V3.162 rollout that the lab has multiple custom Python applications for processing confocal data — Cell Tracker, SerialTrack_Python, SpheroidSizes, GELS_ImageSegmentation — and that students who prefer the open-source path need a full ImageJ/Fiji walkthrough as well. V3.162.2 adds planning docs for all five, registers their slugs in `nav.js`, and refactors the [`training.html`](../../rm/pages/training.html) landing page from a single flat 9-card grid into four categorized sections (Foundations / Microscopy / Image analysis — concepts / Image analysis — software). Card chrome gains "Lab software" (violet) and "Open source" (sky) provenance pills alongside the existing Available/Coming-soon/Required ones. No new training pages are implemented in this version — only plans, nav, and landing-page rework.
+
+### Added
+- **`CodeLog/ClaudesPlan/V3.171_training_cell_tracker.md`** — full plan for the Cell Tracker training. 6-tab interactive notebook covering the 11 GUI pages (Import → Process & Crop → Detection Tune → Detection Run → Tracking Config → Tracking Run → Results → Synthesis → Spatial Maps → Synthesis Spatial → Export), the two-stage processing discipline (Set as Raw + Use raw data), and the three tracker backends (Spatial Fingerprint / Hungarian / SerialTrack). Prerequisites: V3.164 microscope basics, V3.166 confocal, V3.168 image-analysis basics.
+- **`CodeLog/ClaudesPlan/V3.172_training_imagej_fiji.md`** — full plan for the ImageJ/Fiji deep dive. 7-tab interactive notebook (Bio-Formats import / channels + LUTs / preprocessing / segmentation incl. StarDist + Cellpose plugins / quantification / TrackMate / macros + batch). Workflow-focused (recipe path) vs. V3.168-V3.170 which stay concept-focused. Capstone: student adapts a provided template macro to a 12-file dataset.
+- **`CodeLog/ClaudesPlan/V3.173_training_spheroid_sizes.md`** — preliminary 4-tab plan for SpheroidSizes (script-driven, tiered parameter sweep, cell-state classification). Notes a pre-implementation TODO since the repo lacks a top-level README; recommends either upstreaming a README or capturing the workflow inline.
+- **`CodeLog/ClaudesPlan/V3.174_training_serialtrack.md`** — 5-tab plan for SerialTrack_Python (PTV / TFM workhorse, 2D + 3D, three tracking modes incremental/cumulative/double-frame, LoG + polynomial vs. blob + radial-symmetry detection). Cross-link: also the alternate tracker backend in Cell Tracker (V3.171).
+- **`CodeLog/ClaudesPlan/V3.175_training_gels_segmentation.md`** — preliminary 4-tab plan for GELS_ImageSegmentation (ND2 parsing → segmentation of cell-laden hydrogel images, paired raw+mask training data). Same README caveat as V3.173 — verify the model architecture against current source before authoring.
+
+### Changed
+- **`rm/js/training.js`** — rewritten. New `CATEGORIES` array (foundations / microscopy / analysis / tools) with a label + blurb each. Each `MODULES` entry gains a `category` field (and optional `kind: 'lab-software' | 'open-source'`). `render()` iterates `CATEGORIES`, building one `<section class="training-category">` per category with its own `.training-category-header` (title + blurb) followed by a category-scoped `.training-grid`. `buildCard()` emits an additional kind-pill (`is-lab-software` / `is-open-source`) when present. Five new MODULES entries added (cell-tracker, imagej-fiji, spheroid-sizes, serialtrack, gels-segmentation) under the `tools` category. Existing modules re-tagged with their categories.
+- **`rm/css/training.css`** — new `.training-category` (wrapper) + `.training-category-header` (bottom-bordered) + `.training-category-title` + `.training-category-blurb`. New `.training-card-status.is-lab-software` (violet: `#ede9fe` / `#6d28d9`) and `.training-card-status.is-open-source` (sky: `#e0f2fe` / `#0369a1`).
+- **`rm/js/nav.js`** — Training group children grow from 10 to 15. Order matches the landing-page categorized flow: foundations → microscopy → analysis concepts → tools (ImageJ/Fiji → Cell Tracker → SpheroidSizes → SerialTrack → GELS_ImageSegmentation).
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — header bumped with one-paragraph mention of the curriculum expansion + categorized landing.
+- **`sw.js`** — `CACHE_VERSION` 139 → 140.
+
+### Notes
+- V3.173 (SpheroidSizes) and V3.175 (GELS_ImageSegmentation) plans flag that their source repos lack top-level `README.md` files. Before either training is implemented, prefer authoring a README upstream so the training can cite a stable reference; otherwise capture the workflow inline and accept that the training will need maintenance as the tools evolve.
+- The ImageJ/Fiji training (V3.172) is deliberately workflow-focused while V3.168-V3.170 stay concept-focused. There WILL be overlap (LUTs, thresholding, etc.); the plan calls for cross-linking rather than duplication. If a future reader finds the boundary blurred, prefer collapsing concept content into the tools training and leaving V3.168-V3.170 as short conceptual primers.
+- The five new module slugs in `nav.js` will 404 if clicked from the workflow page-map / All Pages tile grid. Acceptable per the V3.162 precedent: the landing-page cards are the dominant entry point and remain non-clickable for Coming-soon modules.
+- Plan: this `V3.162.2` entry is itself the change record — no separate `CodeLog/ClaudesPlan/V3.162.2_*.md` document (the 5 per-module plan docs are the work product).
+
+## [V3.162.1] - 2026-05-11
+
+**Microscope-basics training declared a required prerequisite for first-time AX-R confocal access.** Alex confirmed during V3.162 rollout that V3.164 microscope-basics gates V3.166 confocal — students complete V3.164 + capstone sign-off before Alex (or a senior member) approves their first AX-R session. This is a project decision, not a code feature, but it changes how V3.164 should be built and is now visible to students on the training landing grid.
+
+### Added
+- **`rm/js/training.js`** — `MODULES.microscope-basics` gains `required: true`; `buildCard` renders a red `Required` pill in a new `.training-card-status-row` flex container alongside the Available/Coming-soon pill.
+- **`rm/css/training.css`** — new `.training-card-status-row` flex layout for stacking multiple pills; new `.training-card-status.is-required` red variant (uses `--red-bg` + `--red`).
+
+### Changed
+- **`CodeLog/ClaudesPlan/V3.164_training_microscope_basics.md`** — status header now flags HIGH build priority + the gating role; new "Required-training role" section + Tab 5 capstone rewritten as a binary competency check with a printable sign-off checklist.
+- **`CodeLog/ClaudesPlan/V3.166_training_confocal.md`** — status header now flags V3.164 as a hard prerequisite; new "Prerequisite gating" section.
+- **`rm/js/training.js`** — landing card descriptions for `microscope-basics` and `confocal` updated to mention the prerequisite relationship.
+- **`sw.js`** — `CACHE_VERSION` 138 → 139.
+
+### Notes
+- No new pages, no Firestore changes. Per-user completion tracking is still deferred — when it lands, V3.164 completion is the first one to persist because it has real-world consequences (equipment access).
+
+## [V3.162] - 2026-05-10
+
+**Lab Training section bootstrapped in RM + first module (PhD triangle).** Pre-V3.162 the lab had no internal pedagogy surface. [`rm/pages/compliance.html`](../../rm/pages/compliance.html) tracks external training certificates but there was no place inside RM for lab members to learn lab-specific skills (paper writing, microscope operation, image analysis) or the human side of doctoral training (PhD expectations). V3.162 introduces a `/rm/pages/training.html` landing page with a 9-card grid that mirrors a curriculum of nine modules (lecture-style for the two conceptual ones, full interactive notebook for the seven imaging/optics ones). The first module — [`rm/pages/training-phd-triangle.html`](../../rm/pages/training-phd-triangle.html) — ships end-to-end: an inline SVG triangle with three vertices (Communication / Creativity / Grit) and Knowledge at the centroid; click any vertex to swap a side panel describing that pillar's behaviors, growth path, and failure mode; three 1–5 sliders that re-scale the inner triangle in real time; a verdict generator that produces plain-language diagnosis + prescription based on which pillar is the gap. The remaining eight modules are scaffolded as planning docs (`CodeLog/ClaudesPlan/V3.163` – `V3.170`) but their HTML is not yet implemented — the landing-page cards render with a "Coming soon" badge and are not clickable.
+
+### Added
+- **`rm/pages/training.html`** — landing page. `.training-intro` banner + `#training-grid-root` populated by `training.js`. Shell mirrors `meetings.html` (Firebase SDKs + firebridge + nav.js + page renderer). No Firestore reads/writes.
+- **`rm/js/training.js`** — landing renderer. Hardcoded `MODULES` array (9 entries: slug, icon, title, desc, available, planVersion). `buildCard(m)` emits `.training-card.is-available` (anchor) or `.training-card.is-coming-soon` (div) depending on `available`. `escapeHtml` for safe interpolation. Auth-aware via `firebridge.whenAuthResolved()`.
+- **`rm/pages/training-phd-triangle.html`** — first training module. Single-scroll lecture page (no tab bar). Six `.training-section` blocks: framing prose, interactive triangle + 4 pillar panels, self-assessment block, milestone timeline (5-card grid), lab-support mapping (4-card grid with cross-links to paper-builder / library / pmr / lab-notebook / protocols), closing prompt. Inline SVG viewBox `0 0 600 540`; outer triangle vertices at `(300,60) (60,480) (540,480)`; centroid at `(300,340)` carries the Knowledge label. Three `.pillar-vertex` `<g>` elements (data-pillar = communication / creativity / grit) are keyboard-focusable + clickable.
+- **`rm/js/training-phd-triangle.js`** — triangle renderer. `OUTER` + `CENTROID` constants must match the SVG polygon points. `scoreToInnerVertex(pillar, score)` linearly interpolates from centroid to outer vertex by `score/5` (floored at 0.05 so the inner triangle never collapses to a point). `redrawInnerTriangle({communication, creativity, grit})` rewrites `#inner-triangle`'s `points` attribute. `generateVerdict(scores)` cases on `avg` + `spread = max-min`: balanced + high → "well-developed"; balanced + low → "pick one"; large spread → "your stronger pillar can carry you while you grow the weaker"; small spread → "slight tilt". `promptForPillar(pillar)` returns the per-pillar prescription. `setActivePillar(pillar)` toggles `.is-active` on the vertex `<g>` + matching `.training-pillar-panel`. Click + Enter/Space keyboard handlers wired in `wirePillarVertices()`. Slider `input` + `change` listeners both fire `applyScores()` for cross-browser parity.
+- **`rm/css/training.css`** — shared training styles. Layered on `style.css` (uses its CSS variables). Blocks: `.training-intro` (landing banner), `.training-grid` (auto-fill 280px min-cols), `.training-card{.is-available, .is-coming-soon}` (hover lift only on available), `.training-card-status` (Available green pill / Coming soon muted pill), `.training-module-header/title/subtitle/eyebrow`, `.training-section`, `.training-callout{.is-warning}`, `.triangle-layout` (2-col → 1-col at 820px), `.training-triangle-svg .pillar-vertex{.is-active}`, `.training-pillar-panel{.is-active}` + `.pillar-failure`, `.self-assessment` + `.assessment-row` (140 / 1fr / 36 grid, collapses at 520px), `.training-verdict{.is-mixed}` (green default / amber on mixed), `.milestone-timeline` (5/2/1 cols), `.milestone-card` + `.milestone-pillar-tag`, `.support-grid` (auto-fit 220 min) + `.support-card`.
+- **`CodeLog/ClaudesPlan/V3.162_trainings_phd_triangle.md`** — plan covering the section bootstrap + this module.
+- **`CodeLog/ClaudesPlan/V3.163_training_paper_writing.md`** — future module plan: IMRaD anatomy, figure-first drafting, citation discipline, revision letters, lab-specific draft workflow. Lecture-style.
+- **`CodeLog/ClaudesPlan/V3.164_training_microscope_basics.md`** — future: resolution, NA, Köhler illumination, contrast mechanisms. Interactive notebook, 5 tabs, references microscopyu.com.
+- **`CodeLog/ClaudesPlan/V3.165_training_epifluorescence.md`** — future: Ti-e + Ti2-U operation. Light path, filter cubes, sources, frame-specific quirks. Interactive, 5 tabs.
+- **`CodeLog/ClaudesPlan/V3.166_training_confocal.md`** — future: Nikon AX-R operation. Pinhole, resonant vs galvo, lasers, Z-stacks, photobleaching. Interactive, 6 tabs.
+- **`CodeLog/ClaudesPlan/V3.167_training_image_train.md`** — future: image train + objective spec decoder. Coverslip correction, tube-lens matching. Interactive, 5 tabs.
+- **`CodeLog/ClaudesPlan/V3.168_training_image_analysis_basic.md`** — future: pixels, bit depth, LUTs, channels, ROI measurement in Fiji. Interactive, 5 tabs.
+- **`CodeLog/ClaudesPlan/V3.169_training_image_analysis_intermediate.md`** — future: background subtraction, Otsu, watershed, batch macros. Interactive, 5 tabs.
+- **`CodeLog/ClaudesPlan/V3.170_training_image_analysis_advanced.md`** — future: deconvolution, 3D segmentation, colocalization, Cellpose/StarDist, tracking. Interactive, 6 tabs.
+
+### Changed
+- **`rm/js/nav.js`** — `NAV_ITEMS` gains a `Training` top-level group slotted between `Research` and `Operations`. `gate: 'lab-member'`. Ten children: Overview + the nine module slugs. Pages without HTML yet still appear in the group (so the workflow page-map picks them up); the landing card UI marks them "Coming soon". The group also flows into the `#/index.html?view=all-pages` tile grid through the existing `_wfBuildPageMap()` traversal.
+- **`rm/CLAUDE.md`** — "Where things are" table gains a one-line pointer at the new Training section.
+- **`CodeLog/Architecture/ARCHITECTURE.md`** — header bumped to V3.162 with one-paragraph mention of the new training surface.
+- **`sw.js`** — `CACHE_VERSION` 137 → 138.
+
+### Notes
+- No Firestore reads or writes from any training page in V3.162. The PhD-triangle self-assessment is component-local — refreshing the page resets the sliders to 3/3/3. If progress tracking becomes desirable later, add `userData/{uid}/trainingProgress/{moduleId}` with `firestore.rules` allowing owner read/write.
+- The eight Coming-soon cards exist in `NAV_ITEMS` even though their pages don't. Clicking through the All Pages tile grid (or a workflow strip chip) would 404 on those slugs — this is acceptable for V3.162 because the landing-page cards are the dominant entry point and they are non-clickable. The slugs in `NAV_ITEMS` will become real pages as V3.163-V3.170 ship.
+- Outer-triangle vertices in the SVG (`points="300,60 60,480 540,480"`) MUST match the `OUTER` constant in `training-phd-triangle.js`. The centroid `(300, 340)` is the arithmetic mean of those three points — keep them in sync if the triangle is ever resized.
+- The training module template (`Data/trainings/MODULE_TEMPLATE.md`) prescribes a 4-6 tab interactive pattern grounded in cancer biology. V3.162 deliberately does NOT follow that pattern for the PhD-triangle module — its content is conceptual, not math-modelable, and section 10 of the template explicitly endorses a simpler format for purely conceptual lessons. V3.164 – V3.170 will use the full interactive template.
+- Plan: `CodeLog/ClaudesPlan/V3.162_trainings_phd_triangle.md`.
+
+## [V3.161] - 2026-05-10
+
+**Notebook images flagged for PMR review.** A student opens a lab notebook entry and clicks the 📌 badge on any image attachment — that image now appears as a card in their next-due PMR period, with an editable caption, a deep-link to the originating notebook entry, a per-figure comment thread, and a "+ Create follow-up task" button. Pre-V3.161 the only way for an admin to discuss the student's microscopy or gel images during the 1:1 was for the student to manually paste them into the PMR weekly entry. V3.161 flips the direction so flagging happens during normal notebook work and the PMR surface stays warm without ceremony.
+
+### Added
+- **`rm/js/notebook-schemas.js`** — `pmr_review_figures: []` added to `notebookEmptyEntry` + backfilled in `notebookHydrate`. Each entry shape: `{storage_path, period_id, flagged_at, figure_review_id}`. `storage_path` is the join key (stable across attachment reorders); `figure_review_id` pairs with the matching entry on the PMR side.
+- **`rm/js/lab-notebook.js`** — new helpers near the V3.160 tracker ping:
+  - `togglePmrFlagOnFigure(idx)` — dual-write toggle. On-flag: resolves next PMR period via `resolveNextPmrPeriod()`, generates a fresh `fr-…` id, resolves the Storage download URL (long-lived token survives admin cross-read since storage.rules deny admin on `notebook-figures/`), and writes `figure_review_id` into BOTH `notebook.pmr_review_figures[]` AND `userData/{uid}/pmr/{periodId}.figure_reviews[]`. Off-flag: removes from both arrays.
+  - `removePmrFlagForFigure(storage_path)` — fires when an attachment is deleted; cleans up any pending PMR figure-review entry.
+  - `resolveNextPmrPeriod()` — reads `userData/{uid}/pmr/_index`, picks the most recent draft, else the most recent of any status, else null (caller alerts to create a period first).
+  - `writeFigureReviewToPmr(periodId, fr)` — `arrayUnion`-style write via merged `set`.
+  - `removeFigureReviewFromPmr(periodId, frId)` — read-modify-write filter (arrayRemove can't match by id on complex objects).
+- **`rm/js/lab-notebook.js`** — `renderAttachmentsHtml` adds a `📌 PMR` badge anchored to the top-left of every image thumbnail; off state is dim, on state is solid amber with a glow + outline on the whole thumb. Click delegated through the existing `.ln-att-thumb` listener (stops propagation so it doesn't open the lightbox).
+- **`rm/js/pmr.js`** — `figure_reviews: []` added to `emptyDoc` + backfilled in `hydrateDoc`.
+- **`rm/js/pmr.js`** — new `renderFigureReviewsBlock` registered in `renderBody()` between **Paper writing** and **Discussion**. Renders one `pmr-fig-review-card` per entry with: image preview (click → fullscreen lightbox), 📓 deep-link back to the notebook entry, `flagged YYYY-MM-DD` stamp, editable caption (contentEditable, saves on blur via `scheduleSave`), `+ Create follow-up task` button wired through `TASK_ASSIGN.open({source:'pmr', pmrSectionId:'figure_reviews', pmrTargetId:fr.id})`, a `× Remove` button (PMR-side only — strips the figure from THIS PMR period without un-flagging on the notebook side), and the per-figure `SECTION_COMMENTS` thread.
+- **`rm/js/pmr.js`** — `resolveFigureUrl(storage_path)` lazy-resolves and caches Storage download URLs in `state._figureUrlCache` so re-renders don't trip the SDK repeatedly. `openFigureLightbox(src, label)` builds a fullscreen overlay (`max-width:90vw; max-height:90vh; object-fit:contain`, click anywhere to close); `openTaskForFigureReview(fr)` wires the task-assign modal with the right PMR backrefs + an "Follow up on figure: …" title prefill.
+- **`rm/css/lab-notebook.css`** — `.ln-att-thumb .pmr-flag-badge` (off/on states), `.ln-att-thumb.is-pmr-flagged` (amber outline on the whole thumb).
+- **`rm/pages/pmr.html`** — inline `<style>` block gains `.pmr-fig-review-grid` (auto-fill 260px+ columns), `.pmr-fig-review-card` (amber left-border accent), `.pmr-fig-review-imgbox` (4/3 aspect contained background), `.pmr-fig-review-caption` (amber edit highlight when contenteditable), `.pmr-fig-review-actions`, `.pmr-fig-review-remove` (red), `.pmr-fig-lightbox` (full-screen dark overlay) + `.pmr-fig-lightbox-img` + `.pmr-fig-lightbox-label`.
+- **`CodeLog/ClaudesPlan/V3.161_notebook_figure_pmr_review.md`** — plan + verification checklist.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 136 → 137.
+
+### Notes
+- **Storage rules unchanged.** Notebook figures remain owner-only-readable. Admin cross-view of figure images works because the student resolves the Firebase Storage download URL at flag time (their session has read access) and stores the long-lived token-bearing URL on the PMR doc. The URL grants access regardless of rules. Trade-off: anyone with the URL can fetch the bytes — acceptable for lab-internal use, matches the existing paper-figures pattern. If this changes, swap to a Cloud Function-mediated read or extend storage.rules with a `firestore.get()` admin clause.
+- **PMR-side caption is the canonical caption.** The notebook attachment has its own `caption` field but that's separate from the PMR caption — editing one doesn't update the other. Intentional: the PMR caption is "what to discuss about this figure," not "what the figure is" — different concerns.
+- **Single-period flag, not multi-period.** A figure can only be flagged for one PMR period at a time. Re-flagging an already-flagged figure unflags it from its current period; the user has to flag it again to send it to a different period. If multi-period flagging becomes desirable later, switch the `pmr_review_figures` entry from a single `period_id` to a `period_ids[]` array.
+- Plan: `CodeLog/ClaudesPlan/V3.161_notebook_figure_pmr_review.md`.
+
+## [V3.160] - 2026-05-10
+
+**Seamless cross-page activity + task integration.** Pre-V3.160 the only signal that wrote a tracker entry was *subtask completion* ([rm/js/tasks-buckets.js:167-247](../../rm/js/tasks-buckets.js#L167-L247) `logTaskCompletionToTracker`). Everything else — writing in the paper editor, adding a lab notebook entry, getting an action item assigned in a meeting, getting a task assigned by admin from inside PMR — left no trace in the tracker unless the student manually logged it. They don't; the tracker stays empty; PMR has no visibility into what work actually happened that week. V3.160 introduces a shared producer/consumer model: every meaningful user action and every scheduled item on any RM page now auto-creates a **pending tracker entry** the user just confirms hours on. PMR becomes the weekly accountability surface where that work rolls up as new **Activity** + **Stats** blocks. Admin-assigned tasks become impossible to miss with a pinned **"Assigned to me"** section on the Tasks dashboard + an Inbox-tab badge for unseen assignments. Confirmation flows through three layered surfaces: a per-page toast on auto-create ("Logged to tracker — confirm hours [Undo]"), an inline pending banner on the tracker daily view with one-tap hours-input + ✓/✗, and visibility in PMR Activity so admin can ask "how long did this take?" during the 1:1.
+
+### Added
+- **`rm/js/activity-signals.js`** (NEW) — shared cross-page helper. `ActivitySignals.recordWork({source, sourceRef, date, text, categoryPath, hoursEstimate?})` and `ActivitySignals.recordSchedule({...})` upsert a pending tracker entry idempotently via deterministic doc id (`auto-<kind>-<id>-<date>` for work, `auto-<kind>-<id>` for schedule — single doc per source that moves with the source's date). Re-calls with the same `sourceRef.id` update in place rather than duplicating; confirmed/dismissed entries are never trampled by re-fires. Other methods: `removeSchedule(sourceRef)`, `confirm(entryId, {hours})`, `dismiss(entryId)`, `listPending(uid, {from, to})`, `listConfirmed(uid, {from, to})`, `listForPeriod(uid, {from, to})`, `showToast(entry, text)`, `renderPendingBanner(host, date, callbacks)`, `renderComingUp(host, date, callbacks)`.
+- **`rm/css/activity-signals.css`** (NEW) — toast stack + pending banner + Coming up lane styles, plus the `.assigned-to-me-section` lift on the Tasks dashboard, the `.tasks-tab-badge` red Inbox badge, and the PMR Activity/Stats block styles (bar chart with `cat-research / -coursework / -service / -personal / -admin / -other` color variants + daily sparkline).
+- **`rm/js/pmr.js`** — two new blocks registered in `renderBody()` between Weekly entries and Barriers:
+  - `renderActivityBlock()` — read-only roll-up of the student's tracker entries dated within `period.start_date`–`period.end_date`, grouped by ISO week and rendered with day labels + category path + hours. Pending entries shown with a distinct amber `.pending` background + `pending` badge so admin can flag them during the 1:1. Threaded conversation via `SECTION_COMMENTS.mount`. Caches results in `state._activityCache` so the Stats block reads without double-fetching.
+  - `renderStatsBlock()` — browser-side aggregation of `duration` grouped by `categoryPath[0]` (top-level category from `labConfig/categorySchema`) → bar list with hours + percentage, plus a daily sparkline across the period. Stats count *confirmed entries only* — pending hours aren't real work yet. Threaded conversation thread.
+  - Helpers: `loadActivityForBlock`, `renderActivityList`, `loadStatsForBlock`, `renderStatsContent`, `isoWeekKey`, `dayLabel`, `enumerateDates`.
+- **`rm/js/activity-tracker.js`** — `renderDaily()` HTML template inserts two new host divs (`#act-pending-banner-host` and `#act-comingup-host`) above the input mode toggle; `wireDaily()` mounts the banner + Coming up lane via `ActivitySignals.renderPendingBanner` / `renderComingUp`. Banner shows pending entries for the current date with one-tap confirm (number input + ✓ / ✗ buttons, prefilled from `auto_hours_estimate`); Coming up lane (today-only) shows pending entries with `scheduled_for == today` so a future-dated due_date surfaces on the day. Both call back into the tracker's `loadEntries` + `refreshMain` after confirm/dismiss/log-it so the normal entries list re-syncs.
+- **`rm/js/tasks-dashboard-buckets.js`** — `renderAssignedByOthers()` rewritten to use the new `.assigned-to-me-section` pinned visual lift. Each row shows the assigner's name, the due date pill, and a new provenance chip — `from PMR` (amber, deep-links to `/rm/pages/pmr.html?period={pmrPeriodId}`) when `t.source === 'pmr'`, else `direct` (blue). Two new helpers: `syncAssignedToTracker(tasks)` calls `ActivitySignals.recordSchedule` for each assigned task with a real `due_date` (idempotent — duplicate calls free), and `stampAssignedSeen(tasks)` batch-writes `assigned_seen_at` for tasks the student hasn't seen yet, then fires the `rm:assigned-inbox-changed` window event so the Inbox tab can drop its badge. Mark-complete handler now also calls `ActivitySignals.removeSchedule` to dismiss the pending tracker entry tied to the completed assigned task.
+- **`rm/pages/tasks.html`** — Inbox tab gets a red `(N)` `.tasks-tab-badge` counting `bucket=='assigned' && !done && !assigned_seen_at`. New inline `refreshInboxBadge()` queries the count after firebridge settles + re-runs on `rm:assigned-inbox-changed`. New `<link rel="stylesheet" href="/rm/css/activity-signals.css">` + `<script src="/rm/js/activity-signals.js">` in the shared scripts block.
+- **`rm/js/tasks-buckets.js`** — new `pingScheduleForSubtask(bucket, st)` helper near `logTaskCompletionToTracker`. Called from both subtask-edit due_date `change` handlers (inline edit body + detail panel). Fires `ActivitySignals.recordSchedule` when a subtask has a real `due_date`; calls `removeSchedule` when due_date goes back to `'TBD'` or the subtask is marked done. `categoryPath` resolved from `bucket.category` + `bucket.sub_category.split(':')` (same shape as `logTaskCompletionToTracker`). `hoursEstimate` prefilled from `st.hours_estimate` for one-tap confirm later.
+- **`rm/js/task-assign.js`** — unchanged. Admin assigning a task to a student writes to `userData/{studentUid}/tasks` (existing V3.157 behavior); firestore.rules deny cross-user trackerEntries writes so the tracker entry materializes on the student's session via `syncAssignedToTracker` on the next tasks dashboard load.
+- **`rm/js/lab-notebook.js`** — `pingTrackerForEntry(doc)` fires after every successful `saveEntry()`. Auto-creates a pending tracker entry with `source: 'rm-notebook'`, `categoryPath: ['research', 'experiments']`, `date: doc.date || todayStr()`. Idempotent — same notebook entry on the same day = same doc id.
+- **`rm/js/meetings.js`** — `addActionItem` fires `ActivitySignals.recordSchedule` for action items assigned *to the signed-in user* with a deadline (cross-user denied by firestore.rules — assignee gets their own entry when they next open RM via similar lazy-sync if we add one later). `source: 'rm-meeting'`, `categoryPath: ['research', 'meetings_research']`.
+- **`rm/js/protocols.js`** — `createProtocol()` fires `ActivitySignals.recordWork` after successful Firestore write. `source: 'rm-protocol'`, `categoryPath: ['research', 'writing', 'protocols']`.
+- **`firestore.rules`** — `trackerEntries/{userId}/entries/{entryId}` read rule extended: `request.auth.uid == userId || isAdmin() || (isLabMember() && get(.../users/{userId}).data.shareActivity == true)`. The unconditional admin OR is what makes the PMR Activity + Stats blocks work in cross-user view (admin reading another student's PMR period needs to read their tracker entries); the legacy `shareActivity` opt-in for non-admin lab members is preserved. Writes still owner-only.
+- **`firestore.indexes.json`** — two new composite indexes on the `entries` collection group: `(status ASC, date ASC)` for the pending-queue / period-roll-up queries; `(status ASC, scheduled_for ASC)` for the Coming up lane query.
+- **`rm/pages/{pmr,activity-overview,lab-notebook,meetings,protocols}.html`** — each gains `<link rel="stylesheet" href="/rm/css/activity-signals.css">` and `<script src="/rm/js/activity-signals.js">` (the helper is global `window.ActivitySignals`, so loading it before page-specific scripts is enough).
+
+### Changed
+- **Tracker entry schema** — additive, backward-compatible:
+  - `status: 'pending' | 'confirmed' | 'dismissed'` (absent = `'confirmed'`, treats legacy entries as already-confirmed).
+  - `scheduled_for: 'YYYY-MM-DD' | null` — set for future-dated auto-creates; lets the Coming up lane query `where status=='pending' && scheduled_for==today`.
+  - `source_ref: { kind, id, path }` — discriminated provenance for idempotency lookup.
+  - `auto_hours_estimate: number | null` — prefill for one-tap confirm; banner reads this when rendering the per-row hours input.
+  - `confirmed_at`, `dismissed_at` server timestamps.
+  - New `source` enum values: `'rm-notebook'`, `'rm-paper'`, `'rm-protocol'`, `'rm-meeting'`, `'rm-conference'`, `'rm-grant'`, `'rm-pmr'`, `'rm-task-assigned'` (alongside the existing `'manual'`, `'calendar'`, `'huddle'`, `'ai'`, `'rm-task'`).
+- **Tasks schema (subtasks in `bucket: 'assigned'`)** — new optional `assigned_seen_at` server timestamp written on first dashboard render of an unseen assigned task. Drives the Inbox tab badge count.
+- **`sw.js`** — `CACHE_VERSION` 135 → 136.
+
+### Notes
+- The producer/consumer split is per-page hooks calling a shared helper, deliberately *not* a global `api.save` wrapper. Wrapping was considered and rejected because (a) many saves are settings / layout / autosave noise that doesn't represent work, (b) scheduled-date signals don't go through `api.save` (the date lives inside a doc field), and (c) global wrapping makes the data flow invisible to anyone reading a single page's source. Per-page hooks are explicit and grep-able.
+- Admin assigning a task can't directly write the student's tracker entry — firestore.rules deny cross-user `trackerEntries` writes for safety. The student's session materializes the pending entry on next tasks dashboard load via the idempotent `syncAssignedToTracker` routine. Future work: a Cloud Function trigger on `userData/{uid}/tasks` create could materialize the entry server-side so it's visible to the student even before they open the tasks page.
+- Confirmation flows through three layered surfaces (toast, banner, PMR Activity) rather than one to maximize the chance the user actually confirms. Pending entries that never get confirmed will accumulate; a future migration could auto-dismiss pending entries older than 30 days, but V3.160 ships without that to keep the model simple.
+- Plan: `CodeLog/ClaudesPlan/V3.160_seamless_activity_tracking.md`.
+
+## [V3.159] - 2026-05-09
+
+**PMR becomes the canonical 1:1 conversation surface between admin (PI) and student.** Pre-V3.159 PMR was a one-way student-authored worksheet — the student wrote weekly entries, project overview, discussion cards; the admin's only path to engage was to sit next to the student during the 1:1. There was no path for an admin to assign a task from inside PMR, no first-class "barriers" lifecycle (only flat discussion cards), no per-section threads, no paper-writing surface, and admin click-on-rail showed an "unsupported cross-user view" placeholder. V3.159 adds: threaded comments on every block, a Barriers section with status + figure attachments, a Paper-writing block that surfaces draft papers where the student is in `authorUids`, an "+ Assign task" button that uses `task-assign.js` with new `source:'pmr'` + `pmrPeriodId` + `pmrSectionId` + `pmrTargetId` fields, and a real cross-user admin view that reads `userData/{otherUid}/pmr/...` directly via `firebridge.db()` (bypassing the adapter's signed-in-uid hard-coding).
+
+### Added
+- **`rm/js/section-comments.js`** (NEW) — generic threaded-comments helper extracted from `rm/js/paper-editor.js:1901-2047`. `SECTION_COMMENTS.mount({container, collectionPath, scope, label})` subscribes via `onSnapshot`, renders nested replies (one level of indent), supports resolve/reopen + delete-own-comment + admin-delete-any. Caller picks the Firestore subcollection and the scope filter (e.g. `{section_id:'barriers', target_id:'barr-abc'}`) so the helper is reusable for any feature that wants a per-block conversation pane.
+- **`rm/js/pmr.js`** — six new constructs:
+  - `BARRIER_STATUSES = ['open','discussing','resolved']`, `PAPER_WRITING_STATUSES`.
+  - `state.paperDrafts[]`, `state.commentMounts[]`, `loadPaperDraftsFor(uid)`, `mountCommentsFor(...)`, `buildCommentToggle(...)`, `unmountAllComments()`, `isReadOnlyView()`.
+  - `renderBarriersBlock()` — full-page block with status pill cycling, contentEditable description, paste-image upload via `PAPER_FIGURES.uploadImage`, linked-task chips, "+ Assign task" button, per-barrier comment thread.
+  - `renderPaperWritingBlock()` — auto-loaded list of draft rows (papers where `authorUids array-contains studentUid` AND `is_library_entry !== true`), each with a status pill, "open in builder" link, "+ task" button, and per-paper comment thread.
+  - Comment toggles wired into every existing block (project_overview, open_tasks, reference_links, weekly_entries, weekly_entries[wk.id], discussion, discussion[card.id]) — every section is now commentable.
+  - `pmrIndexDocRef(uid)`, `pmrPeriodDocRef(uid, periodId)`, `pmrCommentsCollPath(uid, periodId)` — direct Firestore refs that bypass the adapter for the cross-user admin view.
+- **`rm/js/task-assign.js`** — accepts `opts.source`, `opts.pmrPeriodId`, `opts.pmrSectionId`, `opts.pmrTargetId`, `opts.titlePrefill`, `opts.defaultAssigneeUid`, `opts.heading`, `opts.onCreated(task)`. PMR's "+ Assign task" buttons use these to prefill the modal, tag the resulting task with the PMR backref, and back-link the task id onto the originating barrier/paper-writing row.
+- **`firestore.rules`** — new `userData/{userId}/pmr/{periodId}/comments/{commentId}` rule allowing read+write by owner, admin, or comment author. Without this override the recursive `userData/{userId}/{document=**}` rule above would have locked comments to owner-only, breaking the conversation model.
+- **`rm/pages/pmr.html`** — loads `firebase-storage-compat.js`, `toast.js`, `paper-figures.js`, `task-assign.js`, `section-comments.js` so barriers can paste-upload images and admin can assign tasks from inside PMR.
+
+### Changed
+- **`rm/js/pmr.js`** — `loadIndex()`, `loadPmrDoc()`, `attachLiveSync()` now branch on owner-vs-cross-user and use direct firebridge refs in the cross-user case (the api adapter's `_userScopePath` hard-codes the signed-in uid). `scheduleSave()` and `saveDoc()` short-circuit when `isReadOnlyView()` is true (admin viewing another student) so admin's only writes are comments + assigned tasks. `switchToUser()` replaces the `renderUnsupportedAdminView` placeholder with a real cross-user load (admin clicking another student in the rail now actually sees their PMR). `renderBody()` calls `unmountAllComments()` before re-rendering to prevent ghost listeners. `wireSubmitButton`/`wireNewPeriodButton` refuse to act in read-only mode. `emptyDoc()` and `hydrateDoc()` carry the new `barriers[]` and `paper_writing[]` arrays. `loadOpenTasks()` returns a "limited cross-user view" message instead of a hard error when admin views a student (per-user buckets/tasks are intentionally not admin-readable).
+- **`sw.js`** — `CACHE_VERSION` 134 → 135.
+
+### Bug Fixes
+- **`rm/js/pmr.js`** — admin click on another lab member in the rail no longer dead-ends at the "unsupported cross-user view" placeholder. Admin now actually loads `userData/{otherUid}/pmr/_index` and the selected period doc.
+
+## [V3.158] - 2026-05-09
+
+**Citation popover always anchors under the toolbar `+ Cite` button — including Cmd+K.** User report: "the references picker should always show up under the ref picker button, even from cmd k". Pre-V3.158 the popover anchor varied by surface: toolbar `+ Cite` anchored at `_state.savedEl` (the paragraph contenteditable), Cmd+K anchored at `lastFocusedEditable` (also the paragraph). Result: the popover appeared in different screen positions depending on which paragraph held the caret — sometimes near the top of the doc, sometimes mid-screen, sometimes off-screen if the paragraph was below the fold.
+
+### Changed
+- **`rm/js/paper-equations.js`** — toolbar `+ Cite` button now stamps `id="pe-gt-cite"` on creation. `_makeRefBtn(b)` honors a new optional `id` field on the spec for any future buttons that need stable selectors. `_openCitationPopoverFallback()` looks up `document.getElementById('pe-gt-cite')` and passes that as `anchorEl` (falls back to `_state.savedEl` if the toolbar somehow isn't mounted).
+- **`rm/js/paper-editor.js`** — Cmd+K handler also looks up `pe-gt-cite` and uses it as `anchorEl`. Falls back to `lastFocusedEditable` on pages where the toolbar isn't on the DOM (e.g. read-only paper viewer).
+- **`sw.js`** — `CACHE_VERSION` 133 → 134.
+
+### Notes
+- **Chip-edit anchor unchanged.** Clicking an existing `.pe-cite-group` chip in the prose still anchors the edit popover to the chip itself (V3.157 behavior). That's the natural anchor for "edit this specific citation"; the consistent toolbar anchor is for "insert a new citation" surfaces.
+- **No data-model changes.** Pure positioning fix.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v133`.
+
+## [V3.157] - 2026-05-09
+
+**Citation popover: multi-pick + click-an-existing-chip-to-edit.** User report: "We need a way to pick multiple citations in the same block. we need a way to edit a citation block so we can add more or take some away." Pre-V3.157 the citation popover was strictly single-pick: one click → close + insert one `[@key]` token. To get a `[@k1; @k2]` Pandoc citation group with multiple keys, the user had to type the second key by hand (and authors generally don't remember every citation key by heart). And there was no way to *modify* an existing citation — once inserted, removing a key required deleting the chip, retyping, and re-picking. V3.157 ships both: (1) every row gets a checkbox that toggles selection without closing the popover; a footer "Insert N" button (or Cmd/Ctrl+Enter) commits all selected keys as a single `[@k1; @k2]` group; (2) clicking a rendered citation chip in the prose opens the popover in edit mode, pre-filled with the existing keys, so the user can add/remove individually or replace the group entirely.
+
+### Added
+- **`rm/js/paper-editor.js`** — citation popover gains multi-pick state. New `citationPopoverState` fields: `onPickKeys(keys[])` (commit-all callback), `onRemove()` (edit-only delete callback), `selectedKeys: Set<string>` (currently checked rows), `editing: boolean`. Popover DOM gains a left-side `.pe-cite-pop-row-check` per row (✓ when checked), a `.pe-cite-pop-selected-bar` at the top showing the currently-checked keys as dismissable chips, and a `.pe-cite-pop-foot` with `Cancel` / `Insert N` / `Remove citation` (edit-only) buttons. Search-as-you-type keeps the selected-bar persistent so the user can see what's checked even when the search filters all selected entries out of the visible list. New keyboard shortcuts: `Space` toggles the active row, `Cmd/Ctrl+Enter` commits, plain `Enter` toggles, `Esc` closes without inserting.
+- **`rm/js/paper-editor.js`** — `insertCitationKeysAtFocus(keys[])` helper. Builds a single `[@k1; @k2]` Pandoc citation group rather than separate brackets, since the latter renders as separate inline citations whereas the former reads as one citation group in academic style. `insertCitationAtFocus(citationKey)` is now a one-line wrapper around it (back-compat).
+- **`rm/js/paper-editor.js`** — `_openCitationEditor(paragraphEl, yText, groupEl)` private helper opens the popover in edit mode. Reads `data-cite-src-start` / `data-cite-src-end` / `data-cite-keys` from the clicked `.pe-cite-group` to know which source-text byte range to replace and which keys to pre-check. Commit calls new `replaceParagraphRange(paragraphEl, srcStart, srcEnd, newToken)` which walks the paragraph's text nodes to build a Range over those bytes and runs `execCommand('insertText', false, newToken)` (or empty string when the user removed every key) — the Y.Text observer picks up the change and rebroadcasts to coauthors.
+- **`rm/js/paper-editor.js`** — delegated `mousedown` listener (capture phase) on every contenteditable bound through `bindYTextToContentEditable`. Catches clicks on `.pe-cite-group`, calls `_openCitationEditor` with the live yText reference. Capture-phase preventDefault stops the contenteditable's default click-to-focus behavior so the focus handler doesn't swap rendered chip → source text before we can read the data-cite-* attrs.
+- **`rm/js/paper-editor.js`** — `renderCitationChip(inner, srcStart, srcEnd)` now stamps `data-cite-src-start` / `data-cite-src-end` / `data-cite-keys` plus a `title="Click to edit citation"` on the wrapping `.pe-cite-group` so the click handler can identify which source byte range the group came from. The bracket scanner in `renderParagraphHtml` already knew `i` (start) and `endBracket+1` (end), just needed to thread them down.
+- **`rm/css/paper-editor.css`** — V3.157 popover styles: `.pe-cite-pop-row-check` (left-side checkbox cell, 18×18, blue ✓ when checked), `.pe-cite-pop-row-body` (right-side column with key/meta/title), `.pe-cite-pop-row.checked` (highlighted blue background), `.pe-cite-pop-selected-bar` + `.pe-cite-pop-selected-chip` (amber bar + chips at top of list), `.pe-cite-pop-foot` (footer with Cancel / Insert / Remove buttons, sticky at the bottom of the popover), `.pe-cite-pop-commit` (primary blue Insert button, disabled when no selection in non-edit mode), `.pe-cite-pop-remove` (red Remove citation button, only visible in edit mode), `.pe-cite-group:hover` (light blue background to signal editability). Used `:has(.pe-cite-pop-row-check)` to scope the row's flex-direction-row override to the citation popover only — the V3.108 inventory popover reuses `.pe-cite-pop-row` and stays in flex-direction-column for its existing two-line layout.
+
+### Changed
+- **`rm/js/paper-editor.js`** — Cmd+K handler switched from `onPick` → `onPickKeys: keys => insertCitationKeysAtFocus(keys)` so the keyboard shortcut also gets multi-pick.
+- **`rm/js/paper-equations.js`** — toolbar `+ Cite` action's `_openCitationPopoverFallback` switched from `onPick` → `onPickKeys: keys => insertCitationKeysAtFocus(keys)`.
+- **`sw.js`** — `CACHE_VERSION` 132 → 133.
+
+### Notes
+- **Backward-compat preserved.** Legacy callers passing `onPick(entry)` still get the V3.156 single-click-then-close behavior. Multi-pick / edit only activates when the caller passes `onPickKeys` or `editing: true`. Toolbar `+ Cite`, Cmd+K, and the new chip-edit flow all use the new path; nothing else in the codebase uses the popover so the legacy branch is dormant but kept for forward compat / external callers.
+- **Edit-mode source-range invariant.** The `data-cite-src-start` / `data-cite-src-end` attributes reflect the source state at *render* time — i.e. the offsets in the Y.Text source string at the moment `renderParagraphHtml` ran. If a coauthor edits the same paragraph between render and click, those offsets could drift. Mitigation: edit-mode opens fast and Yjs broadcasts re-trigger render, so the chip's offsets are fresh when shown. A fancier fix (delta-tracked offsets) is out of scope for V3.157.
+- **`:has()` selector dependency.** The CSS uses `.pe-cite-pop-row:has(.pe-cite-pop-row-check)` to scope the V3.157 horizontal flex layout. `:has` is supported in all current evergreen browsers; falls back gracefully in older ones (no flex-direction override → checkbox stacks above body, ugly but functional).
+- **Why not insert separate `[@k1] [@k2]` brackets.** Pandoc renders `[@a; @b]` as `(Smith 2024; Jones 2023)` — a single comma-separated citation in author-year style. Two separate brackets become `(Smith 2024) (Jones 2023)`, which is academically wrong.
+- **No data-model changes.** Pure UX layer. The Y.Text source still stores `[@k1; @k2]` Pandoc-style groups exactly as before.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v132`.
+
+## [V3.156] - 2026-05-09
+
+**Citation popover `pickIndex` cleared `onPick` before invoking it.** User report (post-V3.155): "this still does not work" — the citation picker. V3.155 wired the toolbar `+ Cite` to pass `onPick: e => insertCitationAtFocus(e.key)`, mirroring the Cmd+K wiring at [rm/js/paper-editor.js:3677](rm/js/paper-editor.js#L3677). Both wirings looked correct, but inside the popover's `pickIndex(i)` function, `hide()` was called BEFORE the callback fired — and `hide()` resets `citationPopoverState.onPick = null`. So by the time the next line ran `if (citationPopoverState.onPick) citationPopoverState.onPick(entry)`, the callback was null and the check skipped. **This bug affected both Cmd+K and the toolbar `+ Cite` since the citation popover was first written** — every citation pick has been silently no-op'ing since the popover-with-callback pattern shipped. The user only noticed now because (a) prior to V3.155 the toolbar didn't even pass an onPick, and (b) Cmd+K presumably hasn't been the user's primary citation flow.
+
+### Fixed
+- **`rm/js/paper-editor.js`** — `pickIndex(i)` in `ensureCitationPopover()` now captures `citationPopoverState.onPick` into a local `cb` variable BEFORE calling `hide()`. The order is: read callback → hide popover (which resets state) → invoke callback. Both Cmd+K and `+ Cite` surfaces work now.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 131 → 132.
+
+### Notes
+- **Why neither V3.154's audit nor V3.155's fix caught this.** V3.154's diagnostic table tracked the *entry points* that open pickers but didn't trace into PaperEditor's popover internals. V3.155 noted "the popover requires the caller to supply an onPick" and wired one — but assumed the popover correctly invoked it. The bug was 4 lines deep inside `ensureCitationPopover()`'s `pickIndex` function, past where each fix's audit stopped.
+- **No data-model changes.** Pure flow-control fix.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v131`.
+
+## [V3.155] - 2026-05-09
+
+**Toolbar `+ Cite` button: missing `onPick` callback meant picks silently no-op'd.** User report (post-V3.154): "the reference pickers work and they put the reference in the correct place. the only one that doesnt work is the citation picker." The reference pickers (`+ Eq` / `+ Fig` / `+ Table`) all route through `_openPicker` → `_insertAtSavedCaret(token)`, which V3.154 fixed. The `+ Cite` button is special: it doesn't go through `_insertAtSavedCaret` at all — it opens PaperEditor's `openCitationPopover`, which is a generic popover that requires the **caller** to supply an `onPick(entry)` callback (Cmd+K's handler does so: `onPick: e => insertCitationAtFocus(e.key)`). The toolbar `+ Cite` action's `_openCitationPopoverFallback()` was opening the popover with only `anchorEl` and no `onPick`, so when the user picked a row, `citationPopoverState.onPick` was null and `pickIndex(i)` ran a no-op. From the user's perspective: popover appears, pick a citation, popover closes, nothing inserts.
+
+### Fixed
+- **`rm/js/paper-equations.js`** — `_openCitationPopoverFallback()` now passes an `onPick` callback to `openCitationPopover` that calls `window.PaperEditor.insertCitationAtFocus(entry.key)`. Mirrors the Cmd+K wiring at [rm/js/paper-editor.js:3677](rm/js/paper-editor.js#L3677). The `insertCitationAtFocus` flow uses PaperEditor's own `lastFocusedEditable` + `lastFocusedCaret` tracker plus `setCaretCharOffset` to rebuild the caret fresh against the post-blur source-text DOM, which is why the caret position is correct now that the callback actually fires.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 130 → 131.
+
+### Notes
+- **Why the panel References tab "Insert citation" button works.** It goes through `_insertCitationKeyAtSavedCaret(key)` → `_insertAtSavedCaret('[@<key>]')`, which is the V3.154-fixed direct-insert path — never opens the popover. So the missing `onPick` only affected the toolbar surface. Right-click → Insert citation (which also opens the popover) was already passing `onPick: e => insertCitationAtFocus(e.key)` correctly.
+- **Why this wasn't caught in V3.154's audit.** V3.154's diagnostic table tracked all 13 entry points but only verified the `_insertAtSavedCaret` chain. The `+ Cite` row noted "uses PaperEditor.openCitationPopover" but didn't verify the popover received the callback it needed. The actual no-op was several function-call hops away (popover's `pickIndex` → `citationPopoverState.onPick` → null), past the line where V3.154's audit stopped tracing.
+- **No data-model changes.** Pure missing-callback wire-up.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v130`.
+
+## [V3.154] - 2026-05-09
+
+**Paper builder full insertion-path audit — drop the stale `savedRange` gate at every entry point.** User report: "lets get a full diagnostic for all of the various inline and reference items to add. most are still not working right." V3.143 / V3.152 fixed `_insertAtSavedCaret` (the leaf insertion function) but only audited the five toolbar buttons. There are ELEVEN insertion entry points across the paper builder, and FIVE of them still gated on `_state.savedRange` (a cached `Range` object that goes stale the moment the contenteditable blurs and `applyRendered` re-renders innerHTML — V3.143's writeup). When the gate sees null/stale savedRange it falls back to `document.activeElement.isContentEditable`, which is FALSE the moment the user clicks a panel-side button (active is the button, not the contenteditable). Result: panel-side "Insert citation" / "Insert table reference" / "Insert figure reference" / `+ Cite` toolbar / `_ensureCaretOrAlert` itself either alerted "Place cursor first" or silently no-op'd, regardless of whether `lastFocusedEditable` actually had a valid target. Plan: [CodeLog/ClaudesPlan/V3.154_full_insertion_path_audit.md](../ClaudesPlan/V3.154_full_insertion_path_audit.md).
+
+### Diagnostic — every insertion entry point
+
+| Path | Where | Status pre-V3.154 | Status post-V3.154 |
+|---|---|---|---|
+| Right-click → Insert inline equation | `_saveCaretFromEvent` → `_openInlinePicker` → `_insertAtSavedCaret('[!eqi:<slug>]')` | Worked (V3.152 path) | Works |
+| Right-click → Insert equation reference | same → `_openRefPicker` → `_insertAtSavedCaret('[!eqr:<label>]')` | Worked | Works |
+| Right-click → Insert figure reference | same → `_openFigRefPicker` → `_insertAtSavedCaret('[!fig:<label>[:<panel>]]')` | Worked | Works |
+| Right-click → Insert citation | calls into PaperEditor.openCitationPopover | Worked (PaperEditor uses its own char-offset) | Works |
+| Toolbar `+ Inline Eq` | `_toolbarInsertInlineEquation` → `_ensureCaretOrAlert` → `_openInlinePicker` → `_insertAtSavedCaret` | Broken: gate checked savedRange | **Fixed: gate now checks savedEl** |
+| Toolbar `+ Cite` | `_toolbarInsertCitation` → `_ensureCaretOrAlert` → `_openCitationPopoverFallback` | Broken: fallback used stale savedRange to set selection | **Fixed: rebuild Range from savedCaret** |
+| Toolbar `+ Eq` | `_toolbarInsertEquation` → `_openRefPicker` → `_insertAtSavedCaret('[!eqr:<label>]')` | Broken: gate checked savedRange | **Fixed** |
+| Toolbar `+ Fig` | `_toolbarInsertFigure` → `_openFigRefPicker` → `_insertAtSavedCaret('[!fig:<label>]')` | Broken: same | **Fixed** |
+| Toolbar `+ Table` | `_toolbarInsertTable` → `_openTabRefPicker` → `_insertAtSavedCaret('[!tab:<label>]')` | Broken: same | **Fixed** |
+| Panel Equations row "Insert" | `_insertInlineEquationAtSavedCaret(eqId)` → `_insertAtSavedCaret('[!eqi:<slug>]')` | Worked (V3.152 path) | Works |
+| Panel Figures row "Insert reference" | `_insertFigureReferenceAtSavedCaret(fig)` → `_insertAtSavedCaret('[!fig:<label>]')` | Broken: gate checked savedRange + fallback failed (panel button is active, not contenteditable) | **Fixed: gate checks savedEl, fallback walks PaperEditor.lastFocusedEditable** |
+| Panel Tables row "Insert reference" | `_insertTableReferenceAtSavedCaret(tab)` → `_insertAtSavedCaret('[!tab:<label>]')` | Broken: same | **Fixed** |
+| Panel References row "Insert citation" | `_insertCitationKeyAtSavedCaret(key)` → `_insertAtSavedCaret('[@<key>]')` | Broken: same | **Fixed** |
+
+### Fixed
+- **`rm/js/paper-equations.js`** — `_ensureCaretOrAlert()` (toolbar gate at line 335) drops the `_state.savedRange` precondition. Now passes when `savedEl` is set AND still attached to the DOM (`document.body.contains(_state.savedEl)`); falls through to `_saveCaretFromCurrentFocus()` (which walks PaperEditor's `lastFocusedEditable` tracker) before alerting.
+- **`rm/js/paper-equations.js`** — `_insertCitationKeyAtSavedCaret(key)` (panel References tab "Insert citation" button) — same gate switch. The panel-button case where `document.activeElement` is the button (not a contenteditable) now correctly recovers via the lastFocusedEditable fallback instead of alerting.
+- **`rm/js/paper-equations.js`** — `_insertTableReferenceAtSavedCaret(tab)` (panel Tables tab "Insert reference" button) — same.
+- **`rm/js/paper-equations.js`** — `_insertFigureReferenceAtSavedCaret(fig)` (panel Figures tab "Insert reference" button) — same.
+- **`rm/js/paper-equations.js`** — `_openCitationPopoverFallback()` (toolbar `+ Cite` action) — was directly calling `sel.addRange(_state.savedRange)` against the stale Range. Now rebuilds a fresh Range via `_rangeFromCharOffset(_state.savedEl, _state.savedCaret)` and applies that to the selection so the citation popover's `lastFocusedEditable` tracker picks up the right anchor when the popover's search input grabs focus.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 129 → 130.
+
+### Notes
+- **Why `savedRange` lingered as a gate even though V3.152 stopped trusting it for insertion.** V3.152 fixed only the leaf function (`_insertAtSavedCaret`) — the entry points that *call into* it never got audited. Every panel-side insert button had a copy of "if (!savedEl || !savedRange) try fallback…" boilerplate that silently failed in the panel-button case (because the fallback's `document.activeElement` check fails when the active element is the panel button itself). The fix is uniform across all five sites: gate on savedEl, fall back to PaperEditor's persistent `lastFocusedEditable` tracker via `_saveCaretFromCurrentFocus()`.
+- **Why `_openCitationPopoverFallback` was special.** Citations don't go through `_insertAtSavedCaret` at all — they go through PaperEditor's `openCitationPopover` → `insertCitationAtFocus`, which uses PaperEditor's own char-offset tracker (`lastFocusedEditable` + `lastFocusedCaret`). But the toolbar fallback was setting up the selection on the contenteditable BEFORE opening the popover, using the stale Range. Fixed to rebuild the Range from char-offset before applying it.
+- **No data-model changes.** Pure interaction-layer fix.
+- **No new state fields.** All paths now use the V3.143 `_state.savedEl` + `_state.savedCaret` pair plus the V3.140 PaperEditor.lastFocusedEditable fallback.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v129`.
+
+## [V3.153] - 2026-05-09
+
+**Paper builder: silence the noisy "legacy Firestore read failed: Missing or insufficient permissions" warning on every page load.** User report: a long stack-trace warning fires every time the paper builder loads. Root cause: `maybeMigrateLegacy` in [rm/js/paper-editor.js](rm/js/paper-editor.js) reads the legacy Phase A doc at `papers/{paperId}/draft/tree` to migrate pre-Yjs papers. `firestore.rules` doesn't grant read access to the `/draft/` subpath (it predates the Yjs migration), so the read throws `permission-denied` for every post-Phase A paper. The `try/catch` correctly swallows the error and falls through to the `paper-imports/` JSON path, but the catch block was logging `console.warn('[paper-editor] legacy Firestore read failed:', err.message)` — surfacing a scary stack trace on every page load even though everything is working as intended. The migration is essentially dead code for new papers and only fires for the rare case of someone opening a pre-Yjs-cutover paper.
+
+### Fixed
+- **`rm/js/paper-editor.js`** — `maybeMigrateLegacy()`'s legacy-doc read catch block silenced. The `try/catch` shape is preserved (still swallows + falls through), but the `console.warn` is removed. Replaced with an inline comment documenting why the read is expected to fail.
+- **`sw.js`** — `CACHE_VERSION` 128 → 129.
+
+### Notes
+- **Why not just remove the legacy read.** It's still useful for the rare case of someone opening a paper from before the Yjs cutover. The read silently fails for new papers, and the import-file path handles fresh imports — so leaving the read in place costs nothing for new papers and migrates the old ones if they happen to be readable.
+- **Why not loosen `firestore.rules`** to permit the `/draft/` read. The rules deliberately don't surface the legacy path because it shouldn't exist in production any more. Loosening rules to make the warning go away would be backwards.
+- **No data-model changes.** Pure log-quietening fix.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v128`.
+
+## [V3.152] - 2026-05-09
+
+**Paper builder: insert at cursor (not at start), inline-eq tokens use name slug instead of opaque id, reference inserts now actually insert.** Three tightly-coupled bugs the user hit after V3.143 (caret persistence rewrite): (1) "I click on an inline reference and the location of mu cursor is lost, it moves to the begenning of the paragraph that i am on. It should insert whatever i want where my cursor is." — caret jumped to position 0 because `_insertAtSavedCaret` built the fresh Range BEFORE calling `el.focus()`. The focus handler ([rm/js/paper-editor.js:3003-3009](rm/js/paper-editor.js#L3003-L3009)) does `el.textContent = yText.toString()` to swap from rendered HTML back to source text — and that re-render destroyed the text nodes my freshly-built Range was pointing at. By the time `sel.addRange(freshRange)` ran, the Range was again stale. (2) "the inline equation needs a name reference instead of a unique ID." — V3.109 emitted `[!eqi:<id>]` with the auto-generated `eq-abc123` id, making the source unreadable. Authors want `[!eqi:hookes-law]`. (3) "the reference insert selects, but the insert does not work." — same root cause as #1; the equation/figure/table reference pickers all routed through `_insertAtSavedCaret` and hit the same focus-before-range timing bug. Plan: [CodeLog/ClaudesPlan/V3.152_caret_focus_first_and_eqi_name.md](../ClaudesPlan/V3.152_caret_focus_first_and_eqi_name.md).
+
+### Fixed
+- **`rm/js/paper-equations.js`** — `_insertAtSavedCaret(text)` reordered: call `el.focus()` FIRST so the contenteditable's focus handler swaps `el.textContent = yText.toString()` (rendered HTML → source text), THEN build the fresh Range via `_rangeFromCharOffset(el, savedCaret)` against the now-source-text DOM. The previous order built the Range against the rendered DOM (post-blur, with KaTeX chip spans), then `el.focus()` immediately destroyed that DOM by re-rendering source — so the Range pointed at detached nodes by the time we applied selection, and the caret silently snapped to position 0 (the start of the contenteditable). All five toolbar reference actions (`+ Inline Eq` / `+ Cite` / `+ Eq` / `+ Fig` / `+ Table`) and the right-click context-menu insertion path share `_insertAtSavedCaret`, so a single fix covers all six surfaces.
+- **`rm/js/paper-equations.js`** — final-final fallback path (when the Selection API has no rangeCount even after `addRange`) splices the inserted text in at `_state.savedCaret` (source-space character offset) rather than appending to the end. The previous V3.143 path did `el.textContent = (el.textContent || '') + text`, which dumped the new token at the end of the paragraph — visible to the user as "click button, item appears at end of paragraph instead of where my cursor was." Now: `el.textContent = src.slice(0, pos) + text + src.slice(pos)` with `pos` clamped to `[0, src.length]`, plus the same synthetic `input` event so the Y.Text observer picks up the change.
+
+### Changed
+- **`rm/js/paper-equations.js`** — inline equation tokens now use a name slug instead of the auto-generated id. New helper `_eqiSlugFromEntry(e)` returns `name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)` (capped at 60 chars), falling back to `e.id` only when the entry has no name. The inline-equation picker (`_openInlinePicker`) and the panel-side "Insert" button (`_insertInlineEquationAtSavedCaret`) both now emit `[!eqi:<slug>]`. `_insertInlineEquationAtSavedCaret` looks up the entry via `PaperEditor.getInlineEquationById(eqId)` to resolve the slug.
+- **`rm/js/paper-editor.js`** — `getInlineEquationById(idOrName)` now searches the equation library first by exact id (legacy tokens), then by slugified name (new tokens). New module-private `_slugifyEqName(name)` matches `_eqiSlugFromEntry`'s rule. Returns the entry's actual id (from the matched library entry) so existing chip rendering paths that reference `entry.id` keep working.
+- **`rm/js/paper-export-tex.js`** — `paragraphTextToTex`'s `[!eqi:...]` resolver gets the same two-pass lookup: id first, then slugified name. Without this, exported `.tex` would emit `% [missing inline equation: hookes-law]` comments for every name-slug-based token.
+- **`sw.js`** — `CACHE_VERSION` 127 → 128.
+
+### Notes
+- **Why V3.143's char-offset fix was right but applied in the wrong order.** Saving char-offset (rather than caching a Range) was the right move — the Range goes stale after blur+rerender. But applying the caret on insertion required acknowledging the SECOND DOM swap that happens on `el.focus()` (rendered → source). Building the Range before focus and then trusting it across a focus-triggered DOM mutation is the same bug shape, just shifted one step later. Focusing first guarantees the DOM is in source mode and stays that way through the rest of the insertion.
+- **Backward compat with existing `[!eqi:<id>]` tokens.** Both the in-page renderer (`getInlineEquationById`) and the LaTeX exporter (`paragraphTextToTex`) try id-match first, so any pre-V3.152 paragraphs that already contain `[!eqi:eq-abc123]` tokens continue to render and export correctly. New inserts go through the name-slug path. No migration needed; old and new tokens coexist in the same paragraph.
+- **Ambiguity risk.** If two inline-equation entries share the same slug (e.g. both named "Alpha"), the first match in document order wins. The picker doesn't currently flag the conflict; authors who rename will eventually notice the rendered chip looks wrong and can disambiguate by adjusting one name. Out of scope for V3.152.
+- **No data-model changes.** Equation library Y.Map shape is unchanged — `id` and `name` already existed.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v127`.
+
+## [V3.151] - 2026-05-09
+
+**Pickers anchor to the button that opened them; clamp to viewport.** Reported: "the pickers on some pages open in weird positions. on all the pages they should open next to the buttons that we press, and if they get within some distance from the edge, they should move towards the center." Three pickers were hardcoded to `position: fixed; left: 50%; top: 120px`, ignoring the button that opened them. The other pickers in the codebase (paper-equations, paper-editor citation, protocol-inventory) already anchor + clamp correctly — V3.151 brings the three holdouts in line.
+
+### Fixed
+- **`rm/js/lab-notebook.js`** — `openInventoryPicker(anchorEl)` and `openProtocolPicker(anchorEl)` now take an optional anchor element; both route through a shared `_positionPopoverNearAnchor(popEl, anchorEl)` helper. Default placement: directly below the anchor's bottom edge, left-aligned. Right-edge clamp slides the popover left; bottom-edge clamp tries `above the anchor` first (so the picker doesn't get cut off when the toolbar is near the bottom of a tall window) and falls back to top-clamping if neither side has room. Top + left edges always clamped to an 8 px viewport margin. Toolbar button click handlers (`#ln-add-inventory`, `#ln-add-protocol`) now pass `ev.currentTarget` so the popover opens adjacent to the icon instead of fixed at top-center.
+- **`rm/js/paper-editor.js`** — `openInventoryDialog(sectionId, anchorEl)` (the V3.40 Methods-section "+ Add → Reagent / equipment" picker) takes an anchor and routes through a parallel `_positionInvPopoverNearAnchor` helper. The hardcoded `left: 50%; top: 120px` lines in `ensureInventoryPopover`'s one-time setup are removed (positioning now happens per-open). The `+ Add` menu's "Reagent / equipment" item now passes `anchorBtn` (the section's "+ Add" button) so the popover opens next to it.
+
+### Notes
+- **Why a per-file helper instead of a shared util.** lab-notebook and paper-editor are the only two pages that needed this fix today, and they have no shared module beyond `util.js` (which is intentionally kept minimal — global helpers there make it harder to evolve any one page). Two ~30-line helpers in two files is cheaper than introducing a cross-page "popover-positioning" module that one of those pages might evolve out of later.
+- **Clamp algorithm.** Default = below + left-aligned with anchor. If `right > viewport - 8px`, slide left by the overflow (and clamp `left ≥ 8px`). If `bottom > viewport - 8px`, try `above the anchor`; if that overflows the top, fall back to bottom-clamping with 8 px margin. The "try above first" branch matters when the toolbar is near the bottom of the editor in a short browser window — the picker pops upward instead of getting cut off.
+- **Pickers that were already correct, untouched**: paper-equations.js's `_openPickerAt` (V3.132 doc picker), `_openEqPicker` (V3.149 inline-eq picker); paper-editor's citation popover (`ensureCitationPopover`); protocol-inventory.js's popover. All five already had anchor-based positioning + clamp.
+- **No new Firestore rule, no new index, no new Storage block.** Pure UX.
+- **`sw.js`** — `CACHE_VERSION` 126 → 127.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v126`.
+
+## [V3.150] - 2026-05-09
+
+**Final mouseenter→renderList race sweep — protocol-inventory + paper-editor citation popover.** User report after V3.149: protocols-page inventory picker still broken. The same destroy-and-rebuild race lived in two more pickers I hadn't audited. Did a full repo sweep this time.
+
+### Fixed
+- **`rm/js/protocol-inventory.js`** — `_ensurePopover` row `mouseenter` no longer rebuilds. This is the picker behind the `🧪` button on protocol materials rows + on step / note / safety / figure-caption block toolbars. Same one-line replacement: short-circuit if `activeIdx === i`, otherwise toggle `.active` across existing rows.
+- **`rm/js/paper-editor.js` `ensureCitationPopover`** — same fix on the citation popover (the `+ Cite` toolbar button + Cmd+K cite-by-key flow). Found via final sweep; was the only remaining match for `grep -rn 'mouseenter.*renderList' rm/js/`.
+
+### Notes
+- **Repo-wide sweep clean.** `grep -rn 'mouseenter.*renderList' rm/js/` returns zero hits after V3.150. The five pickers fixed across V3.148 → V3.150:
+  1. lab-notebook inventory picker (`_ensureInventoryPopover`) — V3.148
+  2. lab-notebook protocol picker (`_ensureProtocolPopover`) — V3.148
+  3. paper-editor inventory picker (`ensureInventoryPopover`) — V3.148
+  4. paper-equations shared `+ Inline Eq` / `+ Cite` / figure-ref / table-ref picker (`_openEqPicker`) — V3.149
+  5. **protocol-inventory** picker (`_ensurePopover`) + **paper-editor citation popover** (`ensureCitationPopover`) — V3.150
+- Should have run the sweep at V3.148. Cost three iterations of partial-fix-and-retry.
+- **No new Firestore rule, no new index, no new Storage block.** Pure UI.
+- **`sw.js`** — `CACHE_VERSION` 125 → 126.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v125`.
+
+## [V3.149] - 2026-05-09
+
+**Paper builder inline-add pickers: same mouseenter→renderList race fixed.** User report after V3.148: paper builder inline-add still broken (when the user clicks `+ Inline Eq` / `+ Cite` / figure-ref / table-ref toolbar buttons, the picker opens but clicking a row does nothing). Same root cause as V3.148: `paper-equations.js` `_openEqPicker` (the shared picker behind all four inline-add toolbar buttons) had `row.addEventListener('mouseenter', function () { activeIdx = i; renderList(); })` which destroyed-and-rebuilt every row when the cursor entered, racing the click event so the user's mousedown landed on the parent `.pe-eq-picker-list` instead of the row button. V3.148 missed this because it only audited the `inventory` picker on paper-editor.
+
+### Fixed
+- **`rm/js/paper-equations.js` `_openEqPicker`** — row `mouseenter` no longer calls `renderList()`. Just toggles the `.active` class in place across existing row buttons. Same pattern as V3.148's lab-notebook + paper-editor inventory picker fix.
+
+### Notes
+- **The benign-warning red herring.** User pasted `[paper-editor] legacy Firestore read failed: Missing or insufficient permissions.` from line 303. That's `maybeMigrateLegacy` probing the legacy Phase A `papers/{id}/draft/tree` Firestore path; the path no longer has a rule (Phase A migration completed pages ago), so the read fails as expected. The error is `try/catch`ed and the function continues normally — it's startup noise, not blocking. The actual click bug was in the picker, separate code path.
+- **No new Firestore rule, no new index, no new Storage block.** Pure UI.
+- **`sw.js`** — `CACHE_VERSION` 124 → 125.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v124`.
+
+## [V3.148] - 2026-05-09
+
+**Picker click fix (root cause finally found): `mouseenter → renderList()` was destroying every row before the click event could land.** V3.147's three-level click diagnostic told us exactly what was wrong: the click target was `<div class="ln-inv-pop-list">` (the list container), NOT a row inside it. The user wasn't missing the row visually — the row was being **destroyed mid-click** and the cursor's hit-test fell through to the parent.
+
+### Root cause
+Each picker row had this listener:
+```js
+row.addEventListener('mouseenter', function () { activeIdx = i; renderList(); });
+```
+`renderList()` does `listEl.innerHTML = ''` and then re-creates every row from scratch. The intent was to update the visual highlight as the cursor moved between rows. But the destroy-and-rebuild raced the click event:
+1. User moves the cursor onto a row → `mouseenter` fires → `renderList()` runs synchronously
+2. Inside `renderList`: every row in the list is destroyed (`listEl.innerHTML = ''`), then new rows are created and appended
+3. While the rebuild is in flight, the cursor's hit-test sometimes lands on the parent `.ln-inv-pop-list` (because the rows have just been wiped). The user's `mousedown` then fires with `target = listEl`, not the row button
+4. No `click` follows because mouseup happens after some movement, often outside the popover entirely
+
+The bug was present in V3.108 (paper-editor inventory picker), V3.114 (lab-notebook inventory picker), and V3.116 (lab-notebook protocol picker) — all three pickers used the same destroy-and-rebuild pattern on `mouseenter`. Three pages, three "different" bugs, one shared root cause. V3.134 / V3.142 / V3.145 all chased the wrong layer (insertion path); V3.146 / V3.147 added diagnostics that finally surfaced the pattern.
+
+### Fixed
+- **`rm/js/lab-notebook.js` `_ensureInventoryPopover`** — row `mouseenter` no longer calls `renderList()`. Instead, it short-circuits when `activeIdx === i` and otherwise just toggles the `.active` class in place across the existing row buttons. Rows are never destroyed mid-cursor-hover, so the click event lands on the row button reliably.
+- **`rm/js/lab-notebook.js` `_ensureProtocolPopover`** — same fix.
+- **`rm/js/paper-editor.js` `ensureInventoryPopover`** — same fix (this is what was broken on the paper builder; same pattern, same destroy-and-rebuild race).
+- **All three pickers**: row keyboard nav (↑ / ↓) still goes through `renderList()` since it advances activeIdx by code path, not by cursor; that's fine because keyboard nav doesn't race the click.
+
+### Changed
+- **`rm/js/lab-notebook.js`** — V3.146 + V3.147 diagnostic `console.log` calls removed (the `[ln-doc-mousedown]`, `[ln-pop-mousedown]`, `[ln-pop-click]`, `[ln-inv-picker]`, `[ln-protocol-picker]`, `[ln-inv-insert]`, `[ln-protocol-insert]`, `[ln-append]` lines). The build probe `[lab-notebook] V3.148 build loaded at <ISO>` is kept (one log per page load) so a future cache regression can be quickly diagnosed.
+- **`rm/js/paper-editor.js`** — V3.146 diagnostic logs (`[pe-inv-picker]`, `[pe-inv-insert]`) removed.
+- **`sw.js`** — `CACHE_VERSION` 123 → 124.
+
+### Notes
+- **Why the previous three "fixes" didn't help.** V3.134 (caret-restore), V3.142 (Selection-API fallback), V3.145 (`_appendHtmlToBody` bypass) were all addressing the chip-insertion path AFTER the click event. None of them mattered because the click event never reached the row handler — `pickIndex` was never called, `insertInventoryChip` was never called, the insertion path didn't matter. The diagnostics in V3.146/V3.147 were the right move; should have started there.
+- **Why the bug only surfaced now.** It depended on browser timing of `mouseenter → renderList → next layout pass → cursor hit-test → mousedown`. Some browser-version / OS combinations let the click land on the row, others routed it to the parent. The user's combo consistently routed it to the parent. Static-rendered popovers (where rows aren't rebuilt on every hover) wouldn't have hit this.
+- **No new Firestore rule, no new index, no new Storage block.** Pure UI.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v123`.
+
+## [V3.147] - 2026-05-09 — DIAGNOSTIC BUILD #2
+
+**Three-level click triangulation: document (capture) / popover / row.** User V3.146 result: "nothing prints to console" — meaning even the row's `mousedown` listener doesn't fire, so the click event is being intercepted upstream of the row handler. V3.147 adds three additional listeners per popover so we can pin down WHERE the event is going:
+
+1. `[ln-doc-mousedown]` — `document.addEventListener('mousedown', …, true)` capture phase. Fires on EVERY mousedown anywhere in the document, before bubbling-phase listeners. If this doesn't fire, mousedown events aren't reaching the document at all (a transparent overlay covers everything; or pointer-events:none on body; or a browser extension blocking; or the popover renders into a different document/iframe than the user is clicking).
+2. `[ln-pop-mousedown]` / `[ln-pop-click]` — bubble-phase listeners on the popover element itself. If these fire but `[ln-inv-picker]` row events don't, the click is reaching the popover but is being intercepted inside (e.g., a child element with `pointer-events: none` or a stopPropagation handler on a wrapper). If these don't fire but `[ln-doc-mousedown]` does, the click reached the document but not the popover — which means the popover is being covered visually by a higher-z-index transparent element, or `pop.contains(target)` is returning false because the actual click target is inside a different rendered element on top of the popover.
+3. **Build probe** — `console.log('[lab-notebook] V3.147 diagnostic build loaded at <ISO>')` runs unconditionally at script load. If the user does NOT see this line in the console, the SW cache is serving stale `lab-notebook.js` and the diagnostic adds aren't applying. Will need to instruct manual SW unregister.
+
+### What the user should do
+1. Hard reload (Cmd+Shift+R / Ctrl+Shift+R).
+2. Open DevTools → Console. **Verify** the `[lab-notebook] V3.147 diagnostic build loaded` line appears. If not, the SW is serving stale code; in DevTools → Application → Service Workers, click "Unregister" then hard-reload again.
+3. Click 🧪 Inventory → click an item row. Paste the entire console output.
+4. Three patterns and what they mean:
+   - **Build probe present, NO `[ln-doc-mousedown]` lines** → mousedown isn't reaching the document. Bigger problem (transparent overlay, browser extension, iframe layering).
+   - **`[ln-doc-mousedown] inside-popover=false`** → click target is OUTSIDE the popover element. The popover is being covered by something at higher z-index that the click landed on instead. The `class=` field of the target will tell us what.
+   - **`[ln-doc-mousedown] inside-popover=true` AND `[ln-pop-mousedown]` AND `[ln-pop-click]` fire** but **`[ln-inv-picker click row]` does NOT** → something inside the popover (between root and row) is absorbing or stopping the event.
+
+Once we have the output, V3.148 will be the targeted fix.
+
+### Notes
+- This release is non-functional — purely additional console.log statements. The chip-insert paths still use V3.145's `_appendHtmlToBody`.
+- **`sw.js`** — `CACHE_VERSION` 122 → 123.
+
+## [V3.146] - 2026-05-09 — DIAGNOSTIC BUILD
+
+**Lab notebook + paper builder picker click flows: console.log diagnostics added at every checkpoint.** User reported (4th time): "the pickers on both the lab notebook, protocols, and paper writer all do not work. When I click on anything nothing happens." Three pages, three completely different insertion mechanisms (lab-notebook = `appendChild`, protocols = Yjs transactions, paper-builder = Yjs transactions) all failing identically — that points away from the insertion path and toward something blocking the click event itself before it reaches the row handler. V3.134 / V3.142 / V3.145 fixed three different parts of the insertion path; the symptom persists, so the bug is upstream of insertion. V3.146 adds non-removable `console.log` calls at every step of the click → pickIndex → insert flow on both lab-notebook and paper-editor pickers. **No behavioural change.** Run the picker, click an item, and report what shows up in DevTools console — the absent log lines tell us exactly where the chain breaks.
+
+### Diagnostic logs added
+- **`rm/js/lab-notebook.js`** — `[ln-inv-picker]` mousedown / click / pickIndex; `[ln-protocol-picker]` mousedown / click / pickIndex; `[ln-inv-insert]` / `[ln-protocol-insert]` start; `[ln-append]` body-children before/after counts.
+- **`rm/js/paper-editor.js`** — `[pe-inv-picker]` mousedown / click / pickIndex (now also reports `sectionId` so we can see if the popover was opened without a section context); `[pe-inv-insert]` start + warns if `state.conn.yDoc` is missing.
+
+### What the user should do
+1. **Hard reload** (Cmd+Shift+R / Ctrl+Shift+R) to evict the SW cache `mcgheelab-shell-v121`.
+2. Open DevTools (F12) → Console tab.
+3. Open the lab notebook page → click 🧪 Inventory → click an item row.
+4. Copy whatever the console shows and send it back. Three possible patterns:
+   - **No `[ln-inv-picker]` logs at all** → the click event isn't reaching the row handler. Something global is blocking events. Will pivot to investigating the workflow shell / iframe layering / a stuck modal backdrop.
+   - **`[ln-inv-picker] click row N` shows but no `[ln-inv-insert]`** → something between the click and `pickIndex` is throwing. Will pull the stack trace.
+   - **All logs through `[ln-append] body children: N → N+1` but the chip still doesn't appear visually** → the chip lands but a re-render erases it. Will investigate the input-listener path.
+5. Repeat in the paper builder: open a Methods section's `+ Add` menu → Reagent / equipment → click an item. The `[pe-inv-picker]` and `[pe-inv-insert]` logs will tell us the same.
+
+### Notes
+- This release is intentionally low-risk: only `console.log` calls are added. The chip-insert paths still use V3.145's `_appendHtmlToBody` (lab notebook) and V3.108's Yjs transaction (paper builder).
+- Once we have the console output, V3.147 will be the targeted fix.
+- **`sw.js`** — `CACHE_VERSION` 121 → 122.
+
+## [V3.145] - 2026-05-09
+
+**Lab Notebook: picker chip inserts bypass focus + selection entirely.** Reported (third time): "still doesnt work. This is a problem on the paper writer as well." V3.134 added a caret-restore helper, V3.142 added a Selection-API fallback, but the picker-chip-insert path was *still* not landing chips for some users. Root cause: when the picker's `<input>` has focus, calling `bodyEl.focus()` synchronously moves focus DOM-wise but doesn't reliably move the document selection (browser-dependent), and BOTH `document.execCommand('insertHTML')` AND the Selection-API `range.insertNode` paths silently no-op when the selection is in the wrong element. V3.145 ships the simplest possible fix: a new `_appendHtmlToBody(bodyEl, html)` helper that **skips focus and selection entirely** and just `appendChild`s the chip into the body. Picker insertions now use this path; the `_insertHtmlAtCaret` helper is kept only for the paste/drop image path where the user is mid-typing in the body (caret position is meaningful there).
+
+### Fixed
+- **`rm/js/lab-notebook.js`** — every picker chip insertion (V3.114 inventory chip, V3.116 protocol chip, V3.134 full-protocol body, V3.137 calculator block insert + re-edit) now routes through the new `_appendHtmlToBody(bodyEl, html)` helper. The helper parses HTML into a `DocumentFragment` via `<template>`, calls `appendChild` for each top-level node onto `bodyEl`, and dispatches a synthetic `input` event so the body's autosave + ref-collect + panel re-render listeners fire. **No `bodyEl.focus()`, no `getSelection()`, no `execCommand`.** This is the most direct path to "make a chip appear in the body" — and it's the path the user's mental model of the picker actually expects ("pick → it goes in the entry").
+- **`rm/js/lab-notebook.js`** — picker insertions now report a clean `insert failed` message when `_appendHtmlToBody` returns false (which only happens when `bodyEl` is missing). The pre-V3.143 `try clicking inside the entry first` hint is removed because the new path doesn't depend on the user having clicked into the body.
+
+### Added
+- **`rm/js/lab-notebook.js`** — `_appendHtmlToBody(bodyEl, html)` helper. Tiny — 8 lines + comments. Returns true unless `bodyEl` is null. The implementation is deliberately the simplest thing that can possibly work: `<template>.innerHTML = html` to parse, then `appendChild` the fragment's children, then dispatch `input`. No focus management, no selection management, no caret restoration. The `_insertHtmlAtCaret` helper from V3.142 is kept for the image paste/drop site where the user IS typing in the body and caret position is meaningful.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 120 → 121.
+
+### Notes
+- **Why this should finally work.** The previous two attempts (V3.134 caret restore + V3.142 Selection-API fallback) both depended on getting the document selection into the body before insertion. That dependency turned out to be fragile across browser versions and focus-timing edge cases — particularly when an `<input>` (the picker's search field) had focus and the body was an empty contentEditable. `appendChild` doesn't care about any of that. It's the equivalent of `bodyEl.innerHTML += chipHtml` minus the parse-and-rebuild cost.
+- **What does the user lose.** Picker chip inserts now always land at end-of-body, ignoring any caret position the user may have set inside the body before opening the picker. In practice the picker steals focus from the body anyway, so there was no caret to honour. If a future ticket asks for "insert at where my cursor was before I opened the picker," that's a separate feature (save the caret in a `mousedown.preventDefault` on the toolbar button before the picker opens; restore + insert there). Not worth doing on speculation.
+- **Paper builder may have a parallel bug.** The user reported the same symptom on the paper writer. paper-builder's inventory picker uses Yjs (not execCommand) for insertion, so its failure mode is distinct — likely a `sectionId` resolution issue or a stale capture-phase dismiss listener. Punting on that until the user confirms whether V3.145 fixed lab notebook; investigating paper-builder is a separate ship.
+- **No new Firestore rule, no new index, no new Storage block.** Pure UI fix.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v120`.
+
+## [V3.144] - 2026-05-09
+
+**Dashboard "+ Add Task" button now creates a task instead of navigating.** User report: "the add task button on the task page is misleading currently this is just a link to the add task page. we should change this. the intent of this button is to add a task to something." Pre-V3.144 the button at the top of the Task Dashboard was a plain `<a href="?tab=add">` that just changed tabs. V3.144 turns it into a real action: open a modal, pick a task builder + fill in the task, save. Plan: [CodeLog/ClaudesPlan/V3.144_dashboard_add_task_modal.md](../ClaudesPlan/V3.144_dashboard_add_task_modal.md).
+
+### Changed
+- **`rm/pages/tasks.html`** — dashboard header `<a href="/rm/pages/tasks.html?tab=add">+ Add Task</a>` replaced with `<button id="btn-add-task">+ Add Task</button>`. The same `DOMContentLoaded` listener that wires `btn-assign-task` (Send to Teammate) now also wires `btn-add-task` to call `window.DASH_ADD_TASK.open()`. Falls back to a "still loading" alert if the dashboard module hasn't finished booting yet.
+- **`rm/js/tasks-dashboard-buckets.js`** — new `openAddTaskModal()` exposed as `window.DASH_ADD_TASK = { open: openAddTaskModal }`. Reuses the existing `openForm()` from [rm/js/forms.js](../../rm/js/forms.js) with six fields: Title (required), Task builder (select with `+ New task builder…` at the bottom), Due date, Hours estimate, Priority (default `normal`), Notes. Default builder selection: `state.focusedTaskBuilderId` if set, else first non-`proj-inbox` builder, else first builder. On save: resolves the picked builder (or prompts for a name and creates a fresh one if `__new__`), reuses the existing `ensureDefaultBucket(project)` helper to land the subtask in `buk-{builderId}-default`, builds a fresh subtask with the form values + the signed-in user as the assignee, pushes onto `bucket.subtasks`, unhides the destination card if it was previously hidden via `state.hidden`, sets `state.focusedTaskBuilderId` to the destination so the new card scrolls into view, calls `scheduleSave()` (the dashboard's existing debounced save path) and `render()`. The `__new__` cancel-during-prompt path throws "Cancelled" so the modal stays open with field values preserved — `openForm` displays the alert, the user can edit and retry without re-typing.
+- **`sw.js`** — `CACHE_VERSION` 119 → 120.
+
+### Notes
+- **No sub-bucket picker yet.** V1 lands the new task in the chosen builder's auto-created `buk-{id}-default` ("General") sub-bucket. Users can re-pin into a more specific bucket via the existing V3.130 pin menu. If the more-specific picker is needed, it's a follow-up — adding a dependent dropdown to `openForm` would require teaching forms.js about field-to-field dependencies, which is bigger than this fix needs to be.
+- **Saves go through the dashboard's existing `scheduleSave()` (api adapter full-doc rewrite per task builder).** The V3.130 surgical-write pattern from `rm/js/projects.js` could be ported here if single-add latency feels slow, but unlike items.json the buckets adapter writes one doc per task builder — typical lab has 10-30 builders, so a full-doc save is bearable. Not a blocker for the V3.144 ship.
+- **No Firestore rules change.** `tasks/buckets.json` is `scope: 'user'`, written into `userData/{uid}/buckets/{id}` — already covered by the existing per-user write rule.
+- **Hard-reload required** to evict cache `mcgheelab-shell-v119` and pick up the new tasks.html + dashboard module.
+
+## [V3.143] - 2026-05-09
+
+**Paper builder: real fix for "click toolbar button, pick item, nothing happens."** User report: "still doesnt work" — V3.140's caret-fallback fix didn't address the actual root cause. The real cause: V3.120/V3.136's caret-save cached a `Range` object on `_state.savedRange`, but **the contenteditable's `blur` handler runs `applyRendered(el, sourceText, renderFn)` which does `el.innerHTML = renderFn(...)` — completely replacing the text nodes the saved Range references**. The picker's search input grabs focus ~30 ms after the picker opens, the paragraph blurs, the DOM re-renders, and by the time the user picks an item from the picker, `_state.savedRange.startContainer` / `.endContainer` are detached nodes. `sel.addRange(savedRange)` silently fails to set a usable selection, then `document.execCommand('insertText', ...)` no-ops because there's no live selection. Same shape as V3.142's lab-notebook chip-insert bug, but a different module. Plan: [CodeLog/ClaudesPlan/V3.143_caret_char_offset_save.md](../ClaudesPlan/V3.143_caret_char_offset_save.md).
+
+### Fixed
+- **`rm/js/paper-equations.js`** — caret persistence model switched from caching a `Range` to caching `(savedEl, savedCaret)` (the contenteditable element ref + the char-offset within it). New `_state.savedCaret` field. `_saveCaretFromCurrentFocus()` now records both the live Range AND the char-offset (via the new `_readCharOffset(el, endContainer, endOffset)` helper, which mirrors PaperEditor's `readCaretCharOffset`). `_saveCaretFromEvent(e, el)` (the right-click context-menu path) now records char-offset too. Critically, `_insertAtSavedCaret(text)` no longer trusts `_state.savedRange` — it always rebuilds a fresh Range from `_state.savedEl` + `_state.savedCaret` against the current DOM via the V3.140 `_rangeFromCharOffset(el, offset)` walker. The fresh Range references the live text nodes that exist now, post-re-render, instead of the detached nodes from before the blur. After insertion, `_state.savedCaret` is bumped past the inserted text so successive picks stack rather than overwrite.
+- **`rm/js/paper-equations.js`** — added a final-final fallback in `_insertAtSavedCaret`: if the Selection API path also fails (no rangeCount after `addRange`), append the text directly to `el.textContent` and dispatch an `input` event so the Y.Text observer picks up the change. Worse caret position than the happy path, but never silent.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 118 → 119.
+
+### Notes
+- **Why V3.140's fix wasn't enough.** V3.140 added a fallback chain so `_state.savedEl` would never be null. That worked — the picker opens, the user picks, `_insertAtSavedCaret` runs with `savedEl` populated. But then it called `sel.addRange(_state.savedRange)` with a stale Range. The fix wasn't to recover the *element*, it was to never trust the *Range*. Char-offset + element ref is the only persistence model that survives `applyRendered`'s innerHTML replacement.
+- **Same root cause as V3.142.** Lab notebook had the same shape: `execCommand('insertHTML')` no-ops because the contenteditable was just re-rendered. V3.142 added a Selection-API fallback there. V3.143 adds the equivalent for the paper builder's prose-token insertion (`[!eqi:<id>]`, `[!eqr:<label>]`, `[!fig:<label>]`, `[!tab:<label>]`, `[@key]`).
+- **Right-click → Insert flow is fixed too.** `_saveCaretFromEvent` now records the char-offset, so right-click insertion uses the same fresh-range path. Before V3.143 it stored the live Range from the right-click event — but the same blur-then-rerender sequence affected it (the context menu doesn't blur the contenteditable, but the picker that follows does).
+- **No data-model changes.** Pure interaction-layer fix.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v118` and pick up the new caret persistence.
+
+## [V3.142] - 2026-05-09
+
+**Lab Notebook: chip insertion now has a Selection-API fallback when `document.execCommand('insertHTML')` no-ops.** Reported (again): "i try to click on an item in the inventory picker or protocol picker and it doesnt work, nothing happens." V3.134's caret-restore fix worked for the rangeCount=0 case, but `document.execCommand('insertHTML')` itself is increasingly unreliable in modern browsers — it's deprecated, browser implementations vary, and it silently no-ops in cases where the body has been freshly re-rendered or the focus chain is unusual (e.g. after a popover closes). V3.142 wraps every chip insertion in a robust `_insertHtmlAtCaret(bodyEl, html)` helper that tries `execCommand` first (fast path, preserves undo history) and falls through to a Selection-API path (`range.insertNode(documentFragment)` with manual input event dispatch) when execCommand fails or the body's innerHTML didn't actually grow.
+
+### Fixed
+- **`rm/js/lab-notebook.js`** — every chip-insert path (V3.114 inventory chip, V3.116 protocol chip, V3.119 image-paste, V3.134 full-protocol body, V3.137 calculator block insert + re-edit) now routes through `_insertHtmlAtCaret(bodyEl, html)`. The helper does three things in sequence: (1) calls `_ensureBodyCaret(bodyEl)` to position the selection inside the body — now also seeds an empty `<br>` if the body is completely empty, so the caret has a real node to land on; (2) tries `document.execCommand('insertHTML', false, html)` and verifies the body's innerHTML actually grew; (3) on failure (execCommand returned false OR the body didn't grow), parses the HTML into a `DocumentFragment`, calls `range.insertNode(fragment)`, and manually dispatches an `input` event so the autosave + ref-collect listeners run. Returns `true` on success, `false` only if every fallback failed (in which case the caller surfaces a toast: "insert failed — try clicking inside the entry first").
+- **`rm/js/lab-notebook.js`** — `_ensureBodyCaret` now seeds an empty `<br>` when `bodyEl.firstChild === null`. Without this, a fresh entry's contentEditable has no child nodes for the caret to anchor against, and even the Selection-API path silently does nothing because there's no insertion point.
+
+### Changed
+- **`rm/js/lab-notebook.js`** — six `document.execCommand('insertHTML', false, …)` callsites in V3.114–V3.137 chip-insert paths are now thin wrappers around `_insertHtmlAtCaret`. Each callsite checks the return value; on failure they `console.warn(...)` with the relevant entity id (item id, protocol id) and surface a brief saving-hint message. `state.doc.body_html = sanitizeHtml(bodyEl.innerHTML)` runs after the helper succeeds, same as before.
+- **`sw.js`** — `CACHE_VERSION` 117 → 118.
+
+### Notes
+- **execCommand isn't going away tomorrow, but it's brittle.** MDN flags it as deprecated for years now. `insertHTML` specifically has known quirks where it silently does nothing on contentEditable elements that have just been re-rendered (e.g. by `outerHTML` on a parent), and the body re-renders on every editor render in this lab notebook. The Selection-API fallback is the correct primitive — it always works, it's not deprecated, and it gives us deterministic control over the insertion point and selection update afterwards.
+- **Why also dispatch an input event manually.** The body's `input` listener does the autosave + `collectInventoryRefs` + `collectProtocolRefs` + panel re-renders. `execCommand` historically fired an input event automatically on contentEditable; the Selection-API path doesn't. Manual dispatch keeps the listener path identical regardless of which insert path took.
+- **Empty-body seed.** A fresh notebook entry's contenteditable has `bodyEl.firstChild === null` until the user types something. `range.selectNodeContents(bodyEl)` on an empty element returns an empty range; `execCommand` and `range.insertNode` both no-op silently against it. Seeding an empty `<br>` gives the caret a real node to anchor on. The browser's contenteditable normaliser collapses the `<br>` away as soon as actual content appears.
+- **No new Firestore rule, no new index, no new Storage block.** Pure UI fix.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v117`.
+
+## [V3.141] - 2026-05-09
+
+**Protocols Builder: admin override for author + creation date.** Reported: "admin can edit the author and the creation date for any protocol." V3.119 made `author_uid` + `author_name` immutable after creation and `created_at` set-once — useful for the audit trail in normal use, but brittle in two real cases: (1) imported historical protocols (V3.139) credit the *importer*, not the original author, and admins should be able to reassign credit after upload; (2) author handoff when a lab member leaves and the admin wants to consolidate authorship cleanly. V3.141 adds an admin-only edit affordance on the editor's "Created by …" byline that opens a modal with a roster-driven author picker + a date input + an override for the cached `author_name`. Non-admins see no edit button; the `✏️` icon only renders when `firebridge.isAdmin()` returns true. No rules deploy required — the existing `protocols/{protocolId}` rule already permits admin updates of any field; the "immutability" was an application-layer convention enforced only in `protocolEmptyDoc`. Plan: [CodeLog/ClaudesPlan/V3.141_admin_edit_author_date.md](../ClaudesPlan/V3.141_admin_edit_author_date.md).
+
+### Added
+
+- **`rm/pages/protocols.html`** — new `#pre-authdate-modal` inside `.pr-editor-mode`. Modal contains: an author `<select>` populated from `lab/users.json` (sorted alphabetically by display name, guests filtered), a text input for the cached `author_name` (auto-fills from the picker so most admins won't need to touch it), and a `<input type="date">` for the creation date stamped as `YYYY-MM-DDT00:00:00.000Z`. Header callout (amber) explains the override semantics so admins understand this is escape-hatch territory, not a routine edit.
+- **`rm/js/protocol-editor.js`** — `renderByline()` appends a small `✏️` button conditionally on `firebridge.isAdmin()`; clicking opens the modal. New helpers `_loadRoster` (caches `lab/users.json` on `_rosterCache` after first call), `_populateRosterSelect(roster, currentAuthorUid)` (preselects the current author), `openAuthDateModal` (admin-gated, prefills name + date from `state.doc`), `saveAuthDate` (admin-gated, validates the date matches `YYYY-MM-DD`, runs `firestore.update` on `{author_uid, author_name, created_at, updated_at}`, patches `state.doc` locally, re-renders byline). Author-select `change` listener auto-fills the display name from the option's `data-name` so the typical flow is one click. Esc handler extended to dismiss the new modal alongside the V3.119 save-version + fork modals.
+- **`rm/css/protocol-editor.css`** — `.pre-byline-edit` (subtle 11px pencil button at opacity 0.6, hover lifts to opacity 1 with the same amber color used elsewhere in the topbar to telegraph "admin override"); `.pre-authdate-hint` (the amber callout explaining the override semantics).
+
+### Changed
+
+- **`sw.js`** — `CACHE_VERSION` 116 → 117.
+
+### Decisions
+
+- **Defense-in-depth gating, not just UI hiding.** Both `openAuthDateModal` AND `saveAuthDate` re-check `firebridge.isAdmin()`. UI hiding alone would let a non-admin trigger the modal via console; the early-return on save protects against that. The Firestore rule then catches anything that bypasses both gates.
+- **No provenance log.** This phase doesn't record "admin X reassigned author at Y date" anywhere in the doc — the Firestore audit log captures the write at the platform level if forensics are needed. A future phase can add an explicit `author_change_log: []` array on the doc if the team wants it visible in the UI.
+- **`updated_at` moves on save.** Even though only metadata changed, the list cache + the V3.119 versions dropdown's "v? since X" line both key off `updated_at`, so it should reflect the admin's edit.
+- **Roster cache is per-page, not LIVE_SYNC.** Roster changes (new lab members) are rare; an admin who wants to assign authorship to someone who joined mid-session can hard-refresh the page. Cheaper than wiring an onSnapshot.
+
+## [V3.140] - 2026-05-09
+
+**Paper builder: fix toolbar buttons silently doing nothing when caret save misses.** User report: "when I have my cursor in a paragraph and i want to put an inline equation, reference or anything in the paragraph, i try to click on one of our buttons to put one in, and i click on one of them and nothing happens." Root cause: the V3.120/V3.136 toolbar reference buttons (`+ Inline Eq` / `+ Cite` / `+ Eq` / `+ Fig` / `+ Table`) save the caret on `mousedown` via `_saveCaretFromCurrentFocus()`, which reads `document.activeElement.isContentEditable`. If the user clicks the button before having focused into a paragraph (e.g. fresh paper, or focus on the side panel, or `<body>`-focus), `document.activeElement` is not a contenteditable, the save is skipped, `_state.savedEl` stays null, the picker opens (or the citation popover opens with `anchorEl: null`), the user picks an item, and `_insertAtSavedCaret` hits the early `console.warn` + silent return. From the user's perspective: button click → nothing visible → "broken." Plan: [CodeLog/ClaudesPlan/V3.140_toolbar_caret_fallback.md](../ClaudesPlan/V3.140_toolbar_caret_fallback.md).
+
+### Fixed
+- **`rm/js/paper-equations.js`** — `_saveCaretFromCurrentFocus()` extended with two fallback paths: (1) if `document.activeElement` IS contenteditable but has no selection inside it, build a collapsed range at the end of the element (so a clicked-into-but-not-typed-into paragraph is still a valid target); (2) if `document.activeElement` isn't contenteditable at all, fall back to PaperEditor's `lastFocusedEditable` tracker (newly exposed in V3.140) and reconstruct the saved range from `lastFocusedCaret`'s character offset via the new `_rangeFromCharOffset(el, offset)` helper. The PaperEditor tracker survives blur — it's set on `keyup`/`mouseup`/`input` listeners on every contenteditable bound through `bindYTextToContentEditable` — so even if focus moved to the side panel or to `<body>` between when the user last typed and when they clicked the toolbar button, we can still recover their caret.
+- **`rm/js/paper-equations.js`** — `_insertAtSavedCaret(text)` calls `_saveCaretFromCurrentFocus()` as a last-chance recovery before its early-return path, then `alert()`s "Place your cursor in a paragraph first, then try again." instead of the previous silent `console.warn`. The alert turns the silent fail into actionable user feedback.
+- **`rm/js/paper-equations.js`** — every toolbar reference action (`_toolbarInsertInlineEquation` / `_toolbarInsertEquation` / `_toolbarInsertFigure` / `_toolbarInsertTable` / `_toolbarInsertCitation`) gains a leading `_ensureCaretOrAlert()` guard. If neither the mousedown save NOR the PaperEditor tracker fallback yields a caret, the picker is NOT opened and the user gets an immediate alert. Eliminates the "picker opens silently, picking an item silently no-ops" failure mode entirely.
+
+### Added
+- **`rm/js/paper-editor.js`** — exposes `getLastFocusedEditable()` and `getLastFocusedCaret()` on `window.PaperEditor`. Read-only accessors on the existing V3.40 module-level `lastFocusedEditable` + `lastFocusedCaret` tracking. Used by paper-equations.js's V3.140 caret fallback. The tracker is updated on every `keyup` / `mouseup` / `input` event on contenteditables created via `bindYTextToContentEditable` ([rm/js/paper-editor.js:2955-2957](rm/js/paper-editor.js#L2955-L2957)).
+- **`rm/js/paper-equations.js`** — new helper `_ensureCaretOrAlert()` (called by every toolbar reference action's entry); new helper `_rangeFromCharOffset(el, offset)` (mirror of PaperEditor's `setCaretCharOffset` walker but returns the Range object instead of applying it).
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 115 → 116.
+
+### Notes
+- **Why mousedown.preventDefault() doesn't always preserve focus.** In all major browsers, `mousedown.preventDefault()` on a `<button>` blocks the default focus-shift to the button — but only if the user already had focus on a contenteditable when they clicked. If focus was elsewhere (the title input, the side panel, `<body>`), there's nothing to "preserve" and the caret save skipped. The new fallback path handles this case by reading the persistent `lastFocusedEditable` tracker.
+- **Backward-compat safe.** The right-click → Insert inline equation context-menu path saves the caret via `_saveCaretFromEvent(e, el)` directly on the contenteditable element receiving the right-click; that path is unchanged and never relied on `document.activeElement`. Only the toolbar buttons used `_saveCaretFromCurrentFocus`, and only that function gained the fallback.
+- **No data-model changes.** Pure UX fix in the toolbar interaction layer.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v115` and pick up the new toolbar JS.
+
+## [V3.139] - 2026-05-09
+
+**Protocols Builder Phase 6: skill-driven import + component-matching wizard.** Reported: "I want the ability to take an existing protocol in .md, .docx, or .pdf etc and push it through claude here to convert the file into a standard format then i will load the file into the protocol page. Ensure these protocols are built out so they are compatible with the lab notebook. They should always try to build protocols intelegently so they can become calculators for the lab notebook for example. images in the protocol should be parsed so they can be added to the protocol as well." And: "some protocols we load in will use specific components, after the protocol is loaded in, we should have the option to replace these components with what we have in the lab." Two coupled capabilities — (1) **Import**: a new `protocol-import` Claude skill that any session picks up automatically; reads a `.md` / `.pdf` / `.docx` source, extracts and base64-encodes embedded images, detects calculations and emits `formula` blocks with snake_case named variables (so the protocol becomes a live calculator the V3.116 chip + V3.137 calculator panel can drive without further glue), and writes a single `<slug>.protocol-import.json` artifact. The user uploads via a new **📥 Import protocol** button on the protocols list page; the page-side importer walks the tree, uploads each `image_data_uri` to Storage via `PROTOCOL_FIGURES.uploadImage`, replaces with real URLs, creates the Firestore doc, and auto-saves a v1 snapshot labeled `Imported from <filename>` via `PROTOCOL_VERSIONS.saveVersion`. (2) **Component-matching wizard**: a new **🔁 Match inventory** topbar button (always available; auto-triggered on first load after import via a `?match=1` URL flag) walks every materials row whose `item_ref` is null, scores live inventory candidates by name + vendor + cat# + CAS, and offers Accept / Pick different / Skip per row. Plan: [CodeLog/ClaudesPlan/V3.139_protocols_importer.md](../ClaudesPlan/V3.139_protocols_importer.md).
+
+### Added
+
+- **`.claude/skills/protocol-import/SKILL.md`** (new, ~270 lines) — the authoring skill. Mirrors the existing `paper-overlay` skill pattern. Documents the target JSON schema (`format: 'protocol-import-v1'`, source metadata, protocol tree mirroring V3.113/V3.117/V3.119/V3.121 block shapes plus `image_data_uri` data URIs on figure blocks), source-format support per kind (`.md` via Read tool, `.pdf` via Read with `pages` parameter for files >10 pages, `.docx` preprocessed to `.md` via pandoc with `--extract-media`), image-extraction recipes (`pdfimages -png /path/to/file.pdf /tmp/proto-img` for PDFs, `unzip -p` or pandoc media extraction for `.docx`, direct binary Read for `.md`), block-kind detection rules (numbered list → `step`; "Note:" / "Tip:" → `note`; "Warning:" / "Caution:" / "Danger:" → `safety` with severity from keyword; two-column materials table → `materials` with always `item_ref: null`; figure with caption → `figure`), calculation-extraction rules (every "X mL of Y%" arithmetic in source becomes a `formula` block with snake_case `name`s, mathjs-safe `expression`, output with `name`/`label`/`unit`/`decimals`; step bodies are rewritten to use `[!var:<name>]` references), and a lab-notebook compatibility checklist. Skill explicitly does NOT touch Firestore, does NOT guess inventory ids, and does NOT emit `python` block kind.
+- **`rm/js/protocol-import.js`** (new, ~360 lines) — page-side importer. `parseJson(text)` returns `{ok, parsed, errors}`. `validate(parsed)` returns `{ok, errors[], warnings[]}` with per-section / per-block diagnostics including formula-without-output and formula-without-variables warnings. `summarize(parsed)` returns counts for the preview pane. `createFromJson(parsed, opts)` runs the full pipeline: slug uniqueness check via `db.collection('protocols').doc(slug).get()`; deep-clone tree (so the caller's parsed object isn't mutated); for each figure with `attrs.image_data_uri`, `_dataUriToBlob` decode + `PROTOCOL_FIGURES.uploadImage` upload, then strip the data URI and stamp `image_url` / `storage_path` / `hash` / `mime` (image upload failures fall back to a broken-figure placeholder rather than aborting the whole import); `ProtocolSchemas.normalizeTree` coerces forward-version blocks back to `step`; `ProtocolSchemas.protocolEmptyDoc` builds the doc with `author_uid` / `author_name` from the current user's profile; Firestore set + `PROTOCOL_VERSIONS.saveVersion` auto-snapshot v1 labeled "Imported from <source.filename>"; returns `{id, autoMatch}` so the caller can navigate to `?match=1` if there are unlinked materials. Per-stage `onProgress({stage, done, total, label})` callback. **`openMatcher(protocolId)`** builds the matcher modal dynamically — reads `window.__PROTOCOL_EDITOR_STATE.yTree` exposed by the editor, walks materials rows with `!item_ref && free_text.trim()`, calls `PROTOCOL_INVENTORY.findMatches` for each, renders Accept / Pick different / Skip rows with collapsible "Other candidates" disclosure; on Apply runs all writes in a single `yDoc.transact` so the editor re-renders once.
+- **`rm/js/protocol-inventory.js`** — new `findMatches(freeText, opts)` helper. Pure scoring: cat# verbatim match (+15), CAS verbatim (+15, chemicals only), name substring either direction (+10 / +7 partial), vendor (+8), formula (+3), category / subcategory (+2). Tie-break by stock_status ('full' > 'low' > '' > 'out_of_stock'). Returns top N (default 5) with `{entry, score, reasons[]}` so the matcher modal can show why each candidate scored.
+- **`rm/js/protocols.js`** — list-mode wires the new "📥 Import protocol" button → modal with file-picker + paste textarea (file wins over paste) + slug input + parse-preview pane (counts + warnings). On change, `parseJson` + `validate` + `summarize` updates the preview live; if the parse fails mid-paste, the preview hides without surfacing the error so the user can keep typing. On Import, `createFromJson` with progress callback → page navigates to `?protocol=<id>&match=1` so the matcher auto-opens for unlinked materials.
+- **`rm/js/protocol-editor.js`** — adds the "🔁 Match inventory" topbar button (visible always, disabled for read-only viewers); exposes `window.__PROTOCOL_EDITOR_STATE = { protocolId, yDoc, yTree, Y, canEdit, markDirty }` so `PROTOCOL_IMPORT.openMatcher` can mutate the open Y.Doc directly. Auto-opens the matcher 300 ms after editor boot if `?match=1` is in the URL (then strips the param via `history.replaceState` so a hard reload doesn't keep re-opening).
+- **`rm/pages/protocols.html`** — list mode: `.pr-list-actions` flex container holding the new Import button + the existing New button; full Import modal scaffold (file input, paste `<details>`/`<textarea>`, slug input, preview, progress, error). Editor mode: `🔁 Match inventory` button between Fork and Migrate-to-standalone. Loads `protocol-figures.js`, `protocol-versions.js`, and `protocol-import.js` in BOTH list mode (for create-from-json) and editor mode (for the always-available matcher).
+- **`rm/css/protocol-editor.css`** — `.pr-list-actions`, `.pr-import-modal`, `.pr-import-preview` (with count chips + warnings list), `.pr-import-progress`, `.pre-matcher-modal` + per-row layout (header with row counter, source label, best-match chip, action buttons, alts disclosure).
+
+### Changed
+
+- **`sw.js`** — `CACHE_VERSION` 114 → 115 to invalidate clients on the V3.138 shell.
+
+### Decisions
+
+- **Skill, not in-page conversion.** Conversion logic lives entirely in the Claude skill. The page-side importer is a deterministic JSON-→-Firestore mapper with no NLP/heuristics. This means the skill's prompt updates automatically on the next conversion (vs. shipping a new RM build), and the importer's contract is tight and testable.
+- **Single JSON with base64 images is the transport.** Single file upload; images survive transit; the importer extracts and uploads them to Storage at the new protocol's path. Tradeoff: payloads can balloon to tens of MB on image-heavy protocols, but the FileReader path handles that fine and the storage rule's 15 MB-per-image cap protects the upstream.
+- **Auto-snapshot on import.** The user's first edit doesn't destroy the imported state. Standard sequence: import → snapshot v1 → user edits → optional explicit Save version v2.
+- **Materials matching is page-side, not skill-side.** The skill leaves `item_ref: null` everywhere; the user's live inventory drives matching when they're on the page. Avoids the skill needing to fetch Firestore data and keeps its conversion deterministic from source-only inputs.
+- **Matcher applies in a single Y transaction.** `yDoc.transact(...)` wraps every accepted match's writes so the editor re-renders once (not N times). Markdirty fires once at the end so the parent doc's `tree` field is flushed once.
+- **`__PROTOCOL_EDITOR_STATE` is the contract between editor and importer.** Lighter than passing handles around; the importer's matcher only needs `{yDoc, yTree, Y, canEdit, markDirty}` and reads them off `window` at modal-open time.
+- **Step-body inventory mention rewriting deferred.** The matcher only touches materials rows. Wrapping prose like "agarose" with `[!inv:<id>]` is risky text mutation that needs more thought; flagged as future work.
+
+## [V3.138] - 2026-05-09
+
+**Lab Notebook: bench-workflow lifecycle (plan → running → complete) + observations log + post-run summary.** First slice of Phase 3 (the plan→execute→complete bench workflow documented in `~/.claude/plans/we-want-to-make-nested-toucan.md`). The same notebook entry now travels through three explicit lifecycle states: **plan** (drafting at the desk, the default for new entries), **running** (at the bench, recording observations as they happen), and **complete** (post-run record with a summary debrief). One-button transitions — `▶ Start run` and `⏹ End run` — replace the previous "single static record" model. An Observations panel surfaces in running + complete phases for a chronological log of bench notes (free text + optional metric/value/unit + auto-timestamp). A post-run Summary textarea appears in running (in-progress notes) and complete (debrief). Per-chip planned/actual qty + lot, per-protocol "followed as written" + deviation log, per-DOE-run actuals, plan-vs-actual diff view, and `↻ Spawn next iteration` are queued for V3.139+ — V3.138 is the lifecycle scaffold + observations + summary, the bare minimum to be **bench-useful today**. Plan: [CodeLog/ClaudesPlan/V3.138_eln_phase_lifecycle_observations.md](../ClaudesPlan/V3.138_eln_phase_lifecycle_observations.md).
+
+### Added
+- **`rm/js/notebook-schemas.js`** — new constants `NOTEBOOK_PHASES = ['plan', 'running', 'complete']`, `NOTEBOOK_PHASE_LABELS`, `NOTEBOOK_PHASE_GLYPHS = { plan: '📝', running: '▶', complete: '✅' }`. New entry-doc fields: `phase` (default `'plan'` for new entries), `run_started_at` / `run_ended_at` (ISO timestamps stamped by the lifecycle transitions), `summary` (free text — the post-run debrief), `observations: [{id, at, text, metric?, value?, unit?, attachment_paths[]}]`. `notebookHydrate()` defensively coerces all of the above; **legacy entries that predate the field default to `'complete'`** so the V3.110→V3.137 records don't suddenly look unfinished.
+- **`rm/js/notebook-schemas.js`** — `notebookIndexRow()` projects `phase` + `obs_count` so the rail can render a per-row phase glyph and a `📌 N` observations count without a per-entry doc fetch.
+- **`rm/js/lab-notebook.js`** — new render helpers `renderPhasePill(phase)`, `renderRunFooterHtml(d)`, `renderObservationsHtml(d)`, `renderSummaryHtml(d)`. Phase pill sits in the meta row next to Status (color-coded: gray=plan, amber-pulsing=running, green=complete). Run footer is phase-aware: plan mode shows `▶ Start run` (green primary), running mode shows `⏹ End run` (amber primary) + a "▶ run started <date>" inline info, complete mode shows "✅ run completed <date>". The Delete button stays available in every phase. `renderObservationsHtml` and `renderSummaryHtml` return empty strings in plan mode (the panels surface only after Start run).
+- **`rm/js/lab-notebook.js`** — new lifecycle handlers `onStartRun`, `onEndRun`. `onStartRun` confirms intent ("freezes the planned section, opens recording surfaces"), stamps `phase='running'` + `run_started_at`, re-renders the editor + rail. `onEndRun` confirms intent, stamps `phase='complete'` + `run_ended_at`, re-renders. Both call `scheduleSave()` + `upsertIndexRow(state.doc)` so the autosave + rail catch up immediately.
+- **`rm/js/lab-notebook.js`** — `onAddObservation` is the bench-recording entry point. Three lightweight `prompt()` flows in sequence — text → optional metric name → optional value → optional unit. Numeric values are auto-`parseFloat`ed; non-numeric stays as a string. Observations get an `obs-<ts36>-<nonce>` id, an `at` timestamp, and append to `state.doc.observations[]`. Phase 2 will replace the prompts with an inline mini-form on a sticky `+ Observation` FAB and add Web Speech API voice memos.
+- **`rm/js/lab-notebook.js`** — `wireRunFooter()` / `wireObservationsPanel()` / `wireSummaryTextarea()` bind the new controls. Summary textarea wires an `input` listener (debounced via existing `scheduleSave`) plus a `blur` listener that force-flushes any pending autosave so the summary doesn't sit unsaved when the user navigates away. `renderObservationsPanel()` is a one-shot in-place outerHTML swap that re-binds delete affordances.
+- **`rm/js/lab-notebook.js`** — rail row title prefixes a phase glyph (`📝 / ▶ / ✅`) — running entries get a pulsing amber accent so a half-finished run from yesterday visually nags. Meta line gets a `📌 N` observations count alongside the existing `📎 / 🧪 / 📋` counts.
+- **`rm/css/lab-notebook.css`** — `.ln-phase-pill` (rounded uppercase pill, 11 px, color-coded per phase; running variant has a CSS keyframe pulse for visual urgency); `.ln-rail-phase{,-plan,-running,-complete}` (rail-row glyphs with the same pulse on running); phase-tinted `.ln-start-run` (green) and `.ln-end-run` (amber) overrides on the existing `.ln-footer .primary` chrome; `.ln-observations` panel + `.ln-obs-list` flex column + `.ln-obs-row` 4-column grid (timestamp / metric pill / free-text / delete); `.ln-obs-empty` italic placeholder; `.ln-add-obs` blue ghost button; `.ln-summary` panel + `.ln-summary-text` textarea with focus glow; `.ln-obs-count` count pill in the section header.
+
+### Changed
+- **`rm/js/lab-notebook.js`** — `renderEditor()` chain now appends `renderObservationsHtml(d) + renderSummaryHtml(d) + renderRunFooterHtml(d)` after the existing References panel. Visual order: body → 🧮 Design → 📋 Protocols followed → 🧪 Materials used → 📎 Attachments → References → 📌 Observations *(running/complete only)* → Summary *(running/complete only)* → footer with phase-aware buttons.
+- **`rm/js/lab-notebook.js`** — `wireEditor()` calls `wireRunFooter()` + `wireObservationsPanel()` + `wireSummaryTextarea()` after rendering so the new controls bind on every editor render (including after a remote-sync round-trip).
+- **`sw.js`** — `CACHE_VERSION` 113 → 114.
+
+### Notes
+- **No new Firestore rule, no new index, no new Storage block.** All five new fields live on the per-user notebook entry doc, already covered by the blanket `userData/{uid}/{document=**}` owner-only rule.
+- **Legacy entries default to `complete`.** Entries authored under V3.110→V3.137 (no `phase` field) are coerced to `'complete'` on hydrate so they don't surface the running-mode UI. To opt a legacy entry into the workflow, manually edit `phase` to `'plan'` (admin via Firestore, or future `🔄 Convert to plan` admin action).
+- **The observation prompts are intentionally minimal for V3.138.** A grad student at the bench wants ONE tap to log "saw something." The prompt() trio gets that to ~3 keystrokes for a free-text note, and the structure (metric / value / unit) is optional. Phase 2 will inline the form (no native prompts) and add a sticky `📌 + Observation` FAB on the editor pane plus Web Speech API voice-memo capture per observation.
+- **Summary is shared between running + complete.** In running it's a scratchpad for in-progress notes; in complete it's the canonical post-run debrief. The textarea persists across the transition — no data loss when ⏹ End run is clicked.
+- **What's deliberately deferred to V3.139+**: per-chip planned/actual qty + lot (the "✓ same as planned" checkbox flow), per-protocol "followed as written" + deviation log, per-DOE-run actuals capture, plan-vs-actual diff view, `↻ Spawn next iteration`, mobile-optimised sticky FABs, voice-memo per observation, templates (cell culture day / microscopy / bioprinting / reagent prep / DOE screening). V3.138 ships the **lifecycle + observations + summary** which is the smallest end-to-end bench-useful slice.
+- **Why prompts() and not an inline mini-form for V3.138.** Three reasons: (1) prompts work identically on desktop, mobile, and tablet without responsive CSS; (2) they're keyboard-only — no extra mouse motion at the bench; (3) the next slice will replace them with the FAB-anchored mini-form, so investing in modal HTML now would be thrown away.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v113`.
+
+## [V3.137] - 2026-05-09
+
+**Lab Notebook: Protocol Calculator — use any protocol with formula blocks as a calculator inside an entry.** Reported: "When users have an associated protocol in the labnotebook, they can either user the protocol as a calculator … input (a mixture of booleans, variables with units, unitless variables) are used to drive output variables that can be formatted as a step by step protocol with the output variables as the new quantity to use for example, or it could be used to drive a table of output variables that map to the protocol steps, or just a snippet where the user knows the protocol and just needs the values. This feature needs to be driven by the protocol, so all of the infrastructure for this is setup in the protocol, and the lab notebook just uses the scaffold of the protocol to build this output." V3.137 lazy-loads the V3.117 protocol formula scaffold (`window.ProtocolFormulas`) on the lab notebook page on first calc click, walks the protocol's Yjs tree (V3.134's `_loadProtocolTree`), surfaces every variable across every formula block as an input row, evaluates expressions through the protocol's existing mathjs harness, and inserts the result in one of three formats. Inserts are **editable** — clicking the inserted block re-opens the calc pre-filled. Plan: [CodeLog/ClaudesPlan/V3.137_eln_protocol_calculator.md](../ClaudesPlan/V3.137_eln_protocol_calculator.md).
+
+### Added
+- **`rm/js/lab-notebook.js`** — `_ensureProtocolFormulas()` lazy-loads `/rm/js/protocol-formulas.js` on first calc click via a one-shot `<script>` tag (~50 KB; only fetched when a student actually pulls a calculator open). Exposes the existing `window.ProtocolFormulas.{ ensureMathjs, buildSymbolTable, renderTextWithTokens, formatSymbolValue }` for reuse — the calc is fully **protocol-driven**: lab notebook reads, never duplicates the formula evaluator.
+- **`rm/js/lab-notebook.js`** — `_collectFormulasFromPlainTree(plainTree)` walks the V3.134-dehydrated structure and returns formula entries in the same shape `protocol-formulas.js`'s `collectFormulas(yTree)` returns from a Yjs tree, so `buildSymbolTable` accepts them unchanged. Avoids keeping the yDoc alive after dehydration.
+- **`rm/js/lab-notebook.js`** — `openProtocolCalculator(protocolId, opts)` builds the calc modal: protocol title in the header, one input row per variable (auto-typed: booleans → checkbox, vars with units → numeric+unit suffix, otherwise text), a `▶ Compute` button that re-runs `buildSymbolTable` with user values overlaid on protocol defaults, an Outputs preview panel that shows each formula's computed result (or `⚠ <error>`), and a format radio defaulting to **Steps**. `Insert into entry` is disabled until a successful Compute. The modal reuses the V3.118 `.ln-modal-back / .ln-modal-{head,body,foot}` chrome.
+- **`rm/js/lab-notebook.js`** — three render formats. `_renderCalcStepsHtml(plainTree, symbolTable)` walks the protocol body and routes every step / note / safety / materials body string through `ProtocolFormulas.renderTextWithTokens(text, symbolTable)` so `[!var:name]` tokens become inline `proto-var` chips coloured by computed/error state; formula blocks render their output value inline (no LaTeX). `_renderCalcSnippetHtml` produces a one-line `🧮 Title · inputs → outputs` summary. `_renderCalcTableHtml` produces a 4-column HTML table (variable label, value, unit, kind=input/output). All three wrap in a single `<div class="ln-calc ln-calc-{format}" contenteditable="false" data-calc-id="..." data-calc-protocol-id="..." data-calc-format="...">` atom with a hover-revealed `<span class="ln-calc-edit-hint">click to re-edit</span>` top-right.
+- **`rm/js/lab-notebook.js`** — `_commitCalcInsert(spec)` materialises the calc: generates a `calc-<ts36>-<nonce>` id, snapshots inputs + outputs into a `state.doc.calc_runs[]` record, renders the chosen format, and either appends a fresh `<div class="ln-calc">` at the caret or replaces the existing block by `data-calc-id` (re-edit path). On re-edit, an existing `created_at` is preserved; only `inputs / outputs / format / updated_at` change.
+- **`rm/js/lab-notebook.js`** — pane click delegate (V3.119) gains two new branches: clicking anywhere inside an `.ln-calc` block re-opens the calc modal pre-filled with the saved `calc_run.inputs` (so re-running with different numbers is one click); clicking the per-row `🧮 calc` button on the V3.116 Protocols-followed panel opens the calc fresh.
+- **`rm/js/lab-notebook.js`** — protocol picker (V3.116/V3.134) gains a third sub-action `🧮 calc` rendered next to "ref only". Clicking it inserts a reference chip (so Protocols-followed shows the source — matches the user's "associated protocol" framing) and immediately opens the calc modal. Keyboard contract extended: `Enter` = full insert (V3.134), `Shift+Enter` = ref only (V3.134), `Alt+Enter` = calc.
+- **`rm/js/notebook-schemas.js`** — new `calc_runs[]` field on `notebookEmptyEntry()` + `notebookHydrate()` (defensive coerce on legacy entries). `notebookIndexRow()` projects `calc_count: entry.calc_runs.length` for future rail-row signalling.
+- **`rm/css/lab-notebook.css`** — `.ln-calc` block container (left-blue accent, hover affordance), `.ln-calc-{snippet,table,steps}` modifiers, `.ln-calc-edit-hint` (hover-only "click to re-edit" pill in the top-right), `.ln-calc-modal` (640 px wide, reuses `.ln-modal-*` chrome), input rows (4-column grid: label / input / unit / name), output rows (same grid; placeholder/error states), Compute button (blue ghost), format radio. Picker `.ln-protocol-row-calc` and panel `.ln-protocol-calc-btn` styling. **Plus** a small chunk of `.proto-var{,-computed,-unknown,-error}` styling copied from `protocol-editor.css` so the substituted-value chips render correctly on the lab-notebook page (we deliberately don't load the protocol stylesheet here).
+
+### Changed
+- **`rm/js/lab-notebook.js`** — body sanitizer's `ALLOWED_ATTRS` extended for two cases: SPAN's class allowlist regex now also accepts `proto-var( proto-var-(computed|unknown|error))?` plus the `data-var` and `title` attrs that `ProtocolFormulas.renderTextWithTokens` emits; DIV gets a fresh allowlist (`class data-calc-id data-calc-protocol-id data-calc-format contenteditable`) restricted post-strip to `^ln-calc( ln-calc-(snippet|table|steps))?$`. `contenteditable=false` is force-pinned on `.ln-calc` divs and on `.proto-var` chips so the body can't have its content typed into a calc block. Without these extensions the chips would survive the initial insert but lose their classes on save round-trip and degrade to plain text on reload.
+- **`rm/js/lab-notebook.js`** — protocol picker hint footer rewritten: `↑/↓ navigate · Enter full · Shift+Enter ref · Alt+Enter calc · Esc close · open protocols ↗`.
+- **`sw.js`** — `CACHE_VERSION` 112 → 113.
+
+### Notes
+- **Protocol-driven, no protocol-side schema change.** This is the architectural constraint the user explicitly added: "all of the infrastructure for this is setup in the protocol, and the lab notebook just uses the scaffold." V3.137 reads `protocols/{id}/yjs_snapshot/state` + `yjs_updates/*` (already lab-member-readable from V3.113), dehydrates the tree (V3.134's existing inline walkers), extracts formula blocks, and feeds them to the protocol's existing `buildSymbolTable` evaluator. Zero new fields on the protocol doc.
+- **No new Firestore rule, no new index, no new Storage block.** `calc_runs[]` lives on the per-user notebook entry doc, already covered by the blanket `userData/{uid}/{document=**}` owner-only rule.
+- **mathjs lazy-load is one-time per session.** First calc click downloads protocol-formulas.js (~5 KB) which then lazy-loads mathjs (~100 KB gz). Subsequent calc invocations reuse the cached `window.ProtocolFormulas` and `window.math`. Lab notebook page never loads either unless the user actually opens a calc.
+- **Re-edit preserves `created_at`.** Clicking an inserted block opens the modal pre-filled with `calc_run.inputs`. On Insert, the same `data-calc-id` is preserved; the existing `<div class="ln-calc">` is replaced in place; `calc_runs[i].updated_at` stamps. Re-edit can change the format too — picking Snippet on a previously-Steps block replaces the body with a snippet-format render.
+- **Why `proto-var` chips aren't transformed to a lab-notebook-prefixed class.** The chips are read-only display artefacts; reusing the protocol's class names means the protocol stylesheet's render and the lab notebook's render look identical, and the same `ProtocolFormulas.renderTextWithTokens` HTML can flow through unchanged. The sanitizer allowlist is the safety boundary.
+- **Inputs that don't parse as numbers stay as strings.** A variable with a non-numeric default (e.g. a date string "2026-05-09") won't break the evaluator — `protocol-formulas.js`'s `buildSymbolTable` already treats non-numeric values as strings and only `parseFloat`s numeric-looking strings. The calc just won't compute outputs that depend on the string value, which is the protocol's existing behaviour.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v112`.
+
+## [V3.136] - 2026-05-09
+
+**Paper builder header redesign — three labeled toolbar groups + new `+ Inline Eq` button.** User report: "we need a button to add inline equations into text as well, put this on the top header next to the add references to text buttons. break everything in this header up into sections. Make the header look good." Pre-V3.136 the global toolbar (V3.120) was a single un-labeled bar with two unlabeled groups (`B I X₂ X² <>` and `+ Eq + Fig + Table + Cite`) separated only by a `gap: 16px`. Two issues: (1) **inline equation insertion required right-click → Insert inline equation** — a hidden affordance that new lab members never discovered; (2) **the bar's two groups conflated reference inserts (Eq # / Fig # / Tab #) with citation insert (which is conceptually inline content, not a cross-reference to a numbered object)**, hiding the meaningful distinction between *picking a numbered thing in the doc* and *dropping a chip from a library*. V3.136 splits the toolbar into three labeled groups: **FORMAT** (markdown styling), **INLINE** (chips that render the thing itself — `+ Inline Eq` and `+ Cite`), **REFERENCE** (pointers to numbered objects — `+ Eq` / `+ Fig` / `+ Table`). Plan: [CodeLog/ClaudesPlan/V3.136_toolbar_groups_and_inline_eq.md](../ClaudesPlan/V3.136_toolbar_groups_and_inline_eq.md).
+
+### Added
+- **`rm/js/paper-equations.js`** — new toolbar button `+ Inline Eq` in the new INLINE group. Calls new `_toolbarInsertInlineEquation(anchorBtn)` which opens the existing V3.109 `_openInlinePicker(x, y)` at the button's bottom-left + 4 px (mirroring the V3.120 pattern for `+ Eq` / `+ Fig` / `+ Table`). The picker reads from `paperMap.equation_library` filtered to the inline-typed entries (V3.124 schema field) and inserts an `[!eqi:<id>]` token at the saved caret. Pre-V3.136 this picker was only reachable via right-click → Insert inline equation; the button surfaces the same flow without requiring discovery of the right-click context menu.
+- **`rm/js/paper-equations.js`** — three new helpers `_makeGroup(id, label)`, `_makeDivider()`, `_makeRefBtn(b)` that factor the V3.136 group construction (label + button row + dismissable mousedown handler that saves the caret before the picker steals focus). The button-build loop is shared between the INLINE and REFERENCE groups via `_makeRefBtn`.
+
+### Changed
+- **`rm/js/paper-equations.js`** — `_installGlobalToolbar()` rewritten to construct three groups instead of two: FORMAT (`B` / `I` / `X₂` / `X²` / `<>`), INLINE (`+ Inline Eq` / `+ Cite`), REFERENCE (`+ Eq` / `+ Fig` / `+ Table`). Each group renders as `<div class="pe-gt-group pe-gt-group-{format|inline|reference}">` with a `<span class="pe-gt-group-label">` floating above a `<div class="pe-gt-group-row">`. Vertical dividers (`<span class="pe-gt-divider">`) separate the groups. The old `.pe-rt-group` and `.pe-ref-group` classes are retired.
+- **`rm/css/paper-editor.css`** — global toolbar visual refresh: subtle `linear-gradient(#fafafa → #f5f5f4)` background instead of pure white so the bar reads as a distinct strip; new `.pe-gt-group` (column flex with 2 px gap), `.pe-gt-group-label` (9 px uppercase 700 letter-spacing-rich gray) for the floating sublabels, `.pe-gt-group-row` (3 px-gap horizontal flex) for the buttons, `.pe-gt-divider` (1 px gray vertical line, top-aligned to the button row not the label). `.pe-gt-btn` redrawn with a white background + soft `#e5e7eb` border + 5 px radius (was transparent) so each button reads as a tap target; hover bumps to `#eff6ff` with blue text. Inline-group buttons get a tinted amber background (`#fef3c7` / `#fde68a` / `#92400e`) so the chip-insert buttons visually echo the chip color in prose. Reference-group hover is blue-tinted (`#dbeafe` / `#60a5fa` / `#1e40af`) so cross-reference buttons echo their picker styling. Pillbar gets matching polish: pills are slightly larger + bolder (font-weight 600), active pill picks up a soft blue shadow.
+- **`sw.js`** — `CACHE_VERSION` 111 → 112.
+
+### Notes
+- **No data-model changes.** All Y types and attrs schema unchanged. The toolbar redesign is purely DOM + CSS (and a one-line `_openInlinePicker` call binding behind the new button).
+- **The right-click → Insert inline equation path is preserved** for muscle-memory users; the toolbar button is an additional surface, not a replacement.
+- **Why "Inline" vs "Reference" matters.** Inline tokens (`[@key]`, `[!eqi:<id>]`) cause the editor to *render the thing itself* mid-prose: a citation chip with the author/year, an equation rendered via KaTeX. Reference tokens (`[!eqr:<label>]`, `[!fig:<label>]`, `[!tab:<label>]`) render as pointers — `Eq. 3` / `Fig. 2 (B)` / `Tab. 1` — and rely on the referenced object existing somewhere else in the doc. Conflating the two under "ref-group" obscured this; now the labels make it explicit.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v111` and pick up the new toolbar HTML + CSS.
+
+## [V3.135] - 2026-05-09
+
+**First-author enforcement on papers (Phase 2 of V3.133).** User-decided rule set for "higher administrative rights": (a) Edit paper metadata → first author OR admin; (b) Add/remove personnel → first author OR admin; (c) Add/remove project Members → admin only (status quo); (d) Delete the paper → admin only; (e) Set/unset first authors → admin only (status quo, with a server-side guarantee that non-admin paper updates can't change `first_author_uids`). Plan: [CodeLog/ClaudesPlan/V3.135_paper_first_author_enforcement.md](../ClaudesPlan/V3.135_paper_first_author_enforcement.md).
+
+### Added
+- **`firestore.rules`** — new helper `isFirstAuthor(itemId)` alongside `isAdmin()` / `isLabMember()` / `isExtensionMember()` / `isLabContributor()`. Returns true when the signed-in user's uid is in the paper's `first_author_uids` array. Guards existence + field-presence before the membership test so a missing item or missing field returns false rather than throwing.
+- **`rm/js/projects.js`** — three new helpers: `_myUid()` reads the signed-in user's uid via `firebridge.getUser()`; `_isAdminUser()` wraps `firebridge.isAdmin()`; `_canEditPaper(item)` returns `true` for non-paper items (status quo) or for paper items when the user is admin OR `_myUid()` is in `item.first_author_uids`. `_canDeleteItem(item)` returns `true` for non-paper items (status quo) or for paper items only when admin.
+- **`rm/css/style.css`** — `.item-hero-readonly` (small italic gray badge) shown next to the hero actions on a paper when the viewer is neither admin nor a first author, so the read-only state is explicit rather than just "the Edit button vanished."
+
+### Changed
+- **`firestore.rules` `match /items/{itemId}`** — write rule split into `create` / `update` / `delete`. Create remains lab-member. Update is admin OR (non-paper AND lab-member) OR (paper AND `isFirstAuthor(itemId)` AND `request.resource.data.first_author_uids == resource.data.first_author_uids`) — the equality guard preserves the V3.133 admin-only ownership of who-the-first-authors-are even when a first author is updating other paper fields. Delete is admin OR (non-paper AND lab-member) — paper deletes are now admin-only.
+- **`rm/js/projects.js`** — `renderHeroActions(item)` hides the `Edit` button when `!_canEditPaper(item)` and hides `Delete` when `!_canDeleteItem(item)`. When neither is shown on a paper, surfaces `<span class="item-hero-readonly">read-only</span>` with a tooltip explaining "Only first authors and admins can edit this paper."
+- **`rm/js/projects.js`** — `renderPersonnelSection(item)` hides the `+ Add` button and the per-chip remove `×` glyph when `!_canEditPaper(item)`. The first-author star toggle remains admin-only (V3.133), matching rule (e). The "(enforcement coming in V3.134)" hint is dropped from the section helper text now that enforcement is live.
+- **`rm/js/projects.js`** — `window.editItemById(itemId)` / `window.deleteItemById(itemId)` / `window.addPersonnel(itemId)` / `window.removePersonnel(itemId, idx)` each gain a defensive `if (!_canEditPaper(...)) { alert(); return; }` (or `_canDeleteItem` for delete) at handler entry. Cheap insurance against stale renders that left an obsolete button reachable.
+- **`rm/js/projects.js`** — `window.toggleFirstAuthor(itemId, pid)` now validates that the pid resolves to a roster entry with `_firebaseUid: true` before adding (status removal still allowed regardless). The Firestore `isFirstAuthor()` check compares against `request.auth.uid` — a Firebase uid — so a legacy slug-id entry would never grant access. Refusing the toggle keeps the star semantics honest.
+- **`sw.js`** — `CACHE_VERSION` 110 → 111.
+
+### Notes
+- **firestore.rules deploy required.** After this change ships, run `firebase deploy --only firestore:rules` from the parent McGheeLabWebsite repo so the V3.135 paper rule applies. Without the deploy, the in-page gates work but the server still allows lab-member writes on paper items.
+- **Existing papers without `first_author_uids` set.** Treated as if no first authors exist — only admins can edit until a first author is appointed via the V3.133 star toggle. This is the safe default.
+- **Non-paper item flows unchanged.** Grants, courses, lab tools, utilities, and the Teaching/Service categories all keep the previous lab-member edit + delete behavior.
+- **Cross-page enforcement.** The paper-builder (`/rm/pages/paper-builder.html`) edits *paper-builder* docs (separate Firestore collection), not the items.json paper record. V3.135 is scoped to the projects/research/teaching items hub. If paper-builder also needs first-author gating, it'd be a separate plan.
+- **Hard-reload required** to evict cached projects.js + CSS.
+
+## [V3.134] - 2026-05-09
+
+**Lab Notebook: fix click-doesn't-insert + insert full protocol with materials chips.** Reported: "I click on protocol, or inventory and the right things do pop up, but if i click on anything nothing happens. nothing is added to the lab notebook. For protocols, I want to be able to add the full protocol to the lab notebook experimental plan section. Any materials that come with that protocol should be loaded into the list of reagents and equipment used." V3.134 ships both: a one-line caret-restore bug fix that affected every chip insertion path + the new full-protocol-insert flow that loads the protocol's Yjs state, renders the section/block tree as HTML into the entry body, and auto-populates the Materials Used panel from the protocol's materials block.
+
+### Fixed
+- **`rm/js/lab-notebook.js`** — chip insertion silently failed when the contentEditable body had focus but **no active caret/range** (fresh entries, or right after the picker input was the focused element). The pre-V3.134 caret-restore in `insertInventoryChip` / `insertProtocolChip` only set a range when `getSelection().rangeCount > 0` AND the anchor was outside the body — but missed the `rangeCount === 0` case entirely. `bodyEl.focus()` gave the body focus but didn't create a caret, so `document.execCommand('insertHTML', …)` had no selection to insert into and silently failed. Centralised into a new `_ensureBodyCaret(bodyEl)` helper that always sets a range to end-of-body when none is inside it; both insert paths now call this. Affects the V3.114 inventory chip, the V3.116 protocol chip, and the new V3.134 full-protocol path.
+
+### Added
+- **`rm/js/lab-notebook.js`** — `insertFullProtocol(protocolEntry)` — the new default action when a row is clicked in the protocol picker. Lazy-loads Yjs from `https://cdn.jsdelivr.net/npm/yjs@13/+esm` on first use (~50 KB; only downloaded when a student actually pulls a full protocol in), reads the protocol's snapshot doc at `protocols/{id}/yjs_snapshot/state` + applies any subsequent updates from `yjs_updates/*` to a fresh Y.Doc, then dehydrates the tree to plain JSON, renders each section/block as HTML (steps as `<p>`, notes as `📝 Note` blockquote, safety as `⚠ Safety` blockquote, figures as `[label]` placeholders, materials as a `<ul>` text list, formulas as `<code>`), and inserts it at the caret. After the body insert: appends a protocol-reference chip (so Protocols-followed shows the source) and walks every materials-block row — for each row carrying an `item_ref` it looks up the inventory record in `inventoryState.list` and inserts an inventory chip, so the lab notebook's Materials Used panel auto-populates from the protocol's materials block. Free-text materials rows (no `item_ref`) are included in the inserted body but cannot become structured chips. Unknown item_refs (the inventory record was deleted or the protocol references a stale id) are skipped silently.
+- **`rm/js/lab-notebook.js`** — minimal self-contained `_dehydrateTree` / `_dehydrateSection` / `_dehydrateBlock` walkers (mirror `protocol-blocks.js` but stay inline so the lab notebook page doesn't need to load `protocol-blocks.js`, which has render-side dependencies that would fail on this page). Plus `_ensureYjs()`, `_loadProtocolTree(id)`, `_b64ToBytes(b64)`, `_collectMaterialItemRefs(tree)`, `_renderProtocolBlockHtml(block)`, `_renderProtocolTreeHtml(tree, protocolEntry)` helpers.
+- **`rm/js/lab-notebook.js`** — protocol picker row gains a small **"ref only"** sub-action (right-aligned in the row's name line) that triggers the V3.116 reference-chip-only path; clicking the rest of the row triggers the new full-protocol path. Keyboard: `Enter` = full, `Shift+Enter` = ref only. Picker title now reads "Insert a protocol — click row for full protocol + materials, 'ref only' for chip" so the new behaviour is discoverable.
+- **`rm/css/lab-notebook.css`** — `.ln-protocol-pop-row .ln-inv-pop-key` flex layout, `.ln-protocol-row-actions` right-floated container, `.ln-protocol-row-ref` small uppercase pill (gray default, blue on hover), `.ln-pop-subtitle` subdued explanation on the picker title line.
+
+### Changed
+- **`rm/js/lab-notebook.js`** — popover hint footer rewritten: `↑/↓ navigate · Enter full · Shift+Enter ref only · Esc close · open protocols ↗`. Reflects the new dual action.
+- **`sw.js`** — `CACHE_VERSION` 109 → 110.
+
+### Notes
+- **The bug fix is small but high-impact.** Every student opening a fresh entry and clicking 🧪 Inventory → picking → clicking a row was hitting the silent-fail path. The popover would close (because `pop.hidden = true` ran), but the chip never landed, so it looked like "the click did nothing." `_ensureBodyCaret` now always sets a range inside the body before `execCommand`, regardless of `rangeCount`.
+- **Yjs lazy-load is one-time per session.** First click of "Insert full protocol" downloads ~50 KB; subsequent inserts use the cached `_yjsModule`. The lab notebook page never loads Yjs unless the user actually pulls a protocol body in. Lab notebook's V3.110 architecture (no Yjs, plain HTML body in Firestore) is preserved — Yjs is only used to **read** protocol state, never to write notebook entries.
+- **Why not load protocol-blocks.js's `dehydrateTree` instead of inlining it.** `protocol-blocks.js` registers heavy render-side handlers and assumes the protocols page DOM/state. Loading it on the lab notebook page would either fail or pollute. The dehydrate walkers are ~40 LOC and self-contained — copying them is the cleaner trade-off.
+- **Newly-created protocols with no Yjs state yet.** If a protocol exists in `protocols/{id}` but has no `yjs_snapshot/state` AND no `yjs_updates/*` (e.g. just been created via the list-add flow but never edited), `_loadProtocolTree` returns an empty `{ meta:{}, sections:[] }` and the inserted body is just the title line. Free-text protocol summary is **not** included in this V1 (because it lives on the parent doc, not the Yjs tree, and would feel duplicative for protocols that have content).
+- **Materials with `item_ref` resolve to inventory chips.** Protocols Builder V3.121 lets authors link materials rows to inventory items via `attrs.rows[i].item_ref`. When a row has `item_ref` AND that id exists in `inventoryState.list`, V3.134 inserts a structured inventory chip — which means the V3.121 hazard pictograms + V3.121 location info + V3.114 Materials Used panel + V3.118 search-rail-count all light up automatically as if the student had picked the reagent themselves. Free-text rows are visible in the rendered body but can't become structured chips.
+- **No new Firestore rule, no new index, no new Storage block.** Reads `protocols/{id}/yjs_snapshot/state` + `protocols/{id}/yjs_updates/*` — both already lab-member-readable from V3.113. The lab notebook entry doc itself is unchanged.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v109`.
+
+## [V3.133] - 2026-05-09
+
+**First-author marking on papers (Phase 1 — data + UI).** User report: "on research\papers\personnel I want to be able to select one or two people that are first authors of the paper, they will have higher administrative rights to the paper than others." This ships the schema field + the toggle UI; the actual *enforcement* of "higher admin rights" is V3.134 pending clarification of which paper actions should be first-author-only. Plan: [CodeLog/ClaudesPlan/V3.133_paper_first_authors.md](../ClaudesPlan/V3.133_paper_first_authors.md).
+
+### Added
+- **Schema** — new optional field on paper items: `first_author_uids: string[]`. Each entry matches a value in `personnel[]` (legacy slug id or Firebase uid). Cap: 2 entries. Default missing → empty; no migration of existing items needed. New papers created via `openAddForm('paper')` are seeded with an empty array; non-paper types skip the field entirely (the `undefined` sentinel is stripped before the surgical Firestore write so we never persist `first_author_uids: undefined`).
+- **`rm/js/projects.js`** — `renderPersonnelSection(item)` now renders a `★` toggle button before each personnel chip when `item.type === 'paper'`. Filled gold star = first author, hollow gray star = not. Click handler is gated behind `firebridge.isAdmin()` — non-admins see the icons (so the status is visible to everyone) but the click is a no-op with a tooltip explaining "Only admins can change first authors". When at least one first author is set, a section-level helper line surfaces "⭐ First authors have higher admin rights to this paper. *(enforcement coming in V3.134.)*"
+- **`rm/js/projects.js`** — `window.toggleFirstAuthor(itemId, pid)`: admin-gated client-side, validates `item.type === 'paper'`, validates `pid` is in `item.personnel`, enforces the cap of 2 (alerts and aborts on a third add), patches `_allItems` in place, and persists via `saveItemSurgical(it)` (the V3.130 path — single-doc Firestore write).
+- **`rm/js/projects.js`** — `window.removePersonnel(itemId, idx)` now also strips the removed pid from `first_author_uids` if present, so the two arrays stay in sync.
+- **`rm/css/style.css`** — `.first-author-star` (gold filled, click cursor), `.first-author-star.off` (gray hollow), `.personnel-chip.first-author` (subtle `#fffbeb` background + `#fbbf24` border so first-author rows pop visually).
+
+### Notes
+- **Phase 2 — V3.134 — is pending a user decision.** "Higher admin rights" can mean any combination of: (a) only first authors + admins can edit paper metadata, (b) only first authors + admins can add/remove other personnel, (c) first authors gate the V3.126 Members assignment, (d) first authors are the only non-admin role allowed to delete the paper. The plan doc lists these explicitly. V3.134 will land both the in-page gate (a `canEditPaper(item, uid)` helper) and the corresponding `firestore.rules` changes (an `isFirstAuthor(itemId)` helper alongside `isAdmin()` / `isLabMember()` plus per-write conditional logic on `items/{itemId}` for paper items) once the gating set is decided.
+- **Server-side enforcement is NOT in V3.133.** Any lab member can still write `first_author_uids[]` directly via the adapter — V3.133 is a UX-layer guard. V3.134 will add the rule.
+- **No SW bump in V3.133.** The bump from V3.132 (CACHE_VERSION 109) is sufficient — V3.133 lands on top of the same cache generation.
+
+## [V3.132] - 2026-05-08
+
+**Paper builder: doc-side picker + panel-first authoring for figures, tables, and main equations.** User report: "when we add a section, we need to be able to pick equations figures or tables that are built in the pannels into the document. we should not build anything in the page." Pre-V3.132 the inline `+ Add` menu created blank figure/table blocks directly in the doc and then deep-linked to the panel for editing — meaning new figures had to be placed *before* they were authored, with no concept of "built but not yet placed." V3.132 inverts this: figures/tables are authored in the panel first (new `+ Figure` / `+ Table` buttons in their tabs add an entry to the unplaced library), and the doc-side `+ Add` menu becomes a picker over panel-authored items. Plan: [CodeLog/ClaudesPlan/V3.132_panel_first_picker.md](../ClaudesPlan/V3.132_panel_first_picker.md).
+
+### Added
+- **`rm/js/paper-editor.js`** — two new top-level Y.Arrays on `paperMap`: `figure_unplaced` and `table_unplaced` (each holds Y.Map blocks identical in shape to in-doc section.children figure/table blocks). Bootstrap is idempotent — only created on first connect after V3.132. New module APIs: `getUnplacedFigures()` / `getUnplacedTables()` (read-only snapshots used by panel rendering); `getUnplacedFiguresArr()` / `getUnplacedTablesArr()` (raw Y.Array access); `findUnplacedYMap(kind, blockId)` (live yBlock lookup so the panel-side editors work on unplaced items the same way they work on placed ones); `createUnplacedFigure()` / `createUnplacedTable()` (return new blockId); `deleteUnplaced(kind, blockId)`; `placeUnplacedAt(kind, blockId, sectionId, idx)` (snapshot-then-delete-then-rehydrate the Y.Map across containers — Y types can't be detached from one parent and reattached, so all cross-container moves go through the V3.127 `_snapshotYValue` / `_writeAttrValue` clone path); `unplaceBlock(sectionId, blockId)` (reverse direction — sends a placed figure/table back to the unplaced library); `moveBlockToPosition(srcSectionId, blockId, dstSectionId, dstIdx)` (cross-section in-doc move; defers to `moveBlockWithinSection` for same-section moves). New helpers `_snapshotBlockMap(srcMap)` and `_hydrateBlockFromSnapshot(m, snapshot)` factor the V3.127 reorder logic so all four mutators (`moveBlockWithinSection`, `placeUnplacedAt`, `unplaceBlock`, `moveBlockToPosition`) share one code path.
+- **`rm/js/paper-equations.js`** — three doc-side picker functions exposed on `window.PaperEquations`: `openFigurePickerAt(sectionId, idx, anchorBtn)`, `openTablePickerAt(...)`, `openEquationPickerAt(...)`. Each opens a `.pe-doc-picker` popover (anchored to the `+ Add` button) with: a search input, a "+ New …" row at the top (creates a fresh unplaced item + immediately places at the inserter position; for equations, opens the V3.124 create modal), an "Unplaced (built in panel)" section listing items not yet placed, and an "Already placed in document" section listing items currently in the doc (clicking re-positions). Picker data sources: `getUnplacedFigures` / `getUnplacedTables` for unplaced; `getAllFigures` / `getAllTables` for placed; `getInlineEquationLibrary().filter(type === 'main')` for main equations. The panel-side "Place at end of section…" picker (`_openPlaceUnplacedPicker(kind, blockId, anchorBtn)`) lets the user place an unplaced figure/table at the END of any section that allows it (figures honor `PaperSchemas.styleFor().allowFigures`).
+- **`rm/js/paper-equations.js`** — `+ Figure` and `+ Table` buttons at the top of the Figures and Tables tabs (mirroring V3.124's `+ Equation`). Both create unplaced entries via the new `PaperEditor.createUnplaced…` APIs and flash + scroll to the new row in the panel. Both tabs now render two lists: `Unplaced (panel-only)` and `Placed in document` — the existing V3.131 `_buildFigureRow(fig, opts)` and V3.127 `_buildTableRow(tab, opts)` accept a new `opts.placement` ("unplaced" | "placed") that varies the action buttons and adds an "Unplaced" badge in place of the number badge. Unplaced rows get a `Place in section…` primary action and a `Delete` action; placed rows keep `Insert reference` + `Scroll to block` + new `Unplace` (V3.132) + `Delete`.
+- **`rm/js/paper-equations.js`** — `_findFigureBlock` / `_findTableBlock` extended to also search `figure_unplaced` / `table_unplaced` after exhausting `sections.children`. Without this, the V3.131 panel-side editors (caption Y.Text binding, label/numbered toggles, subfigures chip editor, table cells) wouldn't work on unplaced items. New helper `_findContainingSectionId(blockId)` walks `paperMap.sections` to locate which section a placed block lives in, used by the new Unplace + Delete actions on placed rows.
+- **`rm/css/paper-editor.css`** — new V3.132 styles: `.pe-fig-num-badge-overlay.pe-fig-num-badge-unplaced` + `.pe-tab-num-badge.pe-tab-num-badge-unplaced` (amber-on-brown pill); `.pe-fig-row-unplaced` + `.pe-tab-row-unplaced` (left-side accent bar + soft amber background to distinguish unplaced from placed at a glance); `.pe-place-picker` + nested rows (panel-side place-at-section popover); `.pe-doc-picker` + `.pe-doc-picker-search` + `.pe-doc-picker-section-head` + `.pe-doc-picker-row` + `.pe-doc-picker-row-new` + `.pe-doc-picker-row-badge` + `.pe-doc-picker-row-title` + `.pe-doc-picker-row-subtitle` + `.pe-doc-picker-empty` (doc-side picker popover with search + `+ New …` green row at top + section heads + grid-laid-out item rows).
+
+### Changed
+- **`rm/js/paper-editor.js`** — `+ Add` inline menu's Equation / Figure / Table options now call `window.PaperEquations.openEquationPickerAt` / `openFigurePickerAt` / `openTablePickerAt` (defined V3.132 in `rm/js/paper-equations.js`). Falls back to the V3.125 direct-create behavior if `PaperEquations` isn't loaded yet.
+- **`sw.js`** — `CACHE_VERSION` 108 → 109.
+
+### Notes
+- **All authoring is panel-side.** The doc-side preview for figures/tables stays read-only (V3.127 made it so). The doc only holds *placement*; the panel is the only place where you upload images, edit captions, set labels, edit table cells, etc.
+- **Backward compat with pre-V3.132 papers.** Existing in-doc figure/table blocks remain as `kind: 'figure'` / `kind: 'table'` with their full attrs in section.children and continue to render + count toward numbering. The new mechanism *adds* unplaced libraries; it doesn't migrate old data.
+- **Y.Map cross-container moves.** Y types can't be detached and reattached to a different parent. Every move (`placeUnplacedAt`, `unplaceBlock`, `moveBlockToPosition`) snapshots the source Y.Map into a plain-JS tree (recursively walking nested Y.Text / Y.Array / Y.Map via the V3.127 `_snapshotYValue`), deletes the source, then attach-then-mutates a fresh Y.Map at the destination via `_writeAttrValue`. Subfigures (Y.Array<Y.Map>), table cells (Y.Map<Y.Text>), and table caption (Y.Text) all survive the round-trip losslessly.
+- **No Firestore rules / indexes / Storage rules changes.** The new Y.Arrays live inside the existing `papers/{paperId}/yjs/{updateId}` documents — Yjs binary chunks, not addressable as separate Firestore paths.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v108` and pick up the new picker UI.
+
+## [V3.131] - 2026-05-08
+
+**Paper builder: Figures panel redesign — streamlined + visually polished.** Reported: "the figure pannel creator is hard to use, we need to stream line it all and make it look much better." The V3.115 → V3.127 Figures-tab row stacked 7+ small sections vertically (caption preview, label row, Numbered checkbox, subfigures editor, Insert/Scroll actions, then a `<details>` editor body with upload + caption + 4-field layout grid). V3.131 collapses this into 4 clearly-grouped sections in user-task order: Header (thumbnail + label + Numbered + actions) → Caption (full-width editor) → Sub-panels → Layout (collapsed; rare edits + upload). The redundant caption-preview line is dropped — the editor is the only caption surface. Plan: [CodeLog/ClaudesPlan/V3.131_figures_panel_redesign.md](../ClaudesPlan/V3.131_figures_panel_redesign.md).
+
+### Changed
+- **`rm/js/paper-equations.js`** — `_buildFigureRow(fig)` rewritten with the V3.131 layout. Resolves the live yBlock + attrs + Y once at the top so all controls write through `blk.doc.transact` directly (no separate `_buildFigureEditorBody` indirection). Drops the V3.115 `pe-fig-caption-preview` line entirely. Header is a 3-column grid (thumbnail / id-col / actions-col): the thumbnail (156×110, larger than V3.115's 96×72) carries an absolute-positioned `Fig. N` overlay badge in the bottom-left; the id-col stacks a prominent monospace label input + Numbered toggle; the actions-col stacks Insert reference (primary blue) + Scroll to block + Delete figure (danger red). Caption section is a full-width contenteditable bound to `body` Y.Text via the standard paragraph render contract. Sub-panels section reuses the V3.115 chip editor with bigger touch targets via `.pe-fig-row-v131` overrides. Layout `<details>` is collapsed by default and contains the upload control + 4-field grid (width / placement / centering / alt). New `_section(label, hint?)` helper for consistent section headers.
+- **`rm/js/paper-equations.js`** — Delete-figure action added (was previously only available via the doc-side block toolbar). Walks `paperMap.sections → children` to find the section containing the block, then calls `PaperEditor.deleteBlockAt(secId, blockId)`. Confirms before deleting.
+- **`rm/css/paper-editor.css`** — new `.pe-fig-row-v131` selector group with the redesigned layout: `.pe-fig-row-header` (3-column grid), `.pe-fig-thumb-large` (156×110 + soft shadow), `.pe-fig-num-badge-overlay` (absolute-positioned, dark-on-amber), `.pe-fig-id-col` + `.pe-fig-label-input-large` (monospace, focus glow), `.pe-fig-numbered-toggle`, `.pe-fig-actions-col` + `.pe-fig-action-btn` (with `-primary` blue and `-danger` red variants), `.pe-fig-section` + `.pe-fig-section-label` (uppercase 10px gray) + `.pe-fig-section-hint`, `.pe-fig-caption-editor` (full-width prominent box with focus glow), `.pe-fig-layout-details` (collapsed details with custom chevron via `summary::after`), `.pe-fig-upload-row` + `.pe-fig-upload-btn` + `.pe-fig-upload-status` (tightened upload UX), `.pe-fig-layout-grid-v131` (2-column grid).
+- **`sw.js`** — `CACHE_VERSION` 107 → 108.
+
+### Notes
+- **The V3.127 `_buildFigureEditorBody(rootEl, fig)` is dead code now** — its contents (upload + caption + layout grid) inline directly into the new V3.131 row. Left in the file for one version as belt-and-suspenders; will retire in a follow-up cleanup.
+- **Caption preview duplicate retired.** Pre-V3.131 every Figures-tab row showed the first line of the caption above the editor. The editor is now the only place the caption appears in the panel — fewer DOM nodes, no sync-state confusion, no "which one is the source of truth" question.
+- **No data model changes.** All Y types and attrs schema unchanged. The redesign is purely DOM + CSS.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v107` and pick up the new `paper-equations.js` row builder + CSS.
+- **No deploy step** beyond static FTP.
+
+## [V3.130] - 2026-05-08
+
+**Surgical Firestore writes for items + canonical projects on `/rm/pages/projects.html`, plus a roster picker for legacy Personnel.** User report: adding a project + adding members each "takes a really long time", and the Personnel picker should be a list of lab members rather than free text. Both slowness reports trace to the same shape: every save was paying a full-collection rewrite via the adapter's `_saveFirestore` collection path. Plan: [CodeLog/ClaudesPlan/V3.130_projects_speed_and_member_picker.md](../ClaudesPlan/V3.130_projects_speed_and_member_picker.md).
+
+### Added
+- **`rm/js/projects.js`** — `saveItemSurgical(item)` writes ONE `items/{id}` Firestore doc directly via `firebridge.db().collection('items').doc(id).set(..., { merge: true })` (~150-300 ms one round trip), then fire-and-forget loads + saves the JSON shadow so the local dev mirror stays current. Falls back to `api.save(ITEMS_PATH, data)` when firebridge isn't ready (local dev w/o Firestore). Mirrors V3.96's `saveProjectSurgical` pattern from [rm/js/task-quick-builder.js](../../rm/js/task-quick-builder.js).
+- **`rm/js/projects.js`** — `saveProjectDocSurgical(canon, row)` does the same for the canonical projects collection. `canon.sourceKey` ('papers' / 'courses' / 'infrastructure' / 'tools') maps to the `type` discriminator stamped on each Firestore doc so the existing typed-listing queries (V3.126) still resolve the row. Same fire-and-forget JSON shadow behavior, same fallback shape.
+
+### Changed
+- **`rm/js/projects.js`** — `openAddForm(type)`: replaces the `data.items.push + api.save(ITEMS_PATH, data)` round-trip (which rewrites every item doc in the collection) with `saveItemSurgical(newItem) + _allItems.push(newItem)`. Only the new doc is written.
+- **`rm/js/projects.js`** — `window.editItemById(itemId)`: same shape — patch local `_allItems` in place, call `saveItemSurgical(updated)`. Reads `item` from local cache instead of re-fetching `items.json`.
+- **`rm/js/projects.js`** — `window.deleteItemById(itemId)`: surgical delete via `firebridge.db().collection('items').doc(itemId).delete()`, then per-doc `saveItemSurgical` for the (typically 0-3) items whose `related_ids` referenced the deleted id. Falls back to the full-collection rewrite when firebridge is unavailable.
+- **`rm/js/projects.js`** — `window.addProjectMember(itemId)` + `window.removeProjectMember(itemId, uid)`: replace the `api.save(canon.sourcePath, data)` full-collection rewrite with `saveProjectDocSurgical(canon, row)`. The local `canon.member_uids` patch stays unchanged. Adding a member to one paper no longer rewrites every other paper doc.
+- **`rm/js/projects.js`** — `window.addPersonnel(itemId)`: free-text `<input type="text" placeholder="roster id or full name">` replaced with a `<select>` populated from `_roster` (filtered to entries the item doesn't already have), labeled `Name — Role — Email — (legacy)?`. Includes a `+ Free-text name (external collaborator)…` escape-hatch option that drops back to the original prompt for one-off externals. Save path goes through `saveItemSurgical(it)` instead of the legacy `api.save(ITEMS_PATH, data)` rewrite. Personnel section is for human attribution and intentionally accepts BOTH legacy slug ids and Firebase uids — distinct from the V3.126 Members section, which gates Firestore reads via `member_uids[]` and so only accepts Firebase uids.
+- **`rm/js/projects.js`** — `window.removePersonnel(itemId, idx)`: switched to surgical save for symmetry with `addPersonnel`.
+- **`rm/js/projects.js`** — `window.linkRelated(itemId)` + `window.unlinkRelated(itemId, relatedId)`: read both endpoints from `_allItems` (no items.json reload), patch `related_ids` on each, then `saveItemSurgical` each side. Previously rewrote every item in the collection to flip two pointers.
+- **`rm/js/projects.js`** — `window.linkToolToProject(projectId)` + `window.linkRepoToProject(projectId)`: same pattern as `linkRelated` — surgical writes for the project + tool/repo endpoints.
+- **`rm/js/projects.js`** — `window.linkFundingAccount(itemId)`: surgical write for the single item (mutates `funding_account_ids`).
+- **`rm/js/projects.js`** — `window.parseRepo(itemId)`: surgical write of the parsed-repo result onto the single item (was rewriting the whole collection after each parse).
+- **`rm/js/projects.js`** — both surgical helpers now stamp `_projLive.suppressUntil = Date.now() + 2500` before writing, matching the existing `_saveItemSurgical` (subtask helper at [rm/js/projects.js:1159](../../rm/js/projects.js#L1159)) so the items.json live-sync subscriber doesn't echo the write back and trigger a full `loadAll()` re-fetch — without this, every save was followed by a ~1 s background refetch that undid most of the latency win.
+- **`sw.js`** — `CACHE_VERSION` 106 → 107 (subsequently bumped to 109 by the linter for the V3.131/V3.132 follow-ups in this session).
+
+### Notes
+- **Why this is faster.** The adapter's collection-save (`api-firestore-adapter.js` `_saveFirestore`) does `batch.set(coll/{id}, ..., {merge:true})` for every row in the payload, plus delete sweeps for any server doc not present, chunked at 400 ops per `batch.commit()`. With ~hundreds of items in `items.json` that's many seconds even on a warm connection. Surgical writes skip straight to a single doc set.
+- **Permissions match.** `firestore.rules` allows lab-member writes on `items/{itemId}` and admin writes on `projects/{projectId}` — same as the existing route-based saves the surgical paths replace.
+- **Fallback path is preserved.** When `firebridge` isn't initialized (rare — only on the very first paint before auth resolves, or local dev without Firebase), both helpers fall back to the full collection rewrite via `api.save`. Existing call sites that go through the adapter unchanged still work.
+- **`LINKS.removeLink` / `LINKS.pinItemToDashboard` still use the legacy full-rewrite path.** They're called during item↔task-builder linking and aren't on the hot path the user complained about. Out of scope for V3.130 — flagged for a follow-on.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v106` and pick up the new save paths.
+
+## [V3.129] - 2026-05-08
+
+**Task-builder cards now declare *associated categories* and surface proposed subtasks one click away.** Phase 2 of V3.128. The card head gets a row of toggle chips for the seven canonical categories ([rm/js/yr-shared.js](../../rm/js/yr-shared.js): research / service / teaching / admin / personal / noise / unknown). Activating one or more drops a "Suggested from {categories}" accordion between the head and the buckets list — it lists every `proposed:true` subtask whose containing sub-bucket sits in one of the selected categories (excluding subtasks already in the current card). Each row has a `+ add to…` button that opens a popover of the current card's existing sub-buckets (plus `+ New sub-bucket…`); selecting one moves the subtask in via the existing `moveNodeTo` path and clears `proposed`. Plan: [CodeLog/ClaudesPlan/V3.129_category_associations.md](../ClaudesPlan/V3.129_category_associations.md).
+
+### Added
+- **`rm/js/tasks-buckets.js`** — new optional task-builder field `associated_categories: string[]` (any subset of `CAT_ORDER`). Defaults to empty; existing docs are unaffected. Stored alongside the rest of the task-builder doc via the existing `scheduleSave()` path; no new Firestore route, rule, or index.
+- **`rm/js/tasks-buckets.js`** — three helpers: `getAssociatedCats(tb)` returns `Set<string>`, `setAssociatedCat(tb, cat, on)` toggles + saves, `walkProposedByCats(catSet, excludeId)` walks every task-builder → bucket → subtask tree (recursing children) and yields `{ subtask, bucket, project, parentPath }` for every `proposed:true` row whose bucket category is in `catSet`. The current task-builder is excluded so the panel doesn't suggest tasks already living there.
+- **`rm/js/tasks-buckets.js`** — `renderCatChipsRow(tb)`: a flex row of seven buttons rendered at the bottom of `renderTaskBuilderHead`. Active chips are filled with the category color via `CAT_COLOR[c]`; inactive chips are gray. Click toggles membership.
+- **`rm/js/tasks-buckets.js`** — `renderSuggestedFromCategories(tb)`: returns a `.buk-accordion.tb-suggested` element when the card has any associated categories, otherwise null. Header reads "Suggested from {comma-list of category labels}" with a count pill (`N proposed` / `none`). Body lists `renderProposedRow` rows; empty state explains that suggestions land here once email/calendar items are classified into one of the active categories.
+- **`rm/js/tasks-buckets.js`** — `renderProposedRow(row, tb)`: a flex row showing the subtask text + crumb of the source task-builder/bucket, an inbox-dot colored by the source bucket category, an optional due-date chip, and a `+ add to…` button.
+- **`rm/js/tasks-buckets.js`** — `openAddToTaskBuilderMenu(anchor, row, tb)`: a destination-scoped variant of `openPinMenu`. Lists the current task-builder's existing sub-buckets (with category chip + sub_category) plus a `+ New sub-bucket…` row. Selecting a target invokes the existing `moveNodeTo(row.subtask, row.bucket, tb, target)`. Reuses `closePinMenu` / `pinMenuOutside` for outside-click dismissal.
+- **`rm/js/tasks-buckets.js`** — new state field `state.suggestedCollapsed: Set<taskBuilderId>` for per-card accordion open/closed memory. Also imports `CAT_ORDER` from `YR_SHARED` (with a literal fallback) so the chip row can iterate the canonical category list.
+- **`rm/css/style.css`** — `.tb-cat-chips` (full-width flex row separated by a dashed top border), `.tb-cat-chips-label`, `.tb-cat-chip` (pill button); `.tb-suggested` panel (cyan-tinted accordion to distinguish from regular sub-buckets), `.tb-suggested-head`, `.tb-suggested-body`, `.tb-suggested-empty`, `.tb-suggested-row` (with hover + thin separator), `.tb-suggested-main`, `.tb-suggested-title`, `.tb-suggested-crumb`, `.tb-suggested-meta`. `.buk-proj-head` switched to `flex-wrap: wrap` so the new chips row can sit underneath the existing rollup + buttons row.
+
+### Changed
+- **`rm/js/tasks-buckets.js`** — `renderTaskBuilderHead` now appends `renderCatChipsRow(p)` as the last child. `renderMain` calls `renderSuggestedFromCategories(p)` between `renderTaskBuilderHead` and the bucket list; the panel is omitted entirely when no categories are associated.
+- **`sw.js`** — `CACHE_VERSION` 105 → 106.
+
+### Notes
+- **No Firestore migration.** Missing `associated_categories` is treated as empty; populated docs serialize alongside the rest of the task-builder via the existing per-doc bucket route.
+- **Suggestion source.** The walker is intentionally generic: any subtask with `proposed: true` is eligible. In practice today every proposed subtask lands in `proj-inbox/buk-inbox-unfiled` (via email-review, calendar suggestions, the AI suggester, etc.), so all suggestions surface from there. If a future flow drops `proposed` rows elsewhere, they show up automatically.
+- **Self-exclusion.** The current task-builder is excluded from the walk — pinning a subtask into a card never causes it to immediately reappear in that card's own Suggested panel.
+- **Accordion persistence.** `state.suggestedCollapsed` is in-memory only — reload resets all panels to open. Matches the pattern of `state.expandedBuckets` which also doesn't persist across reload.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v105` and pick up the new render fns + CSS.
+
+## [V3.128] - 2026-05-08
+
+**Renamed the bucket-tasks tier-1 from "project" to "task builder" everywhere.** "Project" was overloaded — it meant both the canonical research-project records (papers/courses/infrastructure/tools, managed in [rm/pages/projects.html](../../rm/pages/projects.html)) AND the user-created task-grouping cards in the bucket-tasks workspace. The latter is now consistently called a *task builder*. Storage shape unchanged: the wrapKey rename is in-memory only — the per-doc Firestore writes at `userData/{uid}/buckets/{id}` are untouched, ID prefix `proj-` and reserved doc `proj-inbox` stay opaque. Plan: [CodeLog/ClaudesPlan/V3.128_task_builders_rename.md](../ClaudesPlan/V3.128_task_builders_rename.md).
+
+### Changed
+- **`rm/js/api-routes.js`** — `tasks/buckets.json` route's `wrapKey` flipped `'projects'` → `'taskBuilders'`. The adapter now hands callers a doc shaped `{ taskBuilders: [...] }`. Per-doc Firestore storage at `userData/{uid}/buckets/{id}` is unaffected.
+- **`rm/js/tasks-buckets.js`** — `state.doc.taskBuilders`, `state.activeTaskBuilderId`, `state.collapsedTaskBuilders`. Helper renames: `findProject`→`findTaskBuilder`, `rollupProject`→`rollupTaskBuilder`, `renderProjectHead`→`renderTaskBuilderHead`, `renderProjectCol`→`renderTaskBuildersCol`. SelectedNode shape: `{ kind: 'task_builder', taskBuilderId }` (was `{ kind: 'project', projectId }`); subtask sel uses `taskBuilderId` (was `projectId`). UI strings: "+ New project" → "+ New task builder"; "Pick a project from the left" → "Pick a task builder from the left"; "(across all projects)" → "(across all task builders)"; rename prompt "Project title:" → "Task builder title:"; "Edit project metadata" → "Edit task builder metadata"; pin pill "→ project" → "→ task builder"; pin button title; pin-menu "Add to project on dashboard" → "Add to task builder on dashboard"; "+ New project…" → "+ New task builder…"; "Existing projects" → "Existing task builders"; "Pin to project… / Move to project…" → "Pin to task builder… / Move to task builder…". Local function-parameter names (`function renderBucket(project, bucket)` etc.) intentionally kept — they're internal labels with no Firestore impact and renaming all 30+ would inflate the diff for low value.
+- **`rm/js/tasks-dashboard-buckets.js`** — same `state.doc.taskBuilders` switch; `state.focusedTaskBuilderId` (was `focusedProjectId`); UI strings on the dashboard: "+ New project" → "+ New task builder", "Project name:" → "Task builder name:", "Suggested projects" → "Suggested task builders", "Create project" → "Create task builder", swatch tooltip "Change project color" → "Change task builder color", category-fallback label "Project" → "Task Builder", proposed-row hint "pin to a project below" → "pin to a task builder below". `HIDDEN_KEY` localStorage key (`tasksDash.hiddenProjects`) intentionally kept for compat with existing user state.
+- **`rm/js/tasks-archive-buckets.js`** — `state.doc.taskBuilders`. Sort dropdown option label `'project'` → `'task builder'` (the option *value* still serializes as `'project'` for localStorage compat — only the visible label changed).
+- **`rm/js/tasks-inbox-buckets.js`** — `state.doc.taskBuilders`. Search placeholder "Search title, description, project…" → "…task builder…". Sort dropdown label "project" → "task builder" (value unchanged for storage compat).
+- **`rm/js/task-quick-builder.js`** — `bucketsDoc.taskBuilders`. Picker label "Project" → "Task builder"; placeholder "— pick a project —" → "— pick a task builder —"; "+ New project…" → "+ New task builder…"; "Loading projects…", "Failed to load projects…", "Project not found." all renamed; "New project name:" prompt → "New task builder name:". Surgical-save comment updated to reflect `wrapKey:'taskBuilders'`.
+- **`rm/js/links.js`** — `bucketsDoc.taskBuilders` (was `bucketsDoc.projects`). File header docstring updated to call out the V3.128 rename so future readers don't mistake the bucket-doc field for the canonical research-projects collection.
+- **`rm/js/pmr.js`** — `doc.taskBuilders` in the `loadOpenTasks` walker. Open-tasks header help-text "across all projects" → "across all task builders". (`state.projectsByUid`, `loadProjectsForUser`, the `Auto-fill from my projects` button etc. are about *canonical research projects* — left untouched.)
+- **`rm/js/projects.js`** — Two bucket-tasks references: the fallback in `loadAll` (`{ projects: [] }` → `{ taskBuilders: [] }`) and the `_bucketsDoc` initial value. UI: "Linked task projects" → "Linked task builders"; "Link to existing task project" → "Link to existing task builder"; "Project" picker label inside the link modal → "Task builder"; "Unlink this task project from the item?" → "Unlink this task builder from the item?". The four canonical typed projects loaders + Members UI are untouched.
+- **`sw.js`** — `CACHE_VERSION` 104 → 105.
+
+### Notes
+- **No Firestore migration.** The wrapKey is an in-memory wrapper around the per-doc bucket subcollection — nothing changes at rest. Existing IDs (`proj-...`, `proj-inbox`) stay opaque.
+- **localStorage keys preserved.** `tasksDash.hiddenProjects` and the `'project'` sort value are stable storage keys that would orphan user state if renamed.
+- **`window.LINKS.linkedBucketsForItem(item, bucketsDoc)`** still expects a doc shaped `{ taskBuilders: [...] }` — callers pass the loaded doc unchanged. The internal local `const projects = ...` rename inside [rm/js/links.js](../../rm/js/links.js) is left as a trivial scope-local label.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v104` and pick up the renamed JS bundle.
+- Phase 2 (V3.129) — category associations on the task-builder card with a "Suggested from category" panel for one-click adds — is queued separately.
+
+## [V3.127] - 2026-05-08
+
+**Paper builder: full panel-side editors for figures/tables + deep-clone reorder.** Closes the V3.125 follow-ups. Doc-side figure and table blocks become read-only previews; all editing (upload, caption, layout, grid, styling) lives in the side panel's Figures / Tables tab rows. The V3.125 reorder caveat is fixed: `moveBlockWithinSection` now recursively snapshots Y.Text / Y.Array / Y.Map sub-attrs so figure subfigures, table cells, and table caption Y.Text survive a reorder. Plan: [CodeLog/ClaudesPlan/V3.127_panel_full_editors.md](../ClaudesPlan/V3.127_panel_full_editors.md).
+
+### Added
+- **`rm/js/paper-editor.js`** — `_snapshotYValue(v)` walks any Y type recursively (Y.Text → `{__ytype: 'text', value}`, Y.Array → `{__ytype: 'array', items: [...]}`, Y.Map → `{__ytype: 'map', entries: {...}}`, primitives pass through). `_writeAttrValue(parent, key, snap, Y)` is the inverse: hydrates a snapshot into a fresh Y type via the attach-then-mutate pattern. `_writeAttrsFromSnapshot(targetAttrs, snapshot)` walks an attrs Y.Map snapshot into a fresh Y.Map. `moveBlockWithinSection` rewritten to use these helpers — the destination block now faithfully reproduces every Y child the source had.
+- **`rm/js/paper-equations.js`** — Figures tab row gains a `<details open>` editor body with the **complete editing surface**: upload control (`<input type="file">` + status text, calls `PAPER_FIGURES.uploadImage` against the live yBlock attrs); caption Y.Text contenteditable bound via `bindYTextToContentEditable` with the paragraph render contract (cite/math/markdown render); layout grid (Width text input, Placement select, `\centering` checkbox, Alt text input). New helper `_buildFigureEditorBody(rootEl, fig)` resolves the live block by id and writes through `blk.doc.transact` for every change.
+- **`rm/js/paper-equations.js`** — Tables tab row gains an analogous `<details open>` editor body with: styling toolbar (booktabs / header_row checkboxes via reusable `checkboxField()` helper), +Row / +Col buttons (clones the V3.120 inline behavior), per-column L/C/R alignment buttons (writes `attrs.align` string), the grid editor itself (per-cell `<div.pe-grid-cell>` contenteditables bound to the cells Y.Map's Y.Text values, fully editable), and the caption Y.Text editor below the grid. New helper `_buildTableEditorBody(rootEl, tab)`.
+
+### Changed
+- **`rm/js/paper-blocks.js`** — `renderFigure` wrap class becomes `pe-block pe-block-figure pe-figure-preview-only` and the caption binding is `readOnly: true`. The inline editor's DOM (Numbered / label / upload row / layout / caption-label) is unchanged but now hidden via `.pe-figure-preview-only` CSS selectors. The Edit-in-panel ↗ link from V3.125 stays as the canonical entry to the panel-side editor.
+- **`rm/js/paper-blocks.js`** — `renderTable` wrap class becomes `pe-block pe-block-table pe-table-preview-only` and both cell + caption bindings are `readOnly: true`. Inline editor DOM (Numbered / label / styling toolbar / +Row / +Col / caption-label) hidden via `.pe-table-preview-only` selectors.
+- **`rm/css/paper-editor.css`** — new `.pe-figure-preview-only` + `.pe-table-preview-only` selector groups hide the doc-side editor controls. New `.pe-fig-editor` + `.pe-tab-editor` style the expanded `<details>` editors in the panel rows; `.pe-fig-editor-body` + `.pe-tab-editor-body` lay out the inner controls.
+- **`sw.js`** — `CACHE_VERSION` 103 → 104.
+
+### Notes
+- **Reorder is now lossless.** Figure with subfigures + table with content + table caption Y.Text all survive a reorder. The deep-clone path also preserves V3.115 skeleton_items.
+- **Doc-side editor DOM still exists** (just hidden via CSS). The renderFigure / renderTable functions weren't restructured beyond setting `readOnly: true` on the contenteditable bindings + adding the preview-only class. This is a deliberate scope cut — full DOM simplification is later work. The current shape works because the hidden controls' change handlers still write to attrs correctly when invoked — they're just not reachable through the UI.
+- **The `Edit in panel ↗` link is now the canonical edit affordance** on doc-side figure / table blocks. Equation blocks retain their inline editor (no preview-only mode for equations — the LaTeX source IS the source of truth, and editing it inline is the natural flow).
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v103` and pick up the new editor + blocks + CSS.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules unchanged from V3.126.
+
+## [V3.126] - 2026-05-08
+
+**Project Members assignment moved to the Projects page; propagates project rights everywhere `member_uids[]` is read.** Reported: "users should be assigned to projects in the research\projects page not on the lab notebook page. Doing this in the projects page should propagate the project rights such that all pages may require access restrictions." V3.118 had put the admin Members modal inside the Lab Notebook because that's where the gap surfaced; it was contextually convenient but architecturally wrong. The canonical location is `/rm/pages/projects.html` — that's the page named "Projects", and any future page that gates by project membership reads the same `member_uids[]` field that the Projects page now writes. Lab Notebook stays a read-only consumer (its in-entry project picker still filters by `member_uids[]`); a small inline link in the entry meta row deep-jumps to the Projects page when a user has zero assignments.
+
+### Added
+- **`rm/js/projects.js`** — `_canonicalProjects: { itemId → {sourcePath, sourceKey, member_uids[]} }` map built at boot from the four typed JSONs (`projects/papers.json`, `projects/courses.json`, `projects/infrastructure.json`, `projects/tools.json`). Each JSON shards the same `projects` Firestore collection by `type`. Loaded in parallel with the existing items.json/roster/finance/inventory/buckets bag in `loadAll`'s `Promise.all`; each `.catch`ed independently so a missing file or permission glitch on one type doesn't blank the whole Members surface.
+- **`rm/js/projects.js`** — new `renderMembersSection(item)` accordion under each item card (renders only when the item id is mirrored in the canonical projects collection — silently no-ops on grants / conferences / library-only papers). Section displays current members as `.member-chip` chips (resolved against `_roster` so the chip shows the human name, not the uid) with a `×` to remove and a `+ Add member` button. Reuses the V3.114 `sectionHtml` accordion + `_openSections` open-state map so the section behaves like the existing Personnel / Funding sections.
+- **`rm/js/projects.js`** — new globals `window.addProjectMember(itemId)` + `window.removeProjectMember(itemId, uid)`. Add opens the existing `openForm()` mini-modal with a select dropdown filtered to `_roster.filter(m => m._firebaseUid && !alreadyAssigned)`; on save it read-modify-writes the canonical `projects/<type>.json` (the adapter shards back to the same `projects` Firestore collection that PMR already queries via `where('member_uids','array-contains',uid)`). Remove confirms with a "they will lose project-membership access on every page that gates by member_uids[]" note before saving. Both handlers patch `_canonicalProjects[itemId].member_uids` in place after the save so the next render reflects the change without re-loading all four typed JSONs.
+- **`rm/css/style.css`** — new `.member-chip` rule (extends the existing `.personnel-chip` with a tinted blue background and lighter remove-link affordance) so the canonical "lab member with project access" chip is visually distinct from the legacy "personnel for human attribution" chip in the same accordion.
+- **`rm/css/lab-notebook.css`** — new `.ln-no-projects-admin` rule: a gentler gray italic admin variant of the V3.118 amber `.ln-no-projects` empty-state, rendered inline next to the project select in the entry meta row when an admin opens a notebook entry. Both variants now contain a deep-link to `/rm/pages/projects.html` so an admin can manage their own assignments in one click without context-switching.
+
+### Changed
+- **`rm/js/projects.js`** — `renderItemDetailAccordions` inserts the new Members section immediately after Personnel. The two sections sit together by design: Personnel (legacy `items.personnel[]`) is for human attribution and accepts mixed roster-id + uid free-text; Members (canonical `projects/<type>.json: member_uids[]`) is the auth backbone and only accepts Firebase-uid lab users.
+- **`rm/js/lab-notebook.js`** — `🔧 Members` button removed from the toolbar; `openMembersAdminModal`, `loadLabUsers`, and `state.labUsers` removed (~165 LOC). The lab-notebook stays a read-only consumer of `member_uids[]` via `state.assignedProjectIds` (the V3.118 derivation logic is unchanged). The non-admin no-projects-assigned hint and the new admin variant both deep-link to `/rm/pages/projects.html`.
+- **`rm/css/lab-notebook.css`** — V3.118's `.ln-am-status / -roster / -row / -name / -email / -cat / -empty` rules removed alongside the modal that used them. The base `.ln-modal-back` / `.ln-modal-{head,body,foot}` chrome is kept because the V3.121 safety-details modal and the V3.123 DOE modal both still use it.
+- **`sw.js`** — `CACHE_VERSION` 102 → 103.
+
+### Notes
+- **No new Firestore rule, no new index, no new Storage block.** `member_uids[]` already lives on the canonical `projects` Firestore collection (PMR has been writing to it for papers since V3.62-ish via `paper-editor.js syncPaperMembers`); the V3.126 Members section is the first general-purpose write surface. Lab-shared writes are still gated to admin via the existing `firestore.rules` rules block.
+- **Why the legacy `personnel[]` field is untouched.** It accepts a mix of slug-IDs (legacy `people/roster.json`) and Firebase auth uids and is the existing pre-RM-multi-tenancy pattern. Deleting it would break existing personnel attributions (a course's "PI: alex-mcghee" line on the Projects page reads from `personnel[]`). V3.126 deliberately keeps the two as parallel concerns: Personnel for human attribution, Members for auth. Future cleanup may merge them, but only after every admin has migrated their projects to the canonical collection.
+- **The Members section silently no-ops on items without a canonical record.** `items.json` and `projects/<type>.json` are NOT auto-mirrored Firestore collections — whether the same item id appears in BOTH is data-dependent. Items that exist only in `items.json` (grants in the funding system, library-only papers, conferences) won't show a Members section; admins create the canonical record via the migrate page or by editing the typed JSON directly. Adding a "Promote to canonical project" affordance is a future option.
+- **The propagation invariant.** Any page that wants to gate a feature by project membership reads `member_uids[]` either via `api.load('projects/<type>.json')` (and filters in JS) or via a Firestore `collectionGroup('projects').where('member_uids','array-contains', uid)` query. Today's consumers: PMR (V3.x), Lab Notebook (V3.118 in-entry picker filter, V3.126 read-only). Future consumers — page-level access controls, project-scoped task views, project-scoped notebook search — read the same field with no schema migration.
+- **Why the Members section isn't on every item type.** Grants, conferences, and library-only papers don't have a canonical `projects` collection record by design — they live in `funding`, the events list, and the library respectively. Phase 2 may add equivalent member assignment to those collections; the pattern (typed JSONs + a per-item Members accordion) is now proven and copy-paste-able.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v102`.
+
+## [V3.125] - 2026-05-08
+
+**Paper builder: inline + Add inserter + block reorder + Edit-in-panel routing.** Reported: "we need a better system for adding main equaitons, figures, tables into the paper. I think that there should be a new section adder button after each section. then blank sections can be selected into an equaiton block, text block, figure block etc. Also blocks should be able to be dragged up and down. arrows up and down should also be added to the section block. … tables should be built in the side pannel. figures should be added and built in the side pannel". V3.125 ships the structural pieces (inserter + reorder + Edit-in-panel routing); the panel-side full editors for figures and tables are scaffolded via the new `Edit in panel ↗` link on each block toolbar. Plan: [CodeLog/ClaudesPlan/V3.125_panel_editing_block_reorder.md](../ClaudesPlan/V3.125_panel_editing_block_reorder.md).
+
+### Added
+- **`rm/js/paper-editor.js`** — block reorder primitives. New `moveBlockWithinSection(sectionId, blockId, targetIdx)` snapshots the block's plain-JS tree, deletes the original Y.Map, re-inserts at the target index via the attach-then-mutate pattern (same shape as V3.115's section reorder). New `_findBlockIdx(childrenArr, blockId)` helper. New `moveBlockUp(sectionId, blockId)` / `moveBlockDown(sectionId, blockId)` are 1-step convenience wrappers; `moveBlockBefore(sectionId, srcId, targetId)` powers the drag-and-drop drop handler. Cross-section moves are out of scope; src and target must share a section.
+- **`rm/js/paper-editor.js`** — `insertBlockAt(sectionId, idx, kind, opts)` is a position-aware variant of `addParagraph`/`addEquation`/`addFigure`/`addTable`. Accepts `{body, display, numbered, label}` opts so the inline + Add → Equation flow can pre-populate a numbered display block. Defaults match each kind's standard schema (figure with empty Storage attrs + `numbered: true` + empty subfigures Y.Array; table with 2×2 cells + booktabs + header_row + `align: 'll'` + Y.Text caption; equation with `display: true`). Returns the new block's id.
+- **`rm/js/paper-editor.js`** — section render now interleaves a `<button class="pe-block-inserter">+ Add</button>` between every pair of blocks (and at top + bottom of section). The legacy V3.40-era `+ Paragraph / + Equation / + Figure / + Table / + Reagent` toolbar at the bottom of each section is **retired**. `_buildBlockInserter(sectionId, secMap, idx)` renders the button; `_openBlockInserterMenu(anchorBtn, sectionId, secMap, idx)` floats a popover menu with Paragraph / Equation / Figure / Table choices (plus `Reagent / equipment` for Methods sections). Equation choice opens the V3.124 panel-side equation creation modal pre-targeted to insert at the popped position; Figure / Table choices create a blank block AND open the side panel on the matching tab + scroll to the new row.
+- **`rm/js/paper-editor.js`** — exposes `moveBlockUp` / `moveBlockDown` / `moveBlockBefore` / `insertBlockAt` / `deleteBlockAt` on `window.PaperEditor` for the panel + block-side reorder controls. Block-render ctx now also carries `sectionId` so block-side controls can dispatch without re-walking sectionsArr.
+- **`rm/js/paper-blocks.js`** — new `buildReorderControls(yBlock, ctx)` returns a fragment with `↑` / `↓` arrow buttons that call `PaperEditor.moveBlockUp/Down`. New `wireDragHandle(handle, blockEl, yBlock, ctx)` makes the existing `⋮⋮` handle a real HTML5 draggable: `dragstart` stamps `text/x-pe-block` + `{sectionId, blockId}` JSON; the block element accepts `dragover` (highlights as drop target) + `drop` (calls `moveBlockBefore`). Drops onto another block in the same section reorder via the standard primitive; cross-section drops are silently rejected. Wired on paragraph / equation / figure / table block toolbars.
+- **`rm/js/paper-blocks.js`** — figure and table block toolbars gain an `Edit in panel ↗` button (`.pe-edit-in-panel-btn`) that calls `PaperEquations.showPanel()` + `setActiveTab('figures'/'tables')` + `scrollToFigureRow/scrollToTableRow(blockId)`. The panel row flashes (`.pe-block-flash`) on scroll-to. The doc-side block keeps its inline editor for back-compat — the link is a hint that the panel is the canonical surface.
+- **`rm/js/paper-equations.js`** — public navigation helpers exposed on `window.PaperEquations`: `setActiveTab(tabId)`, `scrollToFigureRow(blockId)`, `scrollToTableRow(blockId)`, `openEquationCreateModalAt(sectionId, idx)`. The last is the entry point for the inline + Add → Equation flow: stashes a `{pendingInsertSectionId, pendingInsertIdx}` in module state, then opens the V3.124 creation modal; the modal's save handler checks the pending state and (when `type === 'main'`) also calls `PaperEditor.insertBlockAt(sectionId, idx, 'equation', {body, display, numbered, label})` so the new equation lands as a numbered block at the requested position instead of "end of last-focused section".
+- **`rm/css/paper-editor.css`** — `.pe-block-inserter` (compact `+ Add` button between blocks; hover-only emphasis), `.pe-block-inserter-menu` + `.pe-block-inserter-item` (popover menu), `.pe-block-arrow-btn` (up/down toolbar buttons), `.pe-block-handle:active` cursor, `.pe-block.is-drag-source` (opacity 0.5 during drag), `.pe-block.is-drop-target` (dashed outline drop highlight), `.pe-edit-in-panel-btn` (link-style button on doc-side figure/table toolbars).
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 101 → 102.
+
+### Notes
+- **Reorder caveats.** `moveBlockWithinSection` does a best-effort attrs copy when relocating: primitive attrs (strings/numbers/booleans) survive. Y.Text / Y.Array / Y.Map sub-attrs (figure subfigures, table cells, table caption Y.Text) are NOT deep-cloned in V3.125 — reordering a figure with subfigures drops them, reordering a table drops cells. **Don't use the arrow / drag controls on figures with subfigures or tables with content yet.** Paragraphs and unnumbered equations reorder cleanly. A follow-on patch (V3.126) will add the deep-clone path; for V3.125 the lighter shape lands first to validate the UX.
+- **Inline + Add Equation flow.** Picking Equation in the menu opens the V3.124 creation modal; on save with type=main, the new block lands at the inserter's position via `insertBlockAt` (V3.125). Inline-typed entries land in the library only — no doc-side block is created. This matches V3.124's "main equations get numbered when placed as a block" mental model.
+- **Inline + Add Figure / Table.** Picking Figure or Table immediately creates a blank block at the inserter position and opens the panel on the matching tab so the user can fill in details. The previous V3.115/V3.120 doc-side editors still work — the panel is just the new canonical surface (see `Edit in panel ↗` links).
+- **Section-bottom toolbar gone.** No more `+ Paragraph / + Equation / + Figure / + Table / + Reagent` row. The inline `+ Add` buttons cover every position. Methods sections still get the inventory quick-insert as a fifth menu item.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v101` and pick up the new editor + blocks + equations modules.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules unchanged from V3.124.
+
+## [V3.124] - 2026-05-08
+
+**Paper builder side-panel polish: resizable pane, unified equation creation, collapsible References + Add-to-library pill.** Three coupled tweaks to the V3.115/V3.120/V3.122 right slide-out. Reported: "i want the side pannel for the equaitons figures etc to be expandable. Equation pannel should have a + equation button. all equation creation is done in this pannel. once equations are created they should be set as inline or main equaitons and click create. main equations only get numbered when we make a section for them. in the references pannel, the cited in this paper vs linked but not cited should be collapsable. If the citation is somehow not in the library but it is referenced in the paper show a red pill that says add to library." Plan: [CodeLog/ClaudesPlan/V3.124_panel_polish.md](../ClaudesPlan/V3.124_panel_polish.md).
+
+### Added
+- **`rm/js/paper-equations.js`** — resizable slide-out pane. New `.pe-pane-resize-handle` div pinned to the left edge of `.pe-tabbed-pane` (4 px wide, `cursor: ew-resize`). `mousedown` → `_setupResize(panel)` attaches `mousemove` + `mouseup` listeners; `mousemove` sets `panel.style.width = window.innerWidth - clientX` clamped to `[280, 800]`; `mouseup` saves to `localStorage.rm_paper_pane_width`. Width restored on every panel build. Body gains `.pe-pane-resizing` class during drag for cursor + iframe pointer-events suppression.
+- **`rm/js/paper-equations.js`** — unified `+ Equation` button at the top of the Equations tab + creation modal `_openEquationCreateModal()`. Modal fields: Name (text), LaTeX (textarea, required), Type radio (`inline` / `main`). Save → `_createEquationLibraryEntry({name, latex, type})` writes a new Y.Map into `paperMap.equation_library` with the chosen type. Replaces V3.109's `+ New inline` button + inline-row LaTeX editing — there's a single creation surface now.
+- **`rm/js/paper-equations.js`** — new "Main equations" panel section between the Inline library and Numbered equations sections. `_refreshMainSection()` filters `getInlineEquationLibrary()` to `type === 'main'` and renders one row per entry via new `_buildMainRow(entry)`. Each row has the same name input + LaTeX textarea + KaTeX preview as the V3.109 inline row, but the primary action is **Insert as block** (calls `_insertMainAsBlock(entry)`) instead of Insert (inline). Inline section's filter flips to `type !== 'main'` so each entry appears in exactly one place.
+- **`rm/js/paper-equations.js`** — `_resolveSectionIdForInsert()` walks up from `_state.savedEl` (or `document.activeElement`) through `.pe-section[data-section-id]`. Used by `_insertMainAsBlock(entry)` to place the new equation block in the section of the most-recently-focused paragraph. Falls back to the first section when no focus is set. `_insertMainAsBlock` calls `PaperEditor.addEquationToSection(sectionId, {body, display: true, numbered: true, label})` with the library entry's LaTeX as the body and a slugified label auto-generated from the entry name (e.g., "Hookes law" → `eq:hookeslaw`); the existing doc-order walker assigns the number.
+- **`rm/js/paper-editor.js`** — `addEquation(sectionId, opts)` extended to accept `{body, display, numbered, label}` opts that pre-populate the new block's `body` Y.Text and `attrs`. Returns the new block's id. Exposed on `window.PaperEditor` as `addEquationToSection` so `paper-equations.js` can use it without poking at the editor's internals.
+- **`rm/js/paper-equations.js`** — References tab Cited and Linked sections wrapped in `<details open>` elements (collapsible via the summary's chevron). Search section stays as a normal section. CSS adds a custom chevron via `summary::after` so the marker is consistent across browsers.
+- **`rm/js/paper-equations.js`** — `_buildRefRowUnknown(key)` rewritten: replaces V3.122's read-only `unknown` badge with a clickable red **"+ Add to library"** pill button. Click → `_openAddToLibraryModal({key})` opens a small modal pre-filling the cite key (read-only) and asking for Title (required) + First author + Year + DOI. Save → `_createLibraryStub({key, title, firstAuthor, year, doi})` writes a minimal items.json paper with `meta.library.is_library_entry: true`, `meta.library.citation_key`, `meta.library.stub_created_from_paper_builder: true`, then invalidates + reloads the citation index so the row flips from "Add to library" red pill to a `cited` (green) badge within ~1 s.
+- **`rm/css/paper-editor.css`** — `.pe-pane-resize-handle` (transparent left-edge with hover gradient indicating drag affordance), `body.pe-pane-resizing` (cursor + iframe pointer-events), `details.pe-equations-collapsible` + `summary::after` rotating chevron, `.pe-equations-tab-add-row` (gray background for the new + Equation row), `.pe-eq-create-type-wrap` + `.pe-eq-create-type-radio` (modal type-picker layout), `.pe-ref-status-add-to-library` (red pill button styling).
+
+### Changed
+- **`rm/js/paper-schemas.js`** — `newEquationLibraryEntry({name, latex, type})` accepts a `type` opt (default `'inline'`); both `'inline'` and `'main'` are valid. `getInlineEquationLibrary()` projection in `paper-editor.js` includes `type` (defaults to `'inline'` for legacy V3.109 entries that predate the field). The right-click "Insert inline equation" picker still surfaces ALL entries regardless of type — type is primarily an organizational marker for the panel.
+- **`rm/js/paper-editor.js`** — section-level `+ Equation` button retired from `pe-add-block-row`. All equation creation now flows through the panel's Equations tab. `addEquation()` is still exported (and is the underlying primitive for "Insert as block") — only the section-level button is gone.
+- **`sw.js`** — `CACHE_VERSION` 100 → 101.
+
+### Notes
+- **Type defaults to `inline` for back-compat.** Pre-V3.124 library entries don't have a `type` field; `getInlineEquationLibrary()` projects them as `type: 'inline'` so they show up in the Inline section as before. Users can promote an entry to `main` by editing it in the library (the type is currently a creation-time choice — re-editing the type field requires creating a new entry; out of scope for V3.124).
+- **"Insert as block" leaves the library entry in place.** Clicking Insert as block clones the LaTeX into a new equation block (same as the legacy V3.109 numbered-equation flow); subsequent edits to the library entry don't propagate to the placed block. Each placement is independent. Re-clicking Insert as block creates another (separately numbered) block.
+- **Section-level `+ Equation` is gone.** The panel is the only equation-creation surface now per the V3.124 brief. `addEquation()` is still exported (and is the underlying primitive for "Insert as block") so internal callers keep working.
+- **Add-to-library is a stub.** The new entry has `is_library_entry: true` + `citation_key` + the user-typed title/author/year/DOI. It does NOT auto-fetch metadata from CrossRef / Unpaywall (out of scope; users can refine later in the library page). The DOI field is purely informational at this stage. Stub items get a `stub_created_from_paper_builder: true` flag so a future cleanup pass can find + fill them in.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v100` and pick up the new `paper-equations.js`.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules are unchanged from V3.123.
+
+## [V3.123] - 2026-05-08
+
+**Lab Notebook: Design of Experiments builder (LHS / Full Factorial / Central Composite).** Phase 2 of the ELN roadmap (`/Users/alexmcghee/.claude/plans/we-want-to-make-nested-toucan.md`). New `🧮 DOE` toolbar button opens a modal where students pick a design type, enter factors (name, low, high, levels for factorial), generate a run matrix, preview it, and insert it into the entry as structured data. The matrix renders as a Design panel between the body and the Protocols-followed panel; `Download CSV` exports the matrix for downstream tools (R, JMP, Python). Algorithms are in-house — no external library — and capped at 200 runs (LHS) / 256 runs (factorial) / 6 factors (CCD) so the panel stays tractable. Phase 3 (the plan→execute→complete workflow) will overlay actuals onto each run; the `state.doc.design.runs[]` shape is already structured to accept that overlay without migration.
+
+### Added
+- **`rm/js/lab-notebook.js`** — `_doeFullFactorial(factors)`, `_doeLatinHypercube(factors, n)`, `_doeCentralComposite(factors, n0)`, dispatcher `_doeGenerate(type, factors, config)`. LHS uses stratum-center sampling (no jitter) so re-generating with the same factors + n produces a comparable matrix order. CCD computes α = (2^k)^(1/4); n₀ defaults are 5 for k=2, 6 for k=3, 4 otherwise. Validation: empty factor names, NaN low/high, low === high all throw before generation; LHS auto-bumps n to k+1 minimum.
+- **`rm/js/lab-notebook.js`** — `openDoeModal()` builds a 720 px modal reusing the V3.118 `.ln-modal-*` chrome. Top: design-type radio row with per-type help text. Middle: factors editor (free-text name, numeric low/high, levels input visible only for Full Factorial; `+ add factor` / `× remove`). Below: design-type-specific config (LHS run count; CCD center-point replicates with auto α hint; Factorial shows total-runs note). Below: live preview of the generated matrix. Footer: `Cancel` / `Generate matrix` (re-runs the generator on every click, edits invalidate the preview) / `Insert into entry` (disabled until a preview exists). Re-opening the modal on an entry that already has a design pre-fills the working state from `state.doc.design`.
+- **`rm/js/lab-notebook.js`** — `renderDoeTableHtml(columnNames, runs, showRowNum)` shared between modal preview and entry-level Design panel; `renderDesignHtml(design)` renders the panel with type label + run count + config bits (LHS run count; CCD n₀ + α) + actions (`✏️ Edit / Regenerate`, `⬇ Download CSV`, `Clear`); `renderDesignPanel()` does an in-place outerHTML swap; `wireDesignPanel()` binds the action buttons; `clearDesign()` confirms then nulls `state.doc.design`; `downloadDesignCsv()` builds a CSV with `#` row-number column + factor columns and triggers a Blob download named `<entryId>_<type>.csv`.
+- **`rm/js/notebook-schemas.js`** — new constants `NOTEBOOK_DOE_TYPES = ['lhs', 'factorial', 'ccd']` + `NOTEBOOK_DOE_TYPE_LABELS`. `notebookEmptyEntry()` adds `design: null`. `notebookHydrate()` defensively coerces a present-but-malformed `design` to a usable shape (factors[], runs[], type defaults to 'lhs'). `notebookIndexRow()` projects a `design_runs` count for future rail-row signalling (analogous to attachment_count / inventory_count / protocol_count).
+- **`rm/css/lab-notebook.css`** — `.ln-design` panel + `.ln-design-actions` button row + `.ln-design-empty` italic gray hint; `.ln-doe-table` with sticky thead inside `.ln-doe-table-scroll` (max-height 320 px), monospace cell font for numeric alignment, hover row highlight; `.ln-doe-modal` (720 px wide), `.ln-doe-type-row` radio group, `.ln-doe-factor-row` 5-column grid (name / low / high / levels / remove), `.ln-doe-config-help` italic micro-copy, `.ln-doe-preview-empty` placeholder card, dedicated `.ln-doe-generate` button styled as a secondary action so `Insert into entry` is visually the primary save.
+
+### Changed
+- **`rm/js/lab-notebook.js`** — body toolbar gains `🧮 DOE` button between `📋 Protocol` and `📷 Capture`. The flow `inventory → protocol → DOE → photo → file` mirrors the bench mental model (what reagents → what protocol → what design am I varying → photos / data attachments).
+- **`rm/js/lab-notebook.js`** — `renderEditor()` now inserts the Design panel between the body and the Protocols-followed panel, so the visual order is: body → 🧮 Design of experiments → 📋 Protocols followed → 🧪 Materials used → 📎 Attachments → References → Delete. The design slots between body and the procedural / material context — it's the experimental skeleton, the rest are dependencies.
+- **`rm/js/lab-notebook.js`** — `wireEditor()` calls `wireDesignPanel()` after rendering so the Edit / CSV / Clear buttons bind on every editor render (including after a remote sync round-trip).
+- **`sw.js`** — `CACHE_VERSION` 99 → 100.
+
+### Notes
+- **No new Firestore rule, no new index, no new Storage block.** The `design` field lives on the per-user notebook entry doc, already covered by the blanket `userData/{uid}/{document=**}` owner-only rule. CSV download uses a client-side Blob — never hits Storage.
+- **No external DOE library.** mathjs is already lazy-loaded by the protocols formula feature, but the three V1 designs are simple enough (cartesian product, stratified shuffle, factorial-corners + axial + center) that hand-rolling them keeps the bundle clean and avoids a load on first DOE click. Phase 2 future additions (Box-Behnken, Plackett-Burman, fractional factorial) can ride the same in-house pattern.
+- **Run cap is intentionally aggressive.** 256 factorial runs / 200 LHS runs / 6 CCD factors keeps the in-table preview readable on a laptop screen and the Firestore doc well under the 1 MB limit (each run is ~50–100 bytes; 200 × 100 = 20 KB which is comfortably small). A future "off-doc design" would store designs in their own subcollection if a real screening campaign needs more.
+- **LHS deliberately uses stratum centers (no jitter).** Trade-off: less variation between regenerations (helpful for reproducibility) at the cost of slight bias toward stratum centers. A future toggle could expose `jitter: true` for a true Monte-Carlo LHS — for the typical biomed grad-student lab this is overkill.
+- **Edit/Regenerate is non-destructive until Insert.** Opening the modal on an existing design pre-fills the factors. Generating a new matrix only updates the preview; clicking `Insert into entry` is the commit point. Cancel discards the working state.
+- **Phase 3 forward-compat.** `state.doc.design.runs[]` is currently `[{factor1: value, factor2: value, ...}]`. Phase 3 will extend each run to `{factor1, factor2, ..., actuals: {started_at, ended_at, outputs, notes}}` — an additive overlay, no migration needed.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v99`.
+
+## [V3.122] - 2026-05-08
+
+**Paper builder: References tab — writer-side citation management.** Closes the V3.115 / V3.120 / V3.122 plan: replaces the References tab placeholder with three live-synced sections plus a library search. Each row carries a status badge (`cited` / `linked` / `library` / `unknown`), a deep link to the library reader, and per-row Insert citation + Link to draft (or Unlink) actions. The tab reads from the same `state.citationByKey` index the V3.40 Cmd+K popover lazy-loads and writes through `api.save('items.json', …)` to the same `meta.library.linked_drafts` field the V3.106 reader-side link picker uses — no new schema, no new Firestore paths. Plan: [CodeLog/ClaudesPlan/V3.122_references_tab.md](../ClaudesPlan/V3.122_references_tab.md).
+
+### Added
+- **`rm/js/paper-editor.js`** — new `getCitedKeysInPaper()` walker traverses `paperMap.sections → children` and collects every Pandoc-style `[@key]` token across paragraph bodies, paragraph skeleton bullets (V3.115 `skeleton_items` + the legacy flat `skeleton` Y.Text), figure block bodies (captions), and table block `attrs.caption` Y.Text (V3.120). Returns a unique alphabetically-sorted key array. Token regex matches `\[@([^\]\n]+)\]` and splits on `;` to support `[@k1; @k2]` clusters; each key is validated against `^[\w:.\-+/]+$` so prose like `[@home]` (which isn't a real key) doesn't accidentally land in the cited list.
+- **`rm/js/paper-editor.js`** — five new helpers exposed on `window.PaperEditor`: `getCitedKeysInPaper()`, `loadCitationIndex()` (re-exposes the existing lazy loader), `invalidateCitationIndex()` (clears `state.citationByKey`/`state.citationList` so the next call re-reads items.json — used by the References tab after a `linked_drafts` write), `insertCitationAtFocus(key)` (re-exposes the V3.40 caret-aware inserter), `getCitationByKey()` / `getCitationList()` (read-only accessors so the panel doesn't poke at `state` directly).
+- **`rm/js/paper-editor.js`** — `loadCitationIndex` projection extended with `linkedDrafts: lib.linked_drafts.slice() || []` so the References tab can compute "linked but not cited" without a second items.json fetch. The slice() makes the cached entry isolated from panel-side mutations.
+- **`rm/js/paper-equations.js`** — full References tab. Three sections in render order: **Search library** (text input filters `state.citationList` by `searchHaystack`, max 50 visible matches with overflow hint; excludes already-cited / already-linked entries from results so the user sees them in their own sections), **Cited in this draft** (one row per `getCitedKeysInPaper()` key; unmatched keys render as a dashed `pe-ref-row-unknown` with an `unknown` badge so the writer notices a typo or a missing library entry), **Linked but not cited** (entries where `linkedDrafts.indexOf(paperId) >= 0` and the key isn't cited). Per-row UI: status badge + key + linked title (clicking opens `/rm/pages/library-paper.html?id=<itemId>` in a new tab) + author/year/journal meta + `Insert citation` button (saves caret + emits `[@key]` via `_insertAtSavedCaret`) + `Link to draft` / `Unlink from draft` toggle (calls `_toggleLinkToDraft(itemId, paperId, makeLink)`). Lazy-load: on first References-tab open the section calls `PaperEditor.loadCitationIndex()` and shows "Loading lab library…" placeholders; the new `_installCitationIndexListener` listens for `paper-citations-loaded` and re-renders when the index resolves.
+- **`rm/js/paper-equations.js`** — `_toggleLinkToDraft(itemId, paperId, makeLink)` writes through the standard `api.load('items.json')` → mutate `meta.library.linked_drafts[]` → `api.save('items.json', {items})` flow. Same path as the V3.106 reader-side link picker. After the write: invalidate + reload the citation index (`PaperEditor.invalidateCitationIndex()` + `loadCitationIndex()`), then re-render the References section so the row's status badge flips immediately.
+- **`rm/css/paper-editor.css`** — `.pe-ref-search-input` (full-width search field), `.pe-ref-row` (column layout: head + title + meta + actions), `.pe-ref-row-head` (badge + key), `.pe-ref-status` + per-status colors (`-cited` green, `-linked` amber, `-library` gray, `-unknown` red), `.pe-ref-row-title` (link styling), `.pe-ref-row-meta` (small muted), `.pe-ref-row-actions` (button row), `.pe-ref-row-unknown` (dashed border for missing-library-entry rows).
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 98 → 99.
+
+### Notes
+- **Status semantics.** A library paper is `cited` if its `citation_key` appears in any `[@key]` token in the document. It's `linked` if `meta.library.linked_drafts` contains this paperId AND it's not also cited. It's `library` if the user typed it into the search box and it matched but is neither cited nor linked. `unknown` only appears in the Cited section when a `[@key]` token references a key that isn't in items.json (typo, or library entry never created).
+- **Search excludes already-cited and already-linked entries.** Otherwise users would see the same row in two places. The dedicated Cited / Linked sections are the canonical surfaces for those states.
+- **No schema migration.** `meta.library.linked_drafts` already existed (V3.103/V3.106). No Firestore rule changes — the `items.json` write path was already permitted via `api.save`.
+- **The lab library is the entire scope.** Only papers in `items.json` with `meta.library.is_library_entry === true` and a populated `citation_key` show up in any of the three sections. External BibTeX import is out of scope (and remains in `library-import.html`).
+- **Cited list filters out lookup-only `[@home]`-style keys** via the `^[\w:.\-+/]+$` regex on each token, so accidental matches in plain prose don't pollute the section.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v98` and pick up the new `paper-equations.js` references-tab module.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules are unchanged from V3.121.
+
+## [V3.121] - 2026-05-08
+
+**Lab Notebook: GHS hazard warnings + location info on inventory chips.** Reported: "if a user has selected a chemical for their use in the lab notebook, there should be warning signs next to it saying if its dangerous" and "any inventory item that is referenced in the lab notebook automatically gets a location info box next to it so the student can find it." V3.121 surfaces the `safety` and `locations` data already on every chemical inventory doc — 65/158 chemicals carry signal-word + GHS pictograms + H-codes + P-codes + PPE + NFPA + first-aid; 0/935 items have populated `locations[]` today, but the UI ships a graceful "location not set" hint with an admin-only `(set)` link to the Inventory page where the data lives. Click any chip's hazard pill or pictogram (in the body, in the Materials panel, or before picking in the picker popover) → opens a read-only safety-details modal with the full SDS-style breakdown including an NFPA 704 diamond. Plan: [CodeLog/ClaudesPlan/V3.121_eln_hazard_location.md](../ClaudesPlan/V3.121_eln_hazard_location.md).
+
+### Added
+- **`rm/js/lab-notebook.js`** — new `LN_GHS_MAP` (9-code symbol+label table mirroring `chemicals.js`'s `GHS_PICTOGRAMS`), `renderGhsPictograms(codes)`, `renderSignalWordPill(word)`, `renderChipHazardSibling(invRef)` helpers; the chip pipeline now emits a sibling `<span class="ln-inv-hazard">` immediately after the chip carrying a Danger/Warning pill (`.ln-hazard-signal-{danger,warning}`) plus per-code GHS badges (`.ln-ghs.ln-ghs-ghs0[1-9]`). The sibling is `contenteditable=false` so it travels as one unit with the chip during copy/paste/delete; class is sanitizer-restricted to a known allowlist. Empty for non-hazardous chemicals (signal_word === '' AND ghs_pictograms.length === 0) and always empty for items.
+- **`rm/js/lab-notebook.js`** — new `openSafetyDetailsModal(invId)` + `renderSafetyModalBody(rec)` + `renderNfpaDiamond(n)`. Modal reuses the V3.118 `.ln-modal-back` / `.ln-modal-{head,body,foot}` chrome unchanged; the body is a definition list with sections for: H-codes, P-codes, exposure routes, PPE required, NFPA 704 diamond (4-quadrant rotated CSS, blue/red/yellow/white), first-aid (inhalation / skin / eye / ingestion paragraphs), storage conditions, "Where to find it" (locations or admin-link fallback), and SDS link. The full safety record is looked up from `inventoryState.list` instead of denormalising H/P/PPE/NFPA into chip data attrs (keeps chip HTML small while still letting the modal render everything).
+- **`rm/js/lab-notebook.js`** — delegated click on the editor pane catches clicks on `.ln-inv-hazard` (in body), `.ln-material-hazard` (Materials panel), or `.ln-inv-pop-hazard` (picker popover hazard inline) and opens the safety modal via the chip's `data-inv-id`. One delegated listener handles dynamically-rendered children without rebinding.
+- **`rm/css/lab-notebook.css`** — new `.ln-inv-hazard`, `.ln-material-hazard`, `.ln-inv-pop-hazard` (inline-flex, gap 4px, cursor pointer); `.ln-hazard-signal-{danger,warning}` (small uppercase pills, white-on-red and white-on-amber); `.ln-ghs` base + `.ln-ghs-ghs0[1-9]` per-code colors (16×16 px in chips/materials, scaled to 28×28 px inside the safety modal); two-line `.ln-material-row` layout (main: kind/name/meta/hazard, sub: location + storage); `.ln-material-loc.ln-loc-empty` italic gray hint; admin-only `.ln-loc-set-link`; `.ln-safety-modal` (640 px wide), `.ln-safety-strip` (amber header strip with signal pill + pictogram row), `.ln-safety-modal-body dl/dt/dd` grid layout, `.ln-safety-chip` and `.ln-safety-chip-ppe` (PPE chips green); `.ln-nfpa` 4-quadrant rotated diamond.
+
+### Changed
+- **`rm/js/lab-notebook.js`** — `_projectInventoryEntry(it, kind)` now also projects `signal_word`, `ghs_pictograms`, `hazard_statements`, `precautionary_statements`, `exposure_routes`, `ppe_required`, `nfpa_ratings`, `first_aid`, `storage_conditions`, `msds.url`, and `locations[]` onto the searchable record. Items get empty/zero values for hazard fields. The picker popover row now shows the Danger/Warning pill + pictograms inline next to the name (highest-value place for the warning to live: the student sees it BEFORE picking) and surfaces a `📍 N location(s)` count in the meta line when populated.
+- **`rm/js/lab-notebook.js`** — `insertInventoryChip(item)` stamps four new attrs: `data-inv-hazard-signal`, `data-inv-hazard-pictos` (comma-joined GHS codes), `data-inv-locations` (JSON-stringified `[{name,quantity,notes}]`), `data-inv-storage` (free-text from `safety.storage_conditions`). On insert, also calls `renderMaterialsPanel()` so the Materials sub-row reflects the new chip without waiting for a body keystroke.
+- **`rm/js/lab-notebook.js`** — `collectInventoryRefs()` extracts the new attrs back from each chip and stamps them onto `state.doc.inventory_refs[i]` (`hazard_signal`, `hazard_pictos`, `locations`, `storage_conditions`). The entry-level array stays fully derivable from chips in the body.
+- **`rm/js/lab-notebook.js`** — body sanitizer's `ALLOWED_ATTRS.SPAN` extended with `data-inv-hazard-signal`, `data-inv-hazard-pictos`, `data-inv-locations`, `data-inv-storage`, plus `title` (for the pictogram tooltips). `sanitizeNode`'s SPAN class-allowlist is widened from a single literal `'ln-inv-chip'` to a small allowlist that also accepts `ln-inv-hazard`, `ln-hazard-signal ln-hazard-signal-(danger|warning)`, and `ln-ghs ln-ghs-ghs0[1-9]` — anything else on a span still gets stripped. `contenteditable=false` is force-pinned on chips and on hazard siblings.
+- **`rm/js/lab-notebook.js`** — `renderMaterialsHtml(refs)` rebuilt as a two-line block per row: main line (kind badge + name + meta + hazard column) and sub line (📍 location + 🌡 storage). When `locations[]` is empty, the sub line reads `📍 location not set` (italic gray) with an admin-only `(set)` link to `/rm/pages/inventory.html?focus=<id>`.
+- **`sw.js`** — `CACHE_VERSION` 97 → 98.
+
+### Notes
+- **No new Firestore rule, no new index, no new Storage block.** Both `safety.*` and `locations[]` are already on the lab-shared `inventory` collection; lab members read it through the V3.114-registered routes. The chip data-attr expansion + the new `inventory_refs[]` shape live entirely on the per-user notebook entry doc, already covered by the blanket `userData/{uid}/{document=**}` owner-only rule.
+- **0/935 inventory items have populated `locations[]` today.** The notebook ships the surface anyway — the schema is right, and admins populate via the existing locations table on `/rm/pages/inventory.html`. The Materials panel renders an italic gray "📍 location not set" hint for non-admin users, plus an admin-only `(set)` link that deep-links to the inventory page (the page's V3.x focus query param is already supported by [rm/js/inventory.js](rm/js/inventory.js)). This deliberately keeps inventory-side editing out of the notebook page.
+- **GHS rendering uses Unicode-symbol badges**, not external SVG pictograms. The values are copied from [rm/js/chemicals.js](rm/js/chemicals.js) `GHS_PICTOGRAMS` so the visual is consistent with the chemicals page; the lab-notebook page doesn't load chemicals.js for a 9-entry table.
+- **Safety modal is read-only.** No Edit / Save buttons. The data lives in the inventory doc; admins maintain it via `/rm/pages/chemicals.html` and `/rm/pages/inventory.html`.
+- **Picker popover hazard is visual-only.** Clicking a row in the popover still picks the item — clicking the in-row hazard span doesn't open the modal (the row is a `<button>` and the click bubbles to it). After insertion, the chip's hazard sibling and the Materials hazard column both open the modal. This keeps the picker workflow uninterrupted while still showing the warning **before** picking.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v97`.
+
+## [V3.120] - 2026-05-08
+
+**Paper builder: pill-tab bar + global toolbar + Tables tab.** Reported: "make the tabs pills that are always at the top of the page, under these pills are the rich text buttons and equation, figure, table reference inserts buttons wherever the users mouse currently is." Two coupled changes plus the second of the V3.115/V3.119/V3.x?? plan: the V3.115 single panel-toggle button is replaced with a **persistent pill bar** at the top of the editor (no icons — text-only `Equations` / `Figures` / `Tables` / `References`), and the V3.107 per-paragraph rich-text toolbar is consolidated into a **single global toolbar** below the pills (rich-text wrap buttons + reference-insert buttons that all act at the current caret in the most-recently-focused contenteditable). The Tables tab placeholder is filled with full table-reference scaffolding mirroring the V3.115 figures pattern. Plan: [CodeLog/ClaudesPlan/V3.120_pills_toolbar_tables.md](../ClaudesPlan/V3.119_pills_toolbar_tables.md).
+
+### Added
+- **`rm/pages/paper-builder.html`** — new `.pe-pillbar` (`<div role="tablist">`) and `.pe-global-toolbar` (`<div role="toolbar">`) containers between `.pe-topbar` and `.pe-readonly-banner`. Both are populated by `paper-equations.js` on `attach()`. The slide-out pane stays at the right edge but loses its in-pane tab nav (hidden via CSS) since the pills now drive tab switching.
+- **`rm/js/paper-equations.js`** — new `_installPillBar()` mounts four pills (`Equations` / `Figures` / `Tables` / `References`, no icons). Each pill toggles its tab in the slide-out: clicking a non-active pill opens the pane on that tab; clicking the active pill closes the pane. New `_togglePill(tabId)` + `_reflectPillState()` keep the active-pill highlight in sync with `_state.panel.hidden` + `_activeTab`. Pill state restored from `localStorage.rm_paper_active_tab` on first build.
+- **`rm/js/paper-equations.js`** — new `_installGlobalToolbar()` mounts two button groups: `.pe-rt-group` (B / I / X₂ / X² / `<>`) and `.pe-ref-group` (`+ Eq` / `+ Fig` / `+ Table` / `+ Cite`). Each button uses `mousedown.preventDefault` to keep the focused contenteditable's selection across the click; a `_saveCaretFromCurrentFocus()` helper captures the active editable + range so reference-insert pickers can restore caret before insertion. Reference buttons open the relevant picker anchored at the toolbar button's `getBoundingClientRect()`.
+- **`rm/js/paper-equations.js`** — full Tables tab. `_refreshTablesSection()` renders one `.pe-tab-row` per table block in the doc (uses `getAllTables()`, not just numbered, so the user can also see + manage suppressed tables). Each row: `Tab. N` badge if numbered; schema readout (`3 × 4 · booktabs · header`); caption preview; label input (auto-prefixes `tab:`); Numbered checkbox; Insert reference + Open block buttons. Mutations route through new `_findTableBlock(blockId)` + `_updateTableAttrs(blockId, mutator)` helpers.
+- **`rm/js/paper-equations.js`** — new `_openTabRefPicker(x, y)` single-step picker (no sub-panels) over numbered tables. Selecting inserts `[!tab:<label>]` at the saved caret. New `_insertTableReferenceAtSavedCaret(tab)` is the panel-side trigger.
+- **`rm/js/paper-equations.js`** — right-click context menu extended from four items to five (added `📋 Insert table reference` between figure and citation).
+- **`rm/js/paper-editor.js`** — three new walkers exposed on `window.PaperEditor`: `getAllTables()` returns every table block in doc order with `{blockId, label, numbered, num, captionPreview, rows, cols, booktabs, header_row}`; `getNumberedTables()` filters to `numbered === true`; `getNumberedTableByLabel(label)` is the lookup helper.
+- **`rm/js/paper-editor.js`** — `renderParagraphHtml` scanner gains a `[!tab:<label>]` branch + new `renderTabRefChip(label)` helper. Unknown labels render as `[?Tab. <label>]` faded chip. Token-aware re-render filter expanded.
+- **`rm/js/paper-blocks.js`** — `renderTable` toolbar gains Numbered checkbox + label input (auto-prefixes `tab:`) + Tab. # badge that updates live via `paper-panel-changed`. Below the toolbar (above the grid): styling toolbar `.pe-table-stylebar` with booktabs / header-row checkboxes and per-column align L/C/R buttons that drive `attrs.align` (string of length === cols, chars `l`/`c`/`r`). Below the grid: caption contenteditable bound to `attrs.caption` Y.Text via `bindYTextToContentEditable` with the paragraph render contract (so cite + math + markdown work). New right-click menu binding on the caption editor.
+- **`rm/js/paper-blocks.js`** — idempotent V3.119 caption migration in `renderTable`: if `attrs.caption` is a string (legacy V3.102-era data), promotes to `Y.Text(string)` in one Yjs transaction. Skipped on subsequent renders (Y.Text instance check).
+- **`rm/css/paper-editor.css`** — `.pe-pillbar` (flex row, white bg, bottom border), `.pe-pill` (rounded pill, gray default, blue active state). `.pe-global-toolbar` (flex row, gap-separated rt/ref groups), `.pe-gt-btn` (24px square monospace), `.pe-gt-bold/italic/sub/sup/code/ref` per-button class hooks. `.pe-tabbed-pane .pe-tab-nav { display: none }` to hide the redundant in-pane nav. `.pe-tab-row` + `.pe-tab-num-badge` (green) + `.pe-tab-schema` + `.pe-tab-caption-preview`. `.pe-table-stylebar` + `.pe-table-style-cb` + `.pe-table-align-wrap/col/btn` (active state blue). `.pe-table-caption-label` + `.pe-table-caption`. `.pe-tabref-chip` (green) + `.pe-tabref-chip-unknown` (red monospace).
+
+### Changed
+- **`rm/js/paper-equations.js`** — `attach()` now calls `_installPillBar()` + `_installGlobalToolbar()` instead of `_installTopbarButton()`. The legacy V3.115 `📐 Panel` topbar button is gone. `showPanel()` / `hidePanel()` / `_setActiveTab()` all call `_reflectPillState()` so pills stay in sync. The `TABS` array now carries both `label` (legacy emoji-prefixed, used by the now-hidden in-pane nav) and `plainLabel` (icon-less, used by pills).
+- **`rm/js/paper-blocks.js`** — `renderParagraph` no longer mounts the V3.107 per-paragraph `buildRichToolbar()`. The `bdWrap` flex column stays as a structural wrapper for the skeleton/body view-mode toggle but contains only the body contenteditable now. `buildRichToolbar()` helper retired (~30 lines removed). Cmd+B/I/E keybinds still work via `richTextKeydownHandler` bound on the body.
+- **`rm/js/paper-export-tex.js`** — `tableToTex` rewritten to read block-level attrs first, falling back to template defaults. `attrs.booktabs` controls `\toprule` / `\midrule` / `\bottomrule` emit; `attrs.header_row` controls the `\midrule` after row 0 (only emitted when both flags true); `attrs.align` provides the column spec (validated to chars `l`/`c`/`r`, with non-matching characters substituted as `l`); `attrs.numbered` controls whether `\caption` + `\label` are emitted (numbered) versus `\caption*` (unnumbered, no `\label`). Caption Y.Text routed through `paragraphTextToTex` so cite / math / markdown all render correctly. `paragraphTextToTex` resolves `[!tab:<label>]` → `\ref{<label>}`.
+- **`sw.js`** — `CACHE_VERSION` 95 → 96.
+
+### Notes
+- **One toolbar to rule them all.** The pill bar + global toolbar are *always* visible at the top of the editor (no toggling). The slide-out pane only appears when a pill is active. This compresses the V3.107 / V3.115 surface area into a single persistent header.
+- **The 📐 Panel topbar button is gone.** Anyone with a bookmark / muscle memory will notice — the equivalent action now is "click the Equations pill". Closes the slide-out via the pill click again or the existing `×` close button on the pane.
+- **No schema migration except table caption.** Pre-V3.119 tables with a string `attrs.caption` get a one-time idempotent promotion to `Y.Text` on first render. Pre-V3.119 tables also lack `numbered`/`label`/`align`/`booktabs`/`header_row`; walkers + the export pipeline default to sensible values (`numbered: true`, `booktabs: true`, `header_row: true`, all-`l` align, label = `tab:<id>`).
+- **Per-paragraph rich-text toolbar retired.** `Cmd+B`/`Cmd+I`/`Cmd+E` keybinds still work via `richTextKeydownHandler` bound on the body contenteditable. The global toolbar is the canonical click surface.
+- **Tables tab numbering is auto.** Every table with `numbered !== false` gets a 1-based number from doc-order traversal. An unnumbered table between two numbered ones doesn't shift the count.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v95` and pick up the layout refactor. The pillbar + global toolbar will not appear until the new `paper-equations.js` is loaded.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules are unchanged from V3.119.
+
+## [V3.118] - 2026-05-08
+
+**Lab Notebook: search-only toolbar + project picker filtered to assigned projects (with admin assignment UI).** Reported: "the project picker in the lab notebook needs to be 1) only in the lab entry, anything on the top bar is just a search, the lab entry is the only field where we input anything. 2) only the projects assigned to the user should show up. The admin needs to be able to assign users to a project." Two coupled changes: the toolbar shrinks to a single search input (project + tag + date dropdowns moved entirely off the top bar — input belongs inside the entry), and the in-entry Project select is filtered to projects where `state.user.uid ∈ project.member_uids`. Admin sees every project in the picker (so they're not locked out of their own entries) and gets a new `🔧 Members` toolbar button that opens a modal for assigning lab users to projects.
+
+### Added
+- **`rm/js/lab-notebook.js`** — new `loadLabUsers()` + `openMembersAdminModal()` (admin-gated). Modal pattern: project picker at top, lab-roster checkbox list below, Save / Cancel in the footer. Pre-checks current `member_uids[]` on project change. On save, read-modify-writes the relevant typed JSON (`projects/papers.json` / `courses.json` / `infrastructure.json` / `tools.json`) — the adapter shards back to the same `projects` Firestore collection, so PMR's `where('member_uids','array-contains',uid)` query immediately reflects the change. Local `state.projects[]` is patched in-place after save so the picker updates without a full reload; if an entry is open at save time, `renderEditor()` re-runs to refresh its filtered project options.
+- **`rm/js/lab-notebook.js`** — `state.assignedProjectIds: Set<id>` derived from `state.projects[].member_uids[]` after every load (`rebuildAssignedProjectIds()`); `visibleProjectsForPicker()` returns the admin-vs-member filtered set, with the currently-saved `project_id` always retained in the option list so a stale assignment doesn't silently drop a previous selection. The PROJECT_SOURCES table is now module-level and each entry carries `sourcePath` + `sourceKey` so the admin modal can write back to the right typed JSON without a second lookup.
+- **`rm/js/lab-notebook.js`** — admin-only `🔧 Members` button in the toolbar (rendered only when `firebridge.isAdmin()` returns true). Clicking it loads `lab/users.json` once per session (cached on `state.labUsers`), filters to non-guest accounts, sorts by display name.
+- **`rm/css/lab-notebook.css`** — `.ln-no-projects` (amber empty-state hint inline in the entry meta row when a non-admin user has zero assigned projects), full `.ln-modal-back` / `.ln-modal` / `.ln-modal-{head,body,foot}` / `.ln-am-{roster,row,name,email,cat,status,empty}` styling for the admin Members modal (560 px-wide centered modal with backdrop, scroll-clamped roster list, hover/checked accent, Save / Cancel footer).
+
+### Changed
+- **`rm/js/lab-notebook.js`** — toolbar reduced to `+ New entry` + a single search input + `🔧 Members` (admin only) + saving hint. The V3.110 tag dropdown, project dropdown, and date-from / date-to inputs are removed. The toolbar's job is finding existing entries; project / tag / date selection is **input** that belongs inside the entry, not on the top bar.
+- **`rm/js/lab-notebook.js`** — `state.filters` simplified from `{tag, project, from, to, q}` to `{q}`. `filteredIndexRows()` now does a single substring match across `title`, joined `tags`, `projectLabel(project_id)`, `status`, and `date` — so typing "microscopy", "GELS", "2026-05", or "open" all narrow the rail. The change preserves every filter affordance the dropdowns provided while collapsing the UI to a single input. Removed `uniqueTagsFromIndex()` (was only consumed by the dropped tag dropdown).
+- **`rm/js/lab-notebook.js`** — in-entry Project `<select>` calls `visibleProjectsForPicker()` instead of dumping `state.projects` directly. Non-admin users see only projects where their uid is in `member_uids[]`; the saved `project_id` is always retained in the option list so a stale assignment doesn't silently change the doc. When a non-admin user has zero assigned projects, the meta row gains a small inline hint (`.ln-no-projects`) reading "No projects assigned to you. Ask an admin to add you to a project." instead of the dropdown standing empty and confusing.
+- **`rm/js/lab-notebook.js`** — `loadProjects()` now stamps each project entry with `sourcePath`, `sourceKey`, and a defensive copy of `member_uids[]` so the admin Members modal can read + write the right JSON without re-resolving the typed source.
+- **`sw.js`** — `CACHE_VERSION` 92 → 93.
+
+### Notes
+- **No new Firestore rule, no new index, no new Storage block.** `member_uids[]` already exists on the `projects` collection — papers populate it via `paper-editor.js syncPaperMembers()`, and the field has been there in the JSON seeds for courses / infrastructure / tools (just typically empty). PMR's `firebridge.queryWhere('projects', 'member_uids', 'array-contains', uid)` confirms the field is the canonical "user uid array" path. The admin write to `projects/{type}.json` is gated by the existing lab-shared write rule (admin only) — non-admin save attempts are rejected by firestore.rules, not by this code.
+- **The legacy `personnel[]` field on `items.json` is untouched.** That field is the pre-existing structure on the unified items collection (papers + grants + courses + tools merged into one Firestore doc family). It accepts a mix of roster-IDs and uids and is consumed by the Projects page's UI. V3.118 deliberately does NOT bridge `personnel[]` → `member_uids[]`: the two fields target different Firestore collections (`items` vs `projects`), and silently dual-writing would create cross-collection drift. The V1 admin tool writes only to `projects.<type>.member_uids[]` — the field PMR / Lab Notebook / future cross-user queries actually read.
+- **Why the admin tool lives in the Lab Notebook page.** This is where the missing capability surfaced; admins discovering the empty-picker hint can immediately fix it without context-switching. A dedicated admin page is a future option but adds nav clutter for a feature that's used roughly weekly. The current placement also keeps the change contained — no edits to projects.html / projects.js / their items.json data model.
+- **Search match scope.** `q` matches across title + tags + project label + status + date. Future Phase 2 idea: index body_text into the rail's index doc so search also covers entry contents. Not in V1 because it doubles the index doc size on every save.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v92`.
+
+## [V3.117] - 2026-05-08
+
+**Protocols Builder Phase 2: formulas with live variable propagation.** The headline feature from the original protocols ask — "sections that are formulas or equations driven so students that are using the protocol can easily adapt the protocol to their needs." V3.113 shipped the protocols editor; V3.117 makes it live. A grad student opens the Agarose LLS protocol, changes `vol` from 5 to 12, and every `[!var:agarose_mass]` token in the steps re-renders to `0.240 g` immediately — no reload, no copy-paste. Per the user-locked Phase 1 plan: mathjs-now-Pyodide-later. mathjs (~150 KB gz, lazy-loaded ESM) is the evaluator; the schema reserves a `python` block kind for a later Pyodide phase. Plan: [CodeLog/ClaudesPlan/V3.117_protocols_formulas.md](../ClaudesPlan/V3.117_protocols_formulas.md).
+
+### Added
+
+- **`rm/js/protocol-formulas.js`** (new, ~210 lines) — lazy-loads mathjs from `https://cdn.jsdelivr.net/npm/mathjs@12/+esm` on first formula render. `collectFormulas(yTree)` walks every formula block in document order, returning `[{variables[], output, expression, label, blockId}]`. `buildSymbolTable(formulas, math)` makes two passes: pass 1 seeds inputs from `variables[].default` (parses numerics where possible); pass 2 evaluates each `expression` against the current scope and stores the rounded result under `output.name`. Outputs from earlier formulas are visible to later formulas (chained calculations work). `renderTextWithTokens(text, table)` substitutes `[!var:<name>]` occurrences with `<span class="proto-var" data-var="…" contenteditable="false">value unit</span>` chips; unknown / errored variables get distinct chip variants. `rebuild(yTree)` recomputes the table and dispatches a `protocol-vars-changed` CustomEvent on the editor root.
+- **`rm/js/protocol-blocks.js`** — new `bindYTextWithVars(el, yText, opts)` helper. On focus the contenteditable shows raw text (so the user can edit the literal `[!var:vol]`); on blur and on initial render it shows rendered HTML where each token is replaced by a chip span. Listens to `document` for `protocol-vars-changed` to refresh chips when any formula input changes — refresh is suppressed while the element is focused so the user's cursor doesn't get yanked. step / note / safety / figure-caption renderers now use this binding instead of `bindYText`. New `renderFormula(yBlock, ctx)` renderer: label + description + variables grid (Y.Array<Y.Map> rows: name, label, default, unit, with `+ Add variable` and per-row delete) + expression input (monospace) + output row (name, label, unit, decimals) + computed preview (live re-render on `protocol-vars-changed`) + token-usage hint. `hydrateBlockToYjs` extended for formula's nested types: variables → Y.Array<Y.Map>, output → Y.Map (existing dehydrate logic already handles both shapes).
+- **`rm/js/protocol-schemas.js`** — `newFormula(opts)` factory; `'formula'` added to `PHASE1_BLOCK_KINDS` (kept name for stability of any external scripts that imported it; comment updated to flag it as "rendered today").
+- **`rm/js/protocol-editor.js`** — `formula` added to the `+ Add block` menu. After Yjs hydration: `ProtocolFormulas.setRoot(document)` + initial `rebuild(state.yTree)`. The deep-tree observer now also calls `ProtocolFormulas.rebuild` after each Y change so the symbol table tracks live edits.
+- **`rm/pages/protocols.html`** — loads `/rm/js/protocol-formulas.js` ahead of `protocol-blocks.js` in the editor-mode script list so renderers can probe `window.ProtocolFormulas` on first paint.
+- **`rm/css/protocol-editor.css`** — `.pre-block-formula` chrome (variables grid, expression input, output row, computed preview, hint chip) plus inline `.proto-var` chip styles in four variants: info (input variable), computed (formula output), unknown (missing referent), error (mathjs threw).
+
+### Changed
+
+- **`rm/js/protocol-blocks.js`** — V3.113 polish: `canEdit` is now consistently honored across every block. Block controls (status pill, move ↑/↓, delete) only render for editors. Step / note / safety / figure-caption bodies set `contentEditable` per `canEdit`. Materials rows + figure upload UI are read-only for non-owners. Read-only viewers get a banner; the underlying Firestore Yjs subcollection rules remain lab-member-permissive (V1) but the UI is the V1 gate.
+- **`rm/js/protocol-editor.js`** — V3.113 polish: seed-race guard. If a non-owner opens a brand-new protocol before the owner's first Yjs flush, they now show a "Waiting for the protocol author…" message instead of double-seeding the tree. The Yjs observer auto-renders once the owner's seed propagates.
+- **`sw.js`** — `CACHE_VERSION` bumped to invalidate clients with the V3.116 shell.
+
+### Decisions
+
+- **Editor binding is dual-mode (raw on focus / chips on blur).** The simpler alternatives were rejected: rendering chips inside contenteditable always (breaks input handling — `textContent` returns the chip's display value, not the source token) or rendering a separate "preview" line below (visually noisy, doubles cognitive load). The dual-mode pattern is the lowest-friction UX for an author pasting in raw text.
+- **Symbol table is rebuilt on every Y change.** No fine-grained "did this change a formula's input" check. Cheap (~ms for a 50-block doc), and the rebuild is what guarantees the chips can react to `vol` changes that happen as keystrokes inside a formula's variable row.
+- **Outputs visible to later formulas.** Resolution order is document order. A typo in a formula above produces a `⚠` chip; the formula below referencing the typo'd name renders an "unknown" chip until the typo is fixed. Cycles are not detected; mathjs throws on undefined symbols which short-circuits the failure.
+
+## [V3.116] - 2026-05-08
+
+**Lab Notebook: protocol references.** Reported: "in the lab notebook students should be able to reference protocols." V3.116 wires the V3.113 Protocols Builder into the Lab Notebook editor: a new **📋 Protocol** toolbar button opens a search popover over the lab-shared `protocols` collection (search by title, summary, category, or tag — sorted by `updated_at` desc, draft/published/archived status badge per row); a click inserts a real `<a class="ln-protocol-chip" href="/rm/pages/protocols.html?protocol=<id>">📋 Title</a>` at the caret so future re-readers can jump straight to the protocol with one click. The chip carries `data-protocol-id` so a new entry-level `protocol_refs[]` array is fully derivable from chips in the body, mirrors V3.114's inventory pattern, and surfaces both as a "Protocols followed" panel under the body and as a `📋 N` count alongside `📎 N` and `🧪 N` in the rail row. Closes the loop on the V3.110 plan's Phase-2 protocol-id reservation: the schema's `protocol_id` field is no longer the only path — students can cite multiple protocols per entry.
+
+### Added
+- **`rm/js/lab-notebook.js`** — `protocolState = { list: null, popover: null }` module cache, mirroring `inventoryState`. New `_projectProtocolEntry(p)` flattens a protocol doc into a searchable shape `{id, title, summary, category, status, tags, updated_at, search}` (haystack joins title + summary + category + tags + id). `ensureProtocolList()` loads `protocols/list.json` (the V3.113-registered route at `scope:'lab'`), maps + sorts by `updated_at` desc with alphabetical fallback. New `_ensureProtocolPopover()` builds a popover that reuses the V3.114 `.ln-inv-popover` styling (same layout, search input, scrollable list, ↑/↓/Enter/Esc keybinds, click-outside dismiss) plus a footer hint linking to `/rm/pages/protocols.html` so students can open the builder if no matches turn up. `openProtocolPicker()` is the toolbar entry point; the body toolbar gains a `📋 Protocol` button between `🧪 Inventory` and `📷 Capture`. `insertProtocolChip(p)` builds `<a class="ln-protocol-chip" contenteditable="false" href="/rm/pages/protocols.html?protocol=<id>" data-protocol-id="<id>" data-protocol-title="<title>">📋 <title></a>&nbsp;` and `document.execCommand('insertHTML', …)` it at the caret; if the caret was outside the body when the user clicked the toolbar, the range is restored to end-of-body before insert (same logic as inventory). `collectProtocolRefs()` walks `bodyEl.querySelectorAll('a.ln-protocol-chip')` and rebuilds `state.doc.protocol_refs[]` (first-occurrence order, dedup by id). `renderProtocolsHtml(refs)` renders a "Protocols followed" panel above the materials panel; each row is itself a clickable `<a>` to the protocol page. `renderProtocolsPanel()` does an in-place `outerHTML` swap. The body `input` listener now calls `collectProtocolRefs()` + `renderProtocolsPanel()` after each keystroke so chip deletion in prose immediately drops the row from the panel.
+- **`rm/js/notebook-schemas.js`** — `protocol_refs: []` added to `notebookEmptyEntry()` and `notebookHydrate()` (so legacy pre-V3.116 entries without the array don't break on render). `notebookIndexRow(entry)` projects `protocol_count: entry.protocol_refs.length` so the rail can render the `📋 N` count without a per-entry doc fetch.
+- **`rm/css/lab-notebook.css`** — `.ln-protocol-chip` (rounded inline anchor pill, emerald color palette to distinguish at a glance from amber chemicals and blue items; underline removed; `cursor: pointer` to telegraph clickability), `.ln-protocols` panel + `.ln-protocol-list` flex column, `.ln-protocol-row` clickable row in the panel, `.ln-protocol-status` + per-status modifiers (`-published` green, `-draft` amber, `-archived` gray) for the popover row badges. The `.ln-protocol-popover` selector inherits all `.ln-inv-popover` styling so layout is identical.
+
+### Changed
+- **`rm/js/lab-notebook.js`** — body sanitizer's `ALLOWED_ATTRS` extended for `A` to permit `class`, `contenteditable`, `data-protocol-id`, and `data-protocol-title`. The `class` attr is restricted post-strip to the literal value `ln-protocol-chip` (any other class on an anchor is removed); `contenteditable=false` is force-pinned on chip anchors so the caret can't land mid-chip and corrupt the data attrs across edits. The existing href-safety pass (rejects `javascript:` / `data:` / `vbscript:` and forces `target="_blank"` + `rel="noopener noreferrer"` on `https?:` URLs) still runs unchanged; protocol chips use a relative URL, so they open in the same tab — the desirable UX for an in-app navigation.
+- **`rm/js/lab-notebook.js`** — `renderEditor()` now inserts the protocols panel between the body and the materials panel, so the visual order is: body → 📋 Protocols followed → 🧪 Materials used → 📎 Attachments → References → Delete. Protocols-first puts the procedural context above the reagents.
+- **`rm/js/lab-notebook.js`** — left-rail row meta gains a `📋 N` count alongside the existing `📎 N` and `🧪 N` counts (only rendered when `protocol_count > 0`).
+- **`sw.js`** — `CACHE_VERSION` 90 → 91.
+
+### Notes
+- **No new Firestore rule, no new index, no new Storage block.** `protocols/list.json` was already registered as a `scope: 'lab'` route in V3.113 (lab-member-readable); `protocol_refs[]` lives on the per-user notebook entry doc, already covered by the blanket `userData/{uid}/{document=**}` owner-only rule.
+- **Why an `<a>` chip and not a `<span>` like inventory.** Inventory items don't have a clear destination — they're metadata, not navigable resources. Protocols are full lab-shared documents with their own page, so the natural primitive is a real link. Click jumps straight to the protocol; copy/paste preserves the link; the existing href sanitizer keeps it safe.
+- **Status badge in the picker, not on the chip.** The chip stays compact (`📋 Title` only) so it reads as a typographic accent in prose. The status (`draft`/`published`/`archived`) is shown only in the picker so the writer can choose — once chosen, status doesn't belong inline.
+- **Cross-page invariant.** When a protocol is deleted in the Protocols Builder, existing chips in old notebook entries still render (they're just plain HTML in a Firestore string) but the link 404s in the protocol editor. This is acceptable for V1 — Phase 2 of the cross-link work will scan stale `protocol_refs[]` and surface them in a "broken references" badge on the entry. Same applies to the V3.114 inventory chips.
+- **Schema field `protocol_id` reserved in V3.110 stays reserved.** It was originally intended as the *primary* protocol an entry follows. With `protocol_refs[]` available, the field is rarely useful as-is; future Phase 2 may either repurpose it for "this entry IS the run-record of protocol X" (1-to-1 link) or drop it. For now, leave it null and use `protocol_refs[]`.
+- **No deploy step required** — pure RM-static-tree change. FTP and hard-reload to evict SW cache `mcgheelab-shell-v90`.
+
+## [V3.115] - 2026-05-08
+
+**Paper builder: tabbed right pane + Figures tab (with subfigure references).** First of three sequential versions extending the V3.109 equation-library workflow (plan: `/Users/alexmcghee/.claude/plans/we-need-to-make-expressive-turing.md`). The V3.109 standalone Equations slide-out is refactored into a four-tab pane (📐 Equations / 🖼 Figures / 📋 Tables / 📚 References), and the Figures tab ships fully wired with subfigure-aware `Fig. N (B-C)` style references. Tables and References tabs are placeholders for V3.116 and V3.117. Plan: [CodeLog/ClaudesPlan/V3.115_tabbed_panel_figures.md](../ClaudesPlan/V3.115_tabbed_panel_figures.md).
+
+### Added
+- **`rm/js/paper-schemas.js`** — figure block factory `newFigure()` now seeds `numbered: true` and `subfigures: []` defaults. New `MAX_SUBFIGURES = 12` constant + `newSubfigure({label})` factory. Both exported on `window.PaperSchemas` for the equation-library bridge module to use.
+- **`rm/js/paper-equations.js`** — pane DOM refactored from a flat list of two sections into a tabbed container. `.pe-tabbed-pane` + `.pe-tab-nav` (four `.pe-tab-btn`s) + four `.pe-tab-content` containers. Active tab persists in `localStorage.rm_paper_active_tab`; switches use `display: none` so subscriptions don't churn. New `_setActiveTab(tabId)` toggles button + content visibility and triggers `_refreshPanel()`. The Equations tab content (Inline library + Numbered equations sections) is unchanged — moved into its tab container without behavioral changes.
+- **`rm/js/paper-equations.js`** — full Figures tab. `_refreshFiguresSection()` renders one `.pe-fig-row` per figure block in the document (uses `getAllFigures()`, not just numbered, so the user can also see + manage suppressed figures). Each row: thumbnail (96×72) from `attrs.download_url`; `Fig. N` badge if numbered; first-line caption preview; label input (auto-prefixes `fig:`, slugifies); Numbered checkbox; Subfigures chip editor with `+ Add panel` (auto-letter `A`/`B`/… skipping any already-used); Insert reference + Open block buttons. Mutations route through new `_updateFigureAttrs(blockId, mutator)`, `_addSubfigure(blockId, label)`, `_removeSubfigure(blockId, subfigureId)` helpers that walk paperMap to find the figure block by id and write inside `yDoc.transact`.
+- **`rm/js/paper-equations.js`** — `_openFigRefPicker(x, y)` two-step flow: first popover lists figures with thumbnails (`renderRowMode: 'figure'`); selecting a figure with no subfigures inserts `[!fig:label]` immediately, with subfigures opens `_openSubfigurePicker(x, y, fig)` listing the whole figure, each individual panel `(A)`/`(B)`/…, and auto-generated consecutive ranges `(A-B)`/`(A-C)`/`(B-C)`/`(A-D)`/`(B-D)`/`(C-D)` etc. Selection inserts `[!fig:label]`, `[!fig:label:A]`, or `[!fig:label:A-C]` at the saved caret. New `_insertFigureReferenceAtSavedCaret(fig)` is the panel-side trigger — opens the panel picker centered when subfigures exist.
+- **`rm/js/paper-equations.js`** — right-click context menu extended from two items to four. Two new entries: `🖼 Insert figure reference` (calls `_openFigRefPicker`) and `📚 Insert citation (Cmd+K)` (calls `_openCitationPopoverFallback` which restores the saved caret then invokes `PaperEditor.openCitationPopover`).
+- **`rm/js/paper-equations.js`** — `_openPicker(x, y, opts)` gains `renderRowMode` (`'figure'` for thumbnail rendering, `'plain'` for the subfigure picker that just shows row names) and `onPick(entry)` override (used by the figure picker so it can branch into the subfigure picker rather than insert immediately).
+- **`rm/js/paper-editor.js`** — three new walkers exposed on `window.PaperEditor`: `getAllFigures()` returns every figure block in doc order with `{blockId, label, numbered, num, captionPreview, downloadUrl, alt, subfigures}`; `getNumberedFigures()` filters to `numbered === true`; `getNumberedFigureByLabel(label)` is the lookup helper for `[!fig:]` token resolution. Numbering is 1-based across only numbered figures (an unnumbered figure between two numbered ones doesn't shift the count).
+- **`rm/js/paper-editor.js`** — `renderParagraphHtml` scanner gains a `[!fig:<label>[:<panel>]]` branch with three accepted shapes: bare label, single panel, and `<a>-<b>` range. Token validation regex `^([\w:.\-]+?)(?::([\w]+(?:-[\w]+)?))?$` keeps unrelated `[!…]` text untouched. New `renderFigRefChip(label, panel)` looks up the label, validates the panel against the figure's `subfigures` list (single or both endpoints of a range), and renders a chip whose panel suffix is class-marked when invalid. Unknown labels fall through to a `[?Fig. <label>]` faded chip.
+- **`rm/js/paper-blocks.js`** — `renderFigure` toolbar gains a Numbered checkbox (`pe-eq-num-toggle`), label input (`pe-eq-label-input`), and `Fig. N` badge (`pe-fig-num-badge`) — same shape as the V3.109 equation toolbar. `reflectFigNumberBadge()` reads `getNumberedFigures()` and updates the badge; the existing attrs observer now also reflects `numbered` and the badge. New listener for `paper-panel-changed` (and the legacy `paper-equations-changed` alias) re-renders the badge when the document order shifts.
+- **`rm/js/paper-editor.js`** — `addFigure(sectionId)` now seeds `attrs.numbered = true` and `attrs.subfigures = new Y.Array()` so new figure blocks land referenceable by default.
+
+### Changed
+- **`rm/js/paper-equations.js`** — `_refreshDocChips()` now dispatches both `paper-equations-changed` (V3.109, kept for back-compat with renderEquation's listener and `bindYTextToContentEditable`'s token-aware re-render in V3.109 paper-editor.js) AND the new umbrella event `paper-panel-changed`. V3.115+ listeners use the new name; the alias retires once V3.116/V3.117 are in.
+- **`rm/js/paper-editor.js`** — `bindYTextToContentEditable`'s token-aware re-render filter (`v.indexOf('[!eqi:')` etc.) extended to also cover `'[!fig:'` so paragraphs with figure-reference chips refresh on any panel change.
+- **`rm/js/paper-export-tex.js`** — `paragraphTextToTex` resolves the three `[!fig:…]` shapes to LaTeX: `[!fig:label]` → `\ref{label}`, `[!fig:label:A]` → `\ref{label}\,(A)`, `[!fig:label:A-B]` → `\ref{label}\,(A--B)` (en-dash for single-letter ranges; multi-letter ranges pass through unchanged). `figureToTex` rewritten to respect `attrs.numbered`: numbered figures emit `\caption{…}\label{…}`; unnumbered figures use `\caption*{…}` (no number, no \label, no \listoffigures entry) so `[!fig:label]` references against an unnumbered figure correctly fall through to a `[?Fig.]` chip on the screen.
+- **`rm/css/paper-editor.css`** — adds `.pe-tabbed-pane` (cosmetic alias for back-compat with `.pe-equations-pane`), `.pe-tab-nav`, `.pe-tab-btn` (with `.active` state), `.pe-tab-content`, `.pe-tab-placeholder`. Figure tab styles: `.pe-fig-row`, `.pe-fig-row-left/.pe-fig-row-right`, `.pe-fig-thumb` (96×72), `.pe-fig-num-badge` (amber), `.pe-fig-caption-preview`, `.pe-fig-field-label`, `.pe-fig-label-input`, `.pe-fig-checkbox-row`, `.pe-fig-subfigs` + `.pe-fig-subfig-chip` + `.pe-fig-subfig-chip-x` + `.pe-fig-subfig-add`, `.pe-fig-row-actions`. Picker thumbnail variants `.pe-eq-picker-figthumb` + `.pe-eq-picker-figcap`. Figure reference chip `.pe-figref-chip` (amber, hover effect), `.pe-figref-chip-unknown` (red monospace for missing labels), `.pe-figref-chip-panel-unknown` (dotted-underline accent for an invalid panel).
+- **`sw.js`** — `CACHE_VERSION` 90 → 91.
+
+### Notes
+- **Subfigures are labels, not images.** A subfigure entry holds only `{id, label}` — there's no per-panel image. The figure block remains one `<img>` element; the writer labels conceptual panels (`A`, `B`, `C`) that already exist in the artwork. The exported LaTeX is one `\includegraphics{…}` with one `\caption{…}` and references like `\ref{fig:label}\,(A)` annotate which conceptual panel the prose refers to. This matches how single-image multi-panel scientific figures are written in journal papers.
+- **Auto-letter panel naming skips already-used labels.** `+ Add panel` always picks the next available letter A-Z (case-insensitive). Manual rename via the chip's `×` then re-add is supported but not exposed inline; deletion + re-create is the canonical workflow.
+- **No schema migration.** Pre-V3.115 figure blocks lack `attrs.numbered` and `attrs.subfigures`. Walkers default `numbered` to `true` (`numbered !== false`) so existing figures remain numbered without an opt-in step. `subfigures` defaults to an empty array, so existing figures appear in the panel without panels — the user can add them when needed.
+- **Where the panel doesn't reach.** Comments pane and Claim-detail panel stay separate (different paradigms — per-block / per-claim). The right-click context menu still only fires over paragraph contenteditables (not figure captions, not skeleton bullets) — that's a deliberate scope cut for V3.115; expanding to other contenteditables can land in V3.116.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v90` and pick up the new `paper-equations.js` tab refactor.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules are unchanged from V3.114.
+
+## [V3.114] - 2026-05-08
+
+**Lab Notebook: inventory references.** Reported: "in the lab notebook, we need to be able to make reference to the inventory so students can easily say what they are using." V3.114 wires the same lab-shared `inventory` Firestore collection that the paper builder reads (`inventory/items.json` for equipment, `inventory/chemicals.json` for reagents) into the Lab Notebook editor. A new **🧪 Inventory** toolbar button opens a search popover (name / vendor / catalog # / CAS / category); a click inserts a non-editable chip in the body and appends to a new entry-level `inventory_refs[]` array, which surfaces both as a "Materials used" panel under the body and as a `🧪 N` count on the entry's row in the left rail. The chip carries `data-inv-id` so the entry-level array is fully derivable from the body — deletion of a chip in prose flows through the input handler back to `inventory_refs[]` automatically.
+
+### Added
+- **`rm/js/lab-notebook.js`** — `inventoryState = { list: null, popover: null }` module cache. New `_projectInventoryEntry(it, kind)` flattens an inventory doc into a searchable shape `{id, kind, name, vendor, cat, cas, formula, desc, category, subcategory, search}`; `ensureInventoryList()` loads `inventory/items.json` + `inventory/chemicals.json` in parallel (each `.catch`ed independently so a Firestore permission glitch on one doesn't blank the popover) and merges to `chemRows.concat(itemRows)` (chemicals first — most-frequent bench lookup). New `_ensureInventoryPopover()` builds a `position:fixed` popover (search input, scrollable list with hover/active highlight, ↑/↓/Enter/Esc keybinds, click-outside dismiss); a single popover is appended to `<body>` and re-used. `openInventoryPicker()` is the toolbar entry point; the body toolbar gains a `🧪 Inventory` button between `🔗 Link` and `📷 Capture`. `insertInventoryChip(item)` builds `<span class="ln-inv-chip" contenteditable="false" data-inv-id="..." data-inv-kind="..." data-inv-name="..." data-inv-vendor="..." data-inv-cat="..." data-inv-cas="...">Agarose (Sigma, cat. A9539, CAS 9012-36-6)</span>&nbsp;` and `document.execCommand('insertHTML', …)` it at the caret; if the caret was outside the body when the user clicked the toolbar, the range is restored to end-of-body before insert. `collectInventoryRefs()` walks `bodyEl.querySelectorAll('span.ln-inv-chip')` and rebuilds `state.doc.inventory_refs[]` (first-occurrence order, dedup by id). `renderMaterialsHtml(refs)` renders a labelled "Materials used" panel under the body (kind badge + name + `vendor / cat. X / CAS X` meta). `renderMaterialsPanel()` does an in-place `outerHTML` swap so the panel updates without rebuilding the whole editor on chip insert/delete. The body `input` listener now calls `collectInventoryRefs()` + `renderMaterialsPanel()` after each keystroke so chip deletion in prose immediately drops the row from the panel.
+- **`rm/js/notebook-schemas.js`** — `inventory_refs: []` added to `notebookEmptyEntry()` and to `notebookHydrate()` (so legacy pre-V3.114 entries without the array don't break on render). `notebookIndexRow(entry)` projects `inventory_count: entry.inventory_refs.length` so the rail can render the `🧪 N` count without a per-entry doc fetch.
+- **`rm/css/lab-notebook.css`** — `.ln-inv-chip` (rounded inline pill, color-coded per kind: amber for chemicals, blue for items; `user-select: all` so the chip selects/deletes as a single unit), `.ln-materials` panel (header + flex-column rows), `.ln-inv-kind-badge` shared between popover rows and the panel, `.ln-inv-popover` (460 px fixed-position centered popover with scrollable list, KaTeX-style hint footer, `.ln-inv-pop-row.active` for keyboard focus, `kbd` keycap styling).
+
+### Changed
+- **`rm/js/lab-notebook.js`** — body sanitizer's `ALLOWED_ATTRS` extended for `SPAN` to permit `class`, `contenteditable`, and `data-inv-{id,kind,name,vendor,cat,cas}`. The `class` attr is restricted post-strip to the literal value `ln-inv-chip` (any other class on a span is removed); `contenteditable=false` is force-pinned on chip spans so the caret can't land mid-chip and corrupt the data attrs across edits. Pre-V3.114 sanitizer kept ZERO span attributes — pasting an inventory chip would have rendered the visible label but lost the inventory id. The lab-notebook page already fetches `inventory/items.json` and `inventory/chemicals.json` through the lab-shared routes registered in `api-routes.js`; no new route or rule was needed.
+- **`rm/js/lab-notebook.js`** — `renderEditor()` now inserts the materials panel between the body and the attachments strip, so the visual order is: body → 🧪 Materials used → 📎 Attachments → References → Delete.
+- **`rm/js/lab-notebook.js`** — left-rail row meta gains a `🧪 N` count alongside the existing `📎 N` attachment count (only rendered when `inventory_count > 0`).
+- **`sw.js`** — `CACHE_VERSION` 88 → 89.
+
+### Notes
+- **No new Firestore rule, no new index, no new Storage block.** Inventory is read from the existing lab-shared `inventory` collection (any signed-in lab member can read it); `inventory_refs[]` is part of the per-user notebook entry doc, which is already covered by the blanket `userData/{uid}/{document=**}` owner-only rule.
+- **Why a chip span and not a text-token like `[!inv:id]`.** The paper builder uses Yjs Y.Text and tokens because the rendered HTML is recomputed from a plain-text source on every keystroke. The notebook stores rendered HTML directly in the Firestore doc (sanitized contentEditable), so a non-editable span is the natural primitive — it survives copy/paste, browser undo, and the existing sanitizer pass without needing a separate render layer.
+- **Chip kind colors are intentionally muted.** Amber for chemicals (matches the inventory popover hover color in `paper-editor.css`) and blue for items. Bright colors would dominate the prose; the chip should read as a typographic accent, not a banner.
+- **`inventory_refs[]` is fully derivable from the body**, so a future migration that needs a different storage shape (e.g. per-row quantity / lot fields) can be done by reading the chip data attrs without a Firestore backfill. Quantity / lot tracking is a Phase 2 follow-up.
+- **No deploy step required.** This is a pure RM-static-tree change — FTP the repo and hard-reload to evict SW cache `mcgheelab-shell-v88`.
+
+## [V3.113] - 2026-05-08
+
+**Protocols Builder MVP — protocols.io-style lab protocol authoring inside RM.** Reported: "we want to make a protocols builder page that has features like protocols.io for users to develop lab based protocols easily. we should have sections that are formulas or equations driven so students that are using the protocol can easily adapt the protocol to their needs … We want to integrate lab notebook, paper writing, inventory, and other relevant pages together to help build protocols better." V3.113 ships **Phase 1 of 5** per the locked roadmap (`~/.claude/plans/we-want-to-make-idempotent-pixel.md`): a working list+editor with five block kinds (`materials`, `step`, `note`, `figure`, `safety`), Yjs-backed live collab, lab-shared visibility, and the schema laid out so future phases (formulas via mathjs, inventory linking, notebook/paper cross-linking, versioning + opt-in public publish) drop in additively. Sample `Data/protocols/Agarose LLS -Sieves.md` is the reference port target. Plan: [CodeLog/ClaudesPlan/V3.113_protocols_builder_mvp.md](../ClaudesPlan/V3.113_protocols_builder_mvp.md).
+
+### Added
+
+- **`rm/pages/protocols.html`** — dual-mode shell (`?protocol=<id>` activates editor) cloned from the V3.60 paper-builder pattern. List view: status / owner / search filters, "+ New protocol" modal with template picker. Editor view: title input, outline rail, sectioned content area, sidebar metadata (status / tags / summary).
+- **`rm/js/protocol-schemas.js`** — closed-vocab block kinds (`PROTOCOL_BLOCK_KINDS = ['materials','step','note','figure','safety','formula','python']` — last two reserved, not rendered yet), `PROTOCOL_TEMPLATES` (`wet-lab`, `equipment-sop`, `blank`), tree builders (`newSection/newStep/newMaterials/newNote/newFigure/newSafety/newBlock/newTree/protocolEmptyDoc`), normalizer that coerces unknown future-kind blocks to `step` so a forward-version doc loads cleanly. Surface mirrors `window.PaperSchemas`.
+- **`rm/js/protocols.js`** — list controller. Reads `protocols/list.json` (registered route → Firestore `protocols` collection). New-protocol modal validates kebab-case slug + uniqueness, creates the Firestore doc directly via `firebridge.db().collection('protocols').doc(id).set(doc)` (born in Firestore — no JSON shadow), then navigates into the editor.
+- **`rm/js/protocol-editor.js`** — editor controller. Loads protocol metadata from `protocols/{id}`; connects Yjs via `ProtocolYjs.connect(id)`; seeds Y.Doc from `doc.tree` on first edit ever; renders outline + sectioned content; observes Y tree for structural changes (block add/remove, section add/remove) and re-renders. Debounced metadata save (status / tags / summary / title projection, 600 ms) and tree flush (1500 ms) write to the parent doc. Permission check: `state.canEdit = (ownerUid === uid) || isAdmin` — non-owners see a read-only banner. Lean by design: no comments pane, no view filters, no claims, no equation popovers.
+- **`rm/js/protocol-blocks.js`** — per-kind renderers (`renderStep`, `renderMaterials`, `renderNote`, `renderFigure`, `renderSafety`) plus Yjs hydration/dehydration helpers (`hydrateTreeToYjs`, `hydrateBlockToYjs`, `dehydrateTree`, `dehydrateBlock`). Y.Text contenteditable binding (`bindYText`) replaces textContent on remote edits when the element is unfocused — pragmatic V1 approach trading delta-aware editing for simplicity. Materials rows live as `Y.Array<Y.Map>` for granular collab on table edits. Figure block does drag/drop/click upload via `PROTOCOL_FIGURES.uploadImage`. Step blocks render a numeric badge computed at render time from document order (no `step_number` field needed in the schema).
+- **`rm/js/protocol-yjs.js`** — Yjs ↔ Firestore provider. Clone of `paper-yjs.js` with collection swapped from `papers/` to `protocols/`. Same throttle (200 ms) / merge-on-flush / heartbeat (10 s) / Web Locks presence-leader behavior. Subcollections: `protocols/{id}/yjs_snapshot/state`, `yjs_updates/{seq}`, `presence/{uid}`. Tech debt note in the file header: a follow-on cleanup phase will parameterize `paper-yjs.js` and drop this clone.
+- **`rm/js/protocol-figures.js`** — Storage uploader. Clone of `paper-figures.js` with prefix swapped from `paper-figures/{paperId}/` to `protocol-figures/{protocolId}/`. SHA-256 dedup; 15 MB cap; image MIME or PDF only.
+- **`rm/css/protocol-editor.css`** — protocol-only styles (list filters, materials table, step number badge, safety/note callouts, figure dropzone). Imports the shared `paper-editor.css` chrome via `<link>` in `protocols.html` for status pills, save-state, layout.
+- **Firestore rules** — new `match /protocols/{protocolId}` block (lab-member read OR `status == 'published'` public read; owner/admin parent-doc write; lab-member-wide Yjs subcollection read+write — intentionally MORE permissive than `papers/{paperId}/yjs_*` because protocols are a shared lab resource). Public-read branch lands now so Phase 5 (opt-in publish) doesn't need a rules migration.
+- **Firestore indexes** — composite `(ownerUid asc, updated_at desc)` and `(status asc, updated_at desc)` on `protocols`.
+- **Storage rules** — new `protocol-figures/{protocolId}/{...}` path: any authenticated user reads, any authenticated user writes images / PDFs ≤ 15 MB.
+- **API route** — `protocols/list.json` registered in `rm/js/api-routes.js` with `scope: 'lab', collection: 'protocols', wrapKey: 'protocols', cache: MEDIUM`. No `shadowJson` (born in Firestore, no legacy JSON).
+- **Nav + dashboard** — "Protocols" entry under Research after Lab Notebook (`rm/js/nav.js`); "Protocols" summary card in `rm/js/dashboard.js` showing count by status, wrapped in try/catch so it skips gracefully when rules aren't yet deployed.
+
+### Out of scope (reserved for later phases per the user-locked roadmap)
+
+- **Phase 2 — Formula system.** mathjs lazy-loaded; `formula` block kind; `[!var:<name>]` token resolution; Pyodide-backed `python` block in a later phase. Reserved kinds are already declared in `PROTOCOL_BLOCK_KINDS` so adding renderers is additive only.
+- **Phase 3 — Inventory linking.** Materials rows already carry `attrs.rows[i].item_ref: null` so wiring to `inventory/items.json` + `inventory/chemicals.json` is purely UI work — no schema migration.
+- **Phase 4 — Cross-doc linking.** Lab notebook already has `protocol_id` + `reference_links` slots reserved (`rm/js/notebook-schemas.js:42,58`); paper editor will add `[!proto:<id>]` token + Methods kebab "Cite protocol"; bucket linker will extend `_loadAllDrafts()` in `paper-overlays.js`.
+- **Phase 5 — Versioning + opt-in publish + runs.** Public-read rule branch is in place. The `current_version`, `published_at`, and (future) `protocols/{id}/versions/{vN}` plus separate `protocolRuns/{id}` collection land here.
+
+## [V3.112] - 2026-05-08
+
+**Import-time Semantic Scholar enrichment: structured references, cited-by, abstract, tldr persisted on every new paper.** Reported: "we should use this api to also gather all the needed information about the papers we are importing, all of the references attached to the paper, in addition to the cited by. This should be done on import." V3.111 only used SS live in the cited-by panel; this extends it to import time so every new paper lands with structured references (per-ref DOIs that the V3.93 regex parser can't extract), cited-by data, and an abstract/tldr fallback when CrossRef missed them. Fires in the background after `api.save` — same pattern as V3.93's `parseAndCacheRefs` — so imports stay snappy. CrossRef remains primary for the bibliographic basics; SS augments. Plan: [CodeLog/ClaudesPlan/V3.112_semantic_scholar_import.md](../ClaudesPlan/V3.112_semantic_scholar_import.md).
+
+### Added
+- **`rm/js/paper-semantic-scholar.js`** (new) — shared SS Graph API wrapper used by import (`library-upload.js`), the cited-by panel (`paper-cited-by.js`), and any future refresh tools. Single-call enrichment endpoint (`/paper/{ID}?fields=title,authors,year,venue,abstract,externalIds,tldr,references.*,citations.*`) returns paper metadata + references list + citations list in one round-trip. Exposes: `lookupId(lib)` (DOI → arXiv → PMID picker), `fetchPaperEnrichment(idSpec)` (full payload), `fetchCitations(idSpec, limit)` (citations-only, used by the cited-by panel when no cache exists), `normalizeReferences(ssRefs)` (maps SS reference shape to the V3.93 regex-parser shape so paper-citations.js's panel doesn't need to branch — `{ n, raw:'', title, firstAuthor, year, doi, arxiv, journal, source: 'semantic_scholar' }`), `normalizeCitations(ssCitations)` (flattens the `{ citingPaper: {...} }` envelopes from `/citations` into the same flat object shape the persisted `cited_by` cache uses). Includes one retry on 429 with a 1.5s backoff before surfacing the error.
+- **`rm/js/library-upload.js`** — new `enrichItemFromSemanticScholar(paperId)` helper exported on `LIBRARY_UPLOAD`. Loads `items.json`, picks an SS lookup id from the item's metadata, calls `PAPER_SS.fetchPaperEnrichment`, then re-loads `items.json` (so concurrent edits aren't stomped) and writes onto `meta.library`: `semantic_scholar_id`, `semantic_scholar_fetched_at`, `abstract` (only if not already set), `tldr` (when `payload.tldr.text` is present), `references` (replaced with normalized SS refs when SS returned any, stamped with `references_source: 'semantic_scholar'`), `cited_by`, `cited_by_fetched_at`. Fired in the background right after `api.save` from `fromDoi`, alongside the existing V3.93 `parseAndCacheRefs`. Best-effort: silently no-ops when `PAPER_SS` isn't loaded, when the item has no DOI/arXiv/PMID, or when SS returns 4xx/5xx for this paper.
+
+### Changed
+- **`rm/js/library-upload.js`** — `parseAndCacheRefs` (the V3.93 regex parser) now checks `meta.library.references_source === 'semantic_scholar'` before writing and skips the overwrite when SS already populated the field. Both writers race on imports; whichever finishes second respects the other.
+- **`rm/js/library.js`** — manual upload path (`_processFile`) fires `LIBRARY_UPLOAD.enrichItemFromSemanticScholar(item.id)` in the background after `_saveItems()`, alongside the existing V3.93 ref parse.
+- **`rm/js/paper-cited-by.js`** — `init` now reads `meta.library.cited_by` first; when present (V3.112 imports), renders directly with no API call. Falls through to the live `PAPER_SS.fetchCitations` for items imported pre-V3.112 or where SS had nothing at import time. The standalone `_lookupId` / `_fetchCitations` helpers now delegate to `PAPER_SS` (single source of truth for ID picking and HTTP); kept as inline fallbacks only if `PAPER_SS` fails to load. Live response is normalized via `PAPER_SS.normalizeCitations` so `_renderRow` works on both the cached flat shape and the live envelope shape.
+- **`rm/pages/library.html`** — `<script src="/rm/js/paper-semantic-scholar.js">` added to the `papersScripts` array (loaded before `library-upload.js` so `PAPER_SS` is on window when the import-time enrichment fires).
+- **`rm/pages/library-paper.html`** — same `<script>` tag added before `library-upload.js`.
+- **`sw.js`** — `CACHE_VERSION` 87 → 88.
+
+### Notes
+- **Backfill of pre-V3.112 library items is out of scope.** Old items don't get an automatic SS sync — cited-by falls through to live API on open (V3.111 behavior); references stay on regex-parsed output until a manual re-import or a future "Refresh metadata" button is added.
+- **What gets stored**: `references`, `cited_by`, `abstract`, `tldr`, `semantic_scholar_id`, plus `references_source` and the `*_fetched_at` date stamps. SS also returns embeddings, openAccessPdf URLs, publication date, etc. — only the fields we actively use are persisted to keep `items.json` lean.
+- **Title-only fallback for papers without a DOI/arXiv/PMID** is deferred. SS's `/paper/search` could resolve by title but adds a round-trip and is fuzzier; the current path simply skips enrichment for those (rare) items.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v88`.
+
+## [V3.111] - 2026-05-08
+
+**Paper reader: drop the abstract panel, add a Cited-by panel powered by Semantic Scholar.** Reported: "we dont really need the papers abstract to show up there. Instead lets make a new pannel that does a search for cited by. These are citations attached to this paper found via google scholar." Google Scholar has no public API and aggressively blocks scraping, so the panel is fed by **Semantic Scholar's free Graph API** (`api.semanticscholar.org/graph/v1/paper/{ID}/citations`), which surfaces the same cited-by relationship structured as JSON, with no API key for low traffic. Per-row Google Scholar fallback link is preserved when a citing paper has no DOI/arXiv id.
+
+### Added
+- **`rm/js/paper-cited-by.js`** (new) — IIFE module exposing `window.PAPER_CITED_BY = { init, refreshLibraryStatus }`. `init({ paperItem, mountEl, getAllItems, onLibraryChanged })` renders a skeleton, picks the most reliable Semantic Scholar lookup id from `meta.library` (`DOI` → `arXiv_id` → `pmid`), fires `GET https://api.semanticscholar.org/graph/v1/paper/{ID}/citations?fields=title,authors,year,venue,externalIds&limit=100`, and renders rows. Each row shows author + year + title (≤140 chars) + venue, plus one of: `Open paper →` if the citing paper is already in our library (matched by DOI or ArXiv externalId against `getAllItems()`); `+ Add` if the citing paper has a DOI (delegates to the existing `LIBRARY_UPLOAD.fromDoi` import); `+ Add (arXiv)` for arXiv-only citing papers (synthesizes the `10.48550/arXiv.{id}` DOI); or `Look up` opening Google Scholar by title when none of the above. In-memory cache only for v1 — `Map<idKind:idValue, citations>` keyed on the lookup id, so the same paper doesn't refetch within a page session.
+- **`rm/pages/library-paper.html`** — `<div id="lp-abstract">` replaced with `<div id="lp-cited-by">` in the same slot in the left side rail; new `<script src="/rm/js/paper-cited-by.js">` tag added before `library-paper.js`.
+- **`rm/js/library-paper.js`** — abstract render block (was lines ~77-85) removed; comment in its place explains the swap. New `PAPER_CITED_BY.init` call in the load flow shares `getAllItems` and an `onLibraryChanged` callback with PAPER_CITATIONS so both panels refresh together when a paper is added via either's `+ Add` button.
+- **`rm/css/style.css`** — `.lp-cited-by`, `.lp-cb-list` (max-height 320px scroll), `.lp-cb-row` (sky-blue hover tint to distinguish from the amber Citations-on-page rows above), `.lp-cb-author`, `.lp-cb-title`, `.lp-cb-venue`, `.lp-cb-actions`, `.lp-cb-action` (with attribute-selector specialization for `Open paper →` blue vs `+ Add` purple), `.lp-cb-doi` (small `↗` external-link icon), `.lp-cb-empty` (italic muted) + `.lp-cb-error` variant.
+
+### Changed
+- **`sw.js`** — `CACHE_VERSION` 86 → 87.
+
+### Notes
+- **Why Semantic Scholar instead of Google Scholar.** Scholar has no public API and aggressively blocks data-center IPs / automation; a server-side scraper would CAPTCHA-fail within a few requests. Semantic Scholar surfaces the same "papers that cite this one" relationship via a free, structured API — the panel header even labels the source ("via Semantic Scholar") to avoid misrepresenting where the data comes from.
+- **Empty-state coverage.** No DOI/arXiv/PMID on the open paper → "Semantic Scholar can't resolve cited-by." (title-only fallback would need a search round-trip and is fuzzier; deferred). API failure → inline error. Zero citations → "No citations found via Semantic Scholar." All three states render the same shell so the panel slot is always present.
+- **Persistent caching deferred.** V3.93 caches parsed references on the item; the same pattern would fit cited-by data, but one API call per paper-open is well within the free-tier limits, so v1 keeps it in-memory only. Hard reload always triggers a fresh fetch.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v87`.
+
+## [V3.110] - 2026-05-08
+
+**Lab Notebook (ELN) page — bench-ready V1.** New `/rm/pages/lab-notebook.html` is the McGhee Lab's Electronic Lab Notebook, modeled on LabArchives but tailored to grad-student bench workflow: WYSIWYG entries with autosave, drag/paste/camera photo capture (so handwritten bench notebook pages can be snapped on a phone and dropped straight into an entry), tag + project + date filters, and a single-read left-rail load via a per-user `_index` doc. Per-user private (mirrors PMR privacy model — owner-only via the existing `userData/{uid}/{document=**}` rule); sharing reserved for Phase 3. Witnessing/co-signing intentionally out of scope. Plan: [CodeLog/ClaudesPlan/V3.110_lab_notebook.md](../ClaudesPlan/V3.110_lab_notebook.md).
+
+### Added
+- **`rm/pages/lab-notebook.html`** — page shell. Loads the standard RM bootstrap order (util → nav → firebase compat → bridge → adapter → routes → profile-bootstrap), then `notebook-schemas.js`, `notebook-figures.js`, and the `lab-notebook.js` controller. Includes `firebase-storage-compat.js` (paper-builder uses Storage too, but the PMR page does not — so this is an addition over the PMR template). Hidden `<input type="file" capture="environment">` powers the 📷 Capture button (rear camera on phones); a separate hidden multi-file picker handles 📎 Attach.
+- **`rm/js/lab-notebook.js`** — IIFE controller (~600 lines). State machine (`{user, indexDoc, currentId, doc, projects, saveTimer, filters}`), three-pane render (toolbar / left rail / editor), 400ms debounced autosave with PMR's `_suppressUntil`/`_savePending` recipe so the user's own write-echo doesn't clobber an in-flight edit. Live-sync attached via `api.subscribe(entryPathFor(currentId), …)` for cross-device sync within the same user account. Body sanitizer is a tag/attribute allowlist (`P/STRONG/EM/UL/OL/LI/H1-6/A/IMG/PRE/CODE/...`) running on every input event; `<img>` `src` is rejected unless it's `https://firebasestorage.googleapis.com/…` or transient `blob:` so a paste of a remote image can't bypass our Storage upload pipeline. Three upload paths (drag-drop on the editor pane, paste of an image clipboard item, the 📷/📎 buttons) all funnel through `NOTEBOOK_FIGURES.uploadImage(blob)`; on success the attachment is appended to `state.doc.attachments[]` and (when the source was an image and the call came from drag-drop or paste) an `<img>` is inserted at the caret pointing at the resulting Storage download URL. Filter pipeline: client-side over the `_index` doc by tag, project_id, date range, and case-insensitive title substring; sort by `date` desc with date-bucketed headers in the rail.
+- **`rm/js/notebook-schemas.js`** — schema constants (`NOTEBOOK_ENTRY_STATUSES`, `NOTEBOOK_DEFAULT_TAGS`, `NOTEBOOK_ATTACHMENT_KINDS`, `NOTEBOOK_REF_KINDS`, `NOTEBOOK_SCHEMA_VERSION`) plus three helpers: `notebookEmptyEntry()` (fresh entry stub), `notebookHydrate(d)` (defensive defaults on load), `notebookIndexRow(entry)` (project an entry into its summary row for the `_index` doc). Header comment documents the **never-inline-base64** invariant — Firestore's 1 MB doc limit can't tolerate a phone photo encoded as base64 even once, so the upload pipeline always writes to Storage first and inserts an `<img src="https://…">` referencing the resulting URL.
+- **`rm/js/notebook-figures.js`** — Cloud Storage upload helper. Mirrors `paper-figures.js` SHA-256 dedup pattern (re-uploaded byte-identical phone photos return `already_existed: true` instead of re-billing bytes) but writes under `notebook-figures/{uid}/{shortHash}.{ext}` so the storage rule can be owner-only-read (paper figures are lab-wide-readable). Public surface: `NOTEBOOK_FIGURES.uploadImage(blob)`, `.downloadUrl(path)`, `.extForMime(mime)`. MIME allowlist extends paper-figures with `image/heic` and `image/heif` (iPhone default).
+- **`rm/css/lab-notebook.css`** — page chrome: toolbar, two-column layout (rail + editor), tag chips, attachment thumbnail strip (96×96 cover thumbnails with hover-revealed delete), reference-row grid (PMR ref-row pattern), drag-over highlight on the editor pane, full-screen lightbox modal for image previews. Mobile breakpoint at 720px stacks the rail above the editor.
+
+### Changed
+- **`rm/js/nav.js`** — added `{ label: 'Lab Notebook', href: '/rm/pages/lab-notebook.html', gate: 'lab-member' }` to the **Research** group children, between Comments and Papers. The existing `'lab-notebook'` placeholder ID in `_WF_DEFAULT_SEEDS` (workflow chips for `lab-research` and `paper-writing`) now resolves to the real page automatically — no `page-registry.js` edit required.
+- **`rm/js/api-routes.js`** — registered `notebook/_index.json` → `{ scope:'user', subcollection:'notebook', doc:'_index', cache: SHORT }`. Per-entry routes are registered lazily by `lab-notebook.js` (mirrors the PMR pattern) since entry IDs are unbounded kebab slugs (`nb-YYYY-MM-DD-...`). Documented the convention that entry IDs always start with `nb-` so they can never collide with the `_index` doc in the same `notebook` subcollection.
+- **`firestore.rules`** — comment-only annotation. The existing blanket `match /userData/{userId}/{document=**}` rule already covers `userData/{uid}/notebook/*` as owner-only read+write; the comment block above it now lists `notebook` alongside the other subcollections that ride this rule, so future readers grepping for `notebook` find it.
+- **`firestore.indexes.json`** — added two composite indexes on the `notebook` collection group: `(date desc, project_id asc)` and `(tags array-contains, date desc)`. Filter queries past ~100 entries would otherwise fall back to client-side sort.
+- **`storage.rules`** — added `match /notebook-figures/{userId}/{allPaths=**}` block. Critical departure from the sibling `paper-figures` block: read is **owner-only** (`request.auth.uid == userId`), not lab-wide. Notebook entries are private by default; lab-wide sharing is reserved for Phase 3. 15 MB limit; image MIME or PDF only.
+- **`sw.js`** — `CACHE_VERSION` 85 → 86.
+
+### Notes
+- **V1 scope deliberately bench-ready, not minimal.** Filters, tags, project linking, photo capture, autosave, drag/paste/camera, and lightbox preview are all in V1 because without them the notebook isn't usable at the bench. Phase 2 (cross-linking entries, PMR backlink picker, templates, PDF export, comments thread, Phase-2 protocol-id form control once Protocol Developer ships) and Phase 3 (Yjs collab, OCR, mobile-only capture page, lab-wide sharing) are documented in the plan.
+- **The `'lab-notebook'` workflow placeholder.** `_WF_DEFAULT_SEEDS` in `nav.js` (lines 119, 125) has listed `'lab-notebook'` as a future workflow page. With this version it's no longer a placeholder — the workflow chips on `/rm/index.html` for `lab-research` and `paper-writing` now resolve to the real page automatically through `_wfBuildPageMap`.
+- **Witnessing/co-sign deliberately omitted.** The user (PI) explicitly opted this out during planning — academic biomed labs typically don't need formal IP-style witnessing day-to-day, and PMR + comments cover the meaningful collaboration paths.
+- **Markdown vs WYSIWYG.** WYSIWYG (contentEditable) chosen over markdown because the killer feature is dropping/pasting/capturing a phone photo of a handwritten bench page directly into an entry — a markdown source view would force a manual upload step every time. Power users get a small toolbar (B/I/U, list, blockquote, code block, link) plus Cmd/Ctrl+B/I/U shortcuts; everyone else can just type.
+- **Privacy model.** Owner-only by default — matches PMR (the user explicitly chose this). The existing `userData/{uid}/{document=**}` blanket rule already enforces owner-only read+write; storage.rules' new block enforces it for attachments too. The Phase-3 sharing path (`sharedWithUids[]` per entry, `notebook-figures/{uid}/...` opened to listed sharers) requires a per-doc rule and a UI toggle that don't exist yet.
+- **Body sanitization runs on every keystroke**, not just on save. Cheap (DOM walk over the contenteditable's children) and prevents a malicious paste from leaving inline `<script>` or `onclick=` in the working copy. The Firestore-saved doc is always the post-sanitize HTML.
+- **Deploy steps required after FTP**:
+  - `firebase deploy --only firestore:rules` (picks up the comment annotation; the actual rule didn't change semantically)
+  - `firebase deploy --only firestore:indexes` (composites can take 5–15 min to build before the filter UI works at scale)
+  - `firebase deploy --only storage:rules` (mandatory — the upload pipeline 403s without the new block)
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v85` and pick up the new files.
+
+## [V3.109] - 2026-05-08
+
+**Paper builder: equation library + right-click inline insert + numbered references.** Final wishlist feature for the paper builder (`rm/wishlist.md` "paper builder"). Reported: "Equations need to have an easy to use workflow to add the equation inline to the text as well … rightclick, add inline equation which pulls up a list of all the equations the user made that are of the inline type. when users make equations, we want this on a separate tab or something." V3.109 builds two coupled systems: a dedicated **Equations panel** where the writer authors and manages reusable inline equations, and a **right-click insertion flow** that lets them drop those equations (or references to numbered display equations) into prose at the caret position. Plan: [CodeLog/ClaudesPlan/V3.109_equation_library.md](../ClaudesPlan/V3.109_equation_library.md).
+
+### Added
+- **`rm/js/paper-schemas.js`** — `MAX_EQ_LABEL_LENGTH = 64` constant + `newEquationLibraryEntry({name, latex})` factory exposed on `window.PaperSchemas`. Each library entry is shaped `{id, name, latex}`.
+- **`paperMap.equation_library: Y.Array<Y.Map>`** — new paper-level shared type, initialized idempotently in `paper-editor.js`'s `connectAndRender` transact callback. Holds inline-only library entries; numbered/display equations stay in the existing `equation` block kind. Wire format: each entry is a `Y.Map` with `id` (string), `name` (Y.Text), `latex` (Y.Text).
+- **`rm/js/paper-equations.js`** (new, ~480 lines) — slide-out **Equations panel** anchored to the right edge of the editor (mirrors the V3.104 claim-detail panel pattern). Two sections: an **Inline library** with full CRUD (`+ New inline` adds an empty entry; per-entry name input + `<textarea>` LaTeX source with KaTeX preview that re-renders on blur; per-row Insert + delete buttons) and a **Numbered equations** read-only list of every block where `attrs.numbered && attrs.display`, in document order, with their assigned 1-based number — clicking a row scrolls the editor to the corresponding block and flashes it. The module also wires the **right-click context menu** on paragraph bodies (`bindContextMenu(el)`): `Insert inline equation` → picker over library, `Insert equation reference` → picker over numbered equations. Both pickers float at the click point, clamp inside the viewport, type-to-filter, render KaTeX previews per row, ↑/↓/Enter/Esc keybinds. Clicking a row inserts the relevant token (`[!eqi:<id>]` or `[!eqr:<label>]`) at the caret position the right-click captured. The module subscribes to `equation_library` and `sections` via `observeDeep` and emits a `paper-equations-changed` window event on any change so existing chips refresh live.
+- **`rm/js/paper-editor.js`** — four new helpers exposed on `window.PaperEditor`: `getInlineEquationLibrary()` (projects the `Y.Array` into a plain JS array of `{id, name, latex}`), `getInlineEquationById(id)`, `getNumberedEquations()` (doc-order traversal of `sections → children`, filters where `kind==='equation' && attrs.numbered && attrs.display`, returns `[{blockId, label, num, latex}]` with 1-based numbering), `getNumberedEquationByLabel(label)`. Plus tiny accessors `getPaperMap()`, `getY()`, `getPaperId()`, `isEditable()` so `paper-equations.js` doesn't reach into the editor's private state. `renderParagraphHtml` scanner extends with two new branches: `[!eqi:<id>]` → `renderInlineEqLibraryChip(id)` (KaTeX inline render of the library entry; `[?eq]` faded chip if the id is unknown) and `[!eqr:<label>]` → `renderEqRefChip(label)` (`Eq. <n>` chip with click-to-scroll on the numbered block; `[?Eq. <label>]` if the label resolves to nothing). `bindYTextToContentEditable` listens for `paper-equations-changed` and re-renders the rendered HTML when the source contains either token, so chips stay in sync without requiring a focus blur on every binding.
+- **`rm/js/paper-blocks.js`** — `renderEquation` toolbar gains a `pe-eq-num-toggle` checkbox (sets `attrs.numbered`; auto-flips `attrs.display=true` when checked because inline equations can't be numbered) + a `pe-eq-label-input` text input (auto-prefixes `eq:` and slugifies on blur, capped at `MAX_EQ_LABEL_LENGTH`) + a `pe-eq-num-badge` that renders `Eq. <n>` once the doc-order walker assigns one. The block subscribes to `paper-equations-changed` so the badge updates when an equation block is added/deleted/reordered elsewhere. The paragraph body now calls `PaperEquations.bindContextMenu(bdEl)` to wire the right-click menu.
+
+### Changed
+- **`rm/js/paper-export-tex.js`** — `paperTreeFromYDoc` extracts `equation_library` into the tree (V3.109 field). `paragraphTextToTex` resolves `[!eqi:<id>]` → `\(<latex>\)` (looks up the library entry from a module-level `_exportEqLibrary` set/cleared around section rendering by `runExport`) and `[!eqr:<label>]` → `\eqref{<label>}`. `equationToTex` rewritten with three cases: `display && numbered` → `\begin{equation}\label{<label>}<src>\end{equation}` (label defaults to `eq:<block.id>` if `attrs.label` is empty); `display && !numbered` → `\[<src>\]`; `!display` → `\(<src>\)`. The pre-V3.109 always-emit-`\label{eq:<id>}` is gone — only numbered blocks emit a label, since that's the only case `\eqref{}` can resolve to.
+- **`rm/pages/paper-builder.html`** — editor-mode script list now also loads `/rm/js/paper-equations.js` before `paper-blocks.js`.
+- **`rm/css/paper-editor.css`** — adds `.pe-eq-toggle-btn` (topbar), `.pe-equations-pane` + section / row styles (panel), `.pe-eq-context-menu` + `.pe-eq-context-menu-item` (right-click menu), `.pe-eq-picker` + row + search (popover), `.pe-eq-num-toggle` + `.pe-eq-label-input` + `.pe-eq-num-badge` (block toolbar additions), `.pe-eqi-chip` + `.pe-eqref-chip` (paragraph chips, with `-unknown` and `-empty` variants), and `.pe-block-flash` keyframe for the scroll-to highlight.
+- **`sw.js`** — `CACHE_VERSION` 83 → 84.
+
+### Notes
+- **Two surfaces, intentionally separate.** Inline equations live in the paper-level library and are inserted into prose. Numbered display equations live in the document tree (still `equation` block kind, no schema migration). The split keeps the model honest: inline equations are short and reused; numbered equations are document-anchored and ordering-dependent.
+- **No migration.** Existing equation blocks still work. The new `attrs.numbered` and `attrs.label` default to falsy / empty; until the user opts in, equations behave exactly as in V3.108.
+- **Doc-order numbering is computed lazily.** `getNumberedEquations()` walks `sections → children` on every call. Cost is `O(numEquations)` per call; consumers (paragraph chip rendering, panel refresh, block badge) call it on the `paper-equations-changed` event which is debounced by `observeDeep` already.
+- **Right-click intentionally replaces the native context menu over paragraph bodies.** This is the only place we hijack contextmenu — the rest of the editor's contextmenus stay native (skeleton bullets, equation source, figure layout fields, table cells). Cancel via Escape or click-outside.
+- **Inline equation in body export uses `\(...\)` not `$...$`.** This matches the LaTeX-canonical form and keeps the AMS macros happy. Existing `$math$` typed directly in paragraph prose still renders the same way (KaTeX inline) — no change.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v83` and pick up `paper-equations.js`.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules are unchanged from V3.108.
+
+## [V3.108] - 2026-05-08
+
+**Paper builder: inventory popover now finds chemicals (agarose, ethanol, MgCl₂, …).** Reported: "the inventory integration is currently working, but does not allow for searching for all things in the inventory. for example we for sure have agarose, but the search didnt pull anything up." Root cause: `ensureInventoryList` in [rm/js/paper-editor.js](../../rm/js/paper-editor.js) loaded only `inventory/items.json` (which is server-filtered to `kind: 'item'`, i.e. equipment-class entries) and never touched `inventory/chemicals.json` (`kind: 'chemical'`, where every reagent lives). The Firestore `inventory` collection is a single discriminated collection (per [api-routes.js:156-169](../../rm/js/api-routes.js#L156-L169)) so chemicals were trivially fetchable — the popover just never asked for them. Plan: [CodeLog/ClaudesPlan/V3.108_inventory_chemicals.md](../ClaudesPlan/V3.108_inventory_chemicals.md).
+
+### Bug Fixes
+- **`rm/js/paper-editor.js`** — `ensureInventoryList` now loads both `inventory/items.json` and `inventory/chemicals.json` in parallel via `Promise.all`. Each side is `.catch`ed independently so a Firestore permission glitch on one doesn't blank the whole popover. New `projectEntry(it, kind)` helper unifies the two shapes into a single search row tagged with `kind: 'item' | 'chemical'`. Chemicals contribute their `safety.cas_number` and `safety.formula` to the search haystack on top of the shared `name` / `vendor` / `catalogue_number` / `description` / `category` / `subcategory` fields, so a Methods-section author can find a reagent by CAS as well as by name.
+- **`rm/js/paper-editor.js`** — popover row now leads with a small kind badge (`chemical` amber-on-cream, `item` blue-on-pale-blue) so the user can tell reagents from equipment at a glance. Meta line surfaces CAS and formula when present.
+- **`rm/js/paper-editor.js`** — `insertInventoryItem` builds the parenthetical from a parts list (`vendor`, `cat. <num>`, `CAS <num>`) instead of the V3.107-and-earlier hardcoded `name (vendor, cat. X)` template. Empty fields are dropped cleanly; chemicals get `CAS <num>` appended after the catalogue number so the inserted Methods sentence reads as journal-ready (`Agarose (Sigma, cat. A9539, CAS 9012-36-6) — molecular biology grade`).
+
+### Changed
+- **`rm/css/paper-editor.css`** — new `.pe-inv-kind-badge` styles (compact uppercase pill, color per kind). `.pe-cite-pop-row .pe-inv-name` aligned to baseline of the badge.
+- **`sw.js`** — `CACHE_VERSION` 81 → 82.
+
+### Notes
+- **Sort order intentionally puts chemicals first.** Inside the popover, chemicals are listed before equipment items, alphabetically within each group. Methods sections are reagent-heavy in practice, and the user-supplied search filters anyway, so this is just the default-list ordering when the search input is empty.
+- **`attrs.item_ref` semantics unchanged.** The inserted paragraph still stores `item_ref: <id>`; the `inventory` collection is unified, so this round-trips equally well for either kind. No schema migration.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v81` and pick up the dual-load.
+- **No deploy step** beyond the static FTP push — no Firestore rules, indexes, or function changes.
+
+## [V3.107] - 2026-05-08
+
+**Paper builder: body rich text (markdown tokens + small toolbar).** Third of four wishlist features (`rm/wishlist.md` "paper builder"). Paragraph bodies have been plain text since V3.40 — text wins on portability and Yjs conflict-resolution but pays the cost of zero typographic emphasis. V3.107 adds the smallest useful subset of markdown for journal manuscript prose: `**bold**`, `*italic*`, `~sub~`, `^sup^`, `` `code` ``. Wire format stays plain `Y.Text` (no schema migration); the new tokens are inline markdown the user types or clicks into the body. The on-screen renderer, the LaTeX export, the keyboard shortcuts, and the toolbar all agree on the same five-token vocabulary. Plan: [CodeLog/ClaudesPlan/V3.107_body_rich_text.md](../ClaudesPlan/V3.107_body_rich_text.md).
+
+### Added
+- **`rm/js/paper-editor.js`** — five new branches in `renderParagraphHtml`'s scanner: `**bold**` → `<strong>`, `*italic*` → `<em>`, `~sub~` → `<sub>`, `^sup^` → `<sup>`, `` `code` `` → `<code>`. Each formatting token rejects when its inner is empty, contains a newline, has whitespace at the boundary (the markdown convention to avoid eating prose with `~` / `^` chars in it), or contains another copy of the same single-char delimiter. Bold ordering matters: it's tried before `*italic*` so `**foo**` matches as bold rather than as two adjacent italics. Code spans render their content verbatim (no recursion); the other four tokens recurse through `renderParagraphHtml` so wrapped content can itself contain math / cite / nested formatting (`**Smith [@smith2024] showed $x^2$**` resolves cleanly).
+- **`rm/js/paper-editor.js`** — new `wrapSelectionInTokens(lhs, rhs)` exported on `window.PaperEditor`. Routes the wrap through `document.execCommand('insertText', false, …)` so the contenteditable's input event fires and the existing Y.Text binding picks up the diff — no special path. If the user had no selection, caret moves back by `rhs.length` so they can type inside the empty pair (`**|**` after Cmd+B with empty selection). Falls back to Range-API `deleteContents` + `insertNode` when execCommand isn't supported. Selection origin is checked via a `_findContenteditableAncestor` walk; non-CE targets are rejected.
+- **`rm/js/paper-editor.js`** — new `richTextKeydownHandler(e)` exported on `window.PaperEditor`. Maps `Cmd/Ctrl+B` → `**`, `Cmd/Ctrl+I` → `*`, `Cmd/Ctrl+E` → `` ` ``. Skips when `Shift` or `Alt` are held to leave room for native browser shortcuts (e.g. `Cmd+Shift+I` devtools). Sub/sup don't get keybinds (no clean conflict-free key); the user clicks the toolbar buttons.
+- **`rm/js/paper-blocks.js`** — `renderParagraph` wraps the body contenteditable in a new `<div.pe-paragraph-body-wrap>` flex column with a `<div.pe-rich-toolbar>` above it. New `buildRichToolbar()` helper builds five `<button.pe-rich-toolbar-btn>` (B, I, X₂, X², `<>`); each uses `mousedown.preventDefault` to keep the caret in the body across the click, then calls `PaperEditor.wrapSelectionInTokens`. Body's `keydown` runs `PaperEditor.richTextKeydownHandler` first; if it consumes the event the existing flow doesn't run. View-mode toggle (`applyMode('skeleton'|'body')`) hides/shows the wrap (toolbar + body together) instead of just the contenteditable, so switching to skeleton-only view hides the toolbar too. Toolbar is gated on `ctx.editable` — read-only viewers don't see it.
+- **`rm/css/paper-editor.css`** — `.pe-paragraph-body-wrap` (flex column), `.pe-rich-toolbar` (4px-gap row above body with bottom border), `.pe-rich-toolbar-btn` (12px monospace, hover-on-blue). Per-button class hooks (`.pe-rt-bold` weight 700, `.pe-rt-italic` italic 600, etc.) so the labels reflect their effect at a glance. New `.pe-block-content code` styling (light-gray background, monospace, light border) so code spans stand out in the rendered view.
+
+### Changed
+- **`rm/js/paper-export-tex.js`** — `paragraphTextToTex` rewritten to handle the full V3.107 vocabulary. Code spans are protected first via a null-byte sentinel (`\x00C0\x00` / `\x00C1\x00` / …) so later markdown passes can't corrupt their content; the placeholder uses chars (`\x00`, capital `C`, digits) that none of the other markdown patterns match. Bold runs before italic; sub/sup pass next (`~([^~\n]+)~` → `\textsubscript{$1}`, `\^([^\^\n]+)\^` → `\textsuperscript{$1}`); citations last; then the code-span sentinels are reinserted as `\texttt{...}`. The pre-V3.107 `**bold**` and `*italic*` paths are preserved as-is.
+- **`sw.js`** — `CACHE_VERSION` 80 → 81.
+
+### Notes
+- **No schema migration.** Y.Text wire format is unchanged. The new tokens are inline markdown the user types or clicks; coauthors editing the same paragraph still see character-level merges. Reader-side annotation tools and the `[@cite]` / `$math$` paths are completely untouched.
+- **Where the toolbar appears (and doesn't).** Body contenteditables only. **Skeleton bullets** (V3.104) deliberately do **not** get a toolbar — bullets are argument scaffolding, formatting them is noise. The bullet text *does* go through `renderParagraphHtml` though, so the new tokens still render when typed manually inside a bullet (e.g. `**important**` in a skeleton bullet renders bold) — there's just no GUI affordance for inserting them. Equation source contenteditables and the figure-block layout inputs (label, alt, width) also do not get a toolbar.
+- **Figure captions silently inherit the new tokens.** Caption Y.Text binds via the same `bindYTextToContentEditable` with `renderParagraphHtml`, so typing `**bold caption**` already renders bold and exports correctly. Adding the toolbar above the caption is a small follow-up and is left for a later minor.
+- **Underscore italic deliberately not supported.** `_italic_` collides too easily with variable names like `foo_bar` in scientific prose. Asterisk-only italic is enough.
+- **Strikethrough deliberately not supported.** `~~strike~~` collides with single-tilde subscript. Not worth the regex contortions.
+- **Code spans render content verbatim.** A markdown phrase like `` `**not bold**` `` renders as literal `**not bold**` inside a code span. This matches CommonMark behavior and keeps code samples readable.
+- **Hard-reload required** to evict SW cache `mcgheelab-shell-v80` and pick up the new scanner / toolbar.
+- **No deploy step** beyond the static FTP push — Firestore rules / indexes / Storage rules are unchanged from V3.106.
+
 ## [V3.106] - 2026-05-08
 
 **Paper drafts now actually appear in the link-to-draft picker.** Reported: "the current papers we are drafting dont show up". Root cause: paper-builder drafts live in `projects/papers.json` (the paper-builder owns that file), not in `items.json` where V3.103 was reading them from. The pre-V3.103 `_drafts` filter in `library-paper.js` had the same bug — it sourced from items.json with `type:'paper' AND !is_library_entry` — but that combination never matched real data, so nothing showed up. V3.106 reads paper drafts from the right file.

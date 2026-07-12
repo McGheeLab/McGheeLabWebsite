@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab Foundations: Start Here — Getting Started in the Lab</title>
+
+  <!-- Module header styles (dark theme nav bar) -->
+  <link rel="stylesheet" href="../shared/module-header.css" />
+
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #141925;
+      --panel-2: #1a1f2e;
+      --ink: #eef2f7;
+      --muted: #a8b3c7;
+      --accent: #5baed1;
+      --accent-2: #7fd1b9;
+      --line: rgba(255,255,255,.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      background:
+        radial-gradient(120% 140% at 0% 0%, rgba(91,174,209,.18), transparent 55%),
+        radial-gradient(120% 140% at 100% 0%, rgba(127,209,185,.14), transparent 55%),
+        var(--panel);
+      overflow: hidden;
+    }
+    .hero .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 .6rem;
+    }
+    .hero h1 {
+      margin: 0 0 .6rem;
+      font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+      line-height: 1.1;
+      letter-spacing: -.01em;
+    }
+    .hero .lede {
+      margin: 0;
+      max-width: 56ch;
+      font-size: 1.06rem;
+      color: var(--muted);
+    }
+    .hero .lede strong { color: var(--ink); font-weight: 600; }
+
+    /* ── Section heading ── */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      gap: .75rem;
+      margin: 3rem 0 1.2rem;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--ink);
+    }
+    .section-head .sub { color: var(--muted); font-size: .92rem; }
+
+    /* ── How it works ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem 1.4rem;
+      background: var(--panel);
+    }
+    .step .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: rgba(91,174,209,.16);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .7rem;
+    }
+    .step h3 { margin: 0 0 .35rem; font-size: 1.02rem; }
+    .step p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    /* ── Track cards ── */
+    .tracks {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.1rem;
+    }
+    .track {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      padding: 1.4rem 1.4rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .track.is-available { border-color: rgba(127,209,185,.32); }
+    .track-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: .75rem;
+      margin-bottom: .5rem;
+    }
+    .track-top h3 { margin: 0; font-size: 1.18rem; line-height: 1.25; }
+    .badge {
+      flex: none;
+      font-size: .68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      padding: .28rem .55rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .badge-available { background: rgba(127,209,185,.16); color: var(--accent-2); }
+    .badge-soon { background: rgba(255,255,255,.07); color: var(--muted); }
+    .track-desc { margin: 0 0 1rem; color: var(--muted); font-size: .94rem; }
+
+    .module-list { list-style: none; margin: auto 0 0; padding: 0; }
+    .module-list li { margin: 0; }
+    .module-list li + li { border-top: 1px solid var(--line); }
+    a.lf-module {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      padding: .7rem .25rem;
+      text-decoration: none;
+      color: var(--ink);
+      transition: padding-left .12s ease, color .12s ease;
+    }
+    a.lf-module:hover { padding-left: .5rem; color: var(--accent); }
+    a.lf-module .mod-no {
+      flex: none;
+      width: 26px; height: 26px;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel-2);
+      color: var(--accent);
+      font-size: .8rem;
+      font-weight: 700;
+    }
+    a.lf-module .mod-text { flex: 1; min-width: 0; }
+    a.lf-module .mod-title { display: block; font-weight: 600; font-size: .95rem; }
+    a.lf-module .mod-sub { display: block; color: var(--muted); font-size: .82rem; }
+    a.lf-module .mod-arrow { flex: none; color: var(--muted); transition: transform .12s ease; }
+    a.lf-module:hover .mod-arrow { transform: translateX(3px); color: var(--accent); }
+
+    .track-soon-note {
+      margin: auto 0 0;
+      padding-top: .4rem;
+      color: var(--muted);
+      font-size: .86rem;
+      font-style: italic;
+    }
+
+    /* ── Closing note ── */
+    .closing {
+      margin-top: 2.5rem;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.4rem;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .closing strong { color: var(--ink); }
+
+    @media (max-width: 600px) {
+      .wrap { padding: 1.25rem 1rem 3rem; }
+      .hero { padding: 1.8rem 1.3rem; }
+    }
+  </style>
+
+  <!-- Firebase SDK (needed for header navigation when opened with ?class=) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="../../firebase-config.js"></script>
+  <script defer src="../shared/module-header.js"></script>
+</head>
+<body>
+  <!-- Module header (auto-populated from Firestore when ?class= is present) -->
+  <header id="module-header"></header>
+
+  <main class="wrap">
+
+    <!-- ═══ Hero ═══ -->
+    <section class="hero">
+      <p class="eyebrow">Lab Foundations</p>
+      <h1>Getting started in the lab</h1>
+      <p class="lede">
+        A <strong>one-stop shop</strong> for the techniques you'll actually use on your project.
+        Each track is a short series of hands-on modules — built for newcomers, with no
+        assumed background — that takes you from the core idea to doing it yourself at the bench.
+        Pick the track your project needs and <strong>jump in</strong>.
+      </p>
+    </section>
+
+    <!-- ═══ How it works ═══ -->
+    <div class="section-head">
+      <h2>How to use this series</h2>
+      <span class="sub">three steps</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <h3>Pick a track</h3>
+        <p>Choose the topic that matches what your project needs to measure or make.</p>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <h3>Work through it in order</h3>
+        <p>Each module builds on the one before — start at the top and go straight down.</p>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <h3>Apply it to your project</h3>
+        <p>Take the technique to the bench, then bring your results and questions to your mentor.</p>
+      </div>
+    </div>
+
+    <!-- ═══ Tracks ═══ -->
+    <div class="section-head">
+      <h2>Topic tracks</h2>
+      <span class="sub">more added over time</span>
+    </div>
+    <div class="tracks">
+
+      <!-- Hydrogel Mechanics — LIVE -->
+      <section class="track is-available">
+        <div class="track-top">
+          <h3>Hydrogel Mechanics</h3>
+          <span class="badge badge-available">Available</span>
+        </div>
+        <p class="track-desc">
+          How soft gels deform, how cells push and pull on them, and how we turn those
+          deformations into real force measurements.
+        </p>
+        <ul class="module-list">
+          <li>
+            <a class="lf-module" data-folder="tfm" data-file="01-hydrogels-and-cell-forces.html">
+              <span class="mod-no">1</span>
+              <span class="mod-text">
+                <span class="mod-title">Hydrogels &amp; Cell Forces</span>
+                <span class="mod-sub">From atoms to deformation</span>
+              </span>
+              <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </li>
+          <li>
+            <a class="lf-module" data-folder="tfm" data-file="02-hydrogel-network-formation.html">
+              <span class="mod-no">2</span>
+              <span class="mod-text">
+                <span class="mod-title">How a Hydrogel Grows</span>
+                <span class="mod-sub">Monomers to network</span>
+              </span>
+              <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </li>
+          <li>
+            <a class="lf-module" data-folder="tfm" data-file="03-ball-indentation-hydrogels.html">
+              <span class="mod-no">3</span>
+              <span class="mod-text">
+                <span class="mod-title">Mechanical Indentation</span>
+                <span class="mod-sub">Measuring stiffness, ball-on-gel</span>
+              </span>
+              <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </li>
+          <li>
+            <a class="lf-module" data-folder="tfm" data-file="traction-force-microscopy.html">
+              <span class="mod-no">4</span>
+              <span class="mod-text">
+                <span class="mod-title">Traction Force Microscopy</span>
+                <span class="mod-sub">Measuring the forces cells make</span>
+              </span>
+              <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Microscopy Basics — COMING SOON -->
+      <section class="track">
+        <div class="track-top">
+          <h3>Microscopy Basics</h3>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+        <p class="track-desc">
+          Brightfield, fluorescence, and confocal imaging — how to capture clean,
+          quantitative images of your samples without guesswork.
+        </p>
+        <p class="track-soon-note">Modules in development.</p>
+      </section>
+
+      <!-- Cell Culture & Sample Prep — COMING SOON -->
+      <section class="track">
+        <div class="track-top">
+          <h3>Cell Culture &amp; Sample Prep</h3>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+        <p class="track-desc">
+          Sterile technique, seeding cells, and getting samples ready for imaging
+          and mechanical testing.
+        </p>
+        <p class="track-soon-note">Modules in development.</p>
+      </section>
+
+      <!-- Data Analysis & Modeling — COMING SOON -->
+      <section class="track">
+        <div class="track-top">
+          <h3>Data Analysis &amp; Modeling</h3>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+        <p class="track-desc">
+          Turning measurements into conclusions: handling uncertainty, calibrating a
+          model, and checking it against real data.
+        </p>
+        <p class="track-soon-note">Modules in development.</p>
+      </section>
+
+    </div>
+
+    <!-- ═══ Closing ═══ -->
+    <p class="closing">
+      <strong>New to the lab?</strong> Start with the first module of whichever track is
+      closest to your project — you don't need to finish one track before starting another.
+      As new techniques come online, they'll show up here as additional tracks.
+    </p>
+
+  </main>
+
+  <script>
+    /* Make each track link class-aware so a student stays inside their class
+       flow (prev/next nav, progress) when this overview is opened as the first
+       lesson of a class. Falls back to standalone module pages otherwise.
+       - In the SPA module viewer (iframe), the class id lives on the parent
+         hash and top-navigation is sandboxed off, so we open modules in a new
+         tab carrying ?class= (their own header then renders correct prev/next).
+       - Opened standalone with ?class=, we navigate in place and preserve it. */
+    (function () {
+      function getClassId() {
+        try {
+          const fromParam = new URLSearchParams(location.search).get('class');
+          if (fromParam) return fromParam;
+          if (window.top !== window) {
+            const m = (window.top.location.hash || '').match(/#\/classes\/([^\/?]+)/);
+            if (m) return decodeURIComponent(m[1]);
+          }
+        } catch (e) { /* cross-origin or blocked — fall back to standalone links */ }
+        return null;
+      }
+
+      const inIframe = window.parent !== window;
+      const classId = getClassId();
+
+      document.querySelectorAll('a.lf-module[data-file]').forEach(function (a) {
+        const folder = a.getAttribute('data-folder') || 'tfm';
+        const file = a.getAttribute('data-file');
+        let href = '../' + folder + '/' + file;
+        if (classId) href += '?class=' + encodeURIComponent(classId);
+        a.setAttribute('href', href);
+        if (inIframe) { a.target = '_blank'; a.rel = 'noopener'; }
+      });
+    })();
+  </script>
+</body>
+</html>

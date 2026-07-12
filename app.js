@@ -185,7 +185,7 @@
 
   // Route-to-group mapping for nav highlighting
   const NAV_GROUPS = {
-    research: 'research', projects: 'research', news: 'research',
+    research: 'research', projects: 'research', news: 'research', data: 'research',
     team: 'people', opportunities: 'people',
     classes: 'classes'
   };
@@ -256,6 +256,10 @@
             const moduleFile = decodeURIComponent(subParts[2].split('?')[0]);
             const html = window.McgheeLab?.renderModuleViewer?.(classSlug, moduleFile);
             if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          } else if (classSlug && subParts[1] === 'enroll') {
+            // Student enrollment / login page: #/classes/{classId}/enroll
+            const html = window.McgheeLab?.renderClassEnrollPage?.(classSlug);
+            if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
           } else if (classSlug) {
             const html = window.McgheeLab?.renderClassPage?.(classSlug);
             if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
@@ -265,6 +269,12 @@
           break;
         }
         case 'news':     view = renderNews();     break;
+        case 'data': {
+          // Data Visualizations (V3.301): #/data = gallery, #/data/{vizId} = full viewer
+          const vizSlug = (subParts[0] || '').split('?')[0];
+          view = vizSlug ? renderDataViz(vizSlug) : renderDataGallery();
+          break;
+        }
         case 'opportunities': {
           const html = window.McgheeLab?.renderOpportunities?.();
           if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
@@ -350,13 +360,17 @@
     const isModuleViewer = page === 'classes' && subParts[1] === 'modules' && subParts[2];
     const isAppsEnv = page === 'apps';
     const isAppEmbedded = isAppsEnv && !!(subParts[0] || '').split('?')[0];
-    const hideHero = page === 'cv' || isModuleViewer || isAppsEnv;
+    const isDataViewer = page === 'data' && !!(subParts[0] || '').split('?')[0];
+    const hideHero = page === 'cv' || page === 'classes' || isModuleViewer || isAppsEnv || isDataViewer;
     const hideFooter = isAppsEnv;
     if (heroEl) heroEl.style.display = hideHero ? 'none' : '';
     if (footerEl) footerEl.style.display = hideFooter ? 'none' : '';
     // Body classes for CSS to hide parent chrome in apps environment
     document.body.classList.toggle('apps-env', isAppsEnv);
     document.body.classList.toggle('apps-embedded', isAppEmbedded);
+    // Full-screen data viewer (#/data/{vizId}): immersive on mobile — hides the
+    // bottom tab bar so the viewer's own bottom quick-links aren't covered.
+    document.body.classList.toggle('data-viewer-env', isDataViewer);
 
     // Wire subnav (desktop clicks + touch/pen swipe)
     wireUpSubnav(view);
@@ -404,6 +418,8 @@
           if (wireSlug && subParts[1] === 'modules' && subParts[2]) {
             const wireModFile = decodeURIComponent(subParts[2].split('?')[0]);
             await window.McgheeLab?.wireModuleViewer?.(wireSlug, wireModFile);
+          } else if (wireSlug && subParts[1] === 'enroll') {
+            await window.McgheeLab?.wireClassEnrollPage?.(wireSlug);
           } else if (wireSlug) {
             await window.McgheeLab?.wireClassPage?.(wireSlug);
           }
@@ -414,6 +430,7 @@
           if (wireSchedSlug) await window.McgheeLab?.wireSchedulePage?.(wireSchedSlug);
           break;
         }
+        case 'data': await wireData(subParts); break;
       }
     } catch (err) { console.warn('User system wiring error:', err); }
 
@@ -457,6 +474,7 @@
             enableReveal();
             enableLazyImages();
             wireStoryFeedInteractions(feedEl);
+            wireVizEmbeds(feedEl);
           }
         } catch (e) {
           feedEl.innerHTML = '<p class="error-text">Failed to load stories: ' + (e.message || e) + '</p>';
@@ -468,19 +486,40 @@
     // Load Firestore-driven news feed
     if (page === 'news' && window.McgheeLab?.DB) {
       const feedEl = appEl.querySelector('#news-feed');
+      const barEl = appEl.querySelector('#news-filter-bar');
       if (feedEl) {
         try {
           const posts = await McgheeLab.DB.getPublishedNews();
           if (!posts.length) {
             feedEl.innerHTML = '<div class="empty-state-card"><p>No news posted yet.</p></div>';
           } else {
-            feedEl.innerHTML = '';
-            for (const p of posts) {
-              feedEl.appendChild(buildNewsFeedCard(p));
+            // Prefetch comment counts in parallel so the "has comments" filter and per-card
+            // badges are driven by one data round-trip rather than per-card fetches.
+            const counts = await Promise.all(posts.map(p =>
+              McgheeLab.DB.getCommentsByStory(p.id).then(c => c.length).catch(() => 0)
+            ));
+            posts.forEach((p, i) => { p._commentCount = counts[i] || 0; });
+
+            const renderList = (list) => {
+              feedEl.innerHTML = '';
+              if (!list.length) {
+                feedEl.innerHTML = '<div class="empty-state-card"><p>No posts match your filters.</p></div>';
+                return;
+              }
+              for (const p of list) feedEl.appendChild(buildNewsFeedCard(p));
+              enableReveal();
+              enableLazyImages();
+              wireNewsFeedInteractions(feedEl);
+              wireVizEmbeds(feedEl);
+            };
+
+            if (barEl) {
+              barEl.innerHTML = buildNewsFilterBar(posts);
+              barEl.hidden = false;
+              wireNewsFilters(barEl, feedEl, posts, renderList);
+            } else {
+              renderList(posts);
             }
-            enableReveal();
-            enableLazyImages();
-            wireNewsFeedInteractions(feedEl);
           }
         } catch (e) {
           feedEl.innerHTML = '<p class="error-text">Failed to load news: ' + (e.message || e) + '</p>';
@@ -495,6 +534,27 @@
       if (gridEl) {
         try {
           const courses = await McgheeLab.DB.getPublishedClasses();
+          // V3.244 — guarantee BME 295C is listed on the public classes page
+          // until/unless the admin adds it via the admin UI. Falls through to
+          // the existing card-render loop below.
+          if (!courses.some(c => c.detailPage === 'bme295c' || c.id === 'bme295c')) {
+            courses.unshift({
+              id: 'bme295c',
+              detailPage: 'bme295c',
+              title: 'BME 295C — Challenges in Biomedical Engineering',
+              description: 'A one-week summer course for rising high-school juniors and seniors. Interactive lectures, lab tours, and small-group discussions across the UA Tucson and UA Phoenix campuses.',
+              level: 'High school',
+              when: 'Summer 2026',
+              classDates: {
+                startDate: '2026-06-08',
+                endDate: '2026-06-12',
+                daysOfWeek: [1,2,3,4,5],
+                startTime: '8:30 AM',
+                endTime: '11:30 AM'
+              },
+              order: -1
+            });
+          }
           if (!courses.length) {
             gridEl.innerHTML = '<div class="empty-state-card"><p>No classes listed yet.</p></div>';
           } else {
@@ -525,6 +585,18 @@
             }
             enableReveal();
           }
+
+          // V3.304 — teacher outreach banner + approved-review strip
+          const teacherCard = div('card class-item reveal tc-teacher-banner');
+          teacherCard.innerHTML = `
+            <h3>Teachers: bring these modules to your classroom</h3>
+            <p>Our interactive modules — bioprinting, optics, biomechanics, and more — are free for schools. Sign in, request a class, and get a join code for your students.</p>
+            <p><a href="#/login" class="btn">Get started &rarr;</a></p>`;
+          gridEl.appendChild(teacherCard);
+          if (window.McgheeLab?.renderClassReviewsSection) {
+            McgheeLab.renderClassReviewsSection(gridEl.parentElement).catch(() => {});
+          }
+          enableReveal();
         } catch (e) {
           gridEl.innerHTML = '<p class="error-text">Failed to load classes.</p>';
           console.warn('Classes load error:', e);
@@ -543,8 +615,9 @@
         const loadingEl = document.getElementById('team-loading');
         if (loadingEl) loadingEl.remove();
 
-        // Exclude guests from team page
-        const teamUsers = users.filter(u => u.role !== 'guest');
+        // Exclude guests, hidden users (V3.208), and collaborators (V3.209)
+        // from the public team page.
+        const teamUsers = users.filter(u => u.role !== 'guest' && !u.hidden && u.category !== 'collaborator');
 
         // Index published stories by authorUid
         const storiesByAuthor = {};
@@ -895,9 +968,10 @@
 
         const catLabels = {
           pi: 'Principal Investigator', postdoc: 'Postdoctoral', grad: 'Graduate',
-          undergrad: 'Undergraduate', highschool: 'High School', alumni: 'Alumni'
+          masters: 'Masters', undergrad: 'Undergraduate', highschool: 'High School',
+          alumni: 'Alumni'
         };
-        const catOrder = ['pi', 'postdoc', 'grad', 'undergrad', 'highschool', 'alumni'];
+        const catOrder = ['pi', 'postdoc', 'grad', 'masters', 'undergrad', 'highschool', 'alumni'];
 
         const byCat = {};
         unmatched.forEach(u => {
@@ -971,6 +1045,66 @@
             return; // skip normal grid flow for PI
           }
 
+          // V3.312 — alumni subdivide by priorCategory (postdoc → PhD →
+          // masters → undergrad → highschool → unknown "Alumni" bucket).
+          // Each non-empty subsection gets a header + its own grid and
+          // detail panel; unknown-only renders without a subheader.
+          if (cat === 'alumni') {
+            const priorOrder = ['postdoc', 'grad', 'masters', 'undergrad', 'highschool', ''];
+            const priorLabels = {
+              postdoc: 'Postdoctoral', grad: 'PhD', masters: 'Masters',
+              undergrad: 'Undergraduate', highschool: 'High School', '': 'Alumni'
+            };
+            const byPrior = {};
+            catUsers.forEach(u => {
+              const p = priorOrder.includes(u.priorCategory) ? u.priorCategory : '';
+              if (!byPrior[p]) byPrior[p] = [];
+              byPrior[p].push(u);
+            });
+            const namedGroupCount = priorOrder.filter(p => p && byPrior[p]).length;
+
+            const section = div('section reveal');
+            section.innerHTML = `<div class="max-w"><h2>${esc(catLabels.alumni)}</h2></div>`;
+
+            priorOrder.forEach(p => {
+              const group = byPrior[p];
+              if (!group) return;
+
+              if (p !== '' || namedGroupCount) {
+                const head = div('max-w');
+                head.innerHTML = `<h3 class="alumni-subheader">${esc(priorLabels[p])}</h3>`;
+                section.appendChild(head);
+              }
+
+              const subGrid = div('max-w grid grid-fit-250 team-grid');
+              const dp = document.createElement('div');
+              dp.className = 'team-detail-panel';
+              dp.hidden = true;
+              dp.innerHTML = `
+                <div class="team-detail-arrow"></div>
+                <div class="team-detail-card card">
+                  <button type="button" class="team-detail-close" aria-label="Close">&times;</button>
+                  <div class="team-detail-content"></div>
+                </div>
+              `;
+              subGrid.appendChild(dp);
+              section.appendChild(subGrid);
+              wireTeamDetailPanel(subGrid, dp);
+
+              group.forEach(u => {
+                const card = div('card person');
+                updateCard(card, u);
+                subGrid.insertBefore(card, dp);
+              });
+            });
+
+            // Alumni is last in catOrder — append after the other sections
+            const allSections = appEl.querySelectorAll('.section');
+            const container = allSections.length ? allSections[0].parentNode : appEl;
+            container.appendChild(section);
+            return;
+          }
+
           if (!grid) {
             const section = div('section reveal');
             section.innerHTML = `<div class="max-w"><h2>${esc(catLabels[cat])}</h2></div>`;
@@ -1028,6 +1162,15 @@
 
         enableReveal();
         enableLazyImages();
+
+        // V3.304 — featured external teachers (approved teacherProfiles),
+        // appended after all lab-member sections. Renders nothing until
+        // the first profile is approved.
+        if (window.McgheeLab?.renderFeaturedTeachersSection) {
+          McgheeLab.renderFeaturedTeachersSection(appEl)
+            .then(() => { enableReveal(); enableLazyImages(); })
+            .catch(() => {});
+        }
       }).catch(e => console.warn('Firestore team overlay unavailable:', e));
     }
   }
@@ -1076,6 +1219,15 @@
       <div class="max-w">
         <h2>Research Stories</h2>
         <p class="page-subtitle">The latest research from our lab members.</p>
+      </div>
+      <div class="max-w">
+        <a class="card viz-gateway-card reveal" href="#/data">
+          <span class="viz-gateway-icon" aria-hidden="true">\ud83e\uddca</span>
+          <span class="viz-gateway-text">
+            <strong>Data Visualizations</strong>
+            <span>Explore interactive 3D datasets from our experiments \u2192</span>
+          </span>
+        </a>
       </div>
       <div class="max-w" id="stories-feed">
         <p class="loading-text">Loading stories\u2026</p>
@@ -1172,6 +1324,7 @@
       text: sec.text || '',
       image: sec.image?.medium || sec.image?.full || '',
       video: sec.video || '',
+      viz: sec.viz || null,
       imageAlt: sec.imageAlt || ''
     }));
     const expandedContent = buildExpandedHTML(storyBlocks, s);
@@ -1207,6 +1360,7 @@
 
   /* ── Wire reactions + comments on story feed ── */
   function wireStoryFeedInteractions(feedEl) {
+    wireImageZoom(feedEl);
     // Load reactions for each story
     feedEl.querySelectorAll('.reaction-bar').forEach(bar => {
       const storyId = bar.dataset.storyId;
@@ -1243,11 +1397,153 @@
         <h2>News</h2>
         <p class="page-subtitle">Updates, events, and highlights from the McGhee Lab.</p>
       </div>
+      <div class="max-w" id="news-filter-bar" hidden></div>
       <div class="max-w" id="news-feed">
         <p class="loading-text">Loading news\u2026</p>
       </div>
     `;
     return wrap;
+  }
+
+  /* News filter state — shared closure owned by wireNewsFilters(). Kept here so it's discoverable. */
+  function buildNewsFilterBar(posts) {
+    const cats = window.McgheeLab?.NEWS_CATEGORIES || [];
+    const presentCatValues = new Set(posts.map(p => p.category).filter(Boolean));
+    const people = collectNewsPeople(posts);
+
+    const typeChips = cats
+      .filter(c => presentCatValues.has(c.value))
+      .map(c => `<button type="button" class="news-filter-chip" data-filter="type" data-value="${esc(c.value)}">${esc(c.label)}</button>`)
+      .join('');
+
+    const personOptions = ['<option value="">All people</option>']
+      .concat(people.map(name => `<option value="${esc(name)}">${esc(name)}</option>`))
+      .join('');
+
+    const timeChips = [
+      { value: 'all',  label: 'All time' },
+      { value: '30',   label: '30 days' },
+      { value: '90',   label: '3 months' },
+      { value: '365',  label: '1 year' }
+    ].map(t =>
+      `<button type="button" class="news-filter-chip${t.value === 'all' ? ' active' : ''}" data-filter="time" data-value="${esc(t.value)}">${esc(t.label)}</button>`
+    ).join('');
+
+    return `
+      <div class="news-filter-bar-inner">
+        <div class="news-filter-group">
+          <span class="news-filter-label">Type</span>
+          <div class="news-filter-chips">${typeChips || '<span class="hint">None</span>'}</div>
+        </div>
+        <div class="news-filter-group">
+          <label class="news-filter-label" for="news-filter-person">Person</label>
+          <select id="news-filter-person" class="news-filter-select">${personOptions}</select>
+        </div>
+        <div class="news-filter-group">
+          <span class="news-filter-label">Time</span>
+          <div class="news-filter-chips">${timeChips}</div>
+        </div>
+        <div class="news-filter-group">
+          <label class="news-filter-toggle">
+            <input type="checkbox" id="news-filter-comments">
+            <span>Has comments</span>
+          </label>
+        </div>
+        <div class="news-filter-meta">
+          <span id="news-filter-count" class="news-filter-count"></span>
+          <button type="button" id="news-filter-clear" class="news-filter-clear">Clear filters</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function collectNewsPeople(posts) {
+    const names = new Set();
+    posts.forEach(p => {
+      if (p.authorName) names.add(p.authorName);
+      if (p.team?.author?.name) names.add(p.team.author.name);
+      if (p.team?.mentor?.name) names.add(p.team.mentor.name);
+      (p.team?.contributors || []).forEach(c => { if (c?.name) names.add(c.name); });
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }
+
+  function postInvolvesPerson(post, name) {
+    if (!name) return true;
+    if (post.authorName === name) return true;
+    if (post.team?.author?.name === name) return true;
+    if (post.team?.mentor?.name === name) return true;
+    return (post.team?.contributors || []).some(c => c?.name === name);
+  }
+
+  function applyNewsFilters(posts, state) {
+    const now = Date.now();
+    return posts.filter(p => {
+      if (state.types.size && !state.types.has(p.category)) return false;
+      if (!postInvolvesPerson(p, state.person)) return false;
+      if (state.time !== 'all') {
+        const days = Number(state.time);
+        const ts = p.publishedAt?.toDate?.()?.getTime?.();
+        if (!ts || (now - ts) > days * 86400000) return false;
+      }
+      if (state.hasComments && !(p._commentCount > 0)) return false;
+      return true;
+    });
+  }
+
+  function wireNewsFilters(barEl, feedEl, allPosts, renderList) {
+    const state = { types: new Set(), person: '', time: 'all', hasComments: false };
+
+    const personSel = barEl.querySelector('#news-filter-person');
+    const commentsToggle = barEl.querySelector('#news-filter-comments');
+    const clearBtn = barEl.querySelector('#news-filter-clear');
+    const countEl = barEl.querySelector('#news-filter-count');
+
+    function rerender() {
+      const filtered = applyNewsFilters(allPosts, state);
+      if (countEl) {
+        countEl.textContent = filtered.length === allPosts.length
+          ? `${allPosts.length} post${allPosts.length === 1 ? '' : 's'}`
+          : `Showing ${filtered.length} of ${allPosts.length}`;
+      }
+      renderList(filtered);
+    }
+
+    // Type chips (multi-select)
+    barEl.querySelectorAll('[data-filter="type"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = btn.dataset.value;
+        if (state.types.has(v)) { state.types.delete(v); btn.classList.remove('active'); }
+        else { state.types.add(v); btn.classList.add('active'); }
+        rerender();
+      });
+    });
+
+    // Time chips (single-select)
+    barEl.querySelectorAll('[data-filter="time"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.time = btn.dataset.value;
+        barEl.querySelectorAll('[data-filter="time"]').forEach(b => b.classList.toggle('active', b === btn));
+        rerender();
+      });
+    });
+
+    personSel?.addEventListener('change', () => { state.person = personSel.value; rerender(); });
+    commentsToggle?.addEventListener('change', () => { state.hasComments = commentsToggle.checked; rerender(); });
+
+    clearBtn?.addEventListener('click', () => {
+      state.types.clear();
+      state.person = '';
+      state.time = 'all';
+      state.hasComments = false;
+      barEl.querySelectorAll('.news-filter-chip.active').forEach(b => b.classList.remove('active'));
+      barEl.querySelector('[data-filter="time"][data-value="all"]')?.classList.add('active');
+      if (personSel) personSel.value = '';
+      if (commentsToggle) commentsToggle.checked = false;
+      rerender();
+    });
+
+    rerender();
   }
 
   function buildNewsFeedCard(p) {
@@ -1266,9 +1562,10 @@
       text: sec.text || '',
       image: sec.image?.medium || sec.image?.full || '',
       video: sec.video || '',
+      viz: sec.viz || null,
       imageAlt: sec.imageAlt || ''
     }));
-    const expandedContent = buildStoryHTML(newsBlocks);
+    const expandedContent = buildExpandedHTML(newsBlocks, p);
 
     const textContent = `
       <div class="story-feed-header">
@@ -1299,7 +1596,7 @@
           <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
           <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
             <span class="comment-icon">\uD83D\uDCAC</span>
-            <span class="comment-count" data-comment-count="${esc(p.id)}">0</span>
+            <span class="comment-count" data-comment-count="${esc(p.id)}">${esc(p._commentCount ?? 0)}</span>
           </button>
         </div>
         <div class="comments-section" data-comments-for="${esc(p.id)}" hidden></div>`;
@@ -1311,7 +1608,7 @@
           <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
           <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
             <span class="comment-icon">\uD83D\uDCAC</span>
-            <span class="comment-count" data-comment-count="${esc(p.id)}">0</span>
+            <span class="comment-count" data-comment-count="${esc(p.id)}">${esc(p._commentCount ?? 0)}</span>
           </button>
         </div>
         <div class="comments-section" data-comments-for="${esc(p.id)}" hidden></div>`;
@@ -1323,20 +1620,16 @@
   }
 
   function wireNewsFeedInteractions(feedEl) {
+    wireImageZoom(feedEl);
     feedEl.querySelectorAll('.reaction-bar').forEach(bar => {
       const storyId = bar.dataset.storyId;
       if (window.McgheeLab?.loadReactions) McgheeLab.loadReactions(storyId, bar);
     });
 
+    // Comment counts are populated up front from the prefetched `_commentCount`;
+    // here we just wire click-to-expand.
     feedEl.querySelectorAll('.comment-toggle').forEach(btn => {
       const storyId = btn.dataset.storyId;
-      const countEl = feedEl.querySelector(`[data-comment-count="${storyId}"]`);
-      if (window.McgheeLab?.DB) {
-        McgheeLab.DB.getCommentsByStory(storyId).then(comments => {
-          if (countEl) countEl.textContent = comments.length || '0';
-        }).catch(() => {});
-      }
-
       btn.addEventListener('click', () => {
         const section = feedEl.querySelector(`[data-comments-for="${storyId}"]`);
         if (!section) return;
@@ -1349,6 +1642,276 @@
     });
   }
 
+  /* ===========================
+     DATA VISUALIZATIONS (V3.301)
+     Gallery (#/data), full viewer (#/data/{vizId}?view={viewId}), and the
+     poster-until-visible embeds used by story/news sections. Registry is
+     the static DataIllustrations/manifest.json; saved views live in the
+     Firestore `vizViews` collection (DB.getVizViews etc. in user-system.js).
+     =========================== */
+  let vizManifestCache = null;
+  async function loadVizManifest(){
+    if (vizManifestCache) return vizManifestCache;
+    const res = await fetch('DataIllustrations/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    vizManifestCache = Array.isArray(data.visualizations) ? data.visualizations : [];
+    return vizManifestCache;
+  }
+
+  function vizConfigB64(config){
+    try { return btoa(JSON.stringify(config || {})); } catch { return ''; }
+  }
+
+  // Viewer URL builder. `file` may be a bare filename or a relative subpath
+  // (viz folders live inside DataIllustrations/, e.g. "granular-flow/index.html");
+  // segments are sanitized and traversal dropped so Firestore-sourced values can
+  // never escape DataIllustrations/. Config travels in the iframe's own hash
+  // (#cfg=), which the viewer applies before its first frame.
+  function vizViewerUrl(file, config, embed){
+    const safeFile = String(file || 'viewer3d.html').split('/')
+      .filter(seg => seg && seg !== '.' && seg !== '..')
+      .map(seg => seg.replace(/[^\w.\-]/g, ''))
+      .filter(Boolean)
+      .join('/') || 'viewer3d.html';
+    return 'DataIllustrations/' + safeFile
+      + (embed ? '?embed=1' : '')
+      + (config ? '#cfg=' + encodeURIComponent(vizConfigB64(config)) : '');
+  }
+
+  function renderDataGallery(){
+    const wrap = sectionEl();
+    wrap.innerHTML = `
+      <div class="max-w">
+        <h2>Data Visualizations</h2>
+        <p class="page-subtitle">Interactive 3D datasets from our experiments. Open one to explore — lab members can save named views for use in research stories and news.</p>
+      </div>
+      <div class="max-w viz-gallery" id="viz-gallery">
+        <p class="loading-text">Loading visualizations…</p>
+      </div>
+    `;
+    return wrap;
+  }
+
+  function renderDataViz(vizId){
+    const wrap = sectionEl();
+    wrap.classList.add('viz-viewer-section');
+    wrap.innerHTML = `
+      <div class="viz-viewer-bar" id="viz-viewer-bar">
+        <a href="#/data" class="viz-back-link">← All visualizations</a>
+        <strong class="viz-viewer-title" id="viz-viewer-title"></strong>
+        <span class="viz-save-controls" id="viz-save-controls" hidden>
+          <input type="text" id="viz-view-name" placeholder="View name…" maxlength="60">
+          <button type="button" class="btn viz-save-btn" id="viz-save-btn">Save view</button>
+        </span>
+        <span class="viz-save-status" id="viz-save-status" role="status"></span>
+      </div>
+      <div class="viz-views-strip" id="viz-views-strip" hidden></div>
+      <div class="viz-frame-wrap">
+        <iframe id="viz-frame" class="viz-frame" title="Interactive 3D visualization"></iframe>
+      </div>
+    `;
+    return wrap;
+  }
+
+  async function wireData(subParts){
+    const vizId = ((subParts || [])[0] || '').split('?')[0];
+    if (!vizId) { await wireVizGallery(); return; }
+    await wireVizViewer(vizId, (subParts || [])[0] || '');
+  }
+
+  async function wireVizGallery(){
+    const grid = appEl.querySelector('#viz-gallery');
+    if (!grid) return;
+    try {
+      const [manifest, allViews] = await Promise.all([
+        loadVizManifest(),
+        window.McgheeLab?.DB ? McgheeLab.DB.getAllVizViews().catch(() => []) : Promise.resolve([])
+      ]);
+      if (!manifest.length) {
+        grid.innerHTML = '<div class="empty-state-card"><p>No visualizations yet.</p></div>';
+        return;
+      }
+      grid.innerHTML = '';
+      for (const viz of manifest) {
+        const vizViews = allViews.filter(v => v.vizId === viz.id);
+        const poster = vizViews.find(v => v.poster)?.poster;
+        const posterSrc = poster?.medium || poster?.full || viz.thumb || '';
+        const card = div('card viz-gallery-card reveal');
+        // Image-forward card: the visualization preview IS the card, with the
+        // title as an overlaid caption. Description rides along as the link
+        // tooltip; tags/saved-view counts are intentionally off the card face.
+        card.innerHTML = `
+          <a href="#/data/${esc(viz.id)}" class="viz-gallery-link" title="${esc(viz.description || viz.title || '')}">
+            <div class="viz-gallery-thumb">
+              ${posterSrc
+                ? `<img src="${esc(posterSrc)}" alt="${esc(viz.title || viz.id)}" loading="lazy">`
+                : `<div class="viz-gallery-thumb-placeholder" aria-hidden="true">🧊</div>`}
+              <span class="viz-embed-badge">Interactive 3D</span>
+              <div class="viz-gallery-caption"><h3>${esc(viz.title || viz.id)}</h3></div>
+            </div>
+          </a>`;
+        grid.appendChild(card);
+      }
+      enableReveal();
+    } catch (e) {
+      grid.innerHTML = '<p class="error-text">Failed to load visualizations.</p>';
+      console.warn('Viz gallery error:', e);
+    }
+  }
+
+  async function wireVizViewer(vizId, rawSub){
+    const frame = appEl.querySelector('#viz-frame');
+    if (!frame) return;
+
+    let entry = null;
+    try { entry = (await loadVizManifest()).find(v => v.id === vizId) || null; }
+    catch (e) { console.warn('Viz manifest error:', e); }
+    if (!entry) {
+      const barEl = appEl.querySelector('#viz-viewer-bar');
+      if (barEl) barEl.insertAdjacentHTML('afterend',
+        '<div class="max-w"><p class="error-text">Visualization not found.</p></div>');
+      return;
+    }
+    const titleEl = appEl.querySelector('#viz-viewer-title');
+    if (titleEl) titleEl.textContent = entry.title || entry.id;
+
+    // Deep link: #/data/{vizId}?view={viewId} cold-loads with that view applied
+    const deepViewId = new URLSearchParams(rawSub.split('?')[1] || '').get('view') || '';
+    let initialView = null;
+    if (deepViewId && window.McgheeLab?.DB) {
+      try { initialView = await McgheeLab.DB.getVizView(deepViewId); } catch {}
+    }
+    frame.src = vizViewerUrl(entry.file, initialView?.config || null, false);
+
+    const auth = window.McgheeLab?.Auth;
+    const canSave = !!(auth?.currentUser && !auth.isGuest?.());
+    const saveWrap = appEl.querySelector('#viz-save-controls');
+    if (saveWrap && canSave) saveWrap.hidden = false;
+    const statusEl = appEl.querySelector('#viz-save-status');
+    const strip = appEl.querySelector('#viz-views-strip');
+
+    async function refreshStrip(activeViewId){
+      if (!strip || !window.McgheeLab?.DB) return;
+      let views = [];
+      try { views = await McgheeLab.DB.getVizViews(vizId); }
+      catch (e) { console.warn('Viz views load error:', e); }
+      if (!views.length) { strip.hidden = true; strip.innerHTML = ''; return; }
+      strip.hidden = false;
+      strip.innerHTML = views.map(v => {
+        const thumb = v.poster?.thumb || v.poster?.medium || '';
+        const canDelete = auth?.currentUser
+          && (auth.currentUser.uid === v.createdBy || auth.isAdmin?.());
+        return `
+          <div class="viz-view-thumb${v.id === activeViewId ? ' active' : ''}" data-view-id="${esc(v.id)}"
+               title="${esc(v.name || '')}${v.createdByName ? ' — ' + esc(v.createdByName) : ''}">
+            ${thumb
+              ? `<img src="${esc(thumb)}" alt="${esc(v.name || 'Saved view')}">`
+              : '<div class="viz-gallery-thumb-placeholder" aria-hidden="true">🧊</div>'}
+            <span class="viz-view-name">${esc(v.name || 'Untitled')}</span>
+            ${canDelete ? `<button type="button" class="viz-view-delete" data-delete-view="${esc(v.id)}" title="Delete view">×</button>` : ''}
+          </div>`;
+      }).join('');
+
+      strip.querySelectorAll('.viz-view-thumb').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.viz-view-delete')) return;
+          const v = views.find(x => x.id === el.dataset.viewId);
+          if (!v) return;
+          // Same-origin: apply in place (no iframe reload). Fall back to a
+          // reload with the config in the hash if the viewer isn't ready.
+          let applied = false;
+          try {
+            if (frame.contentWindow?.__applyConfig) {
+              frame.contentWindow.__applyConfig(v.config);
+              applied = true;
+            }
+          } catch {}
+          if (!applied) frame.src = vizViewerUrl(entry.file, v.config, false);
+          strip.querySelectorAll('.viz-view-thumb').forEach(t => t.classList.toggle('active', t === el));
+          history.replaceState(null, '', '#/data/' + encodeURIComponent(vizId) + '?view=' + encodeURIComponent(v.id));
+        });
+      });
+      strip.querySelectorAll('[data-delete-view]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this saved view? Published stories keep their own copy.')) return;
+          try {
+            await McgheeLab.DB.deleteVizView(btn.dataset.deleteView);
+            await refreshStrip();
+          } catch (err) {
+            console.warn('Delete view error:', err);
+            if (statusEl) statusEl.textContent = 'Delete failed.';
+          }
+        });
+      });
+    }
+    await refreshStrip(deepViewId);
+
+    const saveBtn = appEl.querySelector('#viz-save-btn');
+    const nameInput = appEl.querySelector('#viz-view-name');
+    saveBtn?.addEventListener('click', async () => {
+      const name = (nameInput?.value || '').trim();
+      if (!name) {
+        if (statusEl) statusEl.textContent = 'Give the view a name first.';
+        nameInput?.focus();
+        return;
+      }
+      const win = frame.contentWindow;
+      if (!win?.__getConfig || !win?.__snapshotBlob) {
+        if (statusEl) statusEl.textContent = 'Viewer still loading — try again in a moment.';
+        return;
+      }
+      saveBtn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Saving view…';
+      try {
+        const config = win.__getConfig();
+        const posterBlob = await win.__snapshotBlob();
+        const saved = await McgheeLab.DB.saveVizView({ vizId, name, config, posterBlob });
+        if (nameInput) nameInput.value = '';
+        if (statusEl) statusEl.textContent = 'View saved.';
+        await refreshStrip(saved?.id);
+      } catch (err) {
+        console.warn('Save view error:', err);
+        if (statusEl) statusEl.textContent = 'Save failed: ' + (err.message || err);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  }
+
+  /* Poster-until-visible embeds. The live iframe is created only while the
+     embed is near the viewport and destroyed when it leaves (frees the WebGL
+     context + the ~4 MB viewer document). At most MAX_LIVE_VIZ run at once. */
+  const MAX_LIVE_VIZ = 2;
+  function wireVizEmbeds(rootEl){
+    const embeds = rootEl.querySelectorAll('.viz-embed');
+    if (!embeds.length) return;
+    const live = new Map(); // embed el → iframe
+    const io = new IntersectionObserver((entries) => {
+      for (const en of entries) {
+        const el = en.target;
+        if (en.isIntersecting && !live.has(el) && live.size < MAX_LIVE_VIZ) {
+          let cfg = null;
+          try { cfg = JSON.parse(atob(el.dataset.cfg || '')); } catch {}
+          const f = document.createElement('iframe');
+          f.className = 'viz-embed-frame';
+          f.setAttribute('tabindex', '-1');
+          f.title = '3D visualization (animated preview)';
+          f.src = vizViewerUrl(el.dataset.vizFile, cfg, true);
+          f.addEventListener('load', () => el.classList.add('viz-live'));
+          el.insertBefore(f, el.querySelector('.viz-embed-overlay'));
+          live.set(el, f);
+        } else if (!en.isIntersecting && live.has(el)) {
+          live.get(el).remove();
+          live.delete(el);
+          el.classList.remove('viz-live');
+        }
+      }
+    }, { rootMargin: '100px 0px', threshold: 0.15 });
+    embeds.forEach(el => io.observe(el));
+    state.observers.push(io);
+  }
+
   function renderTeam(){
     const team = state.data.team || {};
     const wrap = sectionEl();
@@ -1357,6 +1920,7 @@
       ['pi',         'Principal Investigator'],
       ['postdoc',    'Postdoctoral'],
       ['grad',       'Graduate'],
+      ['masters',    'Masters'],
       ['undergrad',  'Undergraduate'],
       ['highschool', 'High School'],
       ['alumni',     'Alumni']
@@ -1627,11 +2191,37 @@
   function buildStoryHTML(story){
   if (!isNonEmptyArray(story)) return '';
 
+  // V3.302 — section text supports markdown-lite (**bold**, *italic*,
+  // [text](url)); renderRichText escapes all HTML before formatting.
+  const richText = window.McgheeLab?.renderRichText;
+
   return story.map(block => {
     const hasImg   = !!(block.image && String(block.image).trim());
     const hasVideo = !!(block.video && String(block.video).trim());
     const hasText  = !!(block.text && String(block.text).trim());
-    const textHTML = hasText ? `<p>${esc(block.text)}</p>` : '';
+    const textHTML = hasText ? `<p>${richText ? richText(block.text) : esc(block.text)}</p>` : '';
+
+    // With 3D visualization: poster now, live embed swapped in by wireVizEmbeds()
+    // when scrolled into view. Overlay link opens the full viewer at this view.
+    const viz = block.viz;
+    if (viz && (viz.poster || viz.config)) {
+      const posterSrc = viz.poster?.medium || viz.poster?.full || '';
+      const href = '#/data/' + encodeURIComponent(viz.vizId || '')
+        + (viz.viewId ? '?view=' + encodeURIComponent(viz.viewId) : '');
+      return `
+        <div class="section" style="margin-top:8px">
+          <div class="media">
+            <div>${textHTML}</div>
+            <div class="viz-embed" data-cfg="${esc(vizConfigB64(viz.config))}" data-viz-file="${esc(viz.file || '')}">
+              ${posterSrc ? `<img src="${esc(posterSrc)}" alt="${esc(block.imageAlt || viz.name || '3D visualization')}" class="viz-embed-poster" loading="lazy">` : ''}
+              <a class="viz-embed-overlay" href="${href}" aria-label="Open interactive 3D view">
+                <span class="viz-embed-badge">Interactive 3D — click to explore</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     // With video: two-column layout with video element
     if (hasVideo) {
@@ -2397,4 +2987,200 @@
     // Auto-dismiss after 8 seconds
     setTimeout(() => { if (toast.parentElement) toast.remove(); }, 8000);
   }
+
+  /* ===========================
+     IMAGE LIGHTBOX (zoom / pan)
+     =========================== */
+  let _lightbox = null;
+
+  function ensureLightbox() {
+    if (_lightbox) return _lightbox;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'img-lightbox';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Image viewer');
+    overlay.hidden = true;
+    overlay.innerHTML = `
+      <div class="img-lightbox-backdrop" data-role="close"></div>
+      <div class="img-lightbox-stage">
+        <img class="img-lightbox-img" alt="" draggable="false">
+      </div>
+      <div class="img-lightbox-controls" role="toolbar" aria-label="Zoom controls">
+        <button type="button" class="img-lightbox-btn" data-action="zoom-out" aria-label="Zoom out">&minus;</button>
+        <button type="button" class="img-lightbox-btn" data-action="reset" aria-label="Reset zoom">1:1</button>
+        <button type="button" class="img-lightbox-btn" data-action="zoom-in" aria-label="Zoom in">+</button>
+      </div>
+      <button type="button" class="img-lightbox-close" data-role="close" aria-label="Close image viewer">&times;</button>
+    `;
+    document.body.appendChild(overlay);
+
+    const stage = overlay.querySelector('.img-lightbox-stage');
+    const img = overlay.querySelector('.img-lightbox-img');
+
+    const s = {
+      overlay, stage, img,
+      zoom: 1, minZoom: 1, maxZoom: 8,
+      tx: 0, ty: 0,
+      dragging: false, lastX: 0, lastY: 0, moved: false,
+      pinching: false, pinchStartDist: 0, pinchStartZoom: 1,
+      keyHandler: null
+    };
+
+    function apply() { img.style.transform = `translate(${s.tx}px, ${s.ty}px) scale(${s.zoom})`; }
+    function reset() { s.zoom = 1; s.tx = 0; s.ty = 0; apply(); updateCursor(); }
+    function updateCursor() { stage.style.cursor = s.zoom > 1 ? 'grab' : 'zoom-in'; }
+    function setZoom(newZoom, cx, cy) {
+      const z = Math.max(s.minZoom, Math.min(s.maxZoom, newZoom));
+      if (z === s.zoom) return;
+      // Zoom toward cursor: keep the point under the cursor fixed in image space
+      if (typeof cx === 'number' && typeof cy === 'number') {
+        const rect = stage.getBoundingClientRect();
+        const px = cx - rect.left - rect.width / 2;
+        const py = cy - rect.top - rect.height / 2;
+        const ratio = z / s.zoom;
+        s.tx = px - (px - s.tx) * ratio;
+        s.ty = py - (py - s.ty) * ratio;
+      }
+      s.zoom = z;
+      if (s.zoom <= s.minZoom + 1e-6) { s.zoom = s.minZoom; s.tx = 0; s.ty = 0; }
+      apply();
+      updateCursor();
+    }
+    function open(src, alt) {
+      img.src = src;
+      img.alt = alt || '';
+      reset();
+      overlay.hidden = false;
+      document.body.classList.add('img-lightbox-open');
+      if (!s.keyHandler) {
+        s.keyHandler = (e) => {
+          if (e.key === 'Escape') close();
+          else if (e.key === '+' || e.key === '=') { e.preventDefault(); setZoom(s.zoom * 1.4); }
+          else if (e.key === '-' || e.key === '_') { e.preventDefault(); setZoom(s.zoom / 1.4); }
+          else if (e.key === '0') { e.preventDefault(); reset(); }
+        };
+        document.addEventListener('keydown', s.keyHandler);
+      }
+    }
+    function close() {
+      overlay.hidden = true;
+      document.body.classList.remove('img-lightbox-open');
+      img.removeAttribute('src');
+      reset();
+      if (s.keyHandler) {
+        document.removeEventListener('keydown', s.keyHandler);
+        s.keyHandler = null;
+      }
+    }
+
+    // Backdrop / close button
+    overlay.addEventListener('click', (e) => {
+      if (e.target?.dataset?.role === 'close') close();
+    });
+
+    // Control buttons
+    overlay.querySelector('[data-action="zoom-in"]').addEventListener('click', () => setZoom(s.zoom * 1.4));
+    overlay.querySelector('[data-action="zoom-out"]').addEventListener('click', () => setZoom(s.zoom / 1.4));
+    overlay.querySelector('[data-action="reset"]').addEventListener('click', reset);
+
+    // Wheel zoom (toward cursor)
+    stage.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setZoom(s.zoom * factor, e.clientX, e.clientY);
+    }, { passive: false });
+
+    // Double-click toggles between fit and 2.5×
+    stage.addEventListener('dblclick', (e) => {
+      if (s.zoom > 1.01) reset();
+      else setZoom(2.5, e.clientX, e.clientY);
+    });
+
+    // Pan via pointer events (mouse + touch); skip when pinching
+    stage.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      if (s.pinching) return;
+      s.dragging = true;
+      s.moved = false;
+      s.lastX = e.clientX;
+      s.lastY = e.clientY;
+      try { stage.setPointerCapture(e.pointerId); } catch {}
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!s.dragging || s.pinching) return;
+      const dx = e.clientX - s.lastX;
+      const dy = e.clientY - s.lastY;
+      if (Math.abs(dx) + Math.abs(dy) > 2) s.moved = true;
+      s.lastX = e.clientX; s.lastY = e.clientY;
+      if (s.zoom > 1) { s.tx += dx; s.ty += dy; apply(); }
+    });
+    const endPan = (e) => {
+      s.dragging = false;
+      try { stage.releasePointerCapture(e.pointerId); } catch {}
+    };
+    stage.addEventListener('pointerup', endPan);
+    stage.addEventListener('pointercancel', endPan);
+
+    // Click on image (not a drag) at zoom=1 → close; keeps one-tap-to-dismiss parity with backdrop
+    img.addEventListener('click', () => {
+      if (!s.moved && s.zoom <= 1.01) close();
+    });
+
+    // Pinch to zoom (touch)
+    const touchDist = (a, b) => Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    stage.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        s.pinching = true;
+        s.dragging = false;
+        s.pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+        s.pinchStartZoom = s.zoom;
+      }
+    }, { passive: true });
+    stage.addEventListener('touchmove', (e) => {
+      if (s.pinching && e.touches.length === 2) {
+        e.preventDefault();
+        const d = touchDist(e.touches[0], e.touches[1]);
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        setZoom(s.pinchStartZoom * (d / s.pinchStartDist), cx, cy);
+      }
+    }, { passive: false });
+    stage.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) s.pinching = false;
+    });
+
+    Object.assign(s, { open, close, reset, setZoom });
+    _lightbox = s;
+    return s;
+  }
+
+  function openImageLightbox(src, alt) {
+    if (!src) return;
+    ensureLightbox().open(src, alt);
+  }
+
+  // Delegated click handler: opens the lightbox for any content image inside the given root.
+  // Skips small identity photos and clicks inside buttons/links.
+  function wireImageZoom(rootEl) {
+    if (!rootEl) return;
+    rootEl.addEventListener('click', (e) => {
+      const img = e.target.closest('img');
+      if (!img || !rootEl.contains(img)) return;
+      if (img.classList.contains('story-feed-avatar') ||
+          img.classList.contains('story-team-photo')) return;
+      if (e.target.closest('a, button')) return;
+      const src = img.currentSrc || img.src || img.dataset.src;
+      if (!src) return;
+      e.preventDefault();
+      openImageLightbox(src, img.alt);
+    });
+  }
+
+  // V3.302 — expose the feed-card builders so the dashboard editors'
+  // Preview renders the exact same card the public pages show.
+  window.McgheeLab = window.McgheeLab || {};
+  window.McgheeLab.buildStoryFeedCard = buildStoryFeedCard;
+  window.McgheeLab.buildNewsFeedCard  = buildNewsFeedCard;
 })();

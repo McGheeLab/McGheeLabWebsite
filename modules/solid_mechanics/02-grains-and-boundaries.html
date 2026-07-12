@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grains — Why Metals Bend Before They Break — Solid Mechanics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Grains — Why Metals Bend Before They Break</h1>
+  <p class="subtitle">Solid Mechanics Foundations · Lesson 2 of 5 — Metals aren't one perfect
+  crystal. They're a mosaic of tiny crystals called grains, and that mosaic decides whether a
+  metal bends, strengthens, or snaps.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="lattice">1 · A Lattice of Springs</button>
+  <button class="tab-btn" data-tab="grow">2 · What Is a Grain?</button>
+  <button class="tab-btn" data-tab="yield">3 · Boundaries Block Slip</button>
+  <button class="tab-btn" data-tab="crack">4 · How Cracks Pick Their Path</button>
+  <button class="tab-btn" data-tab="hp">5 · Level Up: Hall–Petch</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: lattice -->
+<section id="tab-lattice" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: A solid is atomic springs in every direction — a lattice</h2>
+    <p>Lesson 1 ended with a picture worth keeping: a real spring is a glowing bundle of atomic
+    springs, every bond carrying its share of the load. Now zoom out one more step. In a solid
+    those atomic springs aren't just chained left-to-right — they connect every atom to its
+    neighbors <b>in every direction</b>: side to side, up and down, front to back. The atoms
+    settle into a neat, repeating arrangement, each one sitting at its natural spacing \(r_0\)
+    from all of its neighbors. That repeating scaffold of atoms-and-springs is called a
+    <b>lattice</b>, and it is what a crystal actually is.</p>
+    <p>In a <em>perfect</em> lattice, something beautiful happens when you pull on the block:
+    every spring along the pull stretches by exactly the same amount, so every spring carries
+    <b>exactly the same force</b>. Color the springs by their load, like in Lesson 1, and the
+    whole lattice glows one single, even shade. No spring works harder than any other.</p>
+    <p>But real materials are never perfect. Atoms go missing (a <b>vacancy</b>), connections
+    fail, foreign atoms squeeze in. Knock even one atom out of the lattice and its springs vanish
+    with it — yet the load those springs were carrying doesn't disappear. It <b>reroutes through
+    the neighbors</b>, and those neighboring springs now run hotter than the rest. The force
+    distribution is no longer uniform: flaws <em>focus</em> force. Hold that thought for the whole
+    lesson — where force concentrates is where materials yield, tear, and break.</p>
+    <div class="equation-box">
+      $$ F_{\text{spring}} = k \,\times\, (\text{that spring's stretch}) \qquad\qquad
+      \text{concentration} \;=\; \frac{F_{\text{hottest spring}}}{F_{\text{perfect-lattice share}}}
+      \;\; (= 1 \text{ for a perfect lattice}) $$
+    </div>
+    <div class="worked-example">
+      <p>How bad can one flaw be? In the 2-D spring network below, a single missing atom already
+      pushes its neighboring springs to roughly \(1.3\)–\(1.5\times\) their perfect-lattice share.
+      Scale the flaw up: for a small <em>round hole</em> in a stretched sheet, elasticity theory
+      gives a stress at the hole's sides of exactly \(3\times\) the average — <b>no matter how
+      small the hole is</b> (the classic Kirsch result). That factor of 3 is why fracture almost
+      never starts in the middle of clean material: it starts at a pore, a scratch, or an
+      inclusion, where the springs are already running hot.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A crystal is a <b>lattice</b>: atoms connected by spring-like bonds in every
+        direction, repeating at the natural spacing \(r_0\).</li>
+        <li>In a perfect lattice under load, every spring carries an identical share — the force
+        distribution is perfectly uniform.</li>
+        <li>Defects (missing atoms, broken connections) force the load to reroute: neighboring
+        springs carry extra. Flaws focus force.</li>
+        <li>Where force concentrates is where failure starts — the theme of the rest of this
+        lesson.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on the "Perfect lattice" scenario and drag <b>Pull</b>. Every spring warms in
+      lock-step — one even color at every pull. Check the concentration stat: exactly 1.</li>
+      <li>Switch to "A few vacancies". Find the hottest (reddest) springs — they always sit right
+      beside a hole. How high did the concentration factor jump?</li>
+      <li>Hit <b>Reshuffle</b> a few times. The holes move, but the story doesn't: the hottest
+      springs always crowd the flaws.</li>
+      <li>Crank <b>Missing atoms</b> up. Watch the histogram grow a hot tail — a few springs doing
+      far more than their share. Predict: where will this material fail first?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="lattice" data-scen="perfect" onclick="setScen('lattice','perfect')">Perfect lattice</button>
+    <button class="scen-btn" data-tab="lattice" data-scen="fewdef" onclick="setScen('lattice','fewdef')">A few vacancies</button>
+    <button class="scen-btn" data-tab="lattice" data-scen="damaged" onclick="setScen('lattice','damaged')">Heavily damaged</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Pull (stretch the block) <span id="v-lattice-D">5</span></label>
+        <input type="range" id="s-lattice-D" min="0" max="10" step="0.5" value="5">
+      </div>
+      <div class="ctrl-group">
+        <label>Missing atoms <span id="v-lattice-def">0</span></label>
+        <input type="range" id="s-lattice-def" min="0" max="15" step="0.5" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Reshuffle <span id="v-lattice-seed">#3</span></label>
+        <input type="range" id="s-lattice-seed" min="1" max="20" step="1" value="3">
+      </div>
+      <div class="stats" id="st-lattice"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The lattice of atomic springs — color = force each spring carries</div>
+        <canvas id="cv-lattice" width="640" height="330"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">How the load is shared — count of springs at each force level</div>
+        <canvas id="cv-lattice2" width="640" height="240"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-lattice"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: grow -->
+<section id="tab-grow" class="tab-content">
+  <div class="background-section">
+    <h2>Watch it happen: freezing a puddle of metal</h2>
+    <p>Before any theory, watch the movie. The dark pool below is liquid metal sitting just under
+    its freezing temperature. Tiny crystals <b>nucleate</b> at random moments and places, then
+    <b>grow</b> outward — stacking atoms onto their own lattice, in their own orientation — until
+    they collide with a neighboring crystal. Nothing dramatic happens at the collision; there is
+    simply no liquid left to claim, so the meeting line freezes in forever as a
+    <b>grain boundary</b>.</p>
+    <p>Your control knob is the <b>cooling rate</b>. Cool slowly and only a few crystals ever get
+    started — each grows enormous before it runs into a neighbor. Quench fast and nucleation
+    fires everywhere at once — the liquid is gone before anyone grows large. Same metal, same
+    atoms; the thermal history chooses the mosaic.</p>
+  </div>
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Freeze controls</h3>
+      <div class="ctrl-group">
+        <label>Cooling rate <span id="v-grow-cool">30</span></label>
+        <input type="range" id="s-grow-cool" min="1" max="100" step="1" value="30">
+      </div>
+      <div class="ctrl-group">
+        <button class="scen-btn" style="width:100%" onclick="growReplay()">▶ Replay freeze</button>
+      </div>
+      <div class="stats" id="st-growA"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Liquid metal solidifying — crystals nucleate, grow, and collide</div>
+        <canvas id="cv-growA" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-growA"></div>
+    </div>
+  </div>
+
+  <div class="background-section">
+    <h2>Background: A metal freezes the way a parking lot fills up</h2>
+    <p>In the last tab you built a lattice: atoms connected by spring-bonds in a neat, repeating
+    pattern, every atom equally spaced from its neighbors. A <b>grain</b> is exactly that — a
+    region of material where the lattice repeats perfectly, unbroken, all tilted one single way.
+    Here's the surprise: a real chunk of metal is <b>not</b> one single grain. Watch molten metal
+    freeze and you'll see why. Crystals don't grow from one point — they start growing from
+    <b>many random points at once</b>, called <b>nuclei</b>. Each little crystal grows outward,
+    stacking atoms onto its own lattice with its own tilt — until it slams into another crystal
+    that has been growing toward it, and both run out of room.</p>
+    <p>That collision frontier, where two differently-tilted lattices meet and neither can
+    continue, is a <b>grain boundary</b>: a zone only a few atoms thick where the two patterns
+    don't line up and the atoms are jammed into a compromise — mis-stretched springs, exactly the
+    kind of imperfection Tab 1 taught you to watch. Every metal object you own — a paperclip, a
+    fork, a bike frame — is a 3-D mosaic of grains, usually far too small to see.</p>
+    <p>What sets the grain size? <b>How fast the metal cooled.</b> Fast cooling gives atoms little
+    time, so crystals start from <em>many</em> nuclei and each grain stays small. Slow cooling
+    lets a <em>few</em> nuclei do all the growing, so grains end up large. Same metal, same atoms
+    — a completely different mosaic.</p>
+    <div class="equation-box">
+      $$ d \;\approx\; \frac{L}{\sqrt{N}} \qquad
+      \begin{array}{l}\text{mean grain size } d \text{ for } N \text{ nuclei}\\
+      \text{in an } L \times L \text{ area (a scaling rule, not exact)}\end{array} $$
+    </div>
+    <div class="worked-example">
+      <p>Freeze a \(1\ \text{cm}^2\) region of metal (\(L = 0.01\ \text{m}\)). If crystallization
+      starts from \(N = 10{,}000\) nuclei, the mean grain size is
+      \(d \approx 0.01\ \text{m}/\sqrt{10^4} = 10^{-4}\ \text{m} = 100\ \text{µm}\) — about the
+      width of a human hair. Quench it fast enough to trigger \(N = 1{,}000{,}000\) nuclei and
+      \(d \approx 0.01/\sqrt{10^6} = 10\ \text{µm}\) — ten times finer, from the same metal.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A <b>grain</b> is a region where the atomic lattice repeats perfectly in one
+        orientation; a metal is a mosaic of many such grains.</li>
+        <li>Grain boundaries are few-atoms-thick zones of mismatch where growing crystals
+        collided — built-in imperfections in the spring network.</li>
+        <li>Fast cooling → many nuclei → small grains; slow cooling → few nuclei → large grains,
+        following \(d \approx L/\sqrt{N}\).</li>
+        <li>Hold this thought: the grain size you set at freezing will control the metal's
+        strength in the next tabs.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Number of nuclei</b> from 5 up to 400 and watch the mosaic refine. Check the
+      highlighted mean grain size — does quadrupling the nuclei halve it?</li>
+      <li>Hit <b>Reshuffle</b> a few times at fixed nuclei count. The pattern changes but the
+      <em>mean grain size</em> barely moves — statistics beat randomness.</li>
+      <li>Compare the "Slow cool" and "Fast cool" scenarios. Which mosaic has more boundary
+      (dark lines) per square millimeter?</li>
+      <li>Find each grain's nucleation dot. Convince yourself every boundary sits roughly halfway
+      between two dots — that's where two growing crystals met.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="grow" data-scen="slow" onclick="setScen('grow','slow')">Slow cool (big grains)</button>
+    <button class="scen-btn on" data-tab="grow" data-scen="typical" onclick="setScen('grow','typical')">Typical</button>
+    <button class="scen-btn" data-tab="grow" data-scen="fast" onclick="setScen('grow','fast')">Fast cool (small grains)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Number of nuclei <span id="v-grow-n">60</span></label>
+        <input type="range" id="s-grow-n" min="5" max="400" step="1" value="60">
+      </div>
+      <div class="ctrl-group">
+        <label>Reshuffle <span id="v-grow-seed">#3</span></label>
+        <input type="range" id="s-grow-seed" min="1" max="20" step="1" value="3">
+      </div>
+      <div class="stats" id="st-grow"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The grain mosaic (1 mm × 0.5 mm of metal; dots = nuclei; color = lattice orientation)</div>
+        <canvas id="cv-grow" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Mean grain size vs. number of nuclei — d ∝ 1/√N</div>
+        <canvas id="cv-grow2" width="640" height="250"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-grow"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: yield -->
+<section id="tab-yield" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Why a paperclip bends — and why boundaries fight back</h2>
+    <p>Bend a paperclip and it <em>stays</em> bent. Lesson 1's springs can't explain that —
+    springs bounce back. Permanent bending happens because whole <b>planes of atoms slide past
+    each other</b> inside each grain. The sliding doesn't happen all at once; it travels as a
+    ripple called a <b>dislocation</b>, like sliding a bump across a rug instead of dragging the
+    whole rug. One dislocation gliding across a grain shifts the crystal by one atomic step.
+    Billions of them add up to a visible, permanent bend. That's <b>slip</b>, and the stress
+    where it starts is the metal's <b>yield strength</b>.</p>
+    <p>Now the key event of this lesson: a slip ripple runs easily <em>inside</em> one grain —
+    the lattice there is a smooth, continuous runway. But when it reaches a <b>grain boundary,
+    it stops dead</b>. The next grain's lattice points a different way, so the slip plane simply
+    doesn't continue. Imagine sprinting through a building: one open hall and you can really get
+    moving; many small rooms and you hit a wall every few steps. Smaller grains = shorter runways
+    = more obstacles = a <b>stronger</b> metal.</p>
+    <div class="equation-box">
+      $$ \text{Blocked dislocations pile up at the boundary; a pile-up in a small grain is short
+      and weak, so the stress needed to keep slip going grows as } d \text{ shrinks:}\qquad
+      \sigma_y = \sigma_0 + \frac{k_y}{\sqrt{d}} $$
+    </div>
+    <p>For now read that only qualitatively — smaller \(d\), higher yield strength
+    \(\sigma_y\). Tab 4 makes it exact, with real numbers for steel.</p>
+    <div class="worked-example">
+      <p>Atomic spacing in a metal is about \(0.25\ \text{nm}\). A dislocation gliding across a
+      \(50\ \text{µm}\) grain travels \(50\times10^{-6} / 0.25\times10^{-9} = 200{,}000\) atomic
+      spacings before a boundary stops it. In a \(5\ \text{µm}\) grain it manages only
+      \(20{,}000\). To produce the same total bend, the fine-grained metal forces its dislocations
+      through <em>ten times more</em> boundary encounters — which is exactly why it takes more
+      stress to bend it.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Permanent (plastic) bending is atomic planes sliding — dislocation slip — inside grains.</li>
+        <li>Grain boundaries stop slip because the neighboring lattice points a different way.</li>
+        <li>Smaller grains mean shorter slip runways and more obstacles, so yield strength rises.</li>
+        <li>Each grain yields at its own stress (orientation luck), so yielding spreads gradually,
+        not all at once.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load the "Coarse grains, low load" scenario and note the % of grains slipping. Now click
+      "Fine grains, same load" — same stress, same metal chemistry. What changed?</li>
+      <li>With coarse grains, raise <b>Applied stress</b> slowly from 0. At what stress does the
+      first grain slip? Where does the S-curve take off?</li>
+      <li>Watch <em>which</em> grains yield first as you increase the load — the slip-line
+      direction differs grain to grain because each lattice is tilted its own way.</li>
+      <li>Try "Overloaded". Can any realistic grain refinement rescue the metal at 350 MPa?
+      Drag <b>Grain refinement</b> to the max and see.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="yield" data-scen="coarse" onclick="setScen('yield','coarse')">Coarse grains, low load</button>
+    <button class="scen-btn" data-tab="yield" data-scen="fine" onclick="setScen('yield','fine')">Fine grains, same load</button>
+    <button class="scen-btn" data-tab="yield" data-scen="over" onclick="setScen('yield','over')">Overloaded</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Grain refinement <span id="v-yield-d">30</span></label>
+        <input type="range" id="s-yield-d" min="10" max="300" step="1" value="30">
+      </div>
+      <div class="ctrl-group">
+        <label>Applied stress <span id="v-yield-load">130</span></label>
+        <input type="range" id="s-yield-load" min="0" max="400" step="2" value="130">
+      </div>
+      <div class="stats" id="st-yield"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Grain map under tension — warm grains have started to slip (lines = slip planes)</div>
+        <canvas id="cv-yield" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Fraction of grains slipping vs. applied stress</div>
+        <canvas id="cv-yield2" width="640" height="250"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-yield"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: crack -->
+<section id="tab-crack" class="tab-content">
+  <div class="background-section">
+    <h2>Background: When a metal does break, the crack has to choose a route</h2>
+    <p>Suppose the load keeps rising past yield and a crack starts. To grow, the crack must
+    create new surface — and creating surface costs energy. So at every grain it reaches, the
+    crack faces a choice: <b>cut straight through the grain</b> (called <b>transgranular</b>
+    fracture, following a weak crystal plane inside the grain) or <b>follow the grain boundary
+    around it</b> (<b>intergranular</b> fracture).</p>
+    <p>If the boundaries are <b>strong</b>, the crack is forced to go through the grains. But each
+    grain's weak planes point a different way, so the crack must <b>change direction at nearly
+    every boundary</b> — a zig-zag, tortuous path that is longer, creates more surface, and
+    repeatedly blunts the sharp crack tip. Every deflection is energy the crack has to pay. This
+    is a big part of why fine-grained metals are often <b>tougher</b>: more boundaries, more
+    forced turns.</p>
+    <p>But if the boundaries have been <b>weakened</b> — by impurities segregating there, by
+    hydrogen, or by a bad heat treatment — the boundaries become the cheapest route. The crack
+    glides along them like sidewalks through the mosaic, barely paying anything. Intergranular
+    fracture surfaces look like a pile of sugar cubes: you can see the shapes of whole grains,
+    because the crack never entered any of them. That is the fingerprint of an
+    <b>embrittled</b> metal.</p>
+    <div class="equation-box">
+      $$ L_{\text{path}} \;\approx\; \frac{L_{\text{straight}}}{\cos\bar{\theta}} \qquad
+      \text{a crack that deflects by an average angle } \bar{\theta}
+      \text{ at each boundary travels farther — and pays for it.} $$
+    </div>
+    <div class="worked-example">
+      <p>A crack crosses a \(10\ \text{mm}\) plate made of \(100\ \text{µm}\) grains, so it meets
+      roughly \(10\ \text{mm}/100\ \text{µm} = 100\) boundaries. If it deflects about
+      \(30^\circ\) at each one, its path length is roughly
+      \(10\ \text{mm}/\cos 30^\circ \approx 11.5\ \text{mm}\) — about 15% more new surface (and
+      surface energy) than a straight cut. On top of that, each deflection tilts the crack away
+      from the pulling direction and blunts the stress concentration at its tip. Many small tolls
+      add up to real toughness.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Cracks choose the cheapest route: through grains (transgranular) or along boundaries
+        (intergranular).</li>
+        <li>Strong boundaries force a tortuous transgranular zig-zag — longer path, more energy,
+        tougher metal.</li>
+        <li>Weakened boundaries (impurities, hydrogen, bad heat treatment) give the crack a
+        sidewalk: brittle intergranular fracture.</li>
+        <li>Grain size matters here too: finer grains mean more forced deflections per millimeter.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on "Tough (strong boundaries)". Watch the crack zig-zag through grains. Note the
+      highlighted path-length ratio and the toughness bar.</li>
+      <li>Now drag <b>Boundary strength</b> down toward 0 (or click "Embrittled"). Watch the crack
+      switch to hugging boundaries — and the toughness index collapse even though the path can
+      still be wiggly. Cheap surface is cheap.</li>
+      <li>Click "Coarse-grained". With few boundaries to deflect it, how close to a straight cut
+      does the crack get?</li>
+      <li>Keeping boundary strength high, raise <b>Grain count</b> from 10 to 200. Does the path
+      ratio grow with the number of forced turns?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="crack" data-scen="tough" onclick="setScen('crack','tough')">Tough (strong boundaries)</button>
+    <button class="scen-btn" data-tab="crack" data-scen="embrittled" onclick="setScen('crack','embrittled')">Embrittled (weak boundaries)</button>
+    <button class="scen-btn" data-tab="crack" data-scen="coarse" onclick="setScen('crack','coarse')">Coarse-grained</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Grain count <span id="v-crack-n">120</span></label>
+        <input type="range" id="s-crack-n" min="10" max="200" step="1" value="120">
+      </div>
+      <div class="ctrl-group">
+        <label>Boundary strength <span id="v-crack-gb">85</span></label>
+        <input type="range" id="s-crack-gb" min="0" max="100" step="1" value="85">
+      </div>
+      <div class="stats" id="st-crack"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">A crack crossing a 10 mm plate — dark line = crack path</div>
+        <canvas id="cv-crack" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Path-length bookkeeping (toughness bar is a qualitative index)</div>
+        <canvas id="cv-crack2" width="640" height="210"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-crack"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: hp -->
+<section id="tab-hp" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: the Hall–Petch relation \( \sigma_y = \sigma_0 + k_y/\sqrt{d} \)</h2>
+    <p>Time to make Tab 2 quantitative. When dislocations pile up against a grain boundary, the
+    pile-up acts like a lever: each blocked dislocation pushes on the ones ahead, concentrating
+    stress on the boundary and on the next grain. The <b>number of dislocations a pile-up can
+    hold scales with the grain size</b> \(d\) — a big grain hosts a long, powerful pile-up that
+    hammers slip into the neighboring grain at low applied stress; a small grain can only muster
+    a short, weak one. Work through the mechanics (Hall 1951, Petch 1953, arriving from opposite
+    directions — deformation and cleavage) and the applied stress needed to spread yielding comes
+    out with a \(1/\sqrt{d}\) dependence. That is the empirical <b>Hall–Petch law</b>:</p>
+    <div class="equation-box">
+      $$ \sigma_y \;=\; \sigma_0 \;+\; \frac{k_y}{\sqrt{d}} $$
+      <p style="margin:6px 0 0">\(\sigma_y\) — yield strength (MPa); \(\sigma_0\) — friction
+      stress, the lattice's intrinsic resistance to dislocation motion (MPa); \(k_y\) —
+      strengthening coefficient, how strongly boundaries impede slip (MPa·√m); \(d\) — mean
+      grain diameter (m).</p>
+    </div>
+    <p>Plot measured \(\sigma_y\) against \(1/\sqrt{d}\) and metals fall on a straight line:
+    intercept \(\sigma_0\), slope \(k_y\). One caution before you extrapolate to zero: the law is
+    empirical and has <b>validity limits</b>. Below grain sizes of very roughly 10–20 nm the
+    trend <em>reverses</em> — the famous <b>inverse Hall–Petch</b> regime — because grains that
+    tiny can't host pile-ups at all, and deformation switches to grain-boundary sliding.
+    Refinement stops paying, then starts costing.</p>
+    <div class="worked-example">
+      <p>Low-carbon steel: \(\sigma_0 = 70\ \text{MPa}\), \(k_y = 0.74\ \text{MPa·√m}\).
+      At \(d = 32\ \text{µm}\): \(\sqrt{d} = 5.66\times10^{-3}\ \sqrt{\text{m}}\), so
+      \(k_y/\sqrt{d} = 0.74/5.66\times10^{-3} = 131\ \text{MPa}\) and
+      \(\sigma_y \approx 70 + 131 = 201\ \text{MPa}\). Refine the grains to
+      \(d = 8\ \text{µm}\): \(k_y/\sqrt{d} = 262\ \text{MPa}\), so
+      \(\sigma_y \approx 332\ \text{MPa}\). Quartering the grain size added ~130 MPa of yield
+      strength <em>without changing the composition at all</em> — strength for free, from heat
+      treatment and processing alone.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Dislocation pile-ups concentrate stress; longer pile-ups (bigger grains) transmit slip
+        at lower applied stress.</li>
+        <li>\(\sigma_y = \sigma_0 + k_y/\sqrt{d}\): a straight line on a \(\sigma_y\) vs.
+        \(1/\sqrt{d}\) plot — intercept \(\sigma_0\), slope \(k_y\).</li>
+        <li>Grain refinement is one of the only strengthening routes that usually improves
+        toughness at the same time (Tab 3).</li>
+        <li>It has limits: near ~10–20 nm grains the trend inverts (inverse Hall–Petch) as
+        boundary sliding takes over.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On "Annealed (coarse, 32 µm)", verify the worked example: read \(1/\sqrt{d}\) and
+      \(\sigma_y\) in the stats. Then click "Fine-grained (8 µm)" and confirm the ~130 MPa jump.</li>
+      <li>Drag <b>Grain size d</b> across its whole range and watch both plots: the moving point
+      slides along a straight line on the left plot but sweeps a steep curve on the right. Same
+      law, two views.</li>
+      <li>Change <b>σ₀</b> alone, then <b>k_y</b> alone. Which one shifts the line up, and which
+      one tilts it?</li>
+      <li>Push into "Ultrafine (0.8 µm)". Note how much strength the last few microns buy — then
+      read the verdict about where this game must eventually end.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="hp" data-scen="annealed" onclick="setScen('hp','annealed')">Annealed (coarse, 32 µm)</button>
+    <button class="scen-btn" data-tab="hp" data-scen="fine" onclick="setScen('hp','fine')">Fine-grained (8 µm)</button>
+    <button class="scen-btn" data-tab="hp" data-scen="ultra" onclick="setScen('hp','ultra')">Ultrafine (0.8 µm)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Friction stress σ₀ <span id="v-hp-s0">70</span></label>
+        <input type="range" id="s-hp-s0" min="10" max="200" step="1" value="70">
+      </div>
+      <div class="ctrl-group">
+        <label>Coefficient k_y <span id="v-hp-ky">0.74</span></label>
+        <input type="range" id="s-hp-ky" min="0.1" max="2.0" step="0.01" value="0.74">
+      </div>
+      <div class="ctrl-group">
+        <label>Grain size d <span id="v-hp-d">32</span></label>
+        <input type="range" id="s-hp-d" min="0.5" max="200" step="0.5" value="32">
+      </div>
+      <div class="stats" id="st-hp"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The classic Hall–Petch plot: σy vs. 1/√d (a straight line)</div>
+        <canvas id="cv-hp" width="640" height="270"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">The same law on a linear grain-size axis — refinement pays fastest at small d</div>
+        <canvas id="cv-hp2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-hp"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>E. O. Hall, "The Deformation and Ageing of Mild Steel: III Discussion of Results,"
+    Proc. Phys. Soc. B 64, 747–753 (1951). DOI: 10.1088/0370-1301/64/9/303.</li>
+    <li>N. J. Petch, "The Cleavage Strength of Polycrystals," J. Iron Steel Inst. 174,
+    25–28 (1953).</li>
+    <li>W. D. Callister &amp; D. G. Rethwisch, Materials Science and Engineering: An
+    Introduction, 10th ed., Wiley (2018) — Ch. 4 (imperfections, grain boundaries) and Ch. 7
+    (dislocations, strengthening; Hall–Petch data for low-carbon steel).</li>
+    <li>T. H. Courtney, Mechanical Behavior of Materials, 2nd ed., Waveland Press (2005) —
+    Ch. 5–6 (dislocation pile-ups, grain-size strengthening).</li>
+    <li>M. A. Meyers &amp; K. K. Chawla, Mechanical Behavior of Materials, 2nd ed., Cambridge
+    Univ. Press (2009) — grain-boundary strengthening and the inverse Hall–Petch regime.</li>
+    <li>S. P. Timoshenko &amp; J. N. Goodier, Theory of Elasticity, 3rd ed., McGraw-Hill (1970)
+    — stress concentration at a circular hole (the Kirsch problem; factor of 3 in uniaxial
+    tension).</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Lesson 2 of 5 — Next: force vs. displacement
+for honey, cheese, metal, and diamond.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; }
+  }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 2: Grains and Boundaries
+   ================================================================ */
+
+/* --- shared microstructure machinery: seeded Voronoi grain field ---
+   The grain-map canvases represent a 1 mm × 0.5 mm patch of metal. */
+const FIELD_MM = { w: 1.0, h: 0.5 };
+function grainSizeUm(n){ return Math.sqrt(FIELD_MM.w * FIELD_MM.h / n) * 1000; }
+
+const _gfCache = {};
+function grainField(tag, n, seed, w, h){
+  const key = n + '|' + seed + '|' + w + '|' + h;
+  const hit = _gfCache[tag];
+  if (hit && hit.key === key) return hit.val;
+  const rng = mulberry32(seed * 1013 + n * 7 + 5);
+  const nx = [], ny = [], ang = [];
+  for (let k = 0; k < n; k++){ nx.push(rng() * w); ny.push(rng() * h); ang.push(rng() * Math.PI); }
+  const cell = n > 250 ? 5 : n > 140 ? 4 : 3;   // coarse grid keeps redraws < 16 ms
+  const gw = Math.ceil(w / cell), gh = Math.ceil(h / cell);
+  const own = new Int16Array(gw * gh);
+  for (let j = 0; j < gh; j++){
+    const y = (j + 0.5) * cell;
+    for (let i = 0; i < gw; i++){
+      const x = (i + 0.5) * cell;
+      let best = 0, bd = Infinity;
+      for (let k = 0; k < n; k++){
+        const dx = x - nx[k], dy = y - ny[k], d2 = dx * dx + dy * dy;
+        if (d2 < bd){ bd = d2; best = k; }
+      }
+      own[j * gw + i] = best;
+    }
+  }
+  const val = { n, nx, ny, ang, cell, gw, gh, own, w, h };
+  _gfCache[tag] = { key, val };
+  return val;
+}
+function ownerAt(gf, x, y){
+  const i = Math.min(gf.gw - 1, Math.max(0, Math.floor(x / gf.cell)));
+  const j = Math.min(gf.gh - 1, Math.max(0, Math.floor(y / gf.cell)));
+  return gf.own[j * gf.gw + i];
+}
+function grainFill(gf, k){ return 'hsl(' + Math.round(gf.ang[k] / Math.PI * 360) + ',36%,75%)'; }
+function drawGrainMap(ctx, gf, fillFn){
+  const { cell, gw, gh, own } = gf;
+  const cols = [];
+  for (let k = 0; k < gf.n; k++) cols.push(fillFn(k));
+  for (let j = 0; j < gh; j++)
+    for (let i = 0; i < gw; i++){
+      ctx.fillStyle = cols[own[j * gw + i]];
+      ctx.fillRect(i * cell, j * cell, cell, cell);
+    }
+  ctx.fillStyle = 'rgba(30,41,59,0.55)';        // grain boundaries: neighbor-mismatch cells
+  for (let j = 0; j < gh; j++)
+    for (let i = 0; i < gw; i++){
+      const o = own[j * gw + i];
+      if ((i + 1 < gw && own[j * gw + i + 1] !== o) || (j + 1 < gh && own[(j + 1) * gw + i] !== o))
+        ctx.fillRect(i * cell, j * cell, cell, cell);
+    }
+}
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* --- Hall–Petch (used in tabs 2 and 4): σy in MPa, d in m --- */
+function hallPetch(s0, ky, dM){ return s0 + ky / Math.sqrt(dM); }
+
+/* --- spring-network machinery for tab 1 (lattice + defects) ---
+   Scalar relaxation on a 21×11 node grid: left column fixed, right column
+   displaced. Bond force ∝ stretch; vacancies remove a node and its bonds,
+   so the load visibly reroutes through the neighbors. */
+const LAT = { nx: 21, ny: 11 };
+const _latCache = {};
+function latticeSolve(defPct, seed){
+  const key = defPct + '|' + seed;
+  if (_latCache.key === key) return _latCache.val;
+  const { nx, ny } = LAT, N = nx * ny;
+  const present = new Uint8Array(N).fill(1);
+  const rng = mulberry32(seed * 977 + Math.round(defPct * 10) * 31 + 7);
+  const candidates = [];
+  for (let j = 0; j < ny; j++)
+    for (let i = 1; i < nx - 1; i++) candidates.push(j * nx + i);
+  for (let i = candidates.length - 1; i > 0; i--) {           // shuffle
+    const r = Math.floor(rng() * (i + 1));
+    const t = candidates[i]; candidates[i] = candidates[r]; candidates[r] = t;
+  }
+  const vac = Math.round(defPct / 100 * candidates.length);
+  for (let v = 0; v < vac; v++) present[candidates[v]] = 0;
+  const u = new Float32Array(N);
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx; i++) u[j * nx + i] = i / (nx - 1); // linear ramp, ends fixed
+  for (let it = 0; it < 200; it++) {
+    for (let j = 0; j < ny; j++)
+      for (let i = 1; i < nx - 1; i++) {
+        const p = j * nx + i;
+        if (!present[p]) continue;
+        let s = 0, c = 0;
+        if (present[p - 1]) { s += u[p - 1]; c++; }
+        if (present[p + 1]) { s += u[p + 1]; c++; }
+        if (j > 0 && present[p - nx]) { s += u[p - nx]; c++; }
+        if (j < ny - 1 && present[p + nx]) { s += u[p + nx]; c++; }
+        if (c) u[p] = s / c;
+      }
+  }
+  // relative force per bond: 1 = the share each spring carries in a perfect lattice
+  const hb = [], vb = [];                                     // {i,j,rel}
+  let maxRel = 0;
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx - 1; i++) {
+      const p = j * nx + i;
+      if (!present[p] || !present[p + 1]) continue;
+      const rel = (u[p + 1] - u[p]) * (nx - 1);
+      hb.push({ i, j, rel });
+      if (rel > maxRel) maxRel = rel;
+    }
+  for (let j = 0; j < ny - 1; j++)
+    for (let i = 0; i < nx; i++) {
+      const p = j * nx + i;
+      if (!present[p] || !present[p + nx]) continue;
+      vb.push({ i, j, rel: Math.abs(u[p + nx] - u[p]) * (nx - 1) });
+    }
+  const val = { present, u, hb, vb, vac, maxRel };
+  _latCache.key = key; _latCache.val = val;
+  return val;
+}
+/* force→color: blue (relaxed) → amber → red (heavily loaded); t in [0,1] */
+function forceColor(t){
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[59, 130, 246], [245, 158, 11], [220, 38, 38]];
+  const seg = t < 0.5 ? 0 : 1, f = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+  const a = stops[seg], b = stops[seg + 1];
+  const c = i => Math.round(a[i] + (b[i] - a[i]) * f);
+  return `rgb(${c(0)},${c(1)},${c(2)})`;
+}
+
+/* --- control state --- */
+let activeTab = 'lattice';
+const scen = { lattice: 'perfect', grow: 'typical', yield: 'coarse', crack: 'tough', hp: 'annealed' };
+
+const FMT = {
+  'lattice-D':    v => fmt(v, 1) + ' mm',
+  'lattice-def':  v => fmt(v, 1) + ' %',
+  'lattice-seed': v => '#' + fmt(v, 0),
+  'grow-n':     v => fmt(v, 0) + ' nuclei',
+  'grow-cool':  v => fmt(v, 0) + ' / 100',
+  'grow-seed':  v => '#' + fmt(v, 0),
+  'yield-d':    v => fmt(v, 0) + ' grains (d ≈ ' + fmt(grainSizeUm(v), 0) + ' µm)',
+  'yield-load': v => fmt(v, 0) + ' MPa',
+  'crack-n':    v => fmt(v, 0) + ' grains',
+  'crack-gb':   v => fmt(v, 0) + ' / 100',
+  'hp-s0':      v => fmt(v, 0) + ' MPa',
+  'hp-ky':      v => fmt(v, 2) + ' MPa·√m',
+  'hp-d':       v => fmt(v, 1) + ' µm'
+};
+
+const SCEN = {
+  lattice: {
+    perfect: { 's-lattice-D': 5, 's-lattice-def': 0 },
+    fewdef:  { 's-lattice-D': 5, 's-lattice-def': 4,  's-lattice-seed': 3 },
+    damaged: { 's-lattice-D': 5, 's-lattice-def': 12, 's-lattice-seed': 20 }
+  },
+  grow: {
+    slow:    { 's-grow-n': 12,  's-grow-cool': 8 },
+    typical: { 's-grow-n': 60,  's-grow-cool': 30 },
+    fast:    { 's-grow-n': 250, 's-grow-cool': 85 }
+  },
+  yield: {
+    coarse: { 's-yield-d': 30,  's-yield-load': 130 },
+    fine:   { 's-yield-d': 250, 's-yield-load': 130 },
+    over:   { 's-yield-d': 60,  's-yield-load': 350 }
+  },
+  crack: {
+    tough:      { 's-crack-n': 120, 's-crack-gb': 85 },
+    embrittled: { 's-crack-n': 120, 's-crack-gb': 15 },
+    coarse:     { 's-crack-n': 20,  's-crack-gb': 70 }
+  },
+  hp: {
+    annealed: { 's-hp-s0': 70, 's-hp-ky': 0.74, 's-hp-d': 32 },
+    fine:     { 's-hp-s0': 70, 's-hp-ky': 0.74, 's-hp-d': 8 },
+    ultra:    { 's-hp-s0': 70, 's-hp-ky': 0.74, 's-hp-d': 0.8 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* ---------------- TAB 1: lattice ---------------- */
+function drawLattice(){
+  const D = num('s-lattice-D'), def = num('s-lattice-def'), seed = num('s-lattice-seed');
+  const lat = latticeSolve(def, seed);
+  const { nx, ny } = LAT;
+  const tof = rel => (D / 10) * rel / 2.4;                    // load → color intensity
+
+  // ---- canvas 1: the spring network ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-lattice'));
+  const yT = 30, yB = h - 74, xL = 64, xR0 = w - 110;
+  const pull = (D / 10) * 26, xSpan = (xR0 + pull) - xL;
+  const px = p => xL + lat.u[p] * xSpan;
+  const py = j => ny > 1 ? yT + j * (yB - yT) / (ny - 1) : (yT + yB) / 2;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(xL - 20, yT - 14, 9, (yB - yT) + 28);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(xL - 20, yT - 14, 9, (yB - yT) + 28);
+  for (const b of lat.vb) {                                    // vertical springs first
+    const p = b.j * nx + b.i;
+    drawLine(ctx, px(p), py(b.j), px(p + nx), py(b.j + 1), forceColor(tof(b.rel)), 1.6);
+  }
+  for (const b of lat.hb) {                                    // load-path springs on top
+    const p = b.j * nx + b.i, y = py(b.j);
+    springGlyph(ctx, px(p) + 3, y, px(p + 1) - 3, y, 3, 3, forceColor(tof(b.rel)), 1.8);
+  }
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx; i++) {
+      const p = j * nx + i;
+      if (lat.present[p]) {
+        ctx.fillStyle = COL.ink;
+        ctx.beginPath(); ctx.arc(px(p), py(j), 2.8, 0, 7); ctx.fill();
+      } else {                                                 // mark the hole
+        ctx.save(); ctx.strokeStyle = COL.muted; ctx.setLineDash([2, 2]);
+        ctx.beginPath(); ctx.arc(xL + (i / (nx - 1)) * xSpan, py(j), 4.5, 0, 7); ctx.stroke();
+        ctx.restore();
+      }
+    }
+  ctx.fillStyle = '#94a3b8'; ctx.fillRect(xR0 + pull + 12, yT - 14, 8, (yB - yT) + 28);
+  arrow(ctx, xR0 + pull + 24, (yT + yB) / 2, xR0 + pull + 60, (yT + yB) / 2,
+        D > 0.2 ? forceColor(tof(1)) : COL.muted, 4);
+  caption(ctx, (xL + xR0) / 2, yT - 16,
+    lat.vac ? (lat.vac + ' atoms missing — watch the springs beside the holes') :
+              'perfect lattice — every spring carries the same share', COL.muted);
+
+  // colorbar
+  const barX = 64, barW = w - 240, barY = h - 34, barH = 12;
+  const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  for (let s = 0; s <= 1.0001; s += 0.1) grad.addColorStop(Math.min(s, 1), forceColor(s));
+  ctx.fillStyle = grad; ctx.fillRect(barX, barY, barW, barH);
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, barH);
+  const mx = barX + Math.max(0, Math.min(1, tof(lat.maxRel))) * barW;
+  ctx.fillStyle = COL.ink;
+  ctx.beginPath(); ctx.moveTo(mx, barY - 4); ctx.lineTo(mx - 5, barY - 11); ctx.lineTo(mx + 5, barY - 11); ctx.closePath(); ctx.fill();
+  ctx.font = '11px sans-serif'; ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';  ctx.fillText('relaxed', barX + 4, barY + barH / 2);
+  ctx.textAlign = 'right'; ctx.fillText('heavily loaded', barX + barW - 4, barY + barH / 2);
+  ctx.fillStyle = COL.ink; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('▲ = hottest spring', barX + barW + 8, barY + barH / 2);
+  ctx.textBaseline = 'alphabetic';
+
+  // ---- canvas 2: histogram of load sharing ----
+  const c2 = setupCanvas(document.getElementById('cv-lattice2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const BINS = 30, xHi = 3;
+  const bins = new Array(BINS).fill(0);
+  for (const b of lat.hb)   // +1e-6: float noise must not split the perfect-lattice spike across the bin edge at 1.0
+    bins[Math.min(BINS - 1, Math.max(0, Math.floor((b.rel + 1e-6) / xHi * BINS)))]++;
+  const yHi = Math.max(...bins) * 1.15;
+  ch.setRange(0, xHi, 0, yHi);
+  ch.grid(); ch.axes('force ÷ perfect-lattice share', 'how many springs');
+  c2.ctx.save();
+  for (let b = 0; b < BINS; b++) {
+    if (!bins[b]) continue;
+    const x0 = ch.toX(b / BINS * xHi), x1 = ch.toX((b + 1) / BINS * xHi);
+    c2.ctx.fillStyle = forceColor(tof((b + 0.5) / BINS * xHi));
+    c2.ctx.fillRect(x0 + 1, ch.toY(bins[b]), x1 - x0 - 2, ch.toY(0) - ch.toY(bins[b]));
+  }
+  c2.ctx.restore();
+  ch.vLine(1, COL.orange, [6, 4]);
+  ch.legend([{ label: 'every spring in a perfect lattice sits at 1', color: COL.orange, dash: [6, 4] }]);
+
+  const conc = lat.maxRel;
+  setStat('st-lattice', [
+    { label: 'Pull', value: fmt(D, 1) + ' mm' },
+    { label: 'Missing atoms', value: fmt(lat.vac, 0) },
+    { label: 'Springs in network', value: fmt(lat.hb.length + lat.vb.length, 0) },
+    { label: 'Hottest spring', value: fmt(conc, 2) + '× its share', highlight: true }
+  ]);
+
+  if (D < 0.25)
+    setVerdict('vd-lattice', '', 'Pull the block to load the springs.',
+      'The lattice is sitting at rest — every bond at its natural spacing r₀, every spring blue. Drag the Pull slider to stretch it.');
+  else if (lat.vac === 0)
+    setVerdict('vd-lattice', 'good', 'Perfectly uniform — the ideal lattice.',
+      'All ' + fmt(lat.hb.length, 0) + ' load-path springs stretch identically and carry exactly the same force (concentration = 1.00×). The histogram is a single spike. No spring is a weak point — this is why perfect crystals are enormously strong.');
+  else if (conc < 1.9)
+    setVerdict('vd-lattice', 'warn', 'The load is rerouting around the holes.',
+      'The springs a vacancy used to hold aren\'t excused from duty — their load detours through the neighbors, and the hottest spring now carries ' + fmt(conc, 2) + '× its perfect-lattice share. See the histogram\'s tail: a few springs work far harder than average.');
+  else
+    setVerdict('vd-lattice', 'bad', 'Dangerous concentration — flaws are focusing the force.',
+      'With ' + lat.vac + ' atoms missing, the hottest spring carries ' + fmt(conc, 2) + '× its fair share. Real materials fail exactly at spots like these: the overloaded bond near a flaw lets go first, which makes the flaw bigger, which overloads the next bond. That cascade is a crack — coming in Tab 4.');
+}
+
+/* --- Tab 2 freeze animation: nucleation-and-growth solidification.
+   Crystals nucleate at a rate set by the cooling rate and grow one cell per
+   growth tick; where two frontiers meet, a grain boundary freezes in
+   (a Johnson–Mehl-style tessellation, not plain Voronoi). Growth-tick pacing
+   adapts so slow and fast cools both take ~1.5 s of wall clock. --- */
+const GROWA = { cell: 4, state: null, lastCool: null, replays: 0, rafOn: false };
+function growAnimInit(){
+  const cool = num('s-grow-cool');
+  const cell = GROWA.cell, gw = Math.ceil(640 / cell), gh = Math.ceil(260 / cell);
+  const rng = mulberry32(GROWA.replays * 131 + cool * 7 + 9);
+  const nTarget = 3 + Math.round(cool * 2.2);
+  const tEst = Math.sqrt(gw * gh / nTarget) / 2 + 10;      // growth ticks to freeze (est.)
+  const gEvery = Math.max(1, Math.min(8, Math.round(90 / tEst)));
+  GROWA.state = {
+    gw, gh, cell, rng, cool, nTarget, gEvery,
+    ratePerFrame: nTarget / (tEst * gEvery),
+    frame: 0, acc: 0,
+    own: new Int16Array(gw * gh).fill(-1),
+    hues: [], frontier: [], frozen: 0, done: false
+  };
+  GROWA.lastCool = cool;
+}
+function growAnimStep(s){
+  s.frame++;
+  s.acc += s.ratePerFrame;                                  // nucleation ∝ cooling rate
+  while (s.acc >= 1) {
+    s.acc -= 1;
+    if (s.hues.length >= s.nTarget) break;
+    const i = Math.floor(s.rng() * s.gw), j = Math.floor(s.rng() * s.gh), p = j * s.gw + i;
+    if (s.own[p] === -1) {
+      s.own[p] = s.hues.length; s.hues.push(Math.round(s.rng() * 360));
+      s.frontier.push(p); s.frozen++;
+    }
+  }
+  if (s.frame % s.gEvery === 0 && s.frontier.length) {      // radial growth tick
+    const next = [];
+    for (const p of s.frontier) {
+      const o = s.own[p], i = p % s.gw, j = (p / s.gw) | 0;
+      if (i > 0 && s.own[p - 1] === -1) { s.own[p - 1] = o; next.push(p - 1); s.frozen++; }
+      if (i < s.gw - 1 && s.own[p + 1] === -1) { s.own[p + 1] = o; next.push(p + 1); s.frozen++; }
+      if (j > 0 && s.own[p - s.gw] === -1) { s.own[p - s.gw] = o; next.push(p - s.gw); s.frozen++; }
+      if (j < s.gh - 1 && s.own[p + s.gw] === -1) { s.own[p + s.gw] = o; next.push(p + s.gw); s.frozen++; }
+    }
+    s.frontier = next;
+  }
+  if (s.frozen >= s.gw * s.gh && s.hues.length) s.done = true;
+  if (s.frame > 4000) s.done = true;                        // safety stop
+}
+function growAnimDraw(){
+  const s = GROWA.state; if (!s) return;
+  const cv = document.getElementById('cv-growA'); if (!cv) return;
+  const { ctx } = setupCanvas(cv);
+  for (let j = 0; j < s.gh; j++)
+    for (let i = 0; i < s.gw; i++) {
+      const o = s.own[j * s.gw + i];
+      ctx.fillStyle = o === -1 ? '#16283f' : 'hsl(' + s.hues[o] + ',38%,72%)';
+      ctx.fillRect(i * s.cell, j * s.cell, s.cell, s.cell);
+    }
+  if (s.done) {
+    ctx.fillStyle = 'rgba(30,41,59,0.55)';
+    for (let j = 0; j < s.gh; j++)
+      for (let i = 0; i < s.gw; i++) {
+        const o = s.own[j * s.gw + i];
+        if ((i + 1 < s.gw && s.own[j * s.gw + i + 1] !== o) ||
+            (j + 1 < s.gh && s.own[(j + 1) * s.gw + i] !== o))
+          ctx.fillRect(i * s.cell, j * s.cell, s.cell, s.cell);
+      }
+  }
+  const pct = Math.round(100 * s.frozen / (s.gw * s.gh));
+  setStat('st-growA', [
+    { label: 'Frozen', value: pct + ' %' },
+    { label: 'Crystals nucleated', value: fmt(s.hues.length, 0), highlight: true },
+    { label: 'Mean grain size', value: s.done ? fmt(grainSizeUm(Math.max(1, s.hues.length)), 0) + ' µm' : '…' }
+  ]);
+  if (!s.done)
+    setVerdict('vd-growA', '', 'Freezing…',
+      'Crystals are nucleating at random spots and growing outward. Watch two frontiers meet — the line where they jam together is a grain boundary being born.');
+  else if (s.cool >= 60)
+    setVerdict('vd-growA', 'good', 'Quenched: ' + s.hues.length + ' small grains.',
+      'Fast cooling fired many nucleation sites before the liquid ran out, so no crystal had room to grow (mean ≈ ' + fmt(grainSizeUm(s.hues.length), 0) + ' µm). Fine-grained metal — hold that mosaic in mind for Tabs 3 and 5.');
+  else if (s.cool <= 15)
+    setVerdict('vd-growA', 'warn', 'Slow cool: just ' + s.hues.length + ' big grains.',
+      'Only a few nucleation events fired, so each crystal grew huge before colliding (mean ≈ ' + fmt(grainSizeUm(s.hues.length), 0) + ' µm). Coarse-grained metal — softer and easier to bend, as Tab 3 will show.');
+  else
+    setVerdict('vd-growA', 'good', 'Frozen solid: ' + s.hues.length + ' grains.',
+      'Every dark line is where two growing crystals collided. Crank the cooling rate up or down and hit Replay — you are choosing this metal\'s grain size.');
+}
+function growAnimLoop(){
+  GROWA.rafOn = false;
+  const s = GROWA.state;
+  if (!s || activeTab !== 'grow') return;                   // pause when tab hidden
+  if (!s.done) growAnimStep(s);
+  growAnimDraw();
+  if (!s.done) { GROWA.rafOn = true; requestAnimationFrame(growAnimLoop); }
+}
+function growReplay(){
+  GROWA.replays++; growAnimInit();
+  if (!GROWA.rafOn) { GROWA.rafOn = true; requestAnimationFrame(growAnimLoop); }
+}
+
+/* ---------------- TAB 2: grow ---------------- */
+function drawGrow(){
+  const n = num('s-grow-n'), seed = num('s-grow-seed');
+  // freeze animation: start on first visit or cooling-rate change; else repaint
+  const cool = num('s-grow-cool');
+  if (!GROWA.state || GROWA.lastCool !== cool) { GROWA.replays++; growAnimInit(); }
+  if (!GROWA.state.done) {
+    if (!GROWA.rafOn) { GROWA.rafOn = true; requestAnimationFrame(growAnimLoop); }
+  } else growAnimDraw();
+  const gf = grainField('grow', n, seed, 640, 300);
+  const dUm = grainSizeUm(n);
+
+  // grain mosaic
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-grow'));
+  drawGrainMap(ctx, gf, k => grainFill(gf, k));
+  ctx.fillStyle = 'rgba(30,58,95,0.9)';
+  for (let k = 0; k < gf.n; k++){
+    ctx.beginPath(); ctx.arc(gf.nx[k], gf.ny[k], 2, 0, 7); ctx.fill();
+  }
+  // 100 µm scale bar (canvas width = 1 mm)
+  const px100 = w / 10;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillRect(8, h - 34, px100 + 14, 28);
+  drawLine(ctx, 14, h - 12, 14 + px100, h - 12, '#1e293b', 3);
+  caption(ctx, 14 + px100 / 2, h - 18, '100 µm', '#1e293b', true);
+
+  // grain size vs N
+  const c2 = setupCanvas(document.getElementById('cv-grow2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 400, 0, grainSizeUm(5) * 1.08);
+  ch.grid(); ch.axes('number of nuclei N', 'mean grain size d (µm)');
+  const pts = [];
+  for (let N = 5; N <= 400; N += 2) pts.push([N, grainSizeUm(N)]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(n, dUm, COL.purple, 6);
+  ch.legend([{ label: 'd ∝ 1/√N  (your mosaic = dot)', color: COL.accent }]);
+
+  setStat('st-grow', [
+    { label: 'Nuclei', value: fmt(n, 0) },
+    { label: 'Field of view', value: '1 mm × 0.5 mm' },
+    { label: 'Mean grain size d', value: fmt(dUm, 0) + ' µm', highlight: true },
+    { label: 'Grains per mm²', value: fmt(n / (FIELD_MM.w * FIELD_MM.h), 0) }
+  ]);
+
+  if (dUm >= 120)
+    setVerdict('vd-grow', 'warn', 'Slow-cooled: a coarse mosaic.',
+      'Only ' + fmt(n, 0) + ' nuclei got the freeze started, so each crystal grew huge (d ≈ ' +
+      fmt(dUm, 0) + ' µm) before hitting a neighbor. Big grains mean long, uninterrupted slip runways — remember this when Tab 2 asks how strong the metal is.');
+  else if (dUm <= 55)
+    setVerdict('vd-grow', 'good', 'Fast-cooled: a fine mosaic.',
+      'With ' + fmt(n, 0) + ' nuclei racing each other, no crystal got far: d ≈ ' + fmt(dUm, 0) +
+      ' µm and the map is dense with boundaries. Every one of those dark lines is a future obstacle to slip — grain size set at freezing becomes strength later.');
+  else
+    setVerdict('vd-grow', 'good', 'A typical engineering microstructure.',
+      'd ≈ ' + fmt(dUm, 0) + ' µm — the range you would see etched into ordinary structural steel under a microscope. Each color is one lattice orientation; each dark seam is a grain boundary a few atoms thick.');
+}
+
+/* ---------------- TAB 2: yield ---------------- */
+function drawYield(){
+  const n = num('s-yield-d'), load = num('s-yield-load');
+  const gf = grainField('yield', n, 7, 640, 300);
+  const dUm = grainSizeUm(n), dM = dUm * 1e-6;
+  const base = hallPetch(70, 0.74, dM);          // mean yield threshold, MPa
+  // per-grain thresholds: Hall–Petch mean × orientation luck (triangular 0.8–1.2)
+  const rng = mulberry32(9001 + n);
+  const thr = [];
+  for (let k = 0; k < n; k++) thr.push(base * (0.8 + 0.2 * (rng() + rng())));
+  const yielded = thr.map(t => load >= t);
+  const nY = yielded.filter(Boolean).length;
+  const fracPct = nY / n * 100;
+
+  // grain map with slip lines
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-yield'));
+  drawGrainMap(ctx, gf, k => yielded[k]
+    ? 'hsl(26,82%,' + Math.round(63 + gf.ang[k] / Math.PI * 10) + '%)'
+    : grainFill(gf, k));
+  ctx.save(); ctx.strokeStyle = 'rgba(124,45,18,0.85)'; ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  const sp = 9, cell = gf.cell;
+  for (let j = 0; j < gf.gh; j++){
+    const y = (j + 0.5) * cell;
+    for (let i = 0; i < gf.gw; i++){
+      const g = gf.own[j * gf.gw + i];
+      if (!yielded[g]) continue;
+      const x = (i + 0.5) * cell, a = gf.ang[g];
+      const p = x * (-Math.sin(a)) + y * Math.cos(a);
+      if (((p % sp) + sp) % sp < cell * 0.75){
+        const L = cell * 0.9;
+        ctx.moveTo(x - L * Math.cos(a), y - L * Math.sin(a));
+        ctx.lineTo(x + L * Math.cos(a), y + L * Math.sin(a));
+      }
+    }
+  }
+  ctx.stroke(); ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillRect(w / 2 - 128, 6, 256, 20);
+  arrow(ctx, 44, 16, 8, 16, '#1e293b', 3);
+  arrow(ctx, w - 44, 16, w - 8, 16, '#1e293b', 3);
+  caption(ctx, w / 2, 20, 'applied tension σ = ' + fmt(load, 0) + ' MPa', '#1e293b', true);
+
+  // S-curve: fraction yielded vs stress
+  const c2 = setupCanvas(document.getElementById('cv-yield2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 400, 0, 100);
+  ch.grid(); ch.axes('applied stress (MPa)', '% of grains slipping');
+  const pts = [];
+  for (let s = 0; s <= 400; s += 5){
+    let c = 0;
+    for (let k = 0; k < n; k++) if (thr[k] <= s) c++;
+    pts.push([s, c / n * 100]);
+  }
+  ch.plot(pts, COL.accent, 2.5);
+  ch.vLine(base, COL.warn, [2, 4]);
+  ch.dot(load, fracPct, fracPct < 5 ? COL.good : fracPct <= 60 ? COL.warn : COL.bad, 6);
+  ch.legend([{ label: 'fraction slipping', color: COL.accent },
+             { label: 'mean threshold σy', color: COL.warn, dash: [2, 4] }]);
+
+  setStat('st-yield', [
+    { label: 'Applied stress', value: fmt(load, 0) + ' MPa' },
+    { label: 'Mean grain size d', value: fmt(dUm, 0) + ' µm' },
+    { label: 'Mean yield threshold', value: fmt(base, 0) + ' MPa' },
+    { label: 'Grains slipping', value: fmt(fracPct, 1) + ' %', highlight: true }
+  ]);
+
+  if (fracPct < 5)
+    setVerdict('vd-yield', 'good', 'Still elastic — the boundaries are holding.',
+      'At ' + fmt(load, 0) + ' MPa, ' + (nY === 0 ? 'no grain has' : 'only ' + fmt(fracPct, 1) + '% of grains have') +
+      ' started to slip. With d ≈ ' + fmt(dUm, 0) + ' µm the slip runways are short enough that dislocations stay pinned. Release the load and the metal springs back — Lesson 1 physics still rules.');
+  else if (fracPct <= 60)
+    setVerdict('vd-yield', 'warn', 'Yielding has begun — this bend is permanent.',
+      fmt(fracPct, 1) + '% of grains (the ones whose lattices happen to be tilted favorably) are slipping. Atomic planes are sliding inside them; unload now and the part keeps a set. This is the onset of plasticity — a paperclip mid-bend.');
+  else
+    setVerdict('vd-yield', 'bad', 'Widespread plastic flow.',
+      'At ' + fmt(load, 0) + ' MPa, ' + fmt(fracPct, 0) + '% of the mosaic is slipping — the metal is flowing like a very stiff putty. Refining the grains (slide Grain refinement right) raises every threshold by the 1/√d rule, but at this stress even fine grains struggle.');
+}
+
+/* ---------------- TAB 3: crack ---------------- */
+function drawCrack(){
+  const n = num('s-crack-n'), gb = num('s-crack-gb');
+  const gf = grainField('crack', n, 11, 640, 300);
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-crack'));
+  drawGrainMap(ctx, gf, k => grainFill(gf, k));
+
+  // crack walker: seeded, recomputed on every input
+  const r = mulberry32(377 + n * 31 + gb * 101);
+  const cleave = g => Math.max(-0.7, Math.min(0.7, (gf.ang[g] - Math.PI / 2) * 0.9));
+  const step = 4;
+  let x = 2, y = h * 0.52, cur = ownerAt(gf, x, y), dir = cleave(cur);
+  let transLen = 0, interLen = 0, cross = 0, nInter = 0, nTrans = 0, interMode = false, guard = 0;
+  const pts = [[x, y]];
+  while (x < w - 2 && guard++ < 900){
+    x += step * Math.cos(dir); y += step * Math.sin(dir);
+    if (y < 6){ y = 6; dir = Math.abs(dir); }
+    if (y > h - 6){ y = h - 6; dir = -Math.abs(dir); }
+    if (interMode) interLen += step;
+    else { transLen += step; dir *= 0.965; }    // inside a grain the crack re-aligns with the pull
+    pts.push([x, y]);
+    const g = ownerAt(gf, x, y);
+    if (g !== cur){
+      cross++;
+      const pInter = Math.pow((100 - gb) / 100, 1.2);   // weak boundaries attract the crack
+      if (r() < pInter){
+        nInter++; interMode = true;
+        // follow the boundary: tangent ⟂ to the line joining the two nuclei, kept forward
+        let tx = -(gf.ny[g] - gf.ny[cur]), ty = gf.nx[g] - gf.nx[cur];
+        if (tx < 0){ tx = -tx; ty = -ty; }
+        let t = Math.atan2(ty, tx || 1e-6);
+        t = Math.max(-1.3, Math.min(1.3, t));
+        dir = t + (r() - 0.5) * 0.25;
+      } else {
+        nTrans++; interMode = false;
+        dir = cleave(g) + (r() - 0.5) * 0.35;           // deflect onto the new grain's weak plane
+      }
+      cur = g;
+    }
+  }
+  ctx.save(); ctx.strokeStyle = '#111827'; ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (const p of pts) ctx.lineTo(p[0], p[1]);
+  ctx.stroke(); ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillRect(6, h * 0.52 - 30, 62, 18);
+  caption(ctx, 37, h * 0.52 - 17, 'crack →', '#111827', true);
+
+  const mmPerPx = 10 / (w - 4);                          // plate is 10 mm across
+  const straight = 10;
+  const actual = (transLen + interLen) * mmPerPx;
+  const ratio = actual / straight;
+  const tough = (transLen + 0.45 * interLen) * mmPerPx / straight;  // boundary surface is cheap
+  const nDec = nInter + nTrans;
+  const interFrac = nDec ? nInter / nDec : 0;
+  const mode = interFrac > 0.6 ? 'mostly intergranular'
+             : interFrac < 0.3 ? 'mostly transgranular' : 'mixed';
+
+  // bar chart
+  const c2 = setupCanvas(document.getElementById('cv-crack2'));
+  const bx = 190, bw = c2.w - bx - 96, y0 = 26, bh = 26, gap = 62;
+  const bars = [
+    { label: 'Straight cut', v: straight, color: COL.muted, text: '10 mm' },
+    { label: 'Actual crack path', v: actual, color: COL.accent, text: fmt(actual, 2) + ' mm' },
+    { label: 'Relative toughness', v: tough * 10, color: tough >= 1 ? COL.good : COL.bad,
+      text: fmt(tough, 2) + '× (qualitative)' }
+  ];
+  const maxV = Math.max(straight, actual, tough * 10) * 1.12;
+  bars.forEach((b, i) => {
+    const y = y0 + i * gap;
+    c2.ctx.textAlign = 'right'; c2.ctx.textBaseline = 'middle';
+    c2.ctx.fillStyle = '#334155'; c2.ctx.font = 'bold 12px sans-serif';
+    c2.ctx.fillText(b.label, bx - 10, y + bh / 2);
+    c2.ctx.fillStyle = '#eef2f7';
+    c2.ctx.fillRect(bx, y, bw, bh);
+    c2.ctx.fillStyle = b.color;
+    c2.ctx.fillRect(bx, y, bw * b.v / maxV, bh);
+    c2.ctx.fillStyle = '#1e293b'; c2.ctx.textAlign = 'left'; c2.ctx.font = '12px sans-serif';
+    c2.ctx.fillText(b.text, bx + bw * b.v / maxV + 8, y + bh / 2);
+  });
+  c2.ctx.fillStyle = COL.axis; c2.ctx.font = '11px sans-serif'; c2.ctx.textAlign = 'left';
+  c2.ctx.fillText('Toughness index = energy-weighted path ÷ straight cut (boundary surface counted cheap when weak).', 14, c2.h - 10);
+
+  setStat('st-crack', [
+    { label: 'Boundaries crossed', value: fmt(cross, 0) },
+    { label: 'Path length', value: fmt(actual, 2) + ' mm' },
+    { label: 'Path ÷ straight', value: fmt(ratio, 2) + '×', highlight: true },
+    { label: 'Fracture mode', value: mode }
+  ]);
+
+  if (interFrac > 0.6)
+    setVerdict('vd-crack', 'bad', 'Embrittled boundaries — the crack found the sidewalk.',
+      'The crack followed grain boundaries at ' + fmt(interFrac * 100, 0) + '% of its ' + fmt(nDec, 0) +
+      ' route choices. Boundary surface this weak costs almost nothing to create, so even a wandering path is cheap: relative toughness ≈ ' + fmt(tough, 2) + '×. This is what hydrogen embrittlement or a bad heat treatment looks like on a fracture surface.');
+  else if (interFrac < 0.3 && cross > 15)
+    setVerdict('vd-crack', 'good', 'Boundaries are doing their job.',
+      'The crack was forced through the grains and deflected at boundary after boundary (' + fmt(cross, 0) +
+      ' crossed), stretching its path to ' + fmt(ratio, 2) + '× the straight cut. Every zig is surface energy paid and a blunted tip — this microstructure fights back.');
+  else if (interFrac < 0.3)
+    setVerdict('vd-crack', 'warn', 'Nearly a straight cut — too few obstacles.',
+      'Boundaries are strong, but with grains this coarse the crack only met ' + fmt(cross, 0) +
+      ' of them and barely had to turn (path ratio ' + fmt(ratio, 2) + '×). Compare the Tough scenario: finer grains force more deflections per millimeter.');
+  else
+    setVerdict('vd-crack', 'warn', 'Mixed-mode fracture.',
+      'The crack cut through some grains and slid along ' + fmt(interFrac * 100, 0) +
+      '% of its choices in boundaries — partially weakened boundaries give a mixed fracture surface. Toughness index ' + fmt(tough, 2) + '×: some energy is being paid, but the sidewalks are opening.');
+}
+
+/* ---------------- TAB 4: hp ---------------- */
+function drawHP(){
+  const s0 = num('s-hp-s0'), ky = num('s-hp-ky'), dUm = num('s-hp-d');
+  const dM = dUm * 1e-6, invSq = 1 / Math.sqrt(dM);
+  const sy = hallPetch(s0, ky, dM);
+  const xMax = 1450;                                   // 1/√d up to d ≈ 0.48 µm
+  const yMax = (s0 + ky * xMax) * 1.06;
+
+  // classic Hall–Petch plot: σy vs 1/√d
+  const c1 = setupCanvas(document.getElementById('cv-hp'));
+  const ch1 = new Chart(c1.ctx, c1.w, c1.h);
+  ch1.setRange(0, xMax, 0, yMax);
+  ch1.grid(); ch1.axes('1/√d  (1/√m)', 'yield strength σy (MPa)');
+  ch1.hLine(s0, COL.orange, [2, 4]);
+  ch1.plot([[0, s0], [xMax, s0 + ky * xMax]], COL.accent, 2.5);
+  ch1.dot(invSq, sy, COL.purple, 6);
+  ch1.legend([{ label: 'σy = σ₀ + ky·(1/√d), slope ky', color: COL.accent },
+              { label: 'intercept σ₀', color: COL.orange, dash: [2, 4] }]);
+
+  // same law, linear d axis
+  const c2 = setupCanvas(document.getElementById('cv-hp2'));
+  const ch2 = new Chart(c2.ctx, c2.w, c2.h);
+  ch2.setRange(0, 200, 0, yMax);
+  ch2.grid(); ch2.axes('grain size d (µm)', 'yield strength σy (MPa)');
+  ch2.hLine(s0, COL.orange, [2, 4]);
+  const pts = [];
+  for (let d = 0.5; d <= 200; d += 0.5) pts.push([d, hallPetch(s0, ky, d * 1e-6)]);
+  ch2.plot(pts, COL.accent, 2.5);
+  ch2.dot(dUm, sy, COL.purple, 6);
+  ch2.legend([{ label: 'same law — refinement pays fastest at small d', color: COL.accent },
+              { label: 'σ₀ floor', color: COL.orange, dash: [2, 4] }]);
+
+  setStat('st-hp', [
+    { label: 'Friction stress σ₀', value: fmt(s0, 0) + ' MPa' },
+    { label: 'Coefficient ky', value: fmt(ky, 2) + ' MPa·√m' },
+    { label: 'Grain size d', value: fmt(dUm, 1) + ' µm' },
+    { label: '1/√d', value: fmt(invSq, 0) + ' /√m' },
+    { label: 'Yield strength σy', value: fmt(sy, 0) + ' MPa', highlight: true }
+  ]);
+
+  if (dUm < 1)
+    setVerdict('vd-hp', 'warn', 'Ultrafine — approaching the edge of the law.',
+      'σy = ' + fmt(sy, 0) + ' MPa at d = ' + fmt(dUm, 1) + ' µm — spectacular strengthening, but you are heading toward the nanocrystalline regime. Below very roughly 10–20 nm, pile-ups no longer fit inside a grain, grain-boundary sliding takes over, and the trend reverses (inverse Hall–Petch). Extrapolate the straight line to d → 0 at your peril.');
+  else if (dUm >= 60)
+    setVerdict('vd-hp', 'good', 'Coarse and soft — annealed territory.',
+      'σy = ' + fmt(sy, 0) + ' MPa: only ' + fmt(sy - s0, 0) + ' MPa above the σ₀ floor, because 1/√d is tiny for big grains. This is a fully annealed metal — soft, ductile, easy to form. Refine the grains when you need the strength back.');
+  else
+    setVerdict('vd-hp', 'good', 'The structural sweet spot — strength from refinement alone.',
+      'σy = ' + fmt(sy, 0) + ' MPa, of which ' + fmt(sy - s0, 0) + ' MPa comes purely from grain boundaries. This is the annealed-mild-steel (~200 MPa at 32 µm) to fine-grained-pipeline-steel (~330 MPa at 8 µm) range — same composition, different mosaic, and Tab 3 says the finer one is usually tougher too.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { lattice: drawLattice, grow: drawGrow, yield: drawYield, crack: drawCrack, hp: drawHP };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+</script>
+</body>
+</html>

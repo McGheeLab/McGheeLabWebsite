@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stress and Strain — Solid Mechanics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Stress and Strain — Why Force and Displacement Aren't Enough</h1>
+  <p class="subtitle">Solid Mechanics Foundations · Lesson 4 of 5 — Measure force vs. displacement
+  on two steel rods of different sizes and you get two different curves — for the SAME material.
+  Divide out the geometry and one single curve remains: a description of the material itself.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="prob">1 · Same Material, Different Curve</button>
+  <button class="tab-btn" data-tab="norm">2 · Divide Out the Geometry</button>
+  <button class="tab-btn" data-tab="contact">3 · Contact: Where Area Rules</button>
+  <button class="tab-btn" data-tab="young">4 · Level Up: Young's Modulus</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: prob -->
+<section id="tab-prob" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: the problem — same material, different curve</h2>
+    <p>In Lesson 1 you built a solid out of atomic springs and found that an object's stiffness is
+    \(k = k_{\text{bond}}\,M/N\): it depends on how many chains share the load (\(M\), the fatness)
+    and how many bonds share the stretch (\(N\), the length). In other words, <b>stiffness depends
+    on shape</b>. That sounds like a footnote. It is actually a crisis.</p>
+    <p>Here's why. Suppose you pull on a steel rod in a testing machine and carefully record force
+    \(F\) versus stretch \(\Delta L\). You get a beautiful straight line. Now hand that plot to an
+    engineer designing a bridge. It is <b>useless to them</b> — because your line is a fact about
+    <em>one particular rod</em>. A thick short steel rod and a long thin steel rod, pulled in the
+    same machine, give wildly different \(F\)–\(\Delta L\) lines. Same atoms. Same bonds. Identical
+    steel. You cannot publish a handbook of materials if every entry depends on the size of the
+    sample you happened to test.</p>
+    <p>How different are the lines? The slope of the \(F\)–\(\Delta L\) line is the object
+    stiffness \(k\), and for a rod pulled along its length it works out to:</p>
+    <div class="equation-box">
+      $$ k \;=\; \frac{E\,A}{L_0} \qquad\qquad
+      \text{stiffness} \;=\; \text{material number} \times \text{area} \div \text{length} $$
+    </div>
+    <p>Here \(A\) is the <b>cross-section area</b> of the rod (how fat it is — more parallel chains
+    of atoms), \(L_0\) is its <b>starting length</b> (more bonds in series), and \(E\) is
+    "the material number" — one single number that belongs to the steel itself. We'll define \(E\)
+    properly in Tab 4; for now just notice that everything else in the formula is <em>geometry</em>.</p>
+    <div class="worked-example">
+      <p>Steel has \(E = 200\ \text{GPa} = 200\times10^{9}\ \text{N/m}^2\).
+      <b>Rod A</b>: \(L_0 = 1\ \text{m}\), diameter \(d = 20\ \text{mm}\), so
+      \(A = \pi d^2/4 = 3.14\times10^{-4}\ \text{m}^2\) and
+      \(k = 200\times10^{9} \times 3.14\times10^{-4} / 1 = 6.3\times10^{7}\ \text{N/m}\).
+      <b>Rod B</b>: \(L_0 = 2\ \text{m}\), \(d = 10\ \text{mm}\), so
+      \(A = 7.85\times10^{-5}\ \text{m}^2\) and
+      \(k = 200\times10^{9} \times 7.85\times10^{-5} / 2 = 7.9\times10^{6}\ \text{N/m}\) —
+      <b>8× softer</b>. Same steel, same bonds, completely different curve.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A force–displacement plot describes <em>one object</em>, not a material.</li>
+        <li>Object stiffness \(k = EA/L_0\): fatter → stiffer, longer → softer.</li>
+        <li>Two rods of identical steel can differ in stiffness by 8× (or 800×) from geometry alone.</li>
+        <li>Whatever \(E\) is, it's the only part of \(k\) that belongs to the material itself.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load the <b>Rod A</b> scenario and note where your line sits on the plot. Now drag
+      <b>Diameter</b> down to 10&nbsp;mm and <b>Length</b> up to 2&nbsp;m — watch your line swing
+      down onto Rod B's. Not one atom of the steel changed.</li>
+      <li>Find a <em>third</em> geometry (neither A nor B) that gives the same stiffness as Rod A.
+      Hint: \(k = EA/L_0\) — what happens if you double both \(A\) and \(L_0\)?</li>
+      <li>Try the <b>Stubby bolt</b> scenario. Read the highlighted stiffness stat. How many times
+      stiffer than Rod B is it?</li>
+      <li>Keeping the force fixed, list which sliders move the current dot on the plot. Which one
+      does <em>not</em> change the slope?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="prob" data-scen="rodA" onclick="setScen('prob','rodA')">Rod A (thick, short)</button>
+    <button class="scen-btn" data-tab="prob" data-scen="rodB" onclick="setScen('prob','rodB')">Rod B (thin, long)</button>
+    <button class="scen-btn" data-tab="prob" data-scen="stub" onclick="setScen('prob','stub')">Stubby bolt</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Diameter d <span id="v-prob-d">20 mm</span></label>
+        <input type="range" id="s-prob-d" min="5" max="40" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Length L₀ <span id="v-prob-L">1.00 m</span></label>
+        <input type="range" id="s-prob-L" min="0.25" max="3" step="0.05" value="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Pull force F <span id="v-prob-F">20 kN</span></label>
+        <input type="range" id="s-prob-F" min="0" max="50" step="0.5" value="20">
+      </div>
+      <div class="stats" id="st-prob"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Your steel rod in the testing machine (stretch exaggerated ×500)</div>
+        <canvas id="cv-prob" width="640" height="230"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Force vs. stretch — the "material curve" that isn't</div>
+        <canvas id="cv-prob2" width="640" height="300"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-prob"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: norm -->
+<section id="tab-norm" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the fix — divide out the geometry</h2>
+    <p>The escape from Tab 1's trap takes exactly two divisions. Slow down here — this is the most
+    important mental move in all of solid mechanics.</p>
+    <p><b>Division one: force per area.</b> Remember from Lesson 1 that the pull you apply is
+    <em>shared</em> by every parallel chain of atoms in the cross-section. A fat rod feels a big
+    total force but each chain barely notices; a thin rod puts the same total force through far
+    fewer chains, so each one is worked hard. So don't ask "how hard is the rod being pulled?" —
+    ask <b>"how hard is each atomic chain being pulled?"</b> That's force divided by cross-section
+    area: \(\sigma = F/A\), called <b>stress</b> (Greek sigma). Its units are newtons per square
+    meter, named <b>pascals</b> (Pa). Real materials live at millions of pascals, so we usually
+    quote <b>megapascals</b> (MPa).</p>
+    <p><b>Division two: stretch per length.</b> The total stretch \(\Delta L\) is <em>shared</em>
+    by every bond along the rod's length. A 2&nbsp;m rod that stretches 2&nbsp;mm and a 1&nbsp;m rod
+    that stretches 1&nbsp;mm are in <em>exactly the same condition</em> atom-by-atom: each bond is
+    stretched by the same tiny fraction. So don't ask "how far did it stretch?" — ask
+    <b>"how far is each bond being stretched?"</b> That's stretch divided by original length:
+    \(\varepsilon = \Delta L/L_0\), called <b>strain</b> (Greek epsilon). It's a pure ratio —
+    dimensionless — often quoted as a percent.</p>
+    <div class="equation-box">
+      $$ \sigma = \frac{F}{A}\ \ [\text{Pa}] \qquad\quad \varepsilon = \frac{\Delta L}{L_0}\ \ [-]
+      \qquad\quad 1\ \text{MPa} = 10^{6}\ \text{N/m}^2 \approx
+      \text{10 kg of force on a fingernail-sized mm}^2 $$
+    </div>
+    <p>Now the magic. Re-plot the same pulling experiments as \(\sigma\) versus \(\varepsilon\)
+    instead of \(F\) versus \(\Delta L\), and rods of <em>every</em> size collapse onto
+    <b>one single line</b>. Thick, thin, long, short — one line. That line is no longer a fact
+    about a rod. It is a property of <b>steel itself</b>, fit for a handbook. Watch it happen in
+    the twin plots below: the left plot squirms every time you touch a geometry slider; the right
+    plot doesn't care.</p>
+    <div class="worked-example">
+      <p>Take Rod B: \(L_0 = 2\ \text{m}\), \(d = 10\ \text{mm}\)
+      (\(A = 7.85\times10^{-5}\ \text{m}^2\)), pulled with \(F = 15\ \text{kN}\).
+      Stress: \(\sigma = 15\times10^{3} / 7.85\times10^{-5} = 1.91\times10^{8}\ \text{Pa}
+      = 191\ \text{MPa}\). The rod stretches \(\Delta L = 1.91\ \text{mm}\), so the strain is
+      \(\varepsilon = 1.91\times10^{-3}\ \text{m} / 2\ \text{m} = 9.55\times10^{-4} \approx
+      0.096\%\). Each bond in the steel is stretched by about a tenth of a percent — and any other
+      steel rod at 191&nbsp;MPa would show exactly the same 0.096%.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Stress \(\sigma = F/A\): the force each parallel chain of atoms actually feels (Pa, MPa).</li>
+        <li>Strain \(\varepsilon = \Delta L/L_0\): the fractional stretch each bond actually feels (dimensionless).</li>
+        <li>On a \(\sigma\)–\(\varepsilon\) plot, every rod of the same material lands on one line.</li>
+        <li>That collapse is what turns "a measurement of my rod" into "a property of steel".</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Wiggle <b>Diameter</b> back and forth. Left plot: the line tilts. Right plot: the dot
+      slides <em>along</em> the one line but the line never moves.</li>
+      <li>Now wiggle <b>Length</b>. Same story? Check the stat block — does \(\sigma/\varepsilon\)
+      ever change from 200&nbsp;GPa?</li>
+      <li>Load <b>Rod A</b>, note σ and ε. Load <b>Rod B</b> without touching the force. Different
+      rod, different stress — but is the (ε, σ) dot still on the same line?</li>
+      <li>Load <b>Heavy pull</b> and read the verdict. Find the exact force where the warning
+      first appears for Rod B's geometry.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="norm" data-scen="rodA" onclick="setScen('norm','rodA')">Rod A</button>
+    <button class="scen-btn" data-tab="norm" data-scen="rodB" onclick="setScen('norm','rodB')">Rod B</button>
+    <button class="scen-btn" data-tab="norm" data-scen="heavy" onclick="setScen('norm','heavy')">Heavy pull</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Diameter d <span id="v-norm-d">20 mm</span></label>
+        <input type="range" id="s-norm-d" min="5" max="40" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Length L₀ <span id="v-norm-L">1.00 m</span></label>
+        <input type="range" id="s-norm-L" min="0.25" max="3" step="0.05" value="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Pull force F <span id="v-norm-F">15 kN</span></label>
+        <input type="range" id="s-norm-F" min="0" max="50" step="0.5" value="15">
+      </div>
+      <div class="stats" id="st-norm"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Raw measurement: F vs ΔL — moves when geometry changes</div>
+        <canvas id="cv-norm" width="640" height="270"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Same data, normalized — every rod lands on this one line</div>
+        <canvas id="cv-norm2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-norm"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: contact -->
+<section id="tab-contact" class="tab-content">
+  <div class="background-section">
+    <h2>Background: contact — same force, very different stress</h2>
+    <p>Dividing force by area isn't just a bookkeeping trick for rods. It matters most where two
+    bodies <b>touch</b>. Press your palm against a wall with 50&nbsp;N — you feel gentle pressure.
+    Put the same 50&nbsp;N behind a thumbtack and the point goes <em>through</em> the wall. The
+    force is identical; only the contact area changed, and with it the stress. Force never tells
+    you whether something dents, cuts, or punctures — stress does.</p>
+    <p>Now go one level deeper, because the surface isn't the whole story. Below the contact
+    patch, the stress spreads out into the solid in a <b>bulb</b>: intense just under the contact,
+    fading with depth, and mostly gone below a depth of roughly the contact width. A wide flat
+    punch makes a gentle, shallow, spread-out bulb. A narrow punch (or a point) makes a fierce,
+    concentrated one that hammers a small volume of material. This is exactly why we spread loads
+    on purpose: washers under bolt heads, snowshoes on snow, concrete footings under buildings —
+    all of them are area-enlarging devices that tame the stress bulb.</p>
+    <div class="equation-box">
+      $$ p = \frac{F}{A_{\text{contact}}} \qquad\qquad
+      \sigma_z = \frac{3F}{2\pi z^2}\ \ (\text{Boussinesq, on the axis below a point load}) $$
+    </div>
+    <p>The first formula is the <b>mean contact pressure</b>. The second (Boussinesq, 1885; see
+    Johnson) gives the vertical stress at depth \(z\) directly below a concentrated point load on
+    an elastic solid: <b>stress dies off as \(1/z^2\)</b> — spread with depth is automatic, but
+    near a sharp point it starts brutally high.</p>
+    <div class="worked-example">
+      <p>A 700&nbsp;N person (about 71&nbsp;kg). Standing on two boots,
+      \(A \approx 0.06\ \text{m}^2\): \(p = 700/0.06 \approx 12\ \text{kPa}\) — the floor doesn't
+      even notice. The same person on one stiletto heel, \(A \approx 1\ \text{cm}^2 =
+      10^{-4}\ \text{m}^2\): \(p = 700/10^{-4} = 7\ \text{MPa}\) — about <b>600× more</b>. That
+      exceeds the bearing strength of pine floorboards (~5&nbsp;MPa across the grain, as an
+      order-of-magnitude figure), which is why heels leave dents. Same person, same weight.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Force alone predicts nothing about damage at a contact — pressure \(p = F/A\) does.</li>
+        <li>Below the surface the stress forms a bulb: intense within a depth ≈ the contact width, fading as ~\(1/z^2\).</li>
+        <li>Wide contact → shallow gentle bulb; narrow contact → concentrated fierce bulb, same total force.</li>
+        <li>Washers, snowshoes, and footings are all the same trick: buy area, lower stress.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load <b>Thumbtack (narrow)</b>, then drag <b>Contact width</b> slowly up to 80&nbsp;mm.
+      Watch the bulb go from a hot needle to a faint wide glow — the total force never changed.</li>
+      <li>At any width, double the <b>Force</b>. Does the bulb change <em>shape</em> or just
+      <em>intensity</em>? Compare with halving the width instead.</li>
+      <li>Check the "depth where stress halves" stat as you widen the contact. Confirm the rule of
+      thumb: the bulb reaches roughly one contact-width deep.</li>
+      <li>Find the widest contact that still triggers the red "punch-through" verdict at
+      1000&nbsp;N. Now you know how big a washer needs to be.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="contact" data-scen="palm" onclick="setScen('contact','palm')">Palm (wide)</button>
+    <button class="scen-btn on" data-tab="contact" data-scen="chair" onclick="setScen('contact','chair')">Chair leg</button>
+    <button class="scen-btn" data-tab="contact" data-scen="tack" onclick="setScen('contact','tack')">Thumbtack (narrow)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Contact width w <span id="v-contact-w">30 mm</span></label>
+        <input type="range" id="s-contact-w" min="2" max="80" step="1" value="30">
+      </div>
+      <div class="ctrl-group">
+        <label>Force F <span id="v-contact-F">200 N</span></label>
+        <input type="range" id="s-contact-F" min="10" max="1000" step="5" value="200">
+      </div>
+      <div class="stats" id="st-contact"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The stress bulb: vertical stress σ_z below the punch (cross-section)</div>
+        <canvas id="cv-contact" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Mean pressure vs contact width — p ∝ 1/w (20 mm strip assumed)</div>
+        <canvas id="cv-contact2" width="640" height="240"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-contact"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: young -->
+<section id="tab-young" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: Young's modulus, and Hooke's law in material form</h2>
+    <p>In Tab 2, every steel rod collapsed onto one \(\sigma\)–\(\varepsilon\) line. The slope of
+    that line finally deserves its name: it is <b>Young's modulus</b>, \(E = \sigma/\varepsilon\),
+    measured in pascals (usually GPa). It is <em>the</em> material stiffness — the number that goes
+    in the handbook. And with it, Hooke's law graduates. The object version you met in Lesson 1,
+    \(F = kx\), becomes the material version:</p>
+    <div class="equation-box">
+      $$ \sigma = E\,\varepsilon \qquad\quad E = \frac{\sigma}{\varepsilon} \qquad\quad
+      k = \frac{E A}{L_0} \qquad\quad \nu = -\frac{\varepsilon_{\text{trans}}}{\varepsilon_{\text{axial}}} $$
+    </div>
+    <p>Now the whole chain of ideas from Lesson 1 clicks together. Bond stiffness sets the modulus:
+    \(E \approx k_{\text{bond}}/r_0\) (stiff bonds, small atoms → stiff material). The modulus and
+    the geometry set the object stiffness: \(k = EA/L_0\). Atom → material → object, with \(E\) as
+    the handoff in the middle. That's why \(E\) spans such a spectacular ladder across real
+    materials (typical values): <b>rubber</b> ~0.01–0.1&nbsp;GPa (bonds barely engaged — coiled
+    molecules uncoil instead), <b>wood along the grain</b> ~10&nbsp;GPa, <b>aluminum</b>
+    69&nbsp;GPa, <b>steel</b> 200&nbsp;GPa, <b>diamond</b> ~1100&nbsp;GPa (the stiffest covalent
+    bonds, packed tight). A factor of 100,000 from rubber to diamond — all of it traceable to the
+    bond springs of Lesson 1.</p>
+    <p>One more character joins the cast: pull a bar longer and it also gets <em>thinner</em> —
+    the sideways shrink is proportional to the axial stretch. The ratio is <b>Poisson's ratio</b>,
+    \(\nu = -\varepsilon_{\text{lateral}}/\varepsilon_{\text{axial}}\), about 0.3 for metals
+    (rubber approaches 0.5: it conserves volume; cork is near 0, which is why it pushes straight
+    into a bottle). No new sim needed — the block below shows it happening.</p>
+    <div class="worked-example">
+      <p>An aluminum rod: \(E = 69\ \text{GPa}\), \(L_0 = 1.5\ \text{m}\), \(d = 12\ \text{mm}\)
+      (\(A = \pi d^2/4 = 1.13\times10^{-4}\ \text{m}^2\)), pulled with \(F = 8\ \text{kN}\).
+      Stress: \(\sigma = 8\times10^{3}/1.13\times10^{-4} = 70.8\ \text{MPa}\).
+      Strain: \(\varepsilon = \sigma/E = 70.8\times10^{6}/69\times10^{9} = 1.03\times10^{-3}\).
+      Stretch: \(\Delta L = \varepsilon L_0 = 1.03\times10^{-3}\times1.5 = 1.54\ \text{mm}\).
+      Sideways, with \(\nu = 0.33\): \(\varepsilon_t = -\nu\varepsilon = -0.33\times1.03\times10^{-3}
+      = -3.4\times10^{-4}\), so the 12&nbsp;mm diameter shrinks by
+      \(12\times0.33\times1.03\times10^{-3} \approx 0.004\ \text{mm}\) — four microns.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Young's modulus \(E = \sigma/\varepsilon\) is the slope of the collapsed line — the material's own stiffness.</li>
+        <li>Hooke's law, material edition: \(\sigma = E\varepsilon\). The object edition \(F = kx\) follows via \(k = EA/L_0\).</li>
+        <li>\(E\) spans ~0.01&nbsp;GPa (rubber) to ~1100&nbsp;GPa (diamond) — set by bond stiffness, \(E \approx k_{\text{bond}}/r_0\).</li>
+        <li>Poisson's ratio \(\nu \approx 0.3\) for metals: stretch it longer, it gets thinner.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Sweep <b>Modulus E</b> from 1 to 1200&nbsp;GPa at fixed stress and watch the block: same
+      stress, wildly different strain. Note when the "nearest material" stat changes name.</li>
+      <li>Load <b>Aluminum</b> and set stress to 71&nbsp;MPa. Compare ε and ΔL in the stats to the
+      worked example above — do they match?</li>
+      <li>Load <b>Rubber band</b>. Why does the verdict warn you? Which real materials can actually
+      live at strains beyond 1%?</li>
+      <li>Slide <b>Poisson ν</b> from 0 to 0.49 and watch the block's waist. At ν = 0.5 volume
+      would be exactly conserved — which scenario gets closest?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="young" data-scen="rubber" onclick="setScen('young','rubber')">Rubber band</button>
+    <button class="scen-btn" data-tab="young" data-scen="alu" onclick="setScen('young','alu')">Aluminum</button>
+    <button class="scen-btn on" data-tab="young" data-scen="steel" onclick="setScen('young','steel')">Steel</button>
+    <button class="scen-btn" data-tab="young" data-scen="diamond" onclick="setScen('young','diamond')">Diamond</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Modulus E <span id="v-young-E">200 GPa</span></label>
+        <input type="range" id="s-young-E" min="1" max="1200" step="1" value="200">
+      </div>
+      <div class="ctrl-group">
+        <label>Applied stress σ <span id="v-young-sig">150 MPa</span></label>
+        <input type="range" id="s-young-sig" min="1" max="500" step="1" value="150">
+      </div>
+      <div class="ctrl-group">
+        <label>Poisson ν <span id="v-young-nu">0.30</span></label>
+        <input type="range" id="s-young-nu" min="0" max="0.49" step="0.01" value="0.3">
+      </div>
+      <div class="stats" id="st-young"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">A block under stress (axial strain exaggerated ×50)</div>
+        <canvas id="cv-young" width="640" height="230"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">σ–ε lines: the ladder of real materials, plus yours (bold)</div>
+        <canvas id="cv-young2" width="640" height="300"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-young"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>J. M. Gere &amp; B. J. Goodno, <i>Mechanics of Materials</i>, 9th ed., Cengage (2018) —
+    Ch. 1 (stress, strain, mechanical properties).</li>
+    <li>W. D. Callister &amp; D. G. Rethwisch, <i>Materials Science and Engineering: An
+    Introduction</i>, 10th ed., Wiley (2018) — Ch. 6 (elastic properties; table of moduli:
+    Al 69 GPa, steel 207 GPa, diamond ~1000+ GPa).</li>
+    <li>K. L. Johnson, <i>Contact Mechanics</i>, Cambridge Univ. Press (1985).
+    DOI: 10.1017/CBO9781139171731 — Ch. 2–3 (point loading of an elastic half-space, Boussinesq
+    solution).</li>
+    <li>H. Hertz, "Über die Berührung fester elastischer Körper," <i>J. reine angew. Math.</i>
+    <b>92</b>, 156–171 (1882) — origin of contact stress analysis.</li>
+    <li>M. F. Ashby &amp; D. R. H. Jones, <i>Engineering Materials 1</i>, 4th ed.,
+    Butterworth-Heinemann (2012) — modulus ladder and property charts.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Lesson 4 of 5 — Next: tension, compression,
+torsion, bending — the modes of loading.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 4: Stress and Strain
+   ================================================================ */
+
+/* --- physics constants & shared formulas --- */
+const E_STEEL = 200e9;                       // Pa
+const areaM2 = dmm => Math.PI * (dmm * 1e-3) * (dmm * 1e-3) / 4;   // m²
+const stiffN = (dmm, L) => E_STEEL * areaM2(dmm) / L;              // N/m
+const K_RODA = stiffN(20, 1);                // reference Rod A: 6.28e7 N/m
+const K_RODB = stiffN(10, 2);                // reference Rod B: 7.85e6 N/m
+const T_STRIP = 0.02;                        // m, assumed out-of-plane thickness (tab 3)
+
+/* Boussinesq superposition: vertical stress at (x, z) below a flat contact
+   of width w (m) carrying total force F (N), modeled as 20 point loads. */
+const NPT = 20;
+function sigZ(F, w, x, z){
+  const P = F / NPT; let s = 0;
+  for (let i = 0; i < NPT; i++) {
+    const xi = -w / 2 + w * (i + 0.5) / NPT, dx = x - xi, R2 = dx * dx + z * z;
+    s += z * z * z / Math.pow(R2, 2.5);
+  }
+  return 3 * P / (2 * Math.PI) * s;          // Pa
+}
+
+/* fixed log color scale for the stress bulb: 1 kPa (cool) … 10 MPa (hot) */
+const HEAT_STOPS = [[23, 37, 84], [8, 145, 178], [250, 204, 21], [220, 38, 38]];
+const HEAT_LUT = [];
+for (let i = 0; i < 64; i++) {
+  const t = i / 63 * 3, j = Math.min(2, Math.floor(t)), f = t - j,
+    a = HEAT_STOPS[j], b = HEAT_STOPS[j + 1];
+  HEAT_LUT.push('rgb(' + Math.round(a[0] + (b[0] - a[0]) * f) + ',' +
+    Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f) + ')');
+}
+function heatIdx(sigPa){
+  const t = (Math.log10(Math.max(sigPa, 1)) - 3) / 4;   // 1e3 → 0, 1e7 → 1
+  return Math.max(0, Math.min(63, Math.round(t * 63)));
+}
+
+function pressureLabel(pa){
+  if (pa >= 1e6) return fmt(pa / 1e6, 2) + ' MPa';
+  if (pa >= 1e3) return fmt(pa / 1e3, 1) + ' kPa';
+  return fmt(pa, 0) + ' Pa';
+}
+
+/* materials ladder for tab 4 (typical values; Callister/Ashby) */
+const MATS = [
+  { name: 'rubber',   E: 0.1,  note: 'floppy long-chain molecules — it uncoils rather than stretching bonds' },
+  { name: 'wood (along grain)', E: 10, note: 'cellulose fibers: stiff for its weight, 20× softer than steel' },
+  { name: 'aluminum', E: 69,   note: 'light structural metal — airframes accept the extra flex to save weight' },
+  { name: 'steel',    E: 200,  note: 'the benchmark structural material' },
+  { name: 'diamond',  E: 1100, note: 'the stiffest known bulk solid — pure covalent carbon bonds' }
+];
+
+/* --- control state --- */
+let activeTab = 'prob';
+const scen = { prob: 'rodA', norm: 'rodA', contact: 'chair', young: 'steel' };
+
+const FMT = {
+  'prob-d': v => fmt(v, 0) + ' mm',
+  'prob-L': v => fmt(v, 2) + ' m',
+  'prob-F': v => fmt(v, 1) + ' kN',
+  'norm-d': v => fmt(v, 0) + ' mm',
+  'norm-L': v => fmt(v, 2) + ' m',
+  'norm-F': v => fmt(v, 1) + ' kN',
+  'contact-w': v => fmt(v, 0) + ' mm',
+  'contact-F': v => fmt(v, 0) + ' N',
+  'young-E':   v => fmt(v, 0) + ' GPa',
+  'young-sig': v => fmt(v, 0) + ' MPa',
+  'young-nu':  v => v.toFixed(2)
+};
+
+const SCEN = {
+  prob: {
+    rodA: { 's-prob-d': 20, 's-prob-L': 1,    's-prob-F': 20 },
+    rodB: { 's-prob-d': 10, 's-prob-L': 2,    's-prob-F': 20 },
+    stub: { 's-prob-d': 40, 's-prob-L': 0.25, 's-prob-F': 20 }
+  },
+  norm: {
+    rodA:  { 's-norm-d': 20, 's-norm-L': 1, 's-norm-F': 15 },
+    rodB:  { 's-norm-d': 10, 's-norm-L': 2, 's-norm-F': 15 },
+    heavy: { 's-norm-d': 10, 's-norm-L': 2, 's-norm-F': 30 }
+  },
+  contact: {
+    palm:  { 's-contact-w': 80, 's-contact-F': 50 },
+    chair: { 's-contact-w': 30, 's-contact-F': 200 },
+    tack:  { 's-contact-w': 2,  's-contact-F': 50 }
+  },
+  young: {
+    rubber:  { 's-young-E': 1,    's-young-sig': 5,   's-young-nu': 0.49 },
+    alu:     { 's-young-E': 69,   's-young-sig': 70,  's-young-nu': 0.33 },
+    steel:   { 's-young-E': 200,  's-young-sig': 150, 's-young-nu': 0.30 },
+    diamond: { 's-young-E': 1100, 's-young-sig': 400, 's-young-nu': 0.20 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- small shared drawing bits --- */
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* rod-in-machine picture, shared by tabs 1 & 2 */
+function drawRodPicture(cvId, dmm, L, FkN){
+  const { ctx, w, h } = setupCanvas(document.getElementById(cvId));
+  const k = stiffN(dmm, L), Fn = FkN * 1e3, dL = Fn / k;   // m
+  const cy = h / 2 - 8;
+  const pxLen = 60 + L * 110;                 // scale-ish: length ∝ L
+  const half = Math.max(3, dmm * 0.6);        // width ∝ d
+  const leftX = 96;
+  const pxPerM = pxLen / L;
+  let exPx = dL * 500 * pxPerM;               // exaggeration ×500
+  const exMax = w - leftX - pxLen - 120;
+  const clipped = exPx > exMax;
+  if (clipped) exPx = exMax;
+  const endX = leftX + pxLen + exPx;
+
+  // grips
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(leftX - 26, cy - half - 22, 16, 2 * half + 44);
+  ctx.fillRect(endX + 10, cy - half - 22, 16, 2 * half + 44);
+  ctx.strokeStyle = COL.axis;
+  ctx.strokeRect(leftX - 26, cy - half - 22, 16, 2 * half + 44);
+  ctx.strokeRect(endX + 10, cy - half - 22, 16, 2 * half + 44);
+
+  // stretched rod (solid) + unstretched ghost end (dashed)
+  ctx.fillStyle = '#bfdbfe';
+  ctx.fillRect(leftX, cy - half, endX - leftX + 10, 2 * half);
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.5;
+  ctx.strokeRect(leftX, cy - half, endX - leftX + 10, 2 * half);
+  if (exPx > 1.5) {
+    ctx.fillStyle = 'rgba(245,158,11,0.35)';
+    ctx.fillRect(leftX + pxLen, cy - half, exPx + 10, 2 * half);
+    drawLine(ctx, leftX + pxLen, cy - half - 14, leftX + pxLen, cy + half + 14, COL.warn, 1.5, [4, 3]);
+    caption(ctx, leftX + pxLen, cy - half - 18, 'original end', COL.warn);
+  }
+
+  // force arrows outward at both grips
+  if (FkN > 0.01) {
+    const alen = 22 + FkN * 1.1;
+    arrow(ctx, leftX - 30, cy, leftX - 30 - alen, cy, COL.bad, 3);
+    arrow(ctx, endX + 30, cy, endX + 30 + alen, cy, COL.bad, 3);
+    caption(ctx, endX + 34 + alen / 2, cy - 12, 'F', COL.bad, true);
+  }
+
+  caption(ctx, w / 2, 22,
+    'L₀ = ' + fmt(L, 2) + ' m,  d = ' + fmt(dmm, 0) + ' mm  —  stretch drawn ×500' +
+    (clipped ? ' (clipped to fit)' : ''), COL.axis);
+  caption(ctx, w / 2, h - 10,
+    'ΔL = ' + fmt(dL * 1000, 3) + ' mm', COL.ink, true);
+  return { k, dL };
+}
+
+/* F–ΔL chart with Rod A / Rod B reference lines, shared by tabs 1 & 2 */
+function drawFdLChart(cvId, k, FkN, dL){
+  const c2 = setupCanvas(document.getElementById(cvId));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const kMin = Math.min(k, K_RODB);
+  const xMax = 50e3 / kMin * 1000 * 1.05;     // mm
+  ch.setRange(0, xMax, 0, 52);
+  ch.grid(); ch.axes('stretch ΔL (mm)', 'force F (kN)');
+  ch.plot([[0, 0], [xMax, K_RODA * xMax * 1e-3 / 1e3]], COL.muted, 1.5, [6, 4]);
+  ch.plot([[0, 0], [xMax, K_RODB * xMax * 1e-3 / 1e3]], COL.orange, 1.5, [2, 3]);
+  ch.plot([[0, 0], [xMax, k * xMax * 1e-3 / 1e3]], COL.accent, 3);
+  ch.dot(dL * 1000, FkN, COL.accent, 6);
+  ch.legend([{ label: 'your rod', color: COL.accent },
+             { label: 'Rod A', color: COL.muted, dash: [6, 4] },
+             { label: 'Rod B', color: COL.orange, dash: [2, 3] }]);
+}
+
+/* ---------------- TAB 1: prob ---------------- */
+function drawProb(){
+  const dmm = num('s-prob-d'), L = num('s-prob-L'), FkN = num('s-prob-F');
+  const A = areaM2(dmm);
+  const { k, dL } = drawRodPicture('cv-prob', dmm, L, FkN);
+  drawFdLChart('cv-prob2', k, FkN, dL);
+
+  setStat('st-prob', [
+    { label: 'Area A = πd²/4', value: fmt(A * 1e6, 1) + ' mm²' },
+    { label: 'k = EA/L₀', value: fmt(k, 0) + ' N/m', highlight: true },
+    { label: 'ΔL = F/k', value: fmt(dL * 1000, 3) + ' mm' },
+    { label: 'Curve slope depends on', value: 'd, L₀' }
+  ]);
+
+  const nearA = Math.abs(k - K_RODA) / K_RODA < 0.1;
+  const nearB = Math.abs(k - K_RODB) / K_RODB < 0.1;
+  if (nearA)
+    setVerdict('vd-prob', 'good', 'You’ve reproduced Rod A.',
+      'Your line sits on the dashed Rod A reference (k ≈ 6.3×10⁷ N/m). But change ANY geometry slider and this “material curve” moves — the plot is a fact about the object, not the steel.');
+  else if (nearB)
+    setVerdict('vd-prob', 'good', 'You’ve reproduced Rod B.',
+      'Your line lies on the Rod B reference (k ≈ 7.9×10⁶ N/m) — 8× softer than Rod A, made of the identical steel. Nudge diameter or length and watch the “property” evaporate.');
+  else {
+    const rA = k / K_RODA;
+    setVerdict('vd-prob', '', 'Same steel, new curve — again.',
+      'Your rod’s stiffness is ' + fmt(k, 0) + ' N/m: ' +
+      (rA >= 1 ? fmt(rA, 1) + '× stiffer than' : fmt(K_RODA / k, 1) + '× softer than') +
+      ' Rod A, yet atom-for-atom it is the same material. Every slider move redraws the line: force vs. displacement describes THIS object only. A handbook needs something geometry can’t touch — that’s Tab 2.');
+  }
+}
+
+/* ---------------- TAB 2: norm ---------------- */
+function drawNorm(){
+  const dmm = num('s-norm-d'), L = num('s-norm-L'), FkN = num('s-norm-F');
+  const A = areaM2(dmm), Fn = FkN * 1e3;
+  const k = stiffN(dmm, L), dL = Fn / k;
+  const sigMPa = Fn / A / 1e6;
+  const eps = sigMPa * 1e6 / E_STEEL;          // = ΔL/L₀
+
+  // left: raw F–ΔL (moves with geometry)
+  drawFdLChart('cv-norm', k, FkN, dL);
+
+  // right: σ–ε collapse
+  const c2 = setupCanvas(document.getElementById('cv-norm2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const sMax = Math.max(sigMPa * 1.25, 300);
+  const eMaxPct = sMax / 2000;                 // ε% on the 200 GPa line at sMax
+  ch.setRange(0, eMaxPct, 0, sMax);
+  ch.grid(); ch.axes('strain ε (%)', 'stress σ (MPa)');
+  if (sMax >= 250) ch.hLine(250, COL.bad, [4, 4]);
+  ch.plot([[0, 0], [eMaxPct, 2000 * eMaxPct]], COL.accent, 3);
+  // Rod A and Rod B at the same force — both land on the very same line
+  const sA = Fn / areaM2(20) / 1e6, sB = Fn / areaM2(10) / 1e6;
+  ch.dot(sA / 2000, sA, COL.muted, 4);
+  ch.dot(sB / 2000, sB, COL.orange, 4);
+  ch.dot(eps * 100, sigMPa, COL.accent, 6);
+  ch.legend([{ label: 'steel: σ = Eε', color: COL.accent },
+             { label: '~yield (250 MPa)', color: COL.bad, dash: [4, 4] }]);
+
+  setStat('st-norm', [
+    { label: 'Stress σ = F/A', value: fmt(sigMPa, 1) + ' MPa', highlight: true },
+    { label: 'Strain ε = ΔL/L₀', value: fmt(eps * 100, 4) + ' %' },
+    { label: 'E = σ/ε', value: '200 GPa (constant!)' },
+    { label: 'k of this rod (contrast)', value: fmt(k, 0) + ' N/m' }
+  ]);
+
+  if (sigMPa > 250)
+    setVerdict('vd-norm', 'warn', 'Beyond ~250 MPa — real mild steel would begin to yield.',
+      'The one-line story is elastic-only: past roughly 250 MPa the line ends and the steel starts deforming permanently. Where exactly it ends is decided by the microstructure — Lesson 2’s grains.');
+  else
+    setVerdict('vd-norm', 'good', 'Geometry divided out — you are finally measuring steel, not a rod.',
+      'σ/ε = 200 GPa no matter what you do to the sliders. The left plot keeps squirming as you change d and L₀; the right plot is a property of the material itself — handbook-ready.');
+}
+
+/* ---------------- TAB 3: contact ---------------- */
+function drawContact(){
+  const wmm = num('s-contact-w'), F = num('s-contact-F');
+  const wM = wmm * 1e-3;
+
+  /* --- canvas 1: the stress bulb (coarse-cell color map) --- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-contact'));
+  const surfY = 46, cell = 5;
+  const pxPerM = w / 0.24;                     // 240 mm of scene width
+  // color cells (start half a cell below the surface to dodge the singularity)
+  for (let py = surfY; py < h - 12; py += cell) {
+    const z = (py - surfY + cell / 2) / pxPerM;
+    for (let px = 0; px < w; px += cell) {
+      const x = (px + cell / 2 - w / 2) / pxPerM;
+      ctx.fillStyle = HEAT_LUT[heatIdx(sigZ(F, wM, x, z))];
+      ctx.fillRect(px, py, cell, cell);
+    }
+  }
+  // surface line + punch
+  drawLine(ctx, 0, surfY, w, surfY, COL.ink, 2);
+  const wpx = Math.max(3, wM * pxPerM);
+  ctx.fillStyle = '#64748b';
+  ctx.fillRect(w / 2 - wpx / 2, surfY - 22, wpx, 22);
+  ctx.strokeStyle = COL.ink; ctx.strokeRect(w / 2 - wpx / 2, surfY - 22, wpx, 22);
+  arrow(ctx, w / 2, 6, w / 2, surfY - 26, COL.bad, 3);
+  caption(ctx, w / 2 + 34, 18, 'F = ' + fmt(F, 0) + ' N', COL.bad, true);
+  caption(ctx, 70, 20, 'punch width ' + fmt(wmm, 0) + ' mm', COL.axis);
+  // depth ruler: z = w (rule-of-thumb bulb depth)
+  const zwPx = surfY + wM * pxPerM;
+  if (zwPx < h - 16) {
+    drawLine(ctx, 14, zwPx, 44, zwPx, '#e2e8f0', 1.5, [3, 3]);
+    caption(ctx, 30, zwPx - 5, 'z = w', '#e2e8f0');
+  }
+  // legend: log color bar
+  const lbX = w - 168, lbY = h - 26, lbW = 120;
+  for (let i = 0; i < 60; i++) {
+    ctx.fillStyle = HEAT_LUT[Math.round(i / 59 * 63)];
+    ctx.fillRect(lbX + i * 2, lbY, 2, 10);
+  }
+  ctx.strokeStyle = '#fff'; ctx.strokeRect(lbX, lbY, lbW, 10);
+  ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('1 kPa', lbX, lbY - 3);
+  ctx.textAlign = 'right'; ctx.fillText('10 MPa (log)', lbX + lbW, lbY - 3);
+
+  /* --- canvas 2: p vs w --- */
+  const c2 = setupCanvas(document.getElementById('cv-contact2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const pOf = wmm2 => F / (wmm2 * 1e-3 * T_STRIP) / 1e6;   // MPa
+  const yMax = pOf(2) * 1.06;
+  ch.setRange(0, 82, 0, yMax);
+  ch.grid(); ch.axes('contact width w (mm)', 'mean pressure p (MPa)');
+  if (yMax > 5) ch.hLine(5, COL.bad, [4, 4]);
+  const pts = [];
+  for (let x = 2; x <= 80.001; x += 0.5) pts.push([x, pOf(x)]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(wmm, pOf(wmm), COL.accent, 6);
+  ch.legend([{ label: 'p = F/(w·t),  t = 20 mm', color: COL.accent },
+             { label: '~pine bearing strength', color: COL.bad, dash: [4, 4] }]);
+
+  /* --- stats + verdict --- */
+  const pPa = F / (wM * T_STRIP);
+  const sHalfRef = sigZ(F, wM, 0, wM / 2);
+  let zHalf = wM / 2;
+  for (let z = wM / 2; z < 1; z += 2e-4) {
+    if (sigZ(F, wM, 0, z) <= sHalfRef / 2) { zHalf = z; break; }
+  }
+  setStat('st-contact', [
+    { label: 'Contact area (w × 20 mm)', value: fmt(wmm * 20, 0) + ' mm²' },
+    { label: 'Mean pressure p = F/A', value: pressureLabel(pPa), highlight: true },
+    { label: 'σ_z on axis at z = w/2', value: pressureLabel(sHalfRef) },
+    { label: 'Depth where σ_z halves', value: fmt(zHalf * 1000, 1) + ' mm' }
+  ]);
+
+  const pMPa = pPa / 1e6;
+  if (pMPa < 0.1)
+    setVerdict('vd-contact', 'good', 'Spread out — the material barely notices.',
+      'Mean pressure is only ' + pressureLabel(pPa) + '. The bulb is wide and shallow: this is snowshoe / footing territory, where the same force is shared by so much area that nothing yields.');
+  else if (pMPa <= 5)
+    setVerdict('vd-contact', 'warn', 'Concentrated — soft materials start to care.',
+      'At ' + pressureLabel(pPa) + ', wood, tissue, and foam begin to yield (pine bears only ~5 MPa across the grain). The bulb is tightening: most of the stress now lives within ~' + fmt(wmm, 0) + ' mm of the surface.');
+  else
+    setVerdict('vd-contact', 'bad', 'Punch-through territory — this is a thumbtack, not a footing.',
+      pressureLabel(pPa) + ' of mean pressure, with an even hotter bulb just under the edge of the contact. Almost any everyday material dents, cuts, or punctures here. To fix it, don’t reduce the force — buy area.');
+}
+
+/* ---------------- TAB 4: young ---------------- */
+function drawYoung(){
+  const Eg = num('s-young-E'), sig = num('s-young-sig'), nu = num('s-young-nu');
+  const eps = sig / (1000 * Eg);               // absolute strain (σ MPa / E GPa)
+  const epsPct = eps * 100;
+  const epsLat = -nu * eps;
+
+  /* --- canvas 1: the block --- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-young'));
+  const cx = w / 2, cy = h / 2 + 6, S = 104;
+  const EXAG = 50;
+  let gx = EXAG * eps, gy = EXAG * nu * eps;
+  const clipped = gx > 0.85;
+  if (clipped) { gy = gy * 0.85 / gx; gx = 0.85; }
+  const hw = S / 2 * (1 + gx), hh = S / 2 * (1 - gy);
+  // ghost (unstressed) outline
+  ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = COL.muted; ctx.lineWidth = 1.5;
+  ctx.strokeRect(cx - S / 2, cy - S / 2, S, S); ctx.restore();
+  // deformed block
+  ctx.fillStyle = 'rgba(37,99,235,0.16)';
+  ctx.fillRect(cx - hw, cy - hh, 2 * hw, 2 * hh);
+  ctx.strokeStyle = COL.accent; ctx.lineWidth = 2.5;
+  ctx.strokeRect(cx - hw, cy - hh, 2 * hw, 2 * hh);
+  // stress arrows
+  const alen = 30 + Math.min(40, sig / 10);
+  arrow(ctx, cx - hw - 8, cy, cx - hw - 8 - alen, cy, COL.bad, 3);
+  arrow(ctx, cx + hw + 8, cy, cx + hw + 8 + alen, cy, COL.bad, 3);
+  caption(ctx, cx + hw + 14 + alen / 2, cy - 12, 'σ', COL.bad, true);
+  // labels
+  caption(ctx, cx, cy - hh - 10,
+    'ε_lateral = ' + (eps === 0 ? '0' : fmt(epsLat * 100, 4)) + ' %', COL.teal, true);
+  caption(ctx, cx, cy + hh + 20,
+    'ε_axial = ' + fmt(epsPct, 4) + ' %', COL.accent, true);
+  caption(ctx, cx, h - 8,
+    'strain drawn ×50' + (clipped ? ' (clipped — strain too big to draw!)' : '') +
+    ' · dashed = unstressed', COL.axis);
+
+  /* --- canvas 2: the ladder of σ–ε lines --- */
+  const c2 = setupCanvas(document.getElementById('cv-young2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const eMax = Math.min(60, Math.max(epsPct * 1.3, 0.1));
+  const sMax = Math.max(sig * 1.25, 120);
+  ch.setRange(0, eMax, 0, sMax);
+  ch.grid(); ch.axes('strain ε (%)', 'stress σ (MPa)');
+  for (const m of MATS)  // σ(MPa) = 10 · E(GPa) · ε(%)
+    ch.plot([[0, 0], [eMax, 10 * m.E * eMax]], COL.muted, 1.5, [4, 3]);
+  // Label each line where it EXITS the plot. Steep lines (which leave through
+  // the top at tiny strains) get their labels stacked down the right edge so
+  // they never pile up in the top-left corner or collide with the legend.
+  c2.ctx.font = '10px sans-serif'; c2.ctx.textBaseline = 'middle';
+  c2.ctx.fillStyle = COL.axis; c2.ctx.textAlign = 'right';
+  const topY = ch.m.t + 20, botY = ch.h - ch.m.b - 4, lx = ch.w - ch.m.r - 6;
+  let topSlot = topY;
+  for (const m of [...MATS].sort((a, b) => b.E - a.E)) {
+    const syRight = 10 * m.E * eMax;
+    if (syRight > sMax) { c2.ctx.fillText(m.name.split(' ')[0], lx, topSlot); topSlot += 14; }
+    else c2.ctx.fillText(m.name.split(' ')[0], lx, Math.min(botY, Math.max(topY, ch.toY(syRight))));
+  }
+  ch.plot([[0, 0], [eMax, 10 * Eg * eMax]], COL.accent, 3);
+  ch.dot(epsPct, sig, COL.accent, 6);
+  ch.legend([{ label: 'your E = ' + fmt(Eg, 0) + ' GPa', color: COL.accent },
+             { label: 'reference materials', color: COL.muted, dash: [4, 3] }]);
+
+  /* --- stats + verdict --- */
+  let best = MATS[0], bestD = Infinity;
+  for (const m of MATS) {
+    const d = Math.abs(Math.log10(Eg) - Math.log10(m.E));
+    if (d < bestD) { bestD = d; best = m; }
+  }
+  const dLmm = eps * 1000;                     // ΔL of a 1 m rod, in mm
+  setStat('st-young', [
+    { label: 'Young’s modulus E', value: fmt(Eg, 0) + ' GPa' },
+    { label: 'Stress σ', value: fmt(sig, 0) + ' MPa' },
+    { label: 'Strain ε = σ/E', value: fmt(epsPct, 4) + ' %', highlight: true },
+    { label: 'ΔL of a 1 m rod', value: fmt(dLmm, 3) + ' mm' },
+    { label: 'Nearest material', value: best.name }
+  ]);
+
+  if (epsPct > 1)
+    setVerdict('vd-young', 'warn', 'Strain over 1% — only rubber lives out here.',
+      'At ε = ' + fmt(epsPct, 2) + '%, real stiff solids (metals, ceramics, wood) would have yielded or fractured long ago — their elastic world ends near 0.1–1%. Elastomers survive huge strains only because they uncoil molecules instead of stretching bonds.');
+  else
+    setVerdict('vd-young', 'good', 'That’s closest to ' + best.name + '.',
+      'E = ' + fmt(Eg, 0) + ' GPa — ' + best.note + '. At your ' + fmt(sig, 0) +
+      ' MPa, a 1 m rod of it stretches just ' + fmt(dLmm, 3) + ' mm (ε = ' + fmt(epsPct, 4) +
+      '%). Same σ = Eε line for every specimen of it, any shape — that’s what makes E a handbook number.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { prob: drawProb, norm: drawNorm, contact: drawContact, young: drawYoung };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+</script>
+</body>
+</html>

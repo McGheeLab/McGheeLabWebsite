@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bending Light: Lenses — Optics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Optics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    /* ===== self-check component ===== */
+    .self-check{background:#faf5ff;border:1px solid #d8b4fe;border-radius:10px;padding:14px 16px;margin:16px 0}
+    .self-check::before{content:"Check yourself";display:block;font-weight:700;color:#7c3aed;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+    .self-check .sc-q{font-weight:600;color:#1e3a5f;margin-bottom:10px}
+    .self-check .sc-opt{display:block;width:100%;text-align:left;border:1px solid #cbd5e1;background:#fff;
+      color:#1e293b;padding:9px 12px;border-radius:8px;margin-bottom:7px;cursor:pointer;font-size:.9rem;font-family:inherit}
+    .self-check .sc-opt:hover{background:#f5f3ff;border-color:#a78bfa}
+    .self-check .sc-opt.correct{background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:600}
+    .self-check .sc-opt.wrong{background:#fef2f2;border-color:#dc2626;color:#b91c1c}
+    .self-check .sc-opt.dimmed{opacity:.55}
+    .self-check .sc-feedback{font-size:.88rem;margin-top:6px;min-height:1.2em;color:#475569}
+    .self-check .sc-feedback.correct{color:#15803d}
+    .self-check .sc-feedback.wrong{color:#b91c1c}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Bending Light: Lenses</h1>
+  <p class="subtitle">Optics Foundations · Lesson 3 of 5 — In Lesson 2 you saw a flat surface tip a
+  ray sideways. Now bow that surface into a curve. Suddenly every ray bends by just the right amount
+  to pile up at a single point — a focus. That trick, repeated and stacked, is every lens, magnifier,
+  camera, and telescope ever built.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="curve">1 · A Curved Surface Bends Light</button>
+  <button class="tab-btn" data-tab="types">2 · Converging vs Diverging</button>
+  <button class="tab-btn" data-tab="image">3 · Focal Plane &amp; Images</button>
+  <button class="tab-btn" data-tab="compound">4 · Level Up: Compound Systems</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: curve -->
+<section id="tab-curve" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: bow the surface, and the rays start to gather</h2>
+    <p>Recall the one rule from Lesson 2: when light crosses from air into a denser material like
+    glass, it <b>bends toward the surface normal</b> — the line pointing straight out of the surface
+    at that spot. On a <em>flat</em> pane the normal points the same way everywhere, so a bundle of
+    parallel rays all tip by the same angle and stay parallel. Nothing gathers.</p>
+    <p>Now <b>curve the surface</b>. On a bulging (convex) surface the normal fans outward: it points
+    slightly up near the top, straight ahead at the middle, slightly down near the bottom. A ray that
+    arrives high up meets a steeply tilted normal and bends hard downward; a ray near the axis meets
+    an almost-flat normal and barely bends. Every ray is turned by <em>just the right amount</em> to
+    head for one shared point on the axis — the <b>focus</b>. The bending at each spot still obeys
+    Snell's law from last lesson:</p>
+    <div class="equation-box">
+      $$ n_1 \sin\theta_1 = n_2 \sin\theta_2 $$
+    </div>
+    <p>Here \(\theta_1\) and \(\theta_2\) are measured from the <em>local</em> normal, \(n_1\approx1\)
+    for air, and \(n_2=n\) for the glass. Two knobs decide where the rays meet. Sharpen the
+    <b>curvature</b> (a smaller radius \(R\), a fatter bulge) and the normals fan more steeply, so the
+    focus pulls in close. Raise the <b>index</b> \(n\) and each ray bends harder for the same tilt,
+    which also pulls the focus in. For a single curved surface the focus sits a distance
+    \( f \approx n R/(n-1)\) beyond it — flatten the surface (\(R\to\infty\)) and the focus races off
+    to infinity, which is just the flat-pane "no gathering" case again.</p>
+    <div class="worked-example">
+      <p>Take a glass surface (\(n=1.5\)) bulged to a radius of curvature \(R = 30\) mm. The focus
+      lands a distance \(f = nR/(n-1) = 1.5\times 30/(1.5-1) = 45/0.5 = 90\) mm past the surface. Now
+      swap in a denser glass, \(n=1.8\): \(f = 1.8\times 30/0.8 = 67.5\) mm — the higher index yanks
+      the focus 22 mm closer, even though the curve never changed.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A curved surface gives each ray a differently tilted normal, so Snell bends them by different amounts.</li>
+        <li>A convex surface aims parallel rays at one point: the focus.</li>
+        <li>Smaller radius \(R\) (more curve) → focus closer. Flat surface (\(R\to\infty\)) → no focus.</li>
+        <li>Higher index \(n\) → harder bending → focus closer: \(f \approx nR/(n-1)\).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start with <b>Curvature</b> nearly flat. The rays barely bend and no focus forms on screen —
+      just like a window pane.</li>
+      <li>Drag toward a <b>strong curve</b> (small \(R\)). Watch the outer rays bend hard, the inner
+      ones barely, and all of them collapse onto one point. Read the <b>focal distance</b> shrink.</li>
+      <li>Now hold the curve fixed and raise the <b>index</b> \(n\) from 1.0 to 2.0. The focus pulls
+      in even though the surface never changed — denser glass bends light harder.</li>
+      <li>Set \(n=1.0\) (glass same as air). Nothing bends at all: with no index jump, Snell does
+      nothing and there is no lens.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="curve" data-scen="gentle" onclick="setScen('curve','gentle')">Gentle curve</button>
+    <button class="scen-btn" data-tab="curve" data-scen="strong" onclick="setScen('curve','strong')">Strong curve</button>
+    <button class="scen-btn" data-tab="curve" data-scen="high" onclick="setScen('curve','high')">High-index glass</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Surface curvature (radius R) <span id="v-curve-R">60 mm</span></label>
+        <input type="range" id="s-curve-R" min="18" max="200" step="1" value="60">
+      </div>
+      <div class="ctrl-group">
+        <label>Refractive index n <span id="v-curve-n">1.50</span></label>
+        <input type="range" id="s-curve-n" min="1.0" max="2.0" step="0.01" value="1.5">
+      </div>
+      <div class="stats" id="st-curve"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Parallel rays refracting at a curved glass surface (Snell at each point)</div>
+        <canvas id="cv-curve" width="640" height="320"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-curve"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: types -->
+<section id="tab-types" class="tab-content">
+  <div class="background-section">
+    <h2>Background: two shapes, two opposite jobs</h2>
+    <p>A real lens has two curved surfaces, but for thin lenses we can skip the internal detail and
+    treat the whole thing as one bending plane with a single number: its <b>focal length</b> \(f\).
+    There are two families, set by whether the lens is fatter in the middle or fatter at the edges.</p>
+    <p>A <b>convex (converging)</b> lens — fat in the middle — does exactly what the curved surface in
+    Tab 1 did: it takes parallel rays and squeezes them down to a <b>real focus</b> a distance \(f\)
+    on the far side. You could hold a screen there and catch a bright dot; the light genuinely piles
+    up in space. A <b>concave (diverging)</b> lens — thin in the middle, thick at the rim — does the
+    opposite: it spreads parallel rays apart. They never cross. But if you trace the spreading rays
+    <em>backward</em> (the dashed lines), they all seem to fan out from a single point on the
+    <em>incoming</em> side. That is a <b>virtual focus</b>: no light is actually there, yet your eye,
+    following the rays back, swears the light came from that spot.</p>
+    <div class="equation-box">
+      $$ f > 0 \;\Rightarrow\; \text{converging (real focus at } +f) \qquad
+         f < 0 \;\Rightarrow\; \text{diverging (virtual focus at } f<0) $$
+    </div>
+    <p>The sign of \(f\) <em>is</em> the type. A short focal length (small \(|f|\)) means a strong
+    lens that bends light sharply; a long focal length means a weak, gentle lens. We will make this
+    quantitative in Tab 4, but the picture is the whole point here: converging = pull together to a
+    real point; diverging = push apart from a virtual one.</p>
+    <div class="worked-example">
+      <p>A converging lens with \(f = +100\) mm sends parallel sunlight to a real focus 100 mm behind
+      it — hot enough to scorch paper (this is the "magnifying-glass burns" trick). Flip to a diverging
+      lens of \(f = -100\) mm: the same sunlight spreads out as if streaming from a virtual point 100 mm
+      <em>in front</em> of the lens. You could never burn paper with it — there is no real hot spot to
+      find.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Thin lens ≈ one bending plane described by a single focal length \(f\).</li>
+        <li>Convex / converging (\(f>0\)): parallel rays meet at a real focus you can project on a screen.</li>
+        <li>Concave / diverging (\(f<0\)): parallel rays spread; back-projected dashes meet at a virtual focus.</li>
+        <li>Smaller \(|f|\) = stronger lens (bends more); the sign of \(f\) sets the type.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Click <b>Converging</b>. Drag <b>Focal length</b> and watch the parallel rays cross the axis
+      exactly at \(x=f\). Shrink \(f\) and the crossing marches in toward the lens.</li>
+      <li>Click <b>Diverging</b> (\(f\) goes negative). The rays now spread apart and never cross. Follow
+      the dashed back-projections to the virtual focus on the left at \(x=f\).</li>
+      <li>Change the number of incoming rays with <b>Ray fan</b>. Notice every ray, high or low, is
+      aimed at the same focal point — that is what "focus" means.</li>
+      <li>Push \(f\) toward zero from either side: the lens gets very strong and the focus crowds right
+      up against it.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="types" data-scen="conv" onclick="setScen('types','conv')">Converging (convex)</button>
+    <button class="scen-btn" data-tab="types" data-scen="div" onclick="setScen('types','div')">Diverging (concave)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Focal length f (sign = type) <span id="v-types-f">+120 mm</span></label>
+        <input type="range" id="s-types-f" min="-200" max="200" step="1" value="120">
+      </div>
+      <div class="ctrl-group">
+        <label>Ray fan (number of rays) <span id="v-types-h">5</span></label>
+        <input type="range" id="s-types-h" min="3" max="7" step="2" value="5">
+      </div>
+      <div class="stats" id="st-types"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Parallel rays through a thin lens — real focus (solid) or virtual focus (dashed)</div>
+        <canvas id="cv-types" width="640" height="320"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-types"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="c">
+    <p class="sc-q">Parallel rays hit a lens and come out <em>spreading apart</em>, never crossing. What kind of lens is it, and where is its focus?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="No — a converging lens pulls rays together to a real focus. Spreading rays are the diverging case.">Converging, with a real focus behind it</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Spreading rays never form a real focus you could catch on a screen — the meeting point is only virtual.">Diverging, with a real focus behind it</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="Correct. Diverging (concave) lenses spread rays; trace them backward and they appear to come from a virtual focus on the incoming side (f<0).">Diverging, with a virtual focus in front of it</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: image -->
+<section id="tab-image" class="tab-content">
+  <div class="background-section">
+    <h2>Background: an object, three rays, and where the picture lands</h2>
+    <p>A focus is what a converging lens does to parallel rays. But most things you look at are not
+    infinitely far away — they sit some finite <b>object distance</b> \(d_o\) in front of the lens.
+    Now the lens does something richer: it builds an <b>image</b>. To find where, you do not need any
+    equation yet — you just trace three special rays leaving the tip of the object, because any two of
+    them locate the image where they cross:</p>
+    <div class="equation-box">
+      $$ \text{(1) parallel in} \to \text{through far focus} \qquad
+         \text{(2) through center} \to \text{straight} \qquad
+         \text{(3) through near focus} \to \text{parallel out} $$
+    </div>
+    <p>Ray (1) comes in parallel to the axis and, like Tab 1, leaves through the focal point on the far
+    side. Ray (2) passes straight through the lens's center undeviated. Ray (3) goes through the near
+    focus and emerges parallel. Wherever these cross is the tip of the image. Read off two things: the
+    <b>image distance</b> \(d_i\) (how far behind the lens the picture forms) and the
+    <b>magnification</b> \(M\) (how tall, and which way up). Geometry gives the same answers as the
+    thin-lens relation you will meet in Tab 4:</p>
+    <div class="equation-box">
+      $$ \frac{1}{f} = \frac{1}{d_o} + \frac{1}{d_i}, \qquad
+         d_i = \frac{1}{\,1/f - 1/d_o\,}, \qquad M = -\frac{d_i}{d_o} $$
+    </div>
+    <p>Everything hinges on where \(d_o\) sits relative to \(f\). If the object is <b>farther than
+    \(f\)</b>, the rays cross on the far side: a <b>real, inverted</b> image (\(d_i>0\), \(M<0\)) — this
+    is how a camera and your eye work. Put the object at exactly <b>\(2f\)</b> and the image lands at
+    \(2f\) too, the same size but flipped (\(M=-1\)). Slide the object <b>inside \(f\)</b> and the rays
+    exit still diverging — they never cross in front. Trace them back (dashes) and they meet behind the
+    object: a <b>virtual, upright, magnified</b> image (\(d_i<0\), \(M>1\)). That is precisely a
+    <b>magnifying glass</b>.</p>
+    <div class="worked-example">
+      <p>Lens with \(f = 50\) mm, object at \(d_o = 150\) mm (i.e. \(3f\)). Then
+      \(d_i = 1/(1/50 - 1/150) = 1/(0.0200 - 0.00667) = 1/0.01333 = 75\) mm — a real image 75 mm behind
+      the lens. Magnification \(M = -d_i/d_o = -75/150 = -0.5\): half-size and inverted. Now move the
+      object inside the focus, \(d_o = 30\) mm: \(d_i = 1/(0.0200 - 0.0333) = 1/(-0.01333) = -75\) mm.
+      The negative sign means a virtual image 75 mm in front, and \(M = -(-75)/30 = +2.5\) — upright and
+      2.5× bigger. Same lens, opposite behavior, decided entirely by \(d_o\) vs \(f\).</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Trace any two of the three principal rays; their crossing is the image tip.</li>
+        <li>\(1/f = 1/d_o + 1/d_i\), and \(M = -d_i/d_o\) (negative \(M\) = inverted).</li>
+        <li>Object beyond \(f\): real, inverted image (camera). At \(2f\): same size, flipped.</li>
+        <li>Object inside \(f\): virtual, upright, magnified image (the magnifier).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start with a <b>far object</b>. Watch the three rays cross on the right and drop a small,
+      upside-down real image — the camera regime. Read \(d_i\) and \(M\) (negative).</li>
+      <li>Slide the <b>object distance</b> in to \(2f\). The image swings out to \(2f\) and \(M\)
+      reaches exactly \(-1\): same size, inverted (the "1:1" copy setting).</li>
+      <li>Keep sliding in past the focus (\(d_o<f\)). The solid rays now leave <em>diverging</em>; the
+      dashed back-traces meet behind the object. The stat flips to <b>virtual, upright</b> and \(M>1\)
+      — you have built a magnifying glass.</li>
+      <li>Watch the moment you cross \(d_o=f\): the image shoots off to infinity, then reappears on the
+      other side as virtual. That boundary is the whole story of this tab.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="image" data-scen="far" onclick="setScen('image','far')">Far object (camera)</button>
+    <button class="scen-btn" data-tab="image" data-scen="two" onclick="setScen('image','two')">At 2f (1:1)</button>
+    <button class="scen-btn" data-tab="image" data-scen="mag" onclick="setScen('image','mag')">Inside f (magnifier)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Object distance d<sub>o</sub> <span id="v-image-do">180 mm</span></label>
+        <input type="range" id="s-image-do" min="20" max="360" step="1" value="180">
+      </div>
+      <div class="ctrl-group">
+        <label>Focal length f <span id="v-image-f">60 mm</span></label>
+        <input type="range" id="s-image-f" min="30" max="120" step="1" value="60">
+      </div>
+      <div class="stats" id="st-image"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Three principal rays locate the image — solid rays real, dashed rays virtual</div>
+        <canvas id="cv-image" width="640" height="340"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-image"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="a">
+    <p class="sc-q">You place an object <em>inside</em> a converging lens's focal length (\(d_o &lt; f\)). What image do you get?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="Correct. Inside f, di comes out negative → a virtual image, and M works out greater than +1 → upright and magnified. That's the magnifying glass.">Virtual, upright, and magnified</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="No — a real inverted image needs the object beyond f, so the rays can actually cross on the far side.">Real, inverted, and shrunk</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="A converging lens with the object inside f never gives 1:1. Same-size inverted happens only at do = 2f, which is outside f.">Real, inverted, and the same size</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: compound -->
+<section id="tab-compound" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: the equations, the lensmaker, and stacking lenses</h2>
+    <p>Time for the real machinery. Everything you traced by eye is captured by two relations. For a
+    single thin lens, the object and image distances and the magnification obey</p>
+    <div class="equation-box">
+      $$ \frac{1}{f} = \frac{1}{d_o} + \frac{1}{d_i}, \qquad M = -\frac{d_i}{d_o}. $$
+    </div>
+    <p>And where does \(f\) itself come from? From the glass and its two surface curvatures
+    (\(R_1\) front, \(R_2\) back), through the <b>lensmaker's equation</b>:</p>
+    <div class="equation-box">
+      $$ \frac{1}{f} = (n-1)\!\left(\frac{1}{R_1} - \frac{1}{R_2}\right). $$
+    </div>
+    <p>Now stack two thin lenses of focal lengths \(f_1\) and \(f_2\), separated by a distance \(d\).
+    The pair behaves like one lens whose combined <b>power</b> depends on the spacing:</p>
+    <div class="equation-box">
+      $$ \frac{1}{f_{\text{sys}}} = \frac{1}{f_1} + \frac{1}{f_2} - \frac{d}{f_1 f_2}. $$
+    </div>
+    <p>That last \(-d/(f_1 f_2)\) term is where all the design freedom lives. Sitting the lenses close
+    (\(d\to 0\)) just adds their powers — a stronger single lens. Sliding them apart <em>moves the
+    system focal plane</em>: send parallel light in and the final focus (the <b>back focal distance</b>
+    behind lens 2) shifts as you change \(d\). Push \(d\) all the way to the special value
+    \(d = f_1 + f_2\) and \(1/f_{\text{sys}}\) drops to zero — the system has <em>infinite</em> focal
+    length. Parallel light in comes out parallel again: an <b>afocal telescope</b>. It no longer forms
+    a focus at all; instead it magnifies <em>angles</em>, making distant things look bigger:</p>
+    <div class="equation-box">
+      $$ \text{Telescope at } d=f_1+f_2:\qquad M_\theta = -\frac{f_1}{f_2}\;=\;-\frac{f_{\text{obj}}}{f_{\text{eye}}}. $$
+    </div>
+    <p>Between the extremes you get every useful gadget: two positive lenses spaced for a real relayed
+    image (a <b>relay</b>), a strong-plus-weak pair as a <b>beam expander</b>, or a converging +
+    diverging pair as a compact <b>Galilean</b> scope. One rail, three sliders — the whole zoo.</p>
+    <div class="worked-example">
+      <p>Take an objective \(f_1 = 100\) mm and an eyepiece \(f_2 = 50\) mm. Set the spacing to the sum,
+      \(d = f_1 + f_2 = 150\) mm. Then \(1/f_{\text{sys}} = 1/100 + 1/50 - 150/(100\times 50) =
+      0.0100 + 0.0200 - 0.0300 = 0\): the system is afocal — a <b>Keplerian telescope</b> with angular
+      magnification \(M_\theta = f_1/f_2 = 100/50 = 2\times\). Now nudge the spacing to \(d = 120\) mm
+      (short of afocal): \(1/f_{\text{sys}} = 0.0300 - 120/5000 = 0.0300 - 0.0240 = 0.0060\), so
+      \(f_{\text{sys}} = 167\) mm — the system now <em>does</em> refocus parallel light, and the focal
+      plane has moved to a finite spot behind the eyepiece. Sliding \(d\) is how zoom and focus work.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Thin lens: \(1/f = 1/d_o + 1/d_i\), \(M=-d_i/d_o\). Lensmaker: \(1/f=(n-1)(1/R_1-1/R_2)\).</li>
+        <li>Two lenses: \(1/f_{\text{sys}} = 1/f_1 + 1/f_2 - d/(f_1 f_2)\); the spacing \(d\) tunes the system.</li>
+        <li>Changing \(d\) shifts the back focal distance — that is focusing and beam expanding.</li>
+        <li>At \(d=f_1+f_2\) the system is afocal (a telescope): no focus, angular mag \(-f_1/f_2\).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set \(f_1=100\), \(f_2=50\). Slide the <b>separation</b> \(d\) and watch \(f_{\text{sys}}\)
+      and the back focal distance in the stats change — the final focus slides along the rail.</li>
+      <li>Drive \(d\) to \(150\) mm (\(=f_1+f_2\)). \(1/f_{\text{sys}}\) hits zero, the exit rays go
+      parallel, and the verdict flips to <b>telescope</b> with angular mag \(2\times\).</li>
+      <li>Try a strong-then-weak pair with a small gap: the exit beam is <em>wider</em> than it went in
+      — a beam expander. Then make lens 2 diverging (Galilean) and compare.</li>
+      <li>Confirm the challenge below: for \(f=50\), \(d_o=75\), predict \(d_i\) before you read it, then
+      check against \(1/f = 1/d_o + 1/d_i\).</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="compound" data-scen="tele" onclick="setScen('compound','tele')">Keplerian telescope</button>
+    <button class="scen-btn" data-tab="compound" data-scen="relay" onclick="setScen('compound','relay')">Relay (refocus)</button>
+    <button class="scen-btn" data-tab="compound" data-scen="expand" onclick="setScen('compound','expand')">Beam expander</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Lens 1 focal length f<sub>1</sub> <span id="v-compound-f1">100 mm</span></label>
+        <input type="range" id="s-compound-f1" min="40" max="200" step="1" value="100">
+      </div>
+      <div class="ctrl-group">
+        <label>Lens 2 focal length f<sub>2</sub> <span id="v-compound-f2">50 mm</span></label>
+        <input type="range" id="s-compound-f2" min="-120" max="200" step="1" value="50">
+      </div>
+      <div class="ctrl-group">
+        <label>Lens separation d <span id="v-compound-d">150 mm</span></label>
+        <input type="range" id="s-compound-d" min="10" max="300" step="1" value="150">
+      </div>
+      <div class="stats" id="st-compound"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Parallel rays through two lenses on a rail — the system focus moves with the spacing d</div>
+        <canvas id="cv-compound" width="640" height="340"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-compound"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="b">
+    <p class="sc-q"><b>Challenge.</b> A converging lens has \(f = 50\) mm. You place an object at \(d_o = 75\) mm. Where is the image, and what is its magnification?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="Not quite. Compute 1/di = 1/f − 1/do = 1/50 − 1/75 = 0.0200 − 0.01333 = 0.00667, so di = +150 mm, not 75.">\(d_i = +75\) mm, \(M=-1\) (same size, inverted)</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Correct. 1/di = 1/50 − 1/75 = 0.00667 → di = +150 mm (real, behind the lens). M = −di/do = −150/75 = −2: real, inverted, and twice as tall.">\(d_i = +150\) mm, \(M=-2\) (real, inverted, 2×)</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="A virtual image needs do < f. Here do = 75 mm is beyond f = 50 mm, so di comes out positive → a real image, not virtual.">\(d_i = -150\) mm, \(M=+2\) (virtual, upright)</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>E. Hecht, <i>Optics</i>, 5th ed., Pearson (2017) — refraction at spherical surfaces, thin-lens
+    and lensmaker's equations, image formation, and compound systems.</li>
+    <li>F. L. Pedrotti, L. S. Pedrotti &amp; L. M. Pedrotti, <i>Introduction to Optics</i>, 3rd ed.,
+    Pearson (2007) — ray tracing, principal rays, sign conventions, and two-lens combinations.</li>
+    <li>W. J. Smith, <i>Modern Optical Engineering</i>, 4th ed., McGraw-Hill (2007) — system focal
+    length, back focal distance, and afocal (telescope) and beam-expander configurations.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Optics Foundations · Lesson 3 of 5 — Next: apertures, f-number, and how much
+light a lens actually gathers.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; }
+  }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* wavelength (nm) -> visible RGB (Bruton). Returns 'rgb(...)' or 'rgba(...)'. */
+function wavelengthRGB(nm, alpha){
+  let r=0,g=0,b=0;
+  if (nm>=380 && nm<440){ r=-(nm-440)/60; b=1; }
+  else if (nm<490){ g=(nm-440)/50; b=1; }
+  else if (nm<510){ g=1; b=-(nm-510)/20; }
+  else if (nm<580){ r=(nm-510)/70; g=1; }
+  else if (nm<645){ r=1; g=-(nm-645)/65; }
+  else if (nm<=780){ r=1; }
+  let f=1;
+  if (nm<420) f=0.3+0.7*(nm-380)/40;
+  else if (nm>700) f=0.3+0.7*(780-nm)/80;
+  const G=0.8;
+  const ch=v=>Math.round(255*Math.pow(Math.max(0,Math.min(1,v))*Math.max(0,f),G));
+  return alpha!=null ? `rgba(${ch(r)},${ch(g)},${ch(b)},${alpha})` : `rgb(${ch(r)},${ch(g)},${ch(b)})`;
+}
+
+function wireSelfChecks(){
+  document.querySelectorAll('.self-check').forEach(block => {
+    const ans = block.dataset.answer;
+    const fb = block.querySelector('.sc-feedback');
+    block.querySelectorAll('.sc-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const chosen = opt.dataset.opt;
+        const correct = chosen === ans;
+        block.querySelectorAll('.sc-opt').forEach(o => {
+          o.classList.remove('correct','wrong','dimmed');
+          if (o.dataset.opt === ans) o.classList.add('correct');
+          else if (o === opt) o.classList.add('wrong');
+          else o.classList.add('dimmed');
+        });
+        const explain = opt.getAttribute('data-explain-' + chosen) || '';
+        fb.textContent = (correct ? '✓ ' : '✗ ') + explain;
+        fb.className = 'sc-feedback ' + (correct ? 'correct' : 'wrong');
+      });
+    });
+  });
+}
+
+/* ================================================================
+   PER-MODULE CODE — Optics Lesson 3: Bending Light (Lenses)
+   ================================================================ */
+let activeTab = 'curve';
+const scen = { curve:'gentle', types:'conv', image:'far', compound:'tele' };
+
+function signFmt(v, d){ return (v>=0?'+':'') + fmt(v,d); }
+
+const FMT = {
+  'curve-R':     v => fmt(v,0) + ' mm',
+  'curve-n':     v => fmt(v,2),
+  'types-f':     v => signFmt(v,0) + ' mm',
+  'types-h':     v => fmt(v,0) + '',
+  'image-do':    v => fmt(v,0) + ' mm',
+  'image-f':     v => fmt(v,0) + ' mm',
+  'compound-f1': v => fmt(v,0) + ' mm',
+  'compound-f2': v => signFmt(v,0) + ' mm',
+  'compound-d':  v => fmt(v,0) + ' mm'
+};
+
+const SCEN = {
+  curve: {
+    gentle: { 's-curve-R': 120, 's-curve-n': 1.5 },
+    strong: { 's-curve-R': 30,  's-curve-n': 1.5 },
+    high:   { 's-curve-R': 60,  's-curve-n': 1.9 }
+  },
+  types: {
+    conv: { 's-types-f': 120,  's-types-h': 5 },
+    div:  { 's-types-f': -120, 's-types-h': 5 }
+  },
+  image: {
+    far: { 's-image-do': 240, 's-image-f': 60 },
+    two: { 's-image-do': 120, 's-image-f': 60 },
+    mag: { 's-image-do': 40,  's-image-f': 60 }
+  },
+  compound: {
+    tele:   { 's-compound-f1': 100, 's-compound-f2': 50, 's-compound-d': 150 },
+    relay:  { 's-compound-f1': 100, 's-compound-f2': 50, 's-compound-d': 120 },
+    expand: { 's-compound-f1': 60,  's-compound-f2': 120, 's-compound-d': 70 }
+  }
+};
+
+function fmtFor(key,v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){ const key=sl.id.slice(2); const out=document.getElementById('v-'+key);
+  if(out) out.textContent = fmtFor(key, parseFloat(sl.value)); }
+function wireAll(){ document.querySelectorAll('input[type=range]').forEach(sl=>{
+  updateReadout(sl); sl.addEventListener('input',()=>{ updateReadout(sl); refreshActiveTab(); }); }); }
+function presetSlider(id,v){ const sl=document.getElementById(id); if(!sl) return; sl.value=v; updateReadout(sl); }
+function setScen(tab,s){ scen[tab]=s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`).forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  const p=SCEN[tab]&&SCEN[tab][s]; if(p) for(const [id,v] of Object.entries(p)) presetSlider(id,v);
+  refreshActiveTab(); }
+function refreshActiveTab(){ try{ const f=DRAW[activeTab]; if(f) f(); }
+  catch(e){ console.error('draw error in tab',activeTab,e); } }
+
+/* animation */
+let animId=null, animT=0;
+const ANIMATED = { curve:false, types:false, image:false, compound:false };
+function tick(){ animT += 1/60; refreshActiveTab(); animId=requestAnimationFrame(tick); }
+function startAnim(){ if(!animId && ANIMATED[activeTab]) animId=requestAnimationFrame(tick); }
+function stopAnim(){ if(animId){ cancelAnimationFrame(animId); animId=null; } }
+
+/* ---- shared drawing helpers for this module ---- */
+function axisLine(ctx, x0, x1, y){ drawLine(ctx, x0, y, x1, y, COL.grid, 1.5); }
+function focusDot(ctx, x, y, color, label){
+  ctx.save(); ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+  if(label) caption(ctx, x, y-10, label, color, true);
+}
+/* draw a thin-lens glyph centered at (cx, midY); converging=fat-middle, diverging=fat-edges */
+function lensGlyph(ctx, cx, midY, halfH, converging, color){
+  const w = 9;
+  ctx.save(); ctx.strokeStyle = color||COL.accent; ctx.fillStyle='rgba(37,99,235,.10)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  if(converging){
+    ctx.moveTo(cx, midY-halfH);
+    ctx.quadraticCurveTo(cx+w, midY, cx, midY+halfH);
+    ctx.quadraticCurveTo(cx-w, midY, cx, midY-halfH);
+  } else {
+    const e=7;
+    ctx.moveTo(cx-e, midY-halfH);
+    ctx.quadraticCurveTo(cx+3, midY-halfH+8, cx+3, midY);
+    ctx.quadraticCurveTo(cx+3, midY+halfH-8, cx-e, midY+halfH);
+    ctx.lineTo(cx+e, midY+halfH);
+    ctx.quadraticCurveTo(cx-3, midY+halfH-8, cx-3, midY);
+    ctx.quadraticCurveTo(cx-3, midY-halfH+8, cx+e, midY-halfH);
+    ctx.closePath();
+  }
+  ctx.fill(); ctx.stroke(); ctx.restore();
+}
+
+/* ---------------- TAB 1: curve (static) ----------------
+   Parallel rays strike a convex spherical surface (center of curvature to the RIGHT,
+   vertex at xV). Circle center at (xV + Rpx, midY). Snell (air n1=1 -> glass n2=n)
+   at the local normal. Refracted rays converge near the paraxial focus.
+   Paraxial focus from vertex for a single surface: f = n2*R/(n2-n1) = n*R/(n-1). */
+function drawCurve(){
+  const Rmm = num('s-curve-R');        // radius of curvature (mm)
+  const n   = num('s-curve-n');        // glass index (air = 1)
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-curve'));
+  const midY = h*0.5;
+  const xV   = w*0.30;                  // surface vertex on axis
+  const mmPerPx = 0.55;                 // scene scale: px = mm / mmPerPx
+  const Rpx  = Rmm / mmPerPx;           // radius in px
+  const cxC  = xV + Rpx;                // circle center (to the right of vertex)
+
+  // paraxial focal distance from vertex (mm), guard n->1
+  const dn = Math.max(n-1, 1e-4);
+  const fmm = n*Rmm/dn;                 // distance from vertex to focus (mm)
+  const fpx = fmm/mmPerPx;
+  const xF  = xV + fpx;                 // focus x (px)
+
+  axisLine(ctx, 20, w-14, midY);
+  caption(ctx, w-40, midY-8, 'optic axis', COL.axis); ctx.textAlign='center';
+
+  // draw the curved surface (arc of the circle) — glass fills to the right
+  const halfH = 96;
+  const thetaMax = Math.min(Math.asin(Math.min(halfH/Rpx,0.999)), 1.2);
+  ctx.save();
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 2.4; ctx.beginPath();
+  let started=false;
+  for(let a=-thetaMax; a<=thetaMax; a+=0.02){
+    const sx = cxC - Rpx*Math.cos(a);   // vertex side faces left
+    const sy = midY + Rpx*Math.sin(a);
+    if(!started){ ctx.moveTo(sx,sy); started=true; } else ctx.lineTo(sx,sy);
+  }
+  ctx.stroke();
+  // faint glass tint hint just to the right of the surface
+  ctx.globalAlpha=0.06; ctx.fillStyle=COL.accent;
+  ctx.fillRect(xV, midY-halfH-6, w-14-xV, 2*halfH+12); ctx.globalAlpha=1;
+  ctx.restore();
+  caption(ctx, xV, midY-halfH-12, 'glass (n = '+fmt(n,2)+')', COL.ink, true);
+
+  // trace several parallel rays
+  const heights = [-72,-48,-24,24,48,72];
+  let converged = (n>1.001);
+  heights.forEach(yoff=>{
+    const y0 = midY + yoff;
+    // find intersection with the sphere: point on circle at same y (left branch)
+    // circle: (x-cxC)^2 + (y-midY)^2 = Rpx^2 ; take left root
+    const dy = y0 - midY;
+    if(Math.abs(dy) > Rpx){ // ray misses the surface — draw straight through
+      drawLine(ctx, 20, y0, w-14, y0, 'rgba(37,99,235,.35)', 1.6); return;
+    }
+    const dx = Math.sqrt(Math.max(Rpx*Rpx - dy*dy, 0));
+    const xhit = cxC - dx;               // left surface point
+    // incoming ray up to surface
+    drawLine(ctx, 20, y0, xhit, y0, COL.accent, 1.8);
+    if(n<=1.001){ // no bending — glass same as air
+      drawLine(ctx, xhit, y0, w-14, y0, COL.accent, 1.8); return;
+    }
+    // outward surface normal points from center to surface point (i.e. toward the left/air)
+    let nxr = (xhit - cxC), nyr = (dy);   // normal (surface point - center) points outward (left)
+    const nlen = Math.hypot(nxr,nyr); nxr/=nlen; nyr/=nlen;
+    // incident direction (traveling +x)
+    const ix=1, iy=0;
+    // angle of incidence from normal: use outward normal facing incoming light => flip to face -x
+    let Nx=nxr, Ny=nyr; // this already points to the left (outward), toward air
+    // cos of incidence between -incident and normal
+    let cosi = -(ix*Nx + iy*Ny);
+    if(cosi<0){ Nx=-Nx; Ny=-Ny; cosi=-(ix*Nx+iy*Ny); }
+    const sini = Math.sqrt(Math.max(0,1-cosi*cosi));
+    const sint = sini/n;                  // Snell: n1 sinI = n2 sinT, n1=1,n2=n
+    const cost = Math.sqrt(Math.max(0,1-sint*sint));
+    // refracted direction (vector form): t = (1/n) i + (1/n cosi - cost) N
+    const eta = 1/n;
+    let tx = eta*ix + (eta*cosi - cost)*Nx;
+    let ty = eta*iy + (eta*cosi - cost)*Ny;
+    const tl = Math.hypot(tx,ty); tx/=tl; ty/=tl;
+    // draw refracted ray to the right edge
+    const tExit = (w-14 - xhit)/tx;
+    drawLine(ctx, xhit, y0, xhit + tx*tExit, y0 + ty*tExit, COL.accent, 1.8);
+  });
+
+  // focus marker (only meaningful when converging & focus on-canvas)
+  if(converged && xF>xV && xF < w-14 && isFinite(fmm)){
+    drawLine(ctx, xF, midY-70, xF, midY+70, COL.warn, 1, [4,4]);
+    focusDot(ctx, xF, midY, COL.bad, 'focus');
+    caption(ctx, xF, midY+86, 'f ≈ '+fmt(fmm,0)+' mm', COL.bad, true);
+  } else if(converged && isFinite(fmm)){
+    caption(ctx, w*0.72, midY+86, 'focus off-screen: f ≈ '+fmt(fmm,0)+' mm', COL.warn, true);
+  }
+
+  const curveWord = Rmm>150 ? 'nearly flat' : (Rmm>70 ? 'gently curved' : (Rmm>35?'strongly curved':'very strongly curved'));
+  setStat('st-curve', [
+    { label:'Radius of curvature R', value: fmt(Rmm,0)+' mm ('+curveWord+')' },
+    { label:'Refractive index n', value: fmt(n,2) },
+    { label:'Index jump (n − 1)', value: fmt(n-1,2) },
+    { label:'Focal distance f = nR/(n−1)', value: (n<=1.001?'∞ (no focus)':fmt(fmm,0)+' mm'), highlight:true }
+  ]);
+  if(n<=1.001)
+    setVerdict('vd-curve','bad','No index jump → no bending.',
+      'With n = 1.00 the glass matches the air, so Snell does nothing at the surface. The rays sail straight through and never gather. A lens needs an index difference.');
+  else if(Rmm>150)
+    setVerdict('vd-curve','warn','Almost flat → the focus runs away.',
+      'At R = '+fmt(Rmm,0)+' mm the surface is barely curved, so the normals hardly fan out and each ray bends only a little. The focus sits '+fmt(fmm,0)+' mm off — far downrange. Flatten it fully and f → ∞: a window pane, not a lens.');
+  else
+    setVerdict('vd-curve','good','Curved + dense → the rays gather to a focus.',
+      'Each ray meets a differently tilted normal, so the outer rays bend hard and the inner ones gently — all converging '+fmt(fmm,0)+' mm past the surface. Sharpen the curve (smaller R) or raise n and watch f pull in: f = nR/(n−1).');
+}
+
+/* ---------------- TAB 2: types (static) ----------------
+   Thin lens at xL. Parallel rays in at heights; for a thin lens an incoming
+   parallel ray at height y exits aimed at the focal point (xL+fpx, midY) when
+   converging, or as if diverging from (xL+fpx, midY) with fpx<0 (virtual). */
+function drawTypes(){
+  const fmm = num('s-types-f');          // signed focal length (mm)
+  const nRays = Math.round(num('s-types-h'));
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-types'));
+  const midY = h*0.5;
+  const xL   = w*0.42;                    // lens plane
+  const mmPerPx = 0.70;
+  const fpx  = fmm/mmPerPx;
+  const xF   = xL + fpx;                  // focal point x (px); negative fpx -> left of lens
+  const converging = fmm>0;
+  const halfH = 104;
+
+  axisLine(ctx, 20, w-14, midY);
+  caption(ctx, w-40, midY-8, 'optic axis', COL.axis); ctx.textAlign='center';
+  lensGlyph(ctx, xL, midY, halfH-8, converging, COL.accent);
+  caption(ctx, xL, midY-halfH-6, converging?'converging (convex)':'diverging (concave)', COL.ink, true);
+
+  // ray heights symmetric about axis, skipping 0
+  const hs=[];
+  const span=76; const nHalf=Math.floor(nRays/2);
+  for(let i=-nHalf;i<=nHalf;i++){ if(i===0 && nRays%2===1) continue; hs.push(i*span/Math.max(nHalf,1)); }
+  // if odd count requested include axis ray subtly? keep off-axis for clarity
+
+  hs.forEach(y=>{
+    const yin = midY + y;
+    // incoming parallel ray
+    drawLine(ctx, 20, yin, xL, yin, COL.accent, 1.8);
+    if(converging){
+      // exits toward focal point (xF, midY)
+      const slope = (midY - yin)/(xF - xL);
+      const yEnd = yin + slope*(w-14 - xL);
+      drawLine(ctx, xL, yin, w-14, yEnd, COL.accent, 1.8);
+    } else {
+      // diverging: exit ray appears to come from virtual focus at (xF, midY) which is left of lens
+      const slope = (yin - midY)/(xL - xF);     // direction away from virtual focus
+      const yEnd = yin + slope*(w-14 - xL);
+      drawLine(ctx, xL, yin, w-14, yEnd, COL.accent, 1.8);
+      // dashed back-projection to virtual focus
+      drawLine(ctx, xL, yin, xF, midY, 'rgba(220,38,38,.55)', 1.2, [5,4]);
+    }
+  });
+
+  // focus marker
+  if(converging){
+    if(xF < w-14){
+      drawLine(ctx, xF, midY-78, xF, midY+78, COL.warn, 1, [4,4]);
+      focusDot(ctx, xF, midY, COL.bad, 'real focus');
+      caption(ctx, xF, midY+92, '+f = '+fmt(fmm,0)+' mm', COL.bad, true);
+    } else {
+      caption(ctx, w*0.7, midY+92, 'real focus off-screen (+'+fmt(fmm,0)+' mm)', COL.warn, true);
+    }
+  } else {
+    if(xF > 20){
+      drawLine(ctx, xF, midY-78, xF, midY+78, COL.warn, 1, [4,4]);
+      focusDot(ctx, xF, midY, COL.bad, 'virtual focus');
+      caption(ctx, xF, midY+92, 'f = '+fmt(fmm,0)+' mm', COL.bad, true);
+    }
+  }
+
+  const power = 1000/fmm; // diopters (f in mm -> 1/m *1000)
+  setStat('st-types', [
+    { label:'Focal length f', value: signFmt(fmm,0)+' mm' },
+    { label:'Lens type', value: converging?'converging (convex)':'diverging (concave)' },
+    { label:'Focus location', value: converging?('real, +'+fmt(fmm,0)+' mm (far side)'):('virtual, '+fmt(fmm,0)+' mm (near side)') },
+    { label:'Optical power 1/f', value: fmt(power,1)+' D', highlight:true }
+  ]);
+  if(converging)
+    setVerdict('vd-types','good','Converging lens → a real focus you could project.',
+      'Parallel rays cross the axis at x = +f = '+fmt(fmm,0)+' mm behind the lens. Hold a screen there and you would catch a bright dot — the light truly piles up. Smaller f bends harder and pulls the focus in.');
+  else
+    setVerdict('vd-types','warn','Diverging lens → only a virtual focus.',
+      'The rays leave spreading apart and never meet. Trace them back (dashed) and they seem to stream from a virtual focus '+fmt(fmm,0)+' mm on the incoming side. No screen can catch it — there is no real light there.');
+}
+
+/* ---------------- TAB 3: image (static) ----------------
+   Object arrow at x=-do (height ho) in front of lens at xL. Trace 3 principal rays
+   from the object tip. Compute di = 1/(1/f - 1/do), M = -di/do; draw image arrow.
+   Real image di>0 (right of lens, inverted); virtual di<0 (left, upright, dashed). */
+function drawImage(){
+  const doMM = num('s-image-do');
+  const fMM  = num('s-image-f');
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-image'));
+  const midY = h*0.5;
+  const xL   = w*0.50;
+  const mmPerPx = 0.72;
+  const fpx = fMM/mmPerPx;
+  const doPx = doMM/mmPerPx;
+  const xO  = xL - doPx;                  // object x
+  const hoPx = 58;                        // object height (px, upright => negative y up)
+  const yTip = midY - hoPx;              // object tip (above axis)
+
+  // thin-lens math (mm)
+  const invdi = 1/fMM - 1/doMM;
+  const diMM = 1/invdi;                   // image distance (mm); + real, - virtual
+  const diPx = diMM/mmPerPx;
+  const M = -diMM/doMM;                   // magnification
+  const hiPx = M*hoPx;                    // image tip offset (M<0 -> below axis => inverted)
+  const xI  = xL + diPx;                  // image x
+  const yImgTip = midY - hiPx;
+
+  const halfH = 104;
+  axisLine(ctx, 20, w-14, midY);
+  caption(ctx, w-40, midY-8, 'optic axis', COL.axis); ctx.textAlign='center';
+  lensGlyph(ctx, xL, midY, halfH-10, true, COL.accent);
+
+  // focal points on axis at ±f
+  const xFfar = xL + fpx, xFnear = xL - fpx;
+  focusDot(ctx, xFfar, midY, COL.muted, 'F');
+  focusDot(ctx, xFnear, midY, COL.muted, 'F');
+
+  // object arrow (upright, teal)
+  arrow(ctx, xO, midY, xO, yTip, COL.teal, 2.4);
+  caption(ctx, xO, midY+16, 'object', COL.teal, true);
+
+  const realImg = diMM>0 && isFinite(diMM);
+  const dpx = 6; // helper
+  // ---- three principal rays from object tip ----
+  // Ray 1: parallel in -> refracts through far focus (xFfar,midY)
+  drawLine(ctx, xO, yTip, xL, yTip, COL.accent, 1.8);
+  {
+    const slope=(midY-yTip)/(xFfar-xL);
+    const yEnd=yTip+slope*(w-14-xL);
+    drawLine(ctx, xL, yTip, w-14, yEnd, COL.accent, 1.8);
+    if(!realImg){ // virtual: back-project to the left
+      const yb=yTip+slope*(20-xL);
+      drawLine(ctx, xL, yTip, 20, yb, 'rgba(37,99,235,.35)', 1.2, [5,4]);
+    }
+  }
+  // Ray 2: through lens center -> straight
+  {
+    const slope=(midY-yTip)/(xL-xO);
+    const yEnd=yTip+slope*(w-14-xO);
+    drawLine(ctx, xO, yTip, w-14, yEnd, COL.orange, 1.8);
+    if(!realImg){ const yb=yTip+slope*(20-xO); drawLine(ctx, xO, yTip, 20, yb, 'rgba(245,158,11,.4)', 1.2, [5,4]); }
+  }
+  // Ray 3: through near focus -> exits parallel
+  {
+    // from tip through (xFnear,midY): find height at lens plane
+    const slope=(midY-yTip)/(xFnear-xO);
+    const yAtLens=yTip+slope*(xL-xO);
+    drawLine(ctx, xO, yTip, xL, yAtLens, COL.purple, 1.8);
+    // after lens: parallel to axis at yAtLens
+    drawLine(ctx, xL, yAtLens, w-14, yAtLens, COL.purple, 1.8);
+    if(!realImg){ drawLine(ctx, xL, yAtLens, 20, yAtLens, 'rgba(139,92,246,.4)', 1.2, [5,4]); }
+  }
+
+  // image arrow
+  if(isFinite(diMM) && Math.abs(diMM)<4000){
+    const col = realImg?COL.bad:COL.warn;
+    if(xI>20 && xI<w-14){
+      arrow(ctx, xI, midY, xI, yImgTip, col, 2.6);
+      caption(ctx, xI, realImg?(midY+16):(midY-Math.abs(hiPx)-16), realImg?'real image':'virtual image', col, true);
+      drawLine(ctx, xI, midY, xI, midY, col, 1); // anchor
+    }
+  }
+
+  const orient = M<0 ? 'inverted' : 'upright';
+  const kind   = realImg ? 'real' : 'virtual';
+  setStat('st-image', [
+    { label:'Object distance dₒ', value: fmt(doMM,0)+' mm ('+fmt(doMM/fMM,2)+' f)' },
+    { label:'Focal length f', value: fmt(fMM,0)+' mm' },
+    { label:'Image distance dᵢ', value: (isFinite(diMM)?signFmt(diMM,0)+' mm':'∞') },
+    { label:'Magnification M', value: (isFinite(M)?signFmt(M,2)+'×':'∞')+' ('+orient+')' },
+    { label:'Image', value: kind+', '+orient, highlight:true }
+  ]);
+  if(!isFinite(diMM) || Math.abs(doMM-fMM)<0.8)
+    setVerdict('vd-image','warn','Object right at the focus → image at infinity.',
+      'With dₒ = f the outgoing rays are exactly parallel, so they never converge: the image races off to infinity. This is the knife-edge between the real-image regime (object beyond f) and the magnifier regime (object inside f).');
+  else if(realImg)
+    setVerdict('vd-image','good','Real, '+orient+' image — the camera regime.',
+      'The object sits beyond f, so the three rays actually cross '+fmt(diMM,0)+' mm behind the lens, forming a real image you could project. It is '+orient+' and '+fmt(Math.abs(M),2)+'× the object size (M = −dᵢ/dₒ = '+signFmt(M,2)+').');
+  else
+    setVerdict('vd-image','warn','Virtual, upright, magnified — the magnifying glass.',
+      'The object is inside f, so the exiting rays still diverge; trace them back (dashes) and they meet '+fmt(Math.abs(diMM),0)+' mm on the object side. The image is virtual, upright and '+fmt(Math.abs(M),2)+'× larger — exactly what a magnifier gives your eye.');
+}
+
+/* ---------------- TAB 4: compound (static) ----------------
+   Two thin lenses on a rail: L1 at xL1 (f1), L2 at xL2 = xL1 + dpx (f2).
+   Incoming parallel rays. After L1 each parallel ray at height y heads toward
+   (xL1+f1px, midY). At L2 apply thin-lens ray transfer for a ray with height y2
+   and slope u2: output slope u2' = u2 - y2/f2. Trace to final focus.
+   System: 1/fsys = 1/f1 + 1/f2 - d/(f1 f2). BFD = f2*(f1-d)/(f1+f2-d). */
+function drawCompound(){
+  const f1 = num('s-compound-f1');
+  const f2 = num('s-compound-f2');
+  const dmm = num('s-compound-d');
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-compound'));
+  const midY = h*0.5;
+  const mmPerPx = 0.62;
+  const xL1 = w*0.20;
+  const xL2 = xL1 + dmm/mmPerPx;
+  const halfH = 100;
+
+  axisLine(ctx, 14, w-10, midY);
+  caption(ctx, w-40, midY-8, 'optic axis', COL.axis); ctx.textAlign='center';
+
+  // system quantities
+  const invfsys = 1/f1 + 1/f2 - dmm/(f1*f2);
+  const fsys = 1/invfsys;                        // mm (can be ±∞)
+  const denom = (f1 + f2 - dmm);
+  const BFD = f2*(f1 - dmm)/denom;               // back focal distance behind L2 (mm)
+  const afocal = Math.abs(invfsys) < 1e-4 || Math.abs(denom) < 0.5;
+  const Mtheta = -f1/f2;                          // angular mag if afocal
+
+  // draw lenses (draw L2 only if on canvas)
+  lensGlyph(ctx, xL1, midY, halfH-8, f1>0, COL.accent);
+  caption(ctx, xL1, midY-halfH+2, 'L1  f₁='+fmt(f1,0), COL.ink, true);
+  const l2on = xL2 < w-30;
+  if(l2on){
+    lensGlyph(ctx, xL2, midY, halfH-8, f2>0, COL.teal);
+    caption(ctx, xL2, midY-halfH+2, 'L2  f₂='+signFmt(f2,0), COL.teal, true);
+  } else {
+    caption(ctx, w*0.7, midY-halfH+2, 'L2 off-screen (d large)', COL.warn, true);
+  }
+
+  // trace parallel input rays via paraxial ray transfer (y, u)
+  const heights=[-60,-30,30,60];
+  const f1px=f1/mmPerPx;
+  heights.forEach(y0=>{
+    const yin = midY + y0;
+    // incoming parallel: u=0
+    drawLine(ctx, 14, yin, xL1, yin, COL.accent, 1.8);
+    // at L1: refraction changes slope: u1' = u1 - y/f1 ; here in px-space using f1px, u dimensionless (dy/dx)
+    let y = y0;                       // height rel axis (px)
+    let u = 0;                        // slope
+    u = u - y/f1px;                   // thin lens power (px units)
+    // propagate to L2
+    const seg = (xL2 - xL1);
+    let yAtL2 = y + u*seg;
+    // draw L1 -> L2 (or to edge if L2 off canvas)
+    if(l2on){
+      drawLine(ctx, xL1, midY+y, xL2, midY+yAtL2, COL.accent, 1.8);
+      // at L2
+      const f2px=f2/mmPerPx;
+      let u2 = u - yAtL2/f2px;
+      // draw beyond L2
+      const yEnd = yAtL2 + u2*(w-10 - xL2);
+      drawLine(ctx, xL2, midY+yAtL2, w-10, midY+yEnd, COL.teal, 1.8);
+    } else {
+      const yEnd = y + u*(w-10 - xL1);
+      drawLine(ctx, xL1, midY+y, w-10, midY+yEnd, COL.accent, 1.8);
+    }
+  });
+
+  // final focus marker at xL2 + BFD (only if finite, not afocal, on-canvas)
+  if(l2on && !afocal && isFinite(BFD)){
+    const xFF = xL2 + BFD/mmPerPx;
+    if(xFF>xL2 && xFF<w-10){
+      drawLine(ctx, xFF, midY-72, xFF, midY+72, COL.warn, 1, [4,4]);
+      focusDot(ctx, xFF, midY, COL.bad, 'system focus');
+      caption(ctx, xFF, midY+88, 'BFD = '+fmt(BFD,0)+' mm', COL.bad, true);
+    } else if (xFF<=xL2){
+      caption(ctx, xL2+60, midY+88, 'focus is virtual / before L2', COL.warn, true);
+    } else {
+      caption(ctx, w*0.72, midY+88, 'system focus off-screen', COL.warn, true);
+    }
+  } else if(l2on && afocal){
+    caption(ctx, (xL2+w)/2, midY+88, 'afocal — exit rays parallel (no focus)', COL.good, true);
+  }
+
+  // classify configuration
+  let config, cls, body;
+  if(afocal){
+    config='afocal telescope'; cls='good';
+    body='At d ≈ f₁+f₂ = '+fmt(f1+f2,0)+' mm the two-lens power collapses to zero, so parallel light exits parallel. It forms no focus; instead it magnifies angles by Mθ = −f₁/f₂ = '+signFmt(Mtheta,2)+'×. This is a Keplerian telescope.';
+  } else if(f2<0){
+    config='Galilean / diverging pair'; cls='warn';
+    body='Lens 2 is diverging (f₂ = '+fmt(f2,0)+' mm). The pair still has power (f_sys = '+fmt(fsys,0)+' mm); shift d toward |f₁−|f₂|| for a compact Galilean scope or a beam-shrinker.';
+  } else if(dmm < Math.min(f1,f2)*0.6){
+    config='beam expander / stronger lens'; cls='warn';
+    body='The lenses sit close (d = '+fmt(dmm,0)+' mm), so their powers roughly add: f_sys = '+fmt(fsys,0)+' mm — a shorter effective focal length. With a strong-then-weak pair this widens the exiting beam (a beam expander).';
+  } else {
+    config='relay (real refocus)'; cls='good';
+    body='The system has finite power f_sys = '+fmt(fsys,0)+' mm and refocuses the light '+fmt(BFD,0)+' mm behind L2. Slide d and watch that focal plane travel along the rail — that is exactly how focusing works.';
+  }
+
+  setStat('st-compound', [
+    { label:'f₁, f₂', value: fmt(f1,0)+', '+signFmt(f2,0)+' mm' },
+    { label:'Separation d', value: fmt(dmm,0)+' mm' },
+    { label:'1/f_sys = 1/f₁+1/f₂−d/(f₁f₂)', value: fmt(invfsys*1000,2)+' /m' },
+    { label:'System focal length f_sys', value: afocal?'∞ (afocal)':fmt(fsys,0)+' mm' },
+    { label:'Back focal distance (behind L2)', value: afocal?'—':(isFinite(BFD)?fmt(BFD,0)+' mm':'—') },
+    { label:'Config', value: config, highlight:true }
+  ]);
+  setVerdict('vd-compound', cls, config.charAt(0).toUpperCase()+config.slice(1)+'.', body +
+    (afocal?'':' Angular mag if you push d to '+fmt(f1+f2,0)+' mm (afocal): '+signFmt(Mtheta,2)+'×.'));
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { curve: drawCurve, types: drawTypes, image: drawImage, compound: drawCompound };
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec) sec.classList.add('active');
+    refreshActiveTab(); startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) stopAnim(); else startAnim(); });
+wireAll(); wireSelfChecks(); refreshActiveTab(); startAnim();
+</script>
+</body>
+</html>

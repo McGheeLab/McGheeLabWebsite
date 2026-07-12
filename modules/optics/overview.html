@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Optics Foundations: Start Here — Course Overview</title>
+
+  <!-- Module header styles (dark theme nav bar) -->
+  <link rel="stylesheet" href="../shared/module-header.css" />
+
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #141925;
+      --panel-2: #1a1f2e;
+      --ink: #eef2f7;
+      --muted: #a8b3c7;
+      --accent: #6aa8ff;
+      --accent-2: #b57cff;
+      --line: rgba(255,255,255,.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      background:
+        radial-gradient(120% 140% at 0% 0%, rgba(106,168,255,.20), transparent 55%),
+        radial-gradient(120% 140% at 100% 0%, rgba(181,124,255,.18), transparent 55%),
+        var(--panel);
+      overflow: hidden;
+    }
+    .hero .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 .6rem;
+    }
+    .hero h1 {
+      margin: 0 0 .6rem;
+      font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+      line-height: 1.1;
+      letter-spacing: -.01em;
+    }
+    .hero .lede {
+      margin: 0;
+      max-width: 62ch;
+      font-size: 1.06rem;
+      color: var(--muted);
+    }
+    .hero .lede strong { color: var(--ink); font-weight: 600; }
+    .spectrum-bar {
+      height: 8px; border-radius: 6px; margin-top: 1.4rem;
+      background: linear-gradient(90deg,#8b00ff,#4b0082,#0000ff,#00b7ff,#00ff7f,#c8ff00,#ffd500,#ff7b00,#ff0000);
+    }
+
+    /* ── Section heading ── */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      gap: .75rem;
+      margin: 3rem 0 1.2rem;
+    }
+    .section-head h2 { margin: 0; font-size: 1.35rem; color: var(--ink); }
+    .section-head .sub { color: var(--muted); font-size: .92rem; }
+
+    /* ── How it works ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem 1.4rem;
+      background: var(--panel);
+    }
+    .step .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: rgba(106,168,255,.16);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .7rem;
+    }
+    .step h3 { margin: 0 0 .35rem; font-size: 1.02rem; }
+    .step p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    /* ── Lesson cards ── */
+    .lessons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.1rem;
+    }
+    .lesson {
+      border: 1px solid rgba(181,124,255,.32);
+      border-radius: 14px;
+      background: var(--panel);
+      padding: 1.35rem 1.4rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .lesson-top {
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      margin-bottom: .45rem;
+    }
+    .lesson-top .no {
+      flex: none;
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel-2);
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .lesson-top h3 { margin: .1rem 0 0; font-size: 1.14rem; line-height: 1.3; }
+    .lesson-desc { margin: 0 0 .9rem; color: var(--muted); font-size: .93rem; }
+    .lesson-desc strong { color: var(--ink); font-weight: 600; }
+    .arc {
+      margin: 0 0 1rem;
+      padding: .55rem .8rem;
+      border-left: 3px solid rgba(106,168,255,.45);
+      background: rgba(106,168,255,.07);
+      border-radius: 0 8px 8px 0;
+      color: var(--muted);
+      font-size: .84rem;
+    }
+    .lesson-actions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+    }
+    a.btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .55rem .95rem;
+      border-radius: 9px;
+      font-weight: 600;
+      font-size: .9rem;
+      text-decoration: none;
+      transition: transform .12s ease, background .12s ease;
+    }
+    a.btn:hover { transform: translateY(-1px); }
+    a.btn-lesson { background: rgba(106,168,255,.16); color: var(--accent); }
+    a.btn-lesson:hover { background: rgba(106,168,255,.26); }
+
+    /* ── Teacher note / closing ── */
+    .closing {
+      margin-top: 2.5rem;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.4rem;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .closing strong { color: var(--ink); }
+
+    @media (max-width: 600px) {
+      .wrap { padding: 1.25rem 1rem 3rem; }
+      .hero { padding: 1.8rem 1.3rem; }
+    }
+  </style>
+
+  <!-- Firebase SDK (needed for header navigation when opened with ?class=) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="../../firebase-config.js"></script>
+  <script defer src="../shared/module-header.js"></script>
+</head>
+<body>
+  <!-- Module header (auto-populated from Firestore when ?class= is present) -->
+  <header id="module-header"></header>
+
+  <main class="wrap">
+
+    <!-- ═══ Hero ═══ -->
+    <section class="hero">
+      <p class="eyebrow">Optics Foundations</p>
+      <h1>How light works — from a single atom to a microscope</h1>
+      <p class="lede">
+        Five interactive lessons that build optics <strong>from the photon up</strong>. Every
+        concept comes with a <strong>live simulation you drive yourself</strong>: tune a light
+        wave through the rainbow, watch an atom swallow a color, trap light inside glass, bend it
+        with a lens, make cloudy tissue turn clear, and split a laser into interference fringes.
+        Each lesson opens at a high-school level and finishes with the real equations a
+        second-year science or engineering student uses.
+      </p>
+      <div class="spectrum-bar"></div>
+    </section>
+
+    <!-- ═══ How it works ═══ -->
+    <div class="section-head">
+      <h2>How to use this course</h2>
+      <span class="sub">three steps</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <h3>Work tab by tab</h3>
+        <p>Each lesson is a set of tabs. Every tab adds exactly one new idea and one new
+        simulation — go in order.</p>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <h3>Drag the sliders</h3>
+        <p>The sliders are the point. The stats and the color-coded verdict box update live as
+        you experiment — chase the moment the verdict flips.</p>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <h3>Check yourself</h3>
+        <p>Each lesson has quick self-check questions with instant feedback, and the last tab
+        ends with a harder challenge at the undergraduate level.</p>
+      </div>
+    </div>
+
+    <!-- ═══ Lessons ═══ -->
+    <div class="section-head">
+      <h2>The five lessons</h2>
+      <span class="sub">do them in order — each builds on the last</span>
+    </div>
+    <div class="lessons">
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">1</span>
+          <h3>Light &amp; Matter — Why Things Absorb Color</h3>
+        </div>
+        <p class="lesson-desc">
+          A red apple isn't "made of red" — its atoms <strong>swallowed every color except red</strong>.
+          See light as an electromagnetic wave, watch an atom absorb only the photon that matches
+          an energy gap, and learn why a solid absorbs a whole band of color.
+        </p>
+        <p class="arc">Light is a wave (c = λf) → atoms have energy steps (E = hc/λ) → one atom to
+        a solid → level up: band gaps set a material's color (λc = 1240/E_g)</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="01-light-and-matter.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">2</span>
+          <h3>Color, Reflection &amp; Trapped Light</h3>
+        </div>
+        <p class="lesson-desc">
+          The color you see is the light that <strong>bounced back</strong> — and the angle light
+          makes with a surface decides whether it escapes or gets trapped by total internal
+          reflection. Press a finger onto trapped light and it leaks out: that's a fingerprint
+          scanner.
+        </p>
+        <p class="arc">Color is what reflected → reflect vs refract (Snell) → total internal
+        reflection → level up: critical angle &amp; frustrated TIR (fingerprint sensors)</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="02-reflection-and-tir.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">3</span>
+          <h3>Bending Light — Lenses</h3>
+        </div>
+        <p class="lesson-desc">
+          Curve a surface and light bends in a controlled way — that's a lens. Trace rays through
+          converging and diverging lenses, watch an image form at the focal plane, and see how the
+          <strong>spacing between two lenses</strong> turns them into a telescope.
+        </p>
+        <p class="arc">A curved surface focuses → converging vs diverging → focal plane &amp; image
+        formation → level up: thin-lens &amp; lensmaker equations, compound systems</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="03-lenses.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">4</span>
+          <h3>Scattering, Index Matching &amp; Metamaterials</h3>
+        </div>
+        <p class="lesson-desc">
+          Tissue looks cloudy because light <strong>scatters at every index mismatch</strong> —
+          but match the surrounding fluid and it turns clear, letting you see deep inside. Then
+          engineer sub-wavelength surface features and you can bend light on purpose: the flat
+          metamaterial lens.
+        </p>
+        <p class="arc">Why things look cloudy → index matching clears them → layered scattering →
+        level up: Rayleigh scattering (1/λ⁴) &amp; metasurface lenses</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="04-scattering-and-metamaterials.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">5</span>
+          <h3>Coherence, Interference &amp; the Microscope</h3>
+        </div>
+        <p class="lesson-desc">
+          The capstone. Ordinary light rarely interacts with itself, but coherent
+          <strong>laser light interferes</strong> into crisp fringes — patterns that set the
+          ultimate resolution limit. Trace light through a microscope with a lamp and with a laser,
+          and see what decides how small you can see.
+        </p>
+        <p class="arc">When light meets light → interference encodes detail → the microscope light
+        path → level up: the resolution limit (0.61λ/NA), widefield vs confocal</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="05-coherence-and-microscopy.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ═══ Closing ═══ -->
+    <p class="closing">
+      <strong>For teachers:</strong> each lesson runs on interactive simulations — every self-check
+      and challenge question is answerable directly from the on-screen stats and verdict boxes, no
+      outside reference needed. The course targets high-school physical science; each lesson's final
+      tab stretches toward the first equations of a college optics course and can be treated as
+      extension material. The whole course is one idea, escalated: <strong>light is an
+      electromagnetic wave</strong>, and every lesson is another way that wave is absorbed,
+      reflected, bent, scattered, or made to interfere.
+    </p>
+
+  </main>
+
+  <script>
+    /* Make lesson links class-aware so a student stays inside their class flow
+       (prev/next nav, progress) when this overview is opened as the first
+       lesson of a class — same pattern as modules/heat_transfer/overview.html. */
+    (function () {
+      function getClassId() {
+        try {
+          const fromParam = new URLSearchParams(location.search).get('class');
+          if (fromParam) return fromParam;
+          if (window.top !== window) {
+            const m = (window.top.location.hash || '').match(/#\/classes\/([^\/?]+)/);
+            if (m) return decodeURIComponent(m[1]);
+          }
+        } catch (e) { /* cross-origin or blocked — fall back to standalone links */ }
+        return null;
+      }
+
+      const inIframe = window.parent !== window;
+      const classId = getClassId();
+
+      document.querySelectorAll('a.btn[data-file]').forEach(function (a) {
+        const file = a.getAttribute('data-file');
+        let href = '../optics/' + file;
+        if (classId) href += '?class=' + encodeURIComponent(classId);
+        a.setAttribute('href', href);
+        if (inIframe) { a.target = '_blank'; a.rel = 'noopener'; }
+      });
+    })();
+  </script>
+</body>
+</html>

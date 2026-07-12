@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color, Reflection &amp; Trapped Light — Optics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Optics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    /* ===== self-check component ===== */
+    .self-check{background:#faf5ff;border:1px solid #d8b4fe;border-radius:10px;padding:14px 16px;margin:16px 0}
+    .self-check::before{content:"Check yourself";display:block;font-weight:700;color:#7c3aed;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+    .self-check .sc-q{font-weight:600;color:#1e3a5f;margin-bottom:10px}
+    .self-check .sc-opt{display:block;width:100%;text-align:left;border:1px solid #cbd5e1;background:#fff;
+      color:#1e293b;padding:9px 12px;border-radius:8px;margin-bottom:7px;cursor:pointer;font-size:.9rem;font-family:inherit}
+    .self-check .sc-opt:hover{background:#f5f3ff;border-color:#a78bfa}
+    .self-check .sc-opt.correct{background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:600}
+    .self-check .sc-opt.wrong{background:#fef2f2;border-color:#dc2626;color:#b91c1c}
+    .self-check .sc-opt.dimmed{opacity:.55}
+    .self-check .sc-feedback{font-size:.88rem;margin-top:6px;min-height:1.2em;color:#475569}
+    .self-check .sc-feedback.correct{color:#15803d}
+    .self-check .sc-feedback.wrong{color:#b91c1c}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Color, Reflection &amp; Trapped Light</h1>
+  <p class="subtitle">Optics Foundations · Lesson 2 of 5 — The color you see is the light that
+  <em>bounced back</em>. And the <b>angle</b> a ray makes with a surface decides whether it escapes
+  or gets trapped inside by total internal reflection — the same trick that lets an optical
+  fingerprint scanner read the ridges on your thumb.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="color">1 · Color Is What Bounced Back</button>
+  <button class="tab-btn" data-tab="refract">2 · Reflect vs Refract</button>
+  <button class="tab-btn" data-tab="tir">3 · Trapping Light (TIR)</button>
+  <button class="tab-btn" data-tab="ftir">4 · Level Up: Fingerprint Scanners</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: color -->
+<section id="tab-color" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: the color of a surface is the light it reflects</h2>
+    <p>In Lesson 1 you learned that a material's color is "whatever the atoms did <em>not</em>
+    absorb." Now look at it from the outside. Shine plain <b>white light</b> — a roughly even mix of
+    every visible wavelength — at a surface. The surface swallows some wavelengths and bounces the
+    rest straight back to your eye. That reflected leftover mix <b>is</b> the color you perceive.
+    Nothing about the object is "colored" on its own; strip away the light and the color vanishes
+    with it.</p>
+    <p>We can describe how choosy a surface is with a <b>reflectance curve</b> \(R(\lambda)\): for
+    each wavelength, what fraction of that light bounces back (from 0 = fully absorbed to 1 = fully
+    reflected). A red apple has a curve that is high in the reds and low everywhere else. The light
+    that reaches your eye is the incoming spectrum multiplied by this curve, wavelength by
+    wavelength:</p>
+    <div class="equation-box">
+      $$ \text{reflected}(\lambda) \;=\; \underbrace{I(\lambda)}_{\text{white light in}}\;\times\;
+         \underbrace{R(\lambda)}_{\text{reflectance }0\text{–}1} $$
+    </div>
+    <p>Your eye then blends that whole reflected spectrum into a single perceived color. Two knobs
+    shape the curve: <b>where it peaks</b> (which color reflects best) and <b>how broad</b> it is (a
+    narrow peak gives a pure, saturated hue; a broad one washes toward pale or white). Change the
+    incoming light too and the reflected color shifts — which is why a shirt can look different under
+    warm indoor bulbs than in daylight.</p>
+    <div class="worked-example">
+      <p>A ripe tomato reflects best around \(\lambda \approx 640\ \text{nm}\) with a fairly narrow
+      band. White light hits it evenly, but only the long (red) wavelengths survive the multiply by
+      \(R(\lambda)\) — the greens and blues are absorbed and drop out. The reflected spectrum is
+      almost pure long-wavelength light, so the summed color your eye receives lands squarely on
+      <em>red</em>. Broaden that same peak and it drifts toward pink; slide the peak down to
+      \(550\ \text{nm}\) and the identical surface would look green instead.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>White light = an even mix of all visible wavelengths.</li>
+        <li>A surface's reflectance \(R(\lambda)\) says what fraction of each wavelength bounces back.</li>
+        <li>Reflected spectrum = white light \(\times\) \(R(\lambda)\); your eye blends it into one color.</li>
+        <li>Peak position sets the hue; a narrow peak looks saturated, a broad one looks pale/white.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Reflects best around</b> across 410–680&nbsp;nm and watch the reflected spectrum and
+      the big color swatch follow it from blue to green to red.</li>
+      <li>Now sweep <b>Reflection bandwidth</b> from narrow to broad. Narrow = a vivid, saturated
+      color; broad = the swatch pales toward white/gray as more of the whole spectrum survives.</li>
+      <li>Click <b>Red apple</b>, <b>Green leaf</b>, <b>Blue jeans</b> and confirm the swatch matches
+      the everyday object each time.</li>
+      <li>Switch the illuminant to <b>Warm bulb</b>. The reflected color shifts warmer even though the
+      surface never changed — the light you shine on something is part of its color.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="color" data-scen="apple" onclick="setScen('color','apple')">Red apple</button>
+    <button class="scen-btn" data-tab="color" data-scen="leaf" onclick="setScen('color','leaf')">Green leaf</button>
+    <button class="scen-btn" data-tab="color" data-scen="jeans" onclick="setScen('color','jeans')">Blue jeans</button>
+    <span class="scenario-bar-label" style="margin-left:6px">Light:</span>
+    <button class="scen-btn on" data-tab="color" data-scen="white" onclick="setScen('color','white')">White</button>
+    <button class="scen-btn" data-tab="color" data-scen="warm" onclick="setScen('color','warm')">Warm bulb</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Reflects best around <span id="v-color-peak">640 nm</span></label>
+        <input type="range" id="s-color-peak" min="410" max="680" step="1" value="640">
+      </div>
+      <div class="ctrl-group">
+        <label>Reflection bandwidth <span id="v-color-bw">45 nm</span></label>
+        <input type="range" id="s-color-bw" min="15" max="140" step="1" value="45">
+      </div>
+      <div class="ctrl-group">
+        <label>Illuminant warmth <span id="v-color-warm">0 %</span></label>
+        <input type="range" id="s-color-warm" min="0" max="100" step="1" value="0">
+      </div>
+      <div class="stats" id="st-color"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Incoming light spectrum × the surface's reflectance curve</div>
+        <canvas id="cv-color" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Reflected spectrum → the color your eye receives</div>
+        <canvas id="cv-color2" width="640" height="200"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-color"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="b">
+    <p class="sc-q">You keep a surface's reflectance peak at 640&nbsp;nm (red) but widen its bandwidth
+    until it reflects almost every wavelength strongly. How does the swatch change?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="No — a wider band lets MORE of the spectrum through, not less, so it can't get darker or more saturated.">It gets a deeper, more saturated red</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Right. Reflecting all wavelengths ≈ reflecting white light, so the color washes out toward pale pink / white.">It washes out toward pale pink / white</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="No — the peak is still at 640 nm, so the hue stays reddish; only its purity changes as the band widens.">It flips to the complementary color, cyan</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: refract -->
+<section id="tab-refract" class="tab-content">
+  <div class="background-section">
+    <h2>Background: at a boundary, light splits — part reflects, part bends</h2>
+    <p>So far light bounced off a surface. But when light meets the boundary between two
+    <em>clear</em> materials — air and water, air and glass — two things happen at once. Part of the
+    ray <b>reflects</b> back into the first material, and part crosses into the second and
+    <b>refracts</b> (bends). Both start from the same spot on the surface.</p>
+    <p>How much it bends depends on the two materials' <b>refractive index</b> \(n\) — a number that
+    says how much a material slows light down (air \(n\approx1.0\), water \(1.33\), glass \(1.5\),
+    diamond \(2.42\)). We always measure angles from the <b>normal</b>, the imaginary line
+    perpendicular to the surface. The reflected ray leaves at the same angle it came in. The bent ray
+    obeys <b>Snell's law</b>:</p>
+    <div class="equation-box">
+      $$ n_1 \sin\theta_1 \;=\; n_2 \sin\theta_2 $$
+    </div>
+    <p>Read it as a trade: going into a <b>denser</b> material (\(n_2>n_1\), e.g. air&nbsp;→&nbsp;glass)
+    the ray bends <em>toward</em> the normal — it straightens up. Going into a <b>thinner</b> material
+    (\(n_2<n_1\), glass&nbsp;→&nbsp;air) it bends <em>away</em> from the normal — it flattens out. That
+    bending is why a straw looks broken at the waterline and why a lens can focus. Tab 3 chases the
+    dramatic case: bend a ray away from the normal far enough and it can't cross at all.</p>
+    <div class="worked-example">
+      <p>A ray hits an air&nbsp;→&nbsp;glass surface at \(\theta_1 = 45^\circ\), with
+      \(n_1=1.00\) and \(n_2=1.50\). Snell gives
+      \(\sin\theta_2 = (n_1/n_2)\sin\theta_1 = (1.00/1.50)\sin45^\circ = 0.667\times0.707 = 0.471\),
+      so \(\theta_2 = \arcsin(0.471) \approx 28^\circ\). The ray bent from 45° down to 28° — toward
+      the normal — because it slowed down entering the denser glass. Reverse it (glass&nbsp;→&nbsp;air)
+      and the 28° ray bends back out to 45°.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>At a clear boundary, light both reflects and refracts at once.</li>
+        <li>Angles are measured from the normal; the reflected angle equals the incidence angle.</li>
+        <li>Snell's law: \(n_1\sin\theta_1 = n_2\sin\theta_2\).</li>
+        <li>Into denser (higher \(n\)) → bends toward normal; into thinner → bends away.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set <b>Air&nbsp;→&nbsp;glass</b> and sweep the <b>Incidence angle</b>. Watch the refracted
+      ray bend toward the normal (steeper into the glass) as \(\theta_1\) grows.</li>
+      <li>Switch to <b>Glass&nbsp;→&nbsp;air</b> (\(n_1>n_2\)). Now the refracted ray bends
+      <em>away</em> from the normal. Raise the angle and notice it flattens fast.</li>
+      <li>Still in glass&nbsp;→&nbsp;air, keep raising the angle until the refracted ray disappears —
+      the verdict turns and warns of <b>total internal reflection</b>. That is Tab 3.</li>
+      <li>Nudge \(n_2\) up toward \(n_1\): the bending gets gentler because the two materials are more
+      alike. When \(n_1=n_2\) the ray goes perfectly straight.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="refract" data-scen="a2g" onclick="setScen('refract','a2g')">Air → glass</button>
+    <button class="scen-btn" data-tab="refract" data-scen="g2a" onclick="setScen('refract','g2a')">Glass → air</button>
+    <button class="scen-btn" data-tab="refract" data-scen="a2w" onclick="setScen('refract','a2w')">Air → water</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Incidence angle θ₁ <span id="v-refract-ang">45°</span></label>
+        <input type="range" id="s-refract-ang" min="0" max="89" step="1" value="45">
+      </div>
+      <div class="ctrl-group">
+        <label>Index n₁ (incoming side) <span id="v-refract-n1">1.00</span></label>
+        <input type="range" id="s-refract-n1" min="1.0" max="2.4" step="0.01" value="1.00">
+      </div>
+      <div class="ctrl-group">
+        <label>Index n₂ (far side) <span id="v-refract-n2">1.50</span></label>
+        <input type="range" id="s-refract-n2" min="1.0" max="2.4" step="0.01" value="1.50">
+      </div>
+      <div class="stats" id="st-refract"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Incident, reflected, and refracted rays at the boundary</div>
+        <canvas id="cv-refract" width="640" height="360"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-refract"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: tir -->
+<section id="tab-tir" class="tab-content">
+  <div class="background-section">
+    <h2>Background: past a critical angle, light can't escape — it gets trapped</h2>
+    <p>Look again at glass&nbsp;→&nbsp;air from Tab 2, where the ray bends <em>away</em> from the
+    normal. As you tilt the ray shallower and shallower (bigger \(\theta_1\)), the refracted ray
+    flattens toward the surface. At one special <b>critical angle</b> \(\theta_c\) it lies flat along
+    the surface — and past that, Snell's law has no solution. The ray simply cannot cross. Every bit
+    of it reflects back inside. That is <b>total internal reflection (TIR)</b>.</p>
+    <p>The critical angle depends only on the two indices (with the dense side inside):</p>
+    <div class="equation-box">
+      $$ \sin\theta_c \;=\; \frac{n_{\text{outside}}}{n_{\text{inside}}}
+         \qquad\Longrightarrow\qquad
+         \theta_c \;=\; \arcsin\!\left(\frac{1}{n}\right)\ \text{(glass in air, } n_{\text{out}}=1) $$
+    </div>
+    <p>Steeper than critical (measuring from the normal): the ray refracts and <b>escapes</b>.
+    Shallower... wait — bigger angle from the normal means a shallower <em>grazing</em> ray. So the
+    rule is: <b>angle from the normal greater than \(\theta_c\) → trapped</b>; less than \(\theta_c\)
+    → escapes. A trapped ray bounces off the inside walls again and again, zig-zagging down the
+    material, losing nothing at each bounce. This is exactly how an <b>optical fiber</b> pipes light
+    around corners, why a cut <b>diamond</b> sparkles (its tiny \(\theta_c\) traps light through many
+    internal bounces before releasing it), and how light is guided inside a glass slab. The ray keeps
+    bouncing until it finally hits a surface at an angle steeper than \(\theta_c\) — then it breaks
+    free.</p>
+    <div class="worked-example">
+      <p>For ordinary glass, \(n=1.50\): \(\theta_c = \arcsin(1/1.50) = \arcsin(0.667) \approx
+      41.8^\circ\). So a ray inside the glass striking a surface at, say, \(55^\circ\) from the normal
+      (which is \(>41.8^\circ\)) is totally trapped and bounces onward. A ray at \(30^\circ\)
+      (\(<41.8^\circ\)) refracts out and escapes. For <b>diamond</b>, \(n=2.42\):
+      \(\theta_c = \arcsin(1/2.42) \approx 24.4^\circ\) — a much smaller critical angle, so almost any
+      ray gets trapped and rattles around inside, which is why diamonds are so brilliant.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>TIR happens only going from dense to thin (\(n_{\text{inside}} > n_{\text{outside}}\)).</li>
+        <li>Critical angle: \(\theta_c = \arcsin(n_{\text{out}}/n_{\text{in}})\).</li>
+        <li>Angle from normal \(> \theta_c\): fully trapped (bounces internally). \(< \theta_c\): escapes.</li>
+        <li>Higher index → smaller \(\theta_c\) → easier to trap (fibers, diamonds, light guides).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set the material to glass and drag the <b>Launch angle</b> (from the normal) up past
+      \(\theta_c\). Watch the ray stop escaping and start bouncing down the slab — trapped.</li>
+      <li>Read the <b>Critical angle</b> stat and the live <b>Trapped?</b> verdict. Right near
+      \(\theta_c\) the verdict warns you are on the edge.</li>
+      <li>Drop the angle just below \(\theta_c\): the ray refracts out at the very first surface and
+      the bounce count falls to zero.</li>
+      <li>Click <b>Diamond</b>. Its critical angle plunges to ~24°, so even shallow rays are trapped —
+      that is the physics behind a diamond's sparkle. Count how many more bounces you get.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="tir" data-scen="trapped" onclick="setScen('tir','trapped')">Trapped (steep)</button>
+    <button class="scen-btn" data-tab="tir" data-scen="escapes" onclick="setScen('tir','escapes')">Escapes (shallow)</button>
+    <button class="scen-btn" data-tab="tir" data-scen="diamond" onclick="setScen('tir','diamond')">Diamond (n=2.42)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Launch angle from normal <span id="v-tir-ang">55°</span></label>
+        <input type="range" id="s-tir-ang" min="0" max="89" step="1" value="55">
+      </div>
+      <div class="ctrl-group">
+        <label>Material index n <span id="v-tir-n">1.50</span></label>
+        <input type="range" id="s-tir-n" min="1.2" max="2.4" step="0.01" value="1.50">
+      </div>
+      <div class="stats" id="st-tir"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">A ray launched inside a glass slab — trapped, or escaping?</div>
+        <canvas id="cv-tir" width="640" height="300"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-tir"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="c">
+    <p class="sc-q">A ray inside glass (\(\theta_c \approx 42^\circ\)) hits the inner surface at
+    \(30^\circ\) from the normal. What happens to it?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="No — 30° is below the 42° critical angle, so TIR does not occur. TIR needs an angle greater than θc.">It is totally trapped and bounces onward</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Not quite — below θc there is no 'partial trapping'; the ray simply refracts and leaves the glass.">Half of it is trapped, half escapes forever</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="Correct. 30° < θc (42°), so Snell's law still has a solution — the ray refracts out and escapes.">It refracts out and escapes the glass</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: ftir -->
+<section id="tab-ftir" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: the critical angle, evanescent leakage, and frustrated TIR</h2>
+    <p>Time for the real machinery — and a device you can hold. When light undergoes TIR, it is not
+    quite true that <em>nothing</em> crosses the surface. A faint, non-propagating
+    <b>evanescent field</b> pokes a fraction of a wavelength beyond the interface and dies away
+    exponentially. Its penetration depth is</p>
+    <div class="equation-box">
+      $$ \theta_c = \arcsin\!\left(\frac{n_2}{n_1}\right)\quad(n_1>n_2),
+         \qquad
+         d_p = \frac{\lambda_0}{2\pi\sqrt{\,n_1^2\sin^2\theta_1 - n_2^2\,}} $$
+    </div>
+    <p>Here \(\lambda_0\) is the vacuum wavelength and \(d_p\) is typically a few hundred nanometres —
+    less than one wavelength deep. Normally that leaked field just curls back and TIR holds. But bring
+    a <b>third medium of higher index within \(d_p\)</b> of the surface, and the evanescent field
+    couples into it: light tunnels across and propagates away. TIR has been <b>frustrated</b> (this is
+    "frustrated total internal reflection," FTIR). The escaping fraction depends steeply on the gap —
+    close the gap and light floods across; open it a wavelength and TIR snaps back.</p>
+    <p>An <b>optical fingerprint scanner</b> is FTIR made practical. A glass prism is illuminated so
+    that light hits its top face at \(\theta_1 > \theta_c\) and totally reflects into a camera. Press a
+    finger on the prism. Skin ridges (\(n \approx 1.4\)) <b>touch</b> the glass; the valleys between
+    ridges hold a thin <b>air gap</b> (\(n=1\)). At a <b>ridge contact point</b>, the higher-index
+    skin sits inside \(d_p\), so TIR is frustrated — light couples into the skin and leaves the beam,
+    so that pixel goes <b>dark</b> in the reflected image. At a <b>valley</b>, the air gap keeps TIR
+    intact, so the light reflects fully and that pixel stays <b>bright</b>. The dark-ridge /
+    bright-valley pattern in the camera <em>is</em> your fingerprint. If the illumination angle ever
+    drops below \(\theta_c\), TIR never forms in the first place, and there is no contrast to read.</p>
+    <div class="worked-example">
+      <p>Take a scanner prism of crown glass, \(n_1 = 1.51\). Against <b>air</b> (\(n_2=1.00\)) in a
+      valley, \(\theta_c = \arcsin(1.00/1.51) = \arcsin(0.662) \approx 41.5^\circ\) — so illuminating
+      at, say, \(\theta_1 = 60^\circ\) safely exceeds \(\theta_c\) and TIR holds: valley pixels are
+      bright. Where a ridge <b>touches</b>, the relevant interface is glass&nbsp;→&nbsp;skin
+      (\(n_2=1.40\)); its "critical angle" would be \(\arcsin(1.40/1.51) \approx 68^\circ\), which is
+      <em>above</em> our 60° beam — meaning glass→skin does not sustain TIR at 60°, so light readily
+      couples into the touching ridge and that pixel goes dark. The contrast between 41.5° (valley,
+      TIR holds) and 68° (ridge, TIR broken) at a fixed 60° beam is exactly what prints the ridge
+      pattern.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Critical angle \(\theta_c = \arcsin(n_2/n_1)\), valid only when \(n_1 > n_2\).</li>
+        <li>Even under TIR an evanescent field leaks ~\(d_p\) (a fraction of \(\lambda\)) past the surface.</li>
+        <li>A higher-index medium within \(d_p\) frustrates TIR — light couples across at the contact.</li>
+        <li>Fingerprint scanner: ridges touch → frustrated → dark pixels; valleys (air) → TIR holds → bright pixels.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Keep the <b>Illumination angle</b> above \(\theta_c\) (watch the stat) so TIR forms in the
+      first place, then raise <b>Finger contact</b> from 0 to 100%. See ridges go dark as their
+      contact points frustrate TIR, while valleys stay bright.</li>
+      <li>Watch the <b>fingerprint strip</b> (second canvas) sharpen as contact increases — more
+      touching ridges means more dark bars and higher contrast.</li>
+      <li>Now drop the angle <em>below</em> \(\theta_c\). TIR collapses everywhere, the beam leaks out
+      uniformly, the strip goes flat and gray — no readable print. The verdict turns red.</li>
+      <li>Raise the prism index \(n_1\): \(\theta_c\) drops, giving you more headroom to stay above it
+      and a cleaner image.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="ftir" data-scen="clear" onclick="setScen('ftir','clear')">Clear print</button>
+    <button class="scen-btn" data-tab="ftir" data-scen="light" onclick="setScen('ftir','light')">Light touch</button>
+    <button class="scen-btn" data-tab="ftir" data-scen="notir" onclick="setScen('ftir','notir')">Below θc (no image)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Prism index n₁ <span id="v-ftir-n1">1.51</span></label>
+        <input type="range" id="s-ftir-n1" min="1.4" max="1.9" step="0.01" value="1.51">
+      </div>
+      <div class="ctrl-group">
+        <label>Illumination angle θ₁ <span id="v-ftir-ang">60°</span></label>
+        <input type="range" id="s-ftir-ang" min="0" max="89" step="1" value="60">
+      </div>
+      <div class="ctrl-group">
+        <label>Finger contact <span id="v-ftir-contact">70 %</span></label>
+        <input type="range" id="s-ftir-contact" min="0" max="1" step="0.01" value="0.70">
+      </div>
+      <div class="stats" id="st-ftir"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Prism under TIR + a finger: ridges leak light (dark), valleys reflect (bright)</div>
+        <canvas id="cv-ftir" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Camera image — the fingerprint contrast strip</div>
+        <canvas id="cv-ftir2" width="640" height="150"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-ftir"></div>
+    </div>
+  </div>
+
+  <div class="self-check" data-answer="b">
+    <p class="sc-q"><b>Challenge.</b> A fingerprint prism has \(n_1 = 1.51\) and is illuminated at
+    \(\theta_1 = 60^\circ\). Its critical angle against the air valleys is
+    \(\theta_c = \arcsin(1/1.51) \approx 41.5^\circ\). Where a ridge physically touches the glass,
+    what does that pixel look like in the camera, and why?</p>
+    <button class="sc-opt" data-opt="a" data-explain-a="Backwards — a touching ridge is where TIR is frustrated and light leaves the beam, so the ridge is dark, not bright.">Bright, because touching the glass reflects more light</button>
+    <button class="sc-opt" data-opt="b" data-explain-b="Correct. The ridge (skin, n≈1.4) sits inside the evanescent depth, frustrating TIR — light couples into the skin and leaves the beam, so that pixel goes dark. Valleys (air gap) keep TIR and stay bright.">Dark, because the touching skin frustrates TIR and drains light from the beam</button>
+    <button class="sc-opt" data-opt="c" data-explain-c="No — 60° is above θc (41.5°), so TIR does form and there IS contrast. The ridge/valley difference is exactly what makes the image.">Neutral gray — at 60° there is no TIR, so ridges and valleys look identical</button>
+    <div class="sc-feedback"></div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>E. Hecht, <i>Optics</i>, 5th ed., Pearson (2017) — reflection, refraction, Snell's law, and
+    total internal reflection.</li>
+    <li>M. Born &amp; E. Wolf, <i>Principles of Optics</i>, 7th ed., Cambridge University Press (1999)
+    — the electromagnetic treatment of reflection/refraction and the critical angle.</li>
+    <li>D. J. Griffiths, <i>Introduction to Electrodynamics</i>, 4th ed., Cambridge University Press
+    (2017) — evanescent waves and frustrated total internal reflection.</li>
+    <li>D. Maltoni, D. Maio, A. K. Jain &amp; S. Prabhakar, <i>Handbook of Fingerprint Recognition</i>,
+    3rd ed., Springer (2022) — optical (FTIR) fingerprint sensing.</li>
+    <li>P. W. Milonni &amp; J. H. Eberly, <i>Laser Physics</i>, Wiley (2010) — evanescent-field
+    penetration depth in total internal reflection.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Optics Foundations · Lesson 2 of 5 — Next: lenses, focus, and how a microscope
+gathers light.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; }
+  }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* wavelength (nm) -> visible RGB (Bruton). Returns 'rgb(...)' or 'rgba(...)'. */
+function wavelengthRGB(nm, alpha){
+  let r=0,g=0,b=0;
+  if (nm>=380 && nm<440){ r=-(nm-440)/60; b=1; }
+  else if (nm<490){ g=(nm-440)/50; b=1; }
+  else if (nm<510){ g=1; b=-(nm-510)/20; }
+  else if (nm<580){ r=(nm-510)/70; g=1; }
+  else if (nm<645){ r=1; g=-(nm-645)/65; }
+  else if (nm<=780){ r=1; }
+  let f=1;
+  if (nm<420) f=0.3+0.7*(nm-380)/40;
+  else if (nm>700) f=0.3+0.7*(780-nm)/80;
+  const G=0.8;
+  const ch=v=>Math.round(255*Math.pow(Math.max(0,Math.min(1,v))*Math.max(0,f),G));
+  return alpha!=null ? `rgba(${ch(r)},${ch(g)},${ch(b)},${alpha})` : `rgb(${ch(r)},${ch(g)},${ch(b)})`;
+}
+
+function wireSelfChecks(){
+  document.querySelectorAll('.self-check').forEach(block => {
+    const ans = block.dataset.answer;
+    const fb = block.querySelector('.sc-feedback');
+    block.querySelectorAll('.sc-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const chosen = opt.dataset.opt;
+        const correct = chosen === ans;
+        block.querySelectorAll('.sc-opt').forEach(o => {
+          o.classList.remove('correct','wrong','dimmed');
+          if (o.dataset.opt === ans) o.classList.add('correct');
+          else if (o === opt) o.classList.add('wrong');
+          else o.classList.add('dimmed');
+        });
+        const explain = opt.getAttribute('data-explain-' + chosen) || '';
+        fb.textContent = (correct ? '✓ ' : '✗ ') + explain;
+        fb.className = 'sc-feedback ' + (correct ? 'correct' : 'wrong');
+      });
+    });
+  });
+}
+
+/* ================================================================
+   PER-MODULE CODE — Optics Lesson 2: Color, Reflection & Trapped Light
+   ================================================================ */
+const DEG = Math.PI / 180;
+const RAD = 180 / Math.PI;
+
+let activeTab = 'color';
+const scen = { color:'apple', refract:'a2g', tir:'trapped', ftir:'clear' };
+
+function colorName(nm){
+  if (nm < 400) return 'ultraviolet';
+  if (nm < 450) return 'violet';
+  if (nm < 490) return 'blue';
+  if (nm < 560) return 'green';
+  if (nm < 590) return 'yellow';
+  if (nm < 635) return 'orange';
+  if (nm <= 750) return 'red';
+  return 'infrared';
+}
+
+/* perceived-color name from an integrated RGB triple */
+function rgbName(R,G,B){
+  const mx = Math.max(R,G,B), mn = Math.min(R,G,B);
+  if (mx < 40) return 'near-black';
+  const sat = mx===0 ? 0 : (mx-mn)/mx;
+  if (sat < 0.18) return mx > 190 ? 'white / pale gray' : 'gray';
+  let hue;
+  const d = mx - mn || 1;
+  if (mx === R) hue = ((G - B) / d) % 6;
+  else if (mx === G) hue = (B - R) / d + 2;
+  else hue = (R - G) / d + 4;
+  hue *= 60; if (hue < 0) hue += 360;
+  const pale = sat < 0.5;
+  if (hue < 20 || hue >= 330) return pale ? 'pink' : 'red';
+  if (hue < 45) return pale ? 'peach' : 'orange';
+  if (hue < 70) return 'yellow';
+  if (hue < 160) return pale ? 'pale green' : 'green';
+  if (hue < 200) return 'cyan';
+  if (hue < 255) return pale ? 'light blue' : 'blue';
+  if (hue < 290) return 'violet';
+  return 'magenta';
+}
+
+const FMT = {
+  'color-peak':    v => fmt(v,0) + ' nm',
+  'color-bw':      v => fmt(v,0) + ' nm',
+  'color-warm':    v => fmt(v,0) + ' %',
+  'refract-ang':   v => fmt(v,0) + '°',
+  'refract-n1':    v => fmt(v,2),
+  'refract-n2':    v => fmt(v,2),
+  'tir-ang':       v => fmt(v,0) + '°',
+  'tir-n':         v => fmt(v,2),
+  'ftir-n1':       v => fmt(v,2),
+  'ftir-ang':      v => fmt(v,0) + '°',
+  'ftir-contact':  v => fmt(v*100,0) + ' %'
+};
+
+const SCEN = {
+  color: {
+    apple: { 's-color-peak': 640, 's-color-bw': 45 },
+    leaf:  { 's-color-peak': 545, 's-color-bw': 55 },
+    jeans: { 's-color-peak': 460, 's-color-bw': 60 },
+    white: { 's-color-warm': 0 },
+    warm:  { 's-color-warm': 80 }
+  },
+  refract: {
+    a2g: { 's-refract-ang': 45, 's-refract-n1': 1.00, 's-refract-n2': 1.50 },
+    g2a: { 's-refract-ang': 30, 's-refract-n1': 1.50, 's-refract-n2': 1.00 },
+    a2w: { 's-refract-ang': 45, 's-refract-n1': 1.00, 's-refract-n2': 1.33 }
+  },
+  tir: {
+    trapped: { 's-tir-ang': 60, 's-tir-n': 1.50 },
+    escapes: { 's-tir-ang': 30, 's-tir-n': 1.50 },
+    diamond: { 's-tir-ang': 40, 's-tir-n': 2.42 }
+  },
+  ftir: {
+    clear: { 's-ftir-n1': 1.51, 's-ftir-ang': 60, 's-ftir-contact': 0.85 },
+    light: { 's-ftir-n1': 1.51, 's-ftir-ang': 60, 's-ftir-contact': 0.30 },
+    notir: { 's-ftir-n1': 1.51, 's-ftir-ang': 30, 's-ftir-contact': 0.85 }
+  }
+};
+
+function fmtFor(key,v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){ const key=sl.id.slice(2); const out=document.getElementById('v-'+key);
+  if(out) out.textContent = fmtFor(key, parseFloat(sl.value)); }
+function wireAll(){ document.querySelectorAll('input[type=range]').forEach(sl=>{
+  updateReadout(sl); sl.addEventListener('input',()=>{ updateReadout(sl); refreshActiveTab(); }); }); }
+function presetSlider(id,v){ const sl=document.getElementById(id); if(!sl) return; sl.value=v; updateReadout(sl); }
+function setScen(tab,s){ scen[tab]=s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`).forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  const p=SCEN[tab]&&SCEN[tab][s]; if(p) for(const [id,v] of Object.entries(p)) presetSlider(id,v);
+  refreshActiveTab(); }
+function refreshActiveTab(){ try{ const f=DRAW[activeTab]; if(f) f(); }
+  catch(e){ console.error('draw error in tab',activeTab,e); } }
+
+/* animation */
+let animId=null, animT=0;
+const ANIMATED = { color:false, refract:false, tir:true, ftir:true };
+function tick(){ animT += 1/60; refreshActiveTab(); animId=requestAnimationFrame(tick); }
+function startAnim(){ if(!animId && ANIMATED[activeTab]) animId=requestAnimationFrame(tick); }
+function stopAnim(){ if(animId){ cancelAnimationFrame(animId); animId=null; } }
+
+/* ---- shared: relative spectral power of the illuminant at nm ----
+   warm=0 -> flat white; warm=1 -> tilt toward long wavelengths (incandescent-ish) */
+function illum(nm, warm){
+  const tilt = 1 + warm * (nm - 540) / 300;   // <1 in blue, >1 in red when warm
+  return Math.max(0.15, tilt);
+}
+/* reflectance curve: Gaussian bump centered at peak with given sigma (from bandwidth) */
+function reflectance(nm, peak, bw){
+  const sig = bw / 2.0;
+  return Math.exp(-0.5 * Math.pow((nm - peak) / sig, 2));
+}
+
+/* ---------------- TAB 1: color (static) ---------------- */
+function drawColor(){
+  const peak = num('s-color-peak');
+  const bw   = num('s-color-bw');
+  const warm = num('s-color-warm') / 100;
+
+  /* ----- canvas 1: incoming spectrum + reflectance curve overlay ----- */
+  const c1 = setupCanvas(document.getElementById('cv-color'));
+  const cx = c1.ctx, cw = c1.w, chh = c1.h;
+  const ch = new Chart(cx, cw, chh, { l:48, r:16, t:16, b:34 });
+  ch.setRange(390, 730, 0, 1.08);
+  ch.grid(); ch.axes('wavelength (nm)', 'intensity');
+  // incoming light strip along the bottom (brightness scaled by illuminant)
+  for (let nm=390; nm<=730; nm+=2){
+    const a = Math.min(1, 0.25 + 0.6 * illum(nm, warm) / (1 + warm));
+    cx.fillStyle = wavelengthRGB(nm, a);
+    cx.fillRect(ch.toX(nm), ch.toY(0.09), Math.max(1, ch.toX(nm+2)-ch.toX(nm)), 9);
+  }
+  // illuminant power curve
+  const iPts = [], maxI = illum(730, warm);
+  for (let nm=390; nm<=730; nm+=4) iPts.push([nm, illum(nm, warm)/maxI]);
+  ch.plot(iPts, COL.muted, 1.6, [5,4]);
+  // reflectance curve
+  const rPts = [];
+  for (let nm=390; nm<=730; nm+=2) rPts.push([nm, reflectance(nm, peak, bw)]);
+  ch.plot(rPts, COL.accent, 2.6);
+  ch.vLine(peak, COL.ink, [4,4]);
+  caption(cx, ch.toX(peak), ch.toY(1.08)-2, 'peak '+fmt(peak,0)+' nm', COL.ink, true);
+  ch.legend([
+    { label:'reflectance R(λ)', color:COL.accent },
+    { label:'illuminant', color:COL.muted, dash:[5,4] }
+  ]);
+
+  /* ----- canvas 2: reflected spectrum + integrated color swatch ----- */
+  const c2 = setupCanvas(document.getElementById('cv-color2'));
+  const dx = c2.ctx, dw = c2.w, dhh = c2.h;
+  const d2 = new Chart(dx, dw, dhh, { l:48, r:150, t:14, b:34 });
+  d2.setRange(390, 730, 0, 1.08);
+  d2.grid(); d2.axes('wavelength (nm)', 'reflected');
+  // reflected = illuminant * reflectance ; also integrate to RGB
+  let R=0, G=0, B=0, refPts=[], peakRef=0;
+  for (let nm=390; nm<=730; nm+=2){
+    const v = illum(nm, warm) * reflectance(nm, peak, bw);
+    peakRef = Math.max(peakRef, v);
+  }
+  for (let nm=390; nm<=730; nm+=2){
+    const v = illum(nm, warm) * reflectance(nm, peak, bw);
+    refPts.push([nm, peakRef>0 ? v/peakRef : 0]);
+  }
+  for (let nm=390; nm<=730; nm+=4){
+    const v = illum(nm, warm) * reflectance(nm, peak, bw);
+    const s = wavelengthRGB(nm).match(/\d+/g).map(Number);
+    R += s[0]*v; G += s[1]*v; B += s[2]*v;
+  }
+  const sumW = R+G+B;
+  // normalize the reflected color: preserve hue, scale brightness by total reflected energy
+  const mx = Math.max(R,G,B,1e-6);
+  // total energy factor (broad+bright -> pale/bright; narrow -> darker but saturated)
+  const nSteps = ((730-390)/4)+1;
+  let energy=0;
+  for (let nm=390; nm<=730; nm+=4) energy += illum(nm,warm)*reflectance(nm,peak,bw);
+  const bright = Math.min(1, energy / (nSteps*0.55));   // 0..1 overall lightness
+  const swR = Math.round(R/mx*255), swG = Math.round(G/mx*255), swB = Math.round(B/mx*255);
+  // blend toward white as bandwidth broadens (energy high) for a physical "washes out" look
+  const wwhite = Math.min(0.85, Math.max(0, (bright-0.35))*1.1);
+  const outR = Math.round(swR*(1-wwhite) + 255*wwhite) * (0.45+0.55*Math.min(1,bright+0.3));
+  const outG = Math.round(swG*(1-wwhite) + 255*wwhite) * (0.45+0.55*Math.min(1,bright+0.3));
+  const outB = Math.round(swB*(1-wwhite) + 255*wwhite) * (0.45+0.55*Math.min(1,bright+0.3));
+  const cR=Math.max(0,Math.min(255,Math.round(outR))), cG=Math.max(0,Math.min(255,Math.round(outG))), cB=Math.max(0,Math.min(255,Math.round(outB)));
+  // colored reflected spectrum band
+  for (let nm=390; nm<=730; nm+=2){
+    const v = illum(nm, warm) * reflectance(nm, peak, bw);
+    const a = peakRef>0 ? Math.min(1, 0.12 + 0.88*v/peakRef) : 0.12;
+    dx.fillStyle = wavelengthRGB(nm, a);
+    dx.fillRect(d2.toX(nm), d2.toY(0.09), Math.max(1, d2.toX(nm+2)-d2.toX(nm)), 9);
+  }
+  d2.plot(refPts, COL.accent, 2.6);
+  // swatch
+  const sx = dw-118, sy = 22, sw = 92, sh = dhh-70;
+  dx.fillStyle = `rgb(${cR},${cG},${cB})`;
+  dx.fillRect(sx, sy, sw, sh);
+  dx.strokeStyle = COL.grid; dx.lineWidth = 1; dx.strokeRect(sx, sy, sw, sh);
+  caption(dx, sx+sw/2, sy+sh+16, 'perceived color', COL.ink, true);
+
+  const name = rgbName(cR,cG,cB);
+  const sat = mx>0 ? (Math.max(cR,cG,cB)-Math.min(cR,cG,cB))/Math.max(cR,cG,cB,1) : 0;
+  setStat('st-color', [
+    { label:'Reflectance peak', value: fmt(peak,0)+' nm ('+colorName(peak)+')' },
+    { label:'Bandwidth', value: fmt(bw,0)+' nm' },
+    { label:'Illuminant', value: warm>0.05 ? 'warm (+'+fmt(warm*100,0)+'%)' : 'white' },
+    { label:'Perceived color', value: name, highlight:true }
+  ]);
+  let cls, note;
+  if (bw < 55) { cls='good'; note='A narrow reflectance band gives a pure, saturated '+name+'.'; }
+  else if (bw < 100) { cls='good'; note='A moderate band still reads clearly as '+name+', a bit less vivid.'; }
+  else { cls='warn'; note='A broad band reflects much of the spectrum, so '+name+' washes toward pale/white — the surface is reflecting almost-white light.'; }
+  setVerdict('vd-color', cls,
+    'Reflecting best near '+fmt(peak,0)+' nm → you see '+name+'.',
+    note+' The color is the surviving light after white × R(λ)'+(warm>0.05?', warmed by the bulb.':'.'));
+}
+
+/* ---------------- TAB 2: refract (static) ---------------- */
+function drawRefract(){
+  const th1 = num('s-refract-ang');       // degrees from normal
+  const n1  = num('s-refract-n1');
+  const n2  = num('s-refract-n2');
+  const t1  = th1 * DEG;
+
+  // Snell: sin(t2) = n1/n2 sin(t1)
+  const sinT2 = n1/n2 * Math.sin(t1);
+  const tir = sinT2 > 1;                   // total internal reflection
+  const t2  = tir ? null : Math.asin(Math.max(-1,Math.min(1,sinT2)));
+  const th2 = tir ? null : t2 * RAD;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-refract'));
+  const ix = w*0.5, iy = h*0.5;            // interface hit point (center)
+  const L  = Math.min(w,h)*0.42;           // ray length
+
+  // shade the two media
+  ctx.fillStyle = n1>=n2 ? 'rgba(37,99,235,0.10)' : 'rgba(148,163,184,0.10)';
+  ctx.fillRect(0, 0, w, iy);
+  ctx.fillStyle = n2>n1 ? 'rgba(37,99,235,0.14)' : 'rgba(148,163,184,0.08)';
+  ctx.fillRect(0, iy, w, h-iy);
+  // interface line
+  drawLine(ctx, 0, iy, w, iy, COL.axis, 2);
+  // normal (dashed vertical)
+  drawLine(ctx, ix, 24, ix, h-24, COL.muted, 1.4, [6,5]);
+  caption(ctx, ix, 18, 'normal', COL.muted);
+  // labels for media
+  ctx.textAlign='left'; ctx.fillStyle=COL.ink; ctx.font='bold 12px sans-serif';
+  ctx.fillText('n₁ = '+fmt(n1,2), 12, iy-12);
+  ctx.fillText('n₂ = '+fmt(n2,2), 12, iy+22);
+
+  // incident ray (upper-left, coming down toward hit point)
+  const ax = ix - L*Math.sin(t1), ay = iy - L*Math.cos(t1);
+  arrow(ctx, ax, ay, ix, iy, COL.orange, 3);
+  caption(ctx, (ax+ix)/2 - 14, (ay+iy)/2, 'incident', COL.orange, true);
+  // reflected ray (upper-right, same angle)
+  const rx = ix + L*Math.sin(t1), ry = iy - L*Math.cos(t1);
+  arrow(ctx, ix, iy, rx, ry, COL.accent, 2.6);
+  caption(ctx, (ix+rx)/2 + 18, (iy+ry)/2, 'reflected', COL.accent, true);
+  // refracted ray (lower-right) or TIR note
+  if (!tir){
+    const fx = ix + L*Math.sin(t2), fy = iy + L*Math.cos(t2);
+    arrow(ctx, ix, iy, fx, fy, COL.good, 2.8);
+    caption(ctx, (ix+fx)/2 + 20, (iy+fy)/2, 'refracted', COL.good, true);
+    // small angle arcs
+    ctx.strokeStyle = COL.orange; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.arc(ix, iy, 34, -Math.PI/2 - t1, -Math.PI/2); ctx.stroke();
+    ctx.strokeStyle = COL.good; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.arc(ix, iy, 34, Math.PI/2, Math.PI/2 + t2); ctx.stroke();
+  } else {
+    ctx.fillStyle = COL.bad; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('TOTAL INTERNAL REFLECTION — no ray crosses', w/2, h-16);
+  }
+
+  const critDeg = n1>n2 ? Math.asin(n2/n1)*RAD : null;
+  setStat('st-refract', [
+    { label:'Incidence θ₁', value: fmt(th1,0)+'°' },
+    { label:'n₁ → n₂', value: fmt(n1,2)+' → '+fmt(n2,2) },
+    { label:'Refracted θ₂', value: tir ? '— (no ray)' : fmt(th2,1)+'°', highlight:true },
+    { label:'Critical angle', value: critDeg!=null ? fmt(critDeg,1)+'°' : 'n/a (n₂≥n₁)' }
+  ]);
+
+  if (tir){
+    setVerdict('vd-refract','bad',
+      'θ₁ = '+fmt(th1,0)+'° exceeds the critical angle — total internal reflection.',
+      'With n₁ ('+fmt(n1,2)+') > n₂ ('+fmt(n2,2)+') and this steep angle, n₁/n₂·sinθ₁ > 1, so Snell has no solution and no ray can cross. Explore this in Tab 3.');
+  } else if (n2 > n1){
+    setVerdict('vd-refract','good',
+      'Into a denser medium — bends toward the normal.',
+      'n₂ ('+fmt(n2,2)+') > n₁ ('+fmt(n1,2)+'), so the ray slows and straightens up: θ₂ = '+fmt(th2,1)+'° < θ₁ = '+fmt(th1,0)+'°.');
+  } else if (n2 < n1){
+    setVerdict('vd-refract','warn',
+      'Into a thinner medium — bends away from the normal.',
+      'n₂ ('+fmt(n2,2)+') < n₁ ('+fmt(n1,2)+'), so θ₂ = '+fmt(th2,1)+'° > θ₁ = '+fmt(th1,0)+'°. Push θ₁ higher and it will hit the critical angle.');
+  } else {
+    setVerdict('vd-refract','good',
+      'Equal indices — the ray goes straight through.',
+      'n₁ = n₂, so there is nothing to bend the light: θ₂ = θ₁.');
+  }
+}
+
+/* ---------------- TAB 3: tir (ANIMATED) ---------------- */
+function drawTir(){
+  const thN = num('s-tir-ang');            // launch angle from NORMAL (deg)
+  const n   = num('s-tir-n');
+  const tN  = thN * DEG;
+  const critDeg = Math.asin(1/n) * RAD;    // glass -> air
+  const trapped = thN > critDeg;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-tir'));
+  const top = 46, bot = h-58;              // slab inner faces
+  // slab body
+  ctx.fillStyle = 'rgba(37,99,235,0.10)';
+  ctx.fillRect(0, top, w, bot-top);
+  drawLine(ctx, 0, top, w, top, COL.axis, 2);
+  drawLine(ctx, 0, bot, w, bot, COL.axis, 2);
+  ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('air (n = 1) above', 8, top-6);
+  ctx.fillText('air (n = 1) below', 8, bot+16);
+  ctx.fillStyle=COL.ink; ctx.font='bold 12px sans-serif';
+  ctx.fillText('glass  n = '+fmt(n,2), 8, (top+bot)/2);
+
+  // launch from left on the bottom face, going up-right
+  const startX = 40, startY = bot;
+  // direction: angle from normal (vertical). dx = sin, dy = -cos (going up)
+  const dxs = Math.sin(tN), dys = Math.cos(tN);
+
+  // critical-angle cone at the launch point (drawn from the normal)
+  const coneLen = 70;
+  drawLine(ctx, startX, startY, startX, startY-coneLen, COL.muted, 1.2, [4,4]); // normal
+  const cCritDx = Math.sin(critDeg*DEG), cCritDy = Math.cos(critDeg*DEG);
+  drawLine(ctx, startX, startY, startX + cCritDx*coneLen, startY - cCritDy*coneLen, COL.warn, 1.6, [3,3]);
+  drawLine(ctx, startX, startY, startX - cCritDx*coneLen, startY - cCritDy*coneLen, COL.warn, 1.6, [3,3]);
+  caption(ctx, startX + cCritDx*coneLen + 4, startY - cCritDy*coneLen, 'θc='+fmt(critDeg,0)+'°', COL.warn, true);
+
+  // trace the ray as a zig-zag between top and bot faces
+  const segs = [];
+  let x = startX, y = startY, dirX = dxs, dirY = -dys;   // moving up-right
+  const maxBounces = 14;
+  let bounces = 0, escaped = false, escSeg = null;
+  for (let i=0; i<maxBounces; i++){
+    // distance to next horizontal face
+    let tHit, hitFace;
+    if (dirY < 0){ tHit = (top - y)/dirY; hitFace='top'; }
+    else { tHit = (bot - y)/dirY; hitFace='bot'; }
+    // distance to right wall
+    const tRight = (w-20 - x)/dirX;
+    if (tRight < tHit){ // exits right edge of view still inside
+      segs.push([x,y, x+dirX*tRight, y+dirY*tRight, 'in']);
+      x += dirX*tRight; y += dirY*tRight; break;
+    }
+    const nx = x + dirX*tHit, ny = y + dirY*tHit;
+    if (!trapped){
+      // refracts out at the first face it meets
+      segs.push([x,y,nx,ny,'in']);
+      // refracted exit direction (bend away from normal); use Snell air side
+      const sinOut = Math.min(1, n*Math.sin(tN));
+      const tout = Math.asin(sinOut);
+      const outDx = Math.sin(tout)*Math.sign(dirX);
+      const outDy = (hitFace==='top'? -1:1)*Math.cos(tout);
+      escSeg = [nx,ny, nx+outDx*70, ny+outDy*70];
+      escaped = true;
+      break;
+    } else {
+      segs.push([x,y,nx,ny,'in']);
+      bounces++;
+      dirY = -dirY;             // reflect off the face
+      x = nx; y = ny;
+    }
+  }
+
+  // draw the segments
+  const rayCol = trapped ? COL.good : COL.orange;
+  for (const s of segs) drawLine(ctx, s[0], s[1], s[2], s[3], rayCol, 3);
+  // launch arrow head on first segment
+  if (segs.length){ const s0=segs[0];
+    arrow(ctx, s0[0], s0[1], s0[0]+(s0[2]-s0[0])*0.35, s0[1]+(s0[3]-s0[1])*0.35, rayCol, 3); }
+  if (escaped && escSeg){
+    arrow(ctx, escSeg[0], escSeg[1], escSeg[2], escSeg[3], COL.bad, 3);
+    caption(ctx, escSeg[2], escSeg[3]+ (escSeg[3]>escSeg[1]?14:-6), 'escapes!', COL.bad, true);
+  }
+
+  // animate a photon dot along the total path
+  if (segs.length){
+    const lens = segs.map(s=>Math.hypot(s[2]-s[0], s[3]-s[1]));
+    const total = lens.reduce((a,b)=>a+b,0) || 1;
+    const t = (animT*140) % total;
+    let acc=0, px=segs[0][0], py=segs[0][1];
+    for (let i=0;i<segs.length;i++){
+      if (t <= acc+lens[i] || i===segs.length-1){
+        const f = lens[i]>0 ? (t-acc)/lens[i] : 0;
+        px = segs[i][0] + (segs[i][2]-segs[i][0])*Math.max(0,Math.min(1,f));
+        py = segs[i][1] + (segs[i][3]-segs[i][1])*Math.max(0,Math.min(1,f));
+        break;
+      }
+      acc += lens[i];
+    }
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px,py,5.5,0,7); ctx.fill();
+    ctx.fillStyle = rayCol; ctx.beginPath(); ctx.arc(px,py,3.5,0,7); ctx.fill();
+  }
+
+  setStat('st-tir', [
+    { label:'Launch angle (from normal)', value: fmt(thN,0)+'°' },
+    { label:'Material index n', value: fmt(n,2) },
+    { label:'Critical angle θc', value: fmt(critDeg,1)+'°', highlight:true },
+    { label:'Trapped?', value: trapped ? 'yes — '+bounces+' bounce'+(bounces===1?'':'s') : 'no — escapes' }
+  ]);
+
+  if (trapped && thN < critDeg + 4){
+    setVerdict('vd-tir','warn',
+      'Just barely trapped — θ = '+fmt(thN,0)+'° is only just above θc = '+fmt(critDeg,1)+'°.',
+      'A nudge shallower (smaller angle from the normal) and this ray would leak out. Right at the edge of total internal reflection.');
+  } else if (trapped){
+    setVerdict('vd-tir','good',
+      'Trapped! θ = '+fmt(thN,0)+'° > θc = '+fmt(critDeg,1)+'° — total internal reflection.',
+      'The ray cannot cross the surface, so it reflects perfectly and zig-zags down the slab ('+bounces+' bounces shown). This is how fibers guide light and why diamonds sparkle.');
+  } else {
+    setVerdict('vd-tir','bad',
+      'Escapes — θ = '+fmt(thN,0)+'° < θc = '+fmt(critDeg,1)+'°.',
+      'Below the critical angle Snell still has a solution, so the ray refracts out at the first surface instead of being trapped. Raise the angle past θc to trap it.');
+  }
+}
+
+/* ---------------- TAB 4: ftir (ANIMATED) ---------------- */
+function drawFtir(){
+  const n1 = num('s-ftir-n1');            // prism index
+  const thN = num('s-ftir-ang');          // illumination angle from normal (deg)
+  const contact = num('s-ftir-contact');  // 0..1 fraction of ridges touching
+  const tN = thN * DEG;
+  const critAir = Math.asin(1/n1) * RAD;  // vs air valleys
+  const tirOK = thN > critAir;            // TIR forms at all?
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-ftir'));
+  const surfY = h*0.52;                    // top face of prism (finger sits above)
+  // prism body (below surface)
+  ctx.fillStyle = 'rgba(37,99,235,0.10)';
+  ctx.fillRect(0, surfY, w, h-surfY);
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 2);
+  ctx.fillStyle=COL.ink; ctx.font='bold 12px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('glass prism  n₁ = '+fmt(n1,2), 10, h-14);
+
+  // finger with ridges/valleys drawn above the surface
+  const nRidges = 7, span = w-80, x0 = 40, pitch = span/nRidges;
+  const ridgeH = 22;
+  // number of ridges actually touching (contact fraction)
+  const touching = Math.round(contact * nRidges);
+  ctx.save();
+  ctx.strokeStyle = '#b45309'; ctx.lineWidth = 2; ctx.fillStyle='rgba(245,158,11,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(x0, surfY-6);
+  const ridgeTouch = [];
+  for (let i=0;i<nRidges;i++){
+    const cxr = x0 + pitch*(i+0.5);
+    const isTouch = i < touching;
+    ridgeTouch.push({ x:cxr, touch:isTouch });
+    const gap = isTouch ? 0 : 6;          // valley keeps a small air gap
+    ctx.lineTo(cxr - pitch*0.3, surfY-6-gap);
+    ctx.lineTo(cxr, surfY-6-gap - (isTouch?0:2));
+    ctx.lineTo(cxr + pitch*0.3, surfY-6-gap);
+  }
+  ctx.lineTo(x0+span, surfY-6);
+  ctx.lineTo(x0+span, surfY-6-ridgeH-14);
+  ctx.lineTo(x0, surfY-6-ridgeH-14);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('finger (skin n ≈ 1.4) — ridges touch, valleys keep an air gap', 12, 16);
+
+  // illumination ray comes from lower-left, hits surface center, TIR-reflects to lower-right camera
+  const hitCount = 5;                       // sample several hit points across the surface
+  ctx.textAlign='center';
+  for (let i=0;i<hitCount;i++){
+    const hx = x0 + span*(i+0.5)/hitCount;
+    // which ridge is nearest this hit point?
+    let nearest = ridgeTouch[0], best=1e9;
+    for (const r of ridgeTouch){ const dd=Math.abs(r.x-hx); if(dd<best){best=dd; nearest=r;} }
+    const frustrated = tirOK && nearest.touch;   // ridge contact drains light
+    // incoming ray
+    const inLen = (surfY)/Math.cos(tN);
+    const ax = hx - Math.sin(tN)*inLen, ay = surfY - Math.cos(tN)*inLen;
+    const inY = Math.max(ay, surfY-140);
+    drawLine(ctx, hx - Math.sin(tN)*Math.min(inLen,150), surfY - Math.cos(tN)*Math.min(inLen,150), hx, surfY, COL.orange, 1.8);
+    if (!tirOK){
+      // no TIR: light refracts out through the top (leaks into finger everywhere) -> weak reflection
+      drawLine(ctx, hx, surfY, hx + Math.sin(tN)*60, surfY - Math.cos(tN)*60, 'rgba(220,38,38,0.7)', 1.8);
+      // faint reflected
+      drawLine(ctx, hx, surfY, hx + Math.sin(tN)*90, surfY + Math.cos(tN)*90, 'rgba(148,163,184,0.6)', 1.4);
+    } else if (frustrated){
+      // frustrated: light couples up into the ridge (leaves the beam) -> weak/absent reflection
+      drawLine(ctx, hx, surfY, hx + Math.sin(tN*0.5)*46, surfY - 40, 'rgba(220,38,38,0.85)', 2);
+      caption(ctx, hx, surfY-46, 'leaks', COL.bad, true);
+      // very faint reflected
+      drawLine(ctx, hx, surfY, hx + Math.sin(tN)*90, surfY + Math.cos(tN)*90, 'rgba(148,163,184,0.35)', 1.2);
+    } else {
+      // valley (air gap) or no touch: full TIR -> strong reflected ray to camera
+      drawLine(ctx, hx, surfY, hx + Math.sin(tN)*Math.min(150,(h-surfY)/Math.cos(tN)), surfY + Math.cos(tN)*Math.min(150,(h-surfY)/Math.cos(tN)), COL.good, 2.4);
+    }
+  }
+  // camera label bottom-right
+  ctx.fillStyle=COL.ink; ctx.font='bold 11px sans-serif'; ctx.textAlign='right';
+  ctx.fillText('→ camera collects reflected light', w-10, surfY+40);
+  // normal at center
+  const midx = w/2;
+  drawLine(ctx, midx, surfY-2, midx, surfY+40, COL.muted, 1.2, [5,4]);
+
+  /* ----- canvas 2: fingerprint contrast strip ----- */
+  const c2 = setupCanvas(document.getElementById('cv-ftir2'));
+  const bx = c2.ctx, bw2 = c2.w, bh2 = c2.h;
+  const stripY = 26, stripH = bh2-58;
+  // contrast quality: needs TIR AND contact
+  const nRid = 26;
+  const cw2 = bw2/nRid;
+  let contrastAcc = 0;
+  for (let i=0;i<nRid;i++){
+    const isRidge = (i % 2 === 0);
+    // a ridge shows only if it's within the "touching" fraction (contact) and TIR holds
+    const ridgeTouching = (i/nRid) < contact;
+    let shade;
+    if (!tirOK){
+      shade = 150 + Math.round(30*Math.sin(i)); // flat gray, no image
+    } else if (isRidge && ridgeTouching){
+      shade = 30;                                 // dark ridge (frustrated TIR)
+      contrastAcc += 1;
+    } else {
+      shade = 235;                                // bright valley (TIR holds)
+    }
+    bx.fillStyle = `rgb(${shade},${shade},${shade})`;
+    bx.fillRect(i*cw2, stripY, Math.ceil(cw2)+1, stripH);
+  }
+  bx.strokeStyle=COL.grid; bx.strokeRect(0, stripY, bw2, stripH);
+  const contrast = tirOK ? Math.round(100*contact) : 0;
+  bx.fillStyle = tirOK ? COL.ink : COL.bad; bx.font='bold 12px sans-serif'; bx.textAlign='center';
+  bx.fillText(tirOK ? ('ridge pattern — contrast '+contrast+'%') : 'no TIR → flat gray, no readable print',
+    bw2/2, bh2-8);
+
+  setStat('st-ftir', [
+    { label:'Critical angle θc (vs air)', value: fmt(critAir,1)+'°', highlight:true },
+    { label:'Illumination θ₁', value: fmt(thN,0)+'° '+(tirOK?'(> θc ✓)':'(< θc ✗)') },
+    { label:'Finger contact', value: fmt(contact*100,0)+' %' },
+    { label:'Image contrast', value: contrast+' %' }
+  ]);
+
+  if (!tirOK){
+    setVerdict('vd-ftir','bad',
+      'No TIR — θ₁ = '+fmt(thN,0)+'° is below θc = '+fmt(critAir,1)+'°.',
+      'Without total internal reflection the beam leaks out everywhere, ridges and valleys look the same, and the camera sees a flat gray field — no fingerprint. Raise the angle above θc.');
+  } else if (contact < 0.15){
+    setVerdict('vd-ftir','warn',
+      'TIR holds, but almost no ridges are touching (contact '+fmt(contact*100,0)+'%).',
+      'θ₁ = '+fmt(thN,0)+'° > θc = '+fmt(critAir,1)+'°, so valleys are bright — but with so little contact there are few dark ridges to read. Press harder.');
+  } else {
+    setVerdict('vd-ftir','good',
+      'Clear print — θ₁ = '+fmt(thN,0)+'° > θc = '+fmt(critAir,1)+'° and ridges are in contact.',
+      'Touching ridges frustrate TIR and go dark; air-gap valleys keep TIR and stay bright. That dark/bright pattern is the fingerprint the camera records ('+contrast+'% contrast).');
+  }
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { color: drawColor, refract: drawRefract, tir: drawTir, ftir: drawFtir };
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec) sec.classList.add('active');
+    refreshActiveTab(); startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) stopAnim(); else startAnim(); });
+wireAll(); wireSelfChecks(); refreshActiveTab(); startAnim();
+</script>
+</body>
+</html>

@@ -281,17 +281,7 @@
       // Two response shapes: scrapeNow → {results: {gmail|calendar: ...}}.
       // scrapeIcsNow → {result: {written}}.
       const result = isOutlook ? j.result : (j.results && j.results[providerKey]);
-      if (result && result.error === 'rate-limited') {
-        const secs = Math.ceil((result.retry_after_ms || 0) / 1000);
-        if (window.TOAST) TOAST.warn(`Rate-limited — retry in ${secs}s.`);
-      } else if (result && result.error) {
-        if (window.TOAST) TOAST.error('Sync failed', { detail: result.error });
-      } else if (result && (result.ok || result.written != null)) {
-        const n = result.written != null ? result.written : 0;
-        if (window.TOAST) TOAST.success(`${provider.label} synced (${n} events).`);
-      } else {
-        if (window.TOAST) TOAST.info(`${provider.label} sync ran.`);
-      }
+      showSyncToast(providerKey, provider.label, result);
     } catch (err) {
       console.error('[oauth] syncNow failed', err);
       if (window.TOAST) TOAST.error('Sync failed', { detail: err.message });
@@ -299,6 +289,80 @@
       btn.disabled = false;
       btn.textContent = origText;
     }
+  }
+
+  function syncUnit(providerKey) {
+    return providerKey === 'gmail' ? 'emails' : 'events';
+  }
+
+  function syncCountText(providerKey, count) {
+    const n = Number(count) || 0;
+    return n + ' ' + syncUnit(providerKey);
+  }
+
+  function showSyncToast(providerKey, label, result) {
+    if (result && result.error === 'rate-limited') {
+      clearSyncedCache(providerKey);
+      const secs = Math.ceil((result.retry_after_ms || 0) / 1000);
+      if (window.TOAST) TOAST.warn(`Rate-limited — retry in ${secs}s.`);
+    } else if (result && result.error) {
+      if (window.TOAST) TOAST.error('Sync failed', { detail: result.error });
+    } else if (result && (result.ok || result.written != null)) {
+      clearSyncedCache(providerKey);
+      const n = result.written != null ? result.written : 0;
+      if (window.TOAST) TOAST.success(`${label} synced (${syncCountText(providerKey, n)}).`);
+    } else {
+      if (window.TOAST) TOAST.info(`${label} sync ran.`);
+    }
+  }
+
+  function clearSyncedCache(providerKey) {
+    if (!window.LOCAL_CACHE || !LOCAL_CACHE.scope) return;
+    const year = new Date().getFullYear();
+    const keys = providerKey === 'gmail'
+      ? ['emailYears', 'emailMessages-' + (year - 1), 'emailMessages-' + year, 'emailMessages-' + (year + 1)]
+      : ['calendarEvents-' + (year - 1), 'calendarEvents-' + year, 'calendarEvents-' + (year + 1)];
+    keys.forEach(name => {
+      try {
+        LOCAL_CACHE.scope(name, 1).clear().catch(() => {});
+      } catch (_) {}
+    });
+  }
+
+  async function runGoogleSync(idToken, providerKey) {
+    const r = await fetch(SCRAPE_NOW_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify({ provider: providerKey }),
+    });
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`${r.status}: ${text}`);
+    }
+    const j = await r.json();
+    return j.results || {};
+  }
+
+  function summarizeGoogleSync(results) {
+    const parts = [];
+    const errors = [];
+    ['gmail', 'calendar'].forEach(key => {
+      const result = results && results[key];
+      const label = key === 'gmail' ? 'Gmail' : 'Calendar';
+      if (!result) return;
+      if (result.error) {
+        if (result.error === 'rate-limited') {
+          clearSyncedCache(key);
+          errors.push(label + ' was rate-limited');
+        } else {
+          errors.push(label + ': ' + result.error);
+        }
+        return;
+      }
+      clearSyncedCache(key);
+      parts.push(syncCountText(key, result.written));
+    });
+    return { parts, errors };
   }
 
   function onClickButton(providerKey) {
@@ -310,17 +374,69 @@
     else connect(provider);
   }
 
-  function connect(provider) {
-    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-      if (window.TOAST) TOAST.error('Google Identity SDK not loaded yet — try again in a moment.');
+  // Lazily load the Google Identity Services SDK on demand (V3.288). The email
+  // tab no longer document.write's gsi/client — Chrome warns that a parser-
+  // blocking cross-site script via document.write MAY be blocked on poor
+  // networks — so we inject it the first time someone actually connects. Cached
+  // promise so repeat/concurrent clicks share one load; reuses an existing tag
+  // (e.g. Settings, which still loads it eagerly) rather than double-injecting.
+  let _gisPromise = null;
+  const GIS_SRC = 'https://accounts.google.com/gsi/client';
+  function _gisReady() {
+    return typeof google !== 'undefined' && google.accounts && google.accounts.oauth2;
+  }
+  function ensureGisLoaded(timeoutMs) {
+    if (_gisReady()) return Promise.resolve();
+    if (_gisPromise) return _gisPromise;
+    _gisPromise = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { _gisPromise = null; reject(new Error('gis-load-timeout')); }, timeoutMs || 10000);
+      const done = () => {
+        clearTimeout(timer);
+        if (_gisReady()) resolve();
+        else { _gisPromise = null; reject(new Error('gis-loaded-but-missing')); }
+      };
+      const fail = () => { clearTimeout(timer); _gisPromise = null; reject(new Error('gis-load-failed')); };
+      let s = document.querySelector('script[src="' + GIS_SRC + '"]');
+      if (s) {
+        if (_gisReady()) { clearTimeout(timer); resolve(); return; }
+        s.addEventListener('load', done, { once: true });
+        s.addEventListener('error', fail, { once: true });
+        return;
+      }
+      s = document.createElement('script');
+      s.src = GIS_SRC; s.async = true;
+      s.addEventListener('load', done, { once: true });
+      s.addEventListener('error', fail, { once: true });
+      document.head.appendChild(s);
+    });
+    return _gisPromise;
+  }
+
+  // Reusable Google connect — runs the combined Gmail+Calendar consent popup,
+  // exchanges the code for a refresh token, kicks the first sync, then calls
+  // opts.onDone(results) / opts.onError(err). The Settings card and the email
+  // tab's inline empty-state both call this (V3.288). Async because it lazily
+  // loads the GIS SDK first.
+  async function connectGoogle(opts) {
+    opts = opts || {};
+    try {
+      await ensureGisLoaded();
+    } catch (e) {
+      if (window.TOAST) TOAST.error('Could not load Google sign-in. Check your connection and try again.');
+      if (opts.onError) opts.onError(e);
+      return;
+    }
+    if (!_gisReady()) {
+      if (window.TOAST) TOAST.error('Google Identity SDK not available.');
+      if (opts.onError) opts.onError(new Error('gis-not-loaded'));
       return;
     }
     const me = firebridge.getUser();
-    if (!me) return;
+    if (!me) { if (opts.onError) opts.onError(new Error('not-signed-in')); return; }
     // Always request BOTH Gmail and Calendar scopes in a single consent so
     // the user grants from ONE Google account — avoids the bug where Gmail
     // is connected to acct-A and Calendar to acct-B and they don't match.
-    // Either provider's "Connect" button triggers the same combined flow.
+    // Either entry point (Settings button or email-tab card) triggers this.
     const codeClient = google.accounts.oauth2.initCodeClient({
       client_id: GOOGLE_OAUTH_CLIENT_ID,
       scope: GOOGLE_SCOPES,
@@ -330,6 +446,7 @@
         if (response.error) {
           console.warn('[oauth] consent error', response);
           if (window.TOAST) TOAST.error('Consent failed: ' + (response.error_description || response.error));
+          if (opts.onError) opts.onError(response);
           return;
         }
         if (window.TOAST) TOAST.info('Saving credentials…', { ttl: 1500 });
@@ -342,7 +459,7 @@
               code: response.code,
               provider: 'google-combined',
               scope: GOOGLE_SCOPES,
-              redirect_uri: 'postmessage',
+              redirect_uri: window.location.origin,
             }),
           });
           if (!r.ok) {
@@ -350,14 +467,46 @@
             throw new Error('Exchange failed (' + r.status + '): ' + text);
           }
           await r.json();
-          if (window.TOAST) TOAST.success('Google connected (Gmail + Calendar). First sync queued.');
+          if (window.TOAST) TOAST.info('Google connected. Starting first sync…', { ttl: 1500 });
+          let results = {};
+          try {
+            results = await runGoogleSync(idToken, 'both');
+            const summary = summarizeGoogleSync(results);
+            if (summary.errors.length) {
+              if (window.TOAST) {
+                TOAST.warn('Google connected, but first sync needs attention.', {
+                  detail: summary.errors.join(' · '),
+                });
+              }
+            } else if (window.TOAST) {
+              TOAST.success('Google connected. First sync complete' +
+                (summary.parts.length ? ' (' + summary.parts.join(' · ') + ').' : '.'));
+            }
+          } catch (syncErr) {
+            console.error('[oauth] first sync failed', syncErr);
+            if (window.TOAST) {
+              TOAST.warn('Google connected, but first sync failed.', { detail: syncErr.message });
+            }
+          }
+          if (opts.onDone) opts.onDone(results);
         } catch (err) {
           console.error('[oauth] exchange failed', err);
           if (window.TOAST) TOAST.error('Failed to save credentials', { detail: err.message });
+          if (opts.onError) opts.onError(err);
         }
       },
     });
     codeClient.requestCode();
+  }
+
+  // Back-compat thin wrapper for the Settings card's "Connect" button.
+  function connect(provider) { connectGoogle({}); }
+
+  // True once a Gmail refresh token is stored. Reads the cached credential
+  // snapshot maintained by attachListeners()'s onSnapshot.
+  function isGmailConnected() {
+    const cred = _credentials.gmail;
+    return !!(cred && cred.refreshTokenStored);
   }
 
   async function disconnect(provider) {
@@ -423,6 +572,6 @@
     attachListeners();
   });
 
-  // Expose for console debugging
-  window.OAUTH_CONNECTIONS = { render, _credentials };
+  // Expose for console debugging + reuse by the email tab's inline connect.
+  window.OAUTH_CONNECTIONS = { render, _credentials, connectGoogle, ensureGisLoaded, isGmailConnected };
 })();

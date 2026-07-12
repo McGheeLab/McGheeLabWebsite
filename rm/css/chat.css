@@ -1981,3 +1981,42 @@ body {
   .chat-msg-avatar { width: 28px; height: 28px; }
   .chat-input-area { padding: .5rem; }
 }
+
+/* V3.239 — Phone composer keyboard handling.
+ * The existing ≤700px block lets .chat-layout flow into document scroll
+ * so the composer scrolls with the page — when iOS opens its keyboard
+ * the composer goes off-screen below the keyboard and the user can't
+ * see what they're typing. At ≤640px we pin .chat-input-area to the
+ * viewport bottom via `position: fixed`. iOS Safari 15+ tracks the
+ * visual viewport for fixed-positioned elements when the keyboard
+ * opens, so the composer floats above the keyboard automatically.
+ * `.chat-main` gets bottom padding so the last messages aren't hidden
+ * underneath the floating composer. */
+@media (max-width: 640px) {
+  .chat-input-area {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    padding-bottom: calc(.5rem + var(--safe-bottom));
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 0;
+  }
+  /* Reserve space at the bottom of the scrollable messages list so the
+   * last message isn't hidden behind the fixed composer. ~80px covers
+   * the composer (~52px) + safe-area + a little breathing room. */
+  .chat-main { padding-bottom: 80px; }
+
+  /* Bump composer touch targets to 44px (Apple HIG / WCAG 2.5.5). */
+  .chat-input { min-height: 44px; }
+  .chat-send-btn { min-width: 44px; min-height: 44px; }
+
+  /* Thread overlay (already position: fixed inset: 0 from the 700px
+   * block) gets the same composer fix — its composer is .chat-thread-
+   * input which contains a .chat-input. Override to keep .chat-thread-
+   * input sticky-bottom inside its own column flex. */
+  .chat-thread-input {
+    padding-bottom: calc(.5rem + var(--safe-bottom));
+  }
+}

@@ -23,9 +23,15 @@ const CATEGORIES = [
   { value: 'pi',         label: 'PI' },
   { value: 'postdoc',    label: 'Postdoc' },
   { value: 'grad',       label: 'Graduate Student' },
+  { value: 'masters',    label: 'Masters Student' },
   { value: 'undergrad',  label: 'Undergraduate' },
   { value: 'highschool', label: 'High School' },
   { value: 'alumni',     label: 'Alumni' },
+  // V3.304 — external educators/students using our class modules. They
+  // keep role:'guest' (no lab/RM access); class capabilities come from
+  // schedules ownership + enrollments membership (see teacher-classes.js).
+  { value: 'teacher',    label: 'Teacher (external)' },
+  { value: 'student',    label: 'Student (external)' },
   { value: 'guest',      label: 'Guest' }
 ];
 
@@ -34,11 +40,24 @@ const CATEGORY_DEFAULT_ROLE = {
   pi:         'admin',
   postdoc:    'editor',
   grad:       'editor',
+  masters:    'editor',
   undergrad:  'contributor',
   highschool: 'contributor',
   alumni:     'contributor',
+  teacher:    'guest',
+  student:    'guest',
   guest:      'guest'
 };
+
+/* V3.312 — prior-category choices for alumni grouping. Values match
+   CATEGORIES; the team page displays 'grad' alumni under "PhD". */
+const ALUMNI_PRIOR_CATEGORIES = [
+  { value: 'postdoc',    label: 'Postdoc' },
+  { value: 'grad',       label: 'Graduate (PhD)' },
+  { value: 'masters',    label: 'Masters' },
+  { value: 'undergrad',  label: 'Undergraduate' },
+  { value: 'highschool', label: 'High School' }
+];
 
 /* Association types users can add to their profile */
 const ASSOC_TYPES = [
@@ -84,6 +103,22 @@ function escapeHTML(s) {
   const d = document.createElement('div');
   d.textContent = s ?? '';
   return d.innerHTML;
+}
+
+/* V3.302 — markdown-lite for story/news section text. Escapes ALL HTML
+   first, then re-introduces exactly three constructs: [text](https url),
+   **bold**, *italic*. Newlines become <br>. Used by the public feed
+   renderers in app.js (via McgheeLab.renderRichText) and the editor
+   preview, so authored text renders identically everywhere. */
+function renderRichText(s) {
+  let out = escapeHTML(s ?? '');
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Content must start and end on a non-space so "5 * 3 * 2" stays math.
+  out = out.replace(/\*\*([^\s*](?:[^*\n]*[^\s*])?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/(^|[^*])\*([^\s*](?:[^*\n]*[^\s*])?)\*(?!\*)/g, '$1<em>$2</em>');
+  out = out.replace(/\n/g, '<br>');
+  return out;
 }
 
 function categoryOptions(selected) {
@@ -248,6 +283,13 @@ async function uploadImageSet(blobs, path) {
    DATABASE OPERATIONS
    ================================================================ */
 const DB = {
+  /* V3.302 — mint a Firestore doc id without writing. Editors assign
+     the id up front so media uploads land at the real Storage path
+     instead of a throwaway "draft_<ts>" / "temp_<ts>" folder. */
+  newDocId(coll) {
+    return McgheeLab.db.collection(coll).doc().id;
+  },
+
   /* ── Users ── */
   async getUser(uid) {
     const doc = await McgheeLab.db.collection('users').doc(uid).get();
@@ -314,8 +356,8 @@ const DB = {
     const ref = await McgheeLab.db.collection('stories').add(data);
     return ref.id;
   },
-  async updateStoryStatus(id, status) {
-    const update = { status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  async updateStoryStatus(id, status, extra) {
+    const update = { ...(extra || {}), status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
     if (status === 'published') {
       const doc = await McgheeLab.db.collection('stories').doc(id).get();
       if (!doc.data()?.publishedAt) update.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -405,8 +447,8 @@ const DB = {
     const ref = await McgheeLab.db.collection('newsPosts').add(data);
     return ref.id;
   },
-  async updateNewsStatus(id, status) {
-    const update = { status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  async updateNewsStatus(id, status, extra) {
+    const update = { ...(extra || {}), status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
     if (status === 'published') {
       const doc = await McgheeLab.db.collection('newsPosts').doc(id).get();
       if (!doc.data()?.publishedAt) update.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -415,6 +457,46 @@ const DB = {
   },
   async deleteNewsPost(id) {
     await McgheeLab.db.collection('newsPosts').doc(id).delete();
+  },
+
+  /* ── Visualization views (V3.301 — Data Visualizations) ──
+     Saved camera/settings presets for the DataIllustrations viewers.
+     Queries use where() only (no orderBy) so no composite index is
+     needed; callers get client-side createdAt-desc sorting. */
+  async getVizViews(vizId) {
+    const snap = await McgheeLab.db.collection('vizViews')
+      .where('vizId', '==', vizId).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  },
+  async getAllVizViews() {
+    const snap = await McgheeLab.db.collection('vizViews').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  },
+  async getVizView(id) {
+    const doc = await McgheeLab.db.collection('vizViews').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async saveVizView({ vizId, name, config, posterBlob }) {
+    const ref = McgheeLab.db.collection('vizViews').doc();
+    let poster = null;
+    if (posterBlob) {
+      const blobs = await processImage(posterBlob);
+      poster = await uploadImageSet(blobs, `vizViews/${ref.id}/poster`);
+    }
+    const data = {
+      vizId, name, config, poster,
+      createdBy: Auth.currentUser?.uid || null,
+      createdByName: Auth.currentProfile?.name || Auth.currentUser?.displayName || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await ref.set(data);
+    return { id: ref.id, ...data };
+  },
+  async deleteVizView(id) {
+    await McgheeLab.db.collection('vizViews').doc(id).delete();
   },
 
   /* ── Comments ── */
@@ -746,6 +828,10 @@ const Auth = {
     await DB.updateUser(cred.user.uid, {
       ...profileData, email,
       role: inv.role || 'contributor',
+      // V3.304 — the users create rule only allows a non-guest role when
+      // the doc carries the (unused) invitation that granted it. Must be
+      // written before markInvitationUsed flips the token.
+      inviteToken: token,
       claimedProfileId: inv.claimProfileId || null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -949,22 +1035,11 @@ function wireLogin() {
 /* ================================================================
    RENDER: GUEST DASHBOARD (profile-only view for guest users)
    ================================================================ */
-function renderGuestDashboard(p) {
-  const needsProfile = !p.name || !p.photo;
+/* V3.304 \u2014 the basic profile card (photo + name + bio) is shared by the
+   guest, teacher, and student dashboards. teacher-classes.js embeds it
+   via McgheeLab.renderGuestProfileCard / wireGuestProfileCard. */
+function renderGuestProfileCard(p) {
   return `
-    <div class="dashboard-page">
-      <div class="dash-header">
-        <h2>My Profile</h2>
-        <button class="btn btn-secondary" id="dash-logout-btn">Sign Out</button>
-      </div>
-
-      ${needsProfile ? `
-      <div class="profile-alert">
-        <strong>Set up your profile!</strong>
-        Add ${!p.photo ? 'a profile photo' : ''}${!p.photo && !p.name ? ' and ' : ''}${!p.name ? 'a display name' : ''} so people can see who you are when you comment.
-      </div>` : ''}
-
-      <div class="dashboard-grid">
         <div class="dash-card">
           <h3>Profile</h3>
           <form id="guest-profile-form" class="profile-form">
@@ -990,14 +1065,10 @@ function renderGuestDashboard(p) {
             <button type="submit" class="btn btn-primary">Save Profile</button>
             <div id="profile-status" class="form-status" hidden></div>
           </form>
-        </div>
-      </div>
-    </div>`;
+        </div>`;
 }
 
-function wireGuestDashboard() {
-  document.getElementById('dash-logout-btn')?.addEventListener('click', () => Auth.logout());
-
+function wireGuestProfileCard() {
   // Photo upload with crop
   document.getElementById('profile-photo-input')?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -1043,6 +1114,75 @@ function wireGuestDashboard() {
   }
 }
 
+function renderGuestDashboard(p) {
+  const needsProfile = !p.name || !p.photo;
+  return `
+    <div class="dashboard-page">
+      <div class="dash-header">
+        <h2>My Profile</h2>
+        <button class="btn btn-secondary" id="dash-logout-btn">Sign Out</button>
+      </div>
+
+      ${needsProfile ? `
+      <div class="profile-alert">
+        <strong>Set up your profile!</strong>
+        Add ${!p.photo ? 'a profile photo' : ''}${!p.photo && !p.name ? ' and ' : ''}${!p.name ? 'a display name' : ''} so people can see who you are when you comment.
+      </div>` : ''}
+
+      <div class="dashboard-grid">
+        ${renderGuestProfileCard(p)}
+        <div class="dash-card">
+          <h3>Are you a teacher?</h3>
+          <p>Bring our interactive class modules \u2014 bioprinting, optics, biomechanics, and more \u2014 into your own classroom. Request a class and we'll set you up with materials and a join code for your students.</p>
+          <button class="btn btn-primary" id="guest-become-teacher">I'm a teacher \u2014 get started</button>
+          <div id="guest-teacher-status" class="form-status" hidden></div>
+        </div>
+        <div class="dash-card">
+          <h3>Have a class code?</h3>
+          <p>If your teacher gave you a 6-character code, enter it here to join their class.</p>
+          <form id="guest-join-form" class="tc-join-form">
+            <input type="text" id="guest-join-code" maxlength="6" autocomplete="off" placeholder="ABC123" aria-label="Class code">
+            <button type="submit" class="btn btn-primary">Join Class</button>
+          </form>
+          <div id="guest-join-status" class="form-status" hidden></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function wireGuestDashboard() {
+  document.getElementById('dash-logout-btn')?.addEventListener('click', () => Auth.logout());
+  wireGuestProfileCard();
+
+  // V3.304 \u2014 self-identify as an external teacher. Grants nothing by
+  // itself (role stays 'guest'); it just switches the dashboard to the
+  // teacher panel where they can request a class.
+  document.getElementById('guest-become-teacher')?.addEventListener('click', async () => {
+    const st = document.getElementById('guest-teacher-status');
+    try {
+      await DB.updateUser(Auth.currentUser.uid, { category: 'teacher' });
+      Auth.currentProfile = await DB.getUser(Auth.currentUser.uid);
+      window.dispatchEvent(new Event('hashchange')); // re-render the dashboard route
+    } catch (err) {
+      st.textContent = 'Could not update: ' + err.message; st.className = 'form-status error'; st.hidden = false;
+    }
+  });
+
+  // V3.304 \u2014 student join-by-code (delegates to teacher-classes.js,
+  // which also flips category guest \u2192 student on success).
+  document.getElementById('guest-join-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const st = document.getElementById('guest-join-status');
+    try {
+      if (!McgheeLab.joinClassWithCode) throw new Error('Class system not loaded \u2014 refresh the page.');
+      await McgheeLab.joinClassWithCode(document.getElementById('guest-join-code').value);
+      window.dispatchEvent(new Event('hashchange')); // re-render as the student dashboard
+    } catch (err) {
+      st.textContent = err.message; st.className = 'form-status error'; st.hidden = false;
+    }
+  });
+}
+
 /* ================================================================
    RENDER: DASHBOARD
    ================================================================ */
@@ -1050,8 +1190,15 @@ function renderDashboard() {
   if (!Auth.currentUser) { window.location.hash = '#/login'; return '<p>Redirecting\u2026</p>'; }
   const p = Auth.currentProfile || {};
 
-  /* ── Guest dashboard: profile only ─────────────────────────── */
-  if (Auth.isGuest()) return renderGuestDashboard(p);
+  /* ── Guest-role dashboards ──────────────────────────────────
+     V3.304: external teachers/students keep role:'guest' but get
+     their own panels (teacher-classes.js). Plain guests get the
+     profile-only view with teacher/student CTAs. */
+  if (Auth.isGuest()) {
+    if (p.category === 'teacher' && McgheeLab.renderTeacherDashboard) return McgheeLab.renderTeacherDashboard(p);
+    if (p.category === 'student' && McgheeLab.renderStudentDashboard) return McgheeLab.renderStudentDashboard(p);
+    return renderGuestDashboard(p);
+  }
 
   const needsProfile = !p.bio || !p.photo;
 
@@ -1067,6 +1214,8 @@ function renderDashboard() {
         <strong>Complete your profile!</strong>
         Please add ${!p.photo ? 'a profile photo' : ''}${!p.photo && !p.bio ? ' and ' : ''}${!p.bio ? 'a bio' : ''} so your information appears correctly on the Team page.
       </div>` : ''}
+
+      <div id="dash-status-strip"></div>
 
       <div class="dashboard-grid">
 
@@ -1335,8 +1484,14 @@ function renderDashboard() {
 async function wireDashboard() {
   if (!Auth.currentUser) return;
 
-  /* Guest gets a simpler wiring path */
-  if (Auth.isGuest()) { wireGuestDashboard(); return; }
+  /* Guest gets a simpler wiring path (V3.304: teacher/student panels
+     wire through teacher-classes.js, matching the render dispatch) */
+  if (Auth.isGuest()) {
+    const cat = Auth.currentProfile?.category;
+    if (cat === 'teacher' && McgheeLab.wireTeacherDashboard) { await McgheeLab.wireTeacherDashboard(); return; }
+    if (cat === 'student' && McgheeLab.wireStudentDashboard) { await McgheeLab.wireStudentDashboard(); return; }
+    wireGuestDashboard(); return;
+  }
 
   // Logout button
   document.getElementById('dash-logout-btn')?.addEventListener('click', () => Auth.logout());
@@ -1379,6 +1534,9 @@ async function wireDashboard() {
 
   // Load story list
   await refreshStoryList();
+
+  // V3.302 — status strip (pending / needs-changes / just-published)
+  renderDashStatusStrip();
 
   // Load published work card
   await refreshPublishedList();
@@ -1515,11 +1673,18 @@ async function wireDashboard() {
       const btn = form.querySelector('button[type="submit"]');
       btn.disabled = true; st.hidden = true;
       try {
-        await DB.updateUser(Auth.currentUser.uid, {
+        const updates = {
           name: document.getElementById('profile-name').value,
           bio: document.getElementById('profile-bio').value,
           category: document.getElementById('profile-category').value
-        });
+        };
+        // V3.312 — stamp priorCategory on an active→alumni flip, same
+        // rule as the admin editor, so self-flipped alumni group right.
+        const prevCat = Auth.currentProfile?.category;
+        if (updates.category === 'alumni' && prevCat && prevCat !== 'alumni') {
+          updates.priorCategory = prevCat;
+        }
+        await DB.updateUser(Auth.currentUser.uid, updates);
         Auth.currentProfile = await DB.getUser(Auth.currentUser.uid);
         st.textContent = 'Profile saved!';
         st.className = 'form-status success'; st.hidden = false;
@@ -1737,6 +1902,59 @@ function wireAssocRemove(section, type) {
   });
 }
 
+/* V3.302 — dashboard status strip: the author's feedback loop. One
+   banner per story/news post that is awaiting review, needs changes, or
+   was published in the last 14 days (🎉 banners are dismissible; the
+   dismissal is remembered in localStorage so published docs stay
+   untouched — contributors can no longer write to published docs). */
+async function renderDashStatusStrip() {
+  const el = document.getElementById('dash-status-strip');
+  if (!el || !Auth.currentUser) return;
+  try {
+    const uid = Auth.currentUser.uid;
+    const [stories, news] = await Promise.all([
+      DB.getStoriesByUser(uid).catch(() => []),
+      DB.getNewsByUser(uid).catch(() => [])
+    ]);
+    const items = [
+      ...stories.map(s => ({ ...s, _kind: 'story', _route: `#/dashboard/story/${s.id}` })),
+      ...news.map(p => ({ ...p, _kind: 'news', _route: `#/dashboard/news/${p.id}` }))
+    ];
+
+    const seen = (id, status) => localStorage.getItem(`mcghee_status_seen_${id}_${status}`) === '1';
+    const banners = [];
+    items.forEach(it => {
+      const title = escapeHTML(it.title || 'Untitled');
+      if (it.status === 'pending') {
+        banners.push(`<div class="status-banner status-banner-pending">
+          ⏳ <a href="${it._route}">${title}</a> is awaiting review.</div>`);
+      } else if (it.status === 'changes-requested') {
+        banners.push(`<div class="status-banner status-banner-changes">
+          ✏️ <a href="${it._route}">${title}</a> needs changes${it.reviewNote ? ': <em>' + escapeHTML(it.reviewNote) + '</em>' : '.'}</div>`);
+      } else if (it.status === 'published' && !seen(it.id, 'published')) {
+        const pub = it.publishedAt?.toDate?.();
+        if (pub && (Date.now() - pub.getTime()) < 14 * 86400000) {
+          const publicRoute = it._kind === 'story' ? '#/research' : '#/news';
+          banners.push(`<div class="status-banner status-banner-published" data-dismiss-id="${escapeHTML(it.id)}">
+            🎉 <strong>${title}</strong> is live on the <a href="${publicRoute}">${it._kind === 'story' ? 'Research' : 'News'} page</a>!
+            <button type="button" class="status-banner-dismiss" title="Dismiss">&times;</button></div>`);
+        }
+      }
+    });
+
+    el.innerHTML = banners.join('');
+    el.querySelectorAll('.status-banner-dismiss').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const banner = btn.closest('.status-banner');
+        localStorage.setItem(`mcghee_status_seen_${banner.dataset.dismissId}_published`, '1');
+        banner.remove();
+      });
+    });
+  } catch (e) {
+    console.warn('Status strip failed:', e);
+  }
+}
+
 async function refreshStoryList() {
   const el = document.getElementById('stories-list');
   if (!el) return;
@@ -1751,7 +1969,9 @@ async function refreshStoryList() {
       <div class="story-item">
         <div class="story-item-info">
           <strong>${escapeHTML(s.title || 'Untitled')}</strong>
-          <span class="status-badge status-${s.status || 'draft'}">${s.status || 'draft'}</span>
+          <span class="status-badge status-${s.status || 'draft'}">${(s.status || 'draft').replace('-', ' ')}</span>
+          ${s.status === 'changes-requested' && s.reviewNote
+            ? `<p class="review-note">✏️ ${escapeHTML(s.reviewNote)}</p>` : ''}
         </div>
         <div class="story-item-actions">
           <button class="btn btn-secondary btn-small" data-edit-story="${s.id}">Edit</button>
@@ -2062,7 +2282,6 @@ async function wireProjectEditor(projectId) {
   if (!form) return;
 
   let existing = null;
-  const selectedContributors = [];
   let _projRefCounter = 0;
   let coverImageUrls = null;
   let currentStep = 1;
@@ -2098,53 +2317,14 @@ async function wireProjectEditor(projectId) {
     window.location.hash = '#/dashboard';
   });
 
-  // ── Step 2: Team ──
-  const allUsers = await DB.getAllUsers().catch(() => []);
+  // ── Step 2: Team — shared picker (V3.302 dedup) ──
   const mentorSelect = document.getElementById('proj-mentor');
-  const contribSelect = document.getElementById('proj-contributor-select');
-  document.getElementById('proj-author-name').value = Auth.currentProfile?.name || Auth.currentUser.email;
-
-  allUsers.forEach(u => {
-    const addOpt = (sel) => {
-      const o = document.createElement('option');
-      o.value = u.id;
-      o.textContent = u.name || u.email || u.id;
-      o.dataset.name = u.name || '';
-      o.dataset.photo = JSON.stringify(u.photo || '');
-      sel.appendChild(o);
-    };
-    addOpt(mentorSelect);
-    if (u.id !== Auth.currentUser.uid) addOpt(contribSelect);
-  });
-
-  const chipsEl = document.getElementById('proj-contributor-chips');
-  function renderChips() {
-    chipsEl.innerHTML = selectedContributors.map((c, i) =>
-      `<span class="contributor-chip">${escapeHTML(c.name || c.uid)}
-        <button type="button" class="chip-remove" data-idx="${i}">&times;</button>
-      </span>`
-    ).join('');
-    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedContributors.splice(Number(btn.dataset.idx), 1);
-        renderChips();
-      });
-    });
-  }
-
-  document.getElementById('proj-add-contributor-btn').addEventListener('click', () => {
-    if (!contribSelect.value) return;
-    const opt = contribSelect.options[contribSelect.selectedIndex];
-    if (selectedContributors.some(c => c.uid === contribSelect.value)) return;
-    let parsedPhoto = '';
-    try { parsedPhoto = JSON.parse(opt.dataset.photo || '""'); } catch { parsedPhoto = opt.dataset.photo || ''; }
-    selectedContributors.push({
-      uid: contribSelect.value,
-      name: opt.dataset.name || opt.textContent,
-      photo: parsedPhoto
-    });
-    renderChips();
-    contribSelect.value = '';
+  const teamPicker = await setupTeamPicker({
+    mentorSelect,
+    contribSelect: document.getElementById('proj-contributor-select'),
+    chipsEl: document.getElementById('proj-contributor-chips'),
+    addBtn: document.getElementById('proj-add-contributor-btn'),
+    authorField: document.getElementById('proj-author-name')
   });
 
   // ── Cover image upload ──
@@ -2239,11 +2419,7 @@ async function wireProjectEditor(projectId) {
           coverPreview.innerHTML = `<img src="${escapeHTML(existing.coverImage.medium)}" alt="Cover preview">`;
         }
       }
-      if (existing.team?.mentor?.uid) mentorSelect.value = existing.team.mentor.uid;
-      if (existing.team?.contributors) {
-        existing.team.contributors.forEach(c => selectedContributors.push(c));
-        renderChips();
-      }
+      teamPicker.restore(existing.team);
       if (existing.references) {
         for (const [type, items] of Object.entries(existing.references)) {
           if (Array.isArray(items)) {
@@ -2267,7 +2443,7 @@ async function wireProjectEditor(projectId) {
     const order = document.getElementById('proj-order').value;
     const mentorOpt = mentorSelect.options[mentorSelect.selectedIndex];
     const mentorName = mentorSelect.value ? (mentorOpt?.dataset?.name || mentorOpt?.textContent || '') : '(none)';
-    const contribNames = selectedContributors.map(c => c.name || c.uid).join(', ') || '(none)';
+    const contribNames = teamPicker.selectedContributors.map(c => c.name || c.uid).join(', ') || '(none)';
     const refCount = refsContainer.querySelectorAll('.ref-block').length;
 
     el.innerHTML = `
@@ -2286,26 +2462,7 @@ async function wireProjectEditor(projectId) {
 
   // ── Collect & Save ──
   function collectProjectData(status) {
-    const mentorOpt = mentorSelect.options[mentorSelect.selectedIndex];
-    let mentorPhoto = '';
-    if (mentorSelect.value) {
-      try { mentorPhoto = JSON.parse(mentorOpt?.dataset?.photo || '""'); } catch { mentorPhoto = mentorOpt?.dataset?.photo || ''; }
-    }
-    const team = {
-      author: {
-        uid: Auth.currentUser.uid,
-        name: Auth.currentProfile?.name || '',
-        photo: Auth.currentProfile?.photo || ''
-      },
-      contributors: selectedContributors.map(c => ({
-        uid: c.uid, name: c.name, photo: c.photo || ''
-      })),
-      mentor: mentorSelect.value ? {
-        uid: mentorSelect.value,
-        name: mentorOpt?.dataset?.name || mentorOpt?.textContent || '',
-        photo: mentorPhoto
-      } : null
-    };
+    const team = teamPicker.collectTeam(); // V3.302 dedup
 
     const references = {};
     refsContainer.querySelectorAll('.ref-block').forEach(block => {
@@ -2736,6 +2893,319 @@ function wireGuide() {
 }
 
 /* ================================================================
+   EDITOR KIT (V3.302) — shared internals for the story and news
+   editors: one implementation of section blocks, media upload, team
+   pickers, draft autosave, and true preview. Parameterized per editor
+   so a fix or feature lands in both at once.
+   ================================================================ */
+const RICH_TEXT_HINT = 'Formatting: **bold**, *italic*, [link text](https://&hellip;)';
+
+/* Dispose the previous editor's timers/listeners when a new editor
+   wires up — the SPA swaps page content without a teardown hook. */
+function claimEditorLifecycle(dispose) {
+  if (typeof McgheeLab._editorDispose === 'function') {
+    try { McgheeLab._editorDispose(); } catch (e) { /* noop */ }
+  }
+  McgheeLab._editorDispose = dispose || null;
+}
+
+/* Draft autosave + tab-close guard. `canAutosave` must return false
+   whenever an automatic save could change the doc's public visibility —
+   pending/published docs are never autosaved. */
+function createEditorAutosave({ canAutosave, doSave, intervalMs = 30000 }) {
+  let dirty = false;
+  const unloadHandler = (e) => {
+    if (!dirty) return;
+    e.preventDefault();
+    e.returnValue = '';
+  };
+  window.addEventListener('beforeunload', unloadHandler);
+  const timer = setInterval(async () => {
+    if (!dirty || !canAutosave()) return;
+    dirty = false;
+    try { await doSave(); }
+    catch (err) { dirty = true; console.warn('Autosave failed:', err); }
+  }, intervalMs);
+  const api = {
+    markDirty() { dirty = true; },
+    markClean() { dirty = false; },
+    isDirty()   { return dirty; },
+    dispose() {
+      clearInterval(timer);
+      window.removeEventListener('beforeunload', unloadHandler);
+    }
+  };
+  claimEditorLifecycle(api.dispose);
+  return api;
+}
+
+/* Banner shown in the editor when an admin requested changes */
+function reviewNoteBannerHTML(note) {
+  return `<div class="review-note-banner"><strong>✏️ Changes requested:</strong> ${escapeHTML(note)}</div>`;
+}
+
+/* Preview using the SAME card builder the public feed uses (exported
+   by app.js), so preview === published appearance. */
+function showEditorPreview({ bodyEl, modalEl, data, builder }) {
+  const build = McgheeLab[builder];
+  bodyEl.innerHTML = '';
+  if (typeof build === 'function') {
+    const fake = { ...data, publishedAt: { toDate: () => new Date() } };
+    const card = build(fake);
+    card.classList.add('preview-card');
+    bodyEl.appendChild(card);
+    // Auto-expand "Read more" so the whole piece is visible.
+    const toggle = card.querySelector('.expand-toggle');
+    if (toggle) toggle.click();
+  } else {
+    bodyEl.innerHTML = '<p class="hint">Preview unavailable.</p>';
+  }
+  modalEl.hidden = false;
+}
+
+
+/* Section-block engine shared by both editors (V3.302 dedup): move /
+   remove controls, image/video upload to `${basePath}/section_{sid}`
+   (webp set for images, raw mp4/webm ≤50MB for video), 3D-viz picks
+   (V3.301), restore from an existing doc, and collection back into the
+   doc's sections[]. Blocks are keyed by their data-section-id so media
+   maps survive reorders. */
+function setupSectionEditor({ container, basePath, autosave }) {
+  const sectionImages = {}; // sectionId → { thumb, medium, full }
+  const sectionVideos = {}; // sectionId → URL string
+  const sectionViz = {};    // sectionId → { vizId, viewId, name, file, poster, config }
+
+  function renumber() {
+    container.querySelectorAll('.section-label').forEach((lbl, i) => {
+      lbl.textContent = `Section ${i + 1}`;
+    });
+  }
+
+  async function handleMedia(block, file) {
+    const zone = block.querySelector('.media-upload-zone');
+    const prog = block.querySelector('.media-progress');
+    const sid = block.dataset.sectionId;
+    const isVideo = file.type === 'video/mp4' || file.type === 'video/webm';
+
+    if (isVideo && file.size > 50 * 1024 * 1024) {
+      zone.innerHTML = '<p class="error-text">Video must be under 50 MB</p>';
+      return;
+    }
+
+    prog.hidden = false;
+    zone.innerHTML = `<p class="upload-hint">${isVideo ? 'Uploading video' : 'Processing'}…</p>`;
+
+    try {
+      const sectionPath = `${basePath}/section_${sid}`;
+      if (isVideo) {
+        const ext = file.type === 'video/mp4' ? 'mp4' : 'webm';
+        const ref = McgheeLab.storage.ref().child(`${sectionPath}/video.${ext}`);
+        await ref.put(file, { contentType: file.type });
+        const url = await ref.getDownloadURL();
+        sectionVideos[sid] = url;
+        delete sectionImages[sid]; // clear image if replacing
+        delete sectionViz[sid];    // clear 3D view if replacing
+        zone.innerHTML = `<video src="${escapeHTML(url)}" controls playsinline preload="metadata" class="section-video-preview"></video>`;
+      } else {
+        const blobs = await processImage(file);
+        const urls = await uploadImageSet(blobs, sectionPath);
+        sectionImages[sid] = urls;
+        delete sectionVideos[sid]; // clear video if replacing
+        delete sectionViz[sid];    // clear 3D view if replacing
+        zone.innerHTML = `<img src="${escapeHTML(urls.medium)}" alt="Section image" class="section-img-preview">`;
+      }
+      autosave.markDirty();
+    } catch (err) {
+      zone.innerHTML = `<p class="error-text">Upload failed: ${escapeHTML(err.message)}</p>`;
+    }
+    prog.hidden = true;
+  }
+
+  function wireSectionBlock(block) {
+    block.querySelector('[data-move="up"]')?.addEventListener('click', () => {
+      const prev = block.previousElementSibling;
+      if (prev) { container.insertBefore(block, prev); renumber(); autosave.markDirty(); }
+    });
+    block.querySelector('[data-move="down"]')?.addEventListener('click', () => {
+      const next = block.nextElementSibling;
+      if (next) { container.insertBefore(next, block); renumber(); autosave.markDirty(); }
+    });
+    block.querySelector('[data-remove]')?.addEventListener('click', () => {
+      if (container.children.length > 1) { block.remove(); renumber(); autosave.markDirty(); }
+    });
+
+    const zone = block.querySelector('.media-upload-zone');
+    const input = block.querySelector('.section-media-input');
+    zone.addEventListener('click', () => input.click());
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) handleMedia(block, e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', e => {
+      if (e.target.files[0]) handleMedia(block, e.target.files[0]);
+      e.target.value = '';
+    });
+    // V3.301 — pick a saved 3D view as this section's media (replaces image/video)
+    block.querySelector('.section-viz-btn')?.addEventListener('click', () => {
+      openVizPicker(view => {
+        const sid = block.dataset.sectionId;
+        sectionViz[sid] = {
+          vizId: view.vizId, viewId: view.id, name: view.name || '',
+          file: view.file || 'viewer3d.html',
+          poster: view.poster || null, config: view.config || null
+        };
+        delete sectionImages[sid];
+        delete sectionVideos[sid];
+        zone.innerHTML = vizZonePreviewHTML(sectionViz[sid]);
+        autosave.markDirty();
+      });
+    });
+  }
+
+  function addSection() {
+    container.insertAdjacentHTML('beforeend', sectionBlockHTML());
+    wireSectionBlock(container.lastElementChild);
+    autosave.markDirty();
+    return container.lastElementChild;
+  }
+
+  /* Rebuild blocks from an existing doc's sections[]. */
+  function restoreSections(sections) {
+    (sections || []).forEach(sec => {
+      container.insertAdjacentHTML('beforeend', sectionBlockHTML({
+        text: sec.text,
+        imageUrl: sec.image?.medium || sec.image?.full || '',
+        videoUrl: sec.video || '',
+        viz: sec.viz || null,
+        imageAlt: sec.imageAlt || ''
+      }));
+      const sid = container.lastElementChild.dataset.sectionId;
+      if (sec.image) sectionImages[sid] = sec.image;
+      if (sec.video) sectionVideos[sid] = sec.video;
+      if (sec.viz) sectionViz[sid] = sec.viz;
+    });
+  }
+
+  /* Ensure ≥1 block exists, then wire everything present.
+     Call once, after restoreSections(). */
+  function init() {
+    if (!container.children.length) {
+      container.insertAdjacentHTML('beforeend', sectionBlockHTML());
+    }
+    container.querySelectorAll('.section-block').forEach(wireSectionBlock);
+  }
+
+  function collectSections() {
+    const sections = [];
+    container.querySelectorAll('.section-block').forEach(block => {
+      const sid = block.dataset.sectionId;
+      sections.push({
+        text: block.querySelector('.section-text').value.trim(),
+        image: sectionImages[sid] || null,
+        video: sectionVideos[sid] || null,
+        viz: sectionViz[sid] || null,
+        imageAlt: block.querySelector('.section-image-alt').value.trim(),
+        order: sections.length
+      });
+    });
+    return sections;
+  }
+
+  return { init, addSection, restoreSections, collectSections };
+}
+
+/* Mentor + contributor pickers shared by both editors (V3.302 dedup):
+   populates the selects from registered users and returns collect /
+   restore helpers around the shared contributors list. */
+async function setupTeamPicker({ mentorSelect, contribSelect, chipsEl, addBtn, authorField, autosave }) {
+  autosave = autosave || { markDirty() {} }; // optional — the project editor has no autosave
+  const selectedContributors = []; // { uid, name, photo }
+  if (authorField) authorField.value = Auth.currentProfile?.name || Auth.currentUser.email;
+
+  const allUsers = await DB.getAllUsers().catch(() => []);
+  allUsers.forEach(u => {
+    const makeOpt = (sel) => {
+      const o = document.createElement('option');
+      o.value = u.id;
+      o.textContent = u.name || u.email || u.id;
+      o.dataset.name = u.name || '';
+      o.dataset.photo = JSON.stringify(u.photo || '');
+      sel.appendChild(o);
+    };
+    if (mentorSelect) makeOpt(mentorSelect);
+    if (contribSelect && u.id !== Auth.currentUser.uid) makeOpt(contribSelect);
+  });
+
+  function renderChips() {
+    if (!chipsEl) return;
+    chipsEl.innerHTML = selectedContributors.map((c, i) =>
+      `<span class="contributor-chip">${escapeHTML(c.name || c.uid)}
+        <button type="button" class="chip-remove" data-idx="${i}">&times;</button>
+      </span>`
+    ).join('');
+    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedContributors.splice(Number(btn.dataset.idx), 1);
+        renderChips();
+        autosave.markDirty();
+      });
+    });
+  }
+
+  addBtn?.addEventListener('click', () => {
+    if (!contribSelect?.value) return;
+    const opt = contribSelect.options[contribSelect.selectedIndex];
+    if (selectedContributors.some(c => c.uid === contribSelect.value)) return;
+    let parsedPhoto = '';
+    try { parsedPhoto = JSON.parse(opt.dataset.photo || '""'); } catch { parsedPhoto = opt.dataset.photo || ''; }
+    selectedContributors.push({
+      uid: contribSelect.value,
+      name: opt.dataset.name || opt.textContent,
+      photo: parsedPhoto
+    });
+    renderChips();
+    contribSelect.value = '';
+    autosave.markDirty();
+  });
+
+  function collectTeam() {
+    const mentorOpt = mentorSelect?.options[mentorSelect.selectedIndex];
+    let mentorPhoto = '';
+    if (mentorSelect?.value) {
+      try { mentorPhoto = JSON.parse(mentorOpt?.dataset?.photo || '""'); } catch { mentorPhoto = mentorOpt?.dataset?.photo || ''; }
+    }
+    return {
+      author: {
+        uid: Auth.currentUser.uid,
+        name: Auth.currentProfile?.name || '',
+        photo: Auth.currentProfile?.photo || ''
+      },
+      contributors: selectedContributors.map(c => ({
+        uid: c.uid, name: c.name, photo: c.photo || ''
+      })),
+      mentor: mentorSelect?.value ? {
+        uid: mentorSelect.value,
+        name: mentorOpt?.dataset?.name || mentorOpt?.textContent || '',
+        photo: mentorPhoto
+      } : null
+    };
+  }
+
+  function restore(team) {
+    if (!team) return;
+    if (team.mentor?.uid && mentorSelect) mentorSelect.value = team.mentor.uid;
+    if (Array.isArray(team.contributors)) {
+      team.contributors.forEach(c => selectedContributors.push(c));
+      renderChips();
+    }
+  }
+
+  return { collectTeam, restore, selectedContributors };
+}
+
+/* ================================================================
    RENDER: STORY EDITOR
    ================================================================ */
 let _sectionCounter = 0;
@@ -2754,6 +3224,7 @@ function renderStoryEditor(storyId) {
       </div>
 
       <form id="story-form" class="story-form">
+        <div id="editor-review-banner" hidden></div>
         <div class="form-group">
           <label for="story-title">Story Title</label>
           <input type="text" id="story-title" required placeholder="Give your story a title">
@@ -2762,7 +3233,12 @@ function renderStoryEditor(storyId) {
           <label for="story-project">Project <span class="hint">(required)</span></label>
           <select id="story-project" required>
             <option value="">-- Select a project --</option>
+            <option value="__propose__">&#9998; Propose a new project&hellip;</option>
           </select>
+          <div id="story-propose-wrap" class="propose-project-wrap" hidden>
+            <input type="text" id="story-proposed-project" placeholder="Proposed project name">
+            <p class="hint">No matching project yet? Name one here — an admin creates it when your story is approved.</p>
+          </div>
         </div>
         <div class="form-group">
           <label for="story-description">Brief Description</label>
@@ -2830,10 +3306,19 @@ function renderStoryEditor(storyId) {
     </div>`;
 }
 
+/* V3.301 \u2014 media-zone preview for a picked 3D visualization view */
+function vizZonePreviewHTML(viz) {
+  const poster = viz?.poster?.medium || viz?.poster?.thumb || viz?.poster?.full || '';
+  return `${poster ? `<img src="${escapeHTML(poster)}" alt="3D view poster" class="section-img-preview">` : ''}
+    <span class="badge viz-section-badge">\ud83e\uddca 3D view: ${escapeHTML(viz?.name || 'Untitled')}</span>`;
+}
+
 function sectionBlockHTML(data) {
   const id = _sectionCounter++;
   let mediaPreview;
-  if (data?.videoUrl) {
+  if (data?.viz) {
+    mediaPreview = vizZonePreviewHTML(data.viz);
+  } else if (data?.videoUrl) {
     mediaPreview = `<video src="${escapeHTML(data.videoUrl)}" controls playsinline preload="metadata" class="section-video-preview"></video>`;
   } else if (data?.imageUrl) {
     mediaPreview = `<img src="${escapeHTML(data.imageUrl)}" alt="Section image" class="section-img-preview">`;
@@ -2852,17 +3337,78 @@ function sectionBlockHTML(data) {
       </div>
       <div class="form-group">
         <textarea class="section-text" rows="4" placeholder="Write your section text here\u2026">${escapeHTML(data?.text || '')}</textarea>
+        <p class="hint rt-hint">${RICH_TEXT_HINT}</p>
       </div>
       <div class="section-media-area">
         <div class="media-upload-zone" data-zone="${id}">
           ${mediaPreview}
         </div>
         <input type="file" class="section-media-input" accept="image/*,video/mp4,video/webm" hidden data-zone="${id}">
+        <button type="button" class="btn btn-secondary btn-small section-viz-btn" data-zone="${id}">\ud83e\uddca Embed 3D visualization</button>
         <input type="text" class="section-image-alt" placeholder="Image/video description (alt text)"
           value="${escapeHTML(data?.imageAlt || '')}">
         <div class="media-progress" hidden>Uploading\u2026</div>
       </div>
     </div>`;
+}
+
+/* V3.301 \u2014 saved-view picker modal shared by the story and news editors.
+   Lists all saved views (Firestore `vizViews`) grouped by visualization
+   (DataIllustrations/manifest.json). cb(view) receives the chosen view doc
+   augmented with the viz `file` + `title` from the manifest. */
+async function openVizPicker(cb) {
+  let manifest = [];
+  let views = [];
+  try {
+    const res = await fetch('DataIllustrations/manifest.json', { cache: 'no-cache' });
+    if (res.ok) manifest = (await res.json()).visualizations || [];
+  } catch (e) { console.warn('Viz manifest error:', e); }
+  try { views = await DB.getAllVizViews(); } catch (e) { console.warn('Viz views error:', e); }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal viz-picker-modal';
+  const groups = manifest.map(viz => {
+    const vizViews = views.filter(v => v.vizId === viz.id);
+    if (!vizViews.length) return '';
+    return `
+      <div class="viz-picker-group">
+        <h4>${escapeHTML(viz.title || viz.id)}</h4>
+        <div class="viz-picker-grid">
+          ${vizViews.map(v => `
+            <button type="button" class="viz-picker-tile" data-view-id="${escapeHTML(v.id)}">
+              ${v.poster?.thumb || v.poster?.medium
+                ? `<img src="${escapeHTML(v.poster.thumb || v.poster.medium)}" alt="${escapeHTML(v.name || '')}">`
+                : '<span class="viz-picker-tile-placeholder">\ud83e\uddca</span>'}
+              <span class="viz-picker-tile-name">${escapeHTML(v.name || 'Untitled')}</span>
+            </button>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+  overlay.innerHTML = `
+    <div class="modal-content viz-picker-content">
+      <div class="modal-header">
+        <h3>Embed a 3D visualization view</h3>
+        <button type="button" class="btn btn-secondary btn-small" data-close-picker>&times; Close</button>
+      </div>
+      <div class="viz-picker-body">
+        ${groups || `<p class="upload-hint">No saved views yet. Open a visualization under
+          <a href="#/data" target="_blank">Data Visualizations</a>, arrange the view, and click "Save view" first.</p>`}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.querySelector('[data-close-picker]').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.querySelectorAll('.viz-picker-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const view = views.find(v => v.id === tile.dataset.viewId);
+      if (!view) return;
+      const viz = manifest.find(m => m.id === view.vizId);
+      close();
+      cb({ ...view, file: viz?.file || 'viewer3d.html', vizTitle: viz?.title || '' });
+    });
+  });
 }
 
 const REF_TYPES = [
@@ -2900,25 +3446,48 @@ async function wireStoryEditor(storyId) {
   _sectionCounter = 0;
   _refCounter = 0;
   let existing = null;
-  const sectionImages = {}; // sectionId → { thumb, medium, full }
-  const sectionVideos = {}; // sectionId → URL string
-  const selectedContributors = []; // { uid, name, photo }
+
+  // V3.302 — doc id is minted up front so media uploads land at the
+  // real Storage path (no orphaned draft_* folders), and the first
+  // autosave targets the same doc every subsequent save uses.
+  const docId = storyId !== 'new' ? storyId : DB.newDocId('stories');
+  let docCreated = storyId !== 'new';
+
+  // V3.302 — draft autosave (30s) + tab-close guard. Never fires for
+  // pending/published docs, so an autosave can't unpublish anything.
+  const autosave = createEditorAutosave({
+    canAutosave: () => {
+      const title = document.getElementById('story-title')?.value?.trim();
+      const st = existing?.status;
+      return !!title && (!st || st === 'draft' || st === 'changes-requested');
+    },
+    doSave: () => saveStory(existing?.status === 'changes-requested' ? 'changes-requested' : 'draft', { auto: true })
+  });
+  form.addEventListener('input', () => autosave.markDirty());
 
   // Back button
   document.getElementById('editor-back-btn')?.addEventListener('click', () => {
     window.location.hash = '#/dashboard';
   });
 
-  // Populate team dropdowns from all registered users
-  const allUsers = await DB.getAllUsers().catch(() => []);
-  const mentorSelect = document.getElementById('story-mentor');
-  const contribSelect = document.getElementById('story-contributor-select');
-  const authorField = document.getElementById('story-author-name');
+  // Shared section-block engine + team pickers (V3.302 dedup)
+  const sections = setupSectionEditor({ container, basePath: `stories/${docId}`, autosave });
+  const team = await setupTeamPicker({
+    mentorSelect: document.getElementById('story-mentor'),
+    contribSelect: document.getElementById('story-contributor-select'),
+    chipsEl: document.getElementById('contributor-chips'),
+    addBtn: document.getElementById('add-contributor-btn'),
+    authorField: document.getElementById('story-author-name'),
+    autosave
+  });
 
-  authorField.value = Auth.currentProfile?.name || Auth.currentUser.email;
-
-  // Populate project dropdown from published Firestore projects
+  // Populate project dropdown from published Firestore projects. The
+  // "__propose__" option (V3.302) reveals a free-text field so students
+  // aren't blocked when no matching project exists yet.
   const projectSelect = document.getElementById('story-project');
+  const proposeOpt = projectSelect.querySelector('option[value="__propose__"]');
+  const proposeWrap = document.getElementById('story-propose-wrap');
+  const proposeInput = document.getElementById('story-proposed-project');
   let allProjects = [];
   try {
     allProjects = await DB.getPublishedProjects();
@@ -2927,62 +3496,23 @@ async function wireStoryEditor(storyId) {
       o.value = p.id;
       o.textContent = p.title || 'Untitled Project';
       o.dataset.title = p.title || '';
-      projectSelect.appendChild(o);
+      if (proposeOpt) projectSelect.insertBefore(o, proposeOpt);
+      else projectSelect.appendChild(o);
     });
   } catch (e) { console.warn('Failed to load projects for dropdown:', e); }
-
-  allUsers.forEach(u => {
-    const opt = (sel) => {
-      const o = document.createElement('option');
-      o.value = u.id;
-      o.textContent = u.name || u.email || u.id;
-      o.dataset.name = u.name || '';
-      o.dataset.photo = JSON.stringify(u.photo || '');
-      sel.appendChild(o);
-    };
-    opt(mentorSelect);
-    if (u.id !== Auth.currentUser.uid) opt(contribSelect);
+  projectSelect.addEventListener('change', () => {
+    if (!proposeWrap) return;
+    proposeWrap.hidden = projectSelect.value !== '__propose__';
+    if (!proposeWrap.hidden) proposeInput?.focus();
   });
 
-  // Contributor chips
-  const chipsEl = document.getElementById('contributor-chips');
-
-  function renderContributorChips() {
-    chipsEl.innerHTML = selectedContributors.map((c, i) =>
-      `<span class="contributor-chip">${escapeHTML(c.name || c.uid)}
-        <button type="button" class="chip-remove" data-idx="${i}">&times;</button>
-      </span>`
-    ).join('');
-    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedContributors.splice(Number(btn.dataset.idx), 1);
-        renderContributorChips();
-      });
-    });
-  }
-
-  document.getElementById('add-contributor-btn').addEventListener('click', () => {
-    const sel = contribSelect;
-    if (!sel.value) return;
-    const opt = sel.options[sel.selectedIndex];
-    if (selectedContributors.some(c => c.uid === sel.value)) return;
-    let parsedPhoto = '';
-    try { parsedPhoto = JSON.parse(opt.dataset.photo || '""'); } catch { parsedPhoto = opt.dataset.photo || ''; }
-    selectedContributors.push({
-      uid: sel.value,
-      name: opt.dataset.name || opt.textContent,
-      photo: parsedPhoto
-    });
-    renderContributorChips();
-    sel.value = '';
-  });
-
-  // References container
+  // References container (story-only)
   const refsContainer = document.getElementById('refs-container');
 
   function wireRefBlock(block) {
     block.querySelector('[data-remove-ref]').addEventListener('click', () => {
       block.remove();
+      autosave.markDirty();
     });
   }
 
@@ -2999,6 +3529,12 @@ async function wireStoryEditor(storyId) {
     if (existing) {
       document.getElementById('story-title').value = existing.title || '';
       if (existing.projectId) projectSelect.value = existing.projectId;
+      else if (existing.proposedProjectTitle && proposeWrap) {
+        // V3.302 — restore an in-flight project proposal
+        projectSelect.value = '__propose__';
+        proposeWrap.hidden = false;
+        proposeInput.value = existing.proposedProjectTitle;
+      }
       else if (existing.project) {
         // Legacy: try to match old free-text project to a Firestore project
         const match = allProjects.find(p => p.title === existing.project);
@@ -3010,14 +3546,7 @@ async function wireStoryEditor(storyId) {
         document.getElementById('story-publish-date').value = d.toISOString().slice(0, 10);
       }
 
-      // Restore team
-      if (existing.team) {
-        if (existing.team.mentor?.uid) mentorSelect.value = existing.team.mentor.uid;
-        if (existing.team.contributors) {
-          existing.team.contributors.forEach(c => selectedContributors.push(c));
-          renderContributorChips();
-        }
-      }
+      team.restore(existing.team);
 
       // Restore references
       if (existing.references) {
@@ -3031,143 +3560,27 @@ async function wireStoryEditor(storyId) {
         }
       }
 
-      // Restore sections
-      (existing.sections || []).forEach((sec, i) => {
-        container.insertAdjacentHTML('beforeend', sectionBlockHTML({
-          text: sec.text,
-          imageUrl: sec.image?.medium || sec.image?.full || '',
-          videoUrl: sec.video || '',
-          imageAlt: sec.imageAlt || ''
-        }));
-        if (sec.image) sectionImages[i] = sec.image;
-        if (sec.video) sectionVideos[i] = sec.video;
-      });
+      sections.restoreSections(existing.sections);
+
+      // V3.302 — surface the admin's review note to the author
+      if (existing.status === 'changes-requested' && existing.reviewNote) {
+        const banner = document.getElementById('editor-review-banner');
+        if (banner) { banner.innerHTML = reviewNoteBannerHTML(existing.reviewNote); banner.hidden = false; }
+      }
     }
   }
 
-  // Ensure at least one section
-  if (!container.children.length) {
-    container.insertAdjacentHTML('beforeend', sectionBlockHTML());
-  }
-
-  // Wire all existing section blocks
-  container.querySelectorAll('.section-block').forEach(b => wireSectionBlock(b));
+  // Ensure at least one section + wire all blocks
+  sections.init();
 
   // Add section
   document.getElementById('add-section-btn').addEventListener('click', () => {
-    container.insertAdjacentHTML('beforeend', sectionBlockHTML());
-    wireSectionBlock(container.lastElementChild);
-    container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const block = sections.addSection();
+    block.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
-  function wireSectionBlock(block) {
-    block.querySelector('[data-move="up"]').addEventListener('click', () => {
-      const prev = block.previousElementSibling;
-      if (prev) container.insertBefore(block, prev);
-      renumber();
-    });
-    block.querySelector('[data-move="down"]').addEventListener('click', () => {
-      const next = block.nextElementSibling;
-      if (next) container.insertBefore(next, block);
-      renumber();
-    });
-    block.querySelector('[data-remove]').addEventListener('click', () => {
-      if (container.children.length > 1) { block.remove(); renumber(); }
-    });
-
-    const zone = block.querySelector('.media-upload-zone');
-    const input = block.querySelector('.section-media-input');
-    zone.addEventListener('click', () => input.click());
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', e => {
-      e.preventDefault(); zone.classList.remove('drag-over');
-      if (e.dataTransfer.files[0]) handleMedia(block, e.dataTransfer.files[0]);
-    });
-    input.addEventListener('change', e => {
-      if (e.target.files[0]) handleMedia(block, e.target.files[0]);
-    });
-  }
-
-  async function handleMedia(block, file) {
-    const zone = block.querySelector('.media-upload-zone');
-    const prog = block.querySelector('.media-progress');
-    const sid = block.dataset.sectionId;
-    const isVideo = file.type === 'video/mp4' || file.type === 'video/webm';
-
-    if (isVideo && file.size > 50 * 1024 * 1024) {
-      zone.innerHTML = '<p class="error-text">Video must be under 50 MB</p>';
-      return;
-    }
-
-    prog.hidden = false;
-    zone.innerHTML = `<p class="upload-hint">${isVideo ? 'Uploading video' : 'Processing'}\u2026</p>`;
-
-    try {
-      const storyRef = existing?.id || 'draft_' + Date.now();
-      const basePath = `stories/${storyRef}/section_${sid}`;
-
-      if (isVideo) {
-        const ext = file.type === 'video/mp4' ? 'mp4' : 'webm';
-        const ref = McgheeLab.storage.ref().child(`${basePath}/video.${ext}`);
-        await ref.put(file, { contentType: file.type });
-        const url = await ref.getDownloadURL();
-        sectionVideos[sid] = url;
-        delete sectionImages[sid]; // clear image if replacing
-        zone.innerHTML = `<video src="${escapeHTML(url)}" controls playsinline preload="metadata" class="section-video-preview"></video>`;
-      } else {
-        const blobs = await processImage(file);
-        const urls = await uploadImageSet(blobs, basePath);
-        sectionImages[sid] = urls;
-        delete sectionVideos[sid]; // clear video if replacing
-        zone.innerHTML = `<img src="${escapeHTML(urls.medium)}" alt="Section image" class="section-img-preview">`;
-      }
-    } catch (err) {
-      zone.innerHTML = `<p class="error-text">Upload failed: ${escapeHTML(err.message)}</p>`;
-    }
-    prog.hidden = true;
-  }
-
-  function renumber() {
-    container.querySelectorAll('.section-label').forEach((lbl, i) => { lbl.textContent = `Section ${i + 1}`; });
-  }
-
   function collectData(status) {
-    const sections = [];
-    container.querySelectorAll('.section-block').forEach(block => {
-      const sid = block.dataset.sectionId;
-      sections.push({
-        text: block.querySelector('.section-text').value,
-        image: sectionImages[sid] || null,
-        video: sectionVideos[sid] || null,
-        imageAlt: block.querySelector('.section-image-alt').value,
-        order: sections.length
-      });
-    });
-
-    // Build team object
-    const mentorOpt = mentorSelect.options[mentorSelect.selectedIndex];
-    let mentorPhoto = '';
-    if (mentorSelect.value) {
-      try { mentorPhoto = JSON.parse(mentorOpt?.dataset?.photo || '""'); } catch { mentorPhoto = mentorOpt?.dataset?.photo || ''; }
-    }
-    const team = {
-      author: {
-        uid: Auth.currentUser.uid,
-        name: Auth.currentProfile?.name || '',
-        photo: Auth.currentProfile?.photo || ''
-      },
-      contributors: selectedContributors.map(c => ({
-        uid: c.uid, name: c.name, photo: c.photo || ''
-      })),
-      mentor: mentorSelect.value ? {
-        uid: mentorSelect.value,
-        name: mentorOpt?.dataset?.name || mentorOpt?.textContent || '',
-        photo: mentorPhoto
-      } : null
-    };
-
-    // Build references object grouped by type
+    // Build references object grouped by type (story-only)
     const references = {};
     refsContainer.querySelectorAll('.ref-block').forEach(block => {
       const type = block.querySelector('.ref-type').value;
@@ -3179,27 +3592,53 @@ async function wireStoryEditor(storyId) {
       references[type].push({ title, url, detail });
     });
 
-    const result = {
+    // V3.302 — a proposed project ships as free text; the admin (or a
+    // publishing editor) converts it into a real projectPackage later.
+    const proposing = projectSelect.value === '__propose__';
+    const projOpt = projectSelect.options[projectSelect.selectedIndex];
+
+    return {
+      id: docId,
       title: document.getElementById('story-title').value,
-      projectId: projectSelect.value,
-      projectTitle: projectSelect.options[projectSelect.selectedIndex]?.dataset?.title || projectSelect.options[projectSelect.selectedIndex]?.textContent || '',
+      projectId: proposing ? null : (projectSelect.value || null),
+      projectTitle: proposing ? '' : (projOpt?.dataset?.title || (projectSelect.value ? projOpt?.textContent : '') || ''),
+      proposedProjectTitle: proposing ? (proposeInput?.value.trim() || '') : null,
       description: document.getElementById('story-description').value,
       authorUid: Auth.currentUser.uid,
       authorName: Auth.currentProfile?.name || '',
-      sections,
-      team,
+      sections: sections.collectSections(),
+      team: team.collectTeam(),
       references,
       status
     };
-    if (existing?.id) result.id = existing.id;
-    return result;
   }
 
-  async function saveStory(status) {
+  async function saveStory(status, opts = {}) {
     const st = document.getElementById('editor-status');
-    st.hidden = true;
+    if (!opts.auto) st.hidden = true;
     try {
+      // V3.302 — an editor/admin publishing with a proposed project gets
+      // the project created + linked right now (no admin review follows).
+      if (status === 'published' && projectSelect.value === '__propose__') {
+        const title = proposeInput?.value.trim();
+        if (!title) throw new Error('Name your proposed project first.');
+        const pid = await DB.saveProject({
+          title, status: 'published', description: '',
+          authorUid: Auth.currentUser.uid, order: 9999, storyIds: []
+        });
+        const o = document.createElement('option');
+        o.value = pid; o.textContent = title; o.dataset.title = title;
+        if (proposeOpt) projectSelect.insertBefore(o, proposeOpt);
+        else projectSelect.appendChild(o);
+        projectSelect.value = pid;
+        if (proposeWrap) proposeWrap.hidden = true;
+      }
+      if (status === 'pending' && projectSelect.value === '__propose__' && !proposeInput?.value.trim()) {
+        throw new Error('Name your proposed project first.');
+      }
+
       const data = collectData(status);
+      if (!docCreated) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       if (status === 'published') {
         const customDate = document.getElementById('story-publish-date').value;
         data.publishedAt = customDate
@@ -3207,10 +3646,14 @@ async function wireStoryEditor(storyId) {
           : firebase.firestore.FieldValue.serverTimestamp();
       }
       const id = await DB.saveStory(data);
-      st.textContent = status === 'draft' ? 'Draft saved!'
+      docCreated = true;
+      autosave.markClean();
+      st.textContent = opts.auto ? 'Draft autosaved ✓'
+        : status === 'draft' ? 'Draft saved!'
         : (Auth.canPublish() ? 'Published!' : 'Submitted for review!');
       st.className = 'form-status success'; st.hidden = false;
-      existing = { ...data, id };
+      if (opts.auto) setTimeout(() => { st.hidden = true; }, 2500);
+      existing = { ...existing, ...data, id };
       // Update URL without triggering a re-render so the page stays in place
       if (window.location.hash !== `#/dashboard/story/${id}`) {
         history.replaceState(null, '', `#/dashboard/story/${id}`);
@@ -3218,6 +3661,7 @@ async function wireStoryEditor(storyId) {
     } catch (err) {
       st.textContent = 'Error: ' + err.message;
       st.className = 'form-status error'; st.hidden = false;
+      if (opts.auto) throw err; // keep the autosave dirty flag set
     }
   }
 
@@ -3230,28 +3674,16 @@ async function wireStoryEditor(storyId) {
     saveStory(Auth.canPublish() ? 'published' : 'pending');
   });
 
-  // Preview
+  // Preview — V3.302: renders the exact card the public research feed
+  // uses (via McgheeLab.buildStoryFeedCard from app.js), so what the
+  // author sees is what publishes.
   document.getElementById('preview-btn').addEventListener('click', () => {
-    const data = collectData('preview');
-    const body = document.getElementById('story-preview-body');
-    body.innerHTML = `
-      <h3>${escapeHTML(data.title)}</h3>
-      <p>${escapeHTML(data.description)}</p>
-      ${data.sections.map(sec => {
-        const hasMedia = sec.image || sec.video;
-        let mediaHTML = '';
-        if (sec.video) {
-          mediaHTML = `<video src="${escapeHTML(sec.video)}" controls playsinline preload="metadata" class="preview-video"></video>`;
-        } else if (sec.image) {
-          mediaHTML = `<img src="${escapeHTML(sec.image.medium)}" alt="${escapeHTML(sec.imageAlt)}" class="preview-img">`;
-        }
-        return `
-        <div class="preview-media ${hasMedia ? '' : 'text-only'}">
-          <div class="preview-text"><p>${escapeHTML(sec.text)}</p></div>
-          ${mediaHTML}
-        </div>`;
-      }).join('')}`;
-    document.getElementById('story-preview-modal').hidden = false;
+    showEditorPreview({
+      bodyEl: document.getElementById('story-preview-body'),
+      modalEl: document.getElementById('story-preview-modal'),
+      data: collectData(existing?.status || 'draft'),
+      builder: 'buildStoryFeedCard'
+    });
   });
 
   // Close preview
@@ -3272,43 +3704,7 @@ const NEWS_CATEGORIES = [
   { value: 'other',      label: 'Other' }
 ];
 
-let _newsSectionCounter = 0;
-
-function newsSectionBlockHTML(data) {
-  const id = _newsSectionCounter++;
-  let mediaPreview;
-  if (data?.videoUrl) {
-    mediaPreview = `<video src="${escapeHTML(data.videoUrl)}" controls playsinline preload="metadata" class="section-video-preview"></video>`;
-  } else if (data?.imageUrl) {
-    mediaPreview = `<img src="${escapeHTML(data.imageUrl)}" alt="Section image" class="section-img-preview">`;
-  } else {
-    mediaPreview = '<p class="upload-hint">Click or drag an image or video here (optional)</p>';
-  }
-  return `
-    <div class="section-block" data-section-id="${id}">
-      <div class="section-header">
-        <span class="section-label">Section ${id + 1}</span>
-        <div class="section-controls">
-          <button type="button" class="btn-icon" data-move="up" title="Move up">&uarr;</button>
-          <button type="button" class="btn-icon" data-move="down" title="Move down">&darr;</button>
-          <button type="button" class="btn-icon btn-danger-icon" data-remove title="Remove">&times;</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <textarea class="section-text" rows="4" placeholder="Write your section text here\u2026">${escapeHTML(data?.text || '')}</textarea>
-      </div>
-      <div class="section-media-area">
-        <div class="media-upload-zone" data-zone="news-${id}">
-          ${mediaPreview}
-        </div>
-        <input type="file" class="section-media-input" accept="image/*,video/mp4,video/webm" hidden data-zone="news-${id}">
-        <input type="text" class="section-image-alt" placeholder="Image/video description (alt text)"
-          value="${escapeHTML(data?.imageAlt || '')}">
-        <div class="media-progress" hidden>Uploading\u2026</div>
-      </div>
-    </div>`;
-}
-
+/* V3.302 dedup — news sections now use the shared sectionBlockHTML. */
 function renderNewsEditor(postId) {
   if (!Auth.currentUser) { window.location.hash = '#/login'; return '<p>Redirecting\u2026</p>'; }
   const isNew = postId === 'new';
@@ -3321,6 +3717,7 @@ function renderNewsEditor(postId) {
       </div>
 
       <form id="news-form" class="story-form">
+        <div id="editor-review-banner" hidden></div>
         <div class="form-group">
           <label for="news-title">Title</label>
           <input type="text" id="news-title" required placeholder="Give your post a title">
@@ -3409,70 +3806,41 @@ async function wireNewsEditor(postId) {
   const form = document.getElementById('news-form');
   if (!container || !form) return;
 
-  _newsSectionCounter = 0;
+  _sectionCounter = 0;
   let existing = null;
-  const sectionImages = {};
-  const sectionVideos = {};
   let coverImageUrls = null;
-  const selectedContributors = []; // { uid, name, photo }
+
+  // V3.302 — doc id minted up front (real Storage paths + stable
+  // autosave target), same pattern as the story editor.
+  const docId = postId !== 'new' ? postId : DB.newDocId('newsPosts');
+  let docCreated = postId !== 'new';
+
+  // V3.302 — draft autosave (30s) + tab-close guard; never fires for
+  // pending/published posts.
+  const autosave = createEditorAutosave({
+    canAutosave: () => {
+      const title = document.getElementById('news-title')?.value?.trim();
+      const st = existing?.status;
+      return !!title && (!st || st === 'draft' || st === 'changes-requested');
+    },
+    doSave: () => savePost(existing?.status === 'changes-requested' ? 'changes-requested' : 'draft', { auto: true })
+  });
+  form.addEventListener('input', () => autosave.markDirty());
 
   // Back button
   document.getElementById('news-editor-back-btn')?.addEventListener('click', () => {
     window.location.hash = '#/dashboard';
   });
 
-  // Team fields: populate mentor + contributor dropdowns from all users
-  const mentorSelect = document.getElementById('news-mentor');
-  const contribSelect = document.getElementById('news-contributor-select');
-  const authorField = document.getElementById('news-author-name');
-  const chipsEl = document.getElementById('news-contributor-chips');
-
-  if (authorField) authorField.value = Auth.currentProfile?.name || Auth.currentUser.email;
-
-  try {
-    const allUsers = await DB.getAllUsers();
-    allUsers.forEach(u => {
-      const makeOpt = (sel) => {
-        const o = document.createElement('option');
-        o.value = u.id;
-        o.textContent = u.name || u.email || u.id;
-        o.dataset.name = u.name || '';
-        o.dataset.photo = JSON.stringify(u.photo || '');
-        sel.appendChild(o);
-      };
-      if (mentorSelect) makeOpt(mentorSelect);
-      if (contribSelect && u.id !== Auth.currentUser.uid) makeOpt(contribSelect);
-    });
-  } catch (e) { console.warn('Failed to load users for news team:', e); }
-
-  function renderContributorChips() {
-    if (!chipsEl) return;
-    chipsEl.innerHTML = selectedContributors.map((c, i) =>
-      `<span class="contributor-chip">${escapeHTML(c.name || c.uid)}
-        <button type="button" class="chip-remove" data-idx="${i}">&times;</button>
-      </span>`
-    ).join('');
-    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedContributors.splice(Number(btn.dataset.idx), 1);
-        renderContributorChips();
-      });
-    });
-  }
-
-  document.getElementById('news-add-contributor-btn')?.addEventListener('click', () => {
-    if (!contribSelect?.value) return;
-    const opt = contribSelect.options[contribSelect.selectedIndex];
-    if (selectedContributors.some(c => c.uid === contribSelect.value)) return;
-    let parsedPhoto = '';
-    try { parsedPhoto = JSON.parse(opt.dataset.photo || '""'); } catch { parsedPhoto = opt.dataset.photo || ''; }
-    selectedContributors.push({
-      uid: contribSelect.value,
-      name: opt.dataset.name || opt.textContent,
-      photo: parsedPhoto
-    });
-    renderContributorChips();
-    contribSelect.value = '';
+  // Shared section-block engine + team pickers (V3.302 dedup)
+  const sections = setupSectionEditor({ container, basePath: `news/${docId}`, autosave });
+  const team = await setupTeamPicker({
+    mentorSelect: document.getElementById('news-mentor'),
+    contribSelect: document.getElementById('news-contributor-select'),
+    chipsEl: document.getElementById('news-contributor-chips'),
+    addBtn: document.getElementById('news-add-contributor-btn'),
+    authorField: document.getElementById('news-author-name'),
+    autosave
   });
 
   // Load existing post
@@ -3489,16 +3857,7 @@ async function wireNewsEditor(postId) {
         document.getElementById('news-publish-date').value = d.toISOString().slice(0, 10);
       }
 
-      (existing.sections || []).forEach((sec, i) => {
-        container.insertAdjacentHTML('beforeend', newsSectionBlockHTML({
-          text: sec.text,
-          imageUrl: sec.image?.medium || sec.image?.full || '',
-          videoUrl: sec.video || '',
-          imageAlt: sec.imageAlt || ''
-        }));
-        if (sec.image) sectionImages[i] = sec.image;
-        if (sec.video) sectionVideos[i] = sec.video;
-      });
+      sections.restoreSections(existing.sections);
 
       if (existing.coverImage) {
         coverImageUrls = existing.coverImage;
@@ -3508,96 +3867,25 @@ async function wireNewsEditor(postId) {
         }
       }
 
-      // Restore team
-      if (existing.team) {
-        if (existing.team.mentor?.uid && mentorSelect) mentorSelect.value = existing.team.mentor.uid;
-        if (Array.isArray(existing.team.contributors)) {
-          existing.team.contributors.forEach(c => selectedContributors.push(c));
-          renderContributorChips();
-        }
+      team.restore(existing.team);
+
+      // V3.302 — surface the admin's review note to the author
+      if (existing.status === 'changes-requested' && existing.reviewNote) {
+        const banner = document.getElementById('editor-review-banner');
+        if (banner) { banner.innerHTML = reviewNoteBannerHTML(existing.reviewNote); banner.hidden = false; }
       }
     }
   }
 
-  // Ensure at least one section
-  if (!container.children.length) {
-    container.insertAdjacentHTML('beforeend', newsSectionBlockHTML());
-  }
+  // Ensure at least one section + wire all blocks
+  sections.init();
 
-  // Wire section blocks
-  function wireSectionBlock(block) {
-    const sid = block.dataset.sectionId;
-    const zone = block.querySelector('.media-upload-zone');
-    const fileInput = block.querySelector('.section-media-input');
-    const progress = block.querySelector('.media-progress');
+  // Add section
+  document.getElementById('news-add-section-btn').addEventListener('click', () => {
+    sections.addSection();
+  });
 
-    zone?.addEventListener('click', () => fileInput?.click());
-    zone?.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-    zone?.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone?.addEventListener('drop', e => {
-      e.preventDefault(); zone.classList.remove('drag-over');
-      if (e.dataTransfer.files.length) handleMedia(e.dataTransfer.files[0], sid, zone, progress);
-    });
-    fileInput?.addEventListener('change', e => {
-      if (e.target.files[0]) handleMedia(e.target.files[0], sid, zone, progress);
-      e.target.value = '';
-    });
-
-    block.querySelector('[data-move="up"]')?.addEventListener('click', () => {
-      const prev = block.previousElementSibling;
-      if (prev) { container.insertBefore(block, prev); renumberSections(); }
-    });
-    block.querySelector('[data-move="down"]')?.addEventListener('click', () => {
-      const next = block.nextElementSibling;
-      if (next) { container.insertBefore(next, block); renumberSections(); }
-    });
-    block.querySelector('[data-remove]')?.addEventListener('click', () => {
-      if (container.children.length <= 1) return;
-      block.remove(); renumberSections();
-    });
-  }
-
-  async function handleMedia(file, sid, zone, progress) {
-    const isVideo = file.type.startsWith('video/');
-    if (isVideo) {
-      progress.textContent = 'Uploading video\u2026'; progress.hidden = false;
-      try {
-        const newsId = existing?.id || 'temp_' + Date.now();
-        const ref = McgheeLab.storage.ref().child(`news/${newsId}/section_${sid}_video.${file.name.split('.').pop()}`);
-        await ref.put(file);
-        const url = await ref.getDownloadURL();
-        sectionVideos[sid] = url;
-        delete sectionImages[sid];
-        zone.innerHTML = `<video src="${escapeHTML(url)}" controls playsinline preload="metadata" class="section-video-preview"></video>`;
-        progress.hidden = true;
-      } catch (err) {
-        progress.textContent = 'Upload failed: ' + err.message; progress.hidden = false;
-      }
-    } else {
-      progress.textContent = 'Processing image\u2026'; progress.hidden = false;
-      try {
-        const blobs = await processImage(file);
-        const newsId = existing?.id || 'temp_' + Date.now();
-        const urls = await uploadImageSet(blobs, `news/${newsId}/section_${sid}`);
-        sectionImages[sid] = urls;
-        delete sectionVideos[sid];
-        zone.innerHTML = `<img src="${escapeHTML(urls.medium)}" alt="Section image" class="section-img-preview">`;
-        progress.hidden = true;
-      } catch (err) {
-        progress.textContent = 'Upload failed: ' + err.message; progress.hidden = false;
-      }
-    }
-  }
-
-  function renumberSections() {
-    container.querySelectorAll('.section-block').forEach((b, i) => {
-      b.querySelector('.section-label').textContent = 'Section ' + (i + 1);
-    });
-  }
-
-  container.querySelectorAll('.section-block').forEach(wireSectionBlock);
-
-  // Cover image upload
+  // Cover image upload (news-only)
   const coverZone = document.getElementById('news-cover-zone');
   const coverInput = document.getElementById('news-cover-input');
   const coverProgress = document.getElementById('news-cover-progress');
@@ -3616,67 +3904,29 @@ async function wireNewsEditor(postId) {
   });
 
   async function handleCoverUpload(file) {
-    coverProgress.textContent = 'Processing image\u2026'; coverProgress.hidden = false;
+    coverProgress.textContent = 'Processing image…'; coverProgress.hidden = false;
     try {
       const blobs = await processImage(file);
-      const newsId = existing?.id || 'temp_' + Date.now();
-      const urls = await uploadImageSet(blobs, `news/${newsId}/cover`);
+      const urls = await uploadImageSet(blobs, `news/${docId}/cover`);
       coverImageUrls = urls;
       coverPreview.innerHTML = `<img src="${escapeHTML(urls.medium)}" alt="Cover preview">`;
       coverProgress.hidden = true;
+      autosave.markDirty();
     } catch (err) {
       coverProgress.textContent = 'Upload failed: ' + err.message; coverProgress.hidden = false;
     }
   }
 
-  // Add section
-  document.getElementById('news-add-section-btn').addEventListener('click', () => {
-    container.insertAdjacentHTML('beforeend', newsSectionBlockHTML());
-    wireSectionBlock(container.lastElementChild);
-  });
-
   // Collect form data
   function collectData(status) {
-    const sections = [];
-    container.querySelectorAll('.section-block').forEach(block => {
-      const sid = block.dataset.sectionId;
-      sections.push({
-        text: block.querySelector('.section-text').value.trim(),
-        image: sectionImages[sid] || null,
-        video: sectionVideos[sid] || null,
-        imageAlt: block.querySelector('.section-image-alt').value.trim()
-      });
-    });
-
-    const mentorOpt = mentorSelect?.options[mentorSelect.selectedIndex];
-    let mentorPhoto = '';
-    if (mentorSelect?.value) {
-      try { mentorPhoto = JSON.parse(mentorOpt?.dataset?.photo || '""'); } catch { mentorPhoto = mentorOpt?.dataset?.photo || ''; }
-    }
-    const team = {
-      author: {
-        uid: Auth.currentUser.uid,
-        name: Auth.currentProfile?.name || '',
-        photo: Auth.currentProfile?.photo || ''
-      },
-      contributors: selectedContributors.map(c => ({
-        uid: c.uid, name: c.name, photo: c.photo || ''
-      })),
-      mentor: mentorSelect?.value ? {
-        uid: mentorSelect.value,
-        name: mentorOpt?.dataset?.name || mentorOpt?.textContent || '',
-        photo: mentorPhoto
-      } : null
-    };
-
     return {
-      id: existing?.id || undefined,
+      id: docId,
       title: document.getElementById('news-title').value.trim(),
       category: document.getElementById('news-category').value,
       description: document.getElementById('news-description').value.trim(),
       coverImage: coverImageUrls,
-      sections,
-      team,
+      sections: sections.collectSections(),
+      team: team.collectTeam(),
       authorUid: Auth.currentUser.uid,
       authorName: Auth.currentProfile?.name || Auth.currentUser.email,
       authorPhoto: Auth.currentProfile?.photo || null,
@@ -3684,11 +3934,12 @@ async function wireNewsEditor(postId) {
     };
   }
 
-  async function savePost(status) {
+  async function savePost(status, opts = {}) {
     const st = document.getElementById('news-editor-status');
-    st.hidden = true;
+    if (!opts.auto) st.hidden = true;
     try {
       const data = collectData(status);
+      if (!docCreated) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       if (status === 'published') {
         const customDate = document.getElementById('news-publish-date').value;
         data.publishedAt = customDate
@@ -3696,16 +3947,21 @@ async function wireNewsEditor(postId) {
           : firebase.firestore.FieldValue.serverTimestamp();
       }
       const id = await DB.saveNewsPost(data);
-      st.textContent = status === 'draft' ? 'Draft saved!'
+      docCreated = true;
+      autosave.markClean();
+      st.textContent = opts.auto ? 'Draft autosaved ✓'
+        : status === 'draft' ? 'Draft saved!'
         : (Auth.canPublish() ? 'Published!' : 'Submitted for review!');
       st.className = 'form-status success'; st.hidden = false;
-      existing = { ...data, id };
+      if (opts.auto) setTimeout(() => { st.hidden = true; }, 2500);
+      existing = { ...existing, ...data, id };
       if (window.location.hash !== `#/dashboard/news/${id}`) {
         history.replaceState(null, '', `#/dashboard/news/${id}`);
       }
     } catch (err) {
       st.textContent = 'Error: ' + err.message;
       st.className = 'form-status error'; st.hidden = false;
+      if (opts.auto) throw err; // keep the autosave dirty flag set
     }
   }
 
@@ -3718,29 +3974,15 @@ async function wireNewsEditor(postId) {
     savePost(Auth.canPublish() ? 'published' : 'pending');
   });
 
-  // Preview
+  // Preview — V3.302: renders the exact card the public news feed uses
+  // (via McgheeLab.buildNewsFeedCard from app.js).
   document.getElementById('news-preview-btn').addEventListener('click', () => {
-    const data = collectData('preview');
-    const body = document.getElementById('news-preview-body');
-    body.innerHTML = `
-      <h3>${escapeHTML(data.title)}</h3>
-      <span class="badge">${escapeHTML(NEWS_CATEGORIES.find(c => c.value === data.category)?.label || data.category)}</span>
-      <p>${escapeHTML(data.description)}</p>
-      ${data.sections.map(sec => {
-        const hasMedia = sec.image || sec.video;
-        let mediaHTML = '';
-        if (sec.video) {
-          mediaHTML = `<video src="${escapeHTML(sec.video)}" controls playsinline preload="metadata" class="preview-video"></video>`;
-        } else if (sec.image) {
-          mediaHTML = `<img src="${escapeHTML(sec.image.medium)}" alt="${escapeHTML(sec.imageAlt)}" class="preview-img">`;
-        }
-        return `
-        <div class="preview-media ${hasMedia ? '' : 'text-only'}">
-          ${sec.text ? `<p>${escapeHTML(sec.text)}</p>` : ''}
-          ${mediaHTML}
-        </div>`;
-      }).join('')}`;
-    document.getElementById('news-preview-modal').hidden = false;
+    showEditorPreview({
+      bodyEl: document.getElementById('news-preview-body'),
+      modalEl: document.getElementById('news-preview-modal'),
+      data: collectData(existing?.status || 'draft'),
+      builder: 'buildNewsFeedCard'
+    });
   });
 
   // Close preview
@@ -3765,7 +4007,9 @@ async function refreshNewsList() {
         <div class="story-item-info">
           <strong>${escapeHTML(p.title || 'Untitled')}</strong>
           <span class="badge news-cat-badge">${escapeHTML(NEWS_CATEGORIES.find(c => c.value === p.category)?.label || p.category || '')}</span>
-          <span class="status-badge status-${p.status || 'draft'}">${p.status || 'draft'}</span>
+          <span class="status-badge status-${p.status || 'draft'}">${(p.status || 'draft').replace('-', ' ')}</span>
+          ${p.status === 'changes-requested' && p.reviewNote
+            ? `<p class="review-note">✏️ ${escapeHTML(p.reviewNote)}</p>` : ''}
         </div>
         <div class="story-item-actions">
           <button class="btn btn-secondary btn-small" data-edit-news="${p.id}">Edit</button>
@@ -4448,14 +4692,35 @@ async function loadUsers() {
           ${users.map(u => {
             const guest = u.role === 'guest';
             const chatEnabled = guest ? (u.chatAccess === true) : true;
+            // V3.265 \u2014 Cason-was-demoted fix. This page's `ROLES` map only
+            // has 4 entries (admin / editor / contributor / guest), but
+            // RM's admin-permissions page writes roles from a 10-entry
+            // taxonomy (admin / pi / postdoc / phd / masters / undergrad /
+            // staff / collaborator / member / guest). When a user's role
+            // was set via RM to something this dropdown doesn't recognise
+            // (e.g. `phd`), no <option> got `selected`, the browser fell
+            // back to displaying the first option, and the next Save
+            // silently overwrote the role with that wrong value. Fix:
+            // if u.role isn't a known key, prepend a sticky "Unknown: X
+            // (keep as is)" option that's `selected` so Save round-trips
+            // the stored value. The save handler additionally skips
+            // writing `role` when roleSel.value === u.role.
+            const knownRole = Object.prototype.hasOwnProperty.call(ROLES, u.role || '');
+            const unknownOption = knownRole
+              ? ''
+              : `<option value="${escapeHTML(u.role || '')}" selected>Unknown: ${escapeHTML(u.role || '(unset)')} \u2014 keep as is</option>`;
+            const knownTag = knownRole
+              ? ''
+              : ` <span class="admin-guest-badge" title="Stored role isn't in this page's taxonomy \u2014 managed in RM Admin Permissions">${escapeHTML(u.role || '?')}</span>`;
             return `
             <tr class="${guest ? 'admin-guest-row' : ''}">
-              <td>${escapeHTML(u.name || '\u2014')}${guest ? ' <span class="admin-guest-badge">Guest</span>' : ''}</td>
+              <td>${escapeHTML(u.name || '\u2014')}${guest ? ' <span class="admin-guest-badge">Guest</span>' : ''}${knownTag}</td>
               <td>${escapeHTML(u.email || '\u2014')}</td>
               <td>
                 <select data-uid="${u.id}" class="role-select">
+                  ${unknownOption}
                   ${Object.entries(ROLES).map(([k, v]) =>
-                    `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v.label}</option>`
+                    `<option value="${k}" ${knownRole && u.role === k ? 'selected' : ''}>${v.label}</option>`
                   ).join('')}
                 </select>
               </td>
@@ -4526,6 +4791,16 @@ async function loadUsers() {
                   <div class="admin-edit-section">
                     <label>GitHub</label>
                     <input type="url" data-github-uid="${u.id}" placeholder="https://github.com/username" value="${escapeHTML(u.github || '')}">
+                  </div>
+                  <div class="admin-edit-section">
+                    <label>Prior Category</label>
+                    <select data-prior-uid="${u.id}" class="category-select">
+                      <option value="">— auto (set when flipped to Alumni) —</option>
+                      ${ALUMNI_PRIOR_CATEGORIES.map(c =>
+                        `<option value="${c.value}" ${u.priorCategory === c.value ? 'selected' : ''}>${c.label}</option>`
+                      ).join('')}
+                    </select>
+                    <p class="hint">Groups this person on the team page once they're Alumni.</p>
                   </div>`}
                   <div class="admin-edit-status form-status" hidden></div>
                 </div>
@@ -4557,14 +4832,32 @@ async function loadUsers() {
         const nameEl = el.querySelector(`input[data-name-uid="${uid}"]`);
         const githubEl = el.querySelector(`input[data-github-uid="${uid}"]`);
         const chatToggle = el.querySelector(`input[data-chat-uid="${uid}"]`);
-        const updates = { role: roleSel.value, category: catSel.value };
+        const user = users.find(u => u.id === uid);
+        const updates = { category: catSel.value };
+        // V3.265 — only write `role` when the admin actually changed it.
+        // Previously this handler unconditionally wrote `roleSel.value`,
+        // which clobbered RM-set roles (phd / postdoc / etc.) the moment
+        // anyone saved the row for an unrelated field. Now we compare to
+        // the stored `user.role` and skip the write when unchanged. The
+        // "Unknown: X — keep as is" option (prepended in the row render)
+        // makes the dropdown's `.value` equal the stored role for any
+        // out-of-taxonomy value, so Save round-trips cleanly.
+        if (user && roleSel.value !== (user.role || '')) {
+          updates.role = roleSel.value;
+        }
         if (bioEl) updates.bio = bioEl.value;
         if (nameEl) updates.name = nameEl.value;
         if (githubEl) updates.github = githubEl.value;
         if (chatToggle) updates.chatAccess = chatToggle.checked;
-        // Store prior category when moving to alumni
-        const user = users.find(u => u.id === uid);
-        if (catSel.value === 'alumni' && user && user.category !== 'alumni') {
+        // V3.312 — explicit Prior Category dropdown (alumni grouping).
+        // Only written when changed, so untouched rows round-trip cleanly.
+        const priorSel = el.querySelector(`select[data-prior-uid="${uid}"]`);
+        if (priorSel && user && priorSel.value !== (user.priorCategory || '')) {
+          updates.priorCategory = priorSel.value;
+        }
+        // Store prior category when moving to alumni — the explicit
+        // dropdown selection wins over this auto-stamp.
+        if (catSel.value === 'alumni' && user && user.category !== 'alumni' && !(priorSel && priorSel.value)) {
           updates.priorCategory = user.category;
         }
         await DB.updateUser(uid, updates);
@@ -4738,6 +5031,8 @@ async function loadPending() {
         <div class="pending-info">
           <strong>${escapeHTML(s.title || 'Untitled')}</strong>
           <span class="pending-author">by ${escapeHTML(s.authorName || 'Unknown')}</span>
+          ${s.proposedProjectTitle && !s.projectId
+            ? `<span class="badge proposed-project-badge">\ud83d\udca1 Proposed project: ${escapeHTML(s.proposedProjectTitle)}</span>` : ''}
           ${s.description ? `<p>${escapeHTML(s.description)}</p>` : ''}
         </div>
         <div class="pending-sections">
@@ -4748,23 +5043,61 @@ async function loadPending() {
             </div>`).join('')}
         </div>
         <div class="pending-actions">
-          <button class="btn btn-primary btn-small" data-approve="${s.id}">Approve</button>
-          <button class="btn btn-danger btn-small" data-reject="${s.id}">Reject</button>
+          <button class="btn btn-primary btn-small" data-approve="${s.id}">
+            ${s.proposedProjectTitle && !s.projectId ? 'Create project & approve' : 'Approve'}
+          </button>
+          <button class="btn btn-danger btn-small" data-reject="${s.id}">Request changes</button>
           <button class="btn btn-secondary btn-small" data-view-story="${s.id}">View Full</button>
         </div>
       </div>`).join('');
 
     el.querySelectorAll('[data-approve]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        await DB.updateStoryStatus(btn.dataset.approve, 'published');
+        btn.disabled = true;
+        try {
+          const story = stories.find(s => s.id === btn.dataset.approve);
+          const extra = { reviewNote: firebase.firestore.FieldValue.delete() };
+          // V3.302 \u2014 a student-proposed project becomes real on approval
+          if (story && !story.projectId && story.proposedProjectTitle) {
+            const pid = await DB.saveProject({
+              title: story.proposedProjectTitle, status: 'published',
+              description: '', authorUid: Auth.currentUser.uid,
+              order: 9999, storyIds: []
+            });
+            extra.projectId = pid;
+            extra.projectTitle = story.proposedProjectTitle;
+            extra.proposedProjectTitle = firebase.firestore.FieldValue.delete();
+          }
+          await DB.updateStoryStatus(btn.dataset.approve, 'published', extra);
+        } catch (err) {
+          alert('Approve failed: ' + err.message);
+        }
         loadPending();
       });
     });
+    // V3.302 \u2014 "Request changes" opens an inline note form; the note is
+    // stored on the doc and shown to the author (dashboard + editor).
     el.querySelectorAll('[data-reject]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Reject this story? The author can revise and resubmit.')) return;
-        await DB.updateStoryStatus(btn.dataset.reject, 'draft');
-        loadPending();
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.pending-card');
+        let noteForm = card.querySelector('.reject-note-form');
+        if (noteForm) { noteForm.hidden = !noteForm.hidden; return; }
+        noteForm = document.createElement('div');
+        noteForm.className = 'reject-note-form';
+        noteForm.innerHTML = `
+          <textarea rows="2" placeholder="What should the author change? They'll see this note."></textarea>
+          <button type="button" class="btn btn-danger btn-small">Send back with note</button>`;
+        card.appendChild(noteForm);
+        noteForm.querySelector('textarea').focus();
+        noteForm.querySelector('button').addEventListener('click', async () => {
+          const note = noteForm.querySelector('textarea').value.trim();
+          if (!note) { noteForm.querySelector('textarea').focus(); return; }
+          await DB.updateStoryStatus(btn.dataset.reject, 'changes-requested', {
+            reviewNote: note,
+            reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          loadPending();
+        });
       });
     });
     el.querySelectorAll('[data-view-story]').forEach(btn => {
@@ -4800,22 +5133,41 @@ async function loadPendingNews() {
         </div>
         <div class="pending-actions">
           <button class="btn btn-primary btn-small" data-approve-news="${p.id}">Approve</button>
-          <button class="btn btn-danger btn-small" data-reject-news="${p.id}">Reject</button>
+          <button class="btn btn-danger btn-small" data-reject-news="${p.id}">Request changes</button>
           <button class="btn btn-secondary btn-small" data-view-news="${p.id}">View Full</button>
         </div>
       </div>`).join('');
 
     el.querySelectorAll('[data-approve-news]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        await DB.updateNewsStatus(btn.dataset.approveNews, 'published');
+        await DB.updateNewsStatus(btn.dataset.approveNews, 'published', {
+          reviewNote: firebase.firestore.FieldValue.delete()
+        });
         loadPendingNews();
       });
     });
+    // V3.302 — "Request changes" with a note the author can act on
     el.querySelectorAll('[data-reject-news]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Reject this news post? The author can revise and resubmit.')) return;
-        await DB.updateNewsStatus(btn.dataset.rejectNews, 'draft');
-        loadPendingNews();
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.pending-card');
+        let noteForm = card.querySelector('.reject-note-form');
+        if (noteForm) { noteForm.hidden = !noteForm.hidden; return; }
+        noteForm = document.createElement('div');
+        noteForm.className = 'reject-note-form';
+        noteForm.innerHTML = `
+          <textarea rows="2" placeholder="What should the author change? They'll see this note."></textarea>
+          <button type="button" class="btn btn-danger btn-small">Send back with note</button>`;
+        card.appendChild(noteForm);
+        noteForm.querySelector('textarea').focus();
+        noteForm.querySelector('button').addEventListener('click', async () => {
+          const note = noteForm.querySelector('textarea').value.trim();
+          if (!note) { noteForm.querySelector('textarea').focus(); return; }
+          await DB.updateNewsStatus(btn.dataset.rejectNews, 'changes-requested', {
+            reviewNote: note,
+            reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          loadPendingNews();
+        });
       });
     });
     el.querySelectorAll('[data-view-news]').forEach(btn => {
@@ -4934,6 +5286,9 @@ McgheeLab.ROLES            = ROLES;
 McgheeLab.BADGE_DEFS       = BADGE_DEFS;
 McgheeLab.processImage     = processImage;
 McgheeLab.uploadImageSet   = uploadImageSet;
+McgheeLab.openCropModal    = openCropModal;          // V3.304 — teacher-photo upload
+McgheeLab.renderGuestProfileCard = renderGuestProfileCard; // V3.304 — shared by teacher/student dashboards
+McgheeLab.wireGuestProfileCard   = wireGuestProfileCard;
 McgheeLab.renderLogin      = renderLogin;
 McgheeLab.wireLogin        = wireLogin;
 McgheeLab.renderDashboard  = renderDashboard;
@@ -4955,6 +5310,7 @@ McgheeLab.wireSchedulerEditor   = wireSchedulerEditor;
 McgheeLab.renderSchedulePage    = renderSchedulePage;
 McgheeLab.wireSchedulePage      = wireSchedulePage;
 McgheeLab.NEWS_CATEGORIES  = NEWS_CATEGORIES;
+McgheeLab.renderRichText   = renderRichText;   // V3.302 — markdown-lite
 
 /* ================================================================
    SOCIAL: Reactions & Comments (called from app.js feed)

@@ -4,20 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin · Workflow Permissions · McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <script>
-    /* V3.63 — workflow-permissions admin page. Two tabs:
+    /* V3.63 — workflow-permissions admin page. Four tabs:
      *   ?tab=users (default) → Users × Pages matrix
-     *   ?tab=workflows       → Default Workflows × Pages matrix */
+     *   ?tab=workflows       → Default Workflows × Pages matrix
+     *   ?tab=tracking        → Per-page activity-tracking mode (V3.228)
+     *   ?tab=mentors         → Mentor → mentee assignments (V3.243) */
     (function () {
-      var t = (new URLSearchParams(location.search).get('tab') === 'workflows')
-        ? 'workflows' : 'users';
+      var raw = new URLSearchParams(location.search).get('tab') || '';
+      var t = (raw === 'workflows' || raw === 'tracking' || raw === 'mentors') ? raw : 'users';
       window.__PERM_TAB = t;
       document.documentElement.dataset.permTab = t;
-      document.title = (t === 'workflows')
-        ? 'Admin · Default Workflows · McGhee Lab'
-        : 'Admin · User Page Access · McGhee Lab';
+      document.title =
+        t === 'workflows' ? 'Admin · Default Workflows · McGhee Lab'
+      : t === 'tracking'  ? 'Admin · Page Tracking · McGhee Lab'
+      : t === 'mentors'   ? 'Admin · Mentor Assignments · McGhee Lab'
+      : 'Admin · User Page Access · McGhee Lab';
     })();
   </script>
   <style>
@@ -41,7 +46,138 @@
     }
     /* Tab visibility */
     html[data-perm-tab="users"]      .perm-tab.tab-workflows { display: none; }
+    html[data-perm-tab="users"]      .perm-tab.tab-tracking  { display: none; }
+    html[data-perm-tab="users"]      .perm-tab.tab-mentors   { display: none; }
     html[data-perm-tab="workflows"]  .perm-tab.tab-users     { display: none; }
+    html[data-perm-tab="workflows"]  .perm-tab.tab-tracking  { display: none; }
+    html[data-perm-tab="workflows"]  .perm-tab.tab-mentors   { display: none; }
+    html[data-perm-tab="tracking"]   .perm-tab.tab-users     { display: none; }
+    html[data-perm-tab="tracking"]   .perm-tab.tab-workflows { display: none; }
+    html[data-perm-tab="tracking"]   .perm-tab.tab-mentors   { display: none; }
+    html[data-perm-tab="mentors"]    .perm-tab.tab-users     { display: none; }
+    html[data-perm-tab="mentors"]    .perm-tab.tab-workflows { display: none; }
+    html[data-perm-tab="mentors"]    .perm-tab.tab-tracking  { display: none; }
+
+    /* V3.243 — Mentor assignments tab. List of lab members with their
+       current mentors as chips + an "Add mentor" picker. */
+    .perm-mentor-list {
+      background: #fff;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      overflow: hidden;
+      max-width: 900px;
+    }
+    .perm-mentor-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .perm-mentor-row:last-child { border-bottom: none; }
+    .perm-mentor-row:hover { background: #fafafa; }
+    .perm-mentor-row.is-changed {
+      background: color-mix(in srgb, var(--amber, #f59e0b) 10%, white);
+    }
+    .perm-mentor-mentee {
+      flex: 0 0 220px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .perm-mentor-name {
+      font-size: 13px; color: #1f2937;
+      display: flex; gap: 6px; align-items: center;
+    }
+    .perm-mentor-email {
+      font-size: 10.5px; color: #9ca3af;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+    .perm-mentor-chips {
+      flex: 1;
+      display: flex; flex-wrap: wrap; gap: 4px;
+      align-items: center;
+    }
+    .perm-mentor-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; padding: 3px 4px 3px 8px;
+      border: 1px solid #bfdbfe; border-radius: 999px;
+      background: #eff6ff; color: #1e40af;
+    }
+    .perm-mentor-chip-x {
+      background: transparent; border: none; color: #1e40af;
+      cursor: pointer; font-size: 14px; line-height: 1;
+      padding: 0 4px; border-radius: 50%;
+    }
+    .perm-mentor-chip-x:hover {
+      background: #dbeafe;
+    }
+    .perm-mentor-empty {
+      font-size: 11px; color: #9ca3af; font-style: italic;
+    }
+    .perm-mentor-add {
+      flex: 0 0 auto;
+      font-size: 11px; padding: 4px 8px;
+      border: 1px solid #d1d5db; border-radius: 6px;
+      background: #fff;
+      min-width: 180px;
+    }
+
+    /* V3.228 — Page Tracking tab. List of pages with per-page mode dropdown. */
+    .perm-tracking-list {
+      background: #fff;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      overflow: hidden;
+      max-width: 720px;
+    }
+    .perm-tracking-group-head {
+      padding: 10px 14px 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: #9ca3af;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .perm-tracking-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 14px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .perm-tracking-row:last-child { border-bottom: none; }
+    .perm-tracking-row:hover { background: #fafafa; }
+    .perm-tracking-label {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .perm-tracking-name { font-size: 13px; color: #1f2937; }
+    .perm-tracking-slug {
+      font-size: 10.5px;
+      color: #9ca3af;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+    .perm-tracking-select {
+      font-size: 12px;
+      padding: 4px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      min-width: 150px;
+    }
+    .perm-tracking-row.is-changed {
+      background: color-mix(in srgb, var(--amber, #f59e0b) 10%, white);
+    }
+    .perm-tracking-row.is-changed .perm-tracking-select {
+      border-color: var(--amber, #f59e0b);
+    }
 
     .perm-grid-wrap {
       max-height: 70vh; overflow: auto;
@@ -233,7 +369,7 @@
     .perm-bulk-row3 .btn-primary { background: var(--primary, #2563eb); }
   </style>
 </head>
-<body>
+<body class="rm-desktop-only">
   <div class="page perm-page">
     <div class="page-header">
       <h1 class="page-title">Workflow Permissions</h1>
@@ -249,6 +385,8 @@
           const HUB = [
             { tab: 'users',     label: 'Users × Pages' },
             { tab: 'workflows', label: 'Default Workflows × Pages' },
+            { tab: 'tracking',  label: 'Page Tracking' },
+            { tab: 'mentors',   label: 'Mentors' },
           ];
           const bar = document.getElementById('perm-hub-tabs');
           const current = window.__PERM_TAB;
@@ -267,6 +405,7 @@
         <input type="text" id="perm-search" class="perm-search" placeholder="Filter rows…">
         <button class="btn" id="perm-revert">Revert changes</button>
         <button class="btn btn-primary" id="perm-save">Save changes</button>
+        <button class="btn" id="perm-recompute-collections" title="Walk every userPermissions doc and re-derive allowedCollections from allowedPageIds via page-collections.js. Use after editing the pageId→collection map.">Recompute all collaborator grants</button>
         <span id="perm-status" class="perm-status"></span>
       </div>
 
@@ -322,6 +461,47 @@
         </div>
       </div>
 
+      <!-- V3.228 — Page Tracking tab. Each page maps to one of three modes:
+           tracked / never / admin. The page-time-tracker reads this config
+           and routes silent activity writes accordingly. -->
+      <div class="perm-tab tab-tracking">
+        <div style="margin-bottom:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:720px;">
+          Choose how each page contributes to silent activity tracking.
+          <strong>Tracked</strong> writes a per-page entry every 10 min the page is active.
+          <strong>Never</strong> skips writes entirely (no tracker entry created from activity on this page).
+          <strong>Admin work</strong> rolls activity into a single shared <em>"Admin work"</em> entry per day instead of a per-page entry — useful for browsing / chrome pages whose time you want counted but not broken out.
+          Stored in <code>labConfig/pageTracking</code>; readable by every lab member, writable by admin.
+        </div>
+        <div id="perm-tracking-list" class="perm-tracking-list">
+          <div class="perm-empty">Loading pages…</div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:720px;">
+          Default for any unconfigured page: <strong>Tracked</strong>. The Activity Overview page is hard-skipped (logging time spent confirming tracker entries would be circular).
+        </div>
+      </div>
+
+      <!-- V3.243 — Mentor assignments tab. One row per lab member; admin
+           assigns one or more other lab members as their mentor(s). Mentors
+           get the same cross-user PMR access an admin has (read + comment +
+           assign tasks, but cannot edit). Stored at
+           `users/{menteeUid}.mentor_uids: string[]`. -->
+      <div class="perm-tab tab-mentors">
+        <div style="margin-bottom:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:720px;">
+          Assign one or more lab members as a <strong>mentor</strong> for each mentee.
+          Mentors gain access to the mentee's PMR (read all sections, post comments,
+          assign tasks). Mentors cannot edit the mentee's barriers, weekly entries,
+          or projects — same read-only-for-others gate admins have when viewing
+          another lab member's PMR. Stored at <code>users/{menteeUid}.mentor_uids</code>.
+        </div>
+        <div id="perm-mentor-list" class="perm-mentor-list">
+          <div class="perm-empty">Loading lab members…</div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:720px;">
+          A user is allowed to mentor anyone (PhD ↔ PhD, postdoc → undergrad, etc.).
+          Admins always have full PMR access regardless of mentor assignments.
+        </div>
+      </div>
+
       <!-- Default Workflows × Pages tab -->
       <div class="perm-tab tab-workflows">
         <div class="perm-grid-wrap">
@@ -342,6 +522,7 @@
   <!-- RM contract header -->
   <script src="/rm/js/util.js"></script>
   <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/desktop-only-guard.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
@@ -353,6 +534,7 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/page-registry.js"></script>
+  <script src="/rm/js/page-collections.js"></script>
   <script src="/rm/js/admin-permissions.js"></script>
 </body>
 </html>

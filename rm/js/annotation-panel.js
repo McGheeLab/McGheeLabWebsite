@@ -783,6 +783,14 @@
   function getDefaultVisibility() { return _defaultVisibility; }
 
   function init(opts) {
+    // V3.294 — reset accumulating per-paper state so re-init on a tab switch
+    // doesn't stack duplicate filter callbacks (each would fire on every
+    // chip click) or leave stale per-card form/expansion entries behind.
+    _filterCallbacks = [];
+    _expandedCards.clear();
+    _cardSection.clear();
+    _evidenceForm.clear();
+    _annotations = [];
     _root = opts.rootEl;
     _viewer = opts.viewer;
     _getColors = opts.getColors || (() => []);

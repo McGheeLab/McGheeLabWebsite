@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper writing — paragraphs, voice & scope — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; Paper-writing series · part 2 of 7
+        </div>
+        <h1 class="training-module-title">Paper writing — paragraphs, voice &amp; scope</h1>
+        <p class="training-module-subtitle">
+          Sentence-level craft. How to skeleton a paragraph before writing it,
+          which of four scientific voices to use where, and how to keep a paper
+          broad enough to care about and narrow enough to focus.
+        </p>
+      </header>
+
+      <div class="training-layout">
+
+        <aside class="training-toc" aria-label="Section navigation">
+          <h3>Sections</h3>
+          <ol>
+            <li><a href="#sec-why" class="active">Why first drafts fail</a></li>
+            <li><a href="#sec-skeleton">The paragraph skeleton</a></li>
+            <li><a href="#sec-transformer">Skeleton → sentences</a></li>
+            <li><a href="#sec-voices">The four voices</a></li>
+            <li><a href="#sec-voices-mapping">Voice per section</a></li>
+            <li><a href="#sec-grammar">Active / passive / we / I</a></li>
+            <li><a href="#sec-scope">Narrative scope</a></li>
+            <li><a href="#sec-zoom">Zoom out, keep focus</a></li>
+            <li><a href="#sec-mistakes">Common voice mistakes</a></li>
+            <li><a href="#sec-capstone">Paragraph builder</a></li>
+          </ol>
+        </aside>
+
+        <main>
+
+          <!-- 1. Why first drafts fail -->
+          <section class="training-section" id="sec-why">
+            <h2>1. Why most first drafts fail at the paragraph level</h2>
+            <p>
+              When students hand Alex a first draft and he sends it back
+              covered in red, the problem is rarely the science. The
+              science is usually fine. The problem is that <em>the
+              paragraphs aren't paragraphs</em> — they're stacks of true
+              sentences that don't add up to a unit of argument.
+            </p>
+            <p>
+              Good paragraphs have a shape. Each one makes a single move,
+              supports it, and hands the reader off to the next paragraph.
+              Once you can see the shape, you can write paragraphs that
+              don't need to be rewritten — even on a first draft.
+            </p>
+            <div class="training-callout">
+              <strong>The fix is mechanical.</strong> It's not about
+              talent or style. It's about writing a 3-line skeleton
+              <em>before</em> you write the actual sentences. Sections 2
+              and 3 cover the skeleton; the rest of this training covers
+              the voice and scope choices that come next.
+            </div>
+          </section>
+
+          <!-- 2. The paragraph skeleton -->
+          <section class="training-section" id="sec-skeleton">
+            <h2>2. The paragraph skeleton</h2>
+            <p>
+              Every scientific paragraph has 3 jobs to do. Write them out
+              as a 3-line skeleton before you write the paragraph itself.
+              You can always fold them into 2 or expand to 5 sentences in
+              the final prose — but the skeleton stays 3 lines.
+            </p>
+
+            <h3>The default skeleton</h3>
+            <div class="equation-box">
+              <span class="lhs">claim</span> — what this paragraph asserts<br>
+              <span class="lhs">evidence</span> — what supports the claim<br>
+              <span class="lhs">link</span> — how this connects forward
+            </div>
+
+            <h3>Section-specific variants</h3>
+            <ul>
+              <li><strong>Results paragraph:</strong> observation → quantification → conclusion-from-this-figure</li>
+              <li><strong>Introduction paragraph:</strong> context → gap → what's-next</li>
+              <li><strong>Discussion paragraph:</strong> interpretation → evidence + literature → caveat / implication</li>
+              <li><strong>Methods paragraph:</strong> what → how → (occasionally: why this and not the alternative)</li>
+            </ul>
+
+            <p>
+              The variants aren't competing formats — they're the same
+              3-line shape with section-appropriate verb choices. Once
+              you've seen four of them, you can write the fifth.
+            </p>
+          </section>
+
+          <!-- 3. Skeleton → sentences (interactive) -->
+          <section class="training-section" id="sec-transformer">
+            <h2>3. From skeleton to sentences</h2>
+            <p>
+              Watch four real examples turn from skeletons into actual
+              paragraphs. The voice will shift depending on which section
+              the paragraph belongs to — we'll cover the four voices in
+              section 4.
+            </p>
+
+            <div class="skeleton-stage" id="skeleton-stage">
+              <div class="stage-head">
+                <span class="stage-title" id="stage-title">Example —</span>
+                <div class="stage-nav">
+                  <button id="stage-prev">←</button>
+                  <button id="stage-skeleton" class="active">Skeleton</button>
+                  <button id="stage-prose">Prose</button>
+                  <button id="stage-next">→</button>
+                </div>
+              </div>
+              <div class="skel-view is-active" id="skel-skeleton-view">
+                <div class="skel-skeleton" id="skel-skeleton-content">Loading…</div>
+              </div>
+              <div class="skel-view" id="skel-prose-view">
+                <div class="skel-prose" id="skel-prose-content">Loading…</div>
+              </div>
+              <div class="skel-meta" id="skel-meta">—</div>
+            </div>
+
+            <div class="training-callout">
+              <strong>Why this works.</strong> Most paragraphs that get
+              red ink are paragraphs the student skipped the skeleton on
+              — they sat down and started writing prose. The prose looks
+              fine sentence by sentence but doesn't add up to a unit of
+              argument. The skeleton step prevents this.
+            </div>
+          </section>
+
+          <!-- 4. The four voices -->
+          <section class="training-section" id="sec-voices">
+            <h2>4. The four voices of scientific writing</h2>
+            <p>
+              Every section of a scientific paper is written in a specific
+              voice. Picking the right one is the single biggest move you
+              can make at the paragraph level. The four voices, with the
+              same factual content rendered four different ways:
+            </p>
+
+            <div class="voice-grid">
+              <div class="voice-card is-reporter">
+                <div class="voice-name">The Reporter</div>
+                <div class="voice-section">Used in: Results</div>
+                <div class="voice-sample">
+                  Invasion increased 2.4-fold under stiff (4.5 kPa) versus
+                  soft (1.5 kPa) matrix conditions at 24 h (Fig. 2a; n=12
+                  spheroids per condition; p&lt;0.001, two-tailed t-test).
+                </div>
+                <div class="voice-traits">
+                  Neutral. Anchored to a figure. Reports observations + statistics. Never says "interestingly," "surprisingly," "remarkably." No interpretation.
+                </div>
+              </div>
+              <div class="voice-card is-storyteller">
+                <div class="voice-name">The Storyteller</div>
+                <div class="voice-section">Used in: Introduction, Abstract, Cover letter</div>
+                <div class="voice-sample">
+                  For two decades, the role of substrate stiffness in
+                  tumor invasion has been contested — some reports show
+                  stiffer matrices promote invasion, others show the
+                  opposite. We reasoned that the discrepancy might stem
+                  from an unappreciated dependence on the density of
+                  cells at the spheroid edge.
+                </div>
+                <div class="voice-traits">
+                  Narrative. Sets stakes. Identifies a gap or contradiction. Connects to a broader audience. Earns the right to take the reader deep.
+                </div>
+              </div>
+              <div class="voice-card is-advocate">
+                <div class="voice-name">The Advocate</div>
+                <div class="voice-section">Used in: Discussion</div>
+                <div class="voice-sample">
+                  Our results suggest that edge density is the missing
+                  variable in stiffness-driven invasion. While we cannot
+                  rule out contributions from intracellular tension
+                  changes, the dose-dependent inversion at the
+                  density threshold argues for a primarily mechanical
+                  mechanism.
+                </div>
+                <div class="voice-traits">
+                  Claim-making, with humility. "Suggests," "argues for," "consistent with," "we cannot rule out." Bold but bounded.
+                </div>
+              </div>
+              <div class="voice-card is-technician">
+                <div class="voice-name">The Technician</div>
+                <div class="voice-section">Used in: Methods</div>
+                <div class="voice-sample">
+                  Patient-derived breast tumor spheroids (BT-549,
+                  passage 8–12) were embedded in collagen-I matrices
+                  (1.5 or 4.5 kPa, calibrated by rheometry) and imaged on
+                  a Nikon AX-R confocal at 25×/1.1 NA, 488 nm
+                  excitation, 1 AU pinhole, 200 nm Z step, every 30 min
+                  for 24 h.
+                </div>
+                <div class="voice-traits">
+                  Recipe. Precise. Reproducible. No interpretation, no stakes-setting. Cites the equipment + reagents + parameters.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 5. Voice per section -->
+          <section class="training-section" id="sec-voices-mapping">
+            <h2>5. Which voice for which section</h2>
+            <p>The default voice per section, and what happens when you mix them up.</p>
+            <ul>
+              <li><strong>Abstract</strong> — Storyteller blended with Reporter. Storyteller for the opening sentence and the closing impact; Reporter for the result.</li>
+              <li><strong>Introduction</strong> — Storyteller throughout. Earns reader investment.</li>
+              <li><strong>Methods</strong> — Technician. Don't tell stories here. Don't justify philosophical choices here.</li>
+              <li><strong>Results</strong> — Reporter. Don't interpret. Don't editorialize. Save it.</li>
+              <li><strong>Discussion</strong> — Advocate. Now you interpret. Now you make claims. Now you situate against the literature.</li>
+              <li><strong>Cover letter</strong> — Storyteller, with extra urgency.</li>
+            </ul>
+            <div class="training-callout">
+              <strong>Failure mode: voice creep.</strong> Storyteller
+              voice in a Results section reads as overreach ("Strikingly,
+              we found..."). Reporter voice in a Discussion reads as
+              cowardice ("The data show X. The data also show Y.").
+              Technician voice in an Introduction reads as a methods
+              section in the wrong place. Reviewers spot all three
+              immediately.
+            </div>
+          </section>
+
+          <!-- 6. Active / passive / we / I -->
+          <section class="training-section" id="sec-grammar">
+            <h2>6. Active vs passive, "we" vs "I" vs "the data"</h2>
+            <h3>Active where possible</h3>
+            <p>
+              "We measured X" beats "X was measured." Active voice is
+              shorter, easier to read, and assigns agency. The lab uses
+              active voice as the default in every section except
+              Methods, where passive is sometimes legitimately better.
+            </p>
+            <h3>"We" vs "I"</h3>
+            <p>
+              In a paper, always "we" — even on a single-author paper,
+              "we" is the convention. "I" reads as informal and confuses
+              readers used to "we." Save "I" for theses, personal
+              statements, and acknowledgments.
+            </p>
+            <h3>"The data show" vs "the data argue"</h3>
+            <p>
+              "The data show X" is fine. "The data demonstrate X" is fine.
+              "The data argue X" is anthropomorphic and weak — data don't
+              argue, people do. "The data are consistent with X" is the
+              Advocate-voice phrasing for Discussion sections where you
+              want to make a claim without overclaiming.
+            </p>
+            <h3>When passive is right</h3>
+            <p>
+              Methods: "RNA was extracted using TRIzol" is fine — the
+              agent (us, presumably) doesn't matter. "We extracted RNA
+              using TRIzol" adds nothing. Use passive when the agent is
+              irrelevant <em>and</em> the construction is more concise.
+            </p>
+          </section>
+
+          <!-- 7. Narrative scope -->
+          <section class="training-section" id="sec-scope">
+            <h2>7. Narrative scope — broad enough to care, narrow enough to focus</h2>
+            <p>
+              The same project can be described at ten different scopes,
+              from "cancer kills people" to "edge density above 0.12
+              cells/μm² inverts the effect of 1.5 vs 4.5 kPa stiffness on
+              a 24-h invasion assay in BT-549 spheroids." Each scope is
+              factually true. The skill is choosing the right scope for
+              the audience, the section, and the sentence.
+            </p>
+
+            <p>Drag the dial to see how the same project reads at each scope level.</p>
+
+            <div class="scope-dial">
+              <div class="scope-meter">
+                <label for="scope-slider" class="scope-stage">Scope</label>
+                <input type="range" id="scope-slider" min="1" max="10" step="1" value="5">
+                <span class="v" id="scope-out">5</span>
+              </div>
+              <div class="scope-label-row">
+                <span>broad — anyone cares</span>
+                <span>narrow — your reviewers care</span>
+              </div>
+              <div class="scope-example" id="scope-example">
+                <div class="scope-stage" id="scope-where">— where this scope belongs —</div>
+                <div id="scope-text">Move the slider to see the example.</div>
+              </div>
+            </div>
+
+            <h3>The shape of scope across a paper</h3>
+            <ul>
+              <li><strong>Title:</strong> level 4–6. Specific enough to be discoverable, broad enough to feel novel.</li>
+              <li><strong>Abstract opening:</strong> level 2–3. Hook the broadest audience.</li>
+              <li><strong>Abstract closing:</strong> level 6–8. Make your specific result land.</li>
+              <li><strong>Introduction:</strong> opens at level 2–3, funnels down to 7–8 by the third paragraph.</li>
+              <li><strong>Methods + Results:</strong> stays at level 7–9. This is where you've earned the right to be specific.</li>
+              <li><strong>Discussion opening:</strong> level 7–8 — re-state your result.</li>
+              <li><strong>Discussion closing:</strong> back up to level 4–5 to project the impact.</li>
+            </ul>
+          </section>
+
+          <!-- 8. Zoom out, keep focus -->
+          <section class="training-section" id="sec-zoom">
+            <h2>8. Zooming out without losing focus</h2>
+            <p>
+              The hardest move in scientific writing: broaden the scope
+              (so a general audience cares) without letting go of your
+              specific claim (so you don't drift into a review article).
+              Three reliable techniques:
+            </p>
+            <h3>The callback</h3>
+            <p>
+              Re-mention something from earlier in the paper — usually a
+              motivating fact from the Introduction. The reader has been
+              reading detailed Results for pages; reminding them of why
+              the project mattered re-engages without leaving your claim.
+              <em>"Recall the 20-year contradiction we opened with."</em>
+            </p>
+            <h3>The implication ladder</h3>
+            <p>
+              Climb from your specific finding outward, one rung at a
+              time. Each rung is a slightly broader claim that follows
+              from the rung below. The reader feels the broadening
+              happen; you don't actually leave your data.
+            </p>
+            <div class="equation-box">
+              edge density inverts stiffness's effect on invasion (your finding) <br>
+              ↑ tumor mechanics include an unappreciated density variable <br>
+              ↑ matrix experiments need to control for cell-edge density <br>
+              ↑ field-wide reproducibility issues may have a common mechanical cause
+            </div>
+            <h3>The comparison anchor</h3>
+            <p>
+              Compare your result to a well-known finding the reader
+              already cares about. "Just as VEGF blockade was first
+              dismissed before being recognized as central, edge density
+              may belong in standard mechanobiology toolkits." The
+              comparison broadens scope; the specificity of your claim
+              never moves.
+            </p>
+          </section>
+
+          <!-- 9. Common voice mistakes -->
+          <section class="training-section" id="sec-mistakes">
+            <h2>9. Common voice mistakes</h2>
+            <ul>
+              <li><strong>Storyteller in Results.</strong> "Strikingly, we found..." Save the editorializing for Discussion. In Results, just report.</li>
+              <li><strong>Reporter in Discussion.</strong> Pure observation in the Discussion reads as cowardice. The Discussion is where you stake claims; if you can't say what your results mean, you don't have a Discussion.</li>
+              <li><strong>Technician in Introduction.</strong> Long lists of methods + parameters in the Introduction belong in the Methods. Yes, even if you think it's "background." If it's a procedure, it's Methods.</li>
+              <li><strong>Voice swap mid-paragraph.</strong> Don't start in active voice and finish in passive. Pick a voice per paragraph and stay there.</li>
+              <li><strong>Anthropomorphism.</strong> "The cells decided to invade." Cells don't decide. They invade or don't. Same with data, genes, signals, pathways.</li>
+              <li><strong>Hedging too much.</strong> "These results may possibly suggest a potential mechanism for..." Pick a verb and commit.</li>
+              <li><strong>Hedging too little.</strong> "This proves that..." No paper proves anything. "Demonstrates," "shows," "is consistent with" are your verbs.</li>
+            </ul>
+          </section>
+
+          <!-- 10. Capstone -->
+          <section class="training-section" id="sec-capstone">
+            <h2>10. Capstone — paragraph builder</h2>
+            <p>
+              Pick a section, a skeleton type, and a voice; fill in the
+              three skeleton inputs; see the rendered paragraph. The
+              critique flags voice/section mismatches.
+            </p>
+
+            <div class="panel">
+              <div class="ctrl">
+                <div class="ctrl-group">
+                  <label for="pb-section">Target section</label>
+                  <select id="pb-section">
+                    <option value="">— pick one —</option>
+                    <option value="intro">Introduction</option>
+                    <option value="methods">Methods</option>
+                    <option value="results">Results</option>
+                    <option value="discussion">Discussion</option>
+                    <option value="abstract">Abstract</option>
+                  </select>
+                </div>
+                <div class="ctrl-group">
+                  <label for="pb-voice">Voice</label>
+                  <select id="pb-voice">
+                    <option value="">— pick one —</option>
+                    <option value="reporter">Reporter</option>
+                    <option value="storyteller">Storyteller</option>
+                    <option value="advocate">Advocate</option>
+                    <option value="technician">Technician</option>
+                  </select>
+                </div>
+                <div class="ctrl-group">
+                  <label for="pb-skeleton">Skeleton</label>
+                  <select id="pb-skeleton">
+                    <option value="">— pick one —</option>
+                    <option value="cel">Claim → Evidence → Link</option>
+                    <option value="oqi">Observation → Quantification → Conclusion (Results)</option>
+                    <option value="cgn">Context → Gap → What's-next (Intro)</option>
+                    <option value="ieq">Interpretation → Evidence → Implication (Discussion)</option>
+                    <option value="whw">What → How → Why (Methods)</option>
+                  </select>
+                </div>
+                <div class="ctrl-group">
+                  <label for="pb-line1">Skeleton line 1</label>
+                  <input type="text" id="pb-line1" placeholder='e.g. "Edge cell density inverts the effect of stiffness on invasion."'>
+                </div>
+                <div class="ctrl-group">
+                  <label for="pb-line2">Skeleton line 2</label>
+                  <input type="text" id="pb-line2" placeholder='e.g. "In BT-549 spheroids, the sign of the stiffness effect flipped at 0.12 cells/μm² edge density (Fig. 3c)."'>
+                </div>
+                <div class="ctrl-group">
+                  <label for="pb-line3">Skeleton line 3</label>
+                  <input type="text" id="pb-line3" placeholder='e.g. "This may explain the 20-year contradictory literature."'>
+                </div>
+              </div>
+              <div class="viz">
+                <div class="val-verdict" id="pb-verdict" role="status" aria-live="polite">
+                  Fill in section + voice + skeleton + 3 lines to render the paragraph.
+                </div>
+                <div class="para-output" id="pb-output" style="display:none;">
+                  <h3>Rendered paragraph</h3>
+                  <div class="para-meta" id="pb-meta">—</div>
+                  <div class="para-body" id="pb-body">—</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="insight">
+              <strong>What's next.</strong> Once paragraph skeletons +
+              voices feel natural, work through the section-specific
+              trainings (V3.183–V3.187) — each builds on the vocabulary
+              from this module. Start with the Introduction (V3.183) —
+              it's the section reviewers judge a paper by.
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-paper-paragraphs.js"></script>
+</body>
+</html>

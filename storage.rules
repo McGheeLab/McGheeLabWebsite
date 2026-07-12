@@ -59,6 +59,17 @@ service firebase.storage {
                    && request.resource.size < 50 * 1024 * 1024;
     }
 
+    // V3.244 — BME 295C (and future cohorts): student profile photos.
+    // Anyone can view; only the owning user can write their own subpath.
+    // Path: class-profile-photos/{classId}/{userId}/{filename}
+    match /class-profile-photos/{classId}/{userId}/{file=**} {
+      allow read:  if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     // Chat file uploads — authenticated read/write, 50 MB limit, any file type
     match /chat/{allPaths=**} {
       allow read:  if request.auth != null;
@@ -96,6 +107,90 @@ service firebase.storage {
       allow write: if request.auth != null
                    && request.resource.size < 50 * 1024 * 1024
                    && request.resource.contentType == 'application/pdf';
+    }
+
+    // V3.231 — Paper Export Workspace compile artifacts. Read-only to
+    // any authenticated user (compile PDFs are not sensitive once a lab
+    // member can read the source paper); creates/updates are blocked
+    // because the Cloud Run compile service uploads via the Admin SDK,
+    // which bypasses Storage rules. V3.232: deletes are allowed for
+    // signed-in users so they can clean up old compiles from the
+    // workspace's "Compile history" panel. The paired Firestore rule
+    // for paperExports/{paperId}/compiles/{compileId} restricts the
+    // delete to lab contributors, which is the real gate.
+    //   paperExports/{paperId}/compiles/{compileId}.pdf
+    match /paperExports/{paperId}/{allPaths=**} {
+      allow read:   if request.auth != null;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if request.auth != null;
+    }
+
+    // V3.102 — paper-builder figure assets. Distinct prefix from /papers/
+    // so the PDF-only contentType guard there isn't loosened. Authenticated
+    // lab members can upload images (PNG/JPG/GIF/WebP/SVG) or rasterised
+    // PDFs up to 15 MB. Path: paper-figures/{paperId}/{sha256Short}.{ext}
+    match /paper-figures/{paperId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 15 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+    }
+
+    // V3.110 — Lab Notebook (ELN) attachment assets. Owner-only read AND
+    // write — notebook entries are private (per-user) by default, unlike
+    // paper-figures which are lab-wide-readable. Path:
+    //   notebook-figures/{ownerUid}/{sha256Short}.{ext}
+    // SHA-256 dedup pattern (re-uploads of identical phone-photo bytes
+    // skip the put). 15 MB limit; image MIME or PDF only. The grad-student
+    // workflow expects HEIC from iPhones and JPG/PNG from Android, plus
+    // occasional PDFs of vendor datasheets dropped into an entry.
+    match /notebook-figures/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null
+                   && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 15 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+    }
+
+    // V3.113 — Protocols Builder figure assets. Lab-wide read (protocols
+    // are a shared resource, unlike per-user notebook entries); any
+    // authenticated lab member can upload images/PDFs up to 15 MB. Path:
+    //   protocol-figures/{protocolId}/{sha256Short}.{ext}
+    match /protocol-figures/{protocolId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 15 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+    }
+
+    // V3.301 — Saved visualization view posters (WebP snapshot sets from
+    // the Data Visualizations viewer). Public read: posters render on
+    // public story/news embeds and the #/data gallery. Authenticated
+    // upload; the real contributor+ gate is the paired vizViews Firestore
+    // rule (a poster without a vizViews doc is unreachable).
+    // Path: vizViews/{viewId}/poster/{size}.webp
+    match /vizViews/{viewId}/{allPaths=**} {
+      allow read:  if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // V3.188 — Grant lit-review overlays. Uploaded `.paper-overlay.md`
+    // files generated by Claude Code in the sibling grant repo. Stored at
+    // grant-overlays/{grantId}/{sha256-of-content}.md (idempotent re-
+    // upload). Lab-wide read so any collaborator can re-import without
+    // checking out the repo. 1 MB cap — these are plain markdown with
+    // quotes + comments, never large.
+    match /grant-overlays/{grantId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 1024 * 1024;
     }
   }
 }

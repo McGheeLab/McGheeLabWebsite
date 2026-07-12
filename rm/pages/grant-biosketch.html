@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biosketches — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/grant-doc.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page grantdoc-page">
+    <div class="grantdoc-toolbar">
+      <h1>Biosketches</h1>
+      <span class="grantdoc-spacer"></span>
+      <input type="text" id="gd-active-label" placeholder="Variant label">
+      <select id="gd-active-mech" title="Mechanism / template">
+        <option value="NIH-5pg">NIH 5-page</option>
+        <option value="NSF">NSF</option>
+        <option value="DOD">DOD</option>
+      </select>
+      <button class="btn" id="gd-print-btn" title="Print → PDF">Print</button>
+      <button class="btn" id="gd-export-btn" title="Download as Word">Export DOC</button>
+      <button class="btn" id="gd-delete-btn" title="Delete this variant">Delete</button>
+      <span class="grantdoc-status" id="gd-savestate"></span>
+    </div>
+
+    <div class="grantdoc-layout">
+      <aside class="grantdoc-variants">
+        <h3>Variants</h3>
+        <ul class="grantdoc-variant-list" id="gd-variant-list"></ul>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select id="gd-new-mech" style="flex:1 1 auto;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;font-size:13px;">
+            <option value="NIH-5pg">NIH 5-page</option>
+            <option value="NSF">NSF</option>
+            <option value="DOD">DOD</option>
+          </select>
+          <button class="btn btn-primary" id="gd-new-btn">+ New</button>
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--text-muted,#777);line-height:1.4;">
+          Edits autosave. Personal Statement, Contributions, and Synergistic Activities are tailored per variant.
+          Positions, Honors, and Publications pull live from your <a href="/rm/pages/cv-editor.html">CV</a>.
+        </div>
+      </aside>
+
+      <main class="grantdoc-paper" id="gd-paper">
+        <div class="grantdoc-empty-state">
+          <h2>Loading…</h2>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/cv-schemas.js"></script>
+  <script src="/rm/js/grant-biosketch.js"></script>
+  <script src="/rm/js/grant-biosketch-export.js"></script>
+</body>
+</html>

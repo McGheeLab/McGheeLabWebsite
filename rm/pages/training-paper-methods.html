@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper writing — the Methods — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; Paper-writing series · part 4 of 7
+          &nbsp;·&nbsp; Prerequisite: <a href="/rm/pages/training-paper-paragraphs.html">paragraphs, voice &amp; scope</a>
+        </div>
+        <h1 class="training-module-title">Paper writing — the Methods</h1>
+        <p class="training-module-subtitle">
+          The most-edited section. Recipe, not storytelling. Technician voice.
+          Reproducibility, not narrative. Everything that doesn't belong in the
+          Introduction or Discussion ends up here.
+        </p>
+      </header>
+
+      <div class="training-layout">
+
+        <aside class="training-toc" aria-label="Section navigation">
+          <h3>Sections</h3>
+          <ol>
+            <li><a href="#sec-job" class="active">What the Methods does</a></li>
+            <li><a href="#sec-anatomy">The anatomy</a></li>
+            <li><a href="#sec-catalog">Catalog numbers + versions</a></li>
+            <li><a href="#sec-voice">Voice (Technician)</a></li>
+            <li><a href="#sec-passive">When passive is right</a></li>
+            <li><a href="#sec-everyone-knows">The "but everyone knows" trap</a></li>
+            <li><a href="#sec-toggle">Methods-vs-Intro toggle</a></li>
+            <li><a href="#sec-supplement">Methods vs Supplementary</a></li>
+            <li><a href="#sec-capstone">Completeness checker</a></li>
+          </ol>
+        </aside>
+
+        <main>
+
+          <section class="training-section" id="sec-job">
+            <h2>1. What the Methods does</h2>
+            <p>
+              The Methods section has exactly one job:
+              <strong>let a stranger reproduce your experiment.</strong>
+              Not "give context." Not "motivate the design." Not
+              "justify the philosophical choice." Reproducibility.
+            </p>
+            <p>
+              The right standard is: a postdoc at a different lab,
+              with access to the same equipment + reagents, should be
+              able to run your experiment from your Methods section
+              alone. If they would need to email you for clarification,
+              your Methods is incomplete.
+            </p>
+            <div class="training-callout">
+              <strong>Methods writes itself if you kept good notes.</strong>
+              If you can't remember what your camera exposure was or
+              which passage your cells were at, you didn't capture
+              enough in the lab notebook. Methods is the section where
+              good notebook habits get cashed in.
+            </div>
+          </section>
+
+          <section class="training-section" id="sec-anatomy">
+            <h2>2. The anatomy</h2>
+            <p>The lab's standard Methods section has 7 elements. Cover all of them or have a defensible reason for skipping one.</p>
+            <ul>
+              <li><strong>Cells / model organisms / samples.</strong> Source, identifier, passage, mycoplasma status. Catalog or ATCC number.</li>
+              <li><strong>Reagents.</strong> Antibodies (catalog + clone + lot if it matters), drugs (vendor + cat number), media + supplements.</li>
+              <li><strong>Equipment.</strong> Make + model + objective + camera. For our scopes: Nikon AX-R confocal with 25×/1.1 water objective; Ti2-U epi-fluorescence with X-Cite XLED.</li>
+              <li><strong>Acquisition parameters.</strong> Exposure, frame rate, pinhole, Z step, scan mode, averaging.</li>
+              <li><strong>Analysis pipeline.</strong> Software + version (StarDist v0.8.5; Cellpose 2.x; Fiji 1.54f). Every named software gets a citation.</li>
+              <li><strong>Statistics.</strong> Test used, n (with units — "n=12 spheroids" not just "n=12"), what error bars mean.</li>
+              <li><strong>Data + code availability.</strong> Required by most journals now. Repository, accession number, GitHub link.</li>
+            </ul>
+          </section>
+
+          <section class="training-section" id="sec-catalog">
+            <h2>3. Catalog numbers + named versions</h2>
+            <p>
+              Every commercial reagent gets a catalog number. Every
+              named software tool gets a version number and citation.
+              If you used StarDist, cite Schmidt 2018. If you used
+              Cellpose, cite Stringer 2021. If you used Fiji, cite
+              Schindelin 2012.
+            </p>
+            <p>
+              <em>Why this matters:</em> people you've never met will
+              try to reproduce your work years from now, with their own
+              fluorophores and antibodies. Catalog numbers + versions
+              are how you make that possible.
+            </p>
+            <div class="training-callout">
+              <strong>The Lot trap.</strong> Some reagents — particularly
+              antibodies — behave differently across lots. If lot
+              variability matters for your experiment, cite the lot. If
+              not, cite catalog + clone alone.
+            </div>
+          </section>
+
+          <section class="training-section" id="sec-voice">
+            <h2>4. Voice — Technician throughout</h2>
+            <p>
+              Methods is written in
+              <strong>Technician voice</strong> (V3.182 § 4): terse,
+              factual, recipe-like, no interpretation. Sentences are
+              short. Verbs are concrete. No "interestingly," no "we
+              chose this approach because," no "this method has the
+              advantage of."
+            </p>
+            <p>
+              The acceptable verbs: were grown, were mounted, were
+              imaged, was measured, was computed, were segmented,
+              were tracked. Avoid: we believe, we feel, we found
+              that, importantly.
+            </p>
+          </section>
+
+          <section class="training-section" id="sec-passive">
+            <h2>5. When passive voice is right</h2>
+            <p>
+              The lab uses active voice as the default in every section
+              <em>except</em> Methods, where passive is sometimes
+              legitimately better. The criterion: <strong>is the
+              agent (the "we") relevant?</strong>
+            </p>
+            <ul>
+              <li>"RNA was extracted using TRIzol." — Passive is fine. We extracted it; nobody else could have; the agent doesn't carry information.</li>
+              <li>"We developed a custom segmentation pipeline." — Active. The fact that <em>this lab</em> built it matters.</li>
+              <li>"Cells were maintained in DMEM with 10% FBS." — Passive is fine.</li>
+              <li>"We selected the 25×/1.1 water objective because oil-into-aqueous mismatch would have produced spherical aberration deep into 200-μm spheroids." — Active, and we keep the rationale because it's a defensible Methods choice the reader needs to follow.</li>
+            </ul>
+          </section>
+
+          <section class="training-section" id="sec-everyone-knows">
+            <h2>6. The "but everyone knows..." trap</h2>
+            <p>
+              The most common student mistake: skipping details that
+              feel obvious. "We did Western blots" is not a Methods
+              section — it's a sentence in someone's notebook.
+            </p>
+            <p>What "everyone knows" but you still write:</p>
+            <ul>
+              <li>How long you blocked, in what buffer.</li>
+              <li>What primary antibody dilution.</li>
+              <li>What secondary, what HRP/fluor, what detection.</li>
+              <li>How long you exposed, on what imager.</li>
+              <li>Whether you stripped + re-probed.</li>
+            </ul>
+            <p>
+              When in doubt, include it. A short Methods section will
+              hurt you in review; an overly thorough one almost never
+              does.
+            </p>
+          </section>
+
+          <section class="training-section" id="sec-toggle">
+            <h2>7. Methods vs Introduction — same content, wrong voice</h2>
+            <p>
+              The same factual content can be written in Methods
+              (Technician) voice or Introduction (Storyteller) voice.
+              Toggle to see how the same fact lands two ways.
+            </p>
+
+            <div class="compare-bar" data-compare="mvi">
+              <button class="compare-btn good active" data-side="good">Methods (right)</button>
+              <button class="compare-btn bad"          data-side="bad">Introduction (wrong)</button>
+            </div>
+            <div class="compare-pane good is-active" data-pane="mvi-good">
+              <p>
+                Cells were imaged on a Nikon AX-R confocal microscope
+                (25× / 1.1 NA water-immersion objective) with 488 nm
+                excitation, 1 AU pinhole, 200 nm Z step, every 30 min
+                for 24 h. Per-cell intensities were measured by StarDist
+                segmentation (v0.8.5, default 2D_versatile_fluo model)
+                with downstream tracking via the Spatial Fingerprint
+                backend of Cell Tracker.
+              </p>
+              <span class="annot">Technician voice. Recipe. Reproducible by a stranger.</span>
+            </div>
+            <div class="compare-pane bad" data-pane="mvi-bad">
+              <p>
+                To investigate the role of edge density in invasion, we
+                chose to use the Nikon AX-R confocal because of its
+                excellent optical sectioning capabilities, which are
+                critical for resolving fine details of cell behavior
+                deep within thick samples like spheroids. The 25×/1.1
+                water-immersion objective was particularly well-suited
+                to this study because of its unique combination of high
+                NA and long working distance.
+              </p>
+              <span class="annot">Storyteller voice in the wrong place. "We chose to use," "particularly well-suited" — this is Introduction reasoning, not Methods. Move it.</span>
+            </div>
+          </section>
+
+          <section class="training-section" id="sec-supplement">
+            <h2>8. Methods vs Supplementary Methods</h2>
+            <p>
+              When the Methods section gets long, the temptation is to
+              push detail to Supplementary. Resist when possible.
+              Reviewers and most readers will not click through to
+              Supplementary; if a detail is required for reproducibility,
+              it belongs in the main Methods.
+            </p>
+            <p>What legitimately belongs in Supplementary Methods:</p>
+            <ul>
+              <li>Long protocols you derived from a published one — main Methods cites the paper; Supplementary has your tweaks.</li>
+              <li>Detailed parameter sweeps + their rationale.</li>
+              <li>Algorithmic detail for custom code (with code in a public repo).</li>
+              <li>Reagent tables (when there are many — single antibody table, e.g.).</li>
+            </ul>
+            <p>What does NOT belong in Supplementary:</p>
+            <ul>
+              <li>Acquisition parameters for your headline experiment.</li>
+              <li>What cell line you used.</li>
+              <li>Statistical method choice.</li>
+              <li>Software versions for your primary analysis tool.</li>
+            </ul>
+          </section>
+
+          <section class="training-section" id="sec-capstone">
+            <h2>9. Capstone — Methods completeness checker</h2>
+            <p>
+              Tick each item as you confirm your Methods section covers
+              it. The bar turns green when you've covered every
+              required element.
+            </p>
+
+            <div class="submit-checklist" id="methods-checklist">
+              <h3>Methods coverage</h3>
+              <label><input type="checkbox"> Cell line / organism / samples — source + identifier + passage (if relevant) + mycoplasma status</label>
+              <label><input type="checkbox"> Antibodies — vendor + catalog + clone + dilution + lot (if it matters)</label>
+              <label><input type="checkbox"> Other reagents — vendor + catalog for every commercial reagent</label>
+              <label><input type="checkbox"> Equipment — make + model + objective + camera</label>
+              <label><input type="checkbox"> Acquisition parameters — exposure, pinhole, Z step, scan mode, averaging, frame rate</label>
+              <label><input type="checkbox"> Sample preparation — fixation, mounting, dilutions</label>
+              <label><input type="checkbox"> Analysis pipeline — every named software + version + citation</label>
+              <label><input type="checkbox"> Statistics — test choice, n with units, error-bar meaning, multiple-comparison correction</label>
+              <label><input type="checkbox"> Data availability — repository, accession, version</label>
+              <label><input type="checkbox"> Code availability — GitHub URL, commit, license</label>
+              <label><input type="checkbox"> Software versions current (StarDist, Cellpose, Fiji, etc. with version numbers)</label>
+              <label><input type="checkbox"> Long protocols cited rather than reproduced; tweaks listed in Supplementary if any</label>
+              <div class="submit-checklist-progress" id="methods-progress">0 of 12 covered</div>
+              <div class="submit-checklist-bar" id="methods-bar"><div style="width:0%"></div></div>
+            </div>
+
+            <div class="insight">
+              <strong>What's next.</strong> Methods is paired with
+              Results — what you measured (Methods) feeds what you
+              found (V3.185 Results). Reporter voice in Results;
+              Technician here.
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/training-paper-methods.js"></script>
+</body>
+</html>

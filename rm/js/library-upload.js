@@ -230,6 +230,11 @@
     // citation panel is pre-populated next time it's opened.
     if (pdfBlob) parseAndCacheRefs(item.id, pdfBlob).catch(e =>
       console.warn('[library-upload] background ref parse failed:', e));
+    // V3.112 — fire-and-forget Semantic Scholar enrichment in the
+    // background. Adds structured references (with DOIs per ref),
+    // cited_by, abstract (when CrossRef missed it), and tldr.
+    enrichItemFromSemanticScholar(item.id).catch(e =>
+      console.warn('[library-upload] SS enrichment failed:', e));
     return { item, alreadyExisted: false, pdfInfo, pdfCandidateUrl, oaSource };
   }
 
@@ -261,20 +266,109 @@
       console.info(`[library-upload] no refs parsed for ${paperId}`);
       return;
     }
+    // V3.206 — write into items/{paperId}/details/main via LIBRARY_EXTRAS.
+    // The parallel SS enrichment writes to the same subdoc; we still
+    // need to read first to honor the "SS wins" rule.
+    if (!window.LIBRARY_EXTRAS) {
+      console.warn('[library-upload] LIBRARY_EXTRAS not loaded; skipping ref cache');
+      return;
+    }
     try {
-      const data = await api.load('items.json');
-      const itemsArr = (data && data.items) || [];
-      const idx = itemsArr.findIndex(it => it.id === paperId);
-      if (idx < 0) return;
-      itemsArr[idx].meta = itemsArr[idx].meta || {};
-      itemsArr[idx].meta.library = itemsArr[idx].meta.library || {};
-      itemsArr[idx].meta.library.references = refs;
-      itemsArr[idx].meta.library.references_parsed_at = new Date().toISOString().slice(0, 10);
-      itemsArr[idx].meta.library.references_parser_version = 'v3.93';
-      await api.save('items.json', { items: itemsArr });
+      const existing = await window.LIBRARY_EXTRAS.load(paperId);
+      if (existing && existing.references_source === 'semantic_scholar') {
+        console.info(`[library-upload] skipping regex refs for ${paperId} — SS already populated`);
+        return;
+      }
+      await window.LIBRARY_EXTRAS.savePatch(paperId, {
+        references: refs,
+        references_parsed_at: new Date().toISOString().slice(0, 10),
+        references_parser_version: 'v3.93',
+        references_source: 'pdf_regex',
+      });
       console.info(`[library-upload] cached ${refs.length} refs for ${paperId} at import time`);
     } catch (e) {
       console.warn('[library-upload] failed to persist parsed refs:', e.message || e);
+    }
+  }
+
+  /** V3.112 — Background Semantic Scholar enrichment.
+   *  Runs after import-time save: fetches the paper's full SS payload
+   *  (references + citations + abstract + tldr) and persists into
+   *  items.json under meta.library. SS references override the V3.93
+   *  regex-parsed list when present (richer, includes per-ref DOIs).
+   *  Cited-by data is always SS-only.
+   *
+   *  Best-effort and idempotent: silently no-ops when PAPER_SS isn't
+   *  loaded, when the item has no DOI/arXiv/PMID, or when SS returns
+   *  4xx/5xx for this paper. Logs to console so failures are visible
+   *  in the import flow.
+   */
+  async function enrichItemFromSemanticScholar(paperId) {
+    if (!paperId) return;
+    if (!window.PAPER_SS) {
+      console.info('[library-upload] PAPER_SS unavailable; skipping SS enrichment');
+      return;
+    }
+    if (!window.LIBRARY_EXTRAS) {
+      console.warn('[library-upload] LIBRARY_EXTRAS not loaded; skipping SS enrichment');
+      return;
+    }
+    // V3.206 — heavy enrichment fields land in items/{id}/details/main.
+    // We still need the main item's identifiers (doi/arxiv/pmid) to ask
+    // Semantic Scholar which paper to fetch, so do one main-doc read
+    // via the route adapter.
+    let data;
+    try {
+      data = await api.load('library/papers.json');
+    } catch (e) {
+      console.warn('[library-upload] SS enrichment: library/papers.json load failed:', e.message || e);
+      return;
+    }
+    const itemsArr = (data && data.papers) || [];
+    const main = itemsArr.find(it => it.id === paperId);
+    if (!main) return;
+    const lib = (main.meta && main.meta.library) || {};
+    const idSpec = window.PAPER_SS.lookupId(lib);
+    if (!idSpec) {
+      console.info(`[library-upload] SS skip ${paperId}: no DOI / arXiv / PMID`);
+      return;
+    }
+    let payload;
+    try {
+      payload = await window.PAPER_SS.fetchPaperEnrichment(idSpec);
+    } catch (e) {
+      console.warn(`[library-upload] SS fetch failed for ${paperId}:`, e.message || e);
+      return;
+    }
+    if (!payload) return;
+
+    // Existing extras (so we honor "abstract: don't overwrite if already
+    // set" and don't clobber a richer previous fetch).
+    let existing = {};
+    try { existing = await window.LIBRARY_EXTRAS.load(paperId, main); } catch (_) { existing = {}; }
+
+    const patch = {
+      semantic_scholar_id: payload.paperId || existing.semantic_scholar_id || '',
+      semantic_scholar_fetched_at: new Date().toISOString().slice(0, 10),
+    };
+    if (!existing.abstract && payload.abstract) patch.abstract = payload.abstract;
+    if (payload.tldr && payload.tldr.text) patch.tldr = payload.tldr.text;
+
+    const ssRefs = window.PAPER_SS.normalizeReferences(payload.references || []);
+    if (ssRefs.length) {
+      patch.references = ssRefs;
+      patch.references_source = 'semantic_scholar';
+      patch.references_parsed_at = new Date().toISOString().slice(0, 10);
+    }
+    const citedBy = window.PAPER_SS.normalizeCitations(payload.citations || []);
+    patch.cited_by = citedBy;
+    patch.cited_by_fetched_at = new Date().toISOString().slice(0, 10);
+
+    try {
+      await window.LIBRARY_EXTRAS.savePatch(paperId, patch);
+      console.info(`[library-upload] SS enriched ${paperId}: ${ssRefs.length} refs, ${citedBy.length} cited-by`);
+    } catch (e) {
+      console.warn('[library-upload] failed to persist SS enrichment:', e.message || e);
     }
   }
 
@@ -285,5 +379,10 @@
     downloadUrl,
     fromDoi,
     parseAndCacheRefs,
+    enrichItemFromSemanticScholar,
+    // V3.310 — exported for library-refresh.js (fullRefresh) and the
+    // missing-PDF queue so the Unpaywall pipeline isn't duplicated.
+    unpaywallLookup: _unpaywallLookup,
+    fetchPdfBlob: _fetchPdfBlob,
   };
 })();

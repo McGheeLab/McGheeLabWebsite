@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Honey, Cheese, Metal, Diamond — Solid Mechanics Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Honey, Cheese, Metal, Diamond — Force vs. Displacement</h1>
+  <p class="subtitle">Solid Mechanics Foundations · Lesson 3 of 5 — Push on honey, cheese, a steel
+  bar, and a diamond, and you get four completely different force–displacement stories. Two simple
+  cartoon elements — a spring and a dashpot — are enough to tell all of them.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="poke">1 · Poke Four Materials</button>
+  <button class="tab-btn" data-tab="rate">2 · Speed Matters</button>
+  <button class="tab-btn" data-tab="combo">3 · Wiring Springs &amp; Dashpots</button>
+  <button class="tab-btn" data-tab="sls">4 · Level Up: Real Units</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: poke -->
+<section id="tab-poke" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: same thumb, same speed, four totally different answers</h2>
+    <p>Imagine pressing your thumb — same thumb, same speed — into four things sitting on the
+    kitchen counter: a jar of honey, a block of soft cheese, a steel bar, and a diamond.</p>
+    <p><b>Steel and diamond</b> answer like the springs from Lesson 1: the force grows in
+    proportion to how far you push. Push twice as deep, feel twice the force. Diamond's line is
+    far steeper than steel's — it is a stiffer spring — but both play the same game, and both
+    <b>spring back</b> the instant you let go, leaving no trace.</p>
+    <p><b>Honey</b> plays a different game entirely. The force it pushes back with doesn't care
+    how <em>far</em> you've pushed — only how <em>fast</em> you're pushing right now. Stop moving
+    and the force vanishes on the spot. And honey never springs back: the dent you made simply
+    flows shut and the honey forgets you were ever there.</p>
+    <p><b>Cheese</b> sits in between: part spring (it pushes back harder the deeper you go, and
+    partly recovers when you let go) and part honey (it slowly gives way under your thumb and
+    keeps some of the dent forever).</p>
+    <p>These two behaviors get names you'll use for the rest of the course. <b>ELASTIC</b> means
+    the material <em>stores</em> the work you do on it and springs back — force tracks
+    displacement. <b>VISCOUS</b> means the material <em>flows</em> and forgets — force tracks
+    speed. And the cartoon elements that capture them are the <b>spring</b> and the
+    <b>dashpot</b> (picture a loose piston in an oil-filled cylinder):</p>
+    <div class="equation-box">
+      $$ F_{\text{spring}} = k\,x \qquad\text{vs.}\qquad F_{\text{dashpot}} = c\,v $$
+    </div>
+    <p>Here \(x\) is the displacement (how far you've pushed, in m), \(v\) is the speed (how fast
+    you're pushing, in m/s), \(k\) is the <b>stiffness</b> (N/m — newtons of push-back per meter
+    of depth), and \(c\) is the <b>damping coefficient</b> (N·s/m — newtons of push-back per
+    meter-per-second of speed). Spring force forgets speed; dashpot force forgets depth.</p>
+    <div class="worked-example">
+      <p>Press a flat 1&nbsp;cm² contact (\(A = 10^{-4}\ \text{m}^2\), on a roughly 1-cm-sized
+      piece, \(L = 0.01\ \text{m}\)) in by \(x = 1\) mm at \(v = 1\) mm/s. Order-of-magnitude
+      estimates: <b>Steel</b> (\(E \approx 200\) GPa): \(k = EA/L = 2\times10^{11} \times 10^{-4}
+      / 0.01 \approx 2\times10^{9}\ \text{N/m}\), so \(F = kx \approx 2\times10^{6}\ \text{N}\) —
+      two hundred tonnes of push-back. You dent your thumb, not the steel. <b>Diamond</b>
+      (\(E \approx 1100\) GPa) is ~5× stiffer still. <b>Honey</b> (viscosity \(\eta \approx 10\)
+      Pa·s at room temperature): \(F \approx \eta (v/L) A = 10 \times (0.001/0.01) \times 10^{-4}
+      = 10^{-4}\ \text{N}\) — a tenth of a millinewton, no matter how deep you are. <b>Soft
+      cheese</b> (\(E \sim 10^{5}\) Pa): \(F \approx EA\,x/L = 10^{5} \times 10^{-4} \times 0.1
+      = 1\ \text{N}\) — exactly thumb-scale. These are order-of-magnitude estimates, not precise
+      values — but the ten decades separating honey from steel are real.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Elastic materials (steel, diamond) push back in proportion to <b>depth</b>:
+        \(F = kx\). They store and spring back.</li>
+        <li>Viscous materials (honey) push back in proportion to <b>speed</b>: \(F = cv\).
+        They flow and forget.</li>
+        <li>Viscoelastic materials (cheese) do both at once — part spring, part dashpot.</li>
+        <li>The forces span ten orders of magnitude: ~10⁻⁴ N for honey to ~10⁶ N for steel at
+        the same poke.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On the <b>Honey</b> scenario, drag <b>Push depth</b> back and forth. Watch the force
+      estimate in the stats: does it move at all? Now drag <b>Push speed</b>.</li>
+      <li>Switch to <b>Steel</b> and repeat both drags. Which slider matters now?</li>
+      <li>On <b>Cheese</b>, set speed to 0.1 mm/s, then to 20 mm/s. Watch the cheese curve on the
+      plot grow a nonzero start at \(x=0\) — that's the dashpot part speaking before you're even
+      deep.</li>
+      <li>Compare <b>Steel</b> and <b>Diamond</b> on the plot. Why do their normalized curves lie
+      on top of each other, and where in the stats is the real difference hiding?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="poke" data-scen="honey" onclick="setScen('poke','honey')">Honey</button>
+    <button class="scen-btn on" data-tab="poke" data-scen="cheese" onclick="setScen('poke','cheese')">Cheese</button>
+    <button class="scen-btn" data-tab="poke" data-scen="steel" onclick="setScen('poke','steel')">Steel</button>
+    <button class="scen-btn" data-tab="poke" data-scen="diamond" onclick="setScen('poke','diamond')">Diamond</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Push depth x <span id="v-poke-x">3</span></label>
+        <input type="range" id="s-poke-x" min="0" max="10" step="0.1" value="3">
+      </div>
+      <div class="ctrl-group">
+        <label>Push speed v <span id="v-poke-v">2</span></label>
+        <input type="range" id="s-poke-v" min="0.1" max="20" step="0.1" value="2">
+      </div>
+      <div class="stats" id="st-poke"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The poke — cross-section (dent scale is honest per material)</div>
+        <canvas id="cv-poke" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">F vs. depth at your speed — each curve ÷ its own max (shapes, not sizes)</div>
+        <canvas id="cv-poke2" width="640" height="290"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-poke"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: rate -->
+<section id="tab-rate" class="tab-content">
+  <div class="background-section">
+    <h2>Background: the defining experiment — same depth, different speeds</h2>
+    <p>Here is the single experiment that separates springs from dashpots forever: push to the
+    <b>same depth</b> at <b>different speeds</b>. A spring material could not care less about
+    speed — only the final depth sets the force. A dashpot's force is proportional to speed and
+    drops to <b>zero the instant you stop moving</b>.</p>
+    <p>The clean lab version is called <b>ramp-and-hold</b>: push in steadily over a ramp time
+    \(t_{\text{ramp}}\), then hold perfectly still. Watch what the force does:</p>
+    <p><b>Spring:</b> force climbs with the ramp, then <b>HOLDS</b> — for as long as you keep
+    the stretch, the spring keeps pushing. Perfect memory.
+    <b>Dashpot:</b> the speed is constant during the ramp, so the force is a constant plateau —
+    then the moment you stop, \(v = 0\) and the force is instantly <b>ZERO</b>. No memory at
+    all.
+    <b>Cheese:</b> force rises, then <b>RELAXES gradually</b> during the hold. That gradual
+    fade is <em>the</em> fingerprint of viscoelasticity, and the time it takes to fade is the
+    material's <b>characteristic time</b> \(\tau\) (tau) — how long the material remembers being
+    pushed.</p>
+    <div class="equation-box">
+      $$ F_{\text{dashpot}} = c\,v \;\;\Rightarrow\;\; \text{during hold } (v = 0)\!:\; F = 0
+      \qquad\qquad \tau = \frac{c}{k} \;\; \text{("how long the material remembers")} $$
+    </div>
+    <p>Where does \(\tau = c/k\) come from? When a spring and a dashpot team up (next tab), the
+    spring supplies the memory and the dashpot slowly erases it — stiff spring or runny dashpot
+    means fast forgetting, so the ratio \(c/k\) sets the clock. Keep that formula in your pocket;
+    Tab 3 earns it properly.</p>
+    <div class="worked-example">
+      <p>Honey channel test: drag a flat plate across a honey layer at 1&nbsp;mm/s and measure
+      the drag force. Now drag at 10&nbsp;mm/s: the force is <b>exactly 10× bigger</b>, because
+      \(F = cv\) and \(v\) went up 10×. Now instead double how far the plate has traveled while
+      keeping the speed at 1&nbsp;mm/s: the force <b>doesn't change at all</b> — displacement
+      never enters the dashpot law. A spring tested the same way would do precisely the
+      opposite: 10× the speed, same force; 2× the displacement, 2× the force.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Ramp-and-hold is the diagnostic: watch the force <em>during the hold</em>.</li>
+        <li>Spring → force holds forever. Dashpot → force is zero the instant motion stops.</li>
+        <li>Viscoelastic (cheese) → force relaxes gradually, on a timescale \(\tau = c/k\).</li>
+        <li>Whether a material "acts solid" depends on how your test time compares to its
+        \(\tau\).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On <b>Cheese (both)</b>, set ramp time 2 s and memory \(\tau\) = 3 s. Read the
+      highlighted "force remembered" stat after the hold.</li>
+      <li>Now drag <b>ramp time</b> down to 0.2 s (a fast jab). The verdict should tell you the
+      cheese is acting like a spring. Why — what didn't it have time to do?</li>
+      <li>Drag ramp time up to 10 s with \(\tau\) = 0.5 s (a slow lean). Now what does the force
+      curve look like during the ramp, and what's left after the hold?</li>
+      <li>Switch to <b>Pure spring</b>, then <b>Pure dashpot</b>: confirm those two are the
+      extreme cases your cheese curve lives between.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="rate" data-scen="spring" onclick="setScen('rate','spring')">Pure spring</button>
+    <button class="scen-btn" data-tab="rate" data-scen="dashpot" onclick="setScen('rate','dashpot')">Pure dashpot (honey)</button>
+    <button class="scen-btn on" data-tab="rate" data-scen="cheese" onclick="setScen('rate','cheese')">Cheese (both)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Ramp time t_ramp <span id="v-rate-tramp">2</span></label>
+        <input type="range" id="s-rate-tramp" min="0.2" max="10" step="0.1" value="2">
+      </div>
+      <div class="ctrl-group">
+        <label>Material memory τ <span id="v-rate-tau">3</span></label>
+        <input type="range" id="s-rate-tau" min="0.2" max="20" step="0.1" value="3">
+      </div>
+      <div class="stats" id="st-rate"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The element, drawn at the end of the ramp</div>
+        <canvas id="cv-rate" width="640" height="170"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Ramp-and-hold: displacement x(t) (gray) and force F(t) (blue), both normalized</div>
+        <canvas id="cv-rate2" width="640" height="290"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-rate"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: combo -->
+<section id="tab-combo" class="tab-content">
+  <div class="background-section">
+    <h2>Background: two elements, two ways to wire them, two classic materials</h2>
+    <p>One spring, one dashpot. There are only two ways to connect them, and each way is a famous
+    material model.</p>
+    <p><b>SERIES — the Maxwell model.</b> Wall — spring — dashpot — handle, in a line. The same
+    force runs through both elements, and their displacements <em>add</em>. Now stretch the pair
+    and <b>hold the stretch fixed</b>: at first the spring carries all the force, but the dashpot
+    slowly gives way, letting the spring shorten while the total length stays put. The force
+    quietly drains away. That is <b>STRESS RELAXATION</b> — the behavior of cheese, bread dough,
+    and glacier ice (yes, glaciers: hold the load for centuries and ice flows like a fluid).</p>
+    <p><b>PARALLEL — the Kelvin–Voigt model.</b> Spring and dashpot side by side between two
+    bars. Now both elements see the same displacement, and their forces <em>add</em>. Hang a
+    <b>constant weight</b> on it: the spring "wants" to stretch to \(F_0/k\) immediately, but the
+    dashpot only permits motion at a finite speed, so the stretch <b>creeps</b> gradually toward
+    that limit. That is <b>CREEP</b> — the behavior of memory foam and the cartilage in your
+    knees (which is why you're measurably taller in the morning).</p>
+    <p>Both models share the same clock, the <b>characteristic time</b> \(\tau = c/k\): Maxwell
+    relaxes on it, Kelvin–Voigt creeps on it.</p>
+    <div class="equation-box">
+      $$ \text{Maxwell (series), hold stretch:}\;\; F(t) = F_0\,e^{-t/\tau} \qquad
+         \text{Kelvin–Voigt (parallel), hang weight:}\;\; x(t) = \frac{F_0}{k}\left(1 -
+         e^{-t/\tau}\right) \qquad \tau = \frac{c}{k} $$
+    </div>
+    <p>Read the exponentials like a clock: after one \(\tau\), Maxwell has kept only
+    \(e^{-1} \approx 37\%\) of its force, and Kelvin–Voigt has covered \(1 - e^{-1} \approx
+    63\%\) of its final creep. After \(3\tau\), the story is ~95% over either way.</p>
+    <div class="worked-example">
+      <p>A memory-foam-like Kelvin–Voigt pad: \(k = 500\ \text{N/m}\), \(c = 2500\ \text{N·s/m}\)
+      \(\Rightarrow \tau = c/k = 5\ \text{s}\). Set a 10 N weight on it. Final sink:
+      \(x_\infty = F_0/k = 10/500 = 0.02\ \text{m} = 20\ \text{mm}\). After 5 s (one \(\tau\)):
+      \(x = 20(1 - e^{-1}) = 12.6\ \text{mm}\). After 15 s (three \(\tau\)):
+      \(x = 20(1 - e^{-3}) = 19.0\ \text{mm}\). The foam "slowly accepts" your shape — and that
+      5-second lag is exactly what makes memory foam feel like memory foam.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Series (Maxwell): same force, displacements add → <b>stress relaxation</b> under held
+        stretch (cheese, dough, glacier ice).</li>
+        <li>Parallel (Kelvin–Voigt): same displacement, forces add → <b>creep</b> toward
+        \(F_0/k\) under held load (memory foam, cartilage).</li>
+        <li>One number runs both clocks: \(\tau = c/k\). At \(t = \tau\): 37% force left
+        (Maxwell) or 63% of the creep done (KV).</li>
+        <li>Wiring, not ingredients, decides the story — same two elements, opposite
+        behaviors.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On <b>Maxwell (relaxes)</b>, find where the curve crosses the dashed 37% line. Confirm
+      it happens exactly at the dashed vertical \(\tau\) line.</li>
+      <li>Switch to <b>Kelvin–Voigt (creeps)</b> without touching the sliders. Same \(\tau\) —
+      how is the curve related to the Maxwell one you just saw?</li>
+      <li>Click <b>Fast memory</b>, then <b>Slow memory</b>. Watch the time axis rescale — which
+      of the two would you mistake for "just a solid" if you only watched for one second?</li>
+      <li>Recreate the worked example: set \(k = 500\), \(c = 2500\) on Kelvin–Voigt and check
+      the stats at \(t = \tau\) and \(t = 3\tau\) against 12.6 mm and 19.0 mm (as fractions 0.63
+      and 0.95 of the final sink).</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="combo" data-scen="maxwell" onclick="setScen('combo','maxwell')">Maxwell (relaxes)</button>
+    <button class="scen-btn" data-tab="combo" data-scen="kv" onclick="setScen('combo','kv')">Kelvin–Voigt (creeps)</button>
+    <button class="scen-btn" data-tab="combo" data-scen="fast" onclick="setScen('combo','fast')">Fast memory (small τ)</button>
+    <button class="scen-btn" data-tab="combo" data-scen="slow" onclick="setScen('combo','slow')">Slow memory (big τ)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Spring stiffness k <span id="v-combo-k">500</span></label>
+        <input type="range" id="s-combo-k" min="50" max="2000" step="10" value="500">
+      </div>
+      <div class="ctrl-group">
+        <label>Dashpot damping c <span id="v-combo-c">2500</span></label>
+        <input type="range" id="s-combo-c" min="100" max="10000" step="50" value="2500">
+      </div>
+      <div class="stats" id="st-combo"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The circuit — how the two elements are wired</div>
+        <canvas id="cv-combo" width="640" height="200"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">The response over 5τ (dashed lines: the 1/e landmarks at t = τ)</div>
+        <canvas id="cv-combo2" width="640" height="290"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-combo"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: sls -->
+<section id="tab-sls" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: stress relaxation with real units</h2>
+    <p>Time to talk the way a mechanics course talks. Instead of force \(F\) and displacement
+    \(x\) — which describe your particular block and your particular thumb — we switch to
+    <b>stress</b> \(\sigma\) (sigma) and <b>strain</b> \(\varepsilon\) (epsilon). Lesson 4
+    defines them properly; for now it's enough to know they are force and displacement
+    <em>normalized so the numbers describe the material, not the object</em>. In material form
+    the Maxwell model's spring becomes a <b>modulus</b> \(E\) (in Pa) and its dashpot becomes a
+    <b>viscosity</b> \(\eta\) (eta, in Pa·s), with the same clock: \(\tau = \eta/E\).</p>
+    <p>Because series elements share the stress while their strains add, the Maxwell model
+    obeys a real governing equation — your first viscoelastic ODE:</p>
+    <div class="equation-box">
+      $$ \frac{d\varepsilon}{dt} = \frac{1}{E}\frac{d\sigma}{dt} + \frac{\sigma}{\eta}
+      \qquad\Rightarrow\qquad \text{step strain } \varepsilon_0:\;\;
+      \sigma(t) = E\,\varepsilon_0\,e^{-t/\tau}, \qquad \tau = \frac{\eta}{E} $$
+    </div>
+    <p>Read the ODE aloud: the strain rate has an elastic part (stress changing stretches the
+    spring) plus a viscous part (standing stress makes the dashpot flow). Squeeze the material by
+    a fixed strain \(\varepsilon_0\) and hold: the stress starts at \(E\varepsilon_0\) and decays
+    exponentially.</p>
+    <p>One honest limitation: a bare Maxwell model relaxes all the way to <b>zero</b> — wait long
+    enough and it's indistinguishable from a fluid, but real cheese keeps some stress forever.
+    The one-sentence fix is to add a spring \(E_\infty\) <em>in parallel</em> with the Maxwell
+    branch — the resulting three-element circuit is the <b>Standard Linear Solid</b>, and it
+    relaxes to a plateau \(\sigma_\infty = E_\infty\varepsilon_0\) instead of to zero. The sim
+    below has an \(E_\infty\) slider, set to 0 by default so you start with pure Maxwell.</p>
+    <div class="worked-example">
+      <p>A soft-cheese-like Maxwell solid: \(E = 100\ \text{kPa}\), \(\eta = 1\ \text{MPa·s}\)
+      \(\Rightarrow \tau = \eta/E = 10^{6}/10^{5} = 10\ \text{s}\). Apply a step strain
+      \(\varepsilon_0 = 0.1\) (a 10% squeeze) and hold. Initial stress:
+      \(\sigma_0 = E\varepsilon_0 = 10^{5} \times 0.1 = 10\ \text{kPa}\). After 10 s (one
+      \(\tau\)): \(\sigma = 10\,e^{-1} = 3.7\ \text{kPa}\). After 30 s (three \(\tau\)):
+      \(\sigma = 10\,e^{-3} \approx 0.5\ \text{kPa}\). The cheese "forgets" 95% of the squeeze
+      in half a minute — which is why the slice flattens under the sandwich instead of pushing
+      the bread back up.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Stress \(\sigma\) and strain \(\varepsilon\) are force and displacement normalized to
+        describe the <em>material</em> (formal definitions: Lesson 4).</li>
+        <li>Material Maxwell model: spring → modulus \(E\) (Pa), dashpot → viscosity \(\eta\)
+        (Pa·s), \(\tau = \eta/E\).</li>
+        <li>Step strain \(\varepsilon_0\) → \(\sigma(t) = E\varepsilon_0 e^{-t/\tau}\): stress
+        relaxation in real units.</li>
+        <li>Bare Maxwell relaxes to zero (secretly a fluid); adding a parallel spring
+        \(E_\infty\) makes it a Standard Linear Solid with plateau
+        \(E_\infty\varepsilon_0\).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Reproduce the worked example on the <b>Cheese</b> scenario: check \(\tau = 10\) s,
+      \(\sigma_0 = 10\) kPa, and \(\sigma \approx 3.7\) kPa at the \(\tau\) line.</li>
+      <li>Double \(E\) to 200 kPa. Two things change — the starting stress and the clock. Which
+      way does each move, and why does a stiffer spring make the material forget <em>faster</em>?</li>
+      <li>Drag \(E_\infty\) up from 0 and watch the floor rise under the curve. At
+      \(E_\infty = 50\) kPa and \(\varepsilon_0 = 10\%\), what plateau do you predict before you
+      read the stats?</li>
+      <li>Try <b>Silly-putty-like</b>: with \(\tau \approx 0.5\) s, explain why the same ball
+      bounces off the floor (fast event) but puddles on the desk overnight (slow event).</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="sls" data-scen="cheese" onclick="setScen('sls','cheese')">Cheese (E=100 kPa, η=1 MPa·s, E∞=0)</button>
+    <button class="scen-btn" data-tab="sls" data-scen="putty" onclick="setScen('sls','putty')">Silly-putty-like (short τ)</button>
+    <button class="scen-btn" data-tab="sls" data-scen="keeper" onclick="setScen('sls','keeper')">Real solid keeper (E∞=50 kPa)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Modulus E <span id="v-sls-E">100</span></label>
+        <input type="range" id="s-sls-E" min="10" max="1000" step="10" value="100">
+      </div>
+      <div class="ctrl-group">
+        <label>Viscosity η <span id="v-sls-eta">1</span></label>
+        <input type="range" id="s-sls-eta" min="0.1" max="20" step="0.1" value="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Parallel spring E∞ <span id="v-sls-einf">0</span></label>
+        <input type="range" id="s-sls-einf" min="0" max="200" step="5" value="0">
+      </div>
+      <div class="ctrl-group">
+        <label>Step strain ε₀ <span id="v-sls-eps">10</span></label>
+        <input type="range" id="s-sls-eps" min="1" max="30" step="1" value="10">
+      </div>
+      <div class="stats" id="st-sls"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The Standard Linear Solid circuit (parallel spring grayed out when E∞ = 0)</div>
+        <canvas id="cv-sls" width="640" height="200"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Stress relaxation σ(t) after a step strain ε₀, in real kPa</div>
+        <canvas id="cv-sls2" width="640" height="290"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-sls"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>J. D. Ferry, <i>Viscoelastic Properties of Polymers</i>, 3rd ed., Wiley (1980).</li>
+    <li>R. S. Lakes, <i>Viscoelastic Materials</i>, Cambridge Univ. Press (2009) — Ch. 2–3
+    (spring–dashpot models, Maxwell, Kelvin–Voigt, Standard Linear Solid).</li>
+    <li>H. A. Barnes, J. F. Hutton &amp; K. Walters, <i>An Introduction to Rheology</i>,
+    Elsevier (1989) — Newtonian viscosity, honey-order viscosity values.</li>
+    <li>W. D. Callister &amp; D. G. Rethwisch, <i>Materials Science and Engineering: An
+    Introduction</i>, 10th ed., Wiley (2018) — elastic moduli of steel (~200 GPa) and diamond
+    (~1000+ GPa); Ch. 15 (viscoelasticity of polymers).</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Lesson 3 of 5 — Next: why force and
+displacement aren't enough — stress and strain.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 3: Honey, Cheese, Metal, Diamond
+   ================================================================ */
+
+/* --- material catalog for the poke tab (1 cm² contact, 1 cm size) ---
+   k = E·A/L (N/m), c = η·A/L (N·s/m) — order-of-magnitude estimates */
+const MAT = {
+  honey:   { name: 'Honey',   model: 'dashpot',         k: 0,      c: 0.1, color: COL.orange,
+             recovers: 'never — the dent flows shut and is forgotten' },
+  cheese:  { name: 'Cheese',  model: 'spring + dashpot', k: 1e3,   c: 100, color: COL.teal,
+             recovers: 'partly — some dent stays' },
+  steel:   { name: 'Steel',   model: 'spring',           k: 2e9,   c: 0,   color: COL.accent,
+             recovers: 'fully and instantly' },
+  diamond: { name: 'Diamond', model: 'spring',           k: 1.1e10, c: 0,  color: COL.purple,
+             recovers: 'fully and instantly' }
+};
+
+/* --- control state --- */
+let activeTab = 'poke';
+const scen = { poke: 'cheese', rate: 'cheese', combo: 'maxwell', sls: 'cheese' };
+let comboWiring = 'maxwell';   // 'maxwell' | 'kv' — fast/slow scenarios keep the current wiring
+
+const FMT = {
+  'poke-x':     v => fmt(v, 1) + ' mm',
+  'poke-v':     v => fmt(v, 1) + ' mm/s',
+  'rate-tramp': v => fmt(v, 1) + ' s',
+  'rate-tau':   v => fmt(v, 1) + ' s',
+  'combo-k':    v => fmt(v, 0) + ' N/m',
+  'combo-c':    v => fmt(v, 0) + ' N·s/m',
+  'sls-E':      v => fmt(v, 0) + ' kPa',
+  'sls-eta':    v => fmt(v, 1) + ' MPa·s',
+  'sls-einf':   v => fmt(v, 0) + ' kPa',
+  'sls-eps':    v => fmt(v, 0) + ' %'
+};
+
+const SCEN = {
+  poke: {
+    honey:   {},
+    cheese:  {},
+    steel:   {},
+    diamond: {}
+  },
+  rate: {
+    spring:  {},
+    dashpot: {},
+    cheese:  {}
+  },
+  combo: {
+    maxwell: {},
+    kv:      {},
+    fast:    { 's-combo-k': 1500, 's-combo-c': 750 },
+    slow:    { 's-combo-k': 100,  's-combo-c': 4000 }
+  },
+  sls: {
+    cheese: { 's-sls-E': 100, 's-sls-eta': 1,   's-sls-einf': 0,  's-sls-eps': 10 },
+    putty:  { 's-sls-E': 400, 's-sls-eta': 0.2, 's-sls-einf': 0,  's-sls-eps': 10 },
+    keeper: { 's-sls-E': 100, 's-sls-eta': 1,   's-sls-einf': 50, 's-sls-eps': 10 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- small shared drawing bits --- */
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+function wallRect(ctx, x, y, wpx, hpx){
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(x, y, wpx, hpx);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(x, y, wpx, hpx);
+}
+
+/* ---------------- TAB 1: poke ---------------- */
+function drawPoke(){
+  const x = num('s-poke-x');           // mm
+  const v = num('s-poke-v');           // mm/s
+  const mat = MAT[scen.poke];
+  const xm = x / 1000, vm = v / 1000;  // SI
+  const F = mat.k * xm + mat.c * vm;   // N (order of magnitude)
+
+  /* --- physical picture: cross-section of the poke --- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-poke'));
+  const surf = 104, bot = h - 26, bl = 30, br = w - 30;
+  const iw = 64, icx = w / 2 - 60;                 // indenter width / center
+  // per-material visual dent depth (honest: steel & diamond are effectively zero)
+  const pxPerMm = 8;
+  let dent;
+  if (scen.poke === 'steel') dent = Math.min(3, x * 0.3);
+  else if (scen.poke === 'diamond') dent = Math.min(1.5, x * 0.15);
+  else dent = x * pxPerMm;
+  dent = Math.min(dent, bot - surf - 14);
+
+  // material block with a notch under the indenter (+ bulges for honey)
+  const fills = { honey: 'rgba(245,158,11,.38)', cheese: '#fde68a',
+                  steel: '#cbd5e1', diamond: 'rgba(147,197,253,.55)' };
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(bl, surf);
+  if (scen.poke === 'honey' && dent > 2) {
+    const bulge = Math.min(26, dent * 0.45);
+    ctx.lineTo(icx - iw / 2 - 46, surf);
+    ctx.quadraticCurveTo(icx - iw / 2 - 20, surf - bulge, icx - iw / 2 - 2, surf);
+  } else {
+    ctx.lineTo(icx - iw / 2 - 2, surf);
+  }
+  ctx.lineTo(icx - iw / 2 - 2, surf + dent);
+  ctx.lineTo(icx + iw / 2 + 2, surf + dent);
+  ctx.lineTo(icx + iw / 2 + 2, surf);
+  if (scen.poke === 'honey' && dent > 2) {
+    const bulge = Math.min(26, dent * 0.45);
+    ctx.quadraticCurveTo(icx + iw / 2 + 20, surf - bulge, icx + iw / 2 + 46, surf);
+    ctx.lineTo(br, surf);
+  } else {
+    ctx.lineTo(br, surf);
+  }
+  ctx.lineTo(br, bot); ctx.lineTo(bl, bot); ctx.closePath();
+  ctx.fillStyle = fills[scen.poke]; ctx.fill();
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.restore();
+
+  // indenter ("thumb"): rounded-tip column pressed to the notch bottom
+  const tipY = surf + dent;
+  ctx.fillStyle = '#f1c9a5';
+  ctx.strokeStyle = '#b98a5e'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(icx - iw / 2 + 4, 16);
+  ctx.lineTo(icx - iw / 2 + 4, tipY - 12);
+  ctx.quadraticCurveTo(icx - iw / 2 + 4, tipY, icx - iw / 2 + 20, tipY);
+  ctx.lineTo(icx + iw / 2 - 20, tipY);
+  ctx.quadraticCurveTo(icx + iw / 2 - 4, tipY, icx + iw / 2 - 4, tipY - 12);
+  ctx.lineTo(icx + iw / 2 - 4, 16);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  arrow(ctx, icx + iw / 2 + 16, 22, icx + iw / 2 + 16, 22 + Math.min(46, 10 + v * 2), COL.bad, 2.5);
+  caption(ctx, icx + iw / 2 + 30, 40, 'v', COL.bad, true);
+
+  // depth marker
+  if (dent > 4) {
+    drawLine(ctx, bl + 10, surf, bl + 10, surf + dent, COL.ink, 1.2);
+    drawLine(ctx, bl + 5, surf, bl + 15, surf, COL.ink, 1.2);
+    drawLine(ctx, bl + 5, surf + dent, bl + 15, surf + dent, COL.ink, 1.2);
+    caption(ctx, bl + 26, surf + dent / 2 + 4, 'x', COL.ink, true);
+  }
+
+  // material label + its model glyph
+  const gx1 = w - 190, gx2 = w - 60, gy = 34;
+  caption(ctx, (gx1 + gx2) / 2, gy - 14, mat.name + ' = ' + mat.model, COL.ink, true);
+  if (scen.poke === 'honey') dashpotGlyph(ctx, gx1, gy, gx2, gy, COL.orange, 2);
+  else if (scen.poke === 'cheese') {
+    springGlyph(ctx, gx1, gy, (gx1 + gx2) / 2 - 4, gy, 4, 5, COL.teal, 2);
+    dashpotGlyph(ctx, (gx1 + gx2) / 2 + 4, gy, gx2, gy, COL.teal, 2);
+  } else springGlyph(ctx, gx1, gy, gx2, gy, 6, 6, mat.color, 2);
+
+  if (scen.poke === 'steel' || scen.poke === 'diamond')
+    caption(ctx, w / 2, h - 8, 'honest scale: a thumb-push dents ' + mat.name.toLowerCase() +
+      ' by ~nanometers — drawn as (almost) nothing', COL.muted);
+  else if (scen.poke === 'honey')
+    caption(ctx, w / 2, h - 8, 'honey flows up around the indenter — stop pushing and the force is gone', COL.muted);
+  else
+    caption(ctx, w / 2, h - 8, 'cheese takes the dent — and will keep part of it after you let go', COL.muted);
+
+  /* --- plot: normalized F vs x for all four, current material bold --- */
+  const c2 = setupCanvas(document.getElementById('cv-poke2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 10, 0, 1.12);
+  ch.grid(); ch.axes('push depth x (mm)', 'F / F_max (each curve ÷ its own max)');
+  const fOf = (m, xmm) => m.k * (xmm / 1000) + m.c * vm;   // N at this speed
+  const order = ['honey', 'steel', 'diamond', 'cheese'];
+  for (const key of order) {
+    if (key === scen.poke) continue;
+    const m = MAT[key], fmax = fOf(m, 10) || 1;
+    const pts = []; for (let xx = 0; xx <= 10.001; xx += 0.1) pts.push([xx, fOf(m, xx) / fmax]);
+    ch.plot(pts, m.color, 1.5, key === 'diamond' ? [6, 4] : null);
+  }
+  { // current material on top, bold
+    const fmax = fOf(mat, 10) || 1;
+    const pts = []; for (let xx = 0; xx <= 10.001; xx += 0.1) pts.push([xx, fOf(mat, xx) / fmax]);
+    ch.plot(pts, mat.color, 3.5, scen.poke === 'diamond' ? [6, 4] : null);
+    ch.dot(x, fOf(mat, x) / fmax, mat.color, 6);
+  }
+  ch.legend([{ label: 'honey (flat!)', color: COL.orange },
+             { label: 'cheese', color: COL.teal },
+             { label: 'steel', color: COL.accent },
+             { label: 'diamond', color: COL.purple, dash: [6, 4] }]);
+
+  setStat('st-poke', [
+    { label: 'Material', value: mat.name },
+    { label: 'Model', value: mat.model, highlight: true },
+    { label: 'F estimate', value: fmt(F, 2) + ' N' },
+    { label: 'k (this contact)', value: mat.k ? fmt(mat.k, 0) + ' N/m' : '—' },
+    { label: 'c (this contact)', value: mat.c ? fmt(mat.c, 1) + ' N·s/m' : '—' },
+    { label: 'Springs back?', value: mat.recovers }
+  ]);
+
+  if (scen.poke === 'honey')
+    setVerdict('vd-poke', 'warn', 'No memory — pure flow.',
+      'Honey\'s force (' + fmt(F, 2) + ' N) tracks only your speed: drag the depth slider and nothing changes. Stop moving and the force vanishes; let go and the dent flows shut. Pure dashpot, F = cv.');
+  else if (scen.poke === 'cheese')
+    setVerdict('vd-poke', 'warn', 'Viscoelastic — part spring, part honey.',
+      'Both sliders move the force (' + fmt(F, 2) + ' N ≈ ' + fmt(mat.k * xm, 2) + ' N of spring + ' + fmt(mat.c * vm, 2) + ' N of dashpot). It pushes back like a spring but slowly gives way like honey, and it keeps part of the dent. This in-between story is where Tabs 2–4 live.');
+  else if (scen.poke === 'steel')
+    setVerdict('vd-poke', 'good', 'A nearly perfect spring.',
+      'Force grows in proportion to depth — F = kx with an enormous k ≈ 2×10⁹ N/m, so your 1-mm-scale poke would need ' + fmt(F, 1) + ' N. You dent your thumb, not the steel. Speed is irrelevant, and it springs back completely.');
+  else
+    setVerdict('vd-poke', 'good', 'The stiffest spring there is.',
+      'Same straight-line story as steel but ~5× steeper: k ≈ 1.1×10¹⁰ N/m, F ≈ ' + fmt(F, 1) + ' N at this depth. On the normalized plot diamond and steel are the same shape — only the stats reveal the size difference.');
+}
+
+/* ---------------- TAB 2: rate ---------------- */
+function drawRate(){
+  const tramp = num('s-rate-tramp'), tau = num('s-rate-tau');
+  const el = scen.rate;                       // spring | dashpot | cheese
+  const T = tramp + 3 * tau;
+
+  // normalized force response (peak of each = 1)
+  const Fn = t => {
+    if (el === 'spring') return Math.min(t / tramp, 1);
+    if (el === 'dashpot') return t <= tramp ? 1 : 0;
+    // cheese: Maxwell ramp-and-hold, normalized to force at end of ramp
+    const Fend = 1 - Math.exp(-tramp / tau);
+    if (t <= tramp) return (1 - Math.exp(-t / tau)) / Fend;
+    return Math.exp(-(t - tramp) / tau);
+  };
+  const Fhold = Fn(tramp + 3 * tau);          // relative to end-of-ramp force
+
+  /* --- element cartoon at end-of-ramp position --- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-rate'));
+  const cy = h / 2 - 8, x0 = 46, restX = 430, dispPx = 70, handleX = restX + dispPx;
+  wallRect(ctx, x0 - 12, cy - 44, 10, 88);
+  // ghost of rest handle position
+  drawLine(ctx, restX, cy - 34, restX, cy + 34, COL.muted, 1.2, [4, 4]);
+  if (el === 'spring') {
+    springGlyph(ctx, x0, cy, handleX - 6, cy, 10, 8, COL.ink, 2);
+    caption(ctx, (x0 + handleX) / 2, cy - 24, 'spring k', COL.ink, true);
+  } else if (el === 'dashpot') {
+    dashpotGlyph(ctx, x0, cy, handleX - 6, cy, COL.ink, 2);
+    caption(ctx, (x0 + handleX) / 2, cy - 24, 'dashpot c', COL.ink, true);
+  } else {
+    const mid = (x0 + handleX) / 2;
+    springGlyph(ctx, x0, cy, mid - 6, cy, 6, 8, COL.ink, 2);
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(mid, cy, 4, 0, 7); ctx.fill();
+    dashpotGlyph(ctx, mid + 6, cy, handleX - 6, cy, COL.ink, 2);
+    caption(ctx, (x0 + mid) / 2, cy - 24, 'spring k', COL.ink, true);
+    caption(ctx, (mid + handleX) / 2, cy - 24, 'dashpot c', COL.ink, true);
+  }
+  // handle
+  ctx.fillStyle = '#94a3b8'; ctx.fillRect(handleX - 4, cy - 34, 8, 68);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(handleX - 4, cy - 34, 8, 68);
+  // displacement + force arrows
+  arrow(ctx, restX, cy + 52, handleX, cy + 52, COL.warn, 2.5);
+  caption(ctx, (restX + handleX) / 2, cy + 46, 'x₀ (then hold)', COL.warn, true);
+  const fEnd = 1;   // end of ramp, all elements normalized to 1
+  arrow(ctx, handleX + 12, cy, handleX + 12 + 55 * fEnd, cy, COL.accent, 3);
+  caption(ctx, handleX + 40, cy - 10, 'F at ramp end', COL.accent, true);
+
+  /* --- ramp-and-hold plot --- */
+  const c2 = setupCanvas(document.getElementById('cv-rate2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, T, 0, 1.15);
+  ch.grid(); ch.axes('time (s)', 'normalized x and F');
+  ch.vLine(tramp, COL.warn, [5, 4]);
+  const ptsX = [], ptsF = [];
+  for (let t = 0; t <= T + 1e-9; t += T / 400) {
+    ptsX.push([t, Math.min(t / tramp, 1)]);
+    if (el === 'dashpot' && t > tramp && ptsF.length && ptsF[ptsF.length - 1][1] > 0)
+      ptsF.push([tramp, 1], [tramp, 0]);       // crisp instant drop
+    ptsF.push([t, Fn(t)]);
+  }
+  ch.plot(ptsX, COL.muted, 2, [5, 4]);
+  ch.plot(ptsF, COL.accent, 2.5);
+  ch.dot(tramp, Fn(tramp), COL.warn, 5);
+  ch.legend([{ label: 'x(t) — what you impose', color: COL.muted, dash: [5, 4] },
+             { label: 'F(t) — what you feel', color: COL.accent },
+             { label: 't_ramp', color: COL.warn, dash: [5, 4] }]);
+
+  setStat('st-rate', [
+    { label: 'Ramp time', value: fmt(tramp, 1) + ' s' },
+    { label: 'Memory τ', value: fmt(tau, 1) + ' s' },
+    { label: 't_ramp / τ', value: fmt(tramp / tau, 2) },
+    { label: 'F at end of ramp', value: '1.00 (its peak)' },
+    { label: 'F after 3τ of hold', value: fmt(Fhold, 2) },
+    { label: 'Force remembered', value: fmt(Fhold * 100, 1) + ' %', highlight: true }
+  ]);
+
+  if (el === 'spring')
+    setVerdict('vd-rate', 'good', 'Perfect memory — holds force forever.',
+      'The force climbed with the ramp and now just sits there: as long as you hold the stretch, the spring holds 100% of its force. Ideal elastic behavior — steel and diamond to an excellent approximation.');
+  else if (el === 'dashpot')
+    setVerdict('vd-rate', 'warn', 'No memory — force gone the instant motion stops.',
+      'During the ramp the speed was constant, so the force was a flat plateau. At t_ramp you stopped — v = 0, so F = cv = 0, instantly. Honey never remembers how far it was pushed, only how fast it is being pushed right now.');
+  else if (tramp / tau < 1)
+    setVerdict('vd-rate', 'good', 'You pushed faster than it can flow — it acts like a spring right now.',
+      'With t_ramp = ' + fmt(tramp, 1) + ' s shorter than its memory τ = ' + fmt(tau, 1) + ' s, the dashpot barely moved during the ramp, so the force rose almost like a pure spring. But watch the hold: the force still leaks away, keeping only ' + fmt(Fhold * 100, 1) + '% after 3τ. Fast poke → cheese feels solid.');
+  else
+    setVerdict('vd-rate', 'warn', 'You pushed slower than its memory — it flows like honey.',
+      'With t_ramp = ' + fmt(tramp, 1) + ' s longer than τ = ' + fmt(tau, 1) + ' s, the dashpot had time to give way during the ramp itself — the force curve flattens toward a plateau just like a dashpot\'s, and after the hold only ' + fmt(Fhold * 100, 1) + '% remains. Slow lean → cheese acts fluid.');
+}
+
+/* ---------------- TAB 3: combo ---------------- */
+function drawCombo(){
+  if (scen.combo === 'maxwell' || scen.combo === 'kv') comboWiring = scen.combo;
+  const k = num('s-combo-k'), c = num('s-combo-c');
+  const tau = c / k;
+  const isMx = comboWiring === 'maxwell';
+
+  /* --- circuit picture --- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-combo'));
+  const cy = h / 2;
+  if (isMx) {
+    const x0 = 52, node = 300, handleX = 540;
+    wallRect(ctx, x0 - 12, cy - 50, 10, 100);
+    springGlyph(ctx, x0, cy, node - 6, cy, 8, 9, COL.ink, 2);
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(node, cy, 4.5, 0, 7); ctx.fill();
+    dashpotGlyph(ctx, node + 6, cy, handleX - 6, cy, COL.ink, 2);
+    ctx.fillStyle = '#94a3b8'; ctx.fillRect(handleX - 4, cy - 40, 8, 80);
+    ctx.strokeStyle = COL.axis; ctx.strokeRect(handleX - 4, cy - 40, 8, 80);
+    caption(ctx, (x0 + node) / 2, cy - 26, 'spring k = ' + fmt(k, 0) + ' N/m', COL.ink, true);
+    caption(ctx, (node + handleX) / 2, cy - 26, 'dashpot c = ' + fmt(c, 0) + ' N·s/m', COL.ink, true);
+    caption(ctx, node, cy + 30, 'same force through both — displacements add', COL.muted);
+    arrow(ctx, handleX + 12, cy, handleX + 62, cy, COL.warn, 3);
+    caption(ctx, handleX + 38, cy - 12, 'hold stretch x₀', COL.warn, true);
+    caption(ctx, w / 2, h - 10, 'SERIES = Maxwell model — cheese, dough, glacier ice', COL.axis, true);
+  } else {
+    const xL = 150, xR = 470, yTop = cy - 34, yBot = cy + 34;
+    wallRect(ctx, xL - 60, cy - 5, 48, 10);          // anchor stub to the left
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(xL - 6, cy - 56, 8, 112); ctx.strokeStyle = COL.axis; ctx.strokeRect(xL - 6, cy - 56, 8, 112);
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(xR - 2, cy - 56, 8, 112); ctx.strokeStyle = COL.axis; ctx.strokeRect(xR - 2, cy - 56, 8, 112);
+    springGlyph(ctx, xL + 2, yTop, xR - 2, yTop, 9, 8, COL.ink, 2);
+    dashpotGlyph(ctx, xL + 2, yBot, xR - 2, yBot, COL.ink, 2);
+    caption(ctx, (xL + xR) / 2, yTop - 16, 'spring k = ' + fmt(k, 0) + ' N/m', COL.ink, true);
+    caption(ctx, (xL + xR) / 2, yBot + 26, 'dashpot c = ' + fmt(c, 0) + ' N·s/m', COL.ink, true);
+    arrow(ctx, xR + 14, cy, xR + 64, cy, COL.warn, 3);
+    caption(ctx, xR + 40, cy - 12, 'hang weight F₀', COL.warn, true);
+    caption(ctx, w / 2, h - 10, 'PARALLEL = Kelvin–Voigt model — memory foam, cartilage (same displacement, forces add)', COL.axis, true);
+  }
+
+  /* --- response plot over 5τ --- */
+  const c2 = setupCanvas(document.getElementById('cv-combo2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const T = 5 * tau;
+  ch.setRange(0, T, 0, 1.1);
+  ch.grid();
+  ch.axes('time (s)', isMx ? 'F / F₀' : 'x / x_final');
+  const yOf = t => isMx ? Math.exp(-t / tau) : 1 - Math.exp(-t / tau);
+  ch.hLine(isMx ? Math.exp(-1) : 1 - Math.exp(-1), COL.warn, [2, 4]);
+  ch.vLine(tau, COL.warn, [5, 4]);
+  const pts = []; for (let t = 0; t <= T + 1e-9; t += T / 400) pts.push([t, yOf(t)]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(tau, yOf(tau), COL.warn, 5);
+  ch.dot(3 * tau, yOf(3 * tau), COL.accent, 5);
+  ch.legend([{ label: isMx ? 'F(t)/F₀ = e^(−t/τ)' : 'x(t)/x_f = 1 − e^(−t/τ)', color: COL.accent },
+             { label: isMx ? '1/e ≈ 0.37 at t = τ' : '0.63 at t = τ', color: COL.warn, dash: [2, 4] }]);
+
+  setStat('st-combo', [
+    { label: 'Wiring', value: isMx ? 'series (Maxwell)' : 'parallel (Kelvin–Voigt)' },
+    { label: 'Spring k', value: fmt(k, 0) + ' N/m' },
+    { label: 'Dashpot c', value: fmt(c, 0) + ' N·s/m' },
+    { label: 'τ = c/k', value: fmt(tau, 2) + ' s', highlight: true },
+    { label: isMx ? 'F/F₀ at t = τ' : 'x/x_f at t = τ', value: fmt(yOf(tau), 2) },
+    { label: isMx ? 'F/F₀ at t = 3τ' : 'x/x_f at t = 3τ', value: fmt(yOf(3 * tau), 2) }
+  ]);
+
+  const name = isMx ? 'Maxwell (series) — the relaxer: cheese, dough, glacier ice.'
+                    : 'Kelvin–Voigt (parallel) — the creeper: memory foam, cartilage.';
+  const story = isMx
+    ? 'Hold the stretch and the dashpot slowly gives, letting the spring unload: the force drains to ' + fmt(Math.exp(-1) * 100, 0) + '% by t = τ = ' + fmt(tau, 2) + ' s.'
+    : 'Hang the weight and the dashpot delays the spring: the sink creeps to ' + fmt((1 - Math.exp(-1)) * 100, 0) + '% of its limit by t = τ = ' + fmt(tau, 2) + ' s.';
+  if (tau < 1)
+    setVerdict('vd-combo', 'warn', name,
+      story + ' With τ = ' + fmt(tau, 2) + ' s < 1 s it relaxes/creeps almost instantly — at human timescales you\'d barely distinguish it from a plain ' + (isMx ? 'fluid' : 'spring') + '.');
+  else if (tau <= 10)
+    setVerdict('vd-combo', 'good', name,
+      story + ' τ = ' + fmt(tau, 1) + ' s is watchable viscoelasticity — cheese and memory-foam territory, slow enough to see and fast enough to finish while you watch.');
+  else
+    setVerdict('vd-combo', 'warn', name,
+      story + ' τ = ' + fmt(tau, 1) + ' s is a slow keeper — poke it briefly and it looks like an ordinary solid; the flow only shows if you wait.');
+}
+
+/* ---------------- TAB 4: sls ---------------- */
+function drawSLS(){
+  const E = num('s-sls-E');            // kPa
+  const eta = num('s-sls-eta');        // MPa·s
+  const Einf = num('s-sls-einf');      // kPa
+  const eps = num('s-sls-eps') / 100;  // strain
+  const tau = (eta * 1e6) / (E * 1e3); // s  (= 1000·η/E)
+  const plateau = Einf * eps;          // kPa
+  const sig0 = (E + Einf) * eps;       // kPa
+  const sig = t => plateau + E * eps * Math.exp(-t / tau);
+
+  /* --- SLS circuit --- */
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-sls'));
+  const cy = h / 2, xL = 130, xR = 500, yTop = cy - 36, yBot = cy + 38;
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillRect(xL - 6, cy - 62, 8, 124); ctx.strokeStyle = COL.axis; ctx.strokeRect(xL - 6, cy - 62, 8, 124);
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillRect(xR - 2, cy - 62, 8, 124); ctx.strokeStyle = COL.axis; ctx.strokeRect(xR - 2, cy - 62, 8, 124);
+  // Maxwell branch (top): spring E — node — dashpot η
+  const mid = (xL + xR) / 2;
+  springGlyph(ctx, xL + 2, yTop, mid - 6, yTop, 7, 8, COL.ink, 2);
+  ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(mid, yTop, 4, 0, 7); ctx.fill();
+  dashpotGlyph(ctx, mid + 6, yTop, xR - 2, yTop, COL.ink, 2);
+  caption(ctx, (xL + mid) / 2, yTop - 16, 'E = ' + fmt(E, 0) + ' kPa', COL.ink, true);
+  caption(ctx, (mid + xR) / 2, yTop - 16, 'η = ' + fmt(eta, 1) + ' MPa·s', COL.ink, true);
+  // parallel spring E∞ (bottom) — gray when 0
+  const eCol = Einf > 0 ? COL.good : COL.muted;
+  springGlyph(ctx, xL + 2, yBot, xR - 2, yBot, 10, 8, eCol, Einf > 0 ? 2 : 1.5);
+  caption(ctx, mid, yBot + 28, Einf > 0 ? 'E∞ = ' + fmt(Einf, 0) + ' kPa (plateau spring)'
+    : 'E∞ = 0 — parallel spring off (bare Maxwell)', eCol, Einf > 0);
+  arrow(ctx, xR + 14, cy, xR + 64, cy, COL.warn, 3);
+  caption(ctx, xR + 40, cy - 12, 'step strain ε₀', COL.warn, true);
+  caption(ctx, w / 2, h - 8, 'Standard Linear Solid = Maxwell branch + parallel spring', COL.axis, true);
+
+  /* --- σ(t) plot --- */
+  const c2 = setupCanvas(document.getElementById('cv-sls2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const T = 5 * tau;
+  ch.setRange(0, T, 0, sig0 * 1.1);
+  ch.grid(); ch.axes('time after the squeeze (s)', 'stress σ (kPa)');
+  ch.hLine(plateau, Einf > 0 ? COL.good : COL.axis, [2, 4]);
+  ch.vLine(tau, COL.warn, [5, 4]);
+  const pts = []; for (let t = 0; t <= T + 1e-9; t += T / 400) pts.push([t, sig(t)]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(tau, sig(tau), COL.warn, 5);
+  ch.dot(3 * tau, sig(3 * tau), COL.accent, 5);
+  ch.legend([{ label: 'σ(t) = E∞ε₀ + Eε₀e^(−t/τ)', color: COL.accent },
+             { label: 'plateau σ∞ = ' + fmt(plateau, 1) + ' kPa', color: Einf > 0 ? COL.good : COL.axis, dash: [2, 4] },
+             { label: 't = τ', color: COL.warn, dash: [5, 4] }]);
+
+  setStat('st-sls', [
+    { label: 'τ = η/E', value: fmt(tau, 1) + ' s', highlight: true },
+    { label: 'Step strain ε₀', value: fmt(eps * 100, 0) + ' %' },
+    { label: 'σ₀ (t = 0)', value: fmt(sig0, 1) + ' kPa' },
+    { label: 'σ at t = τ', value: fmt(sig(tau), 1) + ' kPa' },
+    { label: 'σ at t = 3τ', value: fmt(sig(3 * tau), 2) + ' kPa' },
+    { label: 'Plateau σ∞ = E∞ε₀', value: fmt(plateau, 1) + ' kPa' }
+  ]);
+
+  if (Einf === 0)
+    setVerdict('vd-sls', 'warn', 'A Maxwell "solid" is secretly a fluid.',
+      'Give it time and ALL the stress leaks away — σ starts at ' + fmt(sig0, 1) + ' kPa and heads for exactly zero (already down to ' + fmt(sig(3 * tau), 2) + ' kPa at 3τ = ' + fmt(3 * tau, 1) + ' s). Silly putty! It bounces like a solid on fast timescales and puddles like a liquid on slow ones. Raise E∞ to give it a permanent backbone.');
+  else
+    setVerdict('vd-sls', 'good', 'Standard Linear Solid — a real solid that relaxes.',
+      'The Maxwell branch dumps its share of the stress with clock τ = ' + fmt(tau, 1) + ' s, but the parallel spring holds a plateau of σ∞ = E∞ε₀ = ' + fmt(plateau, 1) + ' kPa forever — like actual cheese, which flattens under the sandwich but never goes fully limp. This three-element model is the workhorse of soft-tissue and polymer mechanics.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { poke: drawPoke, rate: drawRate, combo: drawCombo, sls: drawSLS };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+</script>
+</body>
+</html>

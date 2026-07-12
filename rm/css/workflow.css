@@ -408,3 +408,35 @@
   padding: 20px; text-align: center;
   color: var(--text-muted, #6b7280); font-style: italic;
 }
+
+/* ── V3.302 — "My Lab Today" home strip (js/home-feed.js) ─────── */
+#rm-home-feed { margin-bottom: 16px; }
+.home-feed-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.home-feed-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #2a3242);
+  border-radius: 10px;
+  background: var(--card-bg, rgba(255,255,255,.03));
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.home-feed-tile:hover { border-color: var(--accent, #60a5fa); transform: translateY(-1px); }
+.home-feed-urgent { border-color: rgba(249,115,22,.55); }
+.home-feed-icon { font-size: 1.25rem; line-height: 1; }
+.home-feed-main { display: flex; flex-direction: column; min-width: 0; }
+.home-feed-label { font-weight: 600; font-size: .88rem; }
+.home-feed-detail {
+  font-size: .78rem;
+  opacity: .7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

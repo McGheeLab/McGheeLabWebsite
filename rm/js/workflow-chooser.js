@@ -320,8 +320,10 @@
     modal.querySelector('#wf-build-name').focus();
   }
 
-  function renameCustom(wf) {
-    var newName = prompt('Rename "' + wf.label + '" to:', wf.label);
+  async function renameCustom(wf) {
+    var newName = window.RM_DIALOG
+      ? await RM_DIALOG.prompt({ title: 'Rename "' + wf.label + '"', value: wf.label, okText: 'Rename' })
+      : prompt('Rename "' + wf.label + '" to:', wf.label);
     if (newName == null) return;
     newName = newName.trim();
     if (!newName || newName === wf.label) return;

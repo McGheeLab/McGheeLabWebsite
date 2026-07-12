@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin · Teachers · McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.304 — external-teacher oversight page. Four tabs:
+     *   ?tab=requests (default) → pending/decided class requests
+     *   ?tab=teachers           → every teacher + their classes/codes/rosters
+     *   ?tab=profiles           → featured-profile approval queue
+     *   ?tab=reviews            → review moderation (all statuses) */
+    (function () {
+      var raw = new URLSearchParams(location.search).get('tab') || '';
+      var t = (raw === 'teachers' || raw === 'profiles' || raw === 'reviews') ? raw : 'requests';
+      window.__TC_TAB = t;
+      document.documentElement.dataset.tcTab = t;
+      document.title =
+        t === 'teachers' ? 'Admin · Teachers · McGhee Lab'
+      : t === 'profiles' ? 'Admin · Teacher Profiles · McGhee Lab'
+      : t === 'reviews'  ? 'Admin · Class Reviews · McGhee Lab'
+      : 'Admin · Class Requests · McGhee Lab';
+    })();
+  </script>
+  <style>
+    .tcadm-page { padding: 0 24px 32px; }
+    .tcadm-toolbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; margin-bottom: 12px;
+      background: var(--surface, #f9fafb); border: 1px solid var(--border, #e5e7eb);
+      border-radius: 10px; flex-wrap: wrap;
+    }
+    .tcadm-status { margin-left: auto; font-size: 12px; color: var(--text-muted, #6b7280); }
+    .tcadm-status.ok  { color: var(--green, #059669); }
+    .tcadm-status.err { color: var(--red, #dc2626); }
+
+    html[data-tc-tab="requests"] .tcadm-tab:not(.tab-requests) { display: none; }
+    html[data-tc-tab="teachers"] .tcadm-tab:not(.tab-teachers) { display: none; }
+    html[data-tc-tab="profiles"] .tcadm-tab:not(.tab-profiles) { display: none; }
+    html[data-tc-tab="reviews"]  .tcadm-tab:not(.tab-reviews)  { display: none; }
+
+    .tcadm-list {
+      background: #fff; border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px; overflow: hidden; max-width: 1000px;
+    }
+    .tcadm-row {
+      padding: 12px 14px; border-bottom: 1px solid #f1f5f9;
+      display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;
+    }
+    .tcadm-row:last-child { border-bottom: none; }
+    .tcadm-row:hover { background: #fafafa; }
+    .tcadm-row-main { flex: 1; min-width: 260px; }
+    .tcadm-row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .tcadm-name { font-size: 13.5px; font-weight: 600; color: #1f2937; }
+    .tcadm-sub  { font-size: 11.5px; color: #6b7280; margin-top: 2px; }
+    .tcadm-msg  {
+      font-size: 12px; color: #374151; margin-top: 6px;
+      padding: 6px 10px; background: #f9fafb; border-radius: 6px;
+      border: 1px solid #f1f5f9; white-space: pre-wrap;
+    }
+    .tcadm-chip {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+      border: 1px solid #e5e7eb; background: #f3f4f6; color: #4b5563;
+    }
+    .tcadm-chip.pending  { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .tcadm-chip.approved { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+    .tcadm-chip.denied, .tcadm-chip.rejected, .tcadm-chip.hidden, .tcadm-chip.removed
+      { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .tcadm-chip.draft { background: #f3f4f6; color: #6b7280; }
+    .tcadm-chip.active { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+    .tcadm-chip.featured { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+    .tcadm-folders { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .tcadm-folder-chip {
+      font-size: 10.5px; padding: 2px 8px; border-radius: 999px;
+      background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
+    }
+    .tcadm-code {
+      font-family: ui-monospace, Menlo, monospace; font-weight: 700;
+      letter-spacing: .2em; font-size: 14px; color: #1e40af;
+      background: #eff6ff; border: 1px dashed #bfdbfe;
+      border-radius: 6px; padding: 2px 8px;
+    }
+    .tcadm-class-block {
+      margin-top: 8px; padding: 8px 10px;
+      border: 1px solid #f1f5f9; border-radius: 8px; background: #fcfcfd;
+      width: 100%;
+    }
+    .tcadm-roster-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+    .tcadm-roster-table td { padding: 4px 6px; border-top: 1px solid #f1f5f9; }
+    .tcadm-stars { color: #f59e0b; letter-spacing: .1em; }
+    .tcadm-review-text { font-size: 12.5px; color: #374151; font-style: italic; margin: 4px 0; }
+    .tcadm-empty {
+      padding: 30px 16px; text-align: center;
+      color: var(--text-muted, #6b7280); font-style: italic; font-size: 13px;
+    }
+    .tcadm-filter-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .tcadm-filter-btn {
+      font-size: 11px; padding: 3px 10px; border-radius: 999px;
+      border: 1px solid #d1d5db; background: #fff; cursor: pointer; color: #374151;
+    }
+    .tcadm-filter-btn.on { background: var(--primary, #2563eb); color: #fff; border-color: var(--primary, #2563eb); }
+
+    /* Approve / edit-folders modal */
+    .tcadm-modal-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,.45);
+      display: flex; align-items: center; justify-content: center; z-index: 200;
+    }
+    .tcadm-modal {
+      background: #fff; border-radius: 12px; padding: 20px 22px;
+      width: min(560px, 92vw); max-height: 86vh; overflow: auto;
+      box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    }
+    .tcadm-modal h3 { margin: 0 0 12px; font-size: 16px; }
+    .tcadm-modal label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin: 10px 0 4px; }
+    .tcadm-modal input[type="text"] {
+      width: 100%; padding: 6px 10px; font-size: 13px;
+      border: 1px solid #d1d5db; border-radius: 6px;
+    }
+    .tcadm-modal .tcadm-folder-check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 400; margin: 4px 0; }
+    .tcadm-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+    /* Profile preview card (matches the public team-page rendering) */
+    .tcadm-profile-preview {
+      width: 220px; text-align: center; padding: 12px;
+      border: 1px solid #e5e7eb; border-radius: 10px; background: #fff;
+    }
+    .tcadm-profile-preview img, .tcadm-profile-preview .ph {
+      width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 0 auto 6px;
+    }
+    .tcadm-profile-preview .ph {
+      display: flex; align-items: center; justify-content: center;
+      background: #f3f4f6; color: #9ca3af; font-size: 30px;
+    }
+    .tcadm-profile-preview .nm { font-weight: 600; font-size: 13px; }
+    .tcadm-profile-preview .sc { font-size: 11px; color: #6b7280; }
+    .tcadm-profile-preview .bl { font-size: 11.5px; color: #374151; margin-top: 4px; }
+  </style>
+</head>
+<body class="rm-desktop-only">
+  <div class="page tcadm-page">
+    <div class="page-header">
+      <h1 class="page-title">Teachers</h1>
+      <div class="page-subtitle">Admin-only · external-teacher class requests, rosters, featured profiles, and review moderation</div>
+    </div>
+
+    <div id="tcadm-gate" style="padding:24px;">Loading…</div>
+
+    <div id="tcadm-content" style="display:none;">
+      <div class="tab-bar" id="tcadm-hub-tabs"></div>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          const HUB = [
+            { tab: 'requests', label: 'Class Requests' },
+            { tab: 'teachers', label: 'Teachers & Classes' },
+            { tab: 'profiles', label: 'Featured Profiles' },
+            { tab: 'reviews',  label: 'Reviews' },
+          ];
+          const bar = document.getElementById('tcadm-hub-tabs');
+          const current = window.__TC_TAB;
+          HUB.forEach(t => {
+            const a = document.createElement('a');
+            a.href = '/rm/pages/admin-teachers.html?tab=' + t.tab;
+            a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
+            a.textContent = t.label;
+            a.style.textDecoration = 'none';
+            bar.appendChild(a);
+          });
+        });
+      </script>
+
+      <div class="tcadm-toolbar">
+        <button class="btn" id="tcadm-refresh">Refresh</button>
+        <span id="tcadm-status" class="tcadm-status"></span>
+      </div>
+
+      <div class="tcadm-tab tab-requests">
+        <div id="tcadm-requests-list" class="tcadm-list"><div class="tcadm-empty">Loading requests…</div></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:1000px;">
+          Approving a request provisions a <code>schedules</code> doc (<code>kind:'teacher-class'</code>) owned by the
+          teacher, creates a join code, and stamps the requester's <code>users</code> profile
+          <code>category:'teacher'</code>. The teacher manages their roster from their own dashboard on the main site.
+        </div>
+      </div>
+
+      <div class="tcadm-tab tab-teachers">
+        <div id="tcadm-teachers-list" class="tcadm-list"><div class="tcadm-empty">Loading teachers…</div></div>
+      </div>
+
+      <div class="tcadm-tab tab-profiles">
+        <div id="tcadm-profiles-list" class="tcadm-list"><div class="tcadm-empty">Loading profiles…</div></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:1000px;">
+          Approved profiles appear in the "Teachers Using Our Materials" section of the public People page.
+          Any edit by the teacher automatically pulls the profile back to <em>pending</em> until re-approved.
+        </div>
+      </div>
+
+      <div class="tcadm-tab tab-reviews">
+        <div class="tcadm-filter-row" id="tcadm-review-filters"></div>
+        <div id="tcadm-reviews-list" class="tcadm-list"><div class="tcadm-empty">Loading reviews…</div></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:1000px;">
+          Approved reviews show on the public Classes page. <strong>Featured</strong> reviews additionally appear
+          under the matching teacher's card on the People page.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/desktop-only-guard.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/admin-teachers.js"></script>
+</body>
+</html>

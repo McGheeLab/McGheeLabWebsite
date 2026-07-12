@@ -90,10 +90,10 @@
     let doc = null;
     try {
       // Always go through the adapter — bare /api/data/ fetches don't exist
-      // on the static deploy and would 404. If api.load isn't loaded yet
-      // (script-order issue), bail rather than fall through to a doomed fetch.
-      if (!window.api?.load) return;
-      doc = await window.api.load('settings/category_seeds.json');
+      // on the static deploy and would 404. `api` is a top-level `const` in
+      // util.js so it's NOT attached to window; guard on the lexical binding.
+      if (typeof api === 'undefined' || !api.load) return;
+      doc = await api.load('settings/category_seeds.json');
     } catch { return; }
     for (const r of ((doc && doc.paths) || [])) {
       const cat = r.category || '';

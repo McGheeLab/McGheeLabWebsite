@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Research Workflow — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    /* ─── Section 1: Lab Research workflow flowchart ─────────── */
+    .daily-flow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .daily-flow-node {
+      background: #fff;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 10px;
+      cursor: pointer;
+      transition: border-color .15s, transform .15s;
+      text-align: center;
+    }
+    .daily-flow-node:hover { transform: translateY(-2px); }
+    .daily-flow-node.is-active {
+      border-color: #2563eb;
+      box-shadow: 0 4px 12px -2px rgba(37,99,235,0.25);
+    }
+    .daily-flow-node .icon { font-size: 22px; line-height: 1; }
+    .daily-flow-node .name { font-weight: 600; font-size: 13px; margin-top: 6px; }
+    .daily-flow-node .role { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .daily-flow-detail {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 4px;
+    }
+    .daily-flow-detail h4 { margin: 0 0 6px 0; font-size: 14px; }
+    .daily-flow-detail p { font-size: 13px; color: #374151; margin: 4px 0; }
+    .daily-flow-detail .feeds {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #e5e7eb;
+    }
+    .daily-flow-detail .feeds strong { color: #2563eb; }
+
+    /* ─── Section 2: tracker entry confirmer ─────────────────── */
+    .tracker-sim {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+    .tracker-sim-head { font-weight: 600; color: #92400e; margin-bottom: 8px; }
+    .tracker-sim-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      transition: opacity .25s, transform .25s;
+    }
+    .tracker-sim-row.is-resolved {
+      opacity: 0.5;
+      transform: translateX(8px);
+    }
+    .tracker-sim-source {
+      font-size: 10px;
+      text-transform: uppercase;
+      background: #fef3c7;
+      color: #b45309;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .tracker-sim-text { flex: 1; font-size: 13px; color: #1f2937; }
+    .tracker-sim-hours {
+      width: 56px;
+      padding: 4px 6px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: right;
+    }
+    .tracker-sim-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tracker-sim-btn.ok { background: #10b981; color: white; }
+    .tracker-sim-btn.skip { background: #e5e7eb; color: #6b7280; }
+    .tracker-sim-result {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-left: 4px solid #059669;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #065f46;
+    }
+    .tracker-sim-result.empty {
+      background: #f9fafb;
+      border-color: #e5e7eb;
+      border-left-color: #9ca3af;
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    /* ─── Section 3: notebook entry simulator ────────────────── */
+    .nb-sim {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+      margin: 14px 0;
+    }
+    .nb-sim-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .nb-sim-row label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-weight: 600;
+      color: #6b7280;
+      min-width: 60px;
+    }
+    .nb-sim-row input[type="text"], .nb-sim-row input[type="date"] {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .nb-sim-figure {
+      position: relative;
+      display: inline-block;
+      margin-top: 6px;
+    }
+    .nb-sim-figure img {
+      width: 160px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      background: #f3f4f6;
+      display: block;
+    }
+    .nb-sim-figure.is-flagged img {
+      outline: 2px solid #f59e0b;
+      outline-offset: -2px;
+    }
+    .nb-sim-flag {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.85);
+      color: #6b7280;
+      border: 1px solid #d1d5db;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nb-sim-figure.is-flagged .nb-sim-flag {
+      background: #f59e0b;
+      color: #fff;
+      border-color: #d97706;
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.25);
+    }
+    .nb-sim-pmr-preview {
+      margin-top: 12px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-left: 4px solid #f59e0b;
+      border-radius: 10px;
+      padding: 12px;
+      display: none;
+    }
+    .nb-sim-pmr-preview.is-visible { display: block; }
+    .nb-sim-pmr-preview h4 {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #92400e;
+    }
+    .nb-sim-pmr-preview .pmr-card {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .nb-sim-pmr-preview .pmr-card img {
+      width: 90px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .nb-sim-pmr-preview .pmr-card-text {
+      font-size: 12px;
+      color: #374151;
+    }
+    .nb-sim-pmr-preview .pmr-card-text .ttl {
+      font-weight: 600;
+      color: #1f2937;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; Daily research workflow
+        </div>
+        <h1 class="training-module-title">Daily Research Workflow in RM</h1>
+        <p class="training-module-subtitle">
+          The four pages an active researcher touches every working day —
+          activity tracker, lab notebook, library, protocols — and how
+          they feed your next PMR without you re-typing anything. By the
+          end of this module you can capture a day's research output in
+          RM correctly and confidently.
+        </p>
+      </header>
+
+      <div class="training-layout">
+
+        <aside class="training-toc" aria-label="Section navigation">
+          <h3>Sections</h3>
+          <ol>
+            <li><a href="#sec-flow" class="active">The Lab Research workflow</a></li>
+            <li><a href="#sec-tracker">Activity tracker</a></li>
+            <li><a href="#sec-notebook">Lab notebook</a></li>
+            <li><a href="#sec-library">Library</a></li>
+            <li><a href="#sec-protocols">Protocols</a></li>
+            <li><a href="#sec-cross">How they talk to each other</a></li>
+            <li><a href="#sec-pmr">How they feed PMR</a></li>
+            <li><a href="#sec-capstone">Capstone — a real day</a></li>
+            <li><a href="#sec-quiz">Quiz</a></li>
+            <li><a href="#sec-checklist">Daily-rhythm checklist</a></li>
+          </ol>
+        </aside>
+
+        <main>
+
+          <!-- 1. The Lab Research workflow -->
+          <section class="training-section" id="sec-flow">
+            <h2>1. The Lab Research workflow</h2>
+            <p>
+              On the home page, click the <strong>🔬 Lab Research</strong>
+              card. The top nav is replaced by a workflow strip listing
+              the pages of the daily flow. Those six pages are not
+              interchangeable — each plays a distinct role, and each
+              produces signals that the others consume.
+            </p>
+            <p>
+              Click each node below to see what that page is <em>for</em>
+              in your daily flow, and what it produces for the
+              downstream pages.
+            </p>
+
+            <div class="daily-flow-grid" id="daily-flow-grid">
+              <!-- populated by JS -->
+            </div>
+            <div class="daily-flow-detail" id="daily-flow-detail">
+              <h4>Loading…</h4>
+            </div>
+
+            <div class="training-callout">
+              <strong>The rule:</strong> stay <em>inside</em> the workflow.
+              Don't drop back to the home page between pages — use the
+              chips on the strip. The workflow's context (split-view
+              pairing, popout chat) follows you.
+            </div>
+          </section>
+
+          <!-- 2. Activity tracker -->
+          <section class="training-section" id="sec-tracker">
+            <h2>2. Activity tracker</h2>
+            <p>
+              The tracker is the single ledger of your research time.
+              Most entries land in it <em>without you typing</em> — every
+              meaningful action on every RM page fires a <strong>pending
+              tracker entry</strong> via the V3.160 ActivitySignals
+              helper. Your job is to confirm hours, not to dictate the
+              whole entry.
+            </p>
+
+            <h3>The two lanes that matter</h3>
+            <ul>
+              <li><strong>Pending banner</strong> — at the top of the
+                daily view. Auto-created entries waiting on hours. One
+                tap on the hours field + ✓ commits the entry as
+                <code>confirmed</code>. ✗ dismisses it.</li>
+              <li><strong>Coming-up lane</strong> — pending entries
+                scheduled for <em>today</em>: a subtask whose due_date
+                is today, a calendar event on today's date, an action
+                item with a deadline of today. Each row has a "Log it"
+                button that moves it into the pending banner once the
+                work actually happened.</li>
+            </ul>
+
+            <h3>Try it — confirm three pending entries</h3>
+            <p>
+              The simulator below mirrors the real tracker's pending
+              banner. Each row has a suggested duration prefilled from
+              the source's <code>hours_estimate</code>; type a real
+              number and confirm, or dismiss if the entry shouldn't
+              count.
+            </p>
+
+            <div class="tracker-sim" id="tracker-sim">
+              <div class="tracker-sim-head">📋 3 entries waiting on hours</div>
+              <!-- populated by JS -->
+            </div>
+            <div class="tracker-sim-result empty" id="tracker-sim-result">
+              Confirm or dismiss entries above. The PMR Activity block updates as you go.
+            </div>
+
+            <div class="training-callout">
+              <strong>The 30-second habit.</strong> End of day, open the
+              tracker, walk the pending banner. Three taps per entry on
+              an average day. Anyone who tells you they "don't have
+              time" is paying the cost in an empty PMR Activity block
+              and a 1:1 where Alex doesn't know what they did this
+              week.
+            </div>
+          </section>
+
+          <!-- 3. Lab notebook -->
+          <section class="training-section" id="sec-notebook">
+            <h2>3. Lab notebook</h2>
+            <p>
+              The notebook is where you write up an experiment — title,
+              date, body, attachments (images / PDFs), references to
+              protocols and inventory items, and observations once a run
+              is underway. Each saved entry auto-creates a pending
+              tracker entry (you'll confirm hours on it in the
+              tracker).
+            </p>
+
+            <h3>What to include in an entry</h3>
+            <ul>
+              <li><strong>Date.</strong> Defaults to today. Set it to the day the
+                work actually happened, not the day you wrote it up.</li>
+              <li><strong>Project.</strong> Picks from your assigned
+                projects. Drives downstream filtering + the PMR
+                project-overview rollup.</li>
+              <li><strong>Phase.</strong> 📝 plan / ▶ running / ✅
+                complete. Switch to <em>running</em> when you walk to the
+                bench; <em>complete</em> when the run is over. Running
+                mode shows the observations log + summary fields.</li>
+              <li><strong>Attachments.</strong> Drop in microscopy
+                images, gel scans, vendor datasheets. Each gets a
+                thumbnail in the attachments strip.</li>
+              <li><strong>References.</strong> Reagents from inventory,
+                protocols you followed. These chips light up the
+                lab-wide "Materials Used" panel and the protocol's
+                "followed by" panel.</li>
+            </ul>
+
+            <h3>The 📌 PMR badge — flag images for discussion</h3>
+            <p>
+              Every image attachment has a 📌 in its top-left corner.
+              Clicking it flags the image for review in your next PMR
+              period. The image then appears as a card in the PMR's
+              Figure Reviews block, with an editable caption, a
+              fullscreen lightbox, a deep-link back to <em>this</em>
+              notebook entry, and a comment thread the admin can use
+              during the 1:1.
+            </p>
+
+            <h3>Try it — flag a figure for PMR</h3>
+            <p>
+              The mock entry below has one image. Click the 📌 badge to
+              flag it; watch the preview update to show what would
+              appear in your next PMR period.
+            </p>
+
+            <div class="nb-sim" id="nb-sim">
+              <div class="nb-sim-row">
+                <label>Title</label>
+                <input type="text" id="nb-sim-title" value="GELS hydrogel Day 7 — fluorescence">
+              </div>
+              <div class="nb-sim-row">
+                <label>Date</label>
+                <input type="date" id="nb-sim-date">
+              </div>
+              <div class="nb-sim-row">
+                <label>Image</label>
+                <div class="nb-sim-figure" id="nb-sim-figure">
+                  <img alt="microscopy thumbnail placeholder"
+                       src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120'%3E%3Crect width='160' height='120' fill='%231f2937'/%3E%3Ccircle cx='52' cy='62' r='12' fill='%23fde68a' opacity='.8'/%3E%3Ccircle cx='88' cy='44' r='8' fill='%23fde68a' opacity='.7'/%3E%3Ccircle cx='118' cy='76' r='14' fill='%23fde68a' opacity='.9'/%3E%3Ccircle cx='38' cy='98' r='6' fill='%23fde68a' opacity='.6'/%3E%3Ccircle cx='128' cy='30' r='5' fill='%23fde68a' opacity='.5'/%3E%3C/svg%3E">
+                  <button class="nb-sim-flag" id="nb-sim-flag" title="Flag for next PMR">📌</button>
+                </div>
+              </div>
+
+              <div class="nb-sim-pmr-preview" id="nb-sim-pmr-preview">
+                <h4>What would appear in your next PMR</h4>
+                <div class="pmr-card">
+                  <img alt="" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120'%3E%3Crect width='160' height='120' fill='%231f2937'/%3E%3Ccircle cx='52' cy='62' r='12' fill='%23fde68a' opacity='.8'/%3E%3Ccircle cx='88' cy='44' r='8' fill='%23fde68a' opacity='.7'/%3E%3Ccircle cx='118' cy='76' r='14' fill='%23fde68a' opacity='.9'/%3E%3Ccircle cx='38' cy='98' r='6' fill='%23fde68a' opacity='.6'/%3E%3Ccircle cx='128' cy='30' r='5' fill='%23fde68a' opacity='.5'/%3E%3C/svg%3E">
+                  <div class="pmr-card-text">
+                    <div class="ttl" id="nb-sim-pmr-title">GELS hydrogel Day 7 — fluorescence</div>
+                    <div>📓 From: <span id="nb-sim-pmr-link">(notebook entry)</span></div>
+                    <div style="margin-top:4px;color:#6b7280">
+                      💬 conversation · + Create follow-up task
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="training-callout">
+              <strong>Don't paste images into PMR weekly entries by hand.</strong>
+              That's the slow path — and the image isn't connected to the
+              notebook entry that produced it, so you lose context. Flag
+              from the notebook; the figure-review card carries the link
+              back.
+            </div>
+          </section>
+
+          <!-- 4. Library -->
+          <section class="training-section" id="sec-library">
+            <h2>4. Library</h2>
+            <p>
+              The library is the lab's collective paper reading surface.
+              It ingests PDFs (Chrome extension grab, manual upload, or
+              the auto-download pipeline), runs metadata extraction, and
+              opens each paper in the reader with highlight + comment
+              tooling.
+            </p>
+
+            <h3>The four jobs the library does</h3>
+            <ul>
+              <li><strong>Ingest.</strong> Paste a DOI, drop a PDF, or
+                let the Chrome extension grab one from a journal tab.
+                Metadata extracts automatically (title, authors, year,
+                journal, abstract, references).</li>
+              <li><strong>Read + annotate.</strong> Open a paper, drag
+                to highlight, double-click a highlight to leave a
+                comment. Citations on the page are listed in the
+                left-rail context menu; hover one to see it highlighted
+                inline.</li>
+              <li><strong>Discuss.</strong> Comments thread per paper
+                and per highlight. Other lab members see them on the
+                same paper.</li>
+              <li><strong>Surface citations for paper writing.</strong>
+                Library entries are the canonical source for citations
+                dropped into the paper builder via <kbd>Cmd+K</kbd>.</li>
+            </ul>
+
+            <h3>Per-review-task overlays</h3>
+            <p>
+              You can scope highlights + comments to a specific review
+              task. Reading the same paper for two different reviews
+              (a GELS lit review and an MEBP comparison, say) → two
+              overlays, toggleable. Highlights stay separate even
+              though the paper is shared.
+            </p>
+
+            <div class="training-callout">
+              <strong>Comments are durable.</strong> They survive
+              re-imports and overlay toggling. Use them for the
+              non-obvious "this paragraph is actually the load-bearing
+              one for our argument" annotations that you'd otherwise
+              forget by next week.
+            </div>
+          </section>
+
+          <!-- 5. Protocols -->
+          <section class="training-section" id="sec-protocols">
+            <h2>5. Protocols</h2>
+            <p>
+              Protocols are the lab's reusable step-by-step procedures —
+              hydrogel formulations, staining workflows, cell-culture
+              checklists. Each protocol is a Y.Doc collaborative
+              document with versioning, materials lists, figure
+              attachments, and (the killer feature) <strong>formula
+              blocks</strong> that turn the protocol into a live
+              calculator.
+            </p>
+
+            <h3>Anatomy of a protocol</h3>
+            <ul>
+              <li><strong>Sections + steps.</strong> Numbered steps,
+                with notes and safety callouts. Markdown-style rich
+                text.</li>
+              <li><strong>Materials block.</strong> Reagents +
+                equipment. Each row can resolve to a real inventory
+                item (chip with current stock + hazard pictograms).</li>
+              <li><strong>Formula block.</strong> Named variables and
+                an expression. Inline <code>[!var:name]</code> tokens
+                inside step text render as live computed chips. When
+                you run the protocol, you enter input values once;
+                every step's calculations update.</li>
+              <li><strong>Version history.</strong> Every protocol auto-
+                saves snapshots. Roll back to any prior version; diff
+                them to see what changed.</li>
+            </ul>
+
+            <h3>"Run" mode pulls protocols into the notebook</h3>
+            <p>
+              When you click 🧮 calc in the notebook's protocol picker,
+              the protocol's formula block opens as a modal — enter
+              inputs, choose render format (Steps / Snippet / Table),
+              and the rendered block lands in your notebook entry with
+              all variable chips computed. Re-click to re-open with the
+              same inputs preserved.
+            </p>
+
+            <div class="training-callout">
+              <strong>Build the formula block early.</strong> Even if a
+              protocol is mostly text steps, naming the 2-3 quantities
+              that matter as variables turns the rest of the protocol
+              into a live worksheet. You'll never re-do the maths by
+              hand again.
+            </div>
+          </section>
+
+          <!-- 6. Cross-page integration -->
+          <section class="training-section" id="sec-cross">
+            <h2>6. How these four pages talk to each other</h2>
+            <p>
+              The connections aren't decorative — they're how the
+              system avoids making you re-type things. Memorize this
+              short list:
+            </p>
+            <ul>
+              <li><strong>Notebook → Tracker.</strong> Save a notebook
+                entry → pending tracker entry on the entry's date,
+                category <code>research › experiments</code>. Confirm
+                hours later.</li>
+              <li><strong>Protocol → Tracker.</strong> Save a protocol
+                (create or substantial edit) → pending tracker entry on
+                today, category <code>research › writing ›
+                protocols</code>.</li>
+              <li><strong>Notebook → Protocol.</strong> Notebook's
+                protocol-followed panel back-links to every notebook
+                entry that referenced this protocol. Useful when
+                debugging "why did my hydrogel set differently last
+                week?" — open the protocol, see which run it was, jump
+                to that entry.</li>
+              <li><strong>Library → Paper builder.</strong> Library
+                entries are the citation source for <kbd>Cmd+K</kbd> in
+                the paper builder. Annotations on a library paper
+                surface in the paper's "evidence" panel when you cite
+                it.</li>
+              <li><strong>Notebook image → PMR.</strong> The 📌 flag (Section 3).</li>
+              <li><strong>Protocol materials → Inventory.</strong> Each
+                materials row that resolves to an inventory item
+                appears in <em>that item's</em> "used in protocols"
+                panel — so you know what to keep stocked.</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>The pattern:</strong> do the work once on the
+              page where it's most natural. The cross-links fire
+              automatically. <em>Never duplicate.</em>
+            </div>
+          </section>
+
+          <!-- 7. How they feed PMR -->
+          <section class="training-section" id="sec-pmr">
+            <h2>7. How they feed PMR</h2>
+            <p>
+              At the end of the week, you open PMR and almost everything
+              is already there:
+            </p>
+            <ul>
+              <li><strong>Activity block</strong> — your confirmed
+                tracker entries dated within the period, grouped by week
+                and category. Pending entries appear with an amber
+                badge — Alex will ask about those during the 1:1.</li>
+              <li><strong>Stats block</strong> — hours-by-top-level-
+                category for the period + a daily sparkline. Sourced
+                from the same tracker entries.</li>
+              <li><strong>Figure reviews block</strong> — every notebook
+                image you flagged with 📌 in this period. Editable
+                caption, comment thread, deep-link back.</li>
+              <li><strong>Open tasks block</strong> — every subtask
+                where you're the assignee, across all of your task
+                builders. Subtasks created from PMR (via "+ Assign
+                task") cross-link back.</li>
+              <li><strong>Paper writing block</strong> — auto-listed
+                drafts where you're in <code>authorUids</code>.</li>
+            </ul>
+            <p>
+              All you actually <em>write</em> in PMR is:
+            </p>
+            <ul>
+              <li>A short paragraph in the current weekly entry — what
+                got done, what's blocked, what's coming next.</li>
+              <li>Barriers cards when something's blocking your
+                progress (and you don't want to wait for the 1:1 to
+                raise it).</li>
+              <li>Optional comments on any block where you want to
+                flag something for the 1:1.</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>An empty PMR Activity block on Friday means
+              something went wrong during the week.</strong> Almost
+              always: pending tracker entries weren't confirmed.
+              Backfill them; the block fills in.
+            </div>
+          </section>
+
+          <!-- 8. Capstone -->
+          <section class="training-section" id="sec-capstone">
+            <h2>8. Capstone — a real day</h2>
+            <p>
+              Work through this scenario start-to-finish. Each step is
+              the smallest possible action that leaves the right trace
+              in RM. Total time: ~10 minutes of work + 8 minutes of RM
+              capture spread across the day.
+            </p>
+
+            <ol>
+              <li>
+                <strong>Morning.</strong> Open the home page →
+                <em>Lab Research</em> workflow card. Strip appears with
+                six chips. Glance at the tracker's Coming-up lane —
+                anything due today? Note the deadline.
+              </li>
+              <li>
+                <strong>At the bench.</strong> Open Lab Notebook → "+
+                new entry". Title: "Hydrogel batch 12 — day 7
+                imaging". Date: today. Project: GELS. Phase: ▶
+                running. Hit save.
+              </li>
+              <li>
+                <strong>Scope time.</strong> Acquire 5 confocal images
+                of your hydrogel. Drag-and-drop one of them into the
+                notebook entry's body. Hit the 📌 PMR badge on the
+                image — it's the one Alex needs to see at next 1:1.
+                Type 2 sentences in the body explaining what you saw.
+              </li>
+              <li>
+                <strong>Reagent reference.</strong> Click 🧪 Inventory
+                in the notebook's toolbar. Pick "PBS, 1×". A chip lands
+                in the body. Same for "Hoechst 33342". Both show
+                hazard pictograms.
+              </li>
+              <li>
+                <strong>Followed a protocol.</strong> Click 📋 Protocol
+                in the toolbar. Pick "GELS staining v3". Press <kbd>Alt+
+                Enter</kbd> on the row → 🧮 calc opens. Enter sample
+                volume (2 mL), pick Steps format, insert. The protocol
+                lands in your entry as live-computed steps.
+              </li>
+              <li>
+                <strong>Phase complete.</strong> Click ⏹ End run. Type
+                a one-line summary in the Summary field that just
+                appeared. Save.
+              </li>
+              <li>
+                <strong>Library hop.</strong> Switch chip on the strip
+                to Library. Open the Maeda 2024 paper you've been
+                reading. Highlight the methods paragraph that contradicts
+                your batch's behaviour; double-click to comment "ours
+                gels in 45 min not 30 — investigate temperature".
+              </li>
+              <li>
+                <strong>End of day.</strong> Switch to tracker. Pending
+                banner shows two entries: the notebook entry (research
+                › experiments) and the protocol-save (research ›
+                writing › protocols). Type real hours (1.5h, 0.5h),
+                hit ✓ on both.
+              </li>
+              <li>
+                <strong>Friday.</strong> Open PMR. Activity block shows
+                your week's entries grouped by day. Stats block shows
+                ~10h research-experiments, ~3h research-writing-papers,
+                etc. Figure reviews block has the confocal image you
+                flagged earlier in the week. File the weekly entry
+                paragraph. You're done.
+              </li>
+            </ol>
+
+            <div class="training-callout">
+              <strong>What didn't you do?</strong> You didn't type a
+              tracker entry by hand. You didn't paste an image into
+              PMR. You didn't write "I worked on protocol X today" in
+              the weekly entry — the Stats block shows it. You did
+              the work; the system recorded the work.
+            </div>
+          </section>
+
+          <!-- 9. Quiz -->
+          <section class="training-section" id="sec-quiz">
+            <h2>9. Quiz</h2>
+            <p>
+              Five questions on the daily flow. Pick an answer; wrong
+              picks explain the right one.
+            </p>
+
+            <div class="rm-quiz" id="rm-quiz">
+              <div class="rm-quiz-item" data-correct="auto">
+                <div class="question">You spent 90 minutes acquiring confocal images and writing them up in a lab notebook entry. How does that time enter the tracker?</div>
+                <div class="choices">
+                  <button data-choice="manual">Open the tracker, click "+ New entry", type "imaging 1.5h"</button>
+                  <button data-choice="auto">Already there — saving the notebook entry logged an activity event automatically</button>
+                  <button data-choice="pmr">Type it into the next PMR weekly entry</button>
+                  <button data-choice="nothing">It doesn't — notebook entries aren't auto-tracked</button>
+                </div>
+                <div class="explain"><strong>Fully automatic.</strong> Saving a lab notebook entry logs an activity event on its own (V3.320) — it shows up on your activity heatmap with zero clicks. There are no hours and nothing to confirm.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="flag">
+                <div class="question">A confocal image you acquired is the single most important thing to discuss at next PMR. What do you do?</div>
+                <div class="choices">
+                  <button data-choice="paste">Paste it into the PMR weekly entry by hand</button>
+                  <button data-choice="email">Email it to Alex with a "see this at next PMR" subject</button>
+                  <button data-choice="flag">Click 📌 on the image's thumbnail in the lab notebook</button>
+                  <button data-choice="remember">Remember to bring it up verbally at the 1:1</button>
+                </div>
+                <div class="explain"><strong>📌 flag.</strong> One click creates a figure-review card in your next PMR period with editable caption + comment thread + deep-link back to the originating notebook entry. The other options all lose the notebook context.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="comingup">
+                <div class="question">A subtask has a due date of today. Where do you see it on the tracker?</div>
+                <div class="choices">
+                  <button data-choice="banner">Pending banner — it auto-converts as you type hours</button>
+                  <button data-choice="comingup">Coming-up lane — until you click "Log it" to move it to pending</button>
+                  <button data-choice="weekly">Weekly view only</button>
+                  <button data-choice="never">Subtasks don't surface in the tracker</button>
+                </div>
+                <div class="explain"><strong>Coming-up lane.</strong> Future-dated entries (subtask due_date, calendar events, action item deadlines) surface in the Coming-up lane on their due date. Click "Log it" once the work actually happened and it moves into the pending banner for hours-confirmation.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="protocol">
+                <div class="question">You're running a protocol and need 2.5 mL working solution. The protocol has a formula block. Power-user move?</div>
+                <div class="choices">
+                  <button data-choice="calc">Pull up the calculator app on your phone, compute, type the result</button>
+                  <button data-choice="protocol">In the notebook, 📋 Protocol → row → 🧮 calc → enter 2.5 mL → insert as Steps</button>
+                  <button data-choice="copy">Open the protocol in a separate tab, eyeball the numbers</button>
+                  <button data-choice="memory">Try to remember the per-mL ratio from last time</button>
+                </div>
+                <div class="explain"><strong>🧮 calc.</strong> The notebook's protocol picker has a calc sub-action that opens the protocol's formula block as a modal, prefilled. Outputs render as live chips in your notebook entry. Re-clicking re-opens with the same inputs preserved.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="activity">
+                <div class="question">Friday afternoon. Your PMR Activity block is empty. What went wrong?</div>
+                <div class="choices">
+                  <button data-choice="bug">RM is broken — file a bug report</button>
+                  <button data-choice="activity">You didn't confirm pending tracker entries during the week; backfill them now</button>
+                  <button data-choice="period">The PMR period dates are wrong</button>
+                  <button data-choice="quiet">You didn't do enough work; PMR is empty when you're idle</button>
+                </div>
+                <div class="explain"><strong>Backfill pending.</strong> The PMR Activity block reads <em>confirmed</em> tracker entries. Pending entries don't count. Empty block almost always means tracker confirmations were skipped — walk the pending banner across the week's dates and confirm.</div>
+              </div>
+
+              <div class="rm-quiz-score" id="rm-quiz-score">Pick an answer on each item to see how fluent you are in the daily flow.</div>
+            </div>
+          </section>
+
+          <!-- 10. Checklist -->
+          <section class="training-section" id="sec-checklist">
+            <h2>10. Daily-rhythm checklist</h2>
+            <p>
+              The habits that make the daily flow actually work. Tick
+              them off as you adopt each one.
+            </p>
+
+            <div class="submit-checklist" id="daily-checklist">
+              <h3>Daily-rhythm toolkit</h3>
+              <label><input type="checkbox"> I open the Lab Research workflow first thing in the morning instead of bookmarking individual pages.</label>
+              <label><input type="checkbox"> I check the tracker's Coming-up lane at start-of-day for anything due today.</label>
+              <label><input type="checkbox"> I create a notebook entry the moment I sit at the bench, in 📝 plan phase.</label>
+              <label><input type="checkbox"> I switch the notebook entry to ▶ running before starting the actual run, so observations are time-stamped against the run start.</label>
+              <label><input type="checkbox"> I attach images to the notebook entry rather than to chat or PMR directly.</label>
+              <label><input type="checkbox"> I click 📌 on any image that matters before leaving the notebook entry.</label>
+              <label><input type="checkbox"> I reference inventory items + protocols via the chip pickers so the cross-page panels light up.</label>
+              <label><input type="checkbox"> I use 🧮 calc instead of computing protocol values by hand.</label>
+              <label><input type="checkbox"> I confirm all pending tracker entries at end-of-day — no entry left waiting overnight.</label>
+              <label><input type="checkbox"> I file a PMR weekly entry every Friday without being chased.</label>
+              <label><input type="checkbox"> I check that my PMR Activity + Stats blocks reflect reality at week's end — if empty, backfill.</label>
+              <div class="submit-checklist-progress" id="daily-checklist-progress">0 of 11 adopted</div>
+              <div class="submit-checklist-bar" id="daily-checklist-bar"><div style="width:0%"></div></div>
+            </div>
+
+            <div class="insight">
+              <strong>What's next.</strong> Once the rhythm is mostly
+              green, work through V3.179 (Tasks &amp; PMR) for the
+              admin-side mechanics and V3.180 (Papers in RM) when you
+              start drafting.
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-rm-daily-research.js"></script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 1: Atoms as Springs — Solid Mechanics Foundations</title>
+<style>
+  /* ===== worksheet house style (print-first, self-contained) ===== */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .blank.w{min-width:160px}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .circle{color:#334155}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Solid Mechanics Foundations · Lesson 1 Worksheet</div>
+  <h1>Atoms as Springs — Why Materials Stretch</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="01-atoms-as-springs.html"><b>01-atoms-as-springs.html</b></a> and keep it next to this
+  worksheet. Each experiment below uses one tab of the lesson. <b>Predict first</b> (before you
+  touch the sliders!), then run the experiment, record your data, and explain what you saw.
+  The <b>stats panel</b> (left side, under the sliders) and the <b>verdict box</b> (below the
+  plots) give you the numbers to record.
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>The invisible tug-of-war</h2>
+  <p class="goal">Goal: discover the natural spacing r₀ where two atoms are perfectly happy.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">If two atoms get pushed <b>closer</b> than they like, they will…
+  &nbsp;☐ pull together &nbsp; ☐ push apart &nbsp; ☐ do nothing</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click the <b>Natural spacing</b> scenario. Then slowly drag the <b>Separation</b> slider
+    from its far left (0.88 × r₀) to its far right (2.0 × r₀). Watch the arrows.</li>
+    <li>At each separation in the table, pause and read the <b>Force</b> stat and arrow color.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Separation (× r₀)</th><th>Force value (ε/σ)</th><th>Direction (push apart / pull together / zero)</th></tr>
+    <tr><td>0.92</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>1.00</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>1.07</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>1.25</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td>1.80</td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>The force is exactly zero at separation <span class="blank"></span> × r₀.
+  The <b>strongest pull-back</b> happens at <span class="blank"></span> × r₀
+  <span class="hint">(check the stats panel)</span>.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Using your table, explain why a solid resists <em>both</em> squeezing and stretching:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Past 1.11 × r₀ the pull-back gets <em>weaker</em> as you keep stretching. What would that
+  mean for a material being torn apart?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>When is a bond "just a spring"?</h2>
+  <p class="goal">Goal: find out how far you can stretch a bond before Hooke's straight-line rule breaks down.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">The straight-line rule will be off by more than 8% once the stretch window
+  passes about… &nbsp;☐ 0.5% &nbsp; ☐ 2% &nbsp; ☐ 10% &nbsp; ☐ 30% of r₀</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Realistic wiggle (0.6%)</b>. Read the <b>Worst error</b> stat.</li>
+    <li>Now widen the <b>Stretch window</b> slider to each value in the table and record the
+    worst error each time. (The plot zooms with you — watch the curve peel away from the line.)</li>
+    <li>Watch the verdict box as you widen: note where it flips from good (green) to
+    "noticeably off" (yellow), and where it flips to "failed" (red).</li>
+    <li>Finally, set the window back to 2% and drag <b>Bond stiffness</b> from 0.5× to 2×.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Window (± % of r₀)</th><td>0.6</td><td>1</td><td>2</td><td>3</td><td>5</td><td>10</td></tr>
+    <tr><th>Worst error (%)</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Verdict flips to yellow at about <span class="blank"></span>% and to red at about
+  <span class="blank"></span>%.&nbsp;
+  Which side does the straight line miss by more? &nbsp;☐ squeeze &nbsp; ☐ stretch</p>
+  <p>Changing bond stiffness changed the % error: &nbsp;☐ yes &nbsp; ☐ no</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>Real solids almost never stretch their bonds past about 0.5%. Using your data, explain why
+  Hooke's law works so well for everyday objects:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Build a real spring out of atoms</h2>
+  <p class="goal">Goal: show that object stiffness comes from how atomic springs are wired together — series shares the stretch, parallel shares the load.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">If you double the number of parallel chains (same pull), the force in EACH
+  atomic spring will… &nbsp;☐ double &nbsp; ☐ halve &nbsp; ☐ stay the same</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Single chain</b>, then set <b>Pull</b> to 8 mm. Fill in row A below from the
+    stats panel.</li>
+    <li>Raise <b>Chains in parallel</b> to 4 (row B). Watch the spring colors as you do it.</li>
+    <li>Now raise <b>Atoms per chain</b> to 23 (row C). Watch the colors again.</li>
+    <li>For each row, also compute k<sub>total</sub> = k × M ÷ (N − 1) by hand and compare with
+    the sim's "k of object".</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>Atoms N</th><th>Chains M</th><th>k of object (sim)</th><th>k × M ÷ (N−1) (you)</th><th>Force per spring</th><th>Total force</th></tr>
+    <tr><td class="lab">A</td><td>12</td><td>1</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B</td><td>12</td><td>4</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C</td><td>23</td><td>4</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>When you lengthened the chain (B→C), the spring colors got…
+  &nbsp;☐ warmer (more force each) &nbsp; ☐ cooler (less force each) &nbsp; ☐ no change</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>A hardware-store coil spring contains no special "springy" ingredient. Using the words
+  <b>atomic springs</b>, <b>series</b>, and <b>parallel</b>, explain what a metal spring really is:</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Read an energy valley</h2>
+  <p class="goal">Goal: connect the shape of the bond's energy valley to real material stiffness — no calculus needed, just the marble-in-a-bowl picture.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">A <b>deeper, narrower</b> energy valley should make a material…
+  &nbsp;☐ stiffer &nbsp; ☐ softer &nbsp; ☐ heavier</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Argon (weak, van der Waals)</b> and fill in the first table row from the stats.</li>
+    <li>Click <b>Metal-like (deep well)</b> and fill in the second row.</li>
+    <li>Back on Argon: double only the <b>Well depth ε</b> (10.4 → 20.8 meV). Record k.</li>
+    <li>Reset ε to 10.4, then shrink only <b>Size σ</b> from 0.340 to 0.260 nm. Record k.</li>
+    <li>Drag <b>Separation</b> until the force reads zero — look where the purple dot sits on the
+    energy plot.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>ε (meV)</th><th>σ (nm)</th><th>Stiffness k (N/m)</th><th>E ≈ k/r₀ (GPa)</th></tr>
+    <tr><td class="lab">Argon</td><td>10.4</td><td>0.340</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Metal-like</td><td>400</td><td>0.260</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Double ε only</td><td>20.8</td><td>0.340</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">Shrink σ only</td><td>10.4</td><td>0.260</td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Doubling ε multiplied k by about <span class="blank"></span>.
+  When the force is zero, the dot sits at the valley's
+  &nbsp;☐ steepest wall &nbsp; ☐ flat bottom &nbsp; ☐ far plateau.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>Steel's modulus is about 200 GPa and solid argon's is about 2 GPa. Describe the difference
+  between their energy valleys using the words <b>depth</b> and <b>steepness</b>:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — put it together</h2>
+  <p>1. In three sentences, tell the story of why a steel bar is stiff. Use all of these words:
+  <b>bond</b>, <b>energy valley</b>, <b>Hooke's law</b>, <b>series</b>, <b>parallel</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+  <p>2. <b>Challenge (optional):</b> an atomic force microscope measures a 50 pN pull-back when
+  one bond is stretched by 1% of r₀ (that's 0.0025 nm = 2.5 × 10⁻¹² m). Use Hooke's law
+  (k = F ÷ x) to estimate the bond stiffness: k ≈ <span class="blank"></span> N/m.
+  <span class="hint">Compare with Tab 3's slider values!</span></p>
+  <p>3. Next lesson preview: this lesson assumed every atomic spring sits in a perfect,
+  repeating pattern. What could go wrong with that assumption in a real chunk of metal?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Solid Mechanics Foundations · Worksheet 1 of 5</footer>
+</body>
+</html>

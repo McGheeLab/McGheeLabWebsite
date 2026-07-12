@@ -107,6 +107,7 @@
       visibility: 'lab',
       color_id: 'yellow',
       group: 'general',                     // organizational bucket (Phase 6 lit-review)
+      bucket_ids: [],                       // project-bucket overlays this highlight belongs to
       comment: '',
       target: { pages: [] },
       marked_for_investigation: false,

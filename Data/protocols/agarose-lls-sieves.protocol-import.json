@@ -1,0 +1,269 @@
+{
+  "format": "protocol-import-v1",
+  "source": {
+    "kind": "md",
+    "filename": "Agarose LLS -Sieves.md"
+  },
+  "protocol": {
+    "id": "",
+    "title": "Agarose LLS — Sieves",
+    "summary": "Sieve polymerized agarose into liquid-like-solid (LLS) particles for 3D bioprinting support baths.",
+    "category": "hydrogel",
+    "tags": ["agarose", "lls", "sieving", "support-bath", "bioprinting"],
+    "tree": {
+      "meta": {},
+      "sections": [
+        {
+          "label": "Experimental Design",
+          "children": [
+            {
+              "kind": "materials",
+              "attrs": {
+                "rows": [
+                  { "qty": "2",  "unit": "ea",  "free_text": "40 mL beakers (one per batch of gel)", "item_ref": null },
+                  { "qty": "1",  "unit": "ea",  "free_text": "Burger press",                          "item_ref": null },
+                  { "qty": "2",  "unit": "ea",  "free_text": "Stir bars",                             "item_ref": null },
+                  { "qty": "1",  "unit": "ea",  "free_text": "Small metal spatula",                    "item_ref": null },
+                  { "qty": "1",  "unit": "ea",  "free_text": "Plastic gel cutter",                    "item_ref": null },
+                  { "qty": "1",  "unit": "ea",  "free_text": "Tweezers",                              "item_ref": null },
+                  { "qty": "",   "unit": "ea",  "free_text": "15 mL conical tubes (one per LLS fraction)", "item_ref": null },
+                  { "qty": "1",  "unit": "set", "free_text": "Clean, autoclaved sieves (52, 75, 106, 125, 200, 300 µm — see Deep-clean section for autoclave reset)", "item_ref": null },
+                  { "qty": "1",  "unit": "ea",  "free_text": "Metal collection pans (one per stack)", "item_ref": null },
+                  { "qty": "1",  "unit": "ea",  "free_text": "Hot/stir plate (sterilized; placed in biosafety hood)", "item_ref": null },
+                  { "qty": "",   "unit": "",    "free_text": "1× PBS",                                "item_ref": null },
+                  { "qty": "",   "unit": "",    "free_text": "Sterile (autoclaved) water",            "item_ref": null },
+                  { "qty": "1",  "unit": "ea",  "free_text": "Spray bottle with sterile (autoclaved) water", "item_ref": null },
+                  { "qty": "",   "unit": "",    "free_text": "Agarose, low gelling (FOR INERT LLS)",  "item_ref": null },
+                  { "qty": "",   "unit": "",    "free_text": "Agarose, ultra-low gelling (FOR FUNCTIONAL/Matrigel LLS — concentration TBD)", "item_ref": null },
+                  { "qty": "",   "unit": "",    "free_text": "Matrigel (concentration TBD)",          "item_ref": null },
+                  { "qty": "",   "unit": "",    "free_text": "70% EtOH (for outside-of-beaker sterilization)", "item_ref": null }
+                ]
+              }
+            },
+            {
+              "kind": "safety",
+              "body": "All materials must be sterile. Run this entire protocol inside the biosafety hood.",
+              "attrs": { "severity": "caution" }
+            },
+            {
+              "kind": "note",
+              "body": "Decide on sieves/filters based on what LLS size range you want. Example: three target ranges 52–75, 106–125, 200–300 µm using sieves at 52, 75, 106, 125, 200, 300 µm. The Sieving section below uses the 200–300 µm range as the worked example; swap the sieve pair to target a different range.",
+              "attrs": { "flavor": "info" }
+            }
+          ]
+        },
+        {
+          "label": "Making the gel",
+          "children": [
+            {
+              "kind": "formula",
+              "attrs": {
+                "label": "Agarose mass for batch",
+                "description": "Mass of dry agarose to weigh out for a target final volume and weight percent. Example: 5 mL of 2% w/v → 0.1 g.",
+                "expression": "vol * wt_pct / 100",
+                "variables": [
+                  { "name": "vol",    "label": "Final volume",   "default": 5, "unit": "mL" },
+                  { "name": "wt_pct", "label": "Weight percent", "default": 2, "unit": "%"  }
+                ],
+                "output": { "name": "agarose_mass", "label": "Agarose mass", "unit": "g", "decimals": 3 }
+              }
+            },
+            {
+              "kind": "step",
+              "body": "Calculate needed agarose. With [!var:vol] at [!var:wt_pct] (w/v) you'll need [!var:agarose_mass] of dry agarose. Adjust the formula's defaults above to scale up or down."
+            },
+            {
+              "kind": "step",
+              "body": "Measure out [!var:agarose_mass] of agarose on the analytical balance and add it to a 40 mL conical."
+            },
+            {
+              "kind": "step",
+              "body": "Sterilize the outside of the beaker with 70% EtOH and bring it into the hood. Add [!var:vol] of 1× PBS to the agarose, mix with a serological pipette, add a stir bar, then place the beaker on the hot/stir plate."
+            },
+            {
+              "kind": "step",
+              "body": "Heat on dot 3 (keep watch — do NOT let it boil). Spin as low as possible while still mixing. Keep bubbles to a minimum: don't let the mixture boil and don't stir too vigorously."
+            },
+            {
+              "kind": "safety",
+              "body": "Do not let the agarose mixture boil. Boiling generates bubbles that ruin sieve passage and can spit hot gel out of the beaker.",
+              "attrs": { "severity": "caution" }
+            },
+            {
+              "kind": "step",
+              "body": "Once the liquid gel is clear, take it off the plate to cool. The gel must be completely solid (does not move when tilted) before sieving."
+            }
+          ]
+        },
+        {
+          "label": "Assemble the sieve stack",
+          "children": [
+            {
+              "kind": "step",
+              "body": "While the gel is cooling, assemble your sieve stack. Place the collection pan on the bottom, then stack sieves smallest-to-largest. Example for the 200–300 µm range: bottom = 200 µm → 300 µm = top. Confirm the sieves are clean before stacking."
+            },
+            {
+              "kind": "note",
+              "body": "Sieve order matters: the LLS you want lands on the smaller-mesh sieve (the bottom of the pair). Anything larger stays in the top sieve, anything smaller passes through both into the collection pan.",
+              "attrs": { "flavor": "tip" }
+            }
+          ]
+        },
+        {
+          "label": "Sieving (200–300 µm worked example)",
+          "children": [
+            {
+              "kind": "step",
+              "body": "Once the gel has set, add it to the top sieve (300 µm). Use the burger press to press the gel through."
+            },
+            {
+              "kind": "step",
+              "body": "After pressing, use the sterile-water spray bottle to wash residual gel off the bottom of the beaker down into the 300 µm sieve."
+            },
+            {
+              "kind": "step",
+              "body": "Spray the gel down through the 300 µm sieve into the next sieve (200 µm), tapping/shaking the stack to encourage LLS and water through."
+            },
+            {
+              "kind": "step",
+              "body": "Use the gel cutter to push and scrape the remaining gel through the top of the 300 µm sieve."
+            },
+            {
+              "kind": "step",
+              "body": "Lift the 300 µm sieve off the stack — keep it hovering over the stack — and scrape gel clinging to its underside off and into the 200 µm sieve using the gel cutter."
+            },
+            {
+              "kind": "step",
+              "body": "Put the 300 µm sieve back on the stack and repeat: spray, scrape the top, scrape the underside into the 200 µm sieve."
+            },
+            {
+              "kind": "step",
+              "body": "Once most of the gel is through the 300 µm sieve, sieve it again. Add all the LLS sitting on top of the 200 µm sieve back into the 300 µm sieve and repeat the previous steps to ensure the LLS is size-uniform."
+            },
+            {
+              "kind": "step",
+              "body": "Once the gel has been passed through the 300 µm sieve again and only a small amount remains in/on the 300 µm sieve, set it aside."
+            },
+            {
+              "kind": "step",
+              "body": "Collect the LLS sitting on top of the 200 µm sieve into a labeled 15 mL conical. This is the 200–300 µm LLS fraction."
+            }
+          ]
+        },
+        {
+          "label": "Clean used sieves between batches",
+          "children": [
+            {
+              "kind": "note",
+              "body": "Clean the used sieves before the agarose dries — once dry, residue is much harder to remove. This is the in-hood inter-batch wash; the deep-clean / autoclave reset is in the next section.",
+              "attrs": { "flavor": "info" }
+            },
+            {
+              "kind": "step",
+              "body": "Over the collection pan, hold the sieve at an angle and spray sterile water down the top so particles flow into the pan. Work top-down, tapping the sieve on the pan rim to shake off remaining water. Block the back of the sieve with your hand to reduce mess in the hood."
+            },
+            {
+              "kind": "step",
+              "body": "Flip the sieve over and spray down the underside in the same way."
+            },
+            {
+              "kind": "step",
+              "body": "Flip again and spray the top with 70% ethanol in the same way."
+            },
+            {
+              "kind": "step",
+              "body": "Set the sieve aside in the hood on a kimwipe; stack as you clean each one."
+            },
+            {
+              "kind": "step",
+              "body": "Dump excess water + EtOH from the collection pan into the sink."
+            },
+            {
+              "kind": "step",
+              "body": "Spray and wipe out the collection pan before returning it to the hood."
+            }
+          ]
+        },
+        {
+          "label": "Consecutive batches",
+          "children": [
+            {
+              "kind": "step",
+              "body": "Repeat the previous sections (Making the gel → Sieving → Clean used sieves) for each batch."
+            },
+            {
+              "kind": "step",
+              "body": "Clean up. Re-clean the used sieves as above. If sieves are starting to build up residue or you'll be using them with a different type of gel next, deep-clean them (next section). LLS waste can be disposed of down the sink."
+            }
+          ]
+        },
+        {
+          "label": "Deep-clean sieves (autoclave reset)",
+          "children": [
+            {
+              "kind": "note",
+              "body": "After deep-cleaning the sieves are NO LONGER sterile and must be autoclaved before next use. Run this section outside the hood — boiling water is involved.",
+              "attrs": { "flavor": "info" }
+            },
+            {
+              "kind": "materials",
+              "attrs": {
+                "rows": [
+                  { "qty": "2-3", "unit": "ea", "free_text": "Towels (from under the sink)",          "item_ref": null },
+                  { "qty": "1",   "unit": "ea", "free_text": "Clean metal collection tray",           "item_ref": null },
+                  { "qty": "1",   "unit": "ea", "free_text": "Kettle",                                "item_ref": null },
+                  { "qty": "1",   "unit": "ea", "free_text": "DI water sprayer",                      "item_ref": null },
+                  { "qty": "",    "unit": "",   "free_text": "DI water (max kettle volume)",          "item_ref": null },
+                  { "qty": "",    "unit": "",   "free_text": "Dirty sieves",                          "item_ref": null },
+                  { "qty": "1",   "unit": "ea", "free_text": "Clamp / sieve handle",                  "item_ref": null },
+                  { "qty": "",    "unit": "",   "free_text": "Autoclave bags",                        "item_ref": null }
+                ]
+              }
+            },
+            {
+              "kind": "safety",
+              "body": "BOILING WATER IS HOT. Always grip sieves with the clamp during steps 4–6 — never with bare hands. Pour boiling water slowly to avoid splash-back.",
+              "attrs": { "severity": "danger" }
+            },
+            {
+              "kind": "step",
+              "body": "Take the sieves out of the hood. After this point they are not sterile and must be fully cleaned + autoclaved before next use."
+            },
+            {
+              "kind": "step",
+              "body": "Lay out two towels: one to hold the clean collection tray, the other to set sieves on as they're cleaned."
+            },
+            {
+              "kind": "step",
+              "body": "Boil the max amount of DI water in the kettle."
+            },
+            {
+              "kind": "step",
+              "body": "Once boiling, set a dirty sieve in the tray and pour the boiling water over it until the mesh is fully submerged. CAREFULLY — boiling water is hot."
+            },
+            {
+              "kind": "step",
+              "body": "Grab the sieve with the clamp and swish it side-to-side and up-and-down in the hot water until the mesh is visibly clean. The agitation dislodges trapped agarose."
+            },
+            {
+              "kind": "step",
+              "body": "Remove the sieve from the tray and hold it over the sink with the clamp. Spray the mesh down with the DI water sprayer to remove final particles."
+            },
+            {
+              "kind": "step",
+              "body": "Set the cleaned sieve on a towel while you wash the others. Try not to touch the mesh to anything."
+            },
+            {
+              "kind": "step",
+              "body": "Repeat for each dirty sieve. Once they're cool enough to handle, transfer to autoclave bags."
+            },
+            {
+              "kind": "step",
+              "body": "Autoclave all sieves on the 20-min dry cycle at minimum. If autoclaving with other items in the same load, use the highest/longest setting necessary for the bundle."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

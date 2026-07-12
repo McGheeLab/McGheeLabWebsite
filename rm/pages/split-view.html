@@ -4,12 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Split View — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/split-view.css">
   <link rel="stylesheet" href="/rm/css/workflow-shell.css">
   <script src="/rm/js/runtime-mode.js"></script>
 </head>
-<body class="has-split-view">
+<body class="has-split-view rm-desktop-only">
   <!-- nav.js renders the top RM nav into document.body. The .has-split-view
        body class makes the body itself a vertical flex container so the
        inner host fills the rest of the viewport below the nav. -->
@@ -43,7 +44,9 @@
        page-registry.js then flattens NAV_ITEMS into PAGE_REGISTRY for
        the popouts' page picker. -->
   <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/desktop-only-guard.js"></script>
   <script src="/rm/js/page-registry.js"></script>
+  <script src="/rm/js/page-collections.js"></script>
   <script src="/rm/js/workflow-state.js"></script>
   <script src="/rm/js/shell-popouts.js"></script>
   <script src="/rm/js/split-view.js"></script>

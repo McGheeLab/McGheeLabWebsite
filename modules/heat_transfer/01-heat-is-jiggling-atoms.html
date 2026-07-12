@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heat Is Jiggling Atoms — Heat Transfer Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Heat Transfer Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Heat Is Jiggling Atoms — Why Everything Warms and Cools</h1>
+  <p class="subtitle">Heat Transfer Foundations · Lesson 1 of 6 — Pull a metal spoon and a wooden
+  spoon out of the same drawer. The metal one feels colder — yet a thermometer swears they are
+  exactly the same temperature. The answer is a trillion-atom dance, and you can watch it below.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="jiggle">1 · Temperature Is Jiggle</button>
+  <button class="tab-btn" data-tab="spread">2 · Passing the Jiggle</button>
+  <button class="tab-btn" data-tab="threeways">3 · Three Ways It Travels</button>
+  <button class="tab-btn" data-tab="levelup">4 · Level Up: The Diffusion Clock</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: jiggle -->
+<section id="tab-jiggle" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: What temperature actually is</h2>
+    <p>Wrap your hands around a hot mug. What is the "heat" you feel? It is not a fluid soaked
+    into the ceramic, and not a glow trapped inside. Zoom past the glaze, past the molecules, and
+    you find the same picture as in <em>Solid Mechanics Lesson 1 — Atoms as Springs</em>: a huge
+    lattice of atoms connected by bond-springs. The only difference between a hot mug and a cold
+    one is <b>how violently those atoms are rattling around their home positions</b>.</p>
+    <p><b>Temperature is a scoreboard for the jiggle.</b> Hot = big, fast rattling. Cold = gentle
+    trembling. Absolute zero (0&nbsp;K, −273.15&nbsp;°C) is the temperature where the classical
+    jiggle would stop entirely — the atoms just sit at their lattice sites. The bridge between the
+    temperature you read on a thermometer and the energy of one atom's rattle is a single
+    conversion factor, <b>Boltzmann's constant</b> \(k_B = 1.38\times10^{-23}\ \text{J/K}\)
+    (joules of jiggle energy per kelvin):</p>
+    <div class="equation-box">
+      $$ \text{temperature } T \;\;\Longleftrightarrow\;\; \text{average jiggle energy per atom}
+      \;\sim\; k_B T \qquad\qquad
+      x_{\text{typ}} \;\approx\; \sqrt{\frac{3\,k_B\,T}{k_{\text{bond}}}} $$
+    </div>
+    <p>The second formula tells you <em>how far</em> an atom typically strays. Each atom sits in
+    a spring cage of stiffness \(k_{\text{bond}}\) (newtons per meter — the same bond stiffness
+    from the Solid Mechanics course). A spring displaced by \(x\) stores energy
+    \(\tfrac12 k_{\text{bond}} x^2\); give the atom its thermal budget of roughly \(3k_BT\)
+    (formal version in Tab 4) and the typical excursion is
+    \(x_{\text{typ}} \approx \sqrt{3k_BT/k_{\text{bond}}}\). Read the trend: hotter → bigger
+    jiggle, but only as \(\sqrt{T}\); <b>stiffer bonds → smaller, faster jiggle</b> (the rattle
+    rate grows as \(\sqrt{k_{\text{bond}}}\), just like a stiffer guitar string rings at a higher
+    pitch).</p>
+    <div class="worked-example">
+      <p>How big is the jiggle in a metal at room temperature? Take
+      \(k_{\text{bond}} = 20\ \text{N/m}\) (the metallic-bond stiffness we measured in Solid
+      Mechanics Lesson 1) and \(T = 300\ \text{K}\):
+      \(x_{\text{typ}} = \sqrt{3 \times 1.38\times10^{-23} \times 300 / 20}
+      = \sqrt{6.2\times10^{-22}} \approx 2.5\times10^{-11}\ \text{m} \approx 0.025\ \text{nm}\).
+      Atoms sit about 0.25&nbsp;nm apart, so the room-temperature rattle is roughly
+      <b>10% of the atomic spacing</b> — a big, restless wobble. And it is fast: the rattle
+      frequency \(\tfrac{1}{2\pi}\sqrt{k_{\text{bond}}/m}\) for a copper-mass atom is about
+      2&nbsp;THz — two trillion round trips per second.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Heat is not a substance. Temperature measures the average violence of atomic jiggle.</li>
+        <li>\(k_B = 1.38\times10^{-23}\ \text{J/K}\) converts kelvins into joules of jiggle per atom.</li>
+        <li>Jiggle amplitude grows as \(\sqrt{T}\) and shrinks as bonds stiffen: \(x_{\text{typ}} \approx \sqrt{3k_BT/k_{\text{bond}}}\).</li>
+        <li>At room temperature a metal atom wobbles ~10% of the way to its neighbor, trillions of times per second.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Temperature</b> slowly from 10&nbsp;K to 1000&nbsp;K. Watch the lattice grow
+      restless and the dot ride up the plot — is the curve a straight line or a √ curve?</li>
+      <li>Click <b>Near absolute zero</b>. This is what "cold" really means: the atoms all but
+      freeze at their lattice sites (the gray dots).</li>
+      <li>Raise <b>Bond stiffness k</b> at fixed temperature. The jiggle gets <em>smaller</em> but
+      <em>faster</em> — same energy budget, stiffer cage. Check the amplitude stat.</li>
+      <li>Click <b>Red hot</b> and read "% of atomic spacing" in the stats. Solids melt when the
+      rattle gets too large a fraction of the spacing — you are watching a solid approach that edge.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="jiggle" data-scen="zero" onclick="setScen('jiggle','zero')">Near absolute zero (10 K)</button>
+    <button class="scen-btn on" data-tab="jiggle" data-scen="room" onclick="setScen('jiggle','room')">Room temp (300 K)</button>
+    <button class="scen-btn" data-tab="jiggle" data-scen="hot" onclick="setScen('jiggle','hot')">Red hot (900 K)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Temperature <span id="v-jiggle-T">300 K</span></label>
+        <input type="range" id="s-jiggle-T" min="1" max="1000" step="1" value="300">
+      </div>
+      <div class="ctrl-group">
+        <label>Bond stiffness k <span id="v-jiggle-k">20 N/m</span></label>
+        <input type="range" id="s-jiggle-k" min="0.5" max="2" step="0.05" value="1">
+      </div>
+      <div class="stats" id="st-jiggle"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The lattice — every atom rattling around its site (gray dot)</div>
+        <canvas id="cv-jiggle" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Jiggle amplitude vs. temperature — the √T curve</div>
+        <canvas id="cv-jiggle2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-jiggle"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: spread -->
+<section id="tab-spread" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Heat travels by pass-the-parcel — and it takes time</h2>
+    <p>Leave a metal spoon in hot soup. The handle end — far from the soup — eventually gets hot
+    too. How did the jiggle get up there? <b>Neighbor to neighbor.</b> An atom at the hot end
+    rattles hard, shakes the bond-springs connecting it to its neighbors, and hands some of its
+    energy over. Those neighbors shake <em>their</em> neighbors. The jiggle works its way along
+    the spoon like a bucket brigade with very clumsy hands.</p>
+    <p>The sim below plays that game with a bar of 40 atom columns whose left end is held hot.
+    Each animation step, every column shares energy with its neighbors according to one rule,
+    where \(e_i\) is the energy (shown as temperature) of column \(i\) and \(D\) is the
+    <b>handoff speed</b> — the fraction of the gap to its neighbors' average that a column closes
+    per step:</p>
+    <div class="equation-box">
+      $$ e_i \;\leftarrow\; e_i \;+\; D\left(\frac{e_{i-1}+e_{i+1}}{2} \;-\; e_i\right)
+      \qquad\qquad x_{\text{front}} \;\propto\; \sqrt{t} $$
+    </div>
+    <p>\(D\) is the whole personality of the material, and it <em>is</em> thermal conductivity at
+    the atomic scale. Copper atoms hand energy off eagerly (big \(D\)) — that is why the metal
+    spoon stole heat from your hand in the lesson opener. Wood's atoms hoard their energy (tiny
+    \(D\)). And notice the second formula: because each handoff is aimless — energy dribbles both
+    directions — the warm front creeps forward like a <b>random walk</b>, advancing only as the
+    <em>square root</em> of time. Heat is not a wave racing down the bar; it is a drunken shuffle.</p>
+    <div class="worked-example">
+      <p>Run one step by hand. A column sits at \(e_i = 300\ \text{K}\) between neighbors at
+      800&nbsp;K and 300&nbsp;K, with \(D = 0.4\). The neighbor average is
+      \((800+300)/2 = 550\ \text{K}\), so the update is
+      \(e_i \leftarrow 300 + 0.4\,(550 - 300) = 300 + 100 = 400\ \text{K}\). One step, and the
+      column has closed 40% of its gap to the local average. Now the √t rule: if the warm front
+      needs 4&nbsp;s to cross the first 10 columns, it needs \(4\times\) that — 16&nbsp;s — to
+      reach column 20. Double the distance costs quadruple the time.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Conduction is jiggle passed neighbor-to-neighbor through the bonds — nothing physically flows.</li>
+        <li>The handoff speed \(D\) is conductivity at atom scale: copper hands off eagerly, wood hoards.</li>
+        <li>The warm front creeps as \(\sqrt{t}\) — a random walk, not a wave. Doubling the distance quadruples the wait.</li>
+        <li>That √t creep is why the near end of the spoon burns you long before the handle warms.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Click <b>Restart pulse</b> and watch the "Half-way front" stat: time how long it takes
+      to reach column 10, then column 20. Is it roughly 4× longer? That's √t.</li>
+      <li>Set <b>Handoff speed D</b> to the minimum and restart. This is wood: the left columns
+      glow red while the rest of the bar stays stubbornly blue.</li>
+      <li>Compare the <b>Copper-like</b> and <b>Wood-like</b> scenarios over the same 10 seconds
+      of sim time. How much farther does the copper front get?</li>
+      <li>Raise <b>Hot-end temperature</b>. The profile gets taller — but does the <em>front
+      position</em> move any faster? (The shape of the creep belongs to \(D\), not to how hot
+      the source is.)</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="spread" data-scen="copper" onclick="setScen('spread','copper')">Copper-like (D high)</button>
+    <button class="scen-btn" data-tab="spread" data-scen="wood" onclick="setScen('spread','wood')">Wood-like (D low)</button>
+    <button class="scen-btn" data-tab="spread" data-scen="restart" onclick="spreadReset();setScen('spread','restart')">Restart pulse</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Handoff speed D <span id="v-spread-D">45% per step</span></label>
+        <input type="range" id="s-spread-D" min="0.02" max="0.5" step="0.01" value="0.45">
+      </div>
+      <div class="ctrl-group">
+        <label>Hot-end temperature <span id="v-spread-Thot">800 K</span></label>
+        <input type="range" id="s-spread-Thot" min="400" max="1000" step="10" value="800">
+      </div>
+      <div class="stats" id="st-spread"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The bar — left end held hot, energy random-walking right</div>
+        <canvas id="cv-spread" width="640" height="230"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Temperature along the bar — watch the front creep</div>
+        <canvas id="cv-spread2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-spread"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: threeways -->
+<section id="tab-threeways" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Three delivery services for the jiggle</h2>
+    <p>So far the jiggle has traveled one way: passed along fixed atoms. But put a hot wall and a
+    cold wall face to face and heat has <b>three</b> delivery services to choose from.
+    <b>Conduction</b> is the relay race from Tab 2 — atoms stay put and hand the jiggle down the
+    line. <b>Convection</b> is a courier service: in a liquid or gas, the atoms are free to move,
+    so a parcel of air can pick up jiggle at the hot wall, physically fly across the gap, and dump
+    it on the cold wall. <b>Radiation</b> is a broadcast: a rattling atom is a shaking electric
+    charge, and shaking charges emit light (mostly invisible infrared). That light crosses the gap
+    at light speed — <em>with no atoms needed at all</em> — and becomes jiggle again wherever it
+    is absorbed.</p>
+    <p>Each mechanism has its own rate law. Here \(q\) is the heat flow in watts, \(A\) the wall
+    area in m², \(\Delta T = T_{\text{hot}} - T_{\text{cold}}\), \(k\) the material's thermal
+    conductivity (W/m·K), \(L\) the gap width, \(h\) the convection coefficient (W/m²·K — how good
+    the moving fluid is at hauling heat), \(\varepsilon\) the surface emissivity (0 to 1), and
+    \(\sigma = 5.67\times10^{-8}\ \text{W/m}^2\text{K}^4\) the Stefan–Boltzmann constant:</p>
+    <div class="equation-box">
+      $$ q_{\text{cond}} = \frac{k\,A\,\Delta T}{L} \qquad\quad
+         q_{\text{conv}} = h\,A\,\Delta T \qquad\quad
+         q_{\text{rad}} = \varepsilon\,\sigma\,A\left(T_{\text{hot}}^{4} - T_{\text{cold}}^{4}\right) $$
+    </div>
+    <p>Now you can explain a thermos bottle. It is two nested flasks with the air pumped out of
+    the gap. No atoms in the gap → no conduction relay, no convection courier. Only radiation
+    survives — and the walls are silvered (low \(\varepsilon\)) to choke that too. Three assassins,
+    three separate alibis: that is why coffee stays hot all morning.</p>
+    <div class="worked-example">
+      <p>A 600&nbsp;K hot wall faces a 300&nbsp;K cold wall across a 1&nbsp;cm gap
+      (\(\Delta T = 300\) K, per m² of wall). <b>Solid glass between</b> (\(k = 1.0\)):
+      \(q_{\text{cond}} = 1.0 \times 300 / 0.01 = 30{,}000\ \text{W/m}^2\). <b>Air between</b>:
+      conduction \(0.026 \times 300/0.01 = 780\), convection with \(h = 5\):
+      \(5 \times 300 = 1500\), radiation with \(\varepsilon = 0.9\):
+      \(0.9 \times 5.67\times10^{-8} \times (600^4 - 300^4) \approx 6200\ \text{W/m}^2\) — total
+      ≈ 8500. <b>Vacuum between</b>: only the 6200 of radiation survives; silver the walls
+      (\(\varepsilon \approx 0.05\)) and it collapses to
+      \(0.05 \times 5.67\times10^{-8} \times (600^4-300^4) \approx 340\ \text{W/m}^2\) —
+      nearly 100× less than the solid.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Conduction = atoms stay put and relay the jiggle; convection = moving fluid carries it; radiation = the jiggle travels as light.</li>
+        <li>Conduction and convection need atoms in the gap; radiation crosses a perfect vacuum.</li>
+        <li>Radiation grows as \(T^4\) — quietly small at room temperature, dominant when things glow.</li>
+        <li>A thermos kills conduction and convection with vacuum and starves radiation with silvered (low-ε) walls.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start on <b>Air between</b>: all three lanes are alive. Read the bar chart — which
+      mechanism delivers the most at the default 600&nbsp;K?</li>
+      <li>Click <b>Solid between</b>. Convection and radiation go dark — the atoms can't flow and
+      the solid is opaque — yet the total heat flow <em>jumps</em>. Why?</li>
+      <li>Click <b>Vacuum between</b>. Only the photon lane survives. Compare the total against
+      the other two scenarios in the stats — this is the thermos trick.</li>
+      <li>On Vacuum, sweep <b>Hot-wall temperature</b> from 350&nbsp;K to 1200&nbsp;K and watch
+      \(q_{\text{rad}}\). Does doubling the temperature merely double the radiation? (It's a
+      \(T^4\) law.)</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="threeways" data-scen="solid" onclick="setScen('threeways','solid')">Solid between</button>
+    <button class="scen-btn on" data-tab="threeways" data-scen="air" onclick="setScen('threeways','air')">Air between</button>
+    <button class="scen-btn" data-tab="threeways" data-scen="vacuum" onclick="setScen('threeways','vacuum')">Vacuum between</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Hot-wall temperature <span id="v-threeways-T">600 K</span></label>
+        <input type="range" id="s-threeways-T" min="350" max="1200" step="10" value="600">
+      </div>
+      <div class="stats" id="st-threeways"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Three lanes, same walls — conduction / convection / radiation</div>
+        <canvas id="cv-threeways" width="640" height="330"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Energy delivered to the cold wall (per m², gap = 1 cm, cold side 300 K)</div>
+        <canvas id="cv-threeways2" width="640" height="210"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-threeways"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: levelup -->
+<section id="tab-levelup" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: equipartition and the diffusion clock</h2>
+    <p>Time for the real machinery. First, the energy budget we borrowed in Tab 1. The
+    <b>equipartition theorem</b> of classical statistical mechanics assigns each quadratic degree
+    of freedom an average energy \(\tfrac12 k_B T\). An atom bound in a 3-D lattice has six:
+    kinetic energy in \(x, y, z\) plus spring potential energy in \(x, y, z\). Its average thermal
+    energy is therefore</p>
+    <div class="equation-box">
+      $$ \bar{E}_{\text{atom}} \;=\; 6 \times \tfrac12 k_B T \;=\; 3\,k_B T
+      \qquad\qquad \alpha \;=\; \frac{k}{\rho\,c} \qquad\qquad \tau \;\approx\; \frac{L^2}{\alpha} $$
+    </div>
+    <p>(Multiply \(3k_B\) by Avogadro's number and you get the Dulong–Petit molar heat capacity
+    \(3R\) — the punchline of Lesson 2.) Second, the transport machinery. How fast heat soaks
+    through a material depends on a competition: the conductivity \(k\) (W/m·K) moves energy, but
+    the volumetric heat capacity \(\rho c\) (density × specific heat, J/m³·K) must be
+    <em>filled</em> along the way. Their ratio is the <b>thermal diffusivity</b>
+    \(\alpha = k/\rho c\), with units of m²/s — an area per time, exactly what a random walk needs.
+    Representative values: copper \(1.16\times10^{-4}\), still air \(2.2\times10^{-5}\), glass
+    \(3.4\times10^{-7}\), wood \(1.9\times10^{-7}\ \text{m}^2/\text{s}\).</p>
+    <p>Third, the clock. Tab 2 showed the front creeping as \(\sqrt{t}\); here is why. A random
+    walker taking \(N\) steps of size \(a\) wanders a net distance \(x_{\text{rms}} = a\sqrt{N}\),
+    so covering a distance \(L\) needs \(N \approx (L/a)^2\) steps — the price of aimlessness is
+    <em>squared</em>. In continuum language the walker's "area per time" is \(\alpha\), so the
+    time to soak through a thickness \(L\) is \(\tau \approx L^2/\alpha\). This resolves a real
+    paradox: each atomic handoff takes about a picosecond, yet your coffee takes an hour to cool.
+    Atoms are fast; the <em>path</em> is a squared-up random shuffle. On the log-log plot below,
+    \(\tau = L^2/\alpha\) is a straight line of slope 2 — every 10× in size costs 100× in time.</p>
+    <div class="worked-example">
+      <p>How long does heat take to soak through 1&nbsp;cm? Copper
+      (\(\alpha = 1.16\times10^{-4}\ \text{m}^2/\text{s}\)):
+      \(\tau = (0.01)^2 / 1.16\times10^{-4} \approx 0.9\ \text{s}\). Wood
+      (\(\alpha = 1.9\times10^{-7}\)): \(\tau = (0.01)^2 / 1.9\times10^{-7}
+      \approx 530\ \text{s} \approx 9\ \text{minutes}\). Same geometry, same \(\Delta T\) — the
+      copper is ~600× faster (\(1.16\times10^{-4}/1.9\times10^{-7} \approx 610\)). Now the spoon
+      riddle from the header is solved twice over: metal both <em>conducts</em> your hand's heat
+      away faster and <em>feels</em> it deeper, sooner.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Equipartition: \(\tfrac12 k_BT\) per quadratic degree of freedom → \(3k_BT\) per atom in a solid.</li>
+        <li>Thermal diffusivity \(\alpha = k/\rho c\) (m²/s) is the material's random-walk "area per second".</li>
+        <li>The diffusion clock \(\tau \approx L^2/\alpha\): distance is squared because heat wanders, it doesn't march.</li>
+        <li>Picosecond atomic handoffs still give minutes-to-days soak times at human scales — blame \(L^2\).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On the <b>Copper</b> scenario, set <b>Length scale L</b> to 1&nbsp;cm and read τ
+      (~0.9&nbsp;s). Switch to <b>Wood</b>: same slab, ~9 minutes.</li>
+      <li>Sweep <b>Length scale L</b> from 1&nbsp;mm to 1&nbsp;m. The dot rides a straight line of
+      slope 2 on the log-log axes — check that every 10× in L costs 100× in τ.</li>
+      <li>Find the L where the <b>Wood</b> line crosses the "1 day" reference line (~13&nbsp;cm).
+      That's why thick log walls smooth out day–night temperature swings.</li>
+      <li>Click <b>Air (still)</b> and use the <b>Diffusivity α</b> slider to compare: still air
+      diffuses heat <em>faster</em> than glass or wood — yet air is a famous insulator. What's
+      missing from this picture? (Hint: Tab 3's second lane; the full answer is Lesson 4.)</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="levelup" data-scen="copper" onclick="setScen('levelup','copper')">Copper</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="air" onclick="setScen('levelup','air')">Air (still)</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="glass" onclick="setScen('levelup','glass')">Glass</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="wood" onclick="setScen('levelup','wood')">Wood</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Length scale L <span id="v-levelup-L">1.0 cm</span></label>
+        <input type="range" id="s-levelup-L" min="-3" max="0" step="0.01" value="-2">
+      </div>
+      <div class="ctrl-group">
+        <label>Diffusivity α <span id="v-levelup-alpha">1.2e-4 m²/s</span></label>
+        <input type="range" id="s-levelup-alpha" min="-7" max="-3.5" step="0.001" value="-3.936">
+      </div>
+      <div class="stats" id="st-levelup"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The diffusion clock — τ = L²/α on log-log axes (slope 2)</div>
+        <canvas id="cv-levelup" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Soak time through your L, material by material</div>
+        <canvas id="cv-levelup2" width="640" height="190"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-levelup"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>C. Kittel, <i>Introduction to Solid State Physics</i>, 8th ed., Wiley (2005) — lattice
+    vibrations, equipartition of energy, and the Dulong–Petit limit.</li>
+    <li>F. P. Incropera, D. P. DeWitt, T. L. Bergman &amp; A. S. Lavine, <i>Fundamentals of Heat
+    and Mass Transfer</i>, 7th ed., Wiley (2011) — conduction, convection, and radiation rate
+    equations; thermophysical property tables (thermal diffusivity values).</li>
+    <li>Y. A. Çengel &amp; A. J. Ghajar, <i>Heat and Mass Transfer: Fundamentals and
+    Applications</i>, 5th ed., McGraw-Hill (2015) — heat-transfer mechanisms and material
+    property data.</li>
+    <li>D. Halliday, R. Resnick &amp; J. Walker, <i>Fundamentals of Physics</i>, 10th ed.,
+    Wiley (2013) — kinetic theory, temperature, and thermal energy.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Lesson 1 of 6 — Next: specific heat — why water
+takes forever to boil.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; }
+  }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Heat Transfer Lesson 1: Heat Is Jiggling Atoms
+   ================================================================ */
+
+/* --- physics constants --- */
+const KB = 1.380649e-23;        // Boltzmann constant, J/K
+const SIGMA_SB = 5.67e-8;       // Stefan–Boltzmann constant, W/m²K⁴
+const SPACING_PM = 250;         // typical atomic spacing, pm (0.25 nm)
+
+/* --- control state --- */
+let activeTab = 'jiggle';
+const scen = { jiggle: 'room', spread: 'copper', threeways: 'air', levelup: 'copper' };
+
+const FMT = {
+  'jiggle-T':      v => fmt(v, 0) + ' K',
+  'jiggle-k':      v => fmt(v * 20, 0) + ' N/m',
+  'spread-D':      v => fmt(v * 100, 0) + '% per step',
+  'spread-Thot':   v => fmt(v, 0) + ' K',
+  'threeways-T':   v => fmt(v, 0) + ' K',
+  'levelup-L':     v => fmtLen(v),
+  'levelup-alpha': v => Math.pow(10, v).toExponential(1) + ' m²/s'
+};
+
+const SCEN = {
+  jiggle: {
+    zero: { 's-jiggle-T': 10 },
+    room: { 's-jiggle-T': 300 },
+    hot:  { 's-jiggle-T': 900 }
+  },
+  spread: {
+    copper:  { 's-spread-D': 0.45 },
+    wood:    { 's-spread-D': 0.04 },
+    restart: {}
+  },
+  threeways: {
+    solid:  {},
+    air:    {},
+    vacuum: {}
+  },
+  levelup: {
+    copper: { 's-levelup-alpha': -3.936 },   // α = 1.16e-4 m²/s
+    air:    { 's-levelup-alpha': -4.658 },   // α = 2.2e-5
+    glass:  { 's-levelup-alpha': -6.468 },   // α = 3.4e-7
+    wood:   { 's-levelup-alpha': -6.721 }    // α = 1.9e-7
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation pattern (house-standard for this course) --- */
+let animId = null, animT = 0;
+const ANIMATED = { jiggle: true, spread: true, threeways: true };
+function tick(){ animT += 1 / 60; refreshActiveTab(); animId = requestAnimationFrame(tick); }
+function startAnim(){ if (!animId && ANIMATED[activeTab]) animId = requestAnimationFrame(tick); }
+function stopAnim(){ if (animId){ cancelAnimationFrame(animId); animId = null; } }
+
+/* --- small shared drawing bits --- */
+function drawAtom(ctx, x, y, r, color){
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.15, x, y, r);
+  g.addColorStop(0, '#dbeafe'); g.addColorStop(1, color);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,58,95,.35)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+/* course-standard energy-color language (same in every module of this course) */
+function energyColor(t){ // t in [0,1], cold -> hot
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[37,99,235],[147,197,253],[248,250,252],[251,146,60],[220,38,38]];
+  const x = t*(stops.length-1), i = Math.min(stops.length-2, Math.floor(x)), f = x-i;
+  const c = stops[i].map((v,j)=>Math.round(v+(stops[i+1][j]-v)*f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+/* big on-canvas headline with a readable backing chip + optional energy swatch */
+function headline(ctx, x, y, text, color, size, swatch){
+  size = size || 26;
+  ctx.save(); ctx.font = 'bold ' + size + 'px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  const tw = ctx.measureText(text).width, sw = swatch ? Math.round(size * 0.62) : 0,
+        gap = swatch ? 6 : 0;
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.fillRect(x - 6, y - size + 2, tw + sw + gap + 12, size + 10);
+  if (swatch){
+    ctx.fillStyle = swatch; ctx.fillRect(x, y - sw, sw, sw);
+    ctx.strokeStyle = 'rgba(30,58,95,.4)'; ctx.lineWidth = 1; ctx.strokeRect(x, y - sw, sw, sw);
+  }
+  ctx.fillStyle = color || COL.ink;
+  ctx.fillText(text, x + sw + gap, y);
+  ctx.restore();
+}
+function fmtLen(logv){
+  const L = Math.pow(10, logv);
+  if (L < 0.01) return fmt(L * 1000, 1) + ' mm';
+  if (L < 1) return fmt(L * 100, 1) + ' cm';
+  return fmt(L, 2) + ' m';
+}
+function fmtTime(s){
+  if (s < 1) return fmt(s * 1000, 0) + ' ms';
+  if (s < 120) return fmt(s, 1) + ' s';
+  if (s < 7200) return fmt(s / 60, 1) + ' min';
+  if (s < 172800) return fmt(s / 3600, 1) + ' hr';
+  return fmt(s / 86400, 1) + ' days';
+}
+
+/* --- seeded phase tables (stable across redraws; no Math.random per frame) --- */
+const JIG = (() => { const rng = mulberry32(2024), a = [];
+  for (let i = 0; i < 12 * 6; i++)
+    a.push({ p1: rng() * 6.283, p2: rng() * 6.283, f1: 0.85 + rng() * 0.3, f2: 0.85 + rng() * 0.3 });
+  return a; })();
+const SPREAD_PH = (() => { const rng = mulberry32(7), a = [];
+  for (let i = 0; i < 40 * 3; i++)
+    a.push({ p1: rng() * 6.283, p2: rng() * 6.283, f: 0.8 + rng() * 0.4 });
+  return a; })();
+const CONV_PH = (() => { const rng = mulberry32(11), a = [];
+  for (let i = 0; i < 10; i++) a.push({ ph: rng(), yj: rng() });
+  return a; })();
+const RAD_PH = (() => { const rng = mulberry32(13), a = [];
+  for (let i = 0; i < 4; i++) a.push({ ph: rng(), wob: rng() * 6.283 });
+  return a; })();
+
+/* ---------------- TAB 1: jiggle (ANIMATED) ---------------- */
+function drawJiggle(){
+  const T = num('s-jiggle-T'), km = num('s-jiggle-k');
+  const kBond = 20 * km;                                   // N/m
+  const xm = Math.sqrt(3 * KB * T / kBond);                // m
+  const xpm = xm * 1e12;                                   // pm
+  const pct = xpm / SPACING_PM * 100;                      // % of atomic spacing
+  const nuTHz = Math.sqrt(kBond / 1.05e-25) / (2 * Math.PI) / 1e12;  // copper-mass atom
+
+  // lattice picture
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-jiggle'));
+  const cols = 12, rows = 6, x0 = 44, y0 = 36;
+  const dx = (w - 88) / (cols - 1), dy = (h - 76) / (rows - 1);
+  const A = 0.30 * Math.sqrt(T / km);                      // px, ∝ √(T/k)
+  const wv = 5 * Math.sqrt(km);                            // rad/s, ∝ √k
+  const colr = energyColor(T / 1000);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const g = JIG[r * cols + c];
+    const rx = x0 + c * dx, ry = y0 + r * dy;
+    ctx.fillStyle = '#cbd5e1'; ctx.fillRect(rx - 1.5, ry - 1.5, 3, 3);   // rest site
+    const ax = rx + A * Math.sin(wv * animT * g.f1 + g.p1);
+    const ay = ry + A * Math.sin(wv * animT * g.f2 + g.p2);
+    drawAtom(ctx, ax, ay, 9, colr);
+  }
+  caption(ctx, w / 2, h - 10, 'each atom rattles around its lattice site — amplitude ∝ √(T/k), rate ∝ √k', COL.muted);
+
+  // amplitude vs T plot
+  const c2 = setupCanvas(document.getElementById('cv-jiggle2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 1000, 0, 80);
+  ch.grid(); ch.axes('temperature T (K)', 'jiggle amplitude (pm)');
+  ch.hLine(25, COL.bad, [2, 4]);
+  const pts = [], ptsRef = [];
+  for (let t = 0; t <= 1000; t += 5) {
+    pts.push([t, Math.sqrt(3 * KB * t / kBond) * 1e12]);
+    if (Math.abs(km - 1) > 0.01) ptsRef.push([t, Math.sqrt(3 * KB * t / 20) * 1e12]);
+  }
+  if (ptsRef.length) ch.plot(ptsRef, COL.muted, 1.5, [4, 4]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(T, xpm, colr, 6);
+  ch.legend([{ label: 'x = √(3kBT/k)', color: COL.accent },
+             { label: '10% of atomic spacing', color: COL.bad, dash: [2, 4] }]);
+
+  setStat('st-jiggle', [
+    { label: 'Temperature', value: fmt(T, 0) + ' K' },
+    { label: 'Bond stiffness', value: fmt(kBond, 0) + ' N/m' },
+    { label: 'Jiggle amplitude', value: fmt(xpm, 1) + ' pm', highlight: true },
+    { label: '% of atomic spacing', value: fmt(pct, 1) + ' %' },
+    { label: 'Rattle rate', value: fmt(nuTHz, 1) + ' THz' }
+  ]);
+
+  if (T <= 30)
+    setVerdict('vd-jiggle', 'warn', 'Near absolute zero — frozen stillness.',
+      'The atoms barely tremble (' + fmt(xpm, 1) + ' pm — under ' + fmt(pct, 1) + '% of the spacing). This is what "cold" means: almost no jiggle left to give away. (Real atoms keep a tiny quantum zero-point wiggle even at 0 K.)');
+  else if (T <= 600)
+    setVerdict('vd-jiggle', 'good', 'Everyday jiggle — the world you live in.',
+      'At ' + fmt(T, 0) + ' K the atoms wobble about ' + fmt(pct, 1) + '% of the way to their neighbors, ' + fmt(nuTHz, 1) + ' trillion times per second. Every solid around you is doing exactly this, right now.');
+  else if (T <= 900)
+    setVerdict('vd-jiggle', 'warn', 'Seriously hot — the lattice is straining.',
+      'The rattle has grown to ' + fmt(pct, 1) + '% of the atomic spacing. Softer solids are already melting in this range; the lattice only survives because the bond-springs keep hauling every atom back home.');
+  else
+    setVerdict('vd-jiggle', 'bad', 'Melting territory.',
+      'At ' + fmt(pct, 1) + '% of the spacing the atoms wander so far that neighbors start swapping places — the lattice loses its grip and the solid melts. Jiggle wins.');
+}
+
+/* ---------------- TAB 2: spread (ANIMATED, stateful) ---------------- */
+const spreadState = { e: null, sig: null, t: 0 };
+function spreadSig(){ return val('s-spread-D') + '|' + val('s-spread-Thot'); }
+function spreadReset(){ spreadState.sig = null; }
+
+function drawSpread(){
+  const D = num('s-spread-D'), Thot = num('s-spread-Thot');
+  const n = 40;
+  if (!spreadState.e || spreadState.sig !== spreadSig()) {
+    spreadState.e = new Float64Array(n).fill(300);
+    spreadState.e[0] = Thot;
+    spreadState.t = 0;
+    spreadState.sig = spreadSig();
+  }
+  const e = spreadState.e;
+  for (let s = 0; s < 3; s++) {                      // 3 diffusion substeps per frame
+    const prev = Float64Array.from(e);
+    for (let i = 1; i < n; i++) {
+      const mean = i < n - 1 ? (prev[i - 1] + prev[i + 1]) / 2 : prev[i - 1];
+      e[i] += D * (mean - e[i]);
+    }
+    e[0] = Thot;                                     // left end held hot
+  }
+  spreadState.t += 1 / 60;
+
+  const Tmid = (Thot + 300) / 2;
+  let front = 0;
+  for (let i = 0; i < n; i++) if (e[i] >= Tmid) front = i;
+
+  // bar picture
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-spread'));
+  ctx.fillStyle = energyColor(1); ctx.fillRect(8, 40, 12, 150);           // hot reservoir
+  caption(ctx, 14, 32, 'HOT', COL.bad, true);
+  const x0 = 34, ddx = (w - 60) / (n - 1);
+  for (let r = 0; r < 3; r++) for (let i = 0; i < n; i++) {
+    const g = SPREAD_PH[r * n + i];
+    const frac = (e[i] - 300) / (Thot - 300);
+    const amp = 0.6 + 3.5 * Math.sqrt(Math.max(0, frac));               // jitter follows local energy
+    const rx = x0 + i * ddx, ry = 75 + r * 50;
+    const ax = rx + amp * Math.sin(6 * g.f * animT + g.p1);
+    const ay = ry + amp * Math.sin(6 * g.f * animT + g.p2);
+    drawAtom(ctx, ax, ay, 5.5, energyColor(frac));
+  }
+  caption(ctx, w / 2, h - 10, 'energy hand-off, column to column — t = ' + fmt(spreadState.t, 1) + ' s', COL.muted);
+
+  // temperature profile
+  const c2 = setupCanvas(document.getElementById('cv-spread2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, n - 1, 250, Thot + 60);
+  ch.grid(); ch.axes('position along the bar (atom column)', 'temperature (K)');
+  ch.hLine(Tmid, COL.warn, [4, 4]);
+  ch.hLine(300, COL.muted, [2, 4]);
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push([i, e[i]]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.vLine(front, COL.accent, [4, 4]);
+  ch.dot(front, Tmid, COL.warn, 5);
+  ch.legend([{ label: 'temperature profile', color: COL.accent },
+             { label: 'half-way mark', color: COL.warn, dash: [4, 4] }]);
+
+  setStat('st-spread', [
+    { label: 'Handoff speed D', value: fmt(D * 100, 0) + '% per step' },
+    { label: 'Hot end', value: fmt(Thot, 0) + ' K' },
+    { label: 'Sim time', value: fmt(spreadState.t, 1) + ' s' },
+    { label: 'Half-way front at', value: 'column ' + front, highlight: true },
+    { label: 'Front scaling', value: '∝ √t' }
+  ]);
+
+  if (D >= 0.25)
+    setVerdict('vd-spread', 'good', 'Conductor: the jiggle spreads eagerly.',
+      'With D = ' + fmt(D * 100, 0) + '% per step, every column hands its energy on almost as fast as it arrives — copper behavior. But watch the half-way front (column ' + front + ' at t = ' + fmt(spreadState.t, 0) + ' s): it keeps slowing down. After 4× the time it is only 2× farther — the √t random walk.');
+  else if (D <= 0.10)
+    setVerdict('vd-spread', 'warn', 'Insulator: the atoms hoard their energy.',
+      'With D = ' + fmt(D * 100, 0) + '% per step, each column clings to its jiggle — wood behavior. The left end glows while the far end stays cold for ages (front only at column ' + front + '). Same physics, same rule — just a stingy handoff.');
+  else
+    setVerdict('vd-spread', '', 'Somewhere between copper and wood.',
+      'D = ' + fmt(D * 100, 0) + '% per step: a middling conductor, like glass or brick. The front (column ' + front + ') creeps as √t either way — only the pace of the handoff changes, never the drunken-walk character.');
+}
+
+/* ---------------- TAB 3: threeways (ANIMATED) ---------------- */
+const twState = { scen: null, t0: 0 };
+const LANES = {
+  solid:  { cond: true,  conv: false, rad: false, weak: false },
+  air:    { cond: true,  conv: true,  rad: true,  weak: true  },
+  vacuum: { cond: false, conv: false, rad: true,  weak: false }
+};
+
+function drawThreeways(){
+  const T = num('s-threeways-T'), dT = T - 300;
+  const mode = scen.threeways, en = LANES[mode] || LANES.air;
+  if (twState.scen !== mode) { twState.scen = mode; twState.t0 = animT; }
+  const tl = animT - twState.t0;
+
+  const Lgap = 0.01;
+  const qc = en.cond ? (mode === 'solid' ? 1.0 : 0.026) * dT / Lgap : 0;
+  const qv = en.conv ? 5 * dT : 0;
+  const qr = en.rad ? 0.9 * SIGMA_SB * (Math.pow(T, 4) - Math.pow(300, 4)) : 0;
+  const qtot = qc + qv + qr;
+
+  // three lanes
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-threeways'));
+  const LANE = h / 3, gapL = 46, gapR = w - 46;
+  const hotCol = energyColor(Math.min(1, (T - 300) / 900));
+  for (let ln = 0; ln < 3; ln++) {
+    const yTop = ln * LANE, yc = yTop + LANE / 2 + 8;
+    if (ln > 0) drawLine(ctx, 8, yTop, w - 8, yTop, COL.grid, 1);
+    // hot & cold walls
+    ctx.fillStyle = hotCol; ctx.fillRect(gapL - 20, yTop + 8, 14, LANE - 16);
+    ctx.fillStyle = '#93c5fd'; ctx.fillRect(gapR + 6, yTop + 8, 14, LANE - 16);
+    const title = ['CONDUCTION — atoms locked in place, jiggle relayed',
+                   'CONVECTION — free particles carry the jiggle across',
+                   'RADIATION — the jiggle crosses as light'][ln];
+    caption(ctx, w / 2, yTop + 18, title, COL.ink, true);
+
+    if (ln === 0) {                                        // conduction lattice
+      if (en.cond) {
+        const nA = 15, dxa = (gapR - gapL - 40) / (nA - 1);
+        const period = en.weak ? 16 : 8;
+        const frontPos = Math.sqrt((tl % period) / period);
+        for (let i = 0; i < nA - 1; i++)
+          drawLine(ctx, gapL + 26 + i * dxa, yc, gapL + 26 + (i + 1) * dxa, yc, COL.grid, 1.5);
+        for (let i = 0; i < nA; i++) {
+          const xf = i / (nA - 1);
+          let f = Math.max(0, Math.min(1, (frontPos * 1.1 - xf) / 0.25));
+          if (en.weak) f *= 0.35;
+          const g = JIG[i];
+          const amp = 0.8 + 4 * f;
+          const ax = gapL + 26 + i * dxa + amp * Math.sin(7 * g.f1 * animT + g.p1);
+          const ay = yc + amp * Math.sin(7 * g.f2 * animT + g.p2);
+          drawAtom(ctx, ax, ay, 7, energyColor(f));
+        }
+        caption(ctx, w / 2, yTop + LANE - 8,
+          en.weak ? 'air conducts, but feebly (k = 0.026 W/m·K)' : 'solid: bonds everywhere — the relay is fast',
+          COL.muted);
+      } else {
+        caption(ctx, w / 2, yc + 4, 'no atoms in the gap — the relay has no runners. Blocked.', COL.muted, true);
+      }
+    }
+    if (ln === 1) {                                        // convection particles
+      if (en.conv) {
+        const P = 5 / (0.6 + T / 1200);                    // loop period shrinks when hotter
+        for (const g of CONV_PH) {
+          const s = (g.ph + tl / P) % 1;
+          let px, py, hot;
+          if (s < 0.5) { const u = s / 0.5;                // top run: hot, left → right
+            px = gapL + 26 + u * (gapR - gapL - 52); py = yc - 18 - g.yj * 12; hot = 0.9 - u * 0.5;
+          } else { const u = (s - 0.5) / 0.5;              // bottom run: cooled, right → left
+            px = gapR - 26 - u * (gapR - gapL - 52); py = yc + 18 + g.yj * 12; hot = 0.15;
+          }
+          drawAtom(ctx, px, py, 6, energyColor(hot));
+        }
+        arrow(ctx, w / 2 - 40, yc - 34, w / 2 + 40, yc - 34, COL.warn, 2);
+        arrow(ctx, w / 2 + 40, yc + 36, w / 2 - 40, yc + 36, COL.accent, 2);
+      } else {
+        caption(ctx, w / 2, yc + 4,
+          mode === 'solid' ? 'atoms locked in a lattice — nothing can flow. Blocked.'
+                           : 'no air to carry the heat. Blocked.', COL.muted, true);
+      }
+    }
+    if (ln === 2) {                                        // radiation photons
+      if (en.rad) {
+        const cyc = 1.2 / (0.5 + T / 1200);                // faster & brighter when hotter
+        RAD_PH.forEach((g, i) => {
+          const u = (g.ph + tl / cyc) % 1;
+          const xh = gapL + 40 + u * (gapR - gapL - 80);
+          const yy = yTop + 34 + i * ((LANE - 46) / 3);
+          ctx.save(); ctx.strokeStyle = COL.orange; ctx.lineWidth = 2; ctx.beginPath();
+          for (let q = 0; q <= 20; q++) {
+            const xx = xh - 50 + q * 2.5;
+            const yw = yy + 5 * Math.sin(xx / 7 + g.wob + animT * 14);
+            if (q === 0) ctx.moveTo(xx, yw); else ctx.lineTo(xx, yw);
+          }
+          ctx.stroke(); ctx.restore();
+          arrow(ctx, xh, yy, xh + 12, yy, COL.orange, 2);
+        });
+        caption(ctx, w / 2, yTop + LANE - 8, 'crosses at light speed — no atoms required', COL.muted);
+      } else {
+        caption(ctx, w / 2, yc + 4, 'the solid is opaque — light is absorbed before it can cross. Blocked.', COL.muted, true);
+      }
+    }
+  }
+
+  // energy bar chart
+  const c2 = setupCanvas(document.getElementById('cv-threeways2'));
+  const bars = [
+    { label: 'conduction', q: qc, on: en.cond, color: COL.accent },
+    { label: 'convection', q: qv, on: en.conv, color: COL.teal },
+    { label: 'radiation',  q: qr, on: en.rad,  color: COL.orange }
+  ];
+  const maxq = Math.max(1, ...bars.map(b => b.q));
+  const base = c2.h - 36, bw = 90;
+  drawLine(c2.ctx, 40, base, c2.w - 40, base, COL.axis, 1.5);
+  bars.forEach((b, i) => {
+    const cx = 140 + i * 180;
+    if (b.on) {
+      const bh = Math.max(4, b.q / maxq * (base - 44));
+      c2.ctx.fillStyle = b.color; c2.ctx.fillRect(cx - bw / 2, base - bh, bw, bh);
+      caption(c2.ctx, cx, base - bh - 8, fmt(b.q, 0) + ' W/m²', COL.ink, true);
+    } else {
+      c2.ctx.fillStyle = COL.grid; c2.ctx.fillRect(cx - bw / 2, base - 6, bw, 6);
+      caption(c2.ctx, cx, base - 14, 'blocked', COL.muted);
+    }
+    caption(c2.ctx, cx, base + 18, b.label, COL.axis, true);
+  });
+
+  setStat('st-threeways', [
+    { label: 'Hot wall', value: fmt(T, 0) + ' K' },
+    { label: 'ΔT across gap', value: fmt(dT, 0) + ' K' },
+    { label: 'q conduction', value: en.cond ? fmt(qc, 0) + ' W/m²' : '—' },
+    { label: 'q convection', value: en.conv ? fmt(qv, 0) + ' W/m²' : '—' },
+    { label: 'q radiation', value: en.rad ? fmt(qr, 0) + ' W/m²' : '—' },
+    { label: 'Total', value: fmt(qtot, 0) + ' W/m²', highlight: true }
+  ]);
+
+  if (mode === 'solid')
+    setVerdict('vd-threeways', 'good', 'Conduction owns this gap.',
+      'A solid fills the space, so the atom-to-atom relay runs at full speed: q = ' + fmt(qc, 0) + ' W/m². Convection is impossible (the atoms can\'t flow) and radiation is absorbed by the opaque solid before it can cross. One mechanism, but a strong one.');
+  else if (mode === 'air')
+    setVerdict('vd-threeways', 'good', 'All three delivery services are running.',
+      'Air conducts feebly (' + fmt(qc, 0) + ' W/m² — its atoms rarely touch), so convection (' + fmt(qv, 0) + ') and radiation (' + fmt(qr, 0) + ') do most of the hauling. Total: ' + fmt(qtot, 0) + ' W/m² — far less than the solid managed alone.');
+  else
+    setVerdict('vd-threeways', 'warn', 'Vacuum: only radiation survives — this is a thermos bottle.',
+      'No atoms → no relay, no courier. Heat leaks across only as light: ' + fmt(qr, 0) + ' W/m². Silver the walls (ε ≈ 0.05 instead of 0.9) and even that drops ~18×. Kill all three mechanisms and coffee stays hot all morning.');
+}
+
+/* ---------------- TAB 4: levelup (static) ---------------- */
+const MATS = [
+  { name: 'copper', alpha: 1.16e-4, color: COL.orange },
+  { name: 'air',    alpha: 2.2e-5,  color: COL.teal },
+  { name: 'glass',  alpha: 3.4e-7,  color: COL.purple },
+  { name: 'wood',   alpha: 1.9e-7,  color: '#a16207' }
+];
+
+function drawLevelup(){
+  const logL = num('s-levelup-L'), logA = num('s-levelup-alpha');
+  const Lm = Math.pow(10, logL), al = Math.pow(10, logA);
+  const tau = Lm * Lm / al;
+
+  // log-log τ vs L
+  const c1 = setupCanvas(document.getElementById('cv-levelup'));
+  const ch = new Chart(c1.ctx, c1.w, c1.h);
+  ch.setRange(-3, 0, -3, 7);
+  ch.grid(); ch.axes('log₁₀ L (m) — 1 mm to 1 m', 'log₁₀ τ (s)');
+  const refs = [[0, '1 s'], [Math.log10(60), '1 min'], [Math.log10(3600), '1 hour'], [Math.log10(86400), '1 day']];
+  for (const [ly, lab] of refs) {
+    ch.hLine(ly, COL.muted, [3, 4]);
+    caption(c1.ctx, ch.m.l + 26, ch.toY(ly) - 4, lab, COL.muted);
+  }
+  for (const m of MATS) {
+    const la = Math.log10(m.alpha);
+    ch.plot([[-3, -6 - la], [0, -la]], m.color, 1.5, [5, 4]);
+  }
+  ch.plot([[-3, -6 - logA], [0, -logA]], COL.accent, 3);
+  ch.dot(logL, 2 * logL - logA, COL.accent, 6);
+  ch.legend([{ label: 'your α', color: COL.accent },
+             { label: 'copper', color: COL.orange, dash: [5, 4] },
+             { label: 'air', color: COL.teal, dash: [5, 4] },
+             { label: 'glass', color: COL.purple, dash: [5, 4] },
+             { label: 'wood', color: '#a16207', dash: [5, 4] }]);
+
+  // per-material comparison bars at current L
+  const c2 = setupCanvas(document.getElementById('cv-levelup2'));
+  const taus = MATS.map(m => Lm * Lm / m.alpha);
+  const lo = Math.log10(Math.min(...taus)) - 0.5, hi = Math.log10(Math.max(...taus)) + 0.5;
+  MATS.forEach((m, i) => {
+    const y = 22 + i * 38;
+    const frac = (Math.log10(taus[i]) - lo) / (hi - lo);
+    const bl = 50 + frac * (c2.w - 250);
+    c2.ctx.fillStyle = m.color; c2.ctx.fillRect(110, y, bl, 20);
+    c2.ctx.fillStyle = COL.ink; c2.ctx.font = '12px sans-serif';
+    c2.ctx.textAlign = 'right'; c2.ctx.textBaseline = 'middle';
+    c2.ctx.fillText(m.name, 102, y + 10);
+    c2.ctx.textAlign = 'left';
+    c2.ctx.fillText(fmtTime(taus[i]), 110 + bl + 8, y + 10);
+  });
+  caption(c2.ctx, c2.w / 2, c2.h - 8, 'τ = L²/α for L = ' + fmtLen(logL) + '  (bar length ∝ log τ)', COL.muted);
+
+  setStat('st-levelup', [
+    { label: 'Length scale L', value: fmtLen(logL) },
+    { label: 'Diffusivity α', value: al.toExponential(2) + ' m²/s' },
+    { label: 'τ = L²/α', value: fmtTime(tau), highlight: true },
+    { label: 'τ (seconds)', value: fmt(tau, 2) + ' s' },
+    { label: 'Double L →', value: fmtTime(4 * tau) }
+  ]);
+
+  if (tau < 10)
+    setVerdict('vd-levelup', 'good', 'Heat wins — it soaks through before you notice.',
+      'τ = ' + fmtTime(tau) + ' for L = ' + fmtLen(logL) + '. This is pan-bottom territory: at these scales and diffusivities, heat crosses essentially instantly. Remember the price of the random walk, though — doubling L would already cost ' + fmtTime(4 * tau) + '.');
+  else if (tau < 3600)
+    setVerdict('vd-levelup', 'warn', 'Minutes-scale soak — you can feel the lag.',
+      'τ = ' + fmtTime(tau) + '. This is the wooden-spoon regime: touch it and the surface responds, but the deep interior takes ' + fmtTime(tau) + ' to notice. The √t creep from Tab 2 is exactly what you\'re waiting on.');
+  else
+    setVerdict('vd-levelup', 'bad', 'Effectively insulated at human timescales.',
+      'τ = ' + fmtTime(tau) + ' — heat diffusion has essentially given up at this size. This is why thick walls buffer day–night swings and why the ground a metre down stays cool all summer. To move heat faster than this, nature switches mechanisms: convection or radiation (Tab 3).');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { jiggle: drawJiggle, spread: drawSpread, threeways: drawThreeways, levelup: drawLevelup };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopAnim(); else startAnim();
+});
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

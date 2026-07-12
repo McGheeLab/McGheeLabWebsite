@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RM Essentials — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; Power-user orientation
+        </div>
+        <h1 class="training-module-title">RM Essentials</h1>
+        <p class="training-module-subtitle">
+          Get oriented to the RM workflow paradigm. After this you should
+          move through RM the way an experienced lab member does —
+          workflows over pages, cross-page flows over manual capture,
+          rhythm over reaction.
+        </p>
+      </header>
+
+      <div class="training-layout">
+
+        <aside class="training-toc" aria-label="Section navigation">
+          <h3>Sections</h3>
+          <ol>
+            <li><a href="#sec-paradigm" class="active">The workflow paradigm</a></li>
+            <li><a href="#sec-defaults">The five default workflows</a></li>
+            <li><a href="#sec-strip">The workflow strip</a></li>
+            <li><a href="#sec-split">Split view</a></li>
+            <li><a href="#sec-integration">Cross-page integration</a></li>
+            <li><a href="#sec-custom">Custom workflows</a></li>
+            <li><a href="#sec-rhythm">The daily / weekly rhythm</a></li>
+            <li><a href="#sec-shortcuts">Power-user shortcuts</a></li>
+            <li><a href="#sec-navmap">Page inventory</a></li>
+            <li><a href="#sec-quiz">Power-user quiz</a></li>
+            <li><a href="#sec-checklist">Power-user toolkit</a></li>
+          </ol>
+        </aside>
+
+        <main>
+
+          <!-- 1. The workflow paradigm -->
+          <section class="training-section" id="sec-paradigm">
+            <h2>1. The workflow paradigm</h2>
+            <p>
+              The single most important thing to internalize about RM:
+              <strong>workflows, not pages, are the unit of work.</strong>
+              The top nav looks bare on purpose — just <em>Workflows</em>,
+              <em>All Pages</em>, and <em>Split</em>. There is no "Tasks"
+              dropdown. There is no "Library" link. You enter a workflow,
+              you do a thing inside it, you exit. Page discovery happens
+              <em>inside</em> a workflow, not in a nav menu.
+            </p>
+            <p>
+              A workflow is a named, ordered set of pages that belong
+              together. RM ships five defaults (next section). When you
+              enter one, the top nav is replaced with a <strong>workflow
+              strip</strong> — a row of "page chips" you can click to move
+              between the workflow's pages without losing context. The
+              strip persists across navigations. Your workflow follows you.
+            </p>
+            <div class="training-callout">
+              <strong>Stop opening "/rm/pages/whatever.html" directly.</strong>
+              That's the slow path. The fast path: pick the workflow that
+              fits what you're doing right now. The chips inside the
+              workflow take you to the same pages, with the workflow's
+              context preserved.
+            </div>
+          </section>
+
+          <!-- 2. Default workflows -->
+          <section class="training-section" id="sec-defaults">
+            <h2>2. The five default workflows</h2>
+            <p>
+              Every account starts with these five. Pick whichever fits
+              what you're about to do — there is no "general" workflow
+              by design.
+            </p>
+            <ul>
+              <li><strong>Lab Research 🔬</strong> — activity tracker, library, projects, tasks, lab notebook, protocols. Your default daily workflow. Open this in the morning.</li>
+              <li><strong>Paper Writing 📝</strong> — paper builder, library, library comments, tasks, PMR, chat, lab notebook. Switch in when you sit down to draft a section.</li>
+              <li><strong>Certification &amp; Training 🎓</strong> — compliance, chemicals, career, tasks. Onboarding, recerts, training tracking.</li>
+              <li><strong>Task Scheduling &amp; Activity Reports 📊</strong> — tasks, activity-overview, tracker, year, email, scheduler, sharing, PMR. Used for weekly planning + retrospectives.</li>
+              <li><strong>Meetings 🗣️</strong> — meetings, huddle, chat, tasks, calendar. During lab meeting + 1:1s — keeps notes, chat, and follow-up tasks in one strip.</li>
+            </ul>
+            <p>
+              The decision isn't "what page do I need?" — it's "what am I
+              <em>doing</em>?" That phrasing tells you which workflow to
+              enter, and the strip handles page-hopping from there.
+            </p>
+          </section>
+
+          <!-- 3. The workflow strip -->
+          <section class="training-section" id="sec-strip">
+            <h2>3. The workflow strip</h2>
+            <p>
+              Once you enter a workflow, the strip across the top is your
+              navigation. It has more behavior than first appears.
+            </p>
+
+            <h3>The strip's controls</h3>
+            <ul>
+              <li><strong>Click the workflow icon (top-left of the strip)</strong> — opens a dropdown of every workflow you have access to. Pick one to switch in-place, with popouts (chat, tasks) staying mounted. <em>Don't go back to the home page to switch workflows.</em></li>
+              <li><strong>Click a chip</strong> — navigates to that page, strip stays visible.</li>
+              <li><strong>Drag a chip horizontally</strong> — reorder. Sticks for the session; persist permanently by clicking <em>Save changes</em>.</li>
+              <li><strong>× on a chip</strong> — remove that page from <em>this</em> workflow (defaults aren't mutated unless you save).</li>
+              <li><strong>+ Add page</strong> — picker of every page you can access that isn't already in this workflow.</li>
+              <li><strong>Save as custom</strong> — appears when you've modified a default. Saves your modified version as a personal workflow under your account.</li>
+              <li><strong>× Leave workflow</strong> — exits to the non-workflow top nav. Use this when you're done with whatever you were doing.</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>The brand-dropdown is the move you'll use the most.</strong>
+              You're in <em>Lab Research</em>, you suddenly need to draft
+              a paragraph — click the brand, jump to <em>Paper Writing</em>.
+              You're done drafting, jump back. No round-trips to a chooser
+              page. New users don't know this exists; experienced ones
+              never use anything else.
+            </div>
+          </section>
+
+          <!-- 4. Split view -->
+          <section class="training-section" id="sec-split">
+            <h2>4. Split view</h2>
+            <p>
+              <code>⊟ Split</code> opens two RM pages side-by-side in
+              iframes. Power-user use cases:
+            </p>
+            <ul>
+              <li>Writing a paper section (left pane) while consulting the library annotation (right pane).</li>
+              <li>Filing a PMR weekly entry (left pane) while looking at your tracker (right pane) for what to write.</li>
+              <li>Editing a protocol (left pane) while reading the SOP in the lab notebook (right pane).</li>
+              <li>Reviewing a task assigned in PMR (left pane) while skimming the originating PMR period (right pane).</li>
+            </ul>
+
+            <h3>Split mechanics</h3>
+            <ul>
+              <li>The strip <code>⊟ Split</code> button pre-fills the right pane with the <em>next workflow page</em>. One click and you have your two relevant pages open.</li>
+              <li>Drag the divider in the middle to resize panes.</li>
+              <li>Clicking a chip in the strip <em>while in split view</em> swaps that page into the <strong>active pane</strong> (red-bordered). Click the inactive pane to flip which one is active first.</li>
+              <li><code>× Close split</code> exits, keeping the active pane as the full page.</li>
+            </ul>
+          </section>
+
+          <!-- 5. Cross-page integration -->
+          <section class="training-section" id="sec-integration">
+            <h2>5. Cross-page integration — RM's secret weapon</h2>
+            <p>
+              The thing that turns RM from "a bunch of related pages" into
+              a system is that actions in one page automatically materialize
+              entries in others. Internalize this and you'll never lose work.
+            </p>
+
+            <h3>The auto-flow you should know</h3>
+            <ul>
+              <li><strong>Write in the paper builder →</strong> a pending tracker entry auto-creates. Confirm hours in the tracker; the entry rolls up to the PMR Activity block at week's end.</li>
+              <li><strong>Save a lab notebook entry →</strong> a pending tracker entry auto-creates. Same flow.</li>
+              <li><strong>Click 📌 PMR on an image in the lab notebook →</strong> the image becomes a figure-review card in your next PMR period, with editable caption + comment thread + an auto-link back to the notebook entry.</li>
+              <li><strong>Admin assigns a task to you in PMR →</strong> red badge appears on your Tasks Inbox tab. Tracker entry materializes when you next open the tasks dashboard. PMR provenance chip on the task deep-links back.</li>
+              <li><strong>Set a due date on a subtask →</strong> a future-dated tracker entry materializes; the Coming-up lane on the daily tracker surfaces it on its due date.</li>
+              <li><strong>Action items captured in a meetings page →</strong> auto-create scheduled tracker entries for the assignee.</li>
+              <li><strong>Create a protocol →</strong> tracker work entry.</li>
+            </ul>
+
+            <p>
+              <strong>Implication for how you work:</strong> stop manually
+              capturing things twice. Don't write a notebook entry then
+              re-paste the image into PMR — flag it. Don't open the tracker
+              and type "wrote paper for 2 hrs" — just write in the paper
+              builder; the pending entry will be waiting for you to confirm
+              hours. Most "I forgot to log that" failure modes vanish once
+              you trust this layer.
+            </p>
+
+            <div class="training-callout">
+              <strong>The thing to verify first.</strong> On your tracker's
+              daily view, look for the <em>pending banner</em> at the top.
+              That's where every auto-created entry collects until you
+              confirm hours. If it's stale, all your downstream flows
+              (PMR Activity, weekly stats) will be empty. Confirming pending
+              entries is a 30-second end-of-day habit.
+            </div>
+          </section>
+
+          <!-- 6. Custom workflows -->
+          <section class="training-section" id="sec-custom">
+            <h2>6. Custom workflows</h2>
+            <p>
+              The five defaults cover most cases. When they don't, build
+              your own. Custom workflows persist under <code>your account
+              only</code> — invisible to other lab members.
+            </p>
+
+            <h3>How to build one</h3>
+            <ol>
+              <li>Enter a default workflow that's close to what you want.</li>
+              <li>Use the strip to add/remove/reorder until it fits.</li>
+              <li>Click <strong>Save as custom</strong>. Name it (the default suggestion appends "(mine)").</li>
+              <li>That workflow now lives at <code>userData/{your-uid}/customWorkflows</code> and shows in your home grid + the brand-dropdown switcher.</li>
+            </ol>
+
+            <h3>Customs worth building (examples)</h3>
+            <ul>
+              <li><strong>"Defense prep"</strong> — paper-builder, library, lab-notebook, pmr, calendar. For the months leading up to your defense.</li>
+              <li><strong>"AX-R session"</strong> — equipment booking, protocols, lab-notebook, tasks. For days you have confocal time.</li>
+              <li><strong>"Grant deadline"</strong> — paper-builder, library, pmr, calendar, tasks. For the two-week sprint before a deadline.</li>
+              <li><strong>"Wednesday review"</strong> — tasks, pmr, activity-overview, sharing. For your weekly self-review on Wednesdays.</li>
+            </ul>
+
+            <div class="training-callout">
+              <strong>Customs aren't permanent contracts.</strong> Build
+              them aggressively, delete them when they no longer fit. The
+              friction is low; the productivity wins are concrete.
+            </div>
+          </section>
+
+          <!-- 7. Daily / weekly rhythm -->
+          <section class="training-section" id="sec-rhythm">
+            <h2>7. The daily / weekly rhythm</h2>
+            <p>
+              Power users have a cadence. Here's what works for most
+              people in this lab — adapt to your own work style, but
+              start here.
+            </p>
+
+            <h3>Start of day (5 min)</h3>
+            <ol>
+              <li>Enter the <strong>Lab Research</strong> workflow.</li>
+              <li>Open the tracker → check the <em>Coming up</em> lane for anything due today.</li>
+              <li>Open Tasks → glance at the Inbox tab for newly-assigned items (red badge tells you).</li>
+              <li>Open PMR → skim any unresolved comment threads or barriers from your most recent period.</li>
+            </ol>
+
+            <h3>During the day (in the flow)</h3>
+            <ul>
+              <li>Switch workflows when the work switches. <em>Paper writing</em> when drafting; <em>Lab Research</em> when at the bench; <em>Meetings</em> during the 1:1.</li>
+              <li>Don't fight cross-page integration; let it work for you. Write notebook entries, draft paper sections, complete subtasks — the tracker fills itself.</li>
+              <li>When something blocks you, write it in the PMR Barriers block immediately, while it's fresh. Don't wait for the next 1:1.</li>
+            </ul>
+
+            <h3>End of day (3 min)</h3>
+            <ol>
+              <li>Tracker pending banner: confirm hours on every entry. If a number is wrong, edit; if it's spurious, dismiss.</li>
+              <li>Anything you didn't finish that has a due date — pick it up in tomorrow's Coming-up lane, no manual carry-over needed.</li>
+            </ol>
+
+            <h3>End of week (15 min — Friday afternoon works)</h3>
+            <ol>
+              <li>Switch to the <strong>Task Scheduling &amp; Activity Reports</strong> workflow.</li>
+              <li>File a PMR weekly entry — a short paragraph on what got done, what's blocked, what's coming next.</li>
+              <li>Look at the PMR Activity block. If it looks empty, you missed tracker confirmations — backfill.</li>
+              <li>Close out completed subtasks; pin any Proposed items in your Inbox to real buckets.</li>
+            </ol>
+
+            <div class="training-callout">
+              <strong>The shape that matters.</strong> Daily takes 8 minutes total. Weekly takes 15. Anyone who tells you they "don't have time for the system" is paying the cost in lost work, missed action items, and PMRs that go cold. The system pays back what it asks within a week.
+            </div>
+          </section>
+
+          <!-- 8. Power-user shortcuts -->
+          <section class="training-section" id="sec-shortcuts">
+            <h2>8. Power-user shortcuts &amp; non-obvious moves</h2>
+            <ul>
+              <li><strong>Cmd+K in the paper builder</strong> opens the citation popover. Click multiple rows to multi-pick; the picker wraps them into a single <code>[@k1; @k2; @k3]</code> Pandoc citation group. Click an existing chip in the body to edit its keys.</li>
+              <li><strong>Click a citation chip</strong> in any paper-builder paragraph to open the edit popover pre-filled with that group's keys.</li>
+              <li><strong>Brand-dropdown switch</strong> (Section 3) — fastest workflow switching.</li>
+              <li><strong>⊟ Split with workflow context</strong> — the split-view link in the workflow strip auto-pre-fills the right pane with the <em>next</em> workflow page. One click = two panes.</li>
+              <li><strong>📌 PMR badge</strong> on every notebook image — instant figure-review flagging, instead of pasting the image into PMR by hand.</li>
+              <li><strong>"Pin to bucket"</strong> menu on every Proposed subtask in the Inbox — moves the AI-suggested or email-derived subtask into a real project bucket and clears the proposed flag.</li>
+              <li><strong>Comment threads on every block in PMR</strong> — you don't have to wait for the 1:1 to raise an item. Comment now; Alex sees it next time PMR is open.</li>
+              <li><strong>Tracker "Use raw data" toggle</strong> if you're in image analysis — the auto-pending tracker entries you'd normally confirm have an "Edit" affordance to back-fill hours after a long session.</li>
+              <li><strong>Drag-to-reorder strip chips</strong> — make your most-used pages the leftmost ones in any workflow.</li>
+              <li><strong>Hard-refresh</strong> (<kbd>Cmd/Ctrl + Shift + R</kbd>) if a page seems stale after Alex or someone else changed shared state — the service worker may be serving cache.</li>
+            </ul>
+          </section>
+
+          <!-- 9. Page inventory -->
+          <section class="training-section" id="sec-navmap">
+            <h2>9. The page inventory</h2>
+            <p>
+              When workflows don't have the page you need, the
+              <strong>All Pages</strong> grid (top-nav button when not in a
+              workflow) shows everything you can access. The widget below
+              is the same map without leaving the training — click a group
+              to see what's inside, then either click a page to open it or
+              <em>+ Add page</em> it to your current workflow strip.
+            </p>
+
+            <div class="nav-map-grid" id="nav-map-grid">
+              <!-- populated by JS -->
+            </div>
+            <div class="nav-map-detail" id="nav-map-detail">
+              <h3>Loading…</h3>
+            </div>
+          </section>
+
+          <!-- 10. Quiz -->
+          <section class="training-section" id="sec-quiz">
+            <h2>10. Power-user quiz</h2>
+            <p>
+              Six questions that separate new users from power users.
+              Pick an answer; wrong picks explain the right one. Re-try
+              freely.
+            </p>
+
+            <div class="rm-quiz" id="rm-quiz">
+              <div class="rm-quiz-item" data-correct="brand-dropdown">
+                <div class="question">You're in <em>Lab Research</em>, you need to switch to <em>Paper Writing</em> without losing your popout chat. What do you do?</div>
+                <div class="choices">
+                  <button data-choice="home">Go back to <code>/rm/index.html</code> and click Paper Writing</button>
+                  <button data-choice="brand-dropdown">Click the workflow icon at the top-left of the strip → pick Paper Writing</button>
+                  <button data-choice="leave">Click × Leave workflow, then re-enter from the home page</button>
+                  <button data-choice="url">Type the URL <code>?workflow=paper-writing</code> manually</button>
+                </div>
+                <div class="explain"><strong>Brand-dropdown.</strong> The brand icon at the top-left of the strip opens a workflow switcher. Picking another workflow swaps it in-place inside the workflow shell, with popouts staying mounted. The other options all unmount popouts or are slower.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="auto-pending">
+                <div class="question">You wrote a paper draft for 90 minutes. How does that time get into your activity log?</div>
+                <div class="choices">
+                  <button data-choice="manual">Open the tracker, click "+ New entry", type "wrote paper for 1.5h"</button>
+                  <button data-choice="pmr">Wait for the next PMR and write it into a weekly entry</button>
+                  <button data-choice="auto-pending">It's already there — a pending tracker entry was auto-created; confirm hours on it</button>
+                  <button data-choice="never">It doesn't — paper-writing isn't tracked</button>
+                </div>
+                <div class="explain"><strong>It's already there.</strong> The paper-builder fires V3.160 ActivitySignals that idempotently upsert a pending tracker entry. You confirm hours on it in the tracker's pending banner; never type the work twice.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="multipick">
+                <div class="question">You want to drop three citations as a single Pandoc group <code>[@k1; @k2; @k3]</code> into a paragraph in the paper builder. Fastest path?</div>
+                <div class="choices">
+                  <button data-choice="paste">Type the string by hand</button>
+                  <button data-choice="library">Open Library, copy keys, paste</button>
+                  <button data-choice="multipick">Cmd+K, click rows to multi-pick, hit "Insert 3"</button>
+                  <button data-choice="export">Use the .tex export</button>
+                </div>
+                <div class="explain"><strong>Cmd+K multi-pick.</strong> The citation popover supports toggling multiple rows before commit; "Insert N" wraps them into a Pandoc citation group automatically. The chip you produce is itself click-editable later.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="flag-badge">
+                <div class="question">You acquired a confocal image you want to discuss with Alex at the next PMR. Power-user move?</div>
+                <div class="choices">
+                  <button data-choice="paste-pmr">Paste it into a PMR weekly entry by hand</button>
+                  <button data-choice="dm-alex">DM Alex on chat with the image attached</button>
+                  <button data-choice="flag-badge">In the lab notebook, click the 📌 PMR badge on the image's thumbnail</button>
+                  <button data-choice="email">Email it to Alex</button>
+                </div>
+                <div class="explain"><strong>📌 PMR badge.</strong> Flagging the image from the notebook auto-materializes a figure-review card in your next PMR period with caption + comment thread + deep-link back to the originating notebook entry. The other options all require manual re-capture.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="split">
+                <div class="question">You're filing a PMR weekly entry and want to look at your tracker for the week at the same time. Power-user move?</div>
+                <div class="choices">
+                  <button data-choice="tabs">Open two browser tabs</button>
+                  <button data-choice="split">Click ⊟ Split — PMR in one pane, tracker in the other</button>
+                  <button data-choice="copy">Copy the tracker entries into the PMR by hand</button>
+                  <button data-choice="memory">Try to remember what you did from memory</button>
+                </div>
+                <div class="explain"><strong>Split view.</strong> Two RM pages side-by-side in one window with the strip still active above. Browser tabs work but lose the strip context; copying is duplication; memory loses items.</div>
+              </div>
+
+              <div class="rm-quiz-item" data-correct="custom">
+                <div class="question">You realize you always want the same five pages open when working on your defense talk, but no default workflow has exactly those five. What now?</div>
+                <div class="choices">
+                  <button data-choice="bookmark">Bookmark each URL in your browser</button>
+                  <button data-choice="custom">Modify a default workflow on the strip + click "Save as custom"</button>
+                  <button data-choice="ask-alex">Ask Alex to change the lab's default workflows</button>
+                  <button data-choice="memorize">Just remember to navigate to each page each time</button>
+                </div>
+                <div class="explain"><strong>Custom workflow.</strong> The strip's <em>Save as custom</em> button persists your modified workflow under your account. It shows in your home grid + brand-dropdown switcher. Browser bookmarks lose the strip context; lab defaults are admin-managed and not the right knob to turn.</div>
+              </div>
+
+              <div class="rm-quiz-score" id="rm-quiz-score">Pick an answer on each item to see how power-user-fluent you are.</div>
+            </div>
+          </section>
+
+          <!-- 11. Power-user toolkit checklist -->
+          <section class="training-section" id="sec-checklist">
+            <h2>11. Power-user toolkit checklist</h2>
+            <p>
+              The moves a power user makes that a new user doesn't. Tick
+              them off as you adopt each habit. When all twelve are
+              checked, you're operating RM the way it was designed to be
+              operated.
+            </p>
+
+            <div class="submit-checklist" id="rm-checklist">
+              <h3>Power-user toolkit</h3>
+              <label><input type="checkbox"> I switch workflows via the brand-dropdown instead of going back to the home page.</label>
+              <label><input type="checkbox"> I trust cross-page integration — I never re-type work that one of RM's pages auto-captures.</label>
+              <label><input type="checkbox"> I confirm tracker pending entries every day, so the PMR Activity block is never empty.</label>
+              <label><input type="checkbox"> I use ⊟ Split for any task that needs two RM pages visible at once.</label>
+              <label><input type="checkbox"> I drag-reorder the strip chips so my most-used pages sit on the left.</label>
+              <label><input type="checkbox"> I have at least one custom workflow saved that fits my actual workday.</label>
+              <label><input type="checkbox"> I use Cmd+K multi-pick to drop citation groups in the paper builder, never typing keys by hand.</label>
+              <label><input type="checkbox"> I click 📌 PMR on notebook images instead of pasting into PMR weekly entries.</label>
+              <label><input type="checkbox"> I file PMR weekly entries Fridays without being chased.</label>
+              <label><input type="checkbox"> When something blocks me, I write it in the PMR Barriers block the same day — not "later."</label>
+              <label><input type="checkbox"> I pin Proposed Inbox subtasks to real buckets at least weekly so the inbox never piles up.</label>
+              <label><input type="checkbox"> I exit workflows when I'm done with them — I don't leave one running indefinitely.</label>
+              <div class="submit-checklist-progress" id="rm-checklist-progress">0 of 12 adopted</div>
+              <div class="submit-checklist-bar" id="rm-checklist-bar"><div style="width:0%"></div></div>
+            </div>
+
+            <div class="insight">
+              <strong>What's next.</strong> Once the toolkit is mostly
+              green, work through V3.178 (daily research workflow in RM)
+              and V3.179 (Tasks &amp; PMR). Those two cover the specific
+              page-level moves inside the workflows you'll spend the
+              most time in.
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-rm-essentials.js"></script>
+</body>
+</html>

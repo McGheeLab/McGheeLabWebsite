@@ -11,12 +11,34 @@
  */
 
 (function () {
-  let _items = [];                  // full items.json items list
+  // V3.206 — single in-memory pool. The library page only ever reads /
+  // writes type='paper' items, so we drop the parallel `_items` list and
+  // load through the type-filtered `library/papers.json` route. `_items`
+  // stays as an alias for back-compat with code that scans the pool for
+  // dedup (LIBRARY_UPLOAD.findDuplicate, _onTableClick, _syncedThisSession).
+  let _items = [];                  // alias of _libraryPapers
   let _libraryPapers = [];          // filter: type=paper, meta.library.is_library_entry
   let _filterText = '';
   let _busy = false;
   let _tagFilter = '';              // active tag-prefix filter (clicking a chip)
+  let _missingOnly = false;         // V3.311 — missing-PDF queue filter
   let _tagIndex = null;             // built from _libraryPapers on each _load
+
+  // V3.206 — debounced search + memoized parsed query. _searchDebounce
+  // holds the pending setTimeout id so a fast typer collapses N keystrokes
+  // into one render. _parsedQueryCache memoizes _parseQuery(_filterText)
+  // since the same string is parsed once per render + once per row
+  // matched; cheap to skip on rapid edits.
+  let _searchDebounce = 0;
+  let _parsedQueryCache = { key: null, val: null };
+
+  // V3.206 — chunked render bookkeeping. Library lists with N>50 rows
+  // block the main thread on first paint; instead we paint the first 50
+  // synchronously and schedule the rest in idle-time batches of 100.
+  // _renderToken cancels in-flight batches when a new render starts.
+  const RENDER_FIRST_BATCH = 50;
+  const RENDER_BATCH_SIZE  = 100;
+  let _renderToken = 0;
 
   function _setBusy(msg) {
     _busy = !!msg;
@@ -42,12 +64,43 @@
   async function _load() {
     _setBusy('Loading library…');
     try {
-      const data = await api.load('items.json');
-      _items = (data && data.items) || [];
-      _libraryPapers = _items.filter(it =>
-        it.type === 'paper' &&
+      // V3.206 — fast-path: read only type='paper' items via the dedicated
+      // library/papers.json route. Server-side `where('type','==','paper')`
+      // drops grants/courses/tools from the read; LONG cache TTL +
+      // MAX(updatedAt) probe means repeat visits hit IDB. Old path read
+      // every items.json doc and filtered client-side.
+      //
+      // V3.207 fallback: in local dev the shadow-JSON fallback for the
+      // new route hits `/api/data/library/papers.json` which doesn't
+      // exist (server.py only ships `data/items.json`), so an empty
+      // Firestore items collection leaves the page empty. Retry against
+      // the unified items.json route and filter client-side. Harmless
+      // in production: Firestore returns rows directly and this branch
+      // never fires.
+      let papers = [];
+      try {
+        const data = await api.load('library/papers.json');
+        papers = (data && data.papers) || [];
+      } catch (e) {
+        console.warn('[library] library/papers.json load failed:', e.message || e);
+      }
+      if (!papers.length) {
+        try {
+          const fallback = await api.load('items.json');
+          const all = (fallback && fallback.items) || [];
+          papers = all.filter(it => it.type === 'paper');
+          if (papers.length) {
+            console.info(`[library] V3.206 fast-path empty; fell back to items.json (${papers.length} papers).`);
+          }
+        } catch (e) {
+          console.warn('[library] items.json fallback load failed:', e.message || e);
+        }
+      }
+      _libraryPapers = papers.filter(it =>
         it.meta && it.meta.library && it.meta.library.is_library_entry
       );
+      _items = _libraryPapers;     // back-compat alias for dedup callers
+      _parsedQueryCache = { key: null, val: null };
       // Refresh the tag autocomplete index after every load. Cheap — one
       // O(papers × tags-per-paper) walk and the result is reused for chip
       // rendering, autocomplete, and prefix filtering.
@@ -58,7 +111,13 @@
   }
 
   async function _saveItems() {
-    await api.save('items.json', { items: _items });
+    // V3.206 — write to the type='paper' route. The Firestore adapter
+    // scopes the collection-replace batch to docs matching the route's
+    // `where` clause, so grants/courses/tools in the items collection
+    // are left untouched. Each row in the payload gets `type:'paper'`
+    // stamped by the route's discriminator on the way down.
+    await api.save('library/papers.json', { papers: _libraryPapers });
+    _items = _libraryPapers;
   }
 
   // ---- Search ------------------------------------------------------------
@@ -143,6 +202,20 @@
     _render();
   }
 
+  // A title-search hit is fuzzy — CrossRef returns its best guess even for
+  // a bad query — so never silent-apply it. The user is the fuzzy matcher.
+  function _confirmTitleMatch(contextLine, meta) {
+    const list = meta.authors || [];
+    const authors = list.slice(0, 3).map(a => a.family).filter(Boolean).join(', ')
+      + (list.length > 3 ? ' et al.' : '');
+    return window.confirm(
+      `${contextLine}\n\n` +
+      `Best metadata match:\n${meta.title || '(untitled)'}\n` +
+      `${[authors, meta.year, meta.journal].filter(Boolean).join(' · ')}\n\n` +
+      `Use this metadata?`
+    );
+  }
+
   async function _ingestOne(file) {
     if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
       throw new Error('Only PDF files are supported.');
@@ -171,24 +244,35 @@
     // 3. Try metadata lookup based on the sniff
     _setBusy(`Looking up metadata for ${file.name}…`);
     let meta = {};
+    let titleGuess = '';
     try {
       if (firstPage.doi_guess) {
         meta = await LIBRARY_METADATA.lookup({ doi: firstPage.doi_guess });
       } else if (firstPage.arxiv_guess) {
         meta = await LIBRARY_METADATA.lookup({ arxiv_id: firstPage.arxiv_guess });
-      } else if (firstPage.text) {
-        // Last resort: first non-empty line as title query
-        const titleGuess = (firstPage.text.split('\n').find(l => l.trim().length > 12) || '').trim();
+      } else {
+        // No identifier on page 1 — fall back to a title search. V3.308:
+        // prefer the largest-font run pdf.js saw (title_guess) over the
+        // old first-line heuristic, and confirm before applying since a
+        // title match is fuzzy.
+        titleGuess = (firstPage.title_guess || '').trim();
+        if (!titleGuess && firstPage.text) {
+          titleGuess = (firstPage.text.split('\n').find(l => l.trim().length > 12) || '').trim();
+        }
         if (titleGuess) {
-          meta = await LIBRARY_METADATA.lookup({ title: titleGuess.slice(0, 200) });
+          const hit = await LIBRARY_METADATA.lookup({ title: titleGuess.slice(0, 200) });
+          if (hit && !hit.error &&
+              _confirmTitleMatch(`No DOI or arXiv id found in "${file.name}" — searched by title instead. Cancel keeps the PDF with its own title.`, hit)) {
+            meta = hit;
+          }
         }
       }
     } catch (e) {
       console.warn('[library] metadata lookup failed:', e.message);
     }
-    if (!meta || meta.error) {
+    if (!meta || meta.error || !meta.title) {
       meta = {
-        title: file.name.replace(/\.pdf$/i, ''),
+        title: titleGuess || file.name.replace(/\.pdf$/i, ''),
         authors: [],
         year: '',
         journal: '',
@@ -211,8 +295,9 @@
     // 6. Build final item + persist
     const item = LIBRARY_METADATA.buildPaperItem(meta, pdfInfo, null);
     item.id = paperId;
-    _items.push(item);
-    _setBusy(`Saving items.json…`);
+    _libraryPapers.push(item);
+    _items = _libraryPapers;
+    _setBusy(`Saving library…`);
     await _saveItems();
     _setBusy('');
     _toast(`Added "${item.title}".`, 'ok');
@@ -221,6 +306,12 @@
     if (LIBRARY_UPLOAD.parseAndCacheRefs) {
       LIBRARY_UPLOAD.parseAndCacheRefs(item.id, file).catch(e =>
         console.warn('[library] background ref parse failed:', e));
+    }
+    // V3.112 — fire-and-forget Semantic Scholar enrichment for
+    // structured references + cited-by + abstract + tldr.
+    if (LIBRARY_UPLOAD.enrichItemFromSemanticScholar) {
+      LIBRARY_UPLOAD.enrichItemFromSemanticScholar(item.id).catch(e =>
+        console.warn('[library] SS enrichment failed:', e));
     }
   }
 
@@ -243,12 +334,169 @@
     return names.join('; ');
   }
 
+  // True when the signed-in user is allowed to remove this paper from
+  // the library: admin per `_isAdminAny` OR original uploader (matching
+  // `meta.library.pdf.uploaded_by`). Pure visibility gate — the Cloud
+  // Function re-checks server-side before doing anything.
+  function _canDelete(it) {
+    const lib = (it && it.meta && it.meta.library) || {};
+    if (_isAdminAny()) return true;
+    const me = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) || null;
+    const myEmail = me ? (me.email || '').toLowerCase() : '';
+    const uploadedBy = ((lib.pdf && lib.pdf.uploaded_by) || '').toLowerCase();
+    return !!myEmail && myEmail === uploadedBy;
+  }
+
+  // Pick the best journal/source URL we have for a library item, in
+  // descending preference: DOI → arXiv → PMID → captured `url`.
+  // Returns { url, host } or null when no source identifier is set.
+  function _sourceUrl(lib) {
+    if (lib.doi)      return { url: `https://doi.org/${lib.doi}`,                   host: 'doi.org' };
+    if (lib.arxiv_id) return { url: `https://arxiv.org/abs/${lib.arxiv_id}`,        host: 'arxiv.org' };
+    if (lib.pmid)     return { url: `https://pubmed.ncbi.nlm.nih.gov/${lib.pmid}/`, host: 'pubmed.ncbi.nlm.nih.gov' };
+    if (lib.url) {
+      try { return { url: lib.url, host: new URL(lib.url).host }; }
+      catch { return { url: lib.url, host: 'source' }; }
+    }
+    return null;
+  }
+
+  // V3.309 — rows whose metadata clearly failed at ingest get an inline
+  // repair affordance under the title.
+  function _needsMetadataFix(lib) {
+    return lib.source === 'manual' || !(lib.authors && lib.authors.length);
+  }
+
+  // ---- V3.311 missing-PDF queue -------------------------------------------
+
+  function _pdfStatus(it) {
+    const lib = (it.meta && it.meta.library) || {};
+    if (lib.pdf && lib.pdf.storage_path) return 'ok';
+    if (lib.pdf_status === 'unobtainable') return 'unobtainable';
+    return 'missing';
+  }
+
+  // Targeted single-doc write (V3.309 pattern) — row-level actions must
+  // not rewrite the whole papers collection.
+  async function _saveOne(it) {
+    it.updated_at = new Date().toISOString().slice(0, 10);
+    const payload = JSON.parse(JSON.stringify(it));
+    delete payload.updatedAt;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await firebase.firestore().collection('items').doc(it.id).set(payload);
+  }
+
+  function _missingActionsHtml(it) {
+    const lib = it.meta.library;
+    if (_pdfStatus(it) === 'unobtainable') {
+      return `<span class="muted" title="Marked unobtainable — no PDF exists or none is accessible">🚫 no PDF</span>
+        <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Clear the unobtainable flag (back into the missing-PDF queue)">↩</button>`;
+    }
+    return `<span class="muted"${lib.pdf_retry && lib.pdf_retry.last_error ? ` title="${_escape(lib.pdf_retry.last_error)}"` : ''}>no PDF</span>
+      ${lib.doi ? `<button class="btn btn-sm" data-act="pdf-retry" data-id="${_escape(it.id)}" title="Retry the Unpaywall open-access fetch${lib.pdf_retry ? ` (attempt ${(lib.pdf_retry.attempts || 0) + 1})` : ''}">↻</button>` : ''}
+      <button class="btn btn-sm" data-act="pdf-upload" data-id="${_escape(it.id)}" title="Upload the PDF manually — attaches to THIS entry">⬆</button>
+      <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Mark unobtainable (drops out of the missing-PDF queue; reversible)">🚫</button>`;
+  }
+
+  let _pdfUploadTarget = null;
+
+  function _ensurePdfUploadInput() {
+    let inp = document.getElementById('library-pdf-upload-input');
+    if (inp) return inp;
+    inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'application/pdf';
+    inp.id = 'library-pdf-upload-input';
+    inp.hidden = true;
+    document.body.appendChild(inp);
+    inp.addEventListener('change', async () => {
+      const file = inp.files && inp.files[0];
+      const it = _pdfUploadTarget;
+      _pdfUploadTarget = null;
+      inp.value = '';
+      if (!file || !it) return;
+      await _attachPdf(it, file);
+    });
+    return inp;
+  }
+
+  async function _attachPdf(it, blob) {
+    _setBusy(`Uploading PDF for "${it.title}"…`);
+    try {
+      const pdfInfo = await LIBRARY_UPLOAD.uploadPdf(it.id, blob);
+      const lib = it.meta.library;
+      lib.pdf = {
+        storage_path: pdfInfo.storage_path,
+        hash: pdfInfo.hash,
+        filename_safe: `${it.id}.pdf`,
+        size_bytes: pdfInfo.size_bytes,
+        uploaded_at: pdfInfo.uploaded_at,
+        uploaded_by: pdfInfo.uploaded_by,
+      };
+      delete lib.pdf_status;
+      await _saveOne(it);
+      _render();
+      _toast(`PDF attached to "${it.title}".`, 'ok');
+      // Same background follow-ups as a fresh ingest.
+      if (LIBRARY_UPLOAD.parseAndCacheRefs) {
+        LIBRARY_UPLOAD.parseAndCacheRefs(it.id, blob).catch(e =>
+          console.warn('[library] attach ref parse failed:', e));
+      }
+      if (LIBRARY_UPLOAD.enrichItemFromSemanticScholar) {
+        LIBRARY_UPLOAD.enrichItemFromSemanticScholar(it.id).catch(e =>
+          console.warn('[library] attach SS enrichment failed:', e));
+      }
+    } catch (e) {
+      _toast(`Upload failed: ${e.message || e}`, 'error');
+    } finally {
+      _setBusy('');
+    }
+  }
+
+  async function _retryPdf(it) {
+    const lib = it.meta.library;
+    if (!lib.doi) {
+      _toast('No DOI on this entry — add one via ✎ first, then retry.', 'error');
+      return;
+    }
+    _setBusy('Checking Unpaywall…');
+    const retry = Object.assign({ attempts: 0 }, lib.pdf_retry || {});
+    retry.attempts = (retry.attempts || 0) + 1;
+    retry.last_at = new Date().toISOString();
+    retry.last_error = '';
+    try {
+      const oa = await LIBRARY_UPLOAD.unpaywallLookup(lib.doi);
+      if (!oa || !oa.bestPdfUrl) {
+        retry.last_error = 'No open-access copy found on Unpaywall.';
+      } else {
+        const blob = await LIBRARY_UPLOAD.fetchPdfBlob(oa.bestPdfUrl);
+        if (blob) {
+          lib.pdf_retry = retry;
+          await _attachPdf(it, blob);       // saves + re-renders + clears busy
+          return;
+        }
+        retry.last_error = 'OA PDF found but CORS-blocked — open the candidate URL manually, then ⬆ upload.';
+        lib.pdf_candidate_url = oa.bestPdfUrl;
+        lib.pdf_candidate_source = oa.source || '';
+      }
+    } catch (e) {
+      retry.last_error = e.message || String(e);
+    }
+    lib.pdf_retry = retry;
+    try { await _saveOne(it); } catch (e) { console.warn('[library] retry stamp failed:', e); }
+    _setBusy('');
+    _render();
+    _toast(retry.last_error || 'Retry finished.', retry.last_error ? 'error' : 'ok');
+  }
+
   function _renderRow(it) {
     const lib = it.meta.library;
     const tr = document.createElement('tr');
     tr.dataset.id = it.id;
     const journalYear = [lib.journal, lib.year].filter(Boolean).join(' · ');
     const star = lib.starred ? '★' : '☆';
+    const src = _sourceUrl(lib);
+    const canDel = _canDelete(it);
     tr.innerHTML = `
       <td class="lib-col-star" title="Toggle star">
         <button class="lib-star-btn" data-id="${_escape(it.id)}">${star}</button>
@@ -258,14 +506,17 @@
           <a href="/rm/pages/library-paper.html?id=${encodeURIComponent(it.id)}" class="lib-title-link">${_escape(it.title || 'Untitled')}</a>
         </div>
         <div class="lib-authors">${_escape(_authorLine(lib.authors))}</div>
+        ${_needsMetadataFix(lib) ? `<button class="btn btn-sm" data-act="edit-meta" data-id="${_escape(it.id)}" style="margin-top:3px;background:#fef3c7;border-color:#fde68a;color:#92400e;" title="Lookup failed at ingest — edit the metadata or pull it from a DOI">⚠ Fix metadata</button>` : ''}
       </td>
       <td class="lib-col-journal">${_escape(journalYear)}</td>
       <td class="lib-col-key"><code>${_escape(lib.citation_key || '')}</code></td>
       <td class="lib-col-actions">
-        ${lib.pdf ? `<a class="btn btn-sm" href="/rm/pages/library-paper.html?id=${encodeURIComponent(it.id)}">Read</a>` : '<span class="muted">no PDF</span>'}
+        ${lib.pdf ? `<a class="btn btn-sm" href="/rm/pages/library-paper.html?id=${encodeURIComponent(it.id)}">Read</a>` : _missingActionsHtml(it)}
         ${lib.pdf ? `<button class="btn btn-sm" data-act="open-pdf-tab" data-id="${_escape(it.id)}" title="Open raw PDF in new tab">↗</button>` : ''}
-        ${lib.doi ? `<a class="btn btn-sm" href="https://doi.org/${_escape(lib.doi)}" target="_blank" rel="noopener">DOI</a>` : ''}
+        ${src ? `<a class="btn btn-sm" href="${_escape(src.url)}" target="_blank" rel="noopener" title="Open at ${_escape(src.host)}">Go to source</a>` : ''}
+        <button class="btn btn-sm" data-act="edit-meta" data-id="${_escape(it.id)}" title="Edit metadata / fetch from DOI">✎</button>
         <button class="btn btn-sm" data-act="assign-paper" data-id="${_escape(it.id)}" title="Send this paper to a teammate">Send</button>
+        ${canDel ? `<button class="btn btn-sm lib-delete-btn" data-act="delete-paper" data-id="${_escape(it.id)}" title="Delete this paper, its PDF, and all annotations">🗑</button>` : ''}
       </td>
     `;
     return tr;
@@ -339,12 +590,28 @@
     const prefs = window.LIBRARY_PREFS ? LIBRARY_PREFS.get() : null;
     const visiblePool = _applyVisibilityFilter(_libraryPapers);
 
-    const parsed = _parseQuery(_filterText);
+    // V3.206 — memoize parsed query across renders triggered by the same
+    // input string (sort toggle, star click, tag chip click all rerun
+    // _render without touching the search box).
+    const parsed = (_parsedQueryCache.key === _filterText)
+      ? _parsedQueryCache.val
+      : (_parsedQueryCache = { key: _filterText, val: _parseQuery(_filterText) }).val;
+
     let filtered = visiblePool.filter(p => _matches(p, parsed));
     if (_tagFilter) {
       filtered = filtered.filter(p =>
         window.LIBRARY_TAGS && LIBRARY_TAGS.matchPrefix(LIBRARY_TAGS.getTags(p), _tagFilter)
       );
+    }
+    // V3.311 — missing-PDF queue: the chip filters to rows without a PDF
+    // (unobtainable ones included so ↩ stays reachable) and keeps its
+    // count current on every render.
+    if (_missingOnly) filtered = filtered.filter(p => _pdfStatus(p) !== 'ok');
+    const missBtn = document.getElementById('library-missing-pdfs');
+    if (missBtn) {
+      const nMissing = _libraryPapers.filter(p => _pdfStatus(p) === 'missing').length;
+      missBtn.textContent = `${_missingOnly ? '✓ ' : ''}Missing PDFs (${nMissing})`;
+      missBtn.style.display = (nMissing || _missingOnly) ? '' : 'none';
     }
 
     const sortMode = (prefs && prefs.default_sort) || 'year-desc';
@@ -371,7 +638,37 @@
       return;
     }
 
-    for (const p of filtered) tbody.appendChild(_renderRow(p));
+    // V3.206 — chunked render. Paint the first RENDER_FIRST_BATCH rows
+    // synchronously so the user sees content immediately, then schedule
+    // the remainder in RENDER_BATCH_SIZE-row batches via
+    // requestIdleCallback. _renderToken cancels any in-flight batches
+    // when a new render starts (filter change, sort change, etc.) — we
+    // capture it here and check it inside the batch loop. With ~1000
+    // papers the first paint drops from ~250 ms to ~15 ms; the rest
+    // streams in over a few idle slices.
+    const token = ++_renderToken;
+    const head = filtered.slice(0, RENDER_FIRST_BATCH);
+    const tail = filtered.slice(RENDER_FIRST_BATCH);
+    const headFrag = document.createDocumentFragment();
+    for (const p of head) headFrag.appendChild(_renderRow(p));
+    tbody.appendChild(headFrag);
+
+    if (!tail.length) return;
+
+    const schedule = window.requestIdleCallback
+      ? (cb) => window.requestIdleCallback(cb, { timeout: 200 })
+      : (cb) => setTimeout(() => cb({ timeRemaining: () => 0, didTimeout: true }), 0);
+
+    let i = 0;
+    function batch(deadline) {
+      if (token !== _renderToken) return;          // a newer render preempted us
+      const stopAt = Math.min(i + RENDER_BATCH_SIZE, tail.length);
+      const frag = document.createDocumentFragment();
+      for (; i < stopAt; i++) frag.appendChild(_renderRow(tail[i]));
+      tbody.appendChild(frag);
+      if (i < tail.length) schedule(batch);
+    }
+    schedule(batch);
   }
 
   // Render the tag-chip strip between the search box and the table. Shows
@@ -472,6 +769,45 @@
       return;
     }
 
+    if (btn.dataset.act === 'pdf-retry') {
+      await _retryPdf(it);
+      return;
+    }
+
+    if (btn.dataset.act === 'pdf-upload') {
+      _pdfUploadTarget = it;
+      _ensurePdfUploadInput().click();
+      return;
+    }
+
+    if (btn.dataset.act === 'pdf-unobtainable') {
+      if (lib.pdf_status === 'unobtainable') delete lib.pdf_status;
+      else lib.pdf_status = 'unobtainable';
+      try {
+        await _saveOne(it);
+        _render();
+      } catch (e) {
+        _toast(`Save failed: ${e.message || e}`, 'error');
+      }
+      return;
+    }
+
+    if (btn.dataset.act === 'edit-meta') {
+      if (!window.LIBRARY_EDIT) {
+        _toast('Metadata editor is unavailable on this page.', 'error');
+        return;
+      }
+      LIBRARY_EDIT.open(it, {
+        onSaved(updated) {
+          const idx = _libraryPapers.findIndex(x => x.id === updated.id);
+          if (idx >= 0) _libraryPapers[idx] = updated;
+          _items = _libraryPapers;
+          _render();
+        },
+      });
+      return;
+    }
+
     if (btn.dataset.act === 'assign-paper') {
       if (!window.TASK_ASSIGN) {
         _toast('Send is unavailable on this page.', 'error');
@@ -487,6 +823,42 @@
           paperAuthors: authorLine,
         },
       });
+      return;
+    }
+
+    if (btn.dataset.act === 'delete-paper') {
+      const title = it.title || lib.title || it.id;
+      if (!confirm(`Delete "${title}"?\n\nThis removes the PDF, all annotations, and any task evidence references. Cannot be undone.`)) {
+        return;
+      }
+      const me = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) || null;
+      if (!me) {
+        _toast('Sign in to delete papers.', 'error');
+        return;
+      }
+      _setBusy('Deleting…');
+      try {
+        const idToken = await me.getIdToken();
+        const r = await fetch('https://us-central1-mcgheelab-f56cc.cloudfunctions.net/deletePaper', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: JSON.stringify({ itemId: it.id }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok) {
+          throw new Error(j.error || ('HTTP ' + r.status));
+        }
+        // Drop the row from the in-memory caches and re-render. The next
+        // page load will re-fetch from Firestore as a sanity check.
+        _libraryPapers = _libraryPapers.filter(x => x.id !== it.id);
+        _items = _libraryPapers;
+        _render();
+        _toast(`Deleted "${title}".`, 'ok');
+      } catch (e) {
+        _toast(`Delete failed: ${e.message || e}`, 'error');
+      } finally {
+        _setBusy('');
+      }
       return;
     }
 
@@ -530,9 +902,14 @@
   function _wireSearch() {
     const input = document.getElementById('library-search');
     if (!input) return;
+    // V3.206 — debounce 150 ms so a fast typer collapses N keystrokes
+    // into one render. Chunked rendering still preempts on each rerun
+    // via _renderToken, but skipping the parse + filter + sort entirely
+    // on intermediate keystrokes is cheaper.
     input.addEventListener('input', () => {
       _filterText = input.value;
-      _render();
+      if (_searchDebounce) clearTimeout(_searchDebounce);
+      _searchDebounce = setTimeout(() => { _searchDebounce = 0; _render(); }, 150);
     });
   }
 
@@ -540,7 +917,9 @@
     const btn = document.getElementById('library-add-doi');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      const q = window.prompt('Enter DOI, PMID, or arXiv ID:');
+      const q = window.RM_DIALOG
+        ? await RM_DIALOG.prompt({ title: 'Add paper by identifier', placeholder: 'DOI, PMID, or arXiv ID', okText: 'Look up' })
+        : window.prompt('Enter DOI, PMID, or arXiv ID:');
       if (!q) return;
       const trimmed = q.trim();
       let params = {};
@@ -552,12 +931,18 @@
         _setBusy('Looking up…');
         const meta = await LIBRARY_METADATA.lookup(params);
         if (meta.error) throw new Error(meta.error);
+        // V3.308 — a free-text title query is a fuzzy match; confirm it.
+        if (params.title &&
+            !_confirmTitleMatch(`"${trimmed}" isn't a DOI/PMID/arXiv id — searched CrossRef by title instead.`, meta)) {
+          return;
+        }
         const item = LIBRARY_METADATA.buildPaperItem(meta, null, null);
-        if (_items.some(x => x.id === item.id)) {
+        if (_libraryPapers.some(x => x.id === item.id)) {
           _toast(`"${item.title}" is already in the library.`, 'info');
           return;
         }
-        _items.push(item);
+        _libraryPapers.push(item);
+        _items = _libraryPapers;
         await _saveItems();
         await _load();
         _render();
@@ -567,6 +952,17 @@
       } finally {
         _setBusy('');
       }
+    });
+  }
+
+  // V3.311 — missing-PDF queue chip toggle.
+  function _wireMissingChip() {
+    const btn = document.getElementById('library-missing-pdfs');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      _missingOnly = !_missingOnly;
+      btn.classList.toggle('btn-primary', _missingOnly);
+      _render();
     });
   }
 
@@ -993,6 +1389,7 @@
     _wireUploadZone();
     _wireSearch();
     _wireDoiAdd();
+    _wireMissingChip();
     document.getElementById('library-tbody')
       ?.addEventListener('click', _onTableClick);
     await _load();

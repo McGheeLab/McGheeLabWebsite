@@ -1,4 +1,11 @@
-/* activity-summary.js — aggregated view of lab member activity from the website's tracker */
+/* activity-summary.js — aggregated view of lab member activity.
+ *
+ * V3.321 (FuturePlan 04 B3) — hours are dead: the lab-wide table shows
+ * EVENT COUNTS + active days, not hours. Reads both entry shapes
+ * (legacy hours-era docs count as one event each; legacy 'dismissed'
+ * docs and schedule markers are excluded). The shareActivity opt-in
+ * gate is unchanged (firestore.rules trackerEntries read clause).
+ */
 
 (function () {
   var content = document.getElementById('content');
@@ -7,13 +14,13 @@
   var _sortDir = 'asc';
   var CAT_COLUMNS = [
     { label: 'Category', key: 'category' },
-    { label: 'Hours', key: 'hours', type: 'number' },
+    { label: 'Events', key: 'count', type: 'number' },
     { label: '% of Total', key: 'pct', type: 'number' },
   ];
   var MEMBER_COLUMNS = [
     { label: 'Name', key: 'name' },
-    { label: 'Hours', key: 'totalHours', type: 'number' },
-    { label: 'Entries', key: 'entries', type: 'number' },
+    { label: 'Events', key: 'totalEvents', type: 'number' },
+    { label: 'Active Days', key: 'activeDays', type: 'number' },
     { label: 'Breakdown', key: null },
   ];
 
@@ -23,6 +30,12 @@
         '<p>Not connected to the website.</p>' +
         '<p style="margin-top:8px"><a href="/rm/pages/settings.html">Go to Settings</a> to sign in.</p>' +
       '</div>';
+  }
+
+  function isScheduleMarker(e) {
+    if (e.kind === 'schedule') return true;
+    if (!e.kind && e.scheduled_for && e.status === 'pending') return true;
+    return false;
   }
 
   async function loadAndRender() {
@@ -44,22 +57,19 @@
       // Load users via cached lab roster — only query activity for those who
       // opted in (shareActivity == true).
       var _r = await api.load('lab/users.json');
-      var allUsers = ((_r && _r.users) || []).filter(function (u) { return u.role && u.role !== 'guest'; });
+      var allUsers = ((_r && _r.users) || []).filter(function (u) { return LAB_USERS.isVisible(u); });
 
       var sharingUsers = allUsers.filter(function (u) { return u.shareActivity === true; });
       var notSharing = allUsers.filter(function (u) { return u.shareActivity !== true; });
 
-      // Build user lookup
       var userMap = {};
       allUsers.forEach(function (u) {
         userMap[u.id] = u.name || u.email || u.id;
       });
 
-      // Load activity entries only for users who opted in
       var byPerson = {};
       var byCategory = {};
-      var totalHours = 0;
-      var totalEntries = 0;
+      var totalEvents = 0;
 
       var entryPromises = sharingUsers.map(function (u) {
         return db.collection('trackerEntries').doc(u.id).collection('entries')
@@ -67,25 +77,28 @@
           .get().then(function (snap) {
             snap.docs.forEach(function (d) {
               var e = d.data();
+              if (e.status === 'dismissed' || isScheduleMarker(e)) return;
               var uid = u.id;
-              var hrs = e.duration || e.hours || 0;
-              var cat = e.category || 'Other';
+              var cat = (Array.isArray(e.categoryPath) && e.categoryPath[0]) ||
+                        (e.source === 'rm-page-time' ? 'rm activity' : (e.category || 'other'));
 
-              totalHours += hrs;
-              totalEntries++;
+              totalEvents++;
 
               if (!byPerson[uid]) {
-                byPerson[uid] = { name: userMap[uid] || uid, totalHours: 0, byCategory: {}, entries: 0 };
+                byPerson[uid] = { name: userMap[uid] || uid, totalEvents: 0, byCategory: {}, days: {} };
               }
-              byPerson[uid].totalHours += hrs;
-              byPerson[uid].entries++;
-              byPerson[uid].byCategory[cat] = (byPerson[uid].byCategory[cat] || 0) + hrs;
+              byPerson[uid].totalEvents++;
+              if (e.date) byPerson[uid].days[e.date] = true;
+              byPerson[uid].byCategory[cat] = (byPerson[uid].byCategory[cat] || 0) + 1;
 
-              byCategory[cat] = (byCategory[cat] || 0) + hrs;
+              byCategory[cat] = (byCategory[cat] || 0) + 1;
             });
           }).catch(function () {});
       });
       await Promise.all(entryPromises);
+      Object.values(byPerson).forEach(function (p) {
+        p.activeDays = Object.keys(p.days).length;
+      });
       var users = allUsers;
 
       // Render
@@ -93,10 +106,10 @@
 
       // Summary bar
       html += '<div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">';
-      html += '<div class="card" style="flex:1;min-width:200px;"><div class="card-title">Total Hours</div><div class="card-count">' + totalHours.toFixed(1) + '</div><div class="card-body">' + totalEntries + ' entries over ' + days + ' days</div></div>';
+      html += '<div class="card" style="flex:1;min-width:200px;"><div class="card-title">Total Events</div><div class="card-count">' + totalEvents + '</div><div class="card-body">over ' + days + ' days</div></div>';
       html += '<div class="card" style="flex:1;min-width:200px;"><div class="card-title">Active Members</div><div class="card-count">' + Object.keys(byPerson).length + '</div><div class="card-body">of ' + users.length + ' total</div></div>';
       var topCat = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; });
-      html += '<div class="card" style="flex:1;min-width:200px;"><div class="card-title">Top Category</div><div class="card-count">' + (topCat.length ? topCat[0][0] : 'N/A') + '</div><div class="card-body">' + (topCat.length ? topCat[0][1].toFixed(1) + 'h' : '') + '</div></div>';
+      html += '<div class="card" style="flex:1;min-width:200px;"><div class="card-title">Top Category</div><div class="card-count">' + (topCat.length ? topCat[0][0] : 'N/A') + '</div><div class="card-body">' + (topCat.length ? topCat[0][1] + ' events' : '') + '</div></div>';
       html += '</div>';
 
       // Sharing status notice
@@ -105,40 +118,40 @@
         html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px;color:var(--text-muted);">';
         html += '<strong>' + sharingUsers.length + ' of ' + allUsers.length + ' members</strong> are sharing activity data. ';
         html += 'Not sharing: ' + notSharingNames + '. ';
-        html += 'Members can enable sharing from their Activity Tracker settings on the website.';
+        html += 'Members can enable sharing from the Settings page (Profile tab).';
         html += '</div>';
       }
 
       // Category breakdown
       if (topCat.length) {
         var catRows = topCat.map(function (kv) {
-          return { category: kv[0], hours: kv[1], pct: totalHours > 0 ? (kv[1] / totalHours) * 100 : 0 };
+          return { category: kv[0], count: kv[1], pct: totalEvents > 0 ? (kv[1] / totalEvents) * 100 : 0 };
         });
         catRows = sortItems(catRows, _sortKey, _sortDir, CAT_COLUMNS);
         html += '<h2 style="font-size:16px;margin-bottom:12px;">By Category</h2>';
         html += '<table class="data-table" style="margin-bottom:24px;">';
         html += sortableHeader(CAT_COLUMNS, _sortKey, _sortDir, 'onActivitySort') + '<tbody>';
         catRows.forEach(function (row) {
-          html += '<tr><td><strong>' + row.category + '</strong></td><td>' + row.hours.toFixed(1) + '</td><td>' + row.pct.toFixed(1) + '%</td></tr>';
+          html += '<tr><td><strong>' + row.category + '</strong></td><td>' + row.count + '</td><td>' + row.pct.toFixed(1) + '%</td></tr>';
         });
         html += '</tbody></table>';
       }
 
       // Per-person breakdown
-      var personList = Object.values(byPerson).sort(function (a, b) { return b.totalHours - a.totalHours; });
+      var personList = Object.values(byPerson).sort(function (a, b) { return b.totalEvents - a.totalEvents; });
 
       html += '<h2 style="font-size:16px;margin-bottom:12px;">By Lab Member</h2>';
       if (personList.length === 0) {
-        html += '<div class="empty-state">No activity entries in the last ' + days + ' days.</div>';
+        html += '<div class="empty-state">No activity events in the last ' + days + ' days.</div>';
       } else {
         personList = sortItems(personList, _sortKey, _sortDir, MEMBER_COLUMNS);
         html += '<table class="data-table">' + sortableHeader(MEMBER_COLUMNS, _sortKey, _sortDir, 'onActivitySort') + '<tbody>';
         personList.forEach(function (p) {
           var breakdown = Object.entries(p.byCategory)
             .sort(function (a, b) { return b[1] - a[1]; })
-            .map(function (kv) { return kv[0] + ': ' + kv[1].toFixed(1) + 'h'; })
+            .map(function (kv) { return kv[0] + ': ' + kv[1]; })
             .join(', ');
-          html += '<tr><td><strong>' + p.name + '</strong></td><td>' + p.totalHours.toFixed(1) + '</td><td>' + p.entries + '</td><td style="font-size:13px;color:var(--text-muted);">' + breakdown + '</td></tr>';
+          html += '<tr><td><strong>' + p.name + '</strong></td><td>' + p.totalEvents + '</td><td>' + p.activeDays + '</td><td style="font-size:13px;color:var(--text-muted);">' + breakdown + '</td></tr>';
         });
         html += '</tbody></table>';
       }

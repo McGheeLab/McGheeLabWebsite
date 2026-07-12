@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Activity — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/activity-signals.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <script>
     /* V3.62 — unified Activity hub. The five activity-related pages
@@ -146,6 +148,12 @@
       </div>
       <div class="ch-toolbar">
         <select id="year-filter" class="btn" style="font-size:14px"></select>
+        <button class="btn btn-sm btn-primary" id="email-scrape-now-btn" type="button" title="Fetch new messages from your connected Gmail account">Scrape now</button>
+        <label style="font-size:12px;color:#374151;display:inline-flex;align-items:center;gap:4px;user-select:none" title="How many days back this scrape should reach — raise it if you haven't synced in a while and missed mail">
+          <input type="number" id="email-scrape-days" min="1" max="3650" value="7" style="width:58px;font-size:13px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px">
+          days back
+        </label>
+        <span id="email-scrape-status" style="font-size:12px;color:#6b7280"></span>
         <label style="font-size:12px;color:#374151;display:inline-flex;align-items:center;gap:6px;margin-left:auto;user-select:none">
           <input type="checkbox" id="only-tasks"> only with tasks
         </label>
@@ -256,6 +264,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
@@ -287,10 +296,9 @@
           '/rm/js/activity-overview.js'
         ],
         tracker: [
-          // Chart.js hoisted to a regular <script> tag above (V3.70)
-          '/rm/js/rm-categories.js',
-          'https://accounts.google.com/gsi/client',
-          '/rm/js/calendar-service.js',
+          // V3.320 — the rewritten tracker needs no category tree, no
+          // Google GSI, no calendar service: one listEvents read + a
+          // pure-DOM heatmap.
           '/rm/js/activity-tracker.js'
         ],
         timeline: [
@@ -304,8 +312,20 @@
           '/rm/js/yr-shared.js',
           '/rm/js/disp-shared.js',
           '/rm/js/task-editor.js',
+          // V3.289 — free client-side rules pre-filter (sender/subject/noise)
+          // so scraped mail sorts into real categories instead of 'unknown'.
+          '/rm/js/category-rules.js',
+          // V3.292 — in-browser Naive Bayes classifier that learns live from
+          // your hand-categorized mail; blended ahead of the rules.
+          '/rm/js/email-classifier.js',
           // Chart.js hoisted to a regular <script> tag above (V3.70)
           '/rm/js/task-quick-builder.js',
+          // V3.288 — oauth-connections powers the email tab's inline
+          // "Connect Gmail" empty-state. The Google Identity SDK is NOT listed
+          // here: it's lazy-loaded on demand by ensureGisLoaded() on first
+          // connect, to avoid a parser-blocking cross-site document.write that
+          // Chrome may block on poor networks.
+          '/rm/js/oauth-connections.js',
           '/rm/js/email-review.js'
         ],
         'lab-stats': [

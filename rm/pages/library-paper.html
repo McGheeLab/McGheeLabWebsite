@@ -4,14 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Paper — McGhee Lab Library</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <link rel="stylesheet" href="/rm/vendor/pdfjs/pdf_viewer.css">
 </head>
 <body>
   <div class="page lp-page">
-    <div class="lp-split lp-split-3" id="lp-split">
-      <aside class="lp-side" id="lp-side">
+    <!-- V3.235 — .rm-mobile-drawer-host turns .lp-side + .lp-annotations
+         into side-swipe drawers at ≤640px. At ≥641px the classes are
+         inert (panes render in their natural 3-column grid flow). -->
+    <div class="lp-split lp-split-3 rm-mobile-drawer-host" id="lp-split">
+      <aside class="lp-side rm-mobile-drawer-left" id="lp-side">
         <button class="lp-collapse-btn lp-collapse-left" id="lp-collapse-left" title="Collapse details" aria-label="Collapse details">‹</button>
         <button class="lp-expand-btn lp-expand-left" id="lp-expand-left" title="Show details" aria-label="Show details">›</button>
         <div class="lp-side-inner">
@@ -19,20 +23,38 @@
           <h1 class="lp-title" id="lp-title">Loading…</h1>
           <div class="lp-subtitle" id="lp-subtitle"></div>
           <div class="lp-tags" id="lp-tags"></div>
+          <div class="lp-citations" id="lp-citations" style="margin:14px 0;"></div>
           <div class="lp-meta" id="lp-metadata"></div>
-          <div class="lp-abstract" id="lp-abstract" style="display:none"></div>
+          <div class="lp-cited-by" id="lp-cited-by" style="margin:14px 0;"></div>
         </div>
       </aside>
 
       <div class="lp-resizer" id="lp-resizer-left" data-side="left" title="Drag to resize"></div>
 
       <section class="lp-main">
-        <div class="lp-viewer" id="lp-viewer"></div>
+        <!-- V3.294 — Paper tabs. Up to 10 papers stay open at once; the
+             active tab's PDF stays rendered so switching is instant. The
+             strip is populated by library-paper.js from the persisted
+             rm_lp_open_papers list. -->
+        <div class="lp-tabs" id="lp-tabs" role="tablist" aria-label="Open papers"></div>
+        <!-- V3.235 — Phone-only mobile toolbar. Two drawer toggles surface
+             the metadata sidebar and annotations pane on ≤640px screens.
+             Hidden on tablet + desktop via display: none in style.css. -->
+        <div class="lp-mobile-bar">
+          <button class="rm-mobile-drawer-toggle" id="lp-mobile-left-toggle" type="button" aria-label="Open paper details">ℹ️ Info</button>
+          <div class="lp-mobile-title" id="lp-mobile-title">Paper</div>
+          <button class="rm-mobile-drawer-toggle" id="lp-mobile-right-toggle" type="button" aria-label="Open annotations">📝 Notes</button>
+        </div>
+        <!-- V3.294 — Viewer host. Each open tab gets its own
+             .lp-viewer-pane child (created lazily on first activation); the
+             active pane additionally carries id="lp-viewer" so existing
+             #lp-viewer lookups resolve to the active scroll container. -->
+        <div class="lp-viewer-host" id="lp-viewer-host"></div>
       </section>
 
       <div class="lp-resizer" id="lp-resizer-right" data-side="right" title="Drag to resize"></div>
 
-      <aside class="lp-annotations" id="lp-annotations">
+      <aside class="lp-annotations rm-mobile-drawer-right" id="lp-annotations">
         <button class="lp-collapse-btn lp-collapse-right" id="lp-collapse-right" title="Collapse annotations" aria-label="Collapse annotations">›</button>
         <button class="lp-expand-btn lp-expand-right" id="lp-expand-right" title="Show annotations" aria-label="Show annotations">‹</button>
         <div class="lp-toolbar lp-toolbar-side">
@@ -46,6 +68,15 @@
             <span id="lp-zoom-label" class="lp-zoom-label">100%</span>
             <button class="btn btn-sm" id="lp-zoom-in" title="Zoom in (+)">+</button>
             <button class="btn btn-sm" id="lp-fit" title="Fit to width">Fit</button>
+          </div>
+          <div class="lp-toolbar-row lp-toolbar-row-overlays">
+            <div id="lp-overlays-anchor" class="lp-overlays-anchor"></div>
+          </div>
+          <div class="lp-toolbar-row lp-toolbar-row-types">
+            <div id="lp-types-anchor" class="lp-types-anchor"></div>
+          </div>
+          <div class="lp-toolbar-row lp-toolbar-row-search">
+            <div id="lp-search-anchor" class="lp-search-anchor"></div>
           </div>
           <div id="lp-status" class="lp-status"></div>
         </div>
@@ -70,6 +101,7 @@
   <script src="/rm/js/local-cache.js"></script>
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/paper-semantic-scholar.js"></script>
   <script src="/rm/js/library-upload.js"></script>
   <script src="/rm/js/library-tags.js"></script>
   <script src="/rm/js/library-share.js"></script>
@@ -83,6 +115,21 @@
   <script src="/rm/js/annotation-panel.js"></script>
   <script src="/rm/js/claims.js"></script>
   <script src="/rm/js/evidence-tag-dialog.js"></script>
+  <script src="/rm/js/links.js"></script>
+  <script src="/rm/js/library-extras.js"></script>
+  <script src="/rm/js/paper-citations.js"></script>
+  <script src="/rm/js/paper-cited-by.js"></script>
+  <script src="/rm/js/paper-overlays.js"></script>
+  <script src="/rm/js/paper-overlay-types.js"></script>
+  <script src="/rm/js/paper-overlay-import.js"></script>
+  <script src="/rm/js/paper-search.js"></script>
+  <script src="/rm/js/mobile-drawers.js"></script>
+  <!-- V3.309 — metadata editor: library-metadata for lookup/citationKey,
+       library-edit for the ✎ Edit metadata modal in the sidebar. -->
+  <script src="/rm/js/library-metadata.js"></script>
+  <script src="/rm/js/library-edit.js"></script>
+  <!-- V3.310 — ↻ Refresh from DOI (fullRefresh pipeline). -->
+  <script src="/rm/js/library-refresh.js"></script>
   <script src="/rm/js/library-paper.js"></script>
 </body>
 </html>

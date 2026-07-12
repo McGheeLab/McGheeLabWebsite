@@ -1,8 +1,8 @@
 /* task-quick-builder.js — Shared "Build a task from this" form.
  *
  * Called by email-review.js and calendar.js inside an expanded item to let
- * the user pick a dashboard project + fill in title/hours/due/priority and
- * create a subtask wired to the source email/event.
+ * the user pick a dashboard task builder + fill in title/hours/due/priority
+ * and create a subtask wired to the source email/event.
  *
  * Public:
  *   TASK_QUICK_BUILDER.render({
@@ -21,11 +21,12 @@
   function loadBuckets() {
     return api.load(BUCKETS_PATH);
   }
-  // Surgical save — writes ONE project doc to userData/{uid}/buckets/{projectId}
-  // instead of rewriting the whole projects array (which is what api.save would
-  // do for the wrapKey:'projects' route). On collections with 30+ projects the
-  // full rewrite easily takes 20+ seconds; the surgical write is one round
-  // trip. Falls back to the full save if Firestore isn't available.
+  // Surgical save — writes ONE task-builder doc to userData/{uid}/buckets/{id}
+  // instead of rewriting the whole taskBuilders array (which is what api.save
+  // would do for the wrapKey:'taskBuilders' route). On collections with 30+
+  // task builders the full rewrite easily takes 20+ seconds; the surgical
+  // write is one round trip. Falls back to the full save if Firestore isn't
+  // available.
   async function saveProjectSurgical(project) {
     if (!project || !project.id) return;
     if (typeof firebridge === 'undefined' || !firebridge.db) {
@@ -45,10 +46,11 @@
       console.warn('[task-quick-builder] surgical save failed, falling back:', err.message);
       // Fall through to full collection rewrite — slow but correct.
       const doc = await loadBuckets();
-      // Replace the one project in the freshly-loaded doc; all-or-nothing write.
-      const projects = doc.projects || [];
-      const i = projects.findIndex(p => p.id === project.id);
-      if (i >= 0) projects[i] = project; else projects.push(project);
+      // Replace the one task builder in the freshly-loaded doc; all-or-nothing write.
+      const arr = doc.taskBuilders || [];
+      const i = arr.findIndex(p => p.id === project.id);
+      if (i >= 0) arr[i] = project; else arr.push(project);
+      doc.taskBuilders = arr;
       doc.updated_at = new Date().toISOString();
       await api.save(BUCKETS_PATH, doc);
     }
@@ -102,7 +104,7 @@
       }
       return null;
     }
-    for (const p of doc.projects || []) {
+    for (const p of doc.taskBuilders || []) {
       for (const b of p.buckets || []) {
         const hit = walk(b.subtasks, p, b);
         if (hit) return hit;
@@ -129,15 +131,15 @@
     const grid = document.createElement('div');
     grid.className = 'tqb-grid';
 
-    // Project picker
-    const projField = field('Project', () => {
+    // Task-builder picker
+    const projField = field('Task builder', () => {
       const sel = document.createElement('select');
       sel.className = 'tqb-project';
       const placeholder = document.createElement('option');
-      placeholder.value = ''; placeholder.textContent = '— pick a project —';
+      placeholder.value = ''; placeholder.textContent = '— pick a task builder —';
       sel.appendChild(placeholder);
       const newOpt = document.createElement('option');
-      newOpt.value = '__new__'; newOpt.textContent = '+ New project…';
+      newOpt.value = '__new__'; newOpt.textContent = '+ New task builder…';
       sel.appendChild(newOpt);
       return sel;
     });
@@ -200,7 +202,7 @@
     const create = document.createElement('button');
     create.className = 'btn btn-primary btn-sm';
     create.textContent = '✓ Create task';
-    create.disabled = true;     // enabled once a project is picked or "+ New" used
+    create.disabled = true;     // enabled once a task builder is picked or "+ New" used
     actions.appendChild(create);
     wrap.appendChild(actions);
 
@@ -215,13 +217,13 @@
     let bucketsDoc = null;
     let existingHit = null;
 
-    // Async load: populate the project picker, check for an existing match.
-    setStatus('Loading projects…');
+    // Async load: populate the task-builder picker, check for an existing match.
+    setStatus('Loading task builders…');
     loadBuckets().then(doc => {
       bucketsDoc = doc;
       existingHit = findExisting(doc, kind, sourceId);
       const hidden = dashHiddenSet();
-      const visible = (doc.projects || []).filter(p => p.id !== 'proj-inbox' && !hidden.has(p.id));
+      const visible = (doc.taskBuilders || []).filter(p => p.id !== 'proj-inbox' && !hidden.has(p.id));
       // Sort by title for predictability
       visible.sort((a, b) => String(a.title).localeCompare(String(b.title)));
       for (const p of visible) {
@@ -239,7 +241,7 @@
         setStatus('');
       }
     }).catch(err => {
-      setStatus('Failed to load projects: ' + err.message, 'err');
+      setStatus('Failed to load task builders: ' + err.message, 'err');
     });
 
     sel.addEventListener('change', () => { create.disabled = !sel.value; });
@@ -251,7 +253,7 @@
       let projId = sel.value;
       let project;
       if (projId === '__new__') {
-        const name = prompt('New project name:', titleInp.value || '');
+        const name = prompt('New task builder name:', titleInp.value || '');
         if (!name || !name.trim()) return;
         projId = `proj-${slugify(name.trim())}-${Date.now().toString(36)}`;
         project = {
@@ -261,11 +263,11 @@
           created_at: new Date().toISOString().slice(0, 10),
           completed_at: null, buckets: [],
         };
-        bucketsDoc.projects.push(project);
+        bucketsDoc.taskBuilders.push(project);
       } else {
-        project = (bucketsDoc.projects || []).find(p => p.id === projId);
+        project = (bucketsDoc.taskBuilders || []).find(p => p.id === projId);
       }
-      if (!project) { setStatus('Project not found.', 'err'); return; }
+      if (!project) { setStatus('Task builder not found.', 'err'); return; }
       const bucket = ensureDefaultBucket(project);
       const ev = emptyEvidence();
       if (kind === 'email') ev.email_ids.push(sourceId);
@@ -293,7 +295,7 @@
 
       // Optimistic UX: lock fields + show success NOW, save in the background.
       // The surgical write is one Firestore set ~150-300ms; the full save was
-      // 20+s for users with 30+ projects.
+      // 20+s for users with 30+ task builders.
       create.disabled = true;
       sel.disabled = true; titleInp.disabled = true; dueInp.disabled = true;
       hoursInp.disabled = true; priSel.disabled = true; notesTa.disabled = true;

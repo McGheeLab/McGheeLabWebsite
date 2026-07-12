@@ -2,9 +2,9 @@
  *
  * Renders data/tasks/buckets.json using the existing pin-grid / pin-box / pin-card
  * styling so the dashboard look-and-feel matches the previous version, but each
- * pin-box is now a *project bucket* (user-created), not a category:sub_category pin.
+ * pin-box is now a *task-builder card* (user-created), not a category:sub_category pin.
  *
- * Subtasks are flattened across the project's sub-buckets and rendered as pin-cards
+ * Subtasks are flattened across the task builder's sub-buckets and rendered as pin-cards
  * inside each pin-box. Sub-bucket appears as a small chip on each row.
  *
  * Add task → routes to /rm/pages/tasks.html?tab=add (the adder/search workspace).
@@ -34,7 +34,7 @@
     expandedCompleted: new Set(JSON.parse(localStorage.getItem(COMPLETED_OPEN_KEY) || '[]')),
     pinnedToday: new Set(JSON.parse(localStorage.getItem(PINNED_TODAY_KEY) || '[]')),
     expandedCards: new Set(),
-    focusedProjectId: null,
+    focusedTaskBuilderId: null,
     saveTimer: null,
     assignedTasks: [],
     tasksISent: [],
@@ -71,7 +71,7 @@
 
   async function loadDoc() {
     state.doc = await api.load(DATA_PATH);
-    if (!state.doc.projects) state.doc.projects = [];
+    if (!state.doc.taskBuilders) state.doc.taskBuilders = [];
   }
   function scheduleSave() {
     if (state.saveTimer) clearTimeout(state.saveTimer);
@@ -98,7 +98,7 @@
         _liveUnsub = api.subscribe(DATA_PATH, function (data) {
           if (Date.now() < _suppressUntil) return;
           if (_savePending) return;
-          if (!data || !Array.isArray(data.projects)) return;
+          if (!data || !Array.isArray(data.taskBuilders)) return;
           if (state.expandedCards && state.expandedCards.size > 0) {
             _pendingDoc = data;
             return;
@@ -111,15 +111,19 @@
       }
     }
     // Phase 8: subscribe to tasks assigned by teammates so the receiver sees
-    // new incoming assignments without reload. Skip the first fire (initial
-    // sync — same data loadAssignedTasks just gave us at boot).
+    // new incoming assignments without reload.
+    //
+    // V3.199 — used to skip render on the first fire (assuming it duplicated
+    // loadAssignedTasks at boot). But api.load is cached (MEDIUM TTL, 30
+    // min) and may return stale data, while the onSnapshot first fire
+    // includes any new writes that happened since the cache was populated.
+    // Dropping the skip means a newly-assigned task surfaces immediately;
+    // duplicate renders are cheap.
     if (!_assignedUnsub) {
       try {
-        var firstFire = true;
         _assignedUnsub = api.subscribe('tasks/assigned.json', function (data) {
           if (!data) return;
           state.assignedTasks = (data && data.tasks) || [];
-          if (firstFire) { firstFire = false; return; }
           render();
         });
       } catch (err) {
@@ -215,33 +219,88 @@
     const wrap = document.createElement('div');
     const tasks = (state.assignedTasks || []).filter(t => !t.done);
     if (!tasks.length) return wrap;
-    wrap.style.cssText = 'margin-bottom:18px;';
-    wrap.innerHTML = '<div style="font-weight:600;font-size:13px;color:#374151;margin-bottom:8px;">' +
-      'Assigned to me (' + tasks.length + ')</div>';
+    // V3.160 — use the shared assigned-to-me-section CSS so the section
+    // gets a pinned-to-top visual lift instead of blending into the dashboard.
+    wrap.className = 'assigned-to-me-section';
+
+    const head = document.createElement('div');
+    head.className = 'assigned-to-me-head';
+    const title = document.createElement('span');
+    title.className = 'assigned-to-me-title';
+    title.textContent = '📥 Assigned to me';
+    head.appendChild(title);
+    const count = document.createElement('span');
+    count.className = 'assigned-to-me-count';
+    count.textContent = tasks.length + ' open';
+    head.appendChild(count);
+    wrap.appendChild(head);
+
     const list = document.createElement('div');
-    list.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
     tasks
       .slice()
       .sort((a, b) => (a.due_date || 'zzz').localeCompare(b.due_date || 'zzz'))
       .forEach(t => {
         const row = document.createElement('div');
-        row.style.cssText =
-          'display:flex;align-items:center;gap:10px;padding:8px 12px;' +
-          'background:#fff;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;';
-        const due = (t.due_date && t.due_date !== 'TBD')
-          ? `<span style="color:#6b7280;font-size:12px;">due ${escapeHtml(t.due_date)}</span>` : '';
-        const from = t.createdByName ? `from <strong>${escapeHtml(t.createdByName)}</strong>` : 'from teammate';
-        row.innerHTML =
-          '<button type="button" class="ta-done" data-id="' + escapeHtml(t.id) + '" ' +
-            'style="width:18px;height:18px;border-radius:50%;border:1.5px solid #9ca3af;background:#fff;cursor:pointer;flex:0 0 auto;" ' +
-            'title="Mark complete"></button>' +
-          '<div style="flex:1;">' +
-            '<div>' + escapeHtml(t.text || '(untitled)') + '</div>' +
-            '<div style="font-size:11px;color:#6b7280;">' + from + (due ? ' · ' + due : '') + '</div>' +
-          '</div>';
+        row.className = 'assigned-to-me-row';
+
+        // Complete button
+        const doneBtn = document.createElement('button');
+        doneBtn.type = 'button';
+        doneBtn.className = 'ta-done';
+        doneBtn.dataset.id = t.id;
+        doneBtn.title = 'Mark complete';
+        doneBtn.style.cssText =
+          'width:18px;height:18px;border-radius:50%;border:1.5px solid #9ca3af;background:#fff;cursor:pointer;flex:0 0 auto;';
+        row.appendChild(doneBtn);
+
+        // Body
+        const body = document.createElement('div');
+        body.className = 'assigned-to-me-text';
+        const lineMain = document.createElement('div');
+        lineMain.textContent = t.text || '(untitled)';
+        body.appendChild(lineMain);
+        const lineMeta = document.createElement('div');
+        lineMeta.style.cssText = 'font-size:11px;color:#6b7280;margin-top:2px';
+        const from = t.createdByName ? 'from ' + t.createdByName : 'from teammate';
+        lineMeta.textContent = from;
+        body.appendChild(lineMeta);
+        row.appendChild(body);
+
+        // Due date pill
+        if (t.due_date && t.due_date !== 'TBD') {
+          const due = document.createElement('span');
+          due.className = 'assigned-to-me-due';
+          due.textContent = 'due ' + t.due_date;
+          row.appendChild(due);
+        }
+
+        // V3.160 — provenance chip. PMR-sourced tasks deep-link to the PMR period.
+        if (t.source === 'pmr' && t.pmrPeriodId) {
+          const chip = document.createElement('a');
+          chip.className = 'assigned-to-me-chip assigned-to-me-chip-pmr';
+          chip.textContent = 'from PMR';
+          chip.href = '/rm/pages/pmr.html?period=' + encodeURIComponent(t.pmrPeriodId);
+          chip.title = 'Open the PMR period that created this task';
+          row.appendChild(chip);
+        } else {
+          const chip = document.createElement('span');
+          chip.className = 'assigned-to-me-chip assigned-to-me-chip-direct';
+          chip.textContent = 'direct';
+          row.appendChild(chip);
+        }
+
         list.appendChild(row);
       });
     wrap.appendChild(list);
+
+    // V3.160 — stamp assigned_seen_at on tasks the user hasn't seen yet
+    // AND materialize a pending scheduled tracker entry for each assigned
+    // task with a due_date. The admin's session can't write to the
+    // student's tracker (firestore.rules), so we sync here on the
+    // student's session. Idempotent — re-runs are free.
+    stampAssignedSeen(tasks);
+    syncAssignedToTracker(tasks);
+
     list.querySelectorAll('.ta-done').forEach(btn => {
       btn.addEventListener('click', async () => {
         const tid = btn.dataset.id;
@@ -257,12 +316,58 @@
             .collection('userData').doc(me.uid)
             .collection('tasks').doc(tid)
             .set({ done: true, done_at: task.done_at, status: 'completed' }, { merge: true });
+          // V3.160 — drop the pending tracker entry tied to this assigned task.
+          if (window.ActivitySignals) {
+            window.ActivitySignals.removeSchedule({ kind: 'task-assigned', id: tid });
+          }
         } catch (err) {
           console.error('[tasks-dashboard] mark-complete failed:', err);
         }
       });
     });
     return wrap;
+  }
+
+  /* V3.160 — materialize a pending scheduled tracker entry for each
+   * assigned task with a real due_date. Idempotent via the shared helper's
+   * deterministic doc id. */
+  function syncAssignedToTracker(tasks) {
+    if (!window.ActivitySignals) return;
+    (tasks || []).forEach(t => {
+      if (t.done) return;
+      if (!t.due_date || t.due_date === 'TBD') return;
+      const cat = t.source === 'pmr' ? ['service'] : ['research'];
+      window.ActivitySignals.recordSchedule({
+        source: t.source === 'pmr' ? 'rm-pmr' : 'rm-task-assigned',
+        sourceRef: { kind: 'task-assigned', id: t.id, path: 'userData/' + (t.assignedToUid || '') + '/tasks/' + t.id },
+        date: t.due_date,
+        text: t.text || '(assigned task)',
+        categoryPath: cat,
+        hoursEstimate: t.hours_estimate || null,
+      });
+    });
+  }
+
+  /* V3.160 — stamp assigned_seen_at on tasks the user hasn't seen.
+   * Fires the inbox-badge update event so the Inbox tab can drop its count. */
+  async function stampAssignedSeen(tasks) {
+    try {
+      const me = firebridge && firebridge.getUser && firebridge.getUser();
+      if (!me) return;
+      const unseen = (tasks || []).filter(t => !t.assigned_seen_at && !t.done);
+      if (!unseen.length) return;
+      const ts = firebase.firestore.FieldValue.serverTimestamp();
+      const batch = firebridge.db().batch();
+      unseen.forEach(t => {
+        const ref = firebridge.db().collection('userData').doc(me.uid).collection('tasks').doc(t.id);
+        batch.set(ref, { assigned_seen_at: ts }, { merge: true });
+        t.assigned_seen_at = new Date().toISOString();
+      });
+      await batch.commit();
+      window.dispatchEvent(new CustomEvent('rm:assigned-inbox-changed'));
+    } catch (err) {
+      console.warn('[tasks-dashboard] stampAssignedSeen failed:', err);
+    }
   }
 
 
@@ -308,12 +413,12 @@
 
     const newProj = document.createElement('button');
     newProj.className = 'btn btn-sm';
-    newProj.textContent = '+ New project';
+    newProj.textContent = '+ New task builder';
     newProj.addEventListener('click', () => {
-      const title = prompt('Project name:');
+      const title = prompt('Task builder name:');
       if (!title || !title.trim()) return;
       const id = `proj-${slugify(title.trim())}-${Date.now().toString(36)}`;
-      state.doc.projects.push({
+      state.doc.taskBuilders.push({
         id, title: title.trim(), status: 'active', category: '',
         due_date: 'TBD', hours_estimate: 0, tracker_entry_id: null,
         evidence: emptyEvidence(), notes: '',
@@ -355,7 +460,7 @@
         if ((st.children || []).length) walk(st.children, project, bucket, parentPath.concat(st.text));
       }
     }
-    for (const p of state.doc.projects || []) {
+    for (const p of state.doc.taskBuilders || []) {
       for (const b of p.buckets || []) walk(b.subtasks, p, b, []);
     }
     // Prune stale ids
@@ -459,13 +564,13 @@
   function renderProposed() {
     const wrap = document.createElement('div');
     wrap.style.marginBottom = '14px';
-    const inbox = (state.doc.projects || []).find(p => p.id === 'proj-inbox');
+    const inbox = (state.doc.taskBuilders || []).find(p => p.id === 'proj-inbox');
     if (!inbox) return wrap;
     const proposed = flattenSubtasks(inbox).filter(r => r.subtask.proposed);
     if (!proposed.length) return wrap;
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.4px';
-    head.innerHTML = `<span style="background:#fef3c7;padding:2px 10px;border-radius:10px">Proposed (${proposed.length})</span> <span style="font-weight:400;text-transform:none;color:#6b7280">— pin to a project below</span>`;
+    head.innerHTML = `<span style="background:#fef3c7;padding:2px 10px;border-radius:10px">Proposed (${proposed.length})</span> <span style="font-weight:400;text-transform:none;color:#6b7280">— pin to a task builder below</span>`;
     wrap.appendChild(head);
     const list = document.createElement('div');
     list.className = 'pin-box';
@@ -515,7 +620,7 @@
   function buildSuggestions() {
     // Sub_categories already covered by a visible USER project (so we don't re-suggest them).
     const covered = new Set();
-    for (const p of state.doc.projects || []) {
+    for (const p of state.doc.taskBuilders || []) {
       if (!isUserProject(p)) continue;
       if (state.hidden.has(p.id)) continue;
       for (const b of p.buckets || []) {
@@ -525,7 +630,7 @@
     }
     // Tally open subtask counts by sub_category across the whole doc.
     const tally = {};   // key -> { count, samples: [{subtask, project, bucket}], category, sub_category }
-    for (const p of state.doc.projects || []) {
+    for (const p of state.doc.taskBuilders || []) {
       if (p.id === 'proj-inbox') continue;
       for (const b of p.buckets || []) {
         const key = `${b.category || ''}:${b.sub_category || ''}`;
@@ -562,7 +667,7 @@
     wrap.style.marginBottom = '14px';
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#0e7490;font-weight:600;text-transform:uppercase;letter-spacing:.4px';
-    head.innerHTML = `<span style="background:#cffafe;padding:2px 10px;border-radius:10px">Suggested projects</span> <span style="font-weight:400;text-transform:none;color:#6b7280">— based on open tasks not yet in a project you made</span>`;
+    head.innerHTML = `<span style="background:#cffafe;padding:2px 10px;border-radius:10px">Suggested task builders</span> <span style="font-weight:400;text-transform:none;color:#6b7280">— based on open tasks not yet in a task builder you made</span>`;
     wrap.appendChild(head);
     const grid = document.createElement('div');
     grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px';
@@ -598,7 +703,7 @@
     btns.style.cssText = 'display:flex;gap:6px;margin-top:4px';
     const create = document.createElement('button');
     create.className = 'btn btn-sm btn-primary';
-    create.textContent = 'Create project';
+    create.textContent = 'Create task builder';
     create.addEventListener('click', () => createProjectFromSuggestion(s));
     btns.appendChild(create);
     const dismiss = document.createElement('button');
@@ -616,7 +721,7 @@
 
   function createProjectFromSuggestion(s) {
     const defaultName = suggestionTitle(s);
-    const title = prompt(`New project name (will move ${s.count} matching open tasks into it):`, defaultName);
+    const title = prompt(`New task builder name (will move ${s.count} matching open tasks into it):`, defaultName);
     if (!title || !title.trim()) return;
     const id = `proj-${slugify(title.trim())}-${Date.now().toString(36)}`;
     const newProject = {
@@ -634,10 +739,10 @@
         evidence: emptyEvidence(), notes: '', subtasks: [],
       }],
     };
-    state.doc.projects.push(newProject);
+    state.doc.taskBuilders.push(newProject);
     const dest = newProject.buckets[0];
     // Move matching open subtasks (any sub-bucket whose key matches) into the new project's bucket.
-    for (const p of state.doc.projects || []) {
+    for (const p of state.doc.taskBuilders || []) {
       if (p === newProject) continue;
       if (p.id === 'proj-inbox') continue;
       for (const b of p.buckets || []) {
@@ -682,13 +787,13 @@
 
   function renderPinGrid() {
     const grid = document.createElement('div');
-    grid.className = 'pin-grid' + (state.focusedProjectId ? ' focusing' : '');
-    const visible = (state.doc.projects || [])
+    grid.className = 'pin-grid' + (state.focusedTaskBuilderId ? ' focusing' : '');
+    const visible = (state.doc.taskBuilders || [])
       .filter(p => p.id !== 'proj-inbox' && !state.hidden.has(p.id));
     visible.sort((a, b) => projectUrgency(b) - projectUrgency(a));
     for (const p of visible) {
       const box = renderProjectBox(p);
-      if (p.id === state.focusedProjectId) box.classList.add('focused');
+      if (p.id === state.focusedTaskBuilderId) box.classList.add('focused');
       grid.appendChild(box);
     }
     return grid;
@@ -704,7 +809,7 @@
 
     // Color swatch (click to change)
     const swatch = document.createElement('button');
-    swatch.title = 'Change project color';
+    swatch.title = 'Change task builder color';
     swatch.style.cssText = `width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.15);background:${projectColor(project)};cursor:pointer;flex-shrink:0;padding:0`;
     swatch.addEventListener('click', (ev) => { ev.stopPropagation(); openColorMenu(swatch, project); });
     head.appendChild(swatch);
@@ -714,7 +819,7 @@
     const cat = document.createElement('div');
     cat.className = 'pin-box-cat';
     cat.style.color = CAT_COLOR[project.category] || '#6b7280';
-    cat.textContent = CAT_LABEL[project.category] || (project.category || 'Project');
+    cat.textContent = CAT_LABEL[project.category] || (project.category || 'Task Builder');
     titleWrap.appendChild(cat);
     const sub = document.createElement('div');
     sub.className = 'pin-box-sub';
@@ -839,16 +944,16 @@
 
     // Focus toggle (bottom-right). Click to enter focus mode (this card grows
     // to full width and the others animate out of the way); click again to exit.
-    const isFocused = state.focusedProjectId === project.id;
+    const isFocused = state.focusedTaskBuilderId === project.id;
     const focusBtn = document.createElement('button');
     focusBtn.className = 'btn btn-sm' + (isFocused ? ' btn-primary' : '');
     focusBtn.textContent = isFocused ? '× Exit focus' : 'Focus view →';
     focusBtn.title = isFocused ? 'Restore the dashboard grid' : 'Expand this card to full width';
     focusBtn.addEventListener('click', () => {
       if (isFocused) {
-        state.focusedProjectId = null;
+        state.focusedTaskBuilderId = null;
       } else {
-        state.focusedProjectId = project.id;
+        state.focusedTaskBuilderId = project.id;
       }
       render();
       // Bring the focused card into view; CSS handles the animation.
@@ -1162,7 +1267,7 @@
     const rect = anchor.getBoundingClientRect();
     menu.style.left = (rect.left + window.scrollX) + 'px';
     menu.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-    for (const p of state.doc.projects || []) {
+    for (const p of state.doc.taskBuilders || []) {
       if (p.id === 'proj-inbox') continue;
       const opt = document.createElement('div');
       opt.className = 'pin-opt';
@@ -1244,7 +1349,7 @@
     const wrap = document.createElement('div');
     if (!state.hidden.size) return wrap;
     wrap.style.cssText = 'margin-top:14px;padding:10px;border-top:1px dashed #e5e7eb;font-size:11px;color:#6b7280';
-    const hiddenProjs = (state.doc.projects || []).filter(p => state.hidden.has(p.id));
+    const hiddenProjs = (state.doc.taskBuilders || []).filter(p => state.hidden.has(p.id));
     wrap.textContent = `Hidden from dashboard (${hiddenProjs.length}): `;
     for (const p of hiddenProjs) {
       const a = document.createElement('a');
@@ -1349,7 +1454,7 @@
         state.hidden.delete(target);
         persistHidden();
       }
-      state.focusedProjectId = target;
+      state.focusedTaskBuilderId = target;
     } catch {}
   }
 
@@ -1365,7 +1470,7 @@
       // First-run: hide auto-migrated category projects by default so the dashboard starts clean.
       // User can unhide via the bottom panel or via tasks-add.html.
       if (!localStorage.getItem('tasksDash.firstRunSeeded')) {
-        for (const p of state.doc.projects || []) {
+        for (const p of state.doc.taskBuilders || []) {
           // Only auto-hide auto-seeded category projects (their id matches `proj-<category>` exactly).
           // Keep user-created ones (which have a timestamp suffix).
           if (/^proj-(research|teaching|service|admin|noise|personal|unknown|mentorship|uncategorized)$/.test(p.id)) {
@@ -1379,7 +1484,7 @@
       render();
       attachLiveSync();
       attachTasksISentLive();
-      if (state.focusedProjectId) {
+      if (state.focusedTaskBuilderId) {
         requestAnimationFrame(() => {
           const focused = document.querySelector('.pin-box.focused');
           if (focused) focused.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1390,6 +1495,99 @@
       console.error(err);
     }
   }
+
+  /* V3.144 — "+ Add Task" modal on the dashboard header. Replaces the
+   * V3.58 anchor-link that just navigated to ?tab=add. The intent of the
+   * button is to add a task to a chosen task builder right now, not to
+   * change pages. Reuses the dashboard's existing scheduleSave() (the
+   * api adapter persists each task builder as one userData/{uid}/buckets/{id}
+   * doc — single-action delays are bearable; if it ever feels slow we can
+   * graft a per-doc surgical write similar to V3.130's projects.js helpers).
+   */
+  function openAddTaskModal() {
+    if (!state.doc) {
+      alert('Dashboard still loading — try again in a moment.');
+      return;
+    }
+    const builders = (state.doc.taskBuilders || []).slice();
+    // Default selection: focused card → first non-inbox builder → inbox.
+    let defaultId = state.focusedTaskBuilderId || '';
+    if (!defaultId) {
+      const firstNonInbox = builders.find(p => p && p.id && p.id !== 'proj-inbox');
+      defaultId = firstNonInbox ? firstNonInbox.id : (builders[0] && builders[0].id) || '';
+    }
+    const NEW = '__new__';
+    const opts = builders.map(p => p.id);
+    opts.push(NEW);
+    const labels = {};
+    builders.forEach(p => {
+      const cat = p.category ? ` (${(YR.CAT_LABEL || {})[p.category] || p.category})` : '';
+      labels[p.id] = (p.title || p.id) + cat;
+    });
+    labels[NEW] = '+ New task builder…';
+
+    openForm({
+      title: 'Add Task',
+      values: { builder: defaultId, priority: 'normal' },
+      fields: [
+        { key: 'title',      label: 'Title',         type: 'text',     required: true,  placeholder: 'What needs doing?' },
+        { key: 'builder',    label: 'Task builder',  type: 'select',   required: true,  options: opts, optionLabels: labels },
+        { key: 'due_date',   label: 'Due date',      type: 'date' },
+        { key: 'hours',      label: 'Hours estimate', type: 'number' },
+        { key: 'priority',   label: 'Priority',      type: 'select',   options: ['low', 'normal', 'high', 'urgent'] },
+        { key: 'notes',      label: 'Notes',         type: 'textarea' },
+      ],
+      onSave: async function (vals) {
+        let project = builders.find(p => p && p.id === vals.builder) || null;
+        if (vals.builder === NEW || !project) {
+          const name = (prompt('New task builder name:') || '').trim();
+          if (!name) throw new Error('Cancelled');
+          const id = `proj-${slugify(name)}-${Date.now().toString(36)}`;
+          project = {
+            id, title: name, status: 'active', category: '',
+            due_date: 'TBD', hours_estimate: 0, tracker_entry_id: null,
+            evidence: emptyEvidence(), notes: '',
+            created_at: todayStr(), completed_at: null, buckets: [],
+          };
+          state.doc.taskBuilders = state.doc.taskBuilders || [];
+          state.doc.taskBuilders.push(project);
+        }
+        const bucket = ensureDefaultBucket(project);
+        const me = (typeof firebridge !== 'undefined' && firebridge.getUser) ? (firebridge.getUser() || {}) : {};
+        const nowIso = new Date().toISOString();
+        const subtask = {
+          id: newId('sub'),
+          text: (vals.title || '').trim(),
+          description: '',
+          done: false, done_at: null,
+          due_date: vals.due_date || 'TBD',
+          priority: vals.priority || 'normal',
+          hours_estimate: Number(vals.hours) || 0,
+          tracker_entry_id: null,
+          evidence: emptyEvidence(),
+          notes: vals.notes || '',
+          assignee_uid: me.uid || null,
+          assignees_uids: [],
+          assigned_at: nowIso,
+          assigned_by_uid: me.uid || null,
+          block_status: null,
+          proposed: false,
+          children: [],
+        };
+        bucket.subtasks = bucket.subtasks || [];
+        bucket.subtasks.push(subtask);
+        // Make sure the new card is unhidden + scrolled into view next render.
+        if (state.hidden && state.hidden.has(project.id)) {
+          state.hidden.delete(project.id);
+          persistHidden();
+        }
+        state.focusedTaskBuilderId = project.id;
+        scheduleSave();
+        render();
+      },
+    });
+  }
+  window.DASH_ADD_TASK = { open: openAddTaskModal };
 
   document.addEventListener('DOMContentLoaded', boot);
 })();

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Surface Functionalization Foundations: Start Here — Course Overview</title>
+
+  <!-- Module header styles (dark theme nav bar) -->
+  <link rel="stylesheet" href="../shared/module-header.css" />
+
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #141925;
+      --panel-2: #1a1f2e;
+      --ink: #eef2f7;
+      --muted: #a8b3c7;
+      --accent: #5baed1;
+      --accent-2: #7fd1b9;
+      --line: rgba(255,255,255,.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      background:
+        radial-gradient(120% 140% at 0% 0%, rgba(91,174,209,.18), transparent 55%),
+        radial-gradient(120% 140% at 100% 0%, rgba(127,209,185,.14), transparent 55%),
+        var(--panel);
+      overflow: hidden;
+    }
+    .hero .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 .6rem;
+    }
+    .hero h1 {
+      margin: 0 0 .6rem;
+      font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+      line-height: 1.1;
+      letter-spacing: -.01em;
+    }
+    .hero .lede {
+      margin: 0;
+      max-width: 60ch;
+      font-size: 1.06rem;
+      color: var(--muted);
+    }
+    .hero .lede strong { color: var(--ink); font-weight: 600; }
+
+    /* ── Section heading ── */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      gap: .75rem;
+      margin: 3rem 0 1.2rem;
+    }
+    .section-head h2 { margin: 0; font-size: 1.35rem; color: var(--ink); }
+    .section-head .sub { color: var(--muted); font-size: .92rem; }
+
+    /* ── How it works ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem 1.4rem;
+      background: var(--panel);
+    }
+    .step .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: rgba(91,174,209,.16);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .7rem;
+    }
+    .step h3 { margin: 0 0 .35rem; font-size: 1.02rem; }
+    .step p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    /* ── Lesson cards ── */
+    .lessons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.1rem;
+    }
+    .lesson {
+      border: 1px solid rgba(127,209,185,.32);
+      border-radius: 14px;
+      background: var(--panel);
+      padding: 1.35rem 1.4rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .lesson-top {
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      margin-bottom: .45rem;
+    }
+    .lesson-top .no {
+      flex: none;
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel-2);
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .lesson-top h3 { margin: .1rem 0 0; font-size: 1.14rem; line-height: 1.3; }
+    .lesson-desc { margin: 0 0 .9rem; color: var(--muted); font-size: .93rem; }
+    .lesson-desc strong { color: var(--ink); font-weight: 600; }
+    .arc {
+      margin: 0 0 1rem;
+      padding: .55rem .8rem;
+      border-left: 3px solid rgba(91,174,209,.45);
+      background: rgba(91,174,209,.07);
+      border-radius: 0 8px 8px 0;
+      color: var(--muted);
+      font-size: .84rem;
+    }
+    .lesson-actions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+    }
+    a.btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .55rem .95rem;
+      border-radius: 9px;
+      font-weight: 600;
+      font-size: .9rem;
+      text-decoration: none;
+      transition: transform .12s ease, background .12s ease;
+    }
+    a.btn:hover { transform: translateY(-1px); }
+    a.btn-lesson { background: rgba(91,174,209,.16); color: var(--accent); }
+    a.btn-lesson:hover { background: rgba(91,174,209,.26); }
+    a.btn-ws {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+    a.btn-ws:hover { color: var(--accent-2); border-color: rgba(127,209,185,.4); }
+
+    /* ── Teacher note / closing ── */
+    .closing {
+      margin-top: 2.5rem;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.4rem;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .closing strong { color: var(--ink); }
+
+    @media (max-width: 600px) {
+      .wrap { padding: 1.25rem 1rem 3rem; }
+      .hero { padding: 1.8rem 1.3rem; }
+    }
+  </style>
+
+  <!-- Firebase SDK (needed for header navigation when opened with ?class=) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="../../firebase-config.js"></script>
+  <script defer src="../shared/module-header.js"></script>
+</head>
+<body>
+  <!-- Module header (auto-populated from Firestore when ?class= is present) -->
+  <header id="module-header"></header>
+
+  <main class="wrap">
+
+    <!-- ═══ Hero ═══ -->
+    <section class="hero">
+      <p class="eyebrow">Surface Functionalization Foundations</p>
+      <h1>How to make a surface do what you want — from the atoms up</h1>
+      <p class="lede">
+        Four interactive lessons that build a real understanding of surfaces
+        <strong>from the atom up</strong> — no chemistry background required. Every concept
+        comes with a <strong>live simulation you drive yourself</strong>: pull an atom out of a
+        surface, strike a glowing plasma, graft silane molecules onto –OH groups, and texture a
+        surface until water bounces off it. Each lesson starts at a high-school level and
+        finishes at sophomore-undergrad depth with the real equations scientists use.
+      </p>
+    </section>
+
+    <!-- ═══ How it works ═══ -->
+    <div class="section-head">
+      <h2>How to use this course</h2>
+      <span class="sub">three steps</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <h3>Understand why surfaces are hungry</h3>
+        <p>Start with why atoms at a surface are reactive, why a surface is never truly clean,
+        and what "surface energy" really measures.</p>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <h3>Activate &amp; coat the surface</h3>
+        <p>Use plasma to wake a surface up with fresh –OH groups, then graft silane molecules
+        onto them to install exactly the chemistry you want.</p>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <h3>Engineer the texture</h3>
+        <p>Add nano- and micro-scale roughness to trap air, make water bounce off, and design
+        surfaces that resist wetting and fouling.</p>
+      </div>
+    </div>
+
+    <!-- ═══ Lessons ═══ -->
+    <div class="section-head">
+      <h2>The four lessons</h2>
+      <span class="sub">do them in order — each feeds the next</span>
+    </div>
+    <div class="lessons">
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">1</span>
+          <h3>Surfaces Are Hungry: Surface Energy &amp; Adsorbed Water</h3>
+        </div>
+        <p class="lesson-desc">
+          Why atoms at a surface are <strong>energetically unbalanced</strong>, how that becomes
+          measurable surface energy, why ambient water films coat everything, and how vacuum
+          (slowly) strips them off to give a bare, functionalization-ready surface.
+        </p>
+        <p class="arc">Missing Neighbors → Surface Energy → Water Coats Everything → Level Up:
+        Vacuum &amp; Kinetics</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="01-surface-energy-and-adsorbed-water.html">Open lesson &rarr;</a>
+          <a class="btn btn-ws" data-ws="worksheet-01-surface-energy.html">Worksheet (print)</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">2</span>
+          <h3>Plasma Treatment: Energizing Gas to Rewrite a Surface</h3>
+        </div>
+        <p class="lesson-desc">
+          Pump down, backfill process gas, use RF energy to ionize it into a <strong>glowing
+          plasma</strong>, and let reactive species graft new chemical groups onto the surface.
+          Includes the Paschen curve and why different gases give different chemistry.
+        </p>
+        <p class="arc">Why Pump Down First → Striking a Plasma → Plasma Colors → Level Up: Gas →
+        Chemistry</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="02-plasma-treatment.html">Open lesson &rarr;</a>
+          <a class="btn btn-ws" data-ws="worksheet-02-plasma-treatment.html">Worksheet (print)</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">3</span>
+          <h3>Silanes: Molecular Paint for Surfaces</h3>
+        </div>
+        <p class="lesson-desc">
+          One universal <strong>head group</strong> condenses onto surface –OH; the swappable
+          <strong>tail</strong> sets the new surface chemistry — from adhesion-promoting amines
+          to fluorinated ultra-low-energy coatings. Ends at Young's equation for contact angle.
+        </p>
+        <p class="arc">The Common Head → The Goldilocks Reaction → The Tail Decides → Level Up:
+        Young's Equation</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="03-silanes.html">Open lesson &rarr;</a>
+          <a class="btn btn-ws" data-ws="worksheet-03-silanes.html">Worksheet (print)</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">4</span>
+          <h3>Roughness: How Texture Makes Water Bounce</h3>
+        </div>
+        <p class="lesson-desc">
+          Nano/micro texture traps <strong>air pockets</strong> so water can't wet in — the
+          lotus effect. Explore Wenzel vs Cassie–Baxter states, Cassie collapse, and Sharklet
+          anti-bacterial textures.
+        </p>
+        <p class="arc">The Missing Ingredient → Wenzel: Roughness Amplifies → Cassie–Baxter:
+        Trapped Air → Level Up: Lotus, Collapse &amp; Sharklet</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="04-roughness-and-superhydrophobicity.html">Open lesson &rarr;</a>
+          <a class="btn btn-ws" data-ws="worksheet-04-roughness.html">Worksheet (print)</a>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ═══ Closing ═══ -->
+    <p class="closing">
+      <strong>For teachers:</strong> the four lessons feed each other in order — a clean surface,
+      then plasma to make –OH groups, then silanes that graft onto those –OH, then texture for
+      extreme repellency — so work them front to back. Each lesson starts at a high-school level
+      and its final tab escalates toward sophomore-undergraduate depth, and can be treated as
+      extension material. The companion worksheets follow a predict → experiment → record →
+      explain cycle and every question is answerable directly from the on-screen simulations.
+    </p>
+
+  </main>
+
+  <script>
+    /* Make lesson links class-aware so a student stays inside their class flow
+       (prev/next nav, progress) when this overview is opened as the first
+       lesson of a class — same pattern as modules/solid_mechanics/overview.html.
+       Worksheet links are plain static pages: no ?class= needed, but they
+       still open in a new tab inside the SPA iframe (top-nav is sandboxed). */
+    (function () {
+      function getClassId() {
+        try {
+          const fromParam = new URLSearchParams(location.search).get('class');
+          if (fromParam) return fromParam;
+          if (window.top !== window) {
+            const m = (window.top.location.hash || '').match(/#\/classes\/([^\/?]+)/);
+            if (m) return decodeURIComponent(m[1]);
+          }
+        } catch (e) { /* cross-origin or blocked — fall back to standalone links */ }
+        return null;
+      }
+
+      const inIframe = window.parent !== window;
+      const classId = getClassId();
+
+      document.querySelectorAll('a.btn[data-file]').forEach(function (a) {
+        const file = a.getAttribute('data-file');
+        let href = '../surface_functionalization/' + file;
+        if (classId) href += '?class=' + encodeURIComponent(classId);
+        a.setAttribute('href', href);
+        if (inIframe) { a.target = '_blank'; a.rel = 'noopener'; }
+      });
+      document.querySelectorAll('a.btn[data-ws]').forEach(function (a) {
+        a.setAttribute('href', '../surface_functionalization/' + a.getAttribute('data-ws'));
+        a.target = '_blank'; a.rel = 'noopener';
+      });
+    })();
+  </script>
+</body>
+</html>

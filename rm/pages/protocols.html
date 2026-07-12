@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protocols — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/activity-signals.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/protocol-editor.css">
+  <link rel="stylesheet" href="/rm/css/protocol-doc.css">
+  <script>
+    /* V3.113 — unified Protocols shell. ?protocol=<id> activates the
+     * editor for that protocol; absence of the param shows the list view
+     * (the default). Mirrors the V3.60 paper-builder dual-mode pattern.
+     * V3.315 — &view=doc adds a third mode: the read-only document view
+     * (print/export rendering). */
+    (function () {
+      var qp = new URLSearchParams(location.search);
+      var prid = qp.get('protocol');
+      var mode = prid ? (qp.get('view') === 'doc' ? 'doc' : 'editor') : 'list';
+      window.__PROTOCOL_MODE = mode;
+      window.__PROTOCOL_ID = prid;
+      document.title = (mode === 'editor')
+        ? 'Protocol Editor — McGhee Lab'
+        : 'Protocols — McGhee Lab';
+      document.documentElement.dataset.protocolMode = mode;
+    })();
+  </script>
+  <style>
+    html[data-protocol-mode="editor"] .pr-list-mode,
+    html[data-protocol-mode="editor"] .pr-doc-mode { display: none; }
+    html[data-protocol-mode="list"]   .pr-editor-mode,
+    html[data-protocol-mode="list"]   .pr-doc-mode { display: none; }
+    html[data-protocol-mode="doc"]    .pr-list-mode,
+    html[data-protocol-mode="doc"]    .pr-editor-mode { display: none; }
+  </style>
+</head>
+<body>
+  <!-- ===== List mode ===== -->
+  <div class="page pr-list-mode">
+    <div class="page-header">
+      <h1 class="page-title">Protocols</h1>
+      <div class="pr-list-actions">
+        <button class="btn" id="pr-import-btn" title="Import a Claude-converted protocol JSON file">📥 Import protocol</button>
+        <button class="btn btn-primary" id="pr-new-btn">+ New protocol</button>
+      </div>
+    </div>
+    <div id="pr-status" class="pb-status"></div>
+    <div class="pr-filters">
+      <label>
+        Status:
+        <select id="pr-filter-status">
+          <option value="all">All</option>
+          <option value="draft" selected>Drafts</option>
+          <option value="published">Published</option>
+          <option value="archived">Archived</option>
+        </select>
+      </label>
+      <label>
+        Owner:
+        <select id="pr-filter-owner">
+          <option value="all">Anyone</option>
+          <option value="me">Mine</option>
+        </select>
+      </label>
+      <input type="text" id="pr-filter-search" placeholder="Search title or tag…">
+    </div>
+    <div id="pr-list" class="pb-list"></div>
+  </div>
+
+  <!-- V3.139 — Import-protocol modal -->
+  <div id="pr-import-modal" class="pb-modal pr-list-mode pr-import-modal" hidden>
+    <div class="pb-modal-card">
+      <div class="pb-modal-header">
+        <h2>Import protocol</h2>
+        <button class="pb-icon-btn" id="pr-import-close" aria-label="Close">×</button>
+      </div>
+      <div class="pb-modal-body">
+        <p class="pr-import-hint">
+          Drop a <code>.protocol-import.json</code> file produced by the
+          <code>/protocol-import</code> Claude skill, or paste the JSON
+          contents below. Images embedded in the JSON will be uploaded
+          to lab Storage; an initial v1 snapshot is saved automatically.
+        </p>
+        <div class="form-group">
+          <label for="pr-import-file">JSON file</label>
+          <input type="file" id="pr-import-file" accept=".json,application/json">
+        </div>
+        <details class="pr-import-paste">
+          <summary>…or paste JSON directly</summary>
+          <textarea id="pr-import-paste-area" rows="6" placeholder='{"format":"protocol-import-v1", ... }'></textarea>
+        </details>
+        <div id="pr-import-preview" class="pr-import-preview" hidden></div>
+        <div class="form-group">
+          <label for="pr-import-slug">Slug</label>
+          <input type="text" id="pr-import-slug" placeholder="auto-generated from title">
+          <small class="form-hint">Kebab-case; must be unique within the lab.</small>
+        </div>
+        <div id="pr-import-progress" class="pr-import-progress" hidden></div>
+        <div class="pb-modal-error" id="pr-import-error" hidden></div>
+      </div>
+      <div class="pb-modal-actions">
+        <button class="btn" id="pr-import-cancel">Cancel</button>
+        <button class="btn btn-primary" id="pr-import-create" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New-protocol modal -->
+  <div id="pr-modal" class="pb-modal pr-list-mode" hidden>
+    <div class="pb-modal-card">
+      <div class="pb-modal-header">
+        <h2>New protocol</h2>
+        <button class="pb-icon-btn" id="pr-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="pb-modal-body">
+        <div class="form-group">
+          <label for="pr-new-title">Title</label>
+          <input type="text" id="pr-new-title" placeholder="e.g. Agarose LLS — Sieves">
+        </div>
+        <div class="form-group">
+          <label for="pr-new-id">Slug (auto)</label>
+          <input type="text" id="pr-new-id" placeholder="auto-generated from title">
+          <small class="form-hint">Kebab-case; must be unique within the lab.</small>
+        </div>
+        <div class="form-group">
+          <label for="pr-new-template">Template</label>
+          <select id="pr-new-template"></select>
+          <small class="form-hint" id="pr-new-template-hint"></small>
+        </div>
+        <div class="form-group">
+          <label for="pr-new-summary">One-line summary (optional)</label>
+          <input type="text" id="pr-new-summary" placeholder="What does this protocol do?">
+        </div>
+        <div class="pb-modal-error" id="pr-modal-error" hidden></div>
+      </div>
+      <div class="pb-modal-actions">
+        <button class="btn" id="pr-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="pr-modal-create">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Editor mode ===== -->
+  <div class="pe-page pr-editor-mode">
+    <div class="pe-topbar pre-topbar">
+      <a class="pe-back" href="/rm/pages/protocols.html">← All protocols</a>
+      <div class="pre-title-stack">
+        <input type="text" class="pe-title-input" id="pre-title" placeholder="Untitled protocol" disabled>
+        <div class="pre-byline" id="pre-byline"></div>
+        <div class="pre-fork-lineage" id="pre-fork-lineage" hidden></div>
+      </div>
+      <div class="pre-topbar-actions">
+        <a class="btn pre-action-btn" id="pre-docview-btn" href="#" title="Read-only document view — print / export to PDF from there">📄 Doc view</a>
+        <button class="btn pre-action-btn" id="pre-save-version-btn" disabled title="Save a named version snapshot">💾 Save version</button>
+        <div class="pre-versions-wrap">
+          <button class="btn pre-action-btn" id="pre-versions-btn" disabled title="Browse version history">📜 Versions <span id="pre-versions-count" class="pre-versions-count"></span></button>
+          <div class="pre-versions-dropdown" id="pre-versions-dropdown" hidden></div>
+        </div>
+        <button class="btn pre-action-btn" id="pre-fork-btn" disabled title="Fork this protocol into a copy you own">🍴 Fork</button>
+        <button class="btn pre-action-btn" id="pre-match-inv-btn" disabled title="Walk unlinked materials rows and link to lab inventory">🔁 Match inventory</button>
+        <button class="btn pre-action-btn pre-action-migrate" id="pre-migrate-btn" hidden title="Sever the fork-of relationship">Migrate to standalone</button>
+      </div>
+      <div class="pe-savestate" id="pre-savestate"></div>
+    </div>
+    <div class="pe-readonly-banner" id="pre-readonly-banner" hidden></div>
+    <div class="pe-readonly-banner pre-version-banner" id="pre-version-banner" hidden></div>
+
+    <!-- Save Version modal -->
+    <div id="pre-savever-modal" class="pb-modal pr-editor-mode" hidden>
+      <div class="pb-modal-card">
+        <div class="pb-modal-header">
+          <h2>Save version</h2>
+          <button class="pb-icon-btn" id="pre-savever-close" aria-label="Close">×</button>
+        </div>
+        <div class="pb-modal-body">
+          <p class="pre-savever-hint">A snapshot of the current tree, immutable once saved. Label and message are optional but recommended for future reference.</p>
+          <div class="form-group">
+            <label for="pre-savever-label">Label (short)</label>
+            <input type="text" id="pre-savever-label" placeholder="e.g. v1.0 — initial port">
+          </div>
+          <div class="form-group">
+            <label for="pre-savever-message">Message (optional)</label>
+            <textarea id="pre-savever-message" rows="3" placeholder="What changed in this version?"></textarea>
+          </div>
+          <div class="pb-modal-error" id="pre-savever-error" hidden></div>
+        </div>
+        <div class="pb-modal-actions">
+          <button class="btn" id="pre-savever-cancel">Cancel</button>
+          <button class="btn btn-primary" id="pre-savever-create">Save version</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- V3.141 — Admin: edit author + creation date -->
+    <div id="pre-authdate-modal" class="pb-modal pr-editor-mode" hidden>
+      <div class="pb-modal-card">
+        <div class="pb-modal-header">
+          <h2>Edit author &amp; creation date</h2>
+          <button class="pb-icon-btn" id="pre-authdate-close" aria-label="Close">×</button>
+        </div>
+        <div class="pb-modal-body">
+          <p class="pre-authdate-hint">
+            Admin override. Use for imported historical protocols, author handoff,
+            or correcting metadata. The original create-time fields are otherwise
+            immutable.
+          </p>
+          <div class="form-group">
+            <label for="pre-authdate-author">Author (lab member)</label>
+            <select id="pre-authdate-author">
+              <option value="">— loading roster —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pre-authdate-name">Author display name</label>
+            <input type="text" id="pre-authdate-name" placeholder="Auto-filled from picker; override only if needed">
+            <small class="form-hint">Cached on the protocol doc; what shows on cards + bylines.</small>
+          </div>
+          <div class="form-group">
+            <label for="pre-authdate-created">Creation date</label>
+            <input type="date" id="pre-authdate-created">
+            <small class="form-hint">YYYY-MM-DD. Stored as ISO with 00:00:00 UTC.</small>
+          </div>
+          <div class="pb-modal-error" id="pre-authdate-error" hidden></div>
+        </div>
+        <div class="pb-modal-actions">
+          <button class="btn" id="pre-authdate-cancel">Cancel</button>
+          <button class="btn btn-primary" id="pre-authdate-save">Save changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fork modal -->
+    <div id="pre-fork-modal" class="pb-modal pr-editor-mode" hidden>
+      <div class="pb-modal-card">
+        <div class="pb-modal-header">
+          <h2>Fork protocol</h2>
+          <button class="pb-icon-btn" id="pre-fork-close" aria-label="Close">×</button>
+        </div>
+        <div class="pb-modal-body">
+          <p class="pre-fork-hint">Creates a new protocol you own. The original is unchanged. The fork stays linked unless you migrate it to a standalone protocol later.</p>
+          <div class="form-group">
+            <label for="pre-fork-title">New title</label>
+            <input type="text" id="pre-fork-title">
+          </div>
+          <div class="form-group">
+            <label for="pre-fork-id">New slug</label>
+            <input type="text" id="pre-fork-id" placeholder="auto-generated from title">
+            <small class="form-hint">Kebab-case; must be unique.</small>
+          </div>
+          <div class="form-group">
+            <label for="pre-fork-version">Fork from version</label>
+            <select id="pre-fork-version">
+              <option value="">Latest (live tree)</option>
+            </select>
+            <small class="form-hint">Pick a snapshot to fork from. Default is whatever's in the editor right now.</small>
+          </div>
+          <div class="pb-modal-error" id="pre-fork-error" hidden></div>
+        </div>
+        <div class="pb-modal-actions">
+          <button class="btn" id="pre-fork-cancel">Cancel</button>
+          <button class="btn btn-primary" id="pre-fork-create">Create fork</button>
+        </div>
+      </div>
+    </div>
+    <div class="pe-layout">
+      <aside class="pe-sidebar">
+        <div class="pe-sidebar-title">Outline</div>
+        <ul class="pe-sidebar-list" id="pre-outline"></ul>
+        <div class="pe-sidebar-actions">
+          <button class="btn pe-add-section" id="pre-add-section-btn" disabled>+ Add section</button>
+        </div>
+        <div class="pre-meta-edit">
+          <label class="pre-meta-label">Status
+            <select id="pre-status-select" disabled>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <label class="pre-meta-label">Tags (comma-separated)
+            <input type="text" id="pre-tags-input" disabled>
+          </label>
+          <label class="pre-meta-label">Summary
+            <textarea id="pre-summary-input" rows="2" disabled></textarea>
+          </label>
+        </div>
+      </aside>
+      <main class="pe-main" id="pre-main">
+        <div class="pe-main-inner" id="pre-main-inner">
+          <div id="pre-content"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== Doc mode (V3.315) — read-only document view, populated by protocol-doc.js ===== -->
+  <div class="pr-doc-mode prd-shell" id="prd-shell">
+    <div class="prd-toolbar" id="prd-toolbar">
+      <a class="btn pre-action-btn" id="prd-back" href="#">← Back to editor</a>
+      <button class="btn btn-primary pre-action-btn" id="prd-print">🖨 Print / PDF</button>
+    </div>
+    <div class="prd-status" id="prd-status">Loading…</div>
+    <article class="prd-doc" id="prd-doc" hidden></article>
+  </div>
+
+  <!-- Shared scripts -->
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/activity-signals.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/protocol-schemas.js"></script>
+
+  <!-- Per-mode scripts via document.write — same idiom as paper-builder. -->
+  <script>
+    (function () {
+      var mode = window.__PROTOCOL_MODE;
+      var listScripts = [
+        // V3.139 — list-mode Import button needs the importer + figures
+        // helper (for image upload during create-from-json).
+        '/rm/js/protocol-figures.js',
+        '/rm/js/protocol-versions.js',
+        '/rm/js/protocol-import.js',
+        '/rm/js/protocols.js',
+      ];
+      var editorScripts = [
+        '/rm/js/protocol-yjs.js',
+        '/rm/js/protocol-figures.js',
+        // V3.117 — must load BEFORE protocol-blocks.js so renderers can
+        // call window.ProtocolFormulas.{textHasTokens,renderTextWithTokens,
+        // getSymbolTable} on first body-text render.
+        '/rm/js/protocol-formulas.js',
+        // V3.121 — must load BEFORE protocol-blocks.js so renderers can
+        // call window.PROTOCOL_INVENTORY.{findById,openPicker,
+        // formatLabel,formatStockChipHtml,renderTextWithTokens,
+        // textHasTokens,TOKEN_RE} on first body-text + materials render.
+        '/rm/js/protocol-inventory.js',
+        '/rm/js/protocol-blocks.js',
+        // V3.119 — versioning + forking. Loaded AFTER blocks so it can
+        // call dehydrateTree on save; loaded BEFORE editor so the editor
+        // can wire its buttons.
+        '/rm/js/protocol-versions.js',
+        // V3.139 — needed for the editor topbar's "🔁 Match inventory"
+        // button (calls PROTOCOL_IMPORT.openMatcher) and the post-
+        // import auto-open behind the ?match=1 URL param.
+        '/rm/js/protocol-import.js',
+        '/rm/js/protocol-editor.js',
+      ];
+      // V3.315 — doc mode: no Yjs (renders the projected JSON tree), no
+      // editing modules. Formulas power the live calculator inputs;
+      // inventory resolves [!inv:] chips + materials item_ref labels.
+      var docScripts = [
+        '/rm/js/protocol-formulas.js',
+        '/rm/js/protocol-inventory.js',
+        '/rm/js/protocol-doc.js',
+      ];
+      var srcs = (mode === 'editor') ? editorScripts
+               : (mode === 'doc')    ? docScripts
+               : listScripts;
+      srcs.forEach(function (s) {
+        document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');
+      });
+    })();
+  </script>
+</body>
+</html>

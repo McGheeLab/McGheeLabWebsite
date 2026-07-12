@@ -1,0 +1,19 @@
+[
+  {
+    "origin": [
+      "https://mcgheelab.com",
+      "https://www.mcgheelab.com",
+      "http://localhost:8000",
+      "http://localhost:3000",
+      "http://localhost:5000"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Content-Range",
+      "Accept-Ranges"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

@@ -1,0 +1,329 @@
+{
+  "format": "protocol-import-v1",
+  "source": {
+    "kind": "docx",
+    "filename": "Collagen Functionalization.docx"
+  },
+  "protocol": {
+    "id": "",
+    "title": "Collagen Functionalization (microfluidic chip)",
+    "summary": "Surface-functionalize an assembled PDMS microfluidic chip with collagen via plasma → APTES → glutaraldehyde → collagen chemistry.",
+    "category": "microfluidics",
+    "tags": [
+      "collagen",
+      "functionalization",
+      "microfluidic",
+      "pdms",
+      "aptes",
+      "glutaraldehyde",
+      "ecm"
+    ],
+    "tree": {
+      "meta": {
+        "authors_note": "Original authors: Ethan Lin, Alia Starman. Last update: 2026-04-29."
+      },
+      "sections": [
+        {
+          "label": "Working solutions (calculator)",
+          "children": [
+            {
+              "kind": "formula",
+              "attrs": {
+                "label": "APTES working solution",
+                "description": "Volume of 99% APTES stock + DI water to mix for the 8% APTES working solution. 100 uL is needed per chip.",
+                "expression": "n_chips * 100 * (8 / 99)",
+                "variables": [
+                  {
+                    "name": "n_chips",
+                    "label": "Number of chips",
+                    "default": 6,
+                    "unit": "chips"
+                  }
+                ],
+                "output": {
+                  "name": "aptes_stock_uL",
+                  "label": "APTES stock to draw",
+                  "unit": "uL",
+                  "decimals": 1
+                }
+              }
+            },
+            {
+              "kind": "formula",
+              "attrs": {
+                "label": "APTES total working volume",
+                "description": "Total APTES working-solution volume needed across all chips.",
+                "expression": "n_chips * 100",
+                "variables": [],
+                "output": {
+                  "name": "aptes_total_uL",
+                  "label": "Total APTES working volume",
+                  "unit": "uL",
+                  "decimals": 0
+                }
+              }
+            },
+            {
+              "kind": "formula",
+              "attrs": {
+                "label": "Glutaraldehyde working solution",
+                "description": "Volume of 50% glutaraldehyde stock + DI water for the 3% working solution. 100 uL needed per chip.",
+                "expression": "n_chips * 100 * (3 / 50)",
+                "variables": [],
+                "output": {
+                  "name": "glut_stock_uL",
+                  "label": "Glutaraldehyde stock to draw",
+                  "unit": "uL",
+                  "decimals": 1
+                }
+              }
+            },
+            {
+              "kind": "formula",
+              "attrs": {
+                "label": "Collagen working solution",
+                "description": "Volume of 5 mg/mL PureCol EZ Gel stock + buffer for the 2 mg/mL collagen working solution. 50 uL needed per chip.",
+                "expression": "n_chips * 50 * (2 / 5)",
+                "variables": [],
+                "output": {
+                  "name": "collagen_stock_uL",
+                  "label": "PureCol stock to draw",
+                  "unit": "uL",
+                  "decimals": 1
+                }
+              }
+            },
+            {
+              "kind": "formula",
+              "attrs": {
+                "label": "Collagen total working volume",
+                "description": "Total collagen working-solution volume needed across all chips.",
+                "expression": "n_chips * 50",
+                "variables": [],
+                "output": {
+                  "name": "collagen_total_uL",
+                  "label": "Total collagen working volume",
+                  "unit": "uL",
+                  "decimals": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "label": "Materials",
+          "children": [
+            {
+              "kind": "materials",
+              "attrs": {
+                "rows": [
+                  {
+                    "qty": "[!var:n_chips]",
+                    "unit": "ea",
+                    "free_text": "Fully assembled PDMS microfluidic chips (see chip fabrication protocol)",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "",
+                    "unit": "",
+                    "free_text": "99% APTES stock (aliquoted from main bottle, kept in fume hood)",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "",
+                    "unit": "",
+                    "free_text": "50% Glutaraldehyde stock (aliquoted from main bottle, kept in fume hood)",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "",
+                    "unit": "",
+                    "free_text": "PureCol EZ Gel collagen stock, 5 mg/mL",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "",
+                    "unit": "",
+                    "free_text": "DI water",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "",
+                    "unit": "",
+                    "free_text": "Sterile 1× PBS",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "",
+                    "unit": "",
+                    "free_text": "70% EtOH",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "1",
+                    "unit": "ea",
+                    "free_text": "O₂ plasma cleaner / etcher",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "1",
+                    "unit": "ea",
+                    "free_text": "Vacuum source for in-chip washes",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "1",
+                    "unit": "ea",
+                    "free_text": "Cold block (frozen at -20 C, used in biosafety cabinet)",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "",
+                    "unit": "ea",
+                    "free_text": "200 uL and 1000 uL pipette tips",
+                    "item_ref": null
+                  },
+                  {
+                    "qty": "1",
+                    "unit": "ea",
+                    "free_text": "Storage box for chips (incubator-compatible)",
+                    "item_ref": null
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "safety",
+              "body": "APTES and glutaraldehyde steps are FUME HOOD ONLY. Glutaraldehyde is a strong cross-linker and respiratory irritant — do not bring uncovered tubes out of the hood.",
+              "attrs": {
+                "severity": "warning"
+              }
+            }
+          ]
+        },
+        {
+          "label": "Prep",
+          "children": [
+            {
+              "kind": "step",
+              "body": "Start with a fully assembled chip — see the chip fabrication protocol."
+            },
+            {
+              "kind": "step",
+              "body": "Make working solutions for [!var:n_chips] chips (recipes below). Mix fresh — these are not stable for re-use."
+            },
+            {
+              "kind": "step",
+              "body": "(FUME HOOD) From 99% APTES stock, make 8% APTES working solution in DI water: draw [!var:aptes_stock_uL] of stock and dilute with DI to a total of [!var:aptes_total_uL]. 100 uL per chip."
+            },
+            {
+              "kind": "step",
+              "body": "(FUME HOOD) From 50% Glutaraldehyde stock, make 3% glutaraldehyde working solution in DI water: draw [!var:glut_stock_uL] of stock and dilute with DI to a total of [!var:aptes_total_uL] (same per-chip volume). 100 uL per chip."
+            },
+            {
+              "kind": "step",
+              "body": "(BIOSAFETY CABINET — STERILE) From 5 mg/mL PureCol EZ Gel, make a 2 mg/mL collagen working solution: draw [!var:collagen_stock_uL] of stock and dilute with sterile buffer to a total of [!var:collagen_total_uL]. Keep at 5 C until use; need 50 uL per chip."
+            }
+          ]
+        },
+        {
+          "label": "Plasma activation + APTES (Fume hood, ~30 min active + 2 hr wait)",
+          "children": [
+            {
+              "kind": "step",
+              "body": "Plasma treat the PDMS with O₂ for 90 s to create silanol (Si-OH) groups on the chip surface."
+            },
+            {
+              "kind": "safety",
+              "body": "Move the chip from plasma cleaner to fume hood promptly — silanol groups react with airborne moisture and decay over minutes if left on the bench.",
+              "attrs": {
+                "severity": "caution"
+              }
+            },
+            {
+              "kind": "step",
+              "body": "Add 100 uL of APTES working solution to the inlet of each plasma-treated chip. After visually confirming that the chamber is filled, add 100 uL of DI water to the outlet to prevent excess flow into the chamber. Let sit for 2 hours."
+            },
+            {
+              "kind": "step",
+              "body": "Add DI water to the outlet tube and vacuum it through (out of the inlet tube) six times — about 2 mL total of DI water — to wash residual APTES."
+            }
+          ]
+        },
+        {
+          "label": "Glutaraldehyde cross-link (Fume hood)",
+          "children": [
+            {
+              "kind": "step",
+              "body": "Remove the water from the chamber, then add 100 uL of glutaraldehyde working solution to the inlet of each chip. After visually confirming that the chamber is filled, add 100 uL of DI water to the outlet to prevent flow imbalance. Incubate per protocol timing."
+            },
+            {
+              "kind": "step",
+              "body": "Add DI water to the outlet tube and vacuum it through (out of the inlet tube) six times — about 2 mL total of DI water — to wash residual glutaraldehyde."
+            }
+          ]
+        },
+        {
+          "label": "Collagen coupling (Biosafety cabinet, ~15 min)",
+          "children": [
+            {
+              "kind": "safety",
+              "body": "From this section onward, work is sterile and lives in the biosafety cabinet. Bring nothing in from the fume hood without spraying with 70% EtOH first.",
+              "attrs": {
+                "severity": "caution"
+              }
+            },
+            {
+              "kind": "step",
+              "body": "Leaving some DI water in the chip, spray with 70% EtOH and place in the biosafety cabinet on a cold block (frozen at -20 C). Chill the chips for 5 minutes."
+            },
+            {
+              "kind": "step",
+              "body": "Add 400 uL of sterile PBS to each chip's outlet tube and vacuum the DI water out the inlet."
+            },
+            {
+              "kind": "step",
+              "body": "Remove most of the PBS from the chip chambers. Add 50 uL of the collagen working solution directly into the chamber using a 200 uL pipette tip. Let the chip sit on the cold block for 2 minutes (cold prevents premature gelation)."
+            },
+            {
+              "kind": "step",
+              "body": "Add 400 uL of PBS to the outlet tube, vacuuming the collagen solution out through the inlet. Wash most of the PBS through, leaving enough that the chamber and snake do not dry out."
+            }
+          ]
+        },
+        {
+          "label": "Use or store",
+          "children": [
+            {
+              "kind": "step",
+              "body": "If using immediately: fill the inlet tube with sterile PBS, removing any excess PBS from the outlet. This is to test that the chip is flowing before use. Let it flow for at least 30 minutes (or until the flow is stable) before introducing cells."
+            },
+            {
+              "kind": "step",
+              "body": "If making ahead: fill the inlet tube with sterile PBS, removing any excess PBS from the outlet. Place chips in a box and store in the incubator. Test that each chip is flowing before use."
+            },
+            {
+              "kind": "note",
+              "body": "Chips can generally be kept for up to a week before use; the maximum storage time has not been tested.",
+              "attrs": {
+                "flavor": "info"
+              }
+            }
+          ]
+        },
+        {
+          "label": "Notes",
+          "children": [
+            {
+              "kind": "note",
+              "body": "Avoid bubbles at all steps — especially in the chamber. If a bubble forms, try to aspirate it out with a 200 uL pipette. If the bubble persists, vacuum the liquid completely out (empty) and refill from the inlet to push the bubble through.",
+              "attrs": {
+                "flavor": "tip"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

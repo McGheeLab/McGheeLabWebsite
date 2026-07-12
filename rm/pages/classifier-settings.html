@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classifier Settings — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    .cs-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
+    .cs-card h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:0 0 4px 0}
+    .cs-card .hint{font-size:12px;color:var(--text-muted);margin:0 0 14px 0}
+    .cs-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+    .cs-status{font-size:12px;color:var(--text-muted)}
+
+    .api-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px}
+    .api-metric{padding:10px 12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)}
+    .api-metric .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+    .api-metric .big{font-size:22px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
+    .api-metric .big.good{color:var(--green)}
+    .api-metric .sub{font-size:11px;color:var(--text-muted);margin-top:3px}
+
+    .slider-row{display:grid;grid-template-columns:160px 1fr 70px;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9}
+    .slider-row:last-child{border-bottom:none}
+    .slider-row .name{font-size:13px;color:var(--text);font-weight:500}
+    .slider-row .name small{display:block;font-weight:400;color:var(--text-muted);font-size:11px;margin-top:2px}
+    .slider-row input[type=range]{width:100%}
+    .slider-row .val{font-size:13px;font-variant-numeric:tabular-nums;text-align:right;font-family:ui-monospace,Menlo,monospace;color:var(--primary);font-weight:600}
+
+    .cs-test-inputs{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+    .cs-test-inputs input,.cs-test-inputs select{font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:100%;box-sizing:border-box}
+
+    .prob-row{display:grid;grid-template-columns:90px 1fr 56px;gap:10px;align-items:center;margin-bottom:5px}
+    .prob-row .pc{font-size:12px;font-weight:600}
+    .prob-bar{height:14px;background:var(--bg);border-radius:7px;overflow:hidden;border:1px solid var(--border)}
+    .prob-bar>span{display:block;height:100%}
+    .prob-row .pct{font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-muted)}
+
+    table.cs-tbl{width:100%;border-collapse:collapse;font-size:12px}
+    table.cs-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border)}
+    table.cs-tbl td{padding:5px 8px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+    table.cs-tbl tr:hover td{background:var(--bg)}
+    .catchip{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:1px 7px;border-radius:10px}
+    .muted{color:var(--text-muted)}
+    .tbl-scroll{overflow-x:auto}
+    details.cs-det summary{cursor:pointer;font-size:13px;color:var(--primary);font-weight:500;user-select:none;padding:4px 0}
+    code.tok{background:#f1f5f9;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:11px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Email Classifier — Settings &amp; Transparency</h1>
+    </div>
+
+    <div class="cs-actions">
+      <button class="btn btn-primary" id="btn-save">Save settings</button>
+      <button class="btn" id="btn-reset">Reset to defaults</button>
+      <span id="cs-status" class="cs-status">Loading…</span>
+    </div>
+
+    <!-- Live model status -->
+    <div class="cs-card">
+      <h2>Model status (live, at current settings)</h2>
+      <p class="hint">Accuracy is resubstitution (tested on the same labels it learned from) — an optimistic upper bound. It moves as you change the weights below, so you can see the effect immediately.</p>
+      <div class="api-grid" id="cs-stats"></div>
+      <div id="cs-perclass"></div>
+    </div>
+
+    <!-- Feature weights -->
+    <div class="cs-card">
+      <h2>Feature weights — how much each signal counts</h2>
+      <p class="hint">Each multiplies that feature group's contribution to the score. 1.0 = normal, 0 = ignore entirely, 2 = count double. Raise the ones you trust.</p>
+      <div id="cs-weights"></div>
+    </div>
+
+    <!-- Thresholds -->
+    <div class="cs-card">
+      <h2>Activation &amp; confidence</h2>
+      <p class="hint">When the learned model is allowed to drive a guess (vs. falling back to the deterministic rules).</p>
+      <div id="cs-thresholds"></div>
+    </div>
+
+    <!-- Live explain / test -->
+    <div class="cs-card">
+      <h2>Explain a prediction</h2>
+      <p class="hint">See exactly why the model leans the way it does for any email — pick one of your training examples or type your own.</p>
+      <div class="cs-test-inputs">
+        <select id="cs-pick"><option value="">— load one of your training examples —</option></select>
+        <input id="cs-sender" type="text" placeholder="sender (e.g. era@era.nih.gov)">
+        <input id="cs-subject" type="text" placeholder="subject">
+        <input id="cs-snippet" type="text" placeholder="snippet / body preview">
+      </div>
+      <div id="cs-explain"></div>
+    </div>
+
+    <!-- Rules transparency -->
+    <div class="cs-card">
+      <h2>Fallback rules (read-only)</h2>
+      <p class="hint">When the learned model isn't confident, these deterministic sender/subject weights decide the guess. Shown here for full transparency.</p>
+      <div id="cs-rules"></div>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/category-rules.js"></script>
+  <script src="/rm/js/email-classifier.js"></script>
+  <script src="/rm/js/classifier-settings.js"></script>
+</body>
+</html>

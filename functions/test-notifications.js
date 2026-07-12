@@ -72,6 +72,25 @@ const TEST_NOTIFICATIONS = {
     url: '/rm/pages/equipment.html',
     tag: 'test-equip-displaced',
   },
+  // V3.314 — task marketplace (FuturePlan 04, Release A2)
+  'task-market-directed': {
+    title: '🤝 Jane Doe needs a hand',
+    body: 'Take over: image the GELS batch 3 samples — accept or decline on the Task Market',
+    url: '/rm/pages/task-market.html',
+    tag: 'test-task-market-directed',
+  },
+  'task-market-claimed': {
+    title: 'Your post was claimed',
+    body: 'Jane Doe claimed: Analyze TFM displacement fields',
+    url: '/rm/pages/task-market.html',
+    tag: 'test-task-market-claimed',
+  },
+  'task-market-request': {
+    title: '🙋 Jane Doe is asking for work',
+    body: 'I need something to do — about 10 hrs available this week',
+    url: '/rm/pages/task-market.html',
+    tag: 'test-task-market-request',
+  },
 };
 
 const sendTestNotification = onCall(async (request) => {
@@ -151,7 +170,7 @@ const sendTestNotification = onCall(async (request) => {
     success: response.successCount > 0,
     sent: response.successCount,
     failed: response.failureCount,
-    staleTokensCleaned: staleDeletes.length,
+    staleTokensCleaned: staleOps.length,
     results,
   };
 });

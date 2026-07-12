@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper writing — the Results — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; Paper-writing series · part 5 of 7
+          &nbsp;·&nbsp; Prerequisite: <a href="/rm/pages/training-paper-paragraphs.html">paragraphs, voice &amp; scope</a>
+        </div>
+        <h1 class="training-module-title">Paper writing — the Results</h1>
+        <p class="training-module-subtitle">
+          Figure-anchored prose in Reporter voice. Report what you found;
+          save the interpretation for the Discussion. One subsection per
+          figure, one paragraph per panel.
+        </p>
+      </header>
+
+      <div class="training-layout">
+
+        <aside class="training-toc" aria-label="Section navigation">
+          <h3>Sections</h3>
+          <ol>
+            <li><a href="#sec-job" class="active">What the Results does</a></li>
+            <li><a href="#sec-structure">Section structure</a></li>
+            <li><a href="#sec-skeleton">The Results paragraph skeleton</a></li>
+            <li><a href="#sec-voice">Voice (Reporter)</a></li>
+            <li><a href="#sec-stats">Statistics inline</a></li>
+            <li><a href="#sec-creep">Interpretation creep</a></li>
+            <li><a href="#sec-toggle">Reporter vs Advocate toggle</a></li>
+            <li><a href="#sec-negative">Negative results</a></li>
+            <li><a href="#sec-capstone">Figure-alignment checker</a></li>
+          </ol>
+        </aside>
+
+        <main>
+
+          <section class="training-section" id="sec-job">
+            <h2>1. What the Results does</h2>
+            <p>
+              Results reports what you found. Not what it means — that's
+              Discussion. Not how you did it — that's Methods. Just:
+              here are the data, anchored to the figures, with the
+              numbers and statistics needed to evaluate them.
+            </p>
+            <p>
+              Done well, the Results section is the easiest one to
+              write: you already have the figures, you already know what
+              each one shows, so the prose is largely a narration of the
+              figures. The discipline is in keeping yourself from
+              editorializing.
+            </p>
+            <div class="training-callout">
+              <strong>Write Results second.</strong> After Methods, before
+              Discussion or Introduction. By then your figures exist, the
+              measurements are concrete, and you can walk through them
+              one by one. Drafting Results before figures are final is
+              how you produce paragraphs that get deleted.
+            </div>
+          </section>
+
+          <section class="training-section" id="sec-structure">
+            <h2>2. Section structure</h2>
+            <p>The standard shape:</p>
+            <ul>
+              <li><strong>One subsection per figure.</strong> If you have 5 main figures, you have 5 Results subsections.</li>
+              <li><strong>Each subsection has a claim-shaped heading.</strong> Not "Edge density experiments" — that's a topic. "Edge density inverts the effect of stiffness on invasion" — that's a claim.</li>
+              <li><strong>One paragraph per panel</strong> (roughly). A 4-panel figure typically warrants 3-4 paragraphs in its Results subsection.</li>
+              <li><strong>Each paragraph references its panel.</strong> "(Fig. 2a)" appears somewhere in nearly every paragraph; if it doesn't, the paragraph might not belong.</li>
+            </ul>
+          </section>
+
+          <section class="training-section" id="sec-skeleton">
+            <h2>3. The Results paragraph skeleton</h2>
+            <p>
+              The Results variant of the 3-line skeleton (V3.182 § 2):
+            </p>
+            <div class="equation-box">
+              <span class="lhs">observation</span> — what you measured, in plain terms <br>
+              <span class="lhs">quantification</span> — the number + statistical test <br>
+              <span class="lhs">conclusion-from-this-figure</span> — what this panel alone supports
+            </div>
+            <p>
+              Note the third line: the conclusion is bounded to <em>this
+              figure alone</em>. Broader conclusions that tie multiple
+              figures together belong in the Discussion. If your "Results
+              conclusion" sentence requires citing two other figures,
+              you've slipped into Discussion-mode.
+            </p>
+          </section>
+
+          <section class="training-section" id="sec-voice">
+            <h2>4. Voice — Reporter throughout</h2>
+            <p>
+              Results is written entirely in
+              <strong>Reporter voice</strong> (V3.182 § 4): neutral,
+              anchored to a figure panel, statistics inline, no
+              editorializing.
+            </p>
+            <p>Words that do NOT belong in Results:</p>
+            <ul>
+              <li><strong>Interestingly</strong> — every result is interesting; saying so adds nothing.</li>
+              <li><strong>Importantly</strong> — let the reader judge importance.</li>
+              <li><strong>Remarkably</strong> — same.</li>
+              <li><strong>Strikingly</strong> — same.</li>
+              <li><strong>Surprisingly</strong> — same; also, surprises belong in Discussion.</li>
+              <li><strong>Suggests / argues for</strong> — these are Advocate verbs. Save them for Discussion.</li>
+            </ul>
+          </section>
+
+          <section class="training-section" id="sec-stats">
+            <h2>5. Statistics inline</h2>
+            <p>
+              Every quantitative claim in Results carries its statistics
+              inline. Reviewers will look for them; if they're not there,
+              the reviewer assumes you didn't run them.
+            </p>
+            <p>The minimum that goes after every number:</p>
+            <ul>
+              <li><strong>n with units</strong> — "n=12 spheroids," not just "n=12." The units matter: 12 spheroids ≠ 12 cells ≠ 12 fields of view.</li>
+              <li><strong>Test name</strong> — "two-tailed t-test," "Mann-Whitney U," "one-way ANOVA with Tukey post-hoc."</li>
+              <li><strong>p value</strong> — exact (p=0.024) is preferred to threshold (p&lt;0.05) when possible.</li>
+              <li><strong>Multiple-comparison correction</strong> — when there are multiple tests, say what you did (Bonferroni, FDR).</li>
+            </ul>
+            <p>Error bars in figures need a sentence in the legend explaining what they are (SD, SEM, 95% CI) — but figure-legend text isn't your Results section's job.</p>
+          </section>
+
+          <section class="training-section" id="sec-creep">
+            <h2>6. Interpretation creep — the most common failure mode</h2>
+            <p>
+              The single most-flagged issue in first-draft Results
+              sections: students mix Reporter and Advocate voice. The
+              symptom is sentences that <em>look like</em> reporting but
+              actually contain interpretation.
+            </p>
+            <p>Hidden interpretation, by example:</p>
+            <ul>
+              <li>"This <em>important</em> finding shows..." — "important" is interpretation.</li>
+              <li>"<em>As expected</em>, invasion increased..." — "as expected" foreshadows; foreshadowing is interpretation.</li>
+              <li>"Invasion increased, <em>likely because</em>..." — the "likely because" is a Discussion sentence.</li>
+              <li>"The mechanism <em>appears to be</em>..." — "appears to be" is an Advocate verb.</li>
+              <li>"<em>To our surprise</em>, the effect reversed..." — surprise belongs in Discussion.</li>
+            </ul>
+            <p>The Reporter version of each: state the observation + quantification, period.</p>
+          </section>
+
+          <section class="training-section" id="sec-toggle">
+            <h2>7. Same observation in two voices</h2>
+            <p>
+              Toggle below to see Reporter vs Advocate phrasings of the
+              same finding. The Advocate version is well-written prose
+              — it just belongs in the Discussion, not the Results.
+            </p>
+
+            <div class="compare-bar" data-compare="rva">
+              <button class="compare-btn good active" data-side="good">Reporter (Results)</button>
+              <button class="compare-btn bad"          data-side="bad">Advocate (creep)</button>
+            </div>
+            <div class="compare-pane good is-active" data-pane="rva-good">
+              <p>
+                Spheroid invasion increased 2.4-fold under stiff
+                (4.5 kPa) vs soft (1.5 kPa) matrix conditions at 24 h
+                in BT-549 spheroids (Fig. 2a; n=12 spheroids per
+                condition; two-tailed t-test, p&lt;0.001). At
+                MDA-MB-231 spheroids, the effect was attenuated
+                (1.4-fold increase, p=0.018) and at MCF-10A spheroids
+                no significant difference was detected (p=0.41,
+                Fig. 2b).
+              </p>
+              <span class="annot">Neutral. Anchored to panels. Numbers + tests + n inline. No editorializing.</span>
+            </div>
+            <div class="compare-pane bad" data-pane="rva-bad">
+              <p>
+                We found a striking 2.4-fold increase in invasion under
+                stiff matrix conditions, which strongly supports the
+                widely-held view that stiffer matrices promote
+                invasion. Importantly, this effect was attenuated in
+                MDA-MB-231 cells, likely because of their already-high
+                baseline invasiveness. Remarkably, no effect was seen
+                in MCF-10A cells — possibly reflecting their non-
+                tumorigenic nature.
+              </p>
+              <span class="annot">All five Advocate verbs in one paragraph. Every "likely," "possibly," and "importantly" should move to Discussion. The numbers, panels, and n are missing.</span>
+            </div>
+          </section>
+
+          <section class="training-section" id="sec-negative">
+            <h2>8. Negative results — write them without apologizing</h2>
+            <p>
+              A null result is still a result. Report it the same way as
+              a positive one: observation + quantification +
+              conclusion-from-this-figure. Do not apologize. Do not
+              speculate why ("possibly because...") — speculation is
+              Discussion.
+            </p>
+            <div class="training-callout">
+              <strong>Negative results that read well:</strong>
+              <em>"No significant difference in invasion was detected
+              between stiff and soft conditions in MCF-10A spheroids
+              (Fig. 2c; n=12, p=0.41, two-tailed t-test)."</em> Done.
+              Move on. The Discussion can take this further.
+            </div>
+          </section>
+
+          <section class="training-section" id="sec-capstone">
+            <h2>9. Capstone — figure-alignment checker</h2>
+            <p>
+              Paste a draft Results paragraph below. The tool flags
+              sentences that don't reference a figure (most should) and
+              sentences that contain Advocate-voice words that belong in
+              Discussion.
+            </p>
+
+            <div class="panel">
+              <div class="ctrl">
+                <div class="ctrl-group">
+                  <label for="rc-input">Draft Results paragraph</label>
+                  <textarea id="rc-input" rows="8" style="width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);resize:vertical;" placeholder="Paste a draft Results paragraph here…"></textarea>
+                </div>
+                <div class="stats">
+                  <h4>Findings</h4>
+                  <div class="stat-row"><span class="label">Sentences</span><span class="value" id="rc-sentences">—</span></div>
+                  <div class="stat-row"><span class="label">Sentences citing a figure</span><span class="value" id="rc-figs">—</span></div>
+                  <div class="stat-row"><span class="label">Advocate words flagged</span><span class="value" id="rc-advocate">—</span></div>
+                  <div class="stat-row"><span class="label">Statistics inline</span><span class="value" id="rc-stats">—</span></div>
+                </div>
+              </div>
+              <div class="viz">
+                <div class="val-verdict" id="rc-verdict" role="status" aria-live="polite">
+                  Paste a paragraph to analyze it.
+                </div>
+                <div class="para-output" id="rc-output" style="display:none;">
+                  <h3>Annotated paragraph</h3>
+                  <div class="para-body" id="rc-body" style="line-height:1.65;">—</div>
+                  <p style="margin-top:8px;font-size:11px;color:var(--text-muted);">
+                    <span style="background:var(--red-bg);color:var(--red);padding:1px 4px;border-radius:3px;">flagged words</span> belong in Discussion.
+                    <span style="background:var(--amber-bg);color:var(--amber);padding:1px 4px;border-radius:3px;margin-left:6px;">no figure citation</span> on a Results sentence is unusual.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="insight">
+              <strong>What's next.</strong> Once your Results read as
+              neutral reporting, work through the
+              <a href="/rm/pages/training-paper-discussion.html">Discussion (V3.186)</a>
+              — where every "likely," "suggests," and "possibly" lives.
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/training-paper-results.js"></script>
+</body>
+</html>

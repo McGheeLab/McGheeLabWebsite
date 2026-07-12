@@ -4603,3 +4603,145 @@ summary.assoc-header h4{
   padding: 12px 16px;
   border-top: 1px solid rgba(255,255,255,.08);
 }
+
+/* =====================================================================
+   DATA VISUALIZATIONS — editor pieces (V3.301)
+   "Embed 3D visualization" button on section blocks + the saved-view
+   picker modal shared by the story and news editors.
+   ===================================================================== */
+.section-viz-btn{ margin: 8px 0 4px; }
+
+.viz-section-badge{
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .78rem;
+  color: #eafffd;
+  background: rgba(49,208,198,.18);
+  border: 1px solid rgba(49,208,198,.5);
+}
+
+.viz-picker-modal{ z-index: 1200; }
+.viz-picker-content{ max-width: 720px; }
+.viz-picker-body{ max-height: 65vh; overflow-y: auto; padding: 4px 2px; }
+.viz-picker-group h4{ margin: 14px 0 8px; }
+.viz-picker-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.viz-picker-tile{
+  display: block;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255,255,255,.04);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.viz-picker-tile:hover{ border-color: var(--accent, #5baed1); }
+.viz-picker-tile img{ width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; }
+.viz-picker-tile-placeholder{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 10;
+  font-size: 1.6rem;
+}
+.viz-picker-tile-name{
+  display: block;
+  padding: 5px 8px;
+  font-size: .8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── V3.302 — Content-creation UX ───────────────────────────── */
+
+/* changes-requested status badge (author dashboards + admin queue) */
+.status-changes-requested { background: rgba(249,115,22,.15); color: #fdba74; }
+
+/* Admin review note shown on the author's story/news list rows */
+.review-note {
+  margin: .3rem 0 0;
+  font-size: .82rem;
+  color: #fdba74;
+}
+
+/* Banner at the top of the editor when changes were requested */
+.review-note-banner {
+  background: rgba(249,115,22,.12);
+  border: 1px solid rgba(249,115,22,.3);
+  color: #fdba74;
+  padding: .75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: .9rem;
+}
+
+/* Dashboard status strip — one banner per in-flight piece */
+#dash-status-strip { margin-bottom: 1rem; }
+.status-banner {
+  display: block;
+  padding: .6rem .9rem;
+  border-radius: 8px;
+  margin-bottom: .5rem;
+  font-size: .9rem;
+  position: relative;
+}
+.status-banner a { color: inherit; text-decoration: underline; }
+.status-banner-pending {
+  background: rgba(234,179,8,.12);
+  border: 1px solid rgba(234,179,8,.3);
+  color: #fde68a;
+}
+.status-banner-changes {
+  background: rgba(249,115,22,.12);
+  border: 1px solid rgba(249,115,22,.3);
+  color: #fdba74;
+}
+.status-banner-published {
+  background: rgba(34,197,94,.12);
+  border: 1px solid rgba(34,197,94,.3);
+  color: #86efac;
+  padding-right: 2.2rem;
+}
+.status-banner-dismiss {
+  position: absolute;
+  right: .5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  opacity: .7;
+}
+.status-banner-dismiss:hover { opacity: 1; }
+
+/* Propose-a-project reveal on the story editor */
+.propose-project-wrap { margin-top: .4rem; }
+.propose-project-wrap input { width: 100%; }
+.proposed-project-badge { background: rgba(96,165,250,.15); color: #93c5fd; }
+
+/* Admin "Request changes" inline note form */
+.reject-note-form {
+  margin-top: .6rem;
+  display: flex;
+  gap: .5rem;
+  align-items: flex-start;
+}
+.reject-note-form textarea { flex: 1; min-height: 2.6rem; }
+
+/* Markdown-lite hint under section textareas */
+.rt-hint { margin-top: .2rem; font-size: .75rem; opacity: .75; }
+
+/* Editor preview reuses the public feed card — hide social affordances */
+.story-preview-body .story-feed-actions,
+.story-preview-body .comments-section { display: none; }
+.story-preview-body .preview-card { margin: 0; }

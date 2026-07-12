@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silanes: Molecular Paint — Surface Functionalization Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Surface Functionalization Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Silanes — Molecular Paint for Surfaces</h1>
+  <p class="subtitle">Surface Functionalization Foundations · Lesson 3 of 4 — One family of
+  molecules, one universal glue end, endlessly swappable business ends. Silanes are how you
+  paint a surface with exactly the chemistry you want, one molecule thick.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="head">1 · The Common Head</button>
+  <button class="tab-btn" data-tab="reaction">2 · The Goldilocks Reaction</button>
+  <button class="tab-btn" data-tab="tail">3 · The Tail Decides</button>
+  <button class="tab-btn" data-tab="wetting">4 · Level Up: Young's Equation</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: head -->
+<section id="tab-head" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: One glue end fits all</h2>
+    <p>Lesson 2 left you with a surface bristling with –OH (hydroxyl) groups. Now meet the
+    molecule family built to exploit them: <b>silanes</b>. Every functional silane has the same
+    two-part anatomy:</p>
+    <p style="margin-left:16px">
+      · A <b>head</b>: a silicon atom carrying up to three <b>leaving groups</b> — chlorine atoms
+      (chlorosilanes) or methoxy/ethoxy groups (alkoxysilanes). These are the "glue end."<br>
+      · A <b>tail</b> (the R group): any of hundreds of different chemical arms — amines,
+      fluorocarbons, methyls, epoxies... This is the "business end," and it's what varies from
+      silane to silane.
+    </p>
+    <p>The magic is in the head. When it meets a surface –OH group, the silicon swaps one of its
+    leaving groups for a bond to that oxygen: the silane is now <b>covalently welded</b> to the
+    surface — a real chemical bond, not just sticking — and the leaving group departs as a small
+    molecule (HCl gas from a chlorosilane, methanol from a methoxysilane). Do this everywhere on
+    the surface and you've laid down a <b>self-assembled monolayer</b>: a carpet exactly one
+    molecule thick, tails all pointing up, presenting the tail's chemistry to the world.</p>
+    <p>The rule that follows is worth engraving: <b>no –OH, no silane.</b> A surface without
+    hydroxyls (untreated plastic, gold, a dirty surface) gives the head nothing to grab. That is
+    precisely why Lesson 2's oxygen plasma comes first — it's the primer coat before the paint.</p>
+    <div class="worked-example">
+      <p>A fully hydroxylated glass or silica surface carries about
+      \(4.6\ \text{–OH groups per nm}^2\) (the classic Zhuravlev number). A silane head needs
+      roughly 0.2–0.25 nm² of parking space, so a perfect monolayer packs ~4–5 silanes/nm² —
+      neatly matched to the available anchor points. A 1 cm² chip therefore binds about
+      \(4.5\times10^{14}\) silane molecules — around <b>0.7 nanograms</b>. You will never see the
+      coating on a balance, but it completely changes what the surface <em>is</em>.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Silane = head (Si + leaving groups, the glue) + tail (R group, the personality).</li>
+        <li>The head condenses with surface –OH groups → covalent Si–O–surface bond + a small
+        leaving-group molecule (HCl or methanol).</li>
+        <li>Result: a self-assembled monolayer — one molecule thick, tails up.</li>
+        <li>No –OH, no silane: plasma activation (Lesson 2) is the primer for this paint.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Watch silanes drift down and dock. Follow one: head meets an –OH stud, clicks on, and a
+      little leaving-group molecule puffs away.</li>
+      <li>Drag <b>–OH density</b> from rich to poor and watch the finished carpet: fewer anchors,
+      patchier monolayer. Check the graft density in the stats.</li>
+      <li>Switch the <b>leaving group</b> from methoxy to chloro. Chlorosilanes react faster (and
+      more violently — note the HCl byproduct). Does the final coverage change, or mostly the speed?</li>
+      <li>Predict: what would this animation look like on untreated polystyrene that skipped the
+      plasma step?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="head" data-scen="activated" onclick="setScen('head','activated')">Plasma-activated (OH-rich)</button>
+    <button class="scen-btn" data-tab="head" data-scen="poor" onclick="setScen('head','poor')">Barely activated (OH-poor)</button>
+    <button class="scen-btn" data-tab="head" data-scen="chloro" onclick="setScen('head','chloro')">Chlorosilane (fast)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Surface –OH density <span id="v-head-oh">80</span></label>
+        <input type="range" id="s-head-oh" min="10" max="100" step="1" value="80">
+      </div>
+      <div class="ctrl-group">
+        <label>Leaving group <span id="v-head-lg">methoxy</span></label>
+        <input type="range" id="s-head-lg" min="0" max="1" step="1" value="0">
+      </div>
+      <div class="stats" id="st-head"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Silanes docking onto –OH anchors (live) — byproduct puffs away</div>
+        <canvas id="cv-head" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Monolayer graft density vs. available –OH anchors</div>
+        <canvas id="cv-head2" width="640" height="250"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-head"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: reaction -->
+<section id="tab-reaction" class="tab-content">
+  <div class="background-section">
+    <h2>Background: The Goldilocks reaction — silanes need water, but only a whisper</h2>
+    <p>Tab 1 hid a subtlety that ruins more real experiments than any other detail in this
+    course. The silane head doesn't bond to the surface directly — it must first be
+    <b>activated by water</b>. The full mechanism is a two-step dance:</p>
+    <div class="equation-box">
+      <p style="margin:2px 0"><b>Step 1 — Hydrolysis</b> (water swaps out the leaving groups):</p>
+      $$ \text{R–Si(OCH}_3)_3 + 3\,\text{H}_2\text{O} \;\longrightarrow\;
+         \text{R–Si(OH)}_3 + 3\,\text{CH}_3\text{OH} $$
+      <p style="margin:2px 0"><b>Step 2 — Condensation</b> (silanol bonds to the surface, and to
+      its neighbors sideways):</p>
+      $$ \text{R–Si(OH)}_3 + \text{HO–surface}
+         \;\longrightarrow\; \text{R–Si(OH)}_2\text{–O–surface} + \text{H}_2\text{O} $$
+      $$ \text{Si–OH} + \text{HO–Si} \;\longrightarrow\; \text{Si–O–Si} + \text{H}_2\text{O}
+         \;\;(\text{lateral crosslinking — the carpet stitches itself together}) $$
+    </div>
+    <p>See the trap? Water appears as a <em>reactant</em> in step 1 — no water, no reaction at
+    all. But water also lets activated silanes find <em>each other</em>: with too much water
+    around, R–Si(OH)₃ molecules condense together in solution, polymerizing into blobby
+    3-D clusters that rain onto your surface as lumps instead of a monolayer. The fix is
+    Goldilocks chemistry: <b>trace</b> water — often just the adsorbed monolayer from Lesson 1
+    Tab 3! — is exactly right. This is why silanization recipes obsess over "anhydrous toluene,"
+    sealed bottles, and controlled humidity, and why the same bottle of silane gives beautiful
+    monolayers one humid week and cloudy junk the next.</p>
+    <div class="worked-example">
+      <p>A typical recipe: 1% APTES in dry toluene, glassware oven-dried, but the plasma-cleaned
+      wafer carries its equilibrium ~1 monolayer of adsorbed water (Lesson 1: θ ≈ 1 layer at
+      lab RH). That single molecular layer of surface water is the intended hydrolysis supply —
+      about \(10^{19}\) H₂O molecules/m², comfortably more than the \(\sim 4.5\times10^{18}\)
+      needed to hydrolyze a full silane monolayer (3 waters × 1.5×10¹⁸ silanes). Now suppose the
+      solvent itself is wet, holding ~0.03% water: a 50 mL bath then carries ~5×10²⁰ H₂O
+      molecules — a <em>hundred times</em> the surface supply, all of it available for
+      silane-silane polymerization in solution. Result: cloudy solution, lumpy film.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Silanization is hydrolysis (needs water) then condensation (releases it back).</li>
+        <li>Too dry → no hydrolysis → nothing bonds. Too wet → silanes polymerize with each
+        other → clumps, not a monolayer.</li>
+        <li>The sweet spot is trace water — often just the surface's own adsorbed layer.</li>
+        <li>Lateral Si–O–Si crosslinks stitch the monolayer into a robust net.</li>
+        <li>This is the most humidity-sensitive step in the whole course: control it.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Sweep <b>Water content</b> from bone-dry to soaked and watch the three regimes: silanes
+      drifting off unreacted → a neat monolayer → cauliflower clumps.</li>
+      <li>Find the peak of the quality curve. How wide is the usable window?</li>
+      <li>Raise the <b>silane concentration</b> in the wet regime. Do things get better or worse?
+      Why? (Who is the silane reacting with?)</li>
+      <li>Your monolayer came out lumpy on a humid day. Using this tab, name two process changes
+      that would fix it.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="reaction" data-scen="dry" onclick="setScen('reaction','dry')">Too dry (no reaction)</button>
+    <button class="scen-btn on" data-tab="reaction" data-scen="trace" onclick="setScen('reaction','trace')">Trace water (ideal)</button>
+    <button class="scen-btn" data-tab="reaction" data-scen="wet" onclick="setScen('reaction','wet')">Too wet (clumps)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Water content <span id="v-reaction-water">15</span></label>
+        <input type="range" id="s-reaction-water" min="0" max="100" step="1" value="15">
+      </div>
+      <div class="ctrl-group">
+        <label>Silane concentration <span id="v-reaction-conc">1.0</span></label>
+        <input type="range" id="s-reaction-conc" min="0.2" max="5" step="0.1" value="1.0">
+      </div>
+      <div class="stats" id="st-reaction"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">What lands on your surface — monolayer, nothing, or cauliflower</div>
+        <canvas id="cv-reaction" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Monolayer quality vs. water content (shaded = usable window)</div>
+        <canvas id="cv-reaction2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-reaction"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: tail -->
+<section id="tab-tail" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Same glue, different personality — the tail decides everything</h2>
+    <p>Once the head has done its universal job, the surface <em>becomes</em> the tail. Whatever
+    chemical group the tails present outward is now, for all practical purposes, the material.
+    Three famous examples, all real products you can buy:</p>
+    <p style="margin-left:16px">
+      · <b>APTMS / APTES</b> (aminopropyl-tri-methoxy/ethoxy-silane): tail ends in <b>–NH₂</b>,
+      the amine from Lesson 2. The surface becomes mildly basic, positively charged in water,
+      and chemically couple-able — the standard first step for gluing proteins, DNA, or a second
+      polymer layer onto glass. Moderate surface energy (~40 mJ/m²).<br>
+      · <b>PDMS-type / dimethyl silicones</b> — the working ingredient of <b>Rain-X</b>: tails
+      present only methyl (–CH₃) groups. Water finds nothing to bond to and beads up; at highway
+      speed the beads simply blow off your windshield. Low surface energy (~20–24 mJ/m²).<br>
+      · <b>1H,1H,2H,2H-perfluorodecyltrimethoxysilane (PFDTS)</b>: a tail of fluorinated carbons
+      (–CF₂–...–CF₃). Fluorocarbon surfaces are the lowest-energy surfaces chemistry knows
+      (~6–12 mJ/m²) — so inert that not only water but even <b>oils</b> bead up. This is the
+      chemistry of non-stick everything.
+    </p>
+    <p>Notice the pattern: the tail sets the <b>surface energy</b> \(\gamma_{sv}\) from Lesson 1,
+    and the surface energy sets the behavior. A –CF₃-tipped carpet is "content" — no dangling
+    polar bonds, nothing for a liquid to grab. One caveat: a <em>patchy</em> monolayer leaks the
+    substrate's personality through the gaps. Coverage matters — drop the packing density in the
+    sim and watch the effective surface energy drift back toward bare glass.</p>
+    <div class="worked-example">
+      <p>Zisman's classic measurements rank surface chemistry by critical surface tension:
+      a –CH₂– (polyethylene-like) surface sits near 31 mN/m, pure –CH₃ near 22–24, and –CF₃
+      close to <b>6 mN/m</b> — the lowest ever recorded for a flat surface. So one single-molecule
+      coat of PFDTS turns glass (\(\gamma_{sv}\sim\) 250+ mJ/m², water spreads flat) into a
+      surface ~40× lower in energy than it started — a bigger change than any bulk treatment
+      could achieve, delivered by a layer 1–2 nm thick.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>After silanization, the surface <em>is</em> the tail: –NH₂ = coupling handle,
+        –CH₃ = water beads, –CF₃ = everything beads.</li>
+        <li>The tail sets \(\gamma_{sv}\): APTMS ~40, PDMS ~22, fluorosilane ~6–12 mJ/m².</li>
+        <li>Rain-X = methyl-silicone tails on your windshield; non-stick = fluorocarbon tails.</li>
+        <li>Patchy monolayers leak the substrate through: packing density matters.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Step through the four coatings and watch both the molecular carpet and the surface
+      energy bar chart. Keep an eye on where water's 72.8 mJ/m² line falls.</li>
+      <li>For each coating, guess: will water spread or bead? (Rule of thumb: liquids spread on
+      surfaces with energy well above their own surface tension.) The next tab makes this exact.</li>
+      <li>Drop the <b>packing density</b> to 50% on the fluorosilane. Where does the effective
+      surface energy land, and why?</li>
+      <li>Choose your coating: (a) you want antibodies stuck to a glass biosensor; (b) you want
+      a windshield that sheds rain; (c) you want oil not to wet a lab-on-chip channel.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="tail" data-scen="bare" onclick="setScen('tail','bare')">Bare glass (–OH)</button>
+    <button class="scen-btn on" data-tab="tail" data-scen="aptms" onclick="setScen('tail','aptms')">APTMS (–NH₂)</button>
+    <button class="scen-btn" data-tab="tail" data-scen="pdms" onclick="setScen('tail','pdms')">Rain-X / PDMS (–CH₃)</button>
+    <button class="scen-btn" data-tab="tail" data-scen="fluoro" onclick="setScen('tail','fluoro')">Fluorosilane (–CF₃)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Coating <span id="v-tail-sil">APTMS</span></label>
+        <input type="range" id="s-tail-sil" min="0" max="3" step="1" value="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Packing density <span id="v-tail-pack">90</span></label>
+        <input type="range" id="s-tail-pack" min="30" max="100" step="1" value="90">
+      </div>
+      <div class="stats" id="st-tail"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The molecular carpet — same head, different business end</div>
+        <canvas id="cv-tail" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Surface energy by coating (dashed = water's 72.8 mJ/m²)</div>
+        <canvas id="cv-tail2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-tail"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: wetting -->
+<section id="tab-wetting" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: Young's equation — the number that says "bead or spread"</h2>
+    <p>Time to make "water beads up" quantitative. Put a droplet on a surface and look at the
+    <b>contact line</b> — the circle where solid, liquid, and air all meet. Three surface
+    tensions play tug-of-war along the surface there:
+    \(\gamma_{sv}\) (solid–vapor: the dry surface pulling the contact line outward, trying to
+    get itself covered), \(\gamma_{sl}\) (solid–liquid: the wetted interface pulling back), and
+    \(\gamma_{lv}\) (liquid–vapor: the drop's own skin, pulling along its surface at the
+    <b>contact angle</b> \(\theta\)). At equilibrium the horizontal pulls balance — this is
+    Thomas Young's 1805 equation:</p>
+    <div class="equation-box">
+      $$ \gamma_{sv} \;=\; \gamma_{sl} + \gamma_{lv}\cos\theta
+      \qquad\Longleftrightarrow\qquad
+      \boxed{\;\cos\theta = \frac{\gamma_{sv} - \gamma_{sl}}{\gamma_{lv}}\;} $$
+    </div>
+    <p>Read it like a story. <b>High-energy surface</b> (big \(\gamma_{sv}\), e.g. plasma-cleaned
+    glass): the dry solid is so expensive that covering it with liquid pays; \(\cos\theta \to 1\),
+    \(\theta \to 0°\), the drop spreads into a sheet. <b>Low-energy surface</b> (fluorosilane):
+    the dry solid is cheap, wetting it is a bad deal; \(\cos\theta\) goes negative, \(\theta\)
+    climbs past 90°, the drop balls up. The 90° line is the official border between
+    <b>hydrophilic</b> and <b>hydrophobic</b>. And your silane toolbox from Tab 3 is exactly a
+    set of \(\gamma_{sv}\) dials.</p>
+    <p>But here is the wall you cannot chemistry your way through: with water
+    (\(\gamma_{lv} = 72.8\)) even the lowest \(\gamma_{sv}\) ever measured leaves
+    \(\cos\theta \gtrsim -0.5\), so <b>a flat surface tops out near \(\theta \approx 120°\)</b>.
+    Lotus leaves laugh at this limit — water sits on them at 160°. They are not using better
+    chemistry. They are using <em>geometry</em> — and that is Lesson 4.</p>
+    <div class="worked-example">
+      <p><b>APTMS-coated glass:</b> \(\gamma_{sv}=40\), \(\gamma_{sl}=30\), water
+      \(\gamma_{lv}=72.8\) mJ/m²: \(\cos\theta = (40-30)/72.8 = 0.137\) →
+      \(\theta \approx 82°\) — just barely hydrophilic.<br>
+      <b>Fluorinated coating:</b> \(\gamma_{sv}=20\), \(\gamma_{sl}=50\):
+      \(\cos\theta = (20-50)/72.8 = -0.412\) → \(\theta \approx 114°\) — solidly hydrophobic,
+      near the flat-surface ceiling.<br>
+      <b>Oil on the same fluorocoating:</b> \(\gamma_{lv}=27\) (hexadecane), \(\gamma_{sv}=12\),
+      \(\gamma_{sl}=4\): \(\cos\theta = 8/27 = 0.30\) → \(\theta \approx 73°\) — even oil beads,
+      the signature trick of fluorinated surfaces.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Young: \(\cos\theta = (\gamma_{sv} - \gamma_{sl})/\gamma_{lv}\) — three tensions
+        tug-of-war at the contact line.</li>
+        <li>θ &lt; 90° hydrophilic (spreads); θ &gt; 90° hydrophobic (beads).</li>
+        <li>Silanes tune \(\gamma_{sv}\); the liquid's own \(\gamma_{lv}\) sets how hard beading is
+        (oils, with low \(\gamma_{lv}\), are much harder to repel than water).</li>
+        <li>Young assumes an ideally smooth, rigid, uniform surface — and on such a surface
+        chemistry maxes out near 120°. Superhydrophobicity needs roughness → Lesson 4.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Recreate the two worked examples with the sliders and check the computed angles (82°,
+      114°).</li>
+      <li>Slide \(\gamma_{sv}\) slowly from 300 down to 5 with the other sliders fixed. Watch the
+      droplet morph from pancake to ball, and the dot slide along the θ-curve. Where does it
+      cross 90°?</li>
+      <li>Switch the liquid from water to oil (\(\gamma_{lv}\): 72.8 → 27). Why is the same
+      coating so much worse at repelling oil? (Look at the denominator.)</li>
+      <li>Try to reach θ = 150° with any slider combination that keeps
+      \(\gamma_{sl} \le 80\). Convince yourself flat chemistry can't do it — then open Lesson 4.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="wetting" data-scen="glass" onclick="setScen('wetting','glass')">Clean glass (wets)</button>
+    <button class="scen-btn on" data-tab="wetting" data-scen="aptms" onclick="setScen('wetting','aptms')">APTMS</button>
+    <button class="scen-btn" data-tab="wetting" data-scen="rainx" onclick="setScen('wetting','rainx')">Rain-X / PDMS</button>
+    <button class="scen-btn" data-tab="wetting" data-scen="fluoro" onclick="setScen('wetting','fluoro')">Fluorosilane + water</button>
+    <button class="scen-btn" data-tab="wetting" data-scen="oil" onclick="setScen('wetting','oil')">Fluorosilane + oil</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Solid–vapor γ_sv <span id="v-wetting-gsv">40</span></label>
+        <input type="range" id="s-wetting-gsv" min="5" max="300" step="1" value="40">
+      </div>
+      <div class="ctrl-group">
+        <label>Solid–liquid γ_sl <span id="v-wetting-gsl">30</span></label>
+        <input type="range" id="s-wetting-gsl" min="2" max="80" step="1" value="30">
+      </div>
+      <div class="ctrl-group">
+        <label>Liquid γ_lv <span id="v-wetting-glv">72.8</span></label>
+        <input type="range" id="s-wetting-glv" min="20" max="80" step="0.1" value="72.8">
+      </div>
+      <div class="stats" id="st-wetting"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The droplet and the three-way tug-of-war at the contact line</div>
+        <canvas id="cv-wetting" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Contact angle vs. surface energy γ_sv (dots = the Tab-3 coatings)</div>
+        <canvas id="cv-wetting2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-wetting"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>J. Sagiv, "Organized monolayers by adsorption. 1. Formation and structure of oleophobic
+    mixed monolayers on solid surfaces," <i>J. Am. Chem. Soc.</i> <b>102</b>, 92–98 (1980).
+    DOI: 10.1021/ja00521a016 — the founding paper of silane self-assembled monolayers.</li>
+    <li>T. Young, "An Essay on the Cohesion of Fluids," <i>Phil. Trans. R. Soc. Lond.</i>
+    <b>95</b>, 65–87 (1805). DOI: 10.1098/rstl.1805.0005.</li>
+    <li>M. K. Chaudhury &amp; G. M. Whitesides, "Correlation Between Surface Free Energy and
+    Surface Constitution," <i>Science</i> <b>255</b>, 1230–1232 (1992).
+    DOI: 10.1126/science.255.5049.1230.</li>
+    <li>B. Arkles, "Tailoring Surfaces with Silanes," <i>CHEMTECH</i> <b>7</b>, 766–778 (1977);
+    and B. Arkles, <i>Silane Coupling Agents: Connecting Across Boundaries</i>, 3rd ed., Gelest
+    Inc. (2014) — practical silane selection, hydrolysis/condensation, water sensitivity.</li>
+    <li>W. A. Zisman, "Relation of the Equilibrium Contact Angle to Liquid and Solid
+    Constitution," in <i>Contact Angle, Wettability, and Adhesion</i>, Advances in Chemistry
+    <b>43</b>, ACS (1964), pp. 1–51. DOI: 10.1021/ba-1964-0043.ch001 — critical surface tensions
+    of –CH₃ and –CF₃ surfaces.</li>
+    <li>L. T. Zhuravlev, "The surface chemistry of amorphous silica," <i>Colloids Surf. A</i>
+    <b>173</b>, 1–38 (2000). DOI: 10.1016/S0927-7757(00)00556-2 — the 4.6 OH/nm² number.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Surface Functionalization Foundations · Lesson 3 of 4 — Next: why the lotus
+leaf beats the best chemistry on Earth using nothing but bumps.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl, xtickFmt, ytickFmt){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(xtickFmt ? xtickFmt(t) : fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(ytickFmt ? ytickFmt(t) : fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+
+function drawAtom(ctx, x, y, r, color){
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.15, x, y, r);
+  g.addColorStop(0, '#dbeafe'); g.addColorStop(1, color);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,58,95,.35)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 3: Silanes
+   ================================================================ */
+
+/* silane coatings shared by tabs 3 & 4 */
+const SIL = [
+  { name: 'Bare glass', tail: '–OH', gsv: 250, gsl: 30, col: COL.accent,
+    story: 'no coating: hungry hydroxylated glass — water spreads flat' },
+  { name: 'APTMS', tail: '–NH₂', gsv: 40, gsl: 30, col: COL.purple,
+    story: 'amine handle for coupling proteins and DNA; moderately wettable' },
+  { name: 'Rain-X / PDMS', tail: '–CH₃', gsv: 22, gsl: 45, col: COL.orange,
+    story: 'methyl carpet: water finds nothing to grab and beads off the windshield' },
+  { name: 'Fluorosilane (PFDTS)', tail: '–CF₃', gsv: 10, gsl: 50, col: COL.teal,
+    story: 'fluorocarbon carpet, the lowest-energy surface known: even oils bead' }
+];
+
+/* --- control state --- */
+let activeTab = 'head';
+const scen = { head: 'activated', reaction: 'trace', tail: 'aptms', wetting: 'aptms' };
+
+const FMT = {
+  'head-oh':  v => fmt(v, 0) + ' %',
+  'head-lg':  v => (Math.round(v) === 0 ? 'methoxy' : 'chloro'),
+  'reaction-water': v => fmt(v, 0) + ' %',
+  'reaction-conc':  v => fmt(v, 1) + ' %',
+  'tail-sil':  v => SIL[Math.round(v)].name,
+  'tail-pack': v => fmt(v, 0) + ' %',
+  'wetting-gsv': v => fmt(v, 0) + ' mJ/m²',
+  'wetting-gsl': v => fmt(v, 0) + ' mJ/m²',
+  'wetting-glv': v => fmt(v, 1) + ' mJ/m²'
+};
+
+const SCEN = {
+  head: {
+    activated: { 's-head-oh': 80, 's-head-lg': 0 },
+    poor:      { 's-head-oh': 20, 's-head-lg': 0 },
+    chloro:    { 's-head-oh': 80, 's-head-lg': 1 }
+  },
+  reaction: {
+    dry:   { 's-reaction-water': 1,  's-reaction-conc': 1 },
+    trace: { 's-reaction-water': 15, 's-reaction-conc': 1 },
+    wet:   { 's-reaction-water': 70, 's-reaction-conc': 1 }
+  },
+  tail: {
+    bare:   { 's-tail-sil': 0, 's-tail-pack': 90 },
+    aptms:  { 's-tail-sil': 1, 's-tail-pack': 90 },
+    pdms:   { 's-tail-sil': 2, 's-tail-pack': 90 },
+    fluoro: { 's-tail-sil': 3, 's-tail-pack': 90 }
+  },
+  wetting: {
+    glass:  { 's-wetting-gsv': 250, 's-wetting-gsl': 30, 's-wetting-glv': 72.8 },
+    aptms:  { 's-wetting-gsv': 40,  's-wetting-gsl': 30, 's-wetting-glv': 72.8 },
+    rainx:  { 's-wetting-gsv': 22,  's-wetting-gsl': 45, 's-wetting-glv': 72.8 },
+    fluoro: { 's-wetting-gsv': 12,  's-wetting-gsl': 52, 's-wetting-glv': 72.8 },
+    oil:    { 's-wetting-gsv': 12,  's-wetting-gsl': 4,  's-wetting-glv': 27 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation plumbing (TFM pattern): only 'head' animates --- */
+const ANIMATED = new Set(['head']);
+let rafId = null, animClock = 0;
+function animLoop(ts){
+  animClock = (ts || 0) / 1000;
+  if (ANIMATED.has(activeTab)) {
+    try { DRAW[activeTab](); } catch (e) { console.error(e); }
+    rafId = requestAnimationFrame(animLoop);
+  } else rafId = null;
+}
+function startAnim(){ if (ANIMATED.has(activeTab) && rafId == null) rafId = requestAnimationFrame(animLoop); }
+function stopAnim(){ if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; } }
+
+/* --- glyph: a silane molecule. mode: 'free' (leaving groups on) | 'bound' --- */
+function silaneGlyph(ctx, x, y, mode, tailCol, lgChloro){
+  // tail: 3-segment zigzag going up, ending in an R blob
+  ctx.save();
+  ctx.strokeStyle = tailCol || COL.ink; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y - 7);
+  ctx.lineTo(x + 5, y - 15); ctx.lineTo(x - 4, y - 23); ctx.lineTo(x + 3, y - 31);
+  ctx.stroke();
+  ctx.fillStyle = tailCol || COL.ink;
+  ctx.beginPath(); ctx.arc(x + 3, y - 34, 4.5, 0, 7); ctx.fill();
+  ctx.restore();
+  // Si head
+  drawAtom(ctx, x, y, 7.5, COL.accent);
+  caption(ctx, x, y + 3.5, 'Si', '#fff', true);
+  if (mode === 'free') {
+    const lgCol = lgChloro ? COL.good : COL.warn;
+    for (const dx of [-9, 0, 9]) {
+      drawAtom(ctx, x + dx, y + 11, 4, lgCol);
+    }
+  }
+}
+
+/* ---------------- TAB 1: head (animated) ---------------- */
+const HEAD_P = (() => { const rng = mulberry32(17), a = [];
+  for (let i = 0; i < 10; i++) a.push({ x0: rng(), T: 7 + rng() * 5, ph: rng(), drift: rng() * 30 - 15 });
+  return a; })();
+
+function drawHead(){
+  const oh = num('s-head-oh') / 100, chloro = Math.round(num('s-head-lg')) === 1;
+  const rate = chloro ? 1.6 : 1.0;
+  const graft = Math.min(1, oh * (0.85 + 0.15 * rate));    // grafted fraction of a full monolayer
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-head'));
+  const surfY = h - 46;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY, w, h - surfY);
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.5);
+  caption(ctx, w / 2, h - 14, 'plasma-activated surface', COL.ink, true);
+  // OH studs + bound silanes
+  const slots = 18, sp = (w - 40) / slots;
+  const rng = mulberry32(23);
+  let shownOH = 0, shownSil = 0;
+  for (let i = 0; i < slots; i++) {
+    const x = 20 + i * sp + sp / 2;
+    const hasOH = rng() < oh;
+    if (!hasOH) continue;
+    shownOH++;
+    const bound = rng() < graft * 0.95;
+    if (bound) {
+      shownSil++;
+      drawLine(ctx, x, surfY, x, surfY - 8, COL.teal, 2);
+      silaneGlyph(ctx, x, surfY - 16, 'bound', COL.ink, chloro);
+    } else {
+      drawLine(ctx, x, surfY, x, surfY - 9, COL.teal, 2);
+      caption(ctx, x, surfY - 12, 'OH', COL.teal, true);
+    }
+  }
+  // incoming silanes: loop down toward the surface, then reset; leaving-group puffs
+  for (let i = 0; i < 5; i++) {
+    const p = HEAD_P[i];
+    const t = ((animClock * rate / p.T) + p.ph) % 1;
+    const x = 30 + p.x0 * (w - 60) + Math.sin(animClock * 0.9 + p.ph * 7) * 12;
+    const yTop = 24, yDock = surfY - 30;
+    if (t < 0.75) {
+      const y = yTop + (t / 0.75) * (yDock - yTop);
+      silaneGlyph(ctx, x, y, 'free', COL.ink, chloro);
+    } else {
+      // just docked: draw puff of leaving groups rising away
+      const t2 = (t - 0.75) / 0.25;
+      for (const dx of [-10, 0, 10]) {
+        const py = yDock - t2 * 46, alpha = 1 - t2;
+        ctx.save(); ctx.globalAlpha = Math.max(0, alpha);
+        drawAtom(ctx, x + dx * (1 + t2), py, 3.6, chloro ? COL.good : COL.warn);
+        ctx.restore();
+      }
+      if (t2 < 0.5) caption(ctx, x + 34, yDock - 18, chloro ? 'HCl ↑' : 'CH₃OH ↑', chloro ? COL.good : COL.warn, true);
+    }
+  }
+  caption(ctx, 84, 20, 'silanes arriving', COL.axis);
+
+  /* plot: graft density vs OH density */
+  const c2 = setupCanvas(document.getElementById('cv-head2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 100, 0, 5);
+  ch.grid(); ch.axes('surface –OH density (% of full)', 'graft density (silanes/nm²)');
+  const mk = r => { const pts = [];
+    for (let x = 0; x <= 100; x += 2) pts.push([x, 4.6 * Math.min(1, (x / 100) * (0.85 + 0.15 * r))]);
+    return pts; };
+  ch.plot(mk(1.6), COL.good, chloro ? 3 : 1.5, chloro ? null : [5, 4]);
+  ch.plot(mk(1.0), COL.warn, chloro ? 1.5 : 3, chloro ? [5, 4] : null);
+  ch.dot(oh * 100, 4.6 * graft, COL.bad, 6);
+  ch.legend([{ label: 'chlorosilane', color: COL.good, dash: chloro ? null : [5, 4] },
+             { label: 'methoxysilane', color: COL.warn, dash: chloro ? [5, 4] : null }]);
+
+  setStat('st-head', [
+    { label: '–OH anchors', value: fmt(oh * 4.6, 1) + ' /nm²' },
+    { label: 'Leaving group', value: chloro ? 'chloro (–Cl ×3)' : 'methoxy (–OCH₃ ×3)' },
+    { label: 'Byproduct', value: chloro ? 'HCl' : 'methanol' },
+    { label: 'Graft density', value: fmt(4.6 * graft, 1) + ' /nm²', highlight: true }
+  ]);
+
+  if (oh < 0.35)
+    setVerdict('vd-head', 'bad', 'OH-poor surface — the paint has nowhere to stick.',
+      'Only ' + fmt(oh * 4.6, 1) + ' anchors/nm² are available, so the monolayer is patchy (' + fmt(4.6 * graft, 1) + ' silanes/nm²). No –OH, no silane: go back to Lesson 2 and plasma-treat properly before silanizing.');
+  else if (graft < 0.8)
+    setVerdict('vd-head', 'warn', 'Partial monolayer forming.',
+      'Silanes are docking where anchors exist, releasing ' + (chloro ? 'HCl' : 'methanol') + ' as they weld on. Coverage tracks the –OH density nearly one-to-one — the plasma step directly sets the quality of this step.');
+  else
+    setVerdict('vd-head', 'good', 'Dense monolayer: ~' + fmt(4.6 * graft, 1) + ' silanes/nm², covalently welded.',
+      'Each dock is a real Si–O–surface bond (not just adhesion), with ' + (chloro ? 'HCl gas' : 'methanol') + ' leaving as the receipt. The surface is now wearing a one-molecule-thick carpet — and everything the world sees is the tail. Tab 3 chooses it.');
+}
+
+/* ---------------- TAB 2: reaction ---------------- */
+function drawReaction(){
+  const wpc = num('s-reaction-water'), conc = num('s-reaction-conc');
+  const Q = Math.exp(-Math.pow((wpc - 15) / 12, 2));                 // monolayer quality 0..1
+  const clump = Math.max(0, (wpc - 28) / 72) * Math.min(1, conc / 1.5); // clumping 0..1
+  const unreacted = Math.max(0, 1 - wpc / 6);                        // too-dry factor
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-reaction'));
+  const surfY = h - 46;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY, w, h - surfY);
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.5);
+  caption(ctx, w / 2, h - 14, '–OH-rich surface, waiting for its paint', COL.ink, true);
+
+  const slots = 18, sp = (w - 40) / slots;
+  const rng = mulberry32(29);
+  if (unreacted > 0.5) {
+    // too dry: silanes float, unreacted, leaving groups still attached
+    for (let i = 0; i < 8; i++) {
+      const x = 30 + rng() * (w - 60), y = 40 + rng() * (surfY - 110);
+      silaneGlyph(ctx, x, y, 'free', COL.muted, false);
+    }
+    for (let i = 0; i < slots; i++) {
+      const x = 20 + i * sp + sp / 2;
+      drawLine(ctx, x, surfY, x, surfY - 9, COL.teal, 2);
+      caption(ctx, x, surfY - 12, 'OH', COL.teal, true);
+    }
+    caption(ctx, w / 2, 26, 'no water → no hydrolysis → nothing reacts', COL.bad, true);
+  } else {
+    // monolayer portion
+    for (let i = 0; i < slots; i++) {
+      const x = 20 + i * sp + sp / 2;
+      if (rng() < Q * 0.95) {
+        drawLine(ctx, x, surfY, x, surfY - 8, COL.teal, 2);
+        silaneGlyph(ctx, x, surfY - 16, 'bound', COL.ink, false);
+      } else if (rng() < 0.8) {
+        drawLine(ctx, x, surfY, x, surfY - 9, COL.teal, 2);
+        caption(ctx, x, surfY - 12, 'OH', COL.teal, true);
+      }
+    }
+    // clumps: cauliflower mounds on and above the surface
+    const nCl = Math.round(clump * 6);
+    for (let k = 0; k < nCl; k++) {
+      const cx = 50 + rng() * (w - 100);
+      const onSurf = rng() < 0.6;
+      const cy = onSurf ? surfY - 18 : 50 + rng() * (surfY - 140);
+      const nB = 5 + Math.round(rng() * 6);
+      for (let b = 0; b < nB; b++) {
+        const bx = cx + (rng() - 0.5) * 34, by = cy - rng() * 26;
+        drawAtom(ctx, bx, by, 6 + rng() * 3, COL.bad);
+      }
+      caption(ctx, cx, cy + 18, onSurf ? 'polymerized clump' : 'clump forming in solution', COL.bad);
+    }
+    if (nCl === 0 && Q > 0.7)
+      caption(ctx, w / 2, 26, 'trace water: hydrolyze at the surface, condense in place — a clean monolayer', COL.good, true);
+    else if (nCl > 0)
+      caption(ctx, w / 2, 26, 'excess water: silanes polymerize with EACH OTHER before reaching the surface', COL.bad, true);
+  }
+
+  /* plot: quality vs water */
+  const c2 = setupCanvas(document.getElementById('cv-reaction2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 100, 0, 1.1);
+  ch.band(6, 26, 'rgba(22,163,74,0.10)');
+  ch.grid(); ch.axes('water content (%)', 'monolayer quality');
+  const pts = [];
+  for (let x = 0; x <= 100; x += 1) pts.push([x, Math.exp(-Math.pow((x - 15) / 12, 2))]);
+  ch.plot(pts, COL.accent, 2.5);
+  const ptsC = [];
+  for (let x = 0; x <= 100; x += 1) ptsC.push([x, Math.max(0, (x - 28) / 72) * Math.min(1, conc / 1.5)]);
+  ch.plot(ptsC, COL.bad, 2, [5, 4]);
+  ch.dot(wpc, Q, COL.accent, 6);
+  ch.legend([{ label: 'monolayer quality', color: COL.accent },
+             { label: 'clumping', color: COL.bad, dash: [5, 4] }]);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.good; c2.ctx.font = 'bold 10px sans-serif';
+  c2.ctx.textAlign = 'center'; c2.ctx.fillText('Goldilocks window', ch.toX(16), ch.toY(1.05));
+  c2.ctx.restore();
+
+  setStat('st-reaction', [
+    { label: 'Water content', value: fmt(wpc, 0) + ' %' },
+    { label: 'Silane conc.', value: fmt(conc, 1) + ' %' },
+    { label: 'Monolayer quality', value: fmt(Q * 100, 0) + ' %', highlight: true },
+    { label: 'Clumping', value: fmt(clump * 100, 0) + ' %' }
+  ]);
+
+  if (wpc < 5)
+    setVerdict('vd-reaction', 'bad', 'Too dry — hydrolysis can\'t start.',
+      'Water is a REACTANT here (step 1 swaps the leaving groups for –OH). With essentially none available, the silanes float past your surface untouched and go down the drain with the solvent. Quality: ' + fmt(Q * 100, 0) + '%.');
+  else if (Q > 0.6 && clump < 0.15)
+    setVerdict('vd-reaction', 'good', 'Goldilocks: trace water → a clean, stitched monolayer.',
+      'Just enough water hydrolyzes each head as it nears the surface; condensation then welds it down and Si–O–Si crosslinks stitch neighbors together. Quality ' + fmt(Q * 100, 0) + '%, clumping ' + fmt(clump * 100, 0) + '%. This narrow window is why recipes obsess over humidity.');
+  else
+    setVerdict('vd-reaction', 'bad', 'Too wet — the silanes polymerized with each other.',
+      'With bulk water everywhere, hydrolyzed silanes condense in SOLUTION into 3-D clusters (the dashed red curve) that rain onto your surface as lumps. More concentration makes it worse, not better — you\'re feeding the clusters. Dry the solvent and start over.');
+}
+
+/* ---------------- TAB 3: tail ---------------- */
+function tailChain(ctx, x, surfY, sil){
+  // draw one grafted molecule with a coating-specific tail
+  drawLine(ctx, x, surfY, x, surfY - 8, COL.teal, 2);
+  drawAtom(ctx, x, surfY - 14, 6, COL.accent);
+  const col = sil.col;
+  if (sil.name === 'Bare glass') return;
+  const segs = sil.name.indexOf('Fluoro') === 0 ? 7 : sil.name.indexOf('APTMS') === 0 ? 3 : 4;
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+  let px = x, py = surfY - 20;
+  ctx.moveTo(px, py);
+  for (let s = 0; s < segs; s++) {
+    px += (s % 2 ? -4 : 4); py -= 9;
+    ctx.lineTo(px, py);
+  }
+  ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.fillStyle = col; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(sil.tail, px, py - 6); ctx.restore();
+}
+
+function drawTail(){
+  const si = Math.round(num('s-tail-sil')), pack = num('s-tail-pack') / 100;
+  const S = SIL[si];
+  const gEff = S.gsv + (SIL[0].gsv - S.gsv) * (si === 0 ? 0 : (1 - pack)); // gaps leak the substrate
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-tail'));
+  const surfY = h - 46;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY, w, h - surfY);
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.5);
+  caption(ctx, w / 2, h - 14, 'glass substrate', COL.ink, true);
+  const slots = 16, sp = (w - 40) / slots;
+  const rng = mulberry32(37);
+  for (let i = 0; i < slots; i++) {
+    const x = 20 + i * sp + sp / 2;
+    if (si === 0) {
+      drawLine(ctx, x, surfY, x, surfY - 9, COL.teal, 2);
+      caption(ctx, x, surfY - 12, 'OH', COL.teal, true);
+    } else if (rng() < pack) {
+      tailChain(ctx, x, surfY, S);
+    } else {
+      drawLine(ctx, x, surfY, x, surfY - 9, COL.teal, 2);
+      caption(ctx, x, surfY - 12, 'OH', COL.teal, true);
+    }
+  }
+  ctx.save(); ctx.fillStyle = S.col; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(S.name + '  —  the world sees ' + S.tail, w / 2, 26); ctx.restore();
+
+  /* bar chart of γ_sv */
+  const c2 = setupCanvas(document.getElementById('cv-tail2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 62, r: 14, t: 12, b: 52 });
+  ch.setRange(-0.5, 3.5, 0, 280);
+  ch.grid(); ch.axes('', 'surface energy (mJ/m²)', () => '');
+  SIL.forEach((s, i) => {
+    const x0 = ch.toX(i - 0.3), x1 = ch.toX(i + 0.3);
+    const y0 = ch.toY(0), y1 = ch.toY(s.gsv);
+    c2.ctx.fillStyle = i === si ? s.col : '#cbd5e1';
+    c2.ctx.fillRect(x0, y1, x1 - x0, y0 - y1);
+    c2.ctx.strokeStyle = s.col; c2.ctx.strokeRect(x0, y1, x1 - x0, y0 - y1);
+    c2.ctx.save(); c2.ctx.fillStyle = COL.ink; c2.ctx.font = (i === si ? 'bold ' : '') + '10px sans-serif';
+    c2.ctx.textAlign = 'center';
+    c2.ctx.fillText(s.name.split(' ')[0], ch.toX(i), c2.h - 34);
+    c2.ctx.fillText(s.tail, ch.toX(i), c2.h - 22);
+    c2.ctx.fillText(fmt(s.gsv, 0), ch.toX(i), y1 - 4);
+    c2.ctx.restore();
+  });
+  ch.hLine(72.8, COL.accent, [5, 4]);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.accent; c2.ctx.font = 'bold 10px sans-serif';
+  c2.ctx.textAlign = 'right'; c2.ctx.fillText('water γ_lv = 72.8', ch.toX(3.45), ch.toY(72.8) - 4);
+  c2.ctx.restore();
+  if (si !== 0 && pack < 0.98) ch.dot(si, gEff, COL.bad, 6);
+
+  setStat('st-tail', [
+    { label: 'Coating', value: S.name },
+    { label: 'Business end', value: S.tail },
+    { label: 'Ideal γ_sv', value: fmt(S.gsv, 0) + ' mJ/m²' },
+    { label: 'Effective γ_sv', value: fmt(gEff, 0) + ' mJ/m²', highlight: true },
+    { label: 'Packing', value: fmt(pack * 100, 0) + ' %' }
+  ]);
+
+  const cls = gEff > 100 ? 'bad' : gEff > 30 ? 'warn' : 'good';
+  const leak = si !== 0 && pack < 0.8 ?
+    ' But note the red dot: at ' + fmt(pack * 100, 0) + '% packing the exposed glass gaps drag the effective energy up to ' + fmt(gEff, 0) + ' mJ/m² — a patchy coat wears the substrate\'s personality.' : '';
+  setVerdict('vd-tail', cls, S.name + ': ' + S.story.charAt(0).toUpperCase() + S.story.slice(1) + '.',
+    (si === 0 ? 'This is your starting point — compare it against each coating.' :
+    'One molecular layer moved this surface from ' + fmt(SIL[0].gsv, 0) + ' to ~' + fmt(S.gsv, 0) + ' mJ/m².') + leak +
+    ' Water\'s own energy is 72.8 mJ/m²: surfaces far above it get wetted, surfaces below it make water bead. The next tab turns that rule into an exact angle.');
+}
+
+/* ---------------- TAB 4: wetting ---------------- */
+function drawDroplet(ctx, cx, surfY, R, thetaDeg, fill, stroke){
+  const th = Math.max(2, thetaDeg) * Math.PI / 180;
+  const cyc = surfY + R * Math.cos(th);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - 2 * R, surfY - 2 * R - 4, 4 * R, 2 * R + 4); ctx.clip();
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.arc(cx, cyc, R, 0, 7); ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+  ctx.restore();
+  return { cyc, contactX: cx - R * Math.sin(th) };  // left contact point
+}
+
+function drawWetting(){
+  const gsv = num('s-wetting-gsv'), gsl = num('s-wetting-gsl'), glv = num('s-wetting-glv');
+  const cosT = Math.max(-1, Math.min(1, (gsv - gsl) / glv));
+  const theta = Math.acos(cosT) * 180 / Math.PI;
+  const isWater = Math.abs(glv - 72.8) < 3;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-wetting'));
+  const surfY = h - 60;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY, w, h - surfY);
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.5);
+  caption(ctx, w / 2, h - 20, 'coated surface  (γ_sv = ' + fmt(gsv, 0) + ' mJ/m²)', COL.ink, true);
+  // droplet: keep visual volume roughly constant → radius shrinks as angle grows
+  const R = 46 + (120 - Math.min(theta, 120)) * 0.55;
+  const cx = w / 2 - 30;
+  const liqCol = isWater ? 'rgba(37,99,235,0.40)' : 'rgba(217,119,6,0.40)';
+  const liqEdge = isWater ? COL.accent : COL.warn;
+  if (theta < 6) {
+    // spread film
+    ctx.fillStyle = liqCol;
+    ctx.beginPath(); ctx.ellipse(cx, surfY - 5, Math.min(w * 0.4, 220), 7, 0, 0, 7); ctx.fill();
+    caption(ctx, cx, surfY - 18, 'complete wetting — the drop became a film', liqEdge, true);
+  } else {
+    const d = drawDroplet(ctx, cx, surfY, R, theta, liqCol, liqEdge);
+    // contact-angle marker at left contact point
+    const cpx = d.contactX;
+    const thR = theta * Math.PI / 180;
+    ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cpx, surfY, 24, -thR, 0); ctx.stroke(); ctx.restore();
+    caption(ctx, cpx + 36, surfY - 8 - 12 * Math.sin(thR / 2), 'θ = ' + fmt(theta, 0) + '°', COL.ink, true);
+    // the three tensions at the contact line
+    arrow(ctx, cpx, surfY, cpx - Math.min(70, gsv * 0.5), surfY, COL.teal, 3);         // γ_sv outward (dry side)
+    caption(ctx, cpx - Math.min(70, gsv * 0.5) - 4, surfY + 16, 'γ_sv', COL.teal, true);
+    arrow(ctx, cpx, surfY, cpx + Math.min(60, gsl * 0.9), surfY, COL.purple, 3);       // γ_sl toward the wet side
+    caption(ctx, cpx + Math.min(60, gsl * 0.9) + 4, surfY + 16, 'γ_sl', COL.purple, true);
+    const tl = Math.min(60, glv * 0.8);
+    arrow(ctx, cpx, surfY, cpx + tl * Math.cos(Math.PI - thR), surfY + tl * Math.sin(Math.PI - thR) * -1, liqEdge, 3); // γ_lv along drop surface
+    caption(ctx, cpx + tl * Math.cos(Math.PI - thR) - 8, surfY - tl * Math.sin(Math.PI - thR) - 6, 'γ_lv', liqEdge, true);
+  }
+  caption(ctx, w - 90, 24, isWater ? 'liquid: water (72.8)' : 'liquid: oil (' + fmt(glv, 0) + ')', liqEdge, true);
+
+  /* plot: θ vs γ_sv */
+  const c2 = setupCanvas(document.getElementById('cv-wetting2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 300, 0, 180);
+  ch.grid(); ch.axes('surface energy γ_sv (mJ/m²)', 'contact angle θ (°)');
+  ch.hLine(90, COL.muted, [4, 4]);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.muted; c2.ctx.font = '10px sans-serif';
+  c2.ctx.textAlign = 'right';
+  c2.ctx.fillText('hydrophobic ↑ / hydrophilic ↓ (90°)', ch.toX(295), ch.toY(90) - 5);
+  c2.ctx.restore();
+  const pts = [];
+  for (let g = 0; g <= 300; g += 1) {
+    const c = Math.max(-1, Math.min(1, (g - gsl) / glv));
+    pts.push([g, Math.acos(c) * 180 / Math.PI]);
+  }
+  ch.plot(pts, COL.accent, 2.5);
+  // coating preset dots (water values)
+  for (const s of SIL) {
+    const c = Math.max(-1, Math.min(1, (s.gsv - s.gsl) / 72.8));
+    ch.dot(s.gsv, Math.acos(c) * 180 / Math.PI, s.col, 4);
+  }
+  ch.dot(gsv, theta, COL.bad, 7);
+  ch.legend([{ label: 'Young: cos θ = (γ_sv − γ_sl)/γ_lv', color: COL.accent }]);
+
+  setStat('st-wetting', [
+    { label: 'γ_sv (solid)', value: fmt(gsv, 0) + ' mJ/m²' },
+    { label: 'γ_sl (interface)', value: fmt(gsl, 0) + ' mJ/m²' },
+    { label: 'γ_lv (liquid)', value: fmt(glv, 1) + ' mJ/m²' },
+    { label: 'cos θ', value: fmt((gsv - gsl) / glv, 2) + ((gsv - gsl) / glv > 1 ? ' (→1)' : (gsv - gsl) / glv < -1 ? ' (→−1)' : '') },
+    { label: 'Contact angle θ', value: fmt(theta, 0) + '°', highlight: true }
+  ]);
+
+  if ((gsv - gsl) / glv >= 1)
+    setVerdict('vd-wetting', 'good', 'Complete wetting (θ = 0°) — the liquid sheets out.',
+      'The dry surface is so expensive (γ_sv ≥ γ_sl + γ_lv) that covering every bit of it with liquid lowers the energy. This is plasma-cleaned glass under water: the "spreads flat" end of the spectrum, and the standard lab test that a surface is truly clean.');
+  else if (theta < 90)
+    setVerdict('vd-wetting', 'good', 'Hydrophilic: θ = ' + fmt(theta, 0) + '° — the drop hugs the surface.',
+      'cos θ = (' + fmt(gsv, 0) + ' − ' + fmt(gsl, 0) + ')/' + fmt(glv, 1) + ' = ' + fmt(cosT, 2) + '. Wetting still pays, just not completely. Surfaces here feel "water-loving": condensation fogs them evenly and coatings stick well.');
+  else if (theta < 118)
+    setVerdict('vd-wetting', 'warn', 'Hydrophobic: θ = ' + fmt(theta, 0) + '° — beading, near the flat-surface ceiling.',
+      'The dry solid is now the cheap option, so the liquid balls up. Notice how hard it is to push θ much past ~115° with chemistry alone — even perfluorinated coatings stall near 120° on a smooth surface. The lotus leaf\'s 160° needs geometry: Lesson 4.');
+  else
+    setVerdict('vd-wetting', 'warn', 'θ = ' + fmt(theta, 0) + '° — you\'ve hit the chemistry wall.',
+      'You had to drive γ_sl unrealistically high (or γ_lv low) to get here: real flat surfaces top out near 120° for water. Every degree beyond this, in the real world, is bought with ROUGHNESS, not chemistry. On to Lesson 4 — trapped air and the lotus effect.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { head: drawHead, reaction: drawReaction, tail: drawTail, wetting: drawWetting };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

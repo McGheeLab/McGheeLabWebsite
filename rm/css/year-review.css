@@ -84,7 +84,7 @@
     .yr-cat-toggle{padding:4px 10px;font-size:12px;font-weight:600;text-transform:uppercase;border-radius:14px;cursor:pointer;user-select:none;border:1px solid transparent;transition:opacity .1s}
     .yr-cat-toggle.off{opacity:.35;filter:grayscale(1);background:#f3f4f6 !important;color:#9ca3af !important;border-color:#e5e7eb}
     .yr-analytics{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-    @media (max-width:900px){.yr-analytics{grid-template-columns:1fr}}
+    @media (max-width:1024px){.yr-analytics{grid-template-columns:1fr}}
     .yr-panel{padding:12px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
     .yr-panel h3{margin:0 0 8px 0;font-size:13px;color:#374151;text-transform:uppercase;letter-spacing:.5px}
     .yr-timeline-wrap{height:220px;position:relative}

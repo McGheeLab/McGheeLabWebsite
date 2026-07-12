@@ -66,7 +66,7 @@
       _users = (d && d.users) || [];
       // Filter to non-guest active members
       _users = _users.filter(function (u) {
-        return u.role && u.role !== 'guest';
+        return LAB_USERS.isVisible(u);
       });
       _users.sort(function (a, b) {
         return (a.name || '').localeCompare(b.name || '');

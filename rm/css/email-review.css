@@ -2,7 +2,7 @@
     .ch-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
     .ch-summary{padding:14px 18px;background:#eff6ff;border:1px solid #dbeafe;border-radius:10px;margin-bottom:16px}
     .ch-analytics{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-    @media (max-width:900px){.ch-analytics{grid-template-columns:1fr}}
+    @media (max-width:1024px){.ch-analytics{grid-template-columns:1fr}}
     .ch-panel{padding:12px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
     .ch-panel h3{margin:0 0 8px 0;font-size:13px;color:#374151;text-transform:uppercase;letter-spacing:.5px}
     .ch-timeline-wrap{height:220px;position:relative}

@@ -116,7 +116,7 @@
 
     const allUsers = (usersData && usersData.users) || [];
     _labMembers = allUsers
-      .filter(u => u.role !== 'guest')
+      .filter(u => LAB_USERS.isVisible(u))
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     render();
@@ -438,9 +438,10 @@
   async function addActionItem(meetingId, text, assigneeUid, deadline) {
     const meeting = _meetings.find(m => m.id === meetingId);
     if (!meeting) return;
+    const newId = genId();
     const items = [...(meeting.actionItems || [])];
     items.push({
-      id: genId(),
+      id: newId,
       text: text,
       assigneeUid: assigneeUid || '',
       assigneeName: assigneeUid ? memberName(assigneeUid) : '',
@@ -450,6 +451,20 @@
     });
     await updateMeeting(meetingId, { actionItems: items });
     toast('Action item added');
+    // V3.160 — if this action item is mine and has a deadline, fire a
+    // scheduled tracker entry. We don't fire on someone else's behalf
+    // because firestore.rules denies cross-user trackerEntries writes.
+    try {
+      if (window.ActivitySignals && deadline && _user && assigneeUid === _user.uid) {
+        window.ActivitySignals.recordSchedule({
+          source: 'rm-meeting',
+          sourceRef: { kind: 'meeting-action', id: newId, path: 'meetings/' + meetingId + '/actionItems/' + newId },
+          date: deadline,
+          text: 'Action item: ' + text,
+          categoryPath: ['research', 'meetings_research'],
+        });
+      }
+    } catch (err) { console.warn('[meetings] tracker ping failed:', err); }
   }
 
   async function toggleActionItem(meetingId, itemId) {

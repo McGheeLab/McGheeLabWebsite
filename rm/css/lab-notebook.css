@@ -1,0 +1,1905 @@
+/* lab-notebook.css — Lab Notebook (ELN) page chrome.
+ *
+ * Three-pane layout: toolbar on top, entry list (left rail) +
+ * editor (right) below. Mirrors the visual register of pmr.html so
+ * users moving between PMR and the notebook don't get whiplash.
+ */
+
+/* ── Toolbar ──────────────────────────────────────────────────── */
+.ln-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.ln-toolbar .lbl {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #6b7280;
+  font-weight: 600;
+}
+.ln-toolbar select,
+.ln-toolbar input,
+.ln-toolbar button {
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+}
+.ln-toolbar input[type="search"] { min-width: 200px; }
+.ln-toolbar button.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+}
+.ln-toolbar button.primary:hover { background: #1d4ed8; }
+.ln-toolbar .grow { flex: 1 1 auto; }
+.ln-toolbar .saving-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* ── Layout: left rail + editor ───────────────────────────────── */
+.ln-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+}
+.ln-layout.no-rail { grid-template-columns: 1fr; }
+
+.ln-rail {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 0;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  position: sticky;
+  top: 120px;
+}
+.ln-rail h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  padding: 0 14px;
+}
+.ln-rail .ln-date-header {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 600;
+  padding: 8px 14px 2px 14px;
+}
+.ln-rail .ln-entry-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  font-size: 13px;
+  color: #1f2937;
+}
+.ln-rail .ln-entry-row:hover { background: #f9fafb; }
+.ln-rail .ln-entry-row.active {
+  background: #eff6ff;
+  border-left-color: #2563eb;
+}
+.ln-rail .ln-entry-row .title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ln-rail .ln-entry-row .meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: #6b7280;
+}
+.ln-rail .ln-entry-row .meta .att {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.ln-rail .ln-entry-row .meta .tag-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+.ln-rail .ln-empty {
+  padding: 24px 14px;
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── Editor pane ──────────────────────────────────────────────── */
+.ln-editor {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 18px 22px;
+  min-width: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.ln-editor.dragover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+.ln-editor input.ln-title {
+  font-size: 22px;
+  font-weight: 600;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid transparent;
+  outline: none;
+  padding: 6px 0;
+  margin-bottom: 8px;
+  font-family: inherit;
+  color: #111827;
+}
+.ln-editor input.ln-title:focus { border-bottom-color: #d1d5db; }
+.ln-editor input.ln-title::placeholder { color: #d1d5db; font-weight: 500; }
+
+.ln-meta-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #6b7280;
+}
+.ln-meta-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 600;
+}
+.ln-meta-row select,
+.ln-meta-row input[type="date"] {
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: #fff;
+}
+
+/* ── Tag chips ────────────────────────────────────────────────── */
+.ln-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.ln-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 3px 8px;
+  background: #eff6ff;
+  color: #1e40af;
+  border-radius: 12px;
+  font-weight: 500;
+}
+.ln-tag-chip .x {
+  cursor: pointer;
+  color: #1e40af;
+  opacity: .5;
+  font-size: 14px;
+  line-height: 1;
+}
+.ln-tag-chip .x:hover { opacity: 1; }
+.ln-tag-add {
+  font-size: 12px;
+  color: #6b7280;
+  background: none;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.ln-tag-add:hover { color: #2563eb; border-color: #2563eb; }
+
+/* ── Rich-text body ────────────────────────────────────────── */
+.ln-body-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.ln-body-toolbar button {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #4b5563;
+  font-family: inherit;
+}
+.ln-body-toolbar button:hover { background: #f3f4f6; }
+.ln-body-toolbar button.active { background: #eff6ff; color: #1e40af; }
+.ln-body-toolbar .sep {
+  width: 1px;
+  background: #e5e7eb;
+  margin: 0 4px;
+}
+
+.ln-body {
+  min-height: 240px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2937;
+  padding: 8px 4px;
+  outline: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.ln-body:focus { border-color: #e5e7eb; background: #fafbfc; }
+.ln-body[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: #d1d5db;
+  pointer-events: none;
+}
+.ln-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 8px 0;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.ln-body p { margin: 0 0 8px 0; }
+.ln-body ul, .ln-body ol { margin: 0 0 8px 0; padding-left: 24px; }
+.ln-body code {
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.ln-body pre {
+  background: #f3f4f6;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+/* ── Attachments strip ────────────────────────────────────────── */
+.ln-attachments {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-attachments h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+.ln-att-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ln-att-thumb {
+  width: 96px;
+  height: 96px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.ln-att-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ln-att-thumb .pdf-icon {
+  font-size: 28px;
+  color: #6b7280;
+}
+.ln-att-thumb .pdf-label {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  font-size: 10px;
+  color: #374151;
+  background: rgba(255,255,255,.85);
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ln-att-thumb .del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(220,38,38,.9);
+  color: #fff;
+  font-size: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+}
+.ln-att-thumb:hover .del { display: flex; }
+
+/* V3.161 — PMR-flag toggle pinned to the top-left of every image thumb.
+   Off state is dim; on state pulses amber so the user sees flagged figures
+   at a glance. The is-pmr-flagged border outlines the whole thumb when on. */
+.ln-att-thumb .pmr-flag-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  color: #6b7280;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  padding: 0;
+  line-height: 1;
+  transition: transform .15s ease, background .15s ease;
+}
+.ln-att-thumb:hover .pmr-flag-badge { transform: scale(1.06); }
+.ln-att-thumb .pmr-flag-badge.on {
+  background: #f59e0b;
+  color: #fff;
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+}
+.ln-att-thumb.is-pmr-flagged {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+}
+.ln-att-add {
+  width: 96px;
+  height: 96px;
+  border-radius: 6px;
+  border: 1px dashed #d1d5db;
+  background: transparent;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  gap: 4px;
+  padding: 4px;
+  text-align: center;
+}
+.ln-att-add:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+.ln-att-add .icon { font-size: 20px; }
+
+/* ── Reference links (PMR-style ref-row UI) ───────────────────── */
+.ln-refs {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-refs h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+.ln-ref-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 28px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.ln-ref-row select,
+.ln-ref-row input {
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  width: 100%;
+  font-family: inherit;
+}
+.ln-ref-row .del {
+  cursor: pointer;
+  color: #dc2626;
+  text-align: center;
+  font-size: 14px;
+  padding: 4px;
+  user-select: none;
+  border-radius: 4px;
+}
+.ln-ref-row .del:hover { background: #fee2e2; }
+.ln-add-btn {
+  font-size: 12px;
+  color: #2563eb;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-top: 4px;
+  font-family: inherit;
+}
+
+/* ── Footer (delete + saved indicator) ────────────────────────── */
+.ln-footer {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ln-footer .grow { flex: 1 1 auto; }
+.ln-footer button.danger {
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #dc2626;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.ln-footer button.danger:hover { background: #fee2e2; }
+
+/* ── Inventory chip (inline in body) ──────────────────────────── */
+.ln-inv-chip {
+  display: inline-block;
+  font-size: 12px;
+  padding: 1px 8px;
+  margin: 0 1px;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+  cursor: default;
+  user-select: all;
+  white-space: nowrap;
+  vertical-align: baseline;
+  font-weight: 500;
+}
+.ln-inv-chip[data-inv-kind="item"] {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
+}
+
+/* ── Protocol chip (inline anchor in body) ────────────────────── */
+.ln-protocol-chip {
+  display: inline-block;
+  font-size: 12px;
+  padding: 1px 8px;
+  margin: 0 1px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+  cursor: pointer;
+}
+.ln-protocol-chip:hover {
+  background: #d1fae5;
+  text-decoration: none;
+  color: #064e3b;
+}
+
+/* ── Protocols-followed panel ─────────────────────────────────── */
+.ln-protocols {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-protocols h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+.ln-protocol-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ln-protocol-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #065f46;
+  text-decoration: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  width: fit-content;
+}
+.ln-protocol-row:hover {
+  background: #ecfdf5;
+  text-decoration: none;
+}
+.ln-protocol-icon { font-size: 14px; }
+.ln-protocol-name { font-weight: 500; }
+
+/* V3.127 — protocol picker row layout. The row's name + status + the
+ * "ref only" sub-action all live on one line; the sub-action floats
+ * right (margin-left:auto). Click the row body → full protocol;
+ * click the sub-action → reference chip only. */
+.ln-protocol-pop-row .ln-inv-pop-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ln-protocol-row-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ln-protocol-row-ref {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid transparent;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ln-protocol-row-ref:hover {
+  background: #fff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+/* Subtitle on the picker title line — subdued explanation of the
+ * default vs "ref only" distinction. */
+.ln-pop-subtitle {
+  font-size: 10px;
+  color: #9ca3af;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
+}
+
+/* Status badge in the protocol picker popover row */
+.ln-protocol-status {
+  display: inline-block;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 700;
+  vertical-align: middle;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.ln-protocol-status-published {
+  background: #dcfce7;
+  color: #166534;
+}
+.ln-protocol-status-draft {
+  background: #fef3c7;
+  color: #92400e;
+}
+.ln-protocol-status-archived {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* ── Materials used panel ─────────────────────────────────────── */
+.ln-materials {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-materials h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+.ln-material-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ln-material-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #1f2937;
+}
+.ln-material-name { font-weight: 500; }
+.ln-material-meta { color: #6b7280; }
+.ln-material-empty { color: #9ca3af; font-size: 12px; font-style: italic; }
+
+/* Kind badge — shared between popover rows and the materials panel */
+.ln-inv-kind-badge {
+  display: inline-block;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.ln-inv-kind-badge.ln-inv-kind-chemical {
+  background: #fff7ed;
+  color: #9a3412;
+}
+.ln-inv-kind-badge.ln-inv-kind-item {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+/* ── Inventory picker popover ─────────────────────────────────── */
+.ln-inv-popover {
+  position: fixed;
+  width: 460px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.08);
+  z-index: 999;
+  overflow: hidden;
+}
+.ln-inv-popover[hidden] { display: none; }
+.ln-inv-pop-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 10px 14px 4px 14px;
+}
+.ln-inv-pop-search {
+  margin: 4px 12px 8px 12px;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+}
+.ln-inv-pop-search:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.15);
+}
+.ln-inv-pop-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 6px 6px 6px;
+}
+.ln-inv-pop-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1f2937;
+}
+.ln-inv-pop-row:hover,
+.ln-inv-pop-row.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.ln-inv-pop-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.ln-inv-pop-name { font-weight: 600; }
+.ln-inv-pop-meta {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+.ln-inv-pop-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ln-inv-pop-empty {
+  padding: 24px 14px;
+  font-size: 12px;
+  color: #9ca3af;
+  text-align: center;
+  font-style: italic;
+}
+.ln-inv-pop-hint {
+  font-size: 10px;
+  color: #9ca3af;
+  padding: 6px 14px 10px 14px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-inv-pop-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 10px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  font-family: inherit;
+}
+
+/* ── No-projects hint inside the entry meta row ───────────────── */
+.ln-no-projects {
+  font-size: 12px;
+  color: #92400e;
+  background: #fef3c7;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-style: italic;
+}
+.ln-no-projects a { color: #92400e; text-decoration: underline; }
+.ln-no-projects a:hover { color: #78350f; }
+/* V3.126 — admin variant of the same hint, gentler color since it's
+ * an "fyi" not a "blocker". Renders inline next to the project select
+ * for admin users so they have a one-click jump to the canonical
+ * Members management on the Projects page. */
+.ln-no-projects-admin {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+}
+.ln-no-projects-admin a { color: #2563eb; text-decoration: underline; }
+.ln-no-projects-admin a:hover { color: #1d4ed8; }
+
+/* ── Admin Members modal ─────────────────────────────────────── */
+.ln-modal-back {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+.ln-modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.30);
+  width: 560px;
+  max-width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ln-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 10px 18px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ln-modal-head h2 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+.ln-modal-sub {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 400;
+  margin-left: 6px;
+}
+.ln-modal-x {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.ln-modal-x:hover { background: #f3f4f6; color: #111827; }
+.ln-modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ln-modal-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+}
+.ln-modal-label select {
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #1f2937;
+  font-weight: 400;
+  font-family: inherit;
+}
+/* V3.126 — admin Members modal CSS removed alongside the modal itself
+ * (member assignment now lives on /rm/pages/projects.html). The
+ * .ln-modal-* base chrome is kept because the V3.121 safety-details
+ * modal and the V3.123 DOE modal both still use it. */
+.ln-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 18px;
+  border-top: 1px solid #f3f4f6;
+  background: #fafbfc;
+}
+.ln-modal-foot button {
+  font-size: 13px;
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+}
+.ln-modal-foot button:hover { background: #f3f4f6; }
+.ln-modal-foot button[disabled] {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.ln-modal-foot button.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+  font-weight: 500;
+}
+.ln-modal-foot button.primary:hover { background: #1d4ed8; }
+.ln-modal-foot button.primary[disabled]:hover { background: #2563eb; }
+
+/* ── V3.138 — Bench workflow lifecycle (plan / running / complete) */
+
+/* Meta-row phase pill — sits next to the Status select, color-coded
+ * by phase. The pill is read-only (lifecycle transitions happen via
+ * the footer ▶ Start run / ⏹ End run buttons). */
+.ln-phase-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+.ln-phase-plan {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.ln-phase-running {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  animation: ln-phase-pulse 2s ease-in-out infinite;
+}
+.ln-phase-complete {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+@keyframes ln-phase-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, .55); }
+  50%      { box-shadow: 0 0 0 6px rgba(252, 211, 77, 0); }
+}
+
+/* Rail glyph — small phase badge next to each entry's title in the
+ * left rail. Running entries get the same pulse so a half-finished
+ * run on yesterday's date visually nags. */
+.ln-rail-phase {
+  display: inline-block;
+  font-size: 11px;
+  margin-right: 4px;
+  vertical-align: baseline;
+}
+.ln-rail-phase-plan { color: #94a3b8; }
+.ln-rail-phase-running {
+  color: #d97706;
+  animation: ln-rail-pulse 2s ease-in-out infinite;
+}
+.ln-rail-phase-complete { color: #16a34a; }
+@keyframes ln-rail-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+
+/* Phase-aware footer — Start run / End run buttons are tinted to
+ * match the action's visual weight. Both fall back to the existing
+ * .primary blue style; the override here just gives them a phase
+ * accent border. */
+.ln-footer .ln-start-run {
+  background: #16a34a;
+  border-color: #15803d;
+}
+.ln-footer .ln-start-run:hover { background: #15803d; }
+.ln-footer .ln-end-run {
+  background: #d97706;
+  border-color: #b45309;
+}
+.ln-footer .ln-end-run:hover { background: #b45309; }
+.ln-phase-info {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Observations panel — chronological log shown in running + complete */
+.ln-observations {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-observations h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+.ln-obs-count {
+  display: inline-block;
+  font-size: 10px;
+  background: #f3f4f6;
+  color: #475569;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.ln-obs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.ln-obs-row {
+  display: grid;
+  grid-template-columns: 130px auto 1fr 24px;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.ln-obs-row:hover { background: #fafbfc; }
+.ln-obs-when {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+.ln-obs-metric {
+  font-size: 12px;
+  color: #1f2937;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.ln-obs-unit { color: #64748b; font-weight: 400; }
+.ln-obs-text { color: #1f2937; }
+.ln-obs-del {
+  font-size: 14px;
+  color: #dc2626;
+  cursor: pointer;
+  text-align: center;
+  border-radius: 4px;
+}
+.ln-obs-del:hover { background: #fee2e2; }
+.ln-obs-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 8px 4px;
+}
+.ln-add-obs {
+  font-size: 12px;
+  padding: 5px 12px;
+  border: 1px solid #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+}
+.ln-add-obs:hover { background: #dbeafe; }
+
+/* Summary textarea — running + complete */
+.ln-summary {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-summary h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+.ln-summary-text {
+  width: 100%;
+  min-height: 70px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  resize: vertical;
+}
+.ln-summary-text:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .15);
+}
+
+/* ── V3.135 — Protocol Calculator ─────────────────────────────── */
+
+/* Proto-var chips — values substituted into the steps render. Copied
+ * from protocol-editor.css so the lab-notebook page doesn't need to
+ * load a second stylesheet. The class names match exactly so a chip
+ * inserted via ProtocolFormulas.renderTextWithTokens() styles the
+ * same way it does in the protocols editor. */
+.proto-var {
+  display: inline-block;
+  background: #eef4ff;
+  border: 1px solid #c2d1f0;
+  border-radius: 3px;
+  padding: 0 6px;
+  margin: 0 1px;
+  font-size: 0.95em;
+  font-family: inherit;
+  font-weight: 500;
+  color: #1e3a6e;
+  cursor: help;
+  user-select: none;
+}
+.proto-var-computed {
+  background: #ecf6ed;
+  border-color: #b6d8b9;
+  color: #1f5d24;
+}
+.proto-var-unknown {
+  background: #fff4e5;
+  border-color: #f0c896;
+  color: #8a4a00;
+}
+.proto-var-error {
+  background: #fdecea;
+  border-color: #e8a89e;
+  color: #8a1d11;
+}
+
+/* ── Inserted calculator block in the body ──────────────────── */
+.ln-calc {
+  position: relative;
+  margin: 14px 0;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 3px solid #2563eb;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+.ln-calc:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  border-left-color: #1d4ed8;
+}
+.ln-calc:hover .ln-calc-edit-hint { opacity: 1; }
+.ln-calc h4 {
+  margin: 4px 0 6px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #475569;
+  font-weight: 600;
+}
+.ln-calc p { margin: 4px 0; }
+.ln-calc ul { margin: 4px 0; padding-left: 20px; }
+.ln-calc blockquote {
+  margin: 6px 0;
+  padding: 4px 10px;
+  border-left: 2px solid #cbd5e1;
+  background: #fff;
+  font-size: 13px;
+  color: #334155;
+}
+
+.ln-calc-edit-hint {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 1px 6px;
+  opacity: 0;
+  transition: opacity .12s ease;
+  pointer-events: none;  /* clicks go to the parent .ln-calc */
+}
+
+.ln-calc-snippet-line {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ln-calc-snip-inputs { color: #64748b; }
+.ln-calc-snip-outputs { color: #0f172a; font-weight: 500; }
+
+.ln-calc-table-title { margin-bottom: 6px; }
+.ln-calc-table-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+.ln-calc-table-tbl th,
+.ln-calc-table-tbl td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+}
+.ln-calc-table-tbl th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
+  font-family: inherit;
+}
+.ln-calc-table-tbl tr.error td { color: #8a1d11; background: #fdecea; }
+.ln-calc-cell-input { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; }
+.ln-calc-cell-output { color: #1e3a6e; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+
+.ln-calc-steps-title { margin-bottom: 8px; }
+
+/* ── Calculator modal (reuses .ln-modal-* chrome) ───────────── */
+.ln-calc-modal { width: 640px; }
+.ln-calc-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ln-calc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ln-calc-section-hint {
+  font-size: 10px;
+  color: #94a3b8;
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
+  font-weight: 400;
+}
+.ln-calc-input-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 50px 100px;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.ln-calc-input-row:hover { background: #f8fafc; }
+.ln-calc-input-label {
+  font-size: 13px;
+  color: #1f2937;
+  font-weight: 500;
+}
+.ln-calc-input {
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-family: inherit;
+}
+.ln-calc-input[type=checkbox] {
+  width: 16px;
+  height: 16px;
+  accent-color: #2563eb;
+  margin: 0;
+  justify-self: start;
+}
+.ln-calc-input-unit {
+  font-size: 11px;
+  color: #64748b;
+}
+.ln-calc-input-name {
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: right;
+}
+
+.ln-calc-compute-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ln-calc-compute {
+  font-size: 13px;
+  padding: 6px 14px;
+  border: 1px solid #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+}
+.ln-calc-compute:hover { background: #dbeafe; }
+.ln-calc-status {
+  font-size: 11px;
+  color: #64748b;
+  font-style: italic;
+}
+.ln-calc-status.error { color: #dc2626; font-style: normal; }
+
+.ln-calc-outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px;
+}
+.ln-calc-output-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 50px 100px;
+  gap: 8px;
+  align-items: center;
+  padding: 3px 6px;
+  font-size: 13px;
+}
+.ln-calc-output-label { color: #1f2937; font-weight: 500; }
+.ln-calc-output-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  color: #1f5d24;
+}
+.ln-calc-output-value.placeholder { color: #94a3b8; font-weight: 400; }
+.ln-calc-output-value.error { color: #8a1d11; font-size: 11px; }
+.ln-calc-output-unit { font-size: 11px; color: #64748b; }
+.ln-calc-empty { color: #94a3b8; font-style: italic; padding: 8px; font-size: 12px; }
+
+.ln-calc-format-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.ln-calc-format-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.ln-calc-format-row input[type=radio] {
+  accent-color: #2563eb;
+  margin: 0;
+}
+.ln-calc-format-help {
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 0 2px;
+}
+
+/* Picker third action: 🧮 calc */
+.ln-protocol-row-calc {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ln-protocol-row-calc:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* Per-row calc button on the Protocols-followed panel */
+.ln-protocol-list-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ln-protocol-calc-btn {
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.ln-protocol-calc-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* ── V3.123 — Design of experiments (DOE) panel + modal ──────── */
+
+/* Entry-level Design panel — sits between body and Protocols */
+.ln-design {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-design h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+.ln-design-type {
+  color: #2563eb;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ln-design-empty {
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+}
+.ln-design-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.ln-design-actions button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.ln-design-actions button:hover { background: #f3f4f6; }
+.ln-design-actions button.danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.ln-design-actions button.danger:hover { background: #fee2e2; }
+
+/* DOE matrix table — shared between modal preview + panel */
+.ln-doe-table-scroll {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.ln-doe-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.ln-doe-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+.ln-doe-table tbody td {
+  padding: 4px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: nowrap;
+  color: #1f2937;
+}
+.ln-doe-table tbody tr:hover { background: #f9fafb; }
+.ln-doe-table .ln-doe-th-num,
+.ln-doe-table .ln-doe-td-num {
+  width: 36px;
+  text-align: right;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* DOE modal */
+.ln-doe-modal { width: 720px; }
+.ln-doe-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ln-doe-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ln-doe-type-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ln-doe-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ln-doe-type:hover { background: #f9fafb; }
+.ln-doe-type input[type=radio] {
+  accent-color: #2563eb;
+  margin: 0;
+}
+.ln-doe-type-help {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+  padding: 0 2px;
+}
+.ln-doe-factor-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr 28px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.ln-doe-factor-row input {
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  font-family: inherit;
+}
+.ln-doe-flevels-spacer { display: block; }
+.ln-doe-frm {
+  cursor: pointer;
+  color: #dc2626;
+  text-align: center;
+  font-size: 14px;
+  padding: 4px;
+  user-select: none;
+  border-radius: 4px;
+}
+.ln-doe-frm:hover { background: #fee2e2; }
+.ln-doe-config-help {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+.ln-doe-preview-empty {
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 12px;
+  background: #fafbfc;
+  border: 1px dashed #e5e7eb;
+  border-radius: 6px;
+  text-align: center;
+}
+.ln-doe-modal .ln-modal-foot button.ln-doe-generate {
+  background: #fff;
+  border: 1px solid #2563eb;
+  color: #2563eb;
+}
+.ln-doe-modal .ln-modal-foot button.ln-doe-generate:hover {
+  background: #eff6ff;
+}
+
+/* ── V3.119 — Chemical hazard surface ─────────────────────────── */
+
+/* Hazard sibling rendered immediately after a chemical chip in the
+ * body (and reused in the Materials panel hazard column). The chip
+ * stays orange for chemical kind; the hazard sibling carries the
+ * safety pictograms / signal pill. */
+.ln-inv-hazard,
+.ln-material-hazard,
+.ln-inv-pop-hazard {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: baseline;
+  cursor: pointer;
+  user-select: none;
+}
+.ln-inv-hazard:hover,
+.ln-material-hazard:hover {
+  filter: brightness(0.96);
+}
+
+/* Signal-word pill */
+.ln-hazard-signal {
+  display: inline-block;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 700;
+  color: #fff;
+  vertical-align: middle;
+}
+.ln-hazard-signal-danger  { background: #dc2626; }
+.ln-hazard-signal-warning { background: #d97706; }
+
+/* GHS pictogram badge — small circular hazard mark. The unicode
+ * symbols are intentionally ASCII-safe and render at 14×14 px next
+ * to chip text. Color palette mirrors chemicals.js GHS_PICTOGRAMS. */
+.ln-ghs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.ln-ghs-ghs01 { background: #dc2626; }     /* Explosive */
+.ln-ghs-ghs02 { background: #dc2626; }     /* Flammable */
+.ln-ghs-ghs03 { background: #d97706; }     /* Oxidizer */
+.ln-ghs-ghs04 { background: #2563eb; }     /* Compressed gas */
+.ln-ghs-ghs05 { background: #dc2626; }     /* Corrosive */
+.ln-ghs-ghs06 { background: #dc2626; }     /* Acute toxicity */
+.ln-ghs-ghs07 { background: #d97706; }     /* Irritant */
+.ln-ghs-ghs08 { background: #dc2626; }     /* Health hazard */
+.ln-ghs-ghs09 { background: #059669; }     /* Environmental */
+
+/* Bigger pictograms in the safety-details modal — same colors,
+ * larger metric so the symbol reads next to its label. */
+.ln-safety-modal .ln-ghs {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+}
+
+/* ── Materials panel — multi-line row layout ──────────────────── */
+/* V3.119 expands each material row from a single-line span to a
+ * two-line block: main (kind + name + meta + hazard) + sub
+ * (location + storage). The previous .ln-material-row span styling
+ * is overridden here to give the row block-level layout. */
+.ln-material-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f9fafb;
+}
+.ln-material-row:last-child { border-bottom: none; }
+.ln-material-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.ln-material-row-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-left: 4px;
+}
+.ln-material-loc,
+.ln-material-storage {
+  font-size: 11px;
+  color: #6b7280;
+}
+.ln-material-loc.ln-loc-empty { font-style: italic; color: #9ca3af; }
+.ln-loc-set-link {
+  font-size: 10px;
+  color: #2563eb;
+  text-decoration: underline;
+  margin-left: 4px;
+}
+.ln-loc-set-link:hover { color: #1d4ed8; }
+
+/* Picker popover — hazard inline next to the name */
+.ln-inv-pop-hazard {
+  margin-left: auto;
+  cursor: default;
+}
+
+/* ── Safety-details modal ────────────────────────────────────── */
+.ln-safety-modal { width: 640px; }
+.ln-safety-modal .ln-modal-sub {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 400;
+  margin-left: 8px;
+  display: block;
+}
+.ln-safety-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: #fef3c7;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.ln-safety-modal .ln-hazard-signal {
+  font-size: 10px;
+  padding: 3px 8px;
+}
+.ln-safety-pict-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.ln-safety-pict {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ln-safety-pict-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+}
+.ln-safety-noted {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  margin: 6px 0 12px 0;
+}
+.ln-safety-modal-body dl {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 6px 12px;
+  margin: 0 0 10px 0;
+}
+.ln-safety-modal-body dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+}
+.ln-safety-modal-body dd {
+  margin: 0;
+  font-size: 13px;
+  color: #1f2937;
+}
+.ln-safety-modal-body dd ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.ln-safety-modal-body dd li {
+  margin-bottom: 2px;
+}
+.ln-safety-modal-body dd p {
+  margin: 0 0 6px 0;
+  line-height: 1.5;
+}
+.ln-safety-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  margin: 0 4px 4px 0;
+  background: #f3f4f6;
+  color: #374151;
+  border-radius: 10px;
+}
+.ln-safety-chip-ppe {
+  background: #ecfdf5;
+  color: #065f46;
+}
+.ln-loc-empty-mini {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* NFPA 704 diamond — quartered diamond with fixed quadrant colors.
+ * 64×64 px outer; rotated 45°. Numbers stay upright via inverse
+ * rotation. */
+.ln-nfpa {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  transform: rotate(45deg);
+  margin: 4px 0;
+}
+.ln-nfpa-q {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #1f2937;
+}
+.ln-nfpa-q::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.ln-nfpa-h { top: 20px; left:  0px; background: #2563eb; color: #fff; } /* health, blue, left */
+.ln-nfpa-f { top:  0px; left: 20px; background: #dc2626; color: #fff; } /* flammability, red, top */
+.ln-nfpa-i { top: 20px; left: 40px; background: #f59e0b; color: #1f2937; } /* instability, yellow, right */
+.ln-nfpa-s { top: 40px; left: 20px; background: #f9fafb; color: #1f2937; border: 1px solid #d1d5db; } /* special, white, bottom */
+.ln-nfpa-q > * {
+  transform: rotate(-45deg);
+}
+.ln-nfpa-q { transform-origin: center; }
+
+/* ── Lightbox modal (image preview) ───────────────────────────── */
+.ln-lightbox-back {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: zoom-out;
+  padding: 24px;
+}
+.ln-lightbox-back img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+
+/* ── Empty / loading states ──────────────────────────────────── */
+.ln-empty-pane {
+  text-align: center;
+  padding: 60px 30px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+.ln-empty-pane .big { font-size: 32px; margin-bottom: 12px; }
+.ln-loading {
+  padding: 40px 20px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Mobile: stack rail above editor ──────────────────────────── */
+@media (max-width: 720px) {
+  .ln-layout { grid-template-columns: 1fr; }
+  .ln-rail {
+    position: static;
+    max-height: 320px;
+  }
+}

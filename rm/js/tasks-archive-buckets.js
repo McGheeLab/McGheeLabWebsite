@@ -37,7 +37,7 @@
 
   async function loadDoc() {
     state.doc = await api.load(DATA_PATH);
-    if (!state.doc.projects) state.doc.projects = [];
+    if (!state.doc.taskBuilders) state.doc.taskBuilders = [];
   }
   function scheduleSave() {
     if (state.saveTimer) clearTimeout(state.saveTimer);
@@ -62,7 +62,7 @@
       _liveUnsub = api.subscribe(DATA_PATH, function (data) {
         if (Date.now() < _suppressUntil) return;
         if (_savePending) return;
-        if (!data || !Array.isArray(data.projects)) return;
+        if (!data || !Array.isArray(data.taskBuilders)) return;
         if (state.expanded && state.expanded.size > 0) {
           _pendingDoc = data;
           return;
@@ -85,7 +85,7 @@
 
   function buildFlat() {
     const out = [];
-    for (const p of state.doc.projects || []) {
+    for (const p of state.doc.taskBuilders || []) {
       for (const b of p.buckets || []) {
         function walk(arr, parentPath) {
           for (const st of arr || []) {
@@ -226,7 +226,7 @@
       ['done', 'most recently done'],
       ['priority', 'priority'],
       ['hours', 'hours'],
-      ['project', 'project'],
+      ['project', 'task builder'],
     ]) {
       const o = document.createElement('option');
       o.value = val; o.textContent = `Sort: ${label}`;

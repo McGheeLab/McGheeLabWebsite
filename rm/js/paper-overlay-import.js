@@ -33,6 +33,10 @@
   let _allItems = [];
   let _paperId = null;
   let _onImported = null;
+  // V3.294 — track the wired viewer element + its drag/drop handlers so a
+  // tab switch re-targets the dropzone to the new active pane instead of
+  // stacking a second set of listeners (which would fire handleDrop N times).
+  let _dropWired = null;   // { el, enter, over, leave, drop }
 
   // ---------------------------------------------------------------- minimal YAML
 
@@ -237,9 +241,10 @@
 
     // V3.103 — frontmatter `draft_id` (preferred) or legacy `bucket_id`
     // (kept for back-compat with .paper-overlay.md files written by the
-    // /paper-overlay skill before V3.103). Both resolve to the same
-    // semantic: the highlights' cite_in_drafts target.
-    const draftIdRaw = fm.draft_id || fm.bucket_id || '';
+    // /paper-overlay skill before V3.103). V3.188 — `grant` / `grant_id`
+    // alias for when the file came from a sibling grant repo. All four
+    // resolve to the same semantic: the highlights' cite_in_drafts target.
+    const draftIdRaw = fm.draft_id || fm.grant || fm.grant_id || fm.bucket_id || '';
     let draftOk = true;
     let draftTitle = '';
     if (draftIdRaw && window.PAPER_OVERLAYS) {
@@ -257,6 +262,10 @@
       }
     }
 
+    // V3.188 — closed annotation_type enum. `type:` per highlight is
+    // optional; missing or unknown values fall back to 'note'.
+    const VALID_TYPES = new Set(['evidence', 'method', 'result', 'limitation', 'claim', 'note', 'question']);
+
     const perHighlight = [];
     for (let i = 0; i < (parsed.highlights || []).length; i++) {
       const h = parsed.highlights[i];
@@ -269,12 +278,15 @@
       if (!isNaN(page) && quote) {
         matched = _matchQuoteOnPage(page, quote);
       }
+      const rawType = (h.type || h.annotation_type || '').toLowerCase().trim();
+      const annotation_type = VALID_TYPES.has(rawType) ? rawType : 'note';
       perHighlight.push({
         index: i,
         page,
         quote,
         comment: h.comment || '',
         color: h.color || 'yellow',
+        annotation_type,
         cite_in_drafts: Array.isArray(h.cite_in_drafts) ? h.cite_in_drafts : [],
         evidence_stance: h.evidence_stance || null,
         matched: !!matched,
@@ -339,6 +351,7 @@
             <div class="lp-oim-row ${h.matched && !h.issues.length ? 'lp-oim-row-ok' : 'lp-oim-row-bad'}">
               <div class="lp-oim-row-head">
                 <span class="lp-oim-page">p.${h.page || '?'}</span>
+                <span class="lp-oim-type lp-type-${_esc(h.annotation_type || 'note')}" style="font-size:10px;padding:1px 6px;border-radius:3px;background:#eef2ff;color:#3730a3;">${_esc(h.annotation_type || 'note')}</span>
                 <span class="lp-oim-status">${h.matched ? '✓ matched' : '⚠ no match in page text'}</span>
                 <label class="lp-oim-include">
                   <input type="checkbox" data-oim-i="${i}" ${h.matched && !h.issues.length ? 'checked' : ''} ${!h.matched ? 'disabled' : ''}>
@@ -421,6 +434,7 @@
         target: { pages: [anchor] },
         cite_in_drafts,
         evidence_stance: h.evidence_stance,
+        annotation_type: h.annotation_type || 'note',  // V3.188 — closed enum
         source: 'overlay-md',
         source_file: validation.filename || '',
       };
@@ -468,9 +482,23 @@
     });
   }
 
-  function _wireDropZone() {
-    const viewerEl = document.getElementById('lp-viewer');
+  function _unwireDropZone() {
+    if (!_dropWired) return;
+    const { el, enter, over, leave, drop } = _dropWired;
+    el.removeEventListener('dragenter', enter);
+    el.removeEventListener('dragover', over);
+    el.removeEventListener('dragleave', leave);
+    el.removeEventListener('drop', drop);
+    _dropWired = null;
+  }
+
+  function _wireDropZone(viewerEl) {
+    // V3.294 — accept the active pane explicitly (falls back to the active
+    // pane via its id). Re-targeting on tab switch: drop the prior set of
+    // listeners first so handleDrop never fires more than once per drop.
+    viewerEl = viewerEl || document.getElementById('lp-viewer');
     if (!viewerEl) return;
+    _unwireDropZone();
     let banner = document.getElementById('lp-md-dropzone');
     if (!banner) {
       banner = document.createElement('div');
@@ -482,28 +510,29 @@
           Drop a <code>.paper-overlay.md</code> file to import highlights as an overlay
         </div>
       `;
-      viewerEl.appendChild(banner);
     }
+    // The banner is a single shared node; re-parent it into the active pane.
+    if (banner.parentElement !== viewerEl) viewerEl.appendChild(banner);
     let dragDepth = 0;
-    viewerEl.addEventListener('dragenter', (ev) => {
+    const enter = (ev) => {
       // Only handle external file drags. dataTransfer.types contains "Files"
       // for OS-level file drags.
       if (!ev.dataTransfer || !Array.from(ev.dataTransfer.types).includes('Files')) return;
       ev.preventDefault();
       dragDepth++;
       banner.style.display = 'flex';
-    });
-    viewerEl.addEventListener('dragover', (ev) => {
+    };
+    const over = (ev) => {
       if (!ev.dataTransfer || !Array.from(ev.dataTransfer.types).includes('Files')) return;
       ev.preventDefault();
       ev.dataTransfer.dropEffect = 'copy';
-    });
-    viewerEl.addEventListener('dragleave', (ev) => {
+    };
+    const leave = (ev) => {
       if (!ev.dataTransfer || !Array.from(ev.dataTransfer.types).includes('Files')) return;
       dragDepth = Math.max(0, dragDepth - 1);
       if (dragDepth === 0) banner.style.display = 'none';
-    });
-    viewerEl.addEventListener('drop', (ev) => {
+    };
+    const drop = (ev) => {
       if (!ev.dataTransfer) return;
       ev.preventDefault();
       dragDepth = 0;
@@ -512,7 +541,12 @@
       const md = files.find(f => /\.(md|markdown)$/i.test(f.name));
       if (!md) return;
       handleDrop(md);
-    });
+    };
+    viewerEl.addEventListener('dragenter', enter);
+    viewerEl.addEventListener('dragover', over);
+    viewerEl.addEventListener('dragleave', leave);
+    viewerEl.addEventListener('drop', drop);
+    _dropWired = { el: viewerEl, enter, over, leave, drop };
   }
 
   function init(opts) {
@@ -522,7 +556,15 @@
     _paperId = opts.paperId || (_paperItem && _paperItem.id) || '';
     _onImported = opts.onImported || null;
     _getCurrentAnnotations = opts.getCurrentAnnotations || (() => []);
-    _wireDropZone();
+    _wireDropZone(opts.viewerEl);
+  }
+
+  // V3.294 — tear down for tab switches: drop the drag/drop listeners.
+  function destroy() {
+    _unwireDropZone();
+    _viewer = null;
+    _paperItem = null;
+    _paperId = null;
   }
 
   window.PAPER_OVERLAY_IMPORT = {
@@ -530,5 +572,6 @@
     handleDrop,
     parseOverlayMarkdown,
     validate,
+    destroy,
   };
 })();

@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protocol — Fibroblast-Coated Granule Ratio Series (24-Well Darcy Insert)</title>
+<style>
+  :root{
+    --ink:#17324D;         /* primary text / structure */
+    --ink-2:#2E4C6B;
+    --blue:#3F63A8;        /* Aurita header blue */
+    --paper:#FBFBFC;
+    --panel:#FFFFFF;
+    --line:#DCE1E8;
+    --line-soft:#EAEDF2;
+    --func:#B5651D;        /* functional / coated */
+    --func-bg:#FBF0E2;
+    --inert:#5A6B7B;       /* inert */
+    --inert-bg:#EDF0F3;
+    --crit:#B23A2E;        /* Δ CRITICAL */
+    --crit-bg:#FBECEA;
+    --time:#2E7D4F;        /* timing */
+    --time-bg:#E8F3ED;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --sz-S:#2E7D4F; --sz-S-bg:#E8F3ED;
+    --sz-M:#3F63A8; --sz-M-bg:#E7EDF8;
+    --sz-L:#B5651D; --sz-L-bg:#FBF0E2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:0 22px 80px}
+
+  /* header */
+  header{background:var(--ink);color:#fff;margin:0 -22px 0;padding:26px 22px 22px}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .brand .name{font-size:30px;font-weight:800;letter-spacing:-0.5px;color:#fff}
+  .brand .tag{font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:#9FB4D0}
+  h1{font-size:24px;font-weight:800;letter-spacing:-0.4px;margin:14px 0 4px;color:#fff}
+  .sub{color:#B9C8DE;font-size:14px;margin:0}
+  .meta{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .meta span{font-size:11px;font-family:var(--mono);background:rgba(255,255,255,.09);
+    border:1px solid rgba(255,255,255,.16);border-radius:5px;padding:4px 9px;color:#DCE6F3}
+
+  h2{font-size:19px;font-weight:800;letter-spacing:-0.3px;margin:38px 0 4px;
+    padding-top:22px;border-top:2px solid var(--ink);color:var(--ink)}
+  h2 .stg{color:var(--blue);font-family:var(--mono);font-size:14px;font-weight:700;margin-right:10px}
+  h3{font-size:15px;font-weight:700;margin:22px 0 6px;color:var(--ink-2)}
+  p{margin:8px 0}
+  .lede{color:#40525f;font-size:14.5px}
+
+  .badge{display:inline-block;font-size:11px;font-weight:700;font-family:var(--mono);
+    padding:2px 8px;border-radius:20px;vertical-align:middle;margin-left:8px}
+  .t-badge{background:var(--time-bg);color:var(--time)}
+
+  /* callouts */
+  .crit{background:var(--crit-bg);border-left:3px solid var(--crit);padding:10px 14px;
+    border-radius:0 6px 6px 0;margin:12px 0;font-size:13.5px}
+  .crit b{color:var(--crit);font-family:var(--mono);letter-spacing:.3px}
+  .note{background:var(--inert-bg);border-left:3px solid var(--inert);padding:10px 14px;
+    border-radius:0 6px 6px 0;margin:12px 0;font-size:13.5px;color:#3c4a57}
+  .note b{color:var(--inert)}
+  .assume{background:#F3F6FB;border:1px solid #D3DEEF;border-radius:8px;padding:14px 16px;margin:16px 0}
+  .assume b{color:var(--blue)}
+
+  /* steps */
+  ol.steps{list-style:none;counter-reset:s;padding:0;margin:12px 0}
+  ol.steps>li{counter-increment:s;position:relative;padding:8px 0 8px 42px;
+    border-bottom:1px solid var(--line-soft)}
+  ol.steps>li::before{content:counter(s);position:absolute;left:0;top:8px;
+    width:27px;height:27px;border-radius:50%;background:#fff;border:1.5px solid var(--blue);
+    color:var(--blue);font-family:var(--mono);font-weight:700;font-size:13px;
+    display:flex;align-items:center;justify-content:center}
+  ol.steps>li:last-child{border-bottom:none}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:700;
+    padding:1px 7px;border-radius:4px;line-height:1.5}
+  .pill-f{background:var(--func-bg);color:var(--func)}
+  .pill-i{background:var(--inert-bg);color:var(--inert)}
+  code,.m{font-family:var(--mono);font-size:.92em;background:#F0F2F6;padding:1px 5px;border-radius:4px}
+
+  /* calculator */
+  .calc{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;margin:16px 0 8px;box-shadow:0 1px 3px rgba(23,50,77,.05)}
+  .calc-head{background:var(--ink);color:#fff;padding:12px 18px;font-weight:700;font-size:14px;
+    display:flex;justify-content:space-between;align-items:center}
+  .calc-head .k{font-family:var(--mono);font-size:11px;color:#9FB4D0;font-weight:400}
+  .calc-body{display:grid;grid-template-columns:270px 1fr;gap:0}
+  .inputs{padding:18px;border-right:1px solid var(--line);background:#FAFBFD}
+  .out{padding:18px}
+  .fld{margin-bottom:15px}
+  .fld label{display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:3px}
+  .fld .val{font-family:var(--mono);color:var(--ink)}
+  .fld .val small{color:var(--inert);font-weight:400}
+  .fld input[type=range]{width:100%;accent-color:var(--ink);cursor:pointer;margin:2px 0 0}
+  .fld input[type=number]{width:100%;font-family:var(--mono);font-size:13px;padding:5px 7px;
+    border:1px solid var(--line);border-radius:6px;color:var(--ink)}
+  .fld .rng{display:flex;justify-content:space-between;font-size:9.5px;color:var(--inert)}
+
+  .hero{display:flex;gap:12px;margin-bottom:18px}
+  .hero .card{flex:1;border:1px solid var(--line);border-top:3px solid var(--func);
+    border-radius:8px;padding:12px 14px;background:#fff}
+  .hero .card .lab{font-size:11px;color:var(--inert)}
+  .hero .card .big{font-family:var(--mono);font-size:22px;font-weight:700;margin:2px 0 0}
+  .hero .card .u{font-size:11px;color:var(--inert)}
+
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0}
+  th,td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line-soft)}
+  th{background:#F4F6F9;color:var(--inert);font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td.mono{font-family:var(--mono)}
+  .sec-lab{font-size:11px;letter-spacing:1.2px;color:var(--inert);font-weight:700;
+    text-transform:uppercase;margin:20px 0 8px}
+  .sec-lab:first-child{margin-top:0}
+
+  /* plate map */
+  .plate{background:#20303F;border-radius:14px;padding:20px;margin:14px 0;overflow-x:auto}
+  .plate-grid{display:grid;grid-template-columns:26px repeat(6,1fr);gap:8px;min-width:560px}
+  .plate-grid .col-h,.plate-grid .row-h{color:#8FA3B8;font-family:var(--mono);font-size:12px;
+    display:flex;align-items:center;justify-content:center}
+  .well{aspect-ratio:1/1;border-radius:50%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:4px;
+    border:2px solid rgba(255,255,255,.12);min-height:64px}
+  .well .cond{font-size:10.5px;font-weight:700;line-height:1.15;color:#fff}
+  .well .rat{font-family:var(--mono);font-size:11px;margin-top:2px}
+  .well.f{background:rgba(181,101,29,.28);border-color:var(--func)}
+  .well.f .rat{color:#F2C48A}
+  .well.m{background:rgba(63,99,168,.30);border-color:#6E90D6}
+  .well.m .rat{color:#B9CDF0}
+  .well.spare{background:rgba(255,255,255,.04);border-style:dashed;border-color:rgba(255,255,255,.14)}
+  .well.spare .cond{color:#7C8D9E;font-size:9.5px;font-weight:500}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:#B9C8DE}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+
+  /* coating timeline */
+  .timeline{position:relative;margin:18px 0 8px;padding:0 4px}
+  .tl-track{height:4px;background:var(--line);border-radius:3px;position:relative;margin:34px 0 26px}
+  .tl-fill{position:absolute;left:0;top:0;height:100%;width:50%;background:var(--func);border-radius:3px}
+  .tl-mark{position:absolute;top:-30px;transform:translateX(-50%);text-align:center}
+  .tl-mark .dotm{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--func);
+    margin:16px auto 0;position:relative}
+  .tl-mark.inc .dotm{border-color:var(--inert);background:var(--inert-bg)}
+  .tl-mark .lbl{font-size:10.5px;color:var(--ink);font-family:var(--mono);white-space:nowrap}
+  .tl-mark .sub2{font-size:9px;color:var(--inert)}
+
+  .kv{display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:13.5px;margin:8px 0}
+  .kv .k{color:var(--inert)}
+  .kv .v{font-family:var(--mono);font-weight:600;text-align:right}
+
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--inert);text-align:center;font-family:var(--mono)}
+
+  a{color:var(--blue)}
+
+  /* ===== interactive plate builder ===== */
+  .builder{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(23,50,77,.05)}
+  .b-sec{margin:0 0 20px}
+  .b-sec:last-child{margin-bottom:0}
+  .b-sec > .sec-lab{margin-top:0}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11.5px;
+    font-weight:700;padding:2px 8px;border-radius:5px;border:1px solid transparent}
+  .chip.S{background:var(--sz-S-bg);color:var(--sz-S);border-color:var(--sz-S)}
+  .chip.M{background:var(--sz-M-bg);color:var(--sz-M);border-color:var(--sz-M)}
+  .chip.L{background:var(--sz-L-bg);color:var(--sz-L);border-color:var(--sz-L)}
+
+  /* ratio editor */
+  .ratio-list{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  .ratio-tag{display:inline-flex;align-items:center;gap:6px;background:#F3F6FB;border:1px solid #D3DEEF;
+    border-radius:20px;padding:3px 6px 3px 12px;font-family:var(--mono);font-size:13px;color:var(--ink)}
+  .ratio-tag input{width:52px;font-family:var(--mono);font-size:13px;padding:2px 4px;
+    border:1px solid var(--line);border-radius:5px;color:var(--ink);text-align:right}
+  .ratio-tag button{border:none;background:#dbe3ef;color:#4a5b70;width:20px;height:20px;border-radius:50%;
+    cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .ratio-tag button:hover{background:#c6d2e4}
+  .mini-btn{border:1px dashed var(--blue);background:#fff;color:var(--blue);border-radius:8px;
+    padding:5px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .mini-btn:hover{background:#F3F6FB}
+  .mini-btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* combination adder */
+  .combo-add{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;
+    background:#FAFBFD;border:1px solid var(--line);border-radius:10px;padding:14px;margin:8px 0}
+  .combo-add .grp{display:flex;flex-direction:column;gap:3px}
+  .combo-add label{font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--inert);font-weight:700}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{border:none;background:#fff;padding:6px 12px;font-family:var(--mono);font-size:13px;font-weight:700;
+    color:var(--inert);cursor:pointer;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:none}
+  .seg button.on.S{background:var(--sz-S);color:#fff}
+  .seg button.on.M{background:var(--sz-M);color:#fff}
+  .seg button.on.L{background:var(--sz-L);color:#fff}
+  .combo-add select{font-family:var(--mono);font-size:13px;padding:6px 8px;border:1px solid var(--line);
+    border-radius:8px;color:var(--ink);background:#fff;min-width:70px}
+  .add-btn{border:none;background:var(--ink);color:#fff;border-radius:8px;padding:8px 16px;
+    font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .add-btn:hover{background:var(--ink-2)}
+  .add-all{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;
+    padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .add-all:hover{background:#F3F6FB}
+
+  /* selected combination list */
+  .combo-list{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .combo-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);
+    border-radius:9px;background:#fff;font-size:13px}
+  .combo-row .idx{font-family:var(--mono);color:var(--inert);font-size:11px;width:22px}
+  .combo-row .desc{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1}
+  .combo-row .arrow{color:var(--inert)}
+  .combo-row .rtag{font-family:var(--mono);font-size:12px;background:#F0F2F6;padding:1px 7px;border-radius:4px}
+  .combo-row .swatch{width:14px;height:14px;border-radius:4px;flex:none}
+  .combo-row .rm{margin-left:auto;border:none;background:#f3e6e4;color:var(--crit);width:24px;height:24px;
+    border-radius:6px;cursor:pointer;font-size:15px;line-height:1}
+  .combo-row .rm:hover{background:#eecfcb}
+  .empty-note{color:var(--inert);font-size:12.5px;font-style:italic;padding:8px 2px}
+  .cap-note{font-size:11px;color:var(--inert);margin:4px 0 0}
+  .over-warn{color:var(--crit);font-weight:700}
+
+  /* coverage inline edit */
+  .cov-edit{display:flex;align-items:center;gap:4px}
+  .cov-edit input{width:58px;font-family:var(--mono);font-size:13px;padding:3px 5px;
+    border:1px solid var(--line);border-radius:6px;color:var(--ink);text-align:right}
+
+  @media (max-width:680px){
+    .combo-add{flex-direction:column;align-items:stretch}
+  }
+
+  @media (max-width:680px){
+    .calc-body{grid-template-columns:1fr}
+    .inputs{border-right:none;border-bottom:1px solid var(--line)}
+    .hero{flex-direction:column}
+  }
+  @media print{
+    body{font-size:12px}
+    header{background:var(--ink)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .calc,.plate,.well,.hero .card,th,.crit,.note{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h2{page-break-after:avoid}
+    ol.steps>li{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding:0">
+    <div class="brand">
+      <span class="name">McGheeLab</span>
+      <span class="tag">Granule-Enabled Living Scaffolds · GELS</span>
+    </div>
+    <h1>GELS — Fibroblast-Coated Granule Ratio Series</h1>
+    <p class="sub">Surface-coating granules with fibroblasts (F) and culturing a functional:inert ratio panel in the 24-Well Darcy Imaging Insert</p>
+    <div class="meta">
+      <span id="metaConds">— conditions</span>
+      <span id="metaRatios">configurable ratios</span>
+      <span>3 sizes · S / M / L · 1–350 µm</span>
+      <span>Darcy 24-well · glass bottom</span>
+      <span>Rev. draft</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- OVERVIEW -->
+  <h2><span class="stg">00</span>Design &amp; rationale</h2>
+  <p class="lede">Granules (modeled as cubes) are coated on their surface with fibroblasts to make them
+  <span class="pill pill-f">functional</span>. Coated granules are mixed with bare
+  <span class="pill pill-i">inert</span> granules at four volume ratios and cultured under passive perfusion.
+  The panel tests the effect of functional fraction and granule size on the culture.</p>
+
+  <p>Because <b>F only covers the functional granules</b>, the coating requirement per experiment is</p>
+  <p style="text-align:center;font-size:16px;margin:14px 0"><span class="m" style="font-size:16px;background:#F0F2F6;padding:6px 12px">n<sub>F</sub> = 6 · φ · f · c · V<sub>tot</sub> / (L<sub>F</sub> · A<sub>F</sub>)</span></p>
+  <p>with φ = packing fraction, f = functional volume fraction, c = target surface coverage (1 = 100%),
+  V<sub>tot</sub> = granule-bed volume per well,
+  L<sub>F</sub> = <i>functional</i> granule side, A<sub>F</sub> = footprint area of one fibroblast. Two consequences drive the whole workflow:</p>
+  <ol class="steps">
+    <li><b>Inert size never enters n<sub>F</sub>.</b> Any two combinations that share the same functional size and ratio need identical F, regardless of their inert size. At <span class="m">f = 1</span> there is no inert granule at all, so all-functional combinations of the same functional size are one experiment — which is why the number of distinct experiments is fewer than every F×I×ratio permutation.</li>
+    <li><b>Coverage is a fixed F-per-volume loading</b> (<span class="m">6φc/(L<sub>F</sub>·A<sub>F</sub>)</span>), independent of ratio. So you coat one master pool of functional granules per size, then split it into any ratio afterward and coverage stays at your target. This is the <b>coat-once, split-later</b> workflow.</li>
+  </ol>
+
+  <div class="assume">
+    <b>Assumptions — confirm before running.</b>
+    (1) The functional and inert granules are <b>Bioconjugated LLS™ and Inert LLS™ microgel</b> respectively, so the mixed granule bed <i>is</i> the LLS bed loaded into the sample well; no separate support LLS is added. If your granules are rigid scaffolds dispersed in separate LLS, tell me and the loading step changes.
+    (2) Fibroblasts coat functional granules only; inert granules stay bare.
+    (3) Ratio f is a <b>volume</b> fraction of the total granule solids.
+    (4) Granules are coated individually in suspension (all 6 cube faces exposed).
+    (5) V<sub>tot</sub> is the packed granule-bed volume per well. Because each condition is loaded as a slurry in an <b>equal volume of medium</b>, the ≈2×V<sub>tot</sub> suspension must fit the <b>100 µL</b> sample well — keep V<sub>tot</sub> ≲ 50 µL, or aspirate the supernatant after the pack-down spin. Your earlier notes used 20 µL.
+  </div>
+
+  <!-- MATERIALS -->
+  <h2><span class="stg">01</span>Materials &amp; equipment</h2>
+  <div class="calc-body" style="display:grid;grid-template-columns:1fr 1fr;gap:26px;border:none">
+    <div>
+      <h3>Reagents / consumables</h3>
+      <ol class="steps" style="margin-top:4px">
+        <li>Bioconjugated LLS™ microgel — <b>functional</b> granules, Small &amp; Medium fractions</li>
+        <li>Inert LLS™ microgel — <b>inert</b> granules, Small &amp; Medium fractions</li>
+        <li>Fibroblast suspension, density recorded (cells/mL)</li>
+        <li>Cell culture medium (sample-dependent) &amp; 1× PBS</li>
+        <li>24-Well Darcy Imaging Insert + glass-bottom microplate (Cellvis™)</li>
+        <li>200 µL <b>wide-bore</b> pipette tips (LLS handling), 1 mL tips, 15 mL tubes</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Equipment</h3>
+      <ol class="steps" style="margin-top:4px">
+        <li>Centrifuge with microplate + tube carriers</li>
+        <li>Biosafety cabinet, 37 °C incubator, 37 °C water bath</li>
+        <li>200 µL &amp; 1 mL single-channel pipettes; pipette controller</li>
+        <li>Sterile fine, curved-tip forceps (insert handling)</li>
+        <li>Aspiration system; precision balance</li>
+      </ol>
+    </div>
+  </div>
+  <div class="crit"><b>Δ CRITICAL</b> Work in a biosafety cabinet with aseptic technique. Sample wells are ~5.5 mm in diameter — large samples may obstruct flow. Read all relevant SDSs first.</div>
+
+  <!-- INTERACTIVE PLATE BUILDER -->
+  <h2><span class="stg">02</span>Build your plate layout</h2>
+  <p class="lede">Define your size sliders, choose which functional:inert:ratio combinations to run, and the 24-well
+  plate map builds itself below. Everything feeds the calculator in the next section.</p>
+
+  <div class="builder">
+    <!-- sizes -->
+    <div class="b-sec">
+      <div class="sec-lab">1 · Granule sizes (1–350 µm · each must exceed the previous)</div>
+      <div class="fld">
+        <label><span class="chip S">S</span>&nbsp;Small side L<sub>S</sub> <span class="val" id="vLS">60<small> µm</small></span></label>
+        <input type="range" id="LS" min="1" max="350" step="0.5" value="60">
+        <div class="rng"><span>1</span><span></span><span>350</span></div>
+      </div>
+      <div class="fld">
+        <label><span class="chip M">M</span>&nbsp;Medium side L<sub>M</sub> <span class="val" id="vLM">125<small> µm</small></span></label>
+        <input type="range" id="LM" min="1" max="350" step="0.5" value="125">
+        <div class="rng"><span>1</span><span>&gt; L_S</span><span>350</span></div>
+      </div>
+      <div class="fld">
+        <label><span class="chip L">L</span>&nbsp;Large side L<sub>L</sub> <span class="val" id="vLL">220<small> µm</small></span></label>
+        <input type="range" id="LL" min="1" max="350" step="0.5" value="220">
+        <div class="rng"><span>1</span><span>&gt; L_M</span><span>350</span></div>
+      </div>
+    </div>
+
+    <!-- coverage -->
+    <div class="b-sec">
+      <div class="sec-lab">2 · Cell surface coverage</div>
+      <div class="fld">
+        <label>Coverage
+          <span class="cov-edit">
+            <input type="number" id="covNum" min="0" max="200" step="1" value="100">
+            <span style="font-family:var(--mono);color:var(--inert)">%</span>
+          </span>
+        </label>
+        <input type="range" id="cov" min="0" max="200" step="1" value="100">
+        <div class="rng"><span>0%</span><span id="covHint">100% = single confluent layer</span><span>200%</span></div>
+      </div>
+    </div>
+
+    <!-- ratios -->
+    <div class="b-sec">
+      <div class="sec-lab">3 · Functional volume ratios (f)</div>
+      <p style="font-size:12.5px;color:var(--inert);margin:2px 0 6px">
+        f = functional fraction of total granule solids. Add, remove, or edit any value (0–1). f = 1 means 100% functional (no inert).</p>
+      <div class="ratio-list" id="ratioList"></div>
+      <button class="mini-btn" id="addRatio">+ add ratio</button>
+    </div>
+
+    <!-- combinations -->
+    <div class="b-sec">
+      <div class="sec-lab">4 · Add functional : inert : ratio combinations</div>
+      <div class="combo-add">
+        <div class="grp">
+          <label>Functional size</label>
+          <div class="seg" id="segF">
+            <button data-s="S" class="on S">S</button><button data-s="M" class="M">M</button><button data-s="L" class="L">L</button>
+          </div>
+        </div>
+        <div class="grp">
+          <label>Inert size</label>
+          <div class="seg" id="segI">
+            <button data-s="S" class="on S">S</button><button data-s="M" class="M">M</button><button data-s="L" class="L">L</button>
+          </div>
+        </div>
+        <div class="grp">
+          <label>Ratio f</label>
+          <select id="selRatio"></select>
+        </div>
+        <button class="add-btn" id="addCombo">+ Add combination</button>
+        <button class="add-all" id="addAll">Add all F×I × every ratio</button>
+      </div>
+      <div class="combo-list" id="comboList"></div>
+      <p class="cap-note" id="capNote"></p>
+      <p style="font-size:11px;color:var(--inert);margin:6px 0 0">
+        At f = 1 the inert size drops out (no inert granule), so all-functional combinations of the same functional size are merged automatically.</p>
+    </div>
+  </div>
+
+  <!-- PLATE MAP (built from selections) -->
+  <h3 style="margin-top:22px">24-well plate map</h3>
+  <p style="font-size:12.5px;color:var(--inert);margin:2px 0 0">
+    Wells fill A1→A6, B1→…, up to 24. Raise <b>wells/condition</b> in the calculator to replicate; extra wells stay as spares.</p>
+  <div class="plate">
+    <div class="plate-grid" id="plate"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--sz-S)"></span>Small functional</span>
+      <span><span class="dot" style="background:var(--sz-M)"></span>Medium functional</span>
+      <span><span class="dot" style="background:var(--sz-L)"></span>Large functional</span>
+      <span><span class="dot" style="background:rgba(255,255,255,.2);border:1px dashed #7C8D9E"></span>Spare — replicate / control</span>
+    </div>
+  </div>
+
+  <!-- CALCULATOR -->
+  <h2><span class="stg">03</span>Calculator — F, granules, and prep volumes</h2>
+  <p class="lede">Set your measured values. Everything below (per-well F, master pools, cell-suspension volumes)
+  recomputes live from the combinations, sizes, ratios, and coverage you set above.</p>
+
+  <div class="calc">
+    <div class="calc-head"><span>Coating &amp; prep calculator</span><span class="k">n_F = 6·φ·f·(cov)·V_tot / (L·A_F)</span></div>
+    <div class="calc-body">
+      <div class="inputs">
+        <div class="fld">
+          <label>Bed volume / well <span class="val" id="vVtot">50<small> µL</small></span></label>
+          <input type="range" id="Vtot" min="5" max="100" step="1" value="50">
+          <div class="rng"><span>5</span><span>bed ≤50 · slurry fills 100µL</span><span>100</span></div>
+        </div>
+        <div class="fld">
+          <label>Wells / condition <span class="val" id="vReps">1</span></label>
+          <input type="range" id="reps" min="1" max="4" step="1" value="1">
+          <div class="rng"><span>1</span><span>replicates</span><span>4</span></div>
+        </div>
+        <div class="fld">
+          <label>Fibroblast footprint A<sub>F</sub> <span class="val" id="vAF">2600<small> µm²</small></span></label>
+          <input type="range" id="AF" min="1600" max="3600" step="50" value="2600">
+          <div class="rng"><span>1600</span><span>flat cell</span><span>3600</span></div>
+        </div>
+        <div class="fld">
+          <label>Packing φ <span class="val" id="vPhi">0.68</span></label>
+          <input type="range" id="phi" min="0.50" max="0.74" step="0.01" value="0.68">
+          <div class="rng"><span>0.50</span><span>RCP 0.68</span><span>0.74</span></div>
+        </div>
+        <div class="fld">
+          <label>Cell density stock <span class="val" id="vStock">5<small> million/mL</small></span></label>
+          <input type="number" id="stock" min="0.1" step="0.1" value="5">
+        </div>
+        <div class="fld">
+          <label>Prep excess <span class="val" id="vEx">1.2×</span></label>
+          <input type="range" id="ex" min="1.0" max="1.5" step="0.05" value="1.2">
+          <div class="rng"><span>1.0</span><span>pipetting loss</span><span>1.5</span></div>
+        </div>
+      </div>
+
+      <div class="out">
+        <div class="sec-lab">Master coating loading — coat once, split later</div>
+        <div class="hero" id="loadHero"></div>
+
+        <div class="sec-lab">Per condition (one well)</div>
+        <table>
+          <thead><tr>
+            <th>#</th><th>Condition</th><th>f</th>
+            <th><span class="pill pill-f">F vol</span></th>
+            <th><span class="pill pill-i">I vol</span></th>
+            <th>Fibroblasts</th><th>Cell susp.</th>
+          </tr></thead>
+          <tbody id="condRows"></tbody>
+        </table>
+        <p style="font-size:11px;color:var(--inert);margin:4px 0 0">
+          F/I vol in µL per well · cell susp. in µL at the set stock. Fibroblast count scales with coverage %; at f = 1 there is no inert volume.</p>
+
+        <div class="sec-lab">Master batch — total to prepare (× wells × excess)</div>
+        <table>
+          <thead><tr><th>Pool</th><th>Bulk vol</th><th>Granules</th><th>Fibroblasts</th><th>Cell susp.</th></tr></thead>
+          <tbody id="masterRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE: EQUILIBRATION -->
+  <h2><span class="stg">03</span>LLS™ equilibration <span class="badge t-badge">15–30 min active · &gt;2 h wait</span></h2>
+  <div class="crit"><b>Δ CRITICAL</b> Start ≥ 2 h before sample prep. Equilibrate every pool your plate needs — one per (functional size) and one per (inert size) actually used, listed in the calculator's <b>Master batch</b> table — in separate labeled 15 mL tubes. Hold equilibrated LLS at 37 °C until use.</div>
+  <ol class="steps">
+    <li>Centrifuge each LLS™ tube <span class="m">800 ×g, 5 min</span>, moderate accel/brake.</li>
+    <li>Confirm separation of clear buffer above semi-transparent LLS™ gel.</li>
+    <li>Aspirate the excess buffer until only LLS™ gel remains.</li>
+    <li>Add cell culture medium at <span class="m">2:1 medium:LLS</span> (e.g. 4 mL medium per 2 mL LLS) and pipette-mix thoroughly with a wide-bore tip.</li>
+    <li>Hold at 37 °C until proceeding to coating.</li>
+  </ol>
+
+  <!-- STAGE: POOLS -->
+  <h2><span class="stg">04</span>Prepare granule pools <span class="badge t-badge">15 min</span></h2>
+  <p>From the calculator's <b>Master batch</b> table, measure the required <b>bulk volume</b> of each equilibrated pool into a labeled tube. Re-centrifuge <span class="m">800 ×g, 5 min</span> and aspirate excess medium so you start coating from packed granules.</p>
+  <div class="note"><b>NOTE</b> Keep the two <span class="pill pill-i">inert</span> pools bare and set aside at 37 °C — they receive no cells and are added only at the ratio-mixing step.</div>
+
+  <!-- STAGE: COATING -->
+  <h2><span class="stg">05</span>Coat functional granules with fibroblasts <span class="badge t-badge">~2 h · run all sizes in parallel</span></h2>
+  <p>Coat each functional pool (one per functional size in use) in its own tube. Use the calculator's per-pool
+  <b>Fibroblasts</b> count — this is the exact number for your set coverage %.</p>
+
+  <div class="timeline">
+    <div class="tl-track">
+      <div class="tl-fill"></div>
+      <div class="tl-mark" style="left:0%"><div class="lbl">0</div><div class="sub2">spin</div><div class="dotm"></div></div>
+      <div class="tl-mark" style="left:16.6%"><div class="lbl">20</div><div class="sub2">mix</div><div class="dotm"></div></div>
+      <div class="tl-mark" style="left:33.3%"><div class="lbl">40</div><div class="sub2">mix</div><div class="dotm"></div></div>
+      <div class="tl-mark" style="left:50%"><div class="lbl">60 min</div><div class="sub2">mix + spin</div><div class="dotm"></div></div>
+      <div class="tl-mark inc" style="left:100%"><div class="lbl">120 min</div><div class="sub2">incubate</div><div class="dotm"></div></div>
+    </div>
+  </div>
+
+  <ol class="steps">
+    <li>Add the calculated fibroblast volume (calculator, <b>Cell susp.</b> for that functional pool) to the packed functional granules. Add just enough medium to form a <b>very light LLS</b> — enough that mixing fully resuspends the granules, but not so much that the cells fall straight through; everything should then settle on its own. Pipette-mix gently with a wide-bore tip.</li>
+    <li><b>t = 0 — spin.</b> Centrifuge gently <span class="m">200 ×g, 5 min</span> to settle the cells onto the granules, then gently resuspend to redistribute and re-orient them. <b>Do not remove the excess medium</b> — keeping the light-LLS consistency is what lets every later mix resuspend fully and settle back on its own.</li>
+    <li><b>Mix every 20 min for 1 h</b> — at <span class="m">20, 40, 60 min</span> — by gentle pipette-mixing or simply rolling the tube. <b>Never vortex.</b> Periodic mixing keeps cells from clumping; over-mixing also drives clumping, so mix just enough to redistribute, then let it settle on its own.</li>
+    <li><b>After the final mix, gentle spin</b> <span class="m">200 ×g, 5 min</span> to remove any air bubbles and compact the LLS.</li>
+    <li><b>Incubate undisturbed 1 h at 37 °C</b> so cells firmly attach and spread. Total coating time ≈ 2 h.</li>
+  </ol>
+  <div class="crit"><b>Δ CRITICAL</b> Fully mix each time without introducing bubbles. Incomplete mixing lets cells clump and leaves granule faces uncoated. Keep to the calculated cell number: excess cells bridge granules into multilayers; too few leaves gaps below 100 % coverage.</div>
+
+  <!-- STAGE: RATIO MIX -->
+  <h2><span class="stg">06</span>Mix the ratio conditions <span class="badge t-badge">20–30 min</span></h2>
+  <p>For each condition in your plate, combine the coated functional pool with the appropriate inert pool at the
+  calculator's per-well <b>F vol</b> and <b>I vol</b>, scaled by your wells/condition. Pipette-mix gently to a uniform dispersion.</p>
+  <ol class="steps">
+    <li><b>Ratios f &lt; 1</b> — mix coated <span class="pill pill-f">functional</span> granules with bare
+    <span class="pill pill-i">inert</span> granules of the chosen sizes at the volume fractions f : (1−f).</li>
+    <li><b>Ratio f = 1</b> — 100% functional, no inert: the coated pool of that functional size is loaded directly.</li>
+    <li>Hold each mixed condition at 37 °C if not loading immediately; re-mix gently before loading.</li>
+  </ol>
+  <div class="note"><b>NOTE</b> "F vol" uses the coated functional pool (granules + attached cells); the added cells came along during coating, so no further cell addition is needed here.</div>
+
+  <!-- STAGE: PLATE MAP -->
+  <h2><span class="stg">07</span>Plating map — 24-well Darcy insert</h2>
+  <p>Follow the interactive <b>plate map</b> you built in section 02. Each colored well shows the functional size,
+  the inert size, and the ratio f; spare wells are free for replicates or controls (e.g. all-inert no-cell,
+  all-functional positive, LLS-only). Duplicate or triplicate by raising <b>wells/condition</b> in the calculator.</p>
+
+  <!-- STAGE: SEED + ASSEMBLE -->
+  <h2><span class="stg">08</span>Assemble insert &amp; load <span class="badge t-badge">&lt;10 min</span></h2>
+  <ol class="steps">
+    <li>Inspect the glass-bottom plate for damage. Seat each imaging insert with forceps until it resists — <b>feed-media opening facing down</b>. A loose insert means an incompatible plate.</li>
+    <li>With a 1 mL pipette, add culture medium to the <b>plate well (feed side, a)</b> around each insert — up to a maximum of <span class="m">2.0 mL</span>. Dispense delicately.</li>
+    <li><b>Resuspend each condition into an equal volume of culture medium</b> and pipette-mix to a uniform slurry, fully resuspending the granules so they load evenly (loaded volume ≈ 2×V<sub>tot</sub>).</li>
+    <li>With a 200 µL <b>wide-bore</b> tip, dispense each resuspended condition into its <b>sample well (b)</b> per the plate map — onto the membrane, not the walls. Keep the slurry ≤ <span class="m">100 µL</span> per well.</li>
+    <li><b>Centrifuge the assembled plate</b> <span class="m">200 ×g, 5 min</span> (moderate brake/accel). The granules <b>pack into a bed</b> on the membrane, and the membrane is primed for passive perfusion.</li>
+    <li>Using any tip on an effluent shelf, aspirate any effluent produced during the spin and return it to the feed well.</li>
+    <li>Transfer to the incubator. Media perfuses and accumulates above the bed passively over ~12 h. Do not jostle the plate.</li>
+  </ol>
+  <div class="crit"><b>Δ CRITICAL</b> Do not puncture the membrane with the tip. Adding LLS or media too fast disrupts the bed and loses 3D stability — a reasonable rate is 100 µL in 5–10 s.</div>
+
+  <!-- STAGE: MAINTAIN -->
+  <h2><span class="stg">09</span>Maintain perfusion culture <span class="badge t-badge">&lt;5 min / cycle</span></h2>
+  <ol class="steps">
+    <li>Remove the plate to a sterile workspace. Place a tip on an insert shelf and aspirate perfused media — up to <span class="m">375 µL</span> per cycle.</li>
+    <li>Either return the effluent to the feed well (<b>recycle</b>) or replace with fresh medium (<b>refresh</b>).</li>
+    <li>Return to the incubator. Exchange medium every 2–4 days, or when the indicator color shifts.</li>
+  </ol>
+
+  <!-- STAGE: COLLECT -->
+  <h2><span class="stg">10</span>Collect samples for analysis <span class="badge t-badge">30–60 min · optional</span></h2>
+  <ol class="steps">
+    <li>Fill a 15 mL tube with 12 mL PBS or medium per condition set. Bring the plate to the bench without agitation.</li>
+    <li>Lift inserts with forceps; collect each bed (granules + samples) with a wide-bore tip and add it dropwise to the tube.</li>
+    <li>Settle 5–10 min; aspirate supernatant and excess LLS™, taking care not to draw off the granules.</li>
+    <li>Resuspend gently in PBS/medium — <b>do not vortex</b> — and repeat the settle/aspirate wash 2–3× to enrich.</li>
+    <li>Proceed to downstream analysis. Residual LLS™ particles rarely interfere with staining/digestion; complete removal needs a strainer or magnetic sort.</li>
+  </ol>
+
+  <!-- APPENDIX -->
+  <h2><span class="stg">A</span>Derivation &amp; validation</h2>
+  <div class="kv">
+    <div class="k">Functional granules per well</div><div class="v">N = φ·f·V<sub>tot</sub> / L<sub>F</sub>³</div>
+    <div class="k">Surface area, one cube</div><div class="v">a = 6·L<sub>F</sub>²</div>
+    <div class="k">Fibroblasts for coverage c</div><div class="v">n<sub>F</sub> = c·N·a / A<sub>F</sub> = 6·φ·f·c·V<sub>tot</sub> / (L<sub>F</sub>·A<sub>F</sub>)</div>
+    <div class="k">Fixed coating loading</div><div class="v">n<sub>F</sub>/V = 6·φ·c / (L<sub>F</sub>·A<sub>F</sub>)  → ratio-independent</div>
+    <div class="k">Volume factors per pool</div><div class="v">Σf over conditions (functional), Σ(1−f) (inert) — computed live in the Master batch table</div>
+  </div>
+  <div class="note"><b>Validation</b> With L = 100 µm, A<sub>F</sub> ≈ 3000 µm², φ = 0.68, V<sub>tot</sub> = 20 µL, f = 1, c = 1 → n<sub>F</sub> = 272,000 and the 200 µm case → 136,000, matching the bench notes.</div>
+  <div class="note"><b>Polydispersity</b> For a real size spread, the exact quantity is the Sauter mean side ΣL³/ΣL² rather than the arithmetic midpoint; for these narrow ranges the difference is a few percent.</div>
+
+  <footer>McGheeLab · Granule-Enabled Living Scaffolds (GELS) · static/perfusion 3D culture in LLS™ · adapt values to your measured granule and cell dimensions</footer>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const SIZES=['S','M','L'];
+  const SZCOL={S:getComputedStyle(document.documentElement).getPropertyValue('--sz-S').trim(),
+               M:getComputedStyle(document.documentElement).getPropertyValue('--sz-M').trim(),
+               L:getComputedStyle(document.documentElement).getPropertyValue('--sz-L').trim()};
+  const NWELLS=24, COLS=6, ROWS=['A','B','C','D'];
+
+  // ---- state ----
+  let ratios=[0.4,0.6,0.8,1];          // editable list of f values
+  let combos=[];                        // {fSize, iSize, f}
+  let pickF='S', pickI='S';             // combo-adder selection
+
+  const fmt=n=>!isFinite(n)?'—':(n>=1e6?(n/1e6).toFixed(2)+'M':Math.round(n).toLocaleString());
+  const f1=n=>(Math.round(n*10)/10).toLocaleString();
+  const Lof=s=>+ ($('L'+s).value);      // side length for size code
+  const clampRatio=v=>Math.min(1,Math.max(0,v));
+
+  // f=1 has no inert; normalize so all-functional of a size is unique regardless of iSize
+  const key=c=>c.f>=1 ? `1|${c.fSize}` : `${c.f}|${c.fSize}|${c.iSize}`;
+  const dedupe=list=>{const seen=new Set(),out=[];list.forEach(c=>{const k=key(c);if(!seen.has(k)){seen.add(k);out.push({...c, iSize:(c.f>=1?null:c.iSize)});}});return out;};
+
+  function condLabel(c){
+    if(c.f>=1) return `100% ${c.fSize}F`;
+    return `${c.fSize}F : ${c.iSize}I`;
+  }
+
+  // ---- size sliders: enforce 1..350 and strictly increasing ----
+  function enforceSizes(changed){
+    let ls=+$('LS').value, lm=+$('LM').value, ll=+$('LL').value;
+    const step=0.5;
+    if(changed==='LS'){ if(lm<=ls){lm=Math.min(350,ls+step);$('LM').value=lm;} if(ll<=lm){ll=Math.min(350,lm+step);$('LL').value=ll;} }
+    if(changed==='LM'){ if(lm<=ls){ls=Math.max(1,lm-step);$('LS').value=ls;} if(ll<=lm){ll=Math.min(350,lm+step);$('LL').value=ll;} }
+    if(changed==='LL'){ if(ll<=lm){lm=Math.max(1,ll-step);$('LM').value=lm;} if(lm<=ls){ls=Math.max(1,lm-step);$('LS').value=ls;} }
+    $('vLS').innerHTML=(+$('LS').value)+'<small> µm</small>';
+    $('vLM').innerHTML=(+$('LM').value)+'<small> µm</small>';
+    $('vLL').innerHTML=(+$('LL').value)+'<small> µm</small>';
+  }
+
+  // ---- coverage (slider <-> number, 0..200) ----
+  function syncCov(src){
+    let v=+ (src==='num'?$('covNum').value:$('cov').value);
+    if(isNaN(v))v=0; v=Math.min(200,Math.max(0,v));
+    $('cov').value=v; $('covNum').value=v;
+    $('covHint').innerHTML = v>100 ? `<span class="over-warn">${v}% — multilayer (${(v/100).toFixed(2)}× cells)</span>`
+                            : (v===100?'100% = single confluent layer':`${v}% of a confluent layer`);
+  }
+  const covFrac=()=>(+$('cov').value)/100;
+
+  // ---- ratio editor ----
+  function renderRatios(){
+    const box=$('ratioList'); box.innerHTML='';
+    ratios.forEach((r,i)=>{
+      const tag=document.createElement('span'); tag.className='ratio-tag';
+      tag.innerHTML=`f=<input type="number" min="0" max="1" step="0.05" value="${r}"><button title="remove">×</button>`;
+      const inp=tag.querySelector('input');
+      inp.addEventListener('input',()=>{ratios[i]=clampRatio(+inp.value||0);syncRatioSelect();refresh();});
+      inp.addEventListener('blur',()=>{inp.value=ratios[i];});
+      tag.querySelector('button').addEventListener('click',()=>{
+        if(ratios.length<=1)return; ratios.splice(i,1); syncRatioSelect(); refresh(); renderRatios();
+      });
+      box.appendChild(tag);
+    });
+    $('addRatio').disabled = ratios.length>=8;
+  }
+  function syncRatioSelect(){
+    const sel=$('selRatio'); const cur=sel.value;
+    sel.innerHTML='';
+    ratios.forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent='f = '+r;sel.appendChild(o);});
+    if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  }
+
+  // ---- combo adder segmented controls ----
+  function wireSeg(segId,setFn){
+    $(segId).querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click',()=>{
+        $(segId).querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+        b.classList.add('on'); setFn(b.dataset.s);
+      });
+    });
+  }
+
+  function addCombo(fSize,iSize,f){
+    combos.push({fSize,iSize,f:clampRatio(f)});
+    combos=dedupe(combos);
+    refresh();
+  }
+
+  function renderCombos(){
+    const list=$('comboList'); list.innerHTML='';
+    if(combos.length===0){
+      list.innerHTML='<div class="empty-note">No combinations yet — add some above, or use “Add all”.</div>';
+    } else {
+      combos.forEach((c,i)=>{
+        const row=document.createElement('div'); row.className='combo-row';
+        const funcChip=`<span class="chip ${c.fSize}">${c.fSize}</span>`;
+        const inertPart = c.f>=1 ? `<span class="rtag">no inert</span>`
+                        : `<span class="arrow">+ inert</span> <span class="chip ${c.iSize}">${c.iSize}</span>`;
+        row.innerHTML=`<span class="idx">${i+1}</span>
+          <span class="desc"><span class="swatch" style="background:${SZCOL[c.fSize]}"></span>
+            <b>func</b> ${funcChip} ${inertPart}
+            <span class="rtag">f = ${c.f}</span></span>
+          <button class="rm" title="remove">×</button>`;
+        row.querySelector('.rm').addEventListener('click',()=>{combos.splice(i,1);refresh();});
+        list.appendChild(row);
+      });
+    }
+    const n=combos.length;
+    $('capNote').innerHTML = n>NWELLS
+      ? `<span class="over-warn">${n} conditions exceed ${NWELLS} wells — the first ${NWELLS} (×1 well) are mapped; reduce combinations or replicates.</span>`
+      : `${n} condition${n===1?'':'s'} · ${n} of ${NWELLS} base wells used (before replicates).`;
+    $('metaConds').textContent = `${n} condition${n===1?'':'s'}`;
+    $('metaRatios').textContent = `${ratios.length} ratio${ratios.length===1?'':'s'} · ${ratios.join(' / ')}`;
+  }
+
+  // ---- plate map (built from combos × reps) ----
+  function buildPlate(){
+    const reps=+$('reps').value;
+    // expand conditions into wells
+    const wells=[];
+    combos.forEach((c,ci)=>{ for(let r=0;r<reps && wells.length<NWELLS;r++) wells.push({c,ci,rep:r+1,reps}); });
+
+    const p=$('plate');
+    let html='<div class="col-h"></div>';
+    for(let col=1;col<=COLS;col++) html+=`<div class="col-h">${col}</div>`;
+    ROWS.forEach((rl,ri)=>{
+      html+=`<div class="row-h">${rl}</div>`;
+      for(let col=1;col<=COLS;col++){
+        const idx=ri*COLS+col-1; // 0-based well index
+        const w=wells[idx];
+        if(w){
+          const c=w.c;
+          const col1=SZCOL[c.fSize];
+          const repTag=w.reps>1?`<div class="rat">rep ${w.rep}/${w.reps}</div>`:'';
+          const inert=c.f>=1?'':` : ${c.iSize}I`;
+          html+=`<div class="well" style="background:${hexA(col1,.28)};border-color:${col1}">
+            <div class="cond">${c.fSize}F${inert}</div>
+            <div class="rat" style="color:${hexA(col1,1)}">f=${c.f}</div>${repTag}</div>`;
+        } else {
+          html+=`<div class="well spare"><div class="cond">${rl}${col}<br>spare</div></div>`;
+        }
+      }
+    });
+    p.innerHTML=html;
+  }
+  // add alpha to a hex color
+  function hexA(hex,a){
+    hex=hex.replace('#',''); if(hex.length===3)hex=hex.split('').map(x=>x+x).join('');
+    const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  // ---- calculator ----
+  function calc(){
+    const Vtot=+$('Vtot').value, reps=+$('reps').value, AF=+$('AF').value,
+          phi=+$('phi').value, stock=Math.max(0.1,+$('stock').value), ex=+$('ex').value,
+          c=covFrac();
+    $('vVtot').innerHTML=Vtot+'<small> µL</small>';$('vReps').textContent=reps;
+    $('vAF').innerHTML=AF+'<small> µm²</small>';$('vPhi').textContent=phi.toFixed(2);
+    $('vStock').innerHTML=stock+'<small> million/mL</small>';$('vEx').textContent=ex.toFixed(2)+'×';
+
+    const Vum=Vtot*1e9;                 // µL bulk -> µm³
+    const cellsPerUL=stock*1000;        // ×10⁶/mL = 1000 cells/µL per unit
+    const nF=(L,f)=>6*phi*f*c*Vum/(L*AF);
+
+    // master loading cards — one per functional size actually used
+    const usedF=[...new Set(combos.map(x=>x.fSize))];
+    let hero='';
+    (usedF.length?usedF:[]).forEach(s=>{
+      const L=Lof(s), load=6*phi*c*1e9/(L*AF);
+      hero+=`<div class="card" style="border-top-color:${SZCOL[s]}">
+        <div class="lab"><span class="chip ${s}">${s}</span> functional · ${L}µm</div>
+        <div class="big">${fmt(load)}</div>
+        <div class="u">fibroblasts / µL bulk granules · at ${(c*100)|0}% coverage</div></div>`;
+    });
+    $('loadHero').innerHTML = hero || '<div class="empty-note" style="padding:10px">Add combinations above to compute loading.</div>';
+
+    // per-condition rows
+    let rows='';
+    combos.forEach((cc,i)=>{
+      const L=Lof(cc.fSize), Fv=cc.f*Vtot, Iv=(1-cc.f)*Vtot, cells=nF(L,cc.f), vol=cells/cellsPerUL;
+      rows+=`<tr>
+        <td class="mono">${i+1}</td>
+        <td><span class="chip ${cc.fSize}">${condLabel(cc)}</span></td>
+        <td class="mono">${cc.f}</td>
+        <td class="mono">${f1(Fv)}</td>
+        <td class="mono">${cc.f>=1?'—':f1(Iv)}</td>
+        <td class="mono">${fmt(cells)}</td>
+        <td class="mono">${f1(vol)}</td></tr>`;
+    });
+    $('condRows').innerHTML = rows || '<tr><td colspan="7" class="empty-note" style="text-align:left">No conditions.</td></tr>';
+
+    // master pools — sum volume factors across conditions, per size/role
+    const scale=reps*ex;
+    // functional pools keyed by size: Σ f  ; inert pools keyed by size: Σ (1-f) for f<1
+    const funcVF={}, inertVF={};
+    combos.forEach(cc=>{
+      funcVF[cc.fSize]=(funcVF[cc.fSize]||0)+cc.f;
+      if(cc.f<1) inertVF[cc.iSize]=(inertVF[cc.iSize]||0)+(1-cc.f);
+    });
+
+    let mr=''; let totF=0;
+    SIZES.forEach(s=>{
+      if(funcVF[s]){
+        const vfac=funcVF[s], L=Lof(s), bulk=vfac*Vtot*scale,
+              gran=phi*vfac*Vum/Math.pow(L,3)*scale,
+              cells=6*phi*c*vfac*Vum/(L*AF)*scale, vol=cells/cellsPerUL;
+        totF+=cells;
+        mr+=`<tr><td><span class="chip ${s}">${s}</span> Functional</td>
+          <td class="mono">${f1(bulk)} µL</td><td class="mono">${fmt(gran)}</td>
+          <td class="mono">${fmt(cells)}</td><td class="mono">${f1(vol)} µL</td></tr>`;
+      }
+    });
+    SIZES.forEach(s=>{
+      if(inertVF[s]){
+        const vfac=inertVF[s], L=Lof(s), bulk=vfac*Vtot*scale,
+              gran=phi*vfac*Vum/Math.pow(L,3)*scale;
+        mr+=`<tr><td><span class="chip ${s}" style="filter:grayscale(.35)">${s}</span> Inert</td>
+          <td class="mono">${f1(bulk)} µL</td><td class="mono">${fmt(gran)}</td>
+          <td class="mono">—</td><td class="mono">—</td></tr>`;
+      }
+    });
+    if(mr){
+      mr+=`<tr style="border-top:2px solid var(--line)">
+        <td><b>Fibroblasts — grand total</b></td><td></td><td></td>
+        <td class="mono"><b>${fmt(totF)}</b></td>
+        <td class="mono"><b>${f1(totF/cellsPerUL)} µL</b></td></tr>`;
+    } else {
+      mr='<tr><td colspan="5" class="empty-note" style="text-align:left">No pools — add combinations above.</td></tr>';
+    }
+    $('masterRows').innerHTML=mr;
+  }
+
+  function refresh(){ renderCombos(); buildPlate(); calc(); }
+
+  // ---- wiring ----
+  ['LS','LM','LL'].forEach(id=>$(id).addEventListener('input',()=>{enforceSizes(id);refresh();}));
+  $('cov').addEventListener('input',()=>{syncCov('slider');calc();buildPlate();});
+  $('covNum').addEventListener('input',()=>{syncCov('num');calc();buildPlate();});
+  $('addRatio').addEventListener('click',()=>{ if(ratios.length>=8)return; ratios.push(0.5); renderRatios(); syncRatioSelect(); refresh(); });
+  wireSeg('segF',s=>pickF=s);
+  wireSeg('segI',s=>pickI=s);
+  $('addCombo').addEventListener('click',()=>addCombo(pickF,pickI,+$('selRatio').value));
+  $('addAll').addEventListener('click',()=>{
+    SIZES.forEach(f=>SIZES.forEach(i=>ratios.forEach(r=>combos.push({fSize:f,iSize:i,f:r}))));
+    combos=dedupe(combos); refresh();
+  });
+  ['Vtot','reps','AF','phi','stock','ex'].forEach(id=>$(id).addEventListener('input',()=>{calc();buildPlate();}));
+
+  // ---- init ----
+  enforceSizes('LS'); syncCov('slider'); renderRatios(); syncRatioSelect();
+  // sensible starting set: 3 functional sizes × their own inert × the f<1 ratios, + all-functional
+  SIZES.forEach(f=>ratios.forEach(r=>combos.push({fSize:f,iSize:f,f:r})));
+  combos=dedupe(combos);
+  refresh();
+})();
+</script>
+</body>
+</html>

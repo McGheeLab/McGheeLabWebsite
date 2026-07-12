@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facilities Doc — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/grant-doc.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body>
+  <div class="page grantdoc-page">
+    <div class="grantdoc-toolbar">
+      <h1>Facilities &amp; Equipment Doc</h1>
+      <span class="grantdoc-spacer"></span>
+      <input type="text" id="gd-active-label" placeholder="Document label">
+      <button class="btn" id="gd-regen-btn" title="Re-run aggregator from inventory + equipment + people">Regenerate</button>
+      <button class="btn" id="gd-print-btn" title="Print → PDF">Print</button>
+      <button class="btn" id="gd-export-btn" title="Download as Word">Export DOC</button>
+      <button class="btn" id="gd-delete-btn" title="Delete this doc">Delete</button>
+      <span class="grantdoc-status" id="gd-savestate"></span>
+    </div>
+
+    <div class="grantdoc-layout">
+      <aside class="grantdoc-variants">
+        <h3>Documents</h3>
+        <ul class="grantdoc-variant-list" id="gd-variant-list"></ul>
+        <button class="btn btn-primary" id="gd-new-btn" style="width:100%;">+ New facilities doc</button>
+        <div style="margin-top:12px;font-size:11px;color:var(--text-muted,#777);line-height:1.4;">
+          Sections are auto-generated from <a href="/rm/pages/inventory.html">Inventory</a>,
+          <a href="/rm/pages/equipment.html">Equipment</a>, and lab personnel. Edit any section
+          inline — hand-edited sections are preserved on "Regenerate".
+        </div>
+      </aside>
+
+      <main class="grantdoc-paper" id="gd-paper">
+        <div class="grantdoc-empty-state"><h2>Loading…</h2></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/grant-facilities.js"></script>
+  <script src="/rm/js/grant-biosketch-export.js"></script>
+</body>
+</html>

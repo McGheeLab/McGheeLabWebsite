@@ -37,25 +37,296 @@ var _CAT_LABEL = (_YR.CAT_LABEL) || { research: 'Research', teaching: 'Teaching'
 
 var _bucketsDoc = null;  // for rendering linked-tasks section
 
+/* V3.135 — first-author enforcement helpers. The schema field
+ * `first_author_uids: string[]` (V3.133) gates "higher admin rights"
+ * on paper items. Rules (per user decision):
+ *   (a) edit paper metadata        → first author OR admin
+ *   (b) add/remove personnel       → first author OR admin
+ *   (c) add/remove project Members → admin only (existing rule)
+ *   (d) delete the paper           → admin only
+ *   (e) set/unset first authors    → admin only (V3.133)
+ *
+ * Server-side enforcement lives in firestore.rules (V3.135 update).
+ * These client-side gates are matched UI affordances + defense-in-depth
+ * checks at handler entry.
+ */
+function _myUid() {
+  return (typeof firebridge !== 'undefined' && firebridge.getUser)
+    ? ((firebridge.getUser() || {}).uid || null)
+    : null;
+}
+function _isAdminUser() {
+  return typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin();
+}
+function _canEditPaper(item) {
+  if (!item) return false;
+  if (_isAdminUser()) return true;
+  if (item.type !== 'paper') return true;
+  var uid = _myUid();
+  return !!uid && Array.isArray(item.first_author_uids) && item.first_author_uids.indexOf(uid) !== -1;
+}
+function _canDeleteItem(item) {
+  if (!item) return false;
+  if (_isAdminUser()) return true;
+  return item.type !== 'paper';
+}
+
+/* V3.130 — Surgical Firestore writes for items and canonical projects.
+ *
+ * The adapter's collection-save (api-firestore-adapter.js _saveFirestore)
+ * does a full collection replace: every row in items.json becomes a
+ * batch.set on items/{id}. With ~hundreds of items the rewrite easily
+ * takes 5-15 seconds. Every Add Item / Edit Item / Add Member click on
+ * /rm/pages/projects.html paid that cost.
+ *
+ * These helpers write the ONE changed doc directly to Firestore via
+ * firebridge.db, then fire-and-forget the JSON shadow save so the local
+ * mirror stays in sync without blocking the UI. Falls back to the full
+ * api.save if firebridge isn't available (e.g. local dev w/o Firestore).
+ */
+async function saveItemSurgical(item) {
+  if (!item || !item.id) throw new Error('saveItemSurgical: item.id required');
+  if (typeof firebridge !== 'undefined' && firebridge.db && firebridge.getUser && firebridge.getUser()) {
+    try {
+      // Suppress our own live-sync echo so the items.json subscriber
+      // doesn't trigger a full loadAll() re-fetch after the write.
+      if (typeof _projLive !== 'undefined') _projLive.suppressUntil = Date.now() + 2500;
+      var ref = firebridge.db().collection('items').doc(item.id);
+      var clean = Object.assign({}, item);
+      delete clean.id;
+      clean.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      await ref.set(clean, { merge: true });
+      // Fire-and-forget JSON shadow so file-backed dev mirror stays current.
+      // This path no-ops in production where shadowJson is server-side.
+      api.load(ITEMS_PATH).then(function (doc) {
+        var arr = (doc && doc.items) || [];
+        var i = arr.findIndex(function (r) { return r && r.id === item.id; });
+        if (i >= 0) arr[i] = item; else arr.push(item);
+        return api.save(ITEMS_PATH, doc);
+      }).catch(function (err) {
+        console.warn('[projects] surgical item save: shadow JSON write failed:', err && err.message);
+      });
+      return;
+    } catch (err) {
+      console.warn('[projects] surgical item save failed, falling back to full save:', err.message);
+    }
+  }
+  // Fallback: full collection rewrite via the adapter.
+  var data = await api.load(ITEMS_PATH);
+  var arr = data.items || [];
+  var idx = arr.findIndex(function (r) { return r && r.id === item.id; });
+  if (idx >= 0) arr[idx] = item; else arr.push(item);
+  data.items = arr;
+  await api.save(ITEMS_PATH, data);
+}
+
+async function saveProjectDocSurgical(canon, row) {
+  if (!canon || !canon.sourcePath || !canon.sourceKey) throw new Error('saveProjectDocSurgical: canon required');
+  if (!row || !row.id) throw new Error('saveProjectDocSurgical: row.id required');
+  if (typeof firebridge !== 'undefined' && firebridge.db && firebridge.getUser && firebridge.getUser()) {
+    try {
+      // Suppress our own live-sync echo (parallel to saveItemSurgical).
+      if (typeof _projLive !== 'undefined') _projLive.suppressUntil = Date.now() + 2500;
+      // The 4 typed JSONs (papers/courses/infrastructure/tools) shard the
+      // single `projects` Firestore collection by `type`. Stamp the
+      // discriminator on direct writes so adapter listing queries still
+      // resolve it.
+      var typeMap = { papers: 'paper', courses: 'course', infrastructure: 'infrastructure', tools: 'tool' };
+      var typeVal = typeMap[canon.sourceKey] || canon.sourceKey;
+      var ref = firebridge.db().collection('projects').doc(row.id);
+      var clean = Object.assign({}, row);
+      delete clean.id;
+      clean.type = typeVal;
+      clean.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      await ref.set(clean, { merge: true });
+      // Fire-and-forget shadow JSON.
+      api.load(canon.sourcePath).then(function (doc) {
+        var arr = (doc && doc[canon.sourceKey]) || [];
+        var i = arr.findIndex(function (r) { return r && r.id === row.id; });
+        if (i >= 0) arr[i] = row; else arr.push(row);
+        return api.save(canon.sourcePath, doc);
+      }).catch(function (err) {
+        console.warn('[projects] surgical canonical save: shadow JSON write failed:', err && err.message);
+      });
+      return;
+    } catch (err) {
+      console.warn('[projects] surgical canonical save failed, falling back to full save:', err.message);
+    }
+  }
+  // Fallback: full collection rewrite via the adapter.
+  var data = await api.load(canon.sourcePath);
+  var arr = (data && data[canon.sourceKey]) || [];
+  var idx = arr.findIndex(function (r) { return r && r.id === row.id; });
+  if (idx >= 0) arr[idx] = row; else arr.push(row);
+  if (!data) data = {};
+  data[canon.sourceKey] = arr;
+  await api.save(canon.sourcePath, data);
+}
+
+/* V3.126 — Members assignment now lives on the canonical `projects`
+ * Firestore collection (the field PMR + Lab Notebook + future page-level
+ * access gates all read), not on the legacy items.json `personnel[]`
+ * field. The four typed JSON paths shard the same `projects` collection
+ * by `type`. We load all four at boot and project them into a flat map
+ * keyed by item id so the per-item Members section can read + write
+ * `member_uids[]` without re-fetching.
+ *
+ * NOTE: items.json (legacy unified registry) and projects/<type>.json
+ * (canonical projects collection) are NOT auto-mirrored Firestore
+ * collections. Whether the same item id appears in BOTH is data-
+ * dependent. The Members section silently no-ops on items that have no
+ * canonical record — admins can create one via the migration page or by
+ * editing projects/<type>.json directly. */
+var _canonicalProjects = {};   // itemId → { sourcePath, sourceKey, member_uids[] }
+var _CANONICAL_SOURCES = [
+  { path: 'projects/papers.json',         key: 'papers' },
+  { path: 'projects/courses.json',        key: 'courses' },
+  { path: 'projects/infrastructure.json', key: 'infrastructure' },
+  { path: 'projects/tools.json',          key: 'tools' },
+];
+
+/* V3.229 — papers and grant drafts now stream into the research view from
+ * their builder-owned sources (projects/papers.json and the `grantDrafts`
+ * Firestore collection). We materialize them as "virtual" items so the
+ * existing pin-grid renderer treats them like any other items.json row,
+ * but clicking through deep-links to the builder rather than expanding
+ * inline. Items.json paper rows are filtered out (they're legacy
+ * duplicates); items.json grant rows stay visible until a future
+ * migration moves them into grantDrafts. */
+var _canonicalPapersRaw = [];  // raw rows from projects/papers.json
+var _grantDraftsCache = [];    // raw docs from grantDrafts collection
+var _virtualItems = [];        // built from the two caches above
+var _virtualGrantIds = new Set();
+
+function _buildVirtualPaperItem(row) {
+  return {
+    id: row.id,
+    title: row.title || '(untitled)',
+    type: 'paper',
+    category: 'research',
+    status: row.status || 'drafting',
+    description: '',
+    notes: row.notes || '',
+    personnel: [],
+    tags: [],
+    subtasks: [],
+    related_ids: [],
+    repo_path: row.repo_path || '',
+    repo_org: row.repo_org || '',
+    meta: {
+      target_journal: row.target_journal || '',
+      lead_author: row.lead_author || '',
+    },
+    first_author_uids: row.lead_author_uid ? [row.lead_author_uid] : [],
+    funding_account_ids: [],
+    created_at: '',
+    updated_at: '',
+    _builderHref: '/rm/pages/paper-builder.html?paper=' + encodeURIComponent(row.id),
+  };
+}
+
+function _buildVirtualGrantItem(doc) {
+  return {
+    id: doc.id,
+    title: doc.title || '(untitled)',
+    type: 'grant',
+    category: 'research',
+    status: doc.status || 'drafting',
+    description: '',
+    notes: '',
+    personnel: [],
+    tags: [],
+    subtasks: [],
+    related_ids: [],
+    repo_path: '',
+    repo_org: '',
+    meta: {
+      funder: doc.agency || '',
+      mechanism: doc.mechanism || '',
+      submit_deadline: doc.deadlineISO || '',
+      role: doc.pi ? 'PI' : '',
+    },
+    funding_account_ids: [],
+    created_at: '',
+    updated_at: '',
+    _builderHref: '/rm/pages/grant-builder.html?grant=' + encodeURIComponent(doc.id),
+  };
+}
+
+function _rebuildVirtualItems() {
+  _virtualItems = [];
+  _virtualGrantIds = new Set();
+  if (_pageCategory !== 'research') return;
+  _canonicalPapersRaw.forEach(function (p) {
+    if (p && p.id) _virtualItems.push(_buildVirtualPaperItem(p));
+  });
+  _grantDraftsCache.forEach(function (g) {
+    if (!g || !g.id) return;
+    _virtualGrantIds.add(g.id);
+    _virtualItems.push(_buildVirtualGrantItem(g));
+  });
+}
+
+function _filterItemsForCategory(allItems) {
+  var filtered = (allItems || []).filter(function (it) {
+    if (it.category !== _pageCategory) return false;
+    // Library-entry papers (uploaded via /pages/library.html) live in
+    // items.json for cross-system references but shouldn't clutter the
+    // Research → Projects view. They get their own page.
+    var lib = (it.meta || {}).library;
+    if (lib && lib.is_library_entry) return false;
+    // V3.229 — papers come from projects/papers.json (paper-builder).
+    // Items.json paper rows are legacy duplicates; hide them so the
+    // research view doesn't double-list. Grants with an id present in
+    // grantDrafts are also hidden — the virtual entry replaces them.
+    if (it.type === 'paper') return false;
+    if (it.type === 'grant' && _virtualGrantIds.has(it.id)) return false;
+    return true;
+  });
+  return filtered.concat(_virtualItems);
+}
+
+async function _loadGrantDrafts() {
+  if (_pageCategory !== 'research') return [];
+  if (typeof firebridge === 'undefined' || !firebridge.db || !firebridge.isReady || !firebridge.isReady()) return [];
+  try {
+    var snap = await firebridge.db().collection('grantDrafts').get();
+    return snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+  } catch (err) {
+    console.warn('[projects] grantDrafts load failed:', err && err.message);
+    return [];
+  }
+}
+
 async function loadAll() {
   var results = await Promise.all([
     api.load(ITEMS_PATH),
     api.load(ROSTER_PATH),
     api.load(FINANCE_PATH),
     api.load(INVENTORY_PATH),
-    api.load('tasks/buckets.json').catch(function () { return { projects: [] }; }),
+    api.load('tasks/buckets.json').catch(function () { return { taskBuilders: [] }; }),
+    // V3.126 — canonical projects (4 typed JSONs sharded into the
+    // `projects` Firestore collection). Each is .catch'd independently
+    // so a missing file or permission glitch on one type doesn't blank
+    // the whole Members surface.
+    api.load('projects/papers.json').catch(function () { return null; }),
+    api.load('projects/courses.json').catch(function () { return null; }),
+    api.load('projects/infrastructure.json').catch(function () { return null; }),
+    api.load('projects/tools.json').catch(function () { return null; }),
   ]);
   _allItems = results[0].items || [];
-  _items = _allItems.filter(function (it) {
-    if (it.category !== _pageCategory) return false;
-    // Library-entry papers (uploaded via /pages/library.html) live in
-    // items.json so the rest of the system can reference them, but they
-    // shouldn't clutter the Research → Projects view. They get their own
-    // page (/pages/library.html).
-    var lib = (it.meta || {}).library;
-    if (lib && lib.is_library_entry) return false;
-    return true;
-  });
+
+  // V3.229 — cache the paper-builder source rows now so the virtual-item
+  // builder below can stamp them as paper items on the research view.
+  _canonicalPapersRaw = ((results[5] && results[5].papers) || []).slice();
+
+  // V3.229 — pull grant-builder drafts in parallel with the canonical
+  // projects load. Firestore-only; no JSON shadow. Skipped on non-research
+  // pages (teaching, service) where _pageCategory != 'research'.
+  _grantDraftsCache = await _loadGrantDrafts();
+  _rebuildVirtualItems();
+
+  _items = _filterItemsForCategory(_allItems);
 
   // Build the personnel roster from BOTH the website's users/{uid} (the
   // canonical lab people source) AND the legacy people/roster.json. Legacy
@@ -92,7 +363,26 @@ async function loadAll() {
 
   _financeProjects = results[2].projects || [];
   _inventoryItems = results[3].items || [];
-  _bucketsDoc = results[4] || { projects: [] };
+  _bucketsDoc = results[4] || { taskBuilders: [] };
+
+  // V3.126 — build the canonical projects map (item id → source + member_uids[])
+  // from the four typed JSONs loaded in slots 5-8. This is the read side; the
+  // Members section's add/remove handlers re-load + save the same JSON paths
+  // so the Firestore `projects` collection stays the single source of truth
+  // for project membership across the whole RM surface.
+  _canonicalProjects = {};
+  _CANONICAL_SOURCES.forEach(function (src, i) {
+    var data = results[5 + i];
+    var rows = (data && data[src.key]) || [];
+    rows.forEach(function (row) {
+      if (!row || !row.id) return;
+      _canonicalProjects[row.id] = {
+        sourcePath: src.path,
+        sourceKey: src.key,
+        member_uids: Array.isArray(row.member_uids) ? row.member_uids.slice() : [],
+      };
+    });
+  });
 
   // Honor ?item=<id> from links coming in from the dashboard so the targeted
   // card opens expanded.
@@ -150,6 +440,15 @@ function render() {
     b.addEventListener('click', function (e) {
       if (e.target.closest('button, input, select, a, textarea, .pin-card-body, .item-section')) return;
       var id = b.dataset.itemId;
+      // V3.229 — virtual paper/grant items (sourced from the builders) deep-
+      // link into their builder rather than expanding inline. Inline edit
+      // doesn't make sense for these because their canonical writes go to
+      // projects/papers.json or grantDrafts, not items.json.
+      var clicked = _items.find(function (it) { return it.id === id; });
+      if (clicked && clicked._builderHref) {
+        window.location.href = clicked._builderHref;
+        return;
+      }
       _expandedId = (_expandedId === id) ? null : id;
       render();
       if (_expandedId) {
@@ -286,7 +585,11 @@ function renderPinBox(item) {
   if (isExpanded) {
     var body = document.createElement('div');
     body.className = 'pin-card-body item-focus-body';
-    body.innerHTML = renderItemHero(item) + renderItemDetailAccordions(item);
+    // V3.234 — external-links placeholder rendered between hero and the
+    // detail accordions; mounted via EXTERNAL_LINKS.mount after innerHTML.
+    body.innerHTML = renderItemHero(item) +
+                     '<div data-ext-links-mount style="padding:0 14px"></div>' +
+                     renderItemDetailAccordions(item);
     box.appendChild(body);
 
     // Mount the live claims panel into any [data-claims-mount] placeholder
@@ -297,6 +600,25 @@ function renderPinBox(item) {
       var draftId = mountEl.dataset.claimsMount;
       _disposeClaimsMount();
       _claimsUnmount = window.CLAIMS_PANEL.mount(mountEl, draftId);
+    }
+
+    // V3.234 — external links block on every item type. Gate writes on the
+    // same edit gate the rest of the card uses (paper items: first-author
+    // or admin; everything else: any lab member).
+    var extHost = body.querySelector('[data-ext-links-mount]');
+    if (extHost && window.EXTERNAL_LINKS) {
+      if (!Array.isArray(item.externalLinks)) item.externalLinks = [];
+      window.EXTERNAL_LINKS.mount({
+        container: extHost,
+        getLinks: function () { return item.externalLinks || []; },
+        setLinks: function (next) {
+          item.externalLinks = next;
+          saveItemSurgical(item).catch(function (err) {
+            console.warn('[projects] externalLinks save failed:', err && err.message);
+          });
+        },
+        readOnly: !_canEditPaper(item),
+      });
     }
   }
 
@@ -366,7 +688,7 @@ function renderLinkedTasksHero(item) {
   var linked = LINKS.linkedBucketsForItem(item, _bucketsDoc);
   if (!linked.length) return '';
   var html = '<div class="item-hero-tasks">';
-  html += '<div class="item-hero-section-label">Linked task projects</div>';
+  html += '<div class="item-hero-section-label">Linked task builders</div>';
   linked.forEach(function (proj) {
     var openCount = countOpenInBucketProject(proj);
     var earliest = earliestOpenDueInBucketProject(proj);
@@ -384,13 +706,23 @@ function renderLinkedTasksHero(item) {
 }
 
 function renderHeroActions(item) {
-  return '<div class="item-hero-actions">'
+  // V3.135 — gate Edit (paper-FA-or-admin) and Delete (paper-admin-only).
+  var canEdit = _canEditPaper(item);
+  var canDelete = _canDeleteItem(item);
+  var html = '<div class="item-hero-actions">'
     + '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); pinItemToDashboardUI(\'' + item.id + '\')">Pin to dashboard</button>'
     + '<button class="btn btn-sm" onclick="event.stopPropagation(); openLinkBucketPicker(\'' + item.id + '\')">+ Link existing project</button>'
-    + '<span style="flex:1"></span>'
-    + '<button class="btn btn-sm" onclick="event.stopPropagation(); editItemById(\'' + item.id + '\')">Edit</button>'
-    + '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteItemById(\'' + item.id + '\')">Delete</button>'
-    + '</div>';
+    + '<span style="flex:1"></span>';
+  if (canEdit) {
+    html += '<button class="btn btn-sm" onclick="event.stopPropagation(); editItemById(\'' + item.id + '\')">Edit</button>';
+  }
+  if (canDelete) {
+    html += '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteItemById(\'' + item.id + '\')">Delete</button>';
+  }
+  if (!canEdit && item.type === 'paper') {
+    html += '<span class="item-hero-readonly" title="Only first authors and admins can edit this paper.">read-only</span>';
+  }
+  return html + '</div>';
 }
 
 /* ---- Detail accordions: opt-in deeper info below the hero ---- */
@@ -408,6 +740,7 @@ function renderItemDetailAccordions(item) {
   }
   sections += renderRelatedSection(item);
   sections += renderPersonnelSection(item);
+  sections += renderMembersSection(item);
   if ((item.funding_account_ids && item.funding_account_ids.length > 0) || isGrantLike(item)) {
     sections += renderFundingSection(item);
   }
@@ -770,6 +1103,12 @@ function renderPersonnelSection(item) {
   var personnel = item.personnel || [];
   var label = 'Personnel' + (personnel.length ? ' (' + personnel.length + ')' : '');
   var body = '';
+  // V3.133 — first-author marking on papers (star toggle is admin-only).
+  // V3.135 — Add Personnel + remove × are gated by _canEditPaper(item).
+  var isPaper = item.type === 'paper';
+  var firstAuthors = Array.isArray(item.first_author_uids) ? item.first_author_uids : [];
+  var isAdminUser = _isAdminUser();
+  var canEdit = _canEditPaper(item);
   if (personnel.length === 0) {
     body = '<div style="color:var(--text-muted);">No personnel assigned.</div>';
   } else {
@@ -777,14 +1116,68 @@ function renderPersonnelSection(item) {
       var member = _roster.find(function (m) { return m.id === pid; });
       var display = member ? member.name : pid;
       var role = member ? member.role : '';
-      body += '<span class="personnel-chip">' + escHtml(display);
+      var isFA = firstAuthors.indexOf(pid) !== -1;
+      var chipClass = 'personnel-chip' + (isFA ? ' first-author' : '');
+      body += '<span class="' + chipClass + '">';
+      if (isPaper) {
+        var starCls = 'first-author-star' + (isFA ? '' : ' off');
+        var starTitle = isAdminUser
+          ? (isFA ? 'Remove first-author status' : 'Mark as first author (max 2)')
+          : 'Only admins can change first authors';
+        var clickHandler = isAdminUser
+          ? 'event.stopPropagation(); toggleFirstAuthor(\'' + item.id + '\',\'' + pid + '\')'
+          : 'event.stopPropagation();';
+        body += '<span class="' + starCls + '" title="' + escHtml(starTitle) + '" onclick="' + clickHandler + '">★</span>';
+      }
+      body += escHtml(display);
       if (role) body += ' <span style="color:var(--text-muted);">(' + escHtml(role) + ')</span>';
-      body += ' <span class="remove-link" style="cursor:pointer;color:var(--text-muted);font-size:14px;" onclick="event.stopPropagation(); removePersonnel(\'' + item.id + '\',' + pi + ')">&times;</span>';
+      if (canEdit) {
+        body += ' <span class="remove-link" style="cursor:pointer;color:var(--text-muted);font-size:14px;" onclick="event.stopPropagation(); removePersonnel(\'' + item.id + '\',' + pi + ')">&times;</span>';
+      }
+      body += '</span>';
+    });
+    if (isPaper && firstAuthors.length) {
+      body += '<div style="margin-top:6px;font-size:11px;color:var(--text-muted);">⭐ First authors have higher admin rights to this paper.</div>';
+    }
+  }
+  var actions = canEdit
+    ? '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addPersonnel(\'' + item.id + '\')">+ Add</button>'
+    : '';
+  return sectionHtml(item.id, 'personnel', label, body, actions);
+}
+
+/* V3.126 — Project Members section. This is the canonical surface for
+ * "who can see / edit this project across RM" — the field every page
+ * that gates by project membership reads (PMR, Lab Notebook, future
+ * page-level access controls). Distinct from the legacy Personnel
+ * section above, which lives on items.json's `personnel[]` (mixed
+ * roster-id + uid free-text field, primarily for human-readable
+ * personnel attribution).
+ *
+ * The section only renders for items whose id is mirrored in
+ * projects/<type>.json. Items without a canonical record (grants,
+ * conferences, library-only papers) silently no-op. */
+function renderMembersSection(item) {
+  var canon = _canonicalProjects[item.id];
+  if (!canon) return '';
+  var memberUids = canon.member_uids || [];
+  var label = 'Members' + (memberUids.length ? ' (' + memberUids.length + ')' : '');
+  var body = '';
+  if (memberUids.length === 0) {
+    body = '<div style="color:var(--text-muted);">No lab members assigned. Click <strong>+ Add member</strong> to grant project access — the assignment propagates to PMR, Lab Notebook, and any page that gates by project membership.</div>';
+  } else {
+    memberUids.forEach(function (uid) {
+      var member = _roster.find(function (m) { return m.id === uid; });
+      var display = member ? member.name : uid;
+      var role = member ? member.role : '';
+      body += '<span class="member-chip personnel-chip">' + escHtml(display);
+      if (role) body += ' <span style="color:var(--text-muted);">(' + escHtml(role) + ')</span>';
+      body += ' <span class="remove-link" style="cursor:pointer;color:var(--text-muted);font-size:14px;" onclick="event.stopPropagation(); removeProjectMember(\'' + item.id + '\',\'' + uid + '\')">&times;</span>';
       body += '</span>';
     });
   }
-  var actions = '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addPersonnel(\'' + item.id + '\')">+ Add</button>';
-  return sectionHtml(item.id, 'personnel', label, body, actions);
+  var actions = '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addProjectMember(\'' + item.id + '\')">+ Add member</button>';
+  return sectionHtml(item.id, 'members', label, body, actions);
 }
 
 function renderFundingSection(item) {
@@ -901,7 +1294,7 @@ window.pinItemToDashboardUI = async function (itemId) {
 };
 
 window.unlinkBucketFromItem = async function (itemId, bucketId) {
-  if (!confirm('Unlink this task project from the item? (The project itself is not deleted.)')) return;
+  if (!confirm('Unlink this task builder from the item? (The task builder itself is not deleted.)')) return;
   try {
     await LINKS.removeLink(itemId, bucketId);
     var [items, buckets] = await Promise.all([api.load(ITEMS_PATH), api.load('tasks/buckets.json')]);
@@ -918,15 +1311,15 @@ window.openLinkBucketPicker = async function (itemId) {
   var item = _allItems.find(function (i) { return i.id === itemId; });
   if (!item) return;
   var alreadyLinked = new Set(item.linked_bucket_ids || []);
-  var available = (doc.projects || []).filter(function (p) {
+  var available = (doc.taskBuilders || []).filter(function (p) {
     return p.id !== 'proj-inbox' && !alreadyLinked.has(p.id);
   });
-  if (!available.length) { alert('No unlinked task projects to attach. Create one on the Task dashboard first.'); return; }
+  if (!available.length) { alert('No unlinked task builders to attach. Create one on the Task dashboard first.'); return; }
   var labels = {};
   available.forEach(function (p) { labels[p.id] = p.title + (p.category ? ' (' + p.category + ')' : ''); });
   openForm({
-    title: 'Link to existing task project',
-    fields: [{ key: 'bucket_id', label: 'Project', type: 'select', required: true,
+    title: 'Link to existing task builder',
+    fields: [{ key: 'bucket_id', label: 'Task builder', type: 'select', required: true,
       options: available.map(function (p) { return p.id; }), optionLabels: labels }],
     onSave: async function (vals) {
       await LINKS.addLink(itemId, vals.bucket_id);
@@ -962,12 +1355,7 @@ var SUBTASK_FIELDS = [
 
 function _reloadItems(data) {
   _allItems = data.items;
-  _items = _allItems.filter(function (it) {
-    if (it.category !== _pageCategory) return false;
-    var lib = (it.meta || {}).library;
-    if (lib && lib.is_library_entry) return false;
-    return true;
-  });
+  _items = _filterItemsForCategory(_allItems);
 }
 
 window.toggleItemSubtask = function (itemId, subIdx) {
@@ -1097,9 +1485,9 @@ window.linkRelated = function (itemId) {
       options: opts.map(function (o) { return o.value; }),
       optionLabels: opts.reduce(function (m, o) { m[o.value] = o.label; return m; }, {}) }],
     onSave: async function (vals) {
-      var data = await api.load(ITEMS_PATH);
-      var it = data.items.find(function (i) { return i.id === itemId; });
-      var other = data.items.find(function (i) { return i.id === vals.related_id; });
+      // V3.130 — surgical writes for both endpoints of the link.
+      var it = _allItems.find(function (i) { return i.id === itemId; });
+      var other = _allItems.find(function (i) { return i.id === vals.related_id; });
       if (!it) return;
       if (!it.related_ids) it.related_ids = [];
       if (it.related_ids.indexOf(vals.related_id) === -1) it.related_ids.push(vals.related_id);
@@ -1107,8 +1495,8 @@ window.linkRelated = function (itemId) {
         if (!other.related_ids) other.related_ids = [];
         if (other.related_ids.indexOf(itemId) === -1) other.related_ids.push(itemId);
       }
-      await api.save(ITEMS_PATH, data);
-      _reloadItems(data);
+      await saveItemSurgical(it);
+      if (other) await saveItemSurgical(other);
       if (!_openSections[itemId]) _openSections[itemId] = {};
       _openSections[itemId].related = true;
       render();
@@ -1117,13 +1505,14 @@ window.linkRelated = function (itemId) {
 };
 
 window.unlinkRelated = async function (itemId, relatedId) {
-  var data = await api.load(ITEMS_PATH);
-  var it = data.items.find(function (i) { return i.id === itemId; });
+  // V3.130 — surgical writes for both endpoints.
+  var it = _allItems.find(function (i) { return i.id === itemId; });
   if (it && it.related_ids) it.related_ids = it.related_ids.filter(function (r) { return r !== relatedId; });
-  var other = data.items.find(function (i) { return i.id === relatedId; });
+  var other = _allItems.find(function (i) { return i.id === relatedId; });
   if (other && other.related_ids) other.related_ids = other.related_ids.filter(function (r) { return r !== itemId; });
-  await api.save(ITEMS_PATH, data);
-  _reloadItems(data); render();
+  if (it) await saveItemSurgical(it);
+  if (other) await saveItemSurgical(other);
+  render();
 };
 
 /* ---- Project-specific linking ---- */
@@ -1145,9 +1534,9 @@ window.linkToolToProject = function (projectId) {
       options: opts.map(function (o) { return o.value; }),
       optionLabels: opts.reduce(function (m, o) { m[o.value] = o.label; return m; }, {}) }],
     onSave: async function (vals) {
-      var data = await api.load(ITEMS_PATH);
-      var proj = data.items.find(function (i) { return i.id === projectId; });
-      var tool = data.items.find(function (i) { return i.id === vals.tool_id; });
+      // V3.130 — surgical writes for both endpoints.
+      var proj = _allItems.find(function (i) { return i.id === projectId; });
+      var tool = _allItems.find(function (i) { return i.id === vals.tool_id; });
       if (!proj) return;
       if (!proj.related_ids) proj.related_ids = [];
       if (proj.related_ids.indexOf(vals.tool_id) === -1) proj.related_ids.push(vals.tool_id);
@@ -1155,8 +1544,8 @@ window.linkToolToProject = function (projectId) {
         if (!tool.related_ids) tool.related_ids = [];
         if (tool.related_ids.indexOf(projectId) === -1) tool.related_ids.push(projectId);
       }
-      await api.save(ITEMS_PATH, data);
-      _reloadItems(data);
+      await saveItemSurgical(proj);
+      if (tool) await saveItemSurgical(tool);
       if (!_openSections[projectId]) _openSections[projectId] = {};
       _openSections[projectId].tools = true;
       render();
@@ -1181,9 +1570,9 @@ window.linkRepoToProject = function (projectId) {
       options: opts.map(function (o) { return o.value; }),
       optionLabels: opts.reduce(function (m, o) { m[o.value] = o.label; return m; }, {}) }],
     onSave: async function (vals) {
-      var data = await api.load(ITEMS_PATH);
-      var proj = data.items.find(function (i) { return i.id === projectId; });
-      var repoItem = data.items.find(function (i) { return i.id === vals.repo_item_id; });
+      // V3.130 — surgical writes for both endpoints.
+      var proj = _allItems.find(function (i) { return i.id === projectId; });
+      var repoItem = _allItems.find(function (i) { return i.id === vals.repo_item_id; });
       if (!proj) return;
       if (!proj.related_ids) proj.related_ids = [];
       if (proj.related_ids.indexOf(vals.repo_item_id) === -1) proj.related_ids.push(vals.repo_item_id);
@@ -1191,8 +1580,8 @@ window.linkRepoToProject = function (projectId) {
         if (!repoItem.related_ids) repoItem.related_ids = [];
         if (repoItem.related_ids.indexOf(projectId) === -1) repoItem.related_ids.push(projectId);
       }
-      await api.save(ITEMS_PATH, data);
-      _reloadItems(data);
+      await saveItemSurgical(proj);
+      if (repoItem) await saveItemSurgical(repoItem);
       if (!_openSections[projectId]) _openSections[projectId] = {};
       _openSections[projectId].project_repos = true;
       render();
@@ -1203,28 +1592,203 @@ window.linkRepoToProject = function (projectId) {
 /* ---- Personnel ---- */
 
 window.addPersonnel = function (itemId) {
+  // V3.130 — roster dropdown instead of free-text input. The personnel[]
+  // field is a string-id array; legacy slug ids and Firebase uids both
+  // serialize the same way, so the picker can offer both. A "+ free
+  // text…" escape hatch covers one-off external collaborators.
+  var item = _allItems.find(function (i) { return i.id === itemId; });
+  // V3.135 — paper-personnel edits are restricted to first author + admin.
+  if (!_canEditPaper(item)) {
+    alert('You don’t have permission to edit personnel on this paper.');
+    return;
+  }
+  var existing = new Set((item && item.personnel) || []);
+  var available = (_roster || []).filter(function (m) { return m && m.id && !existing.has(m.id); });
+  available.sort(function (a, b) { return String(a.name || a.id).localeCompare(String(b.name || b.id)); });
+  var FREE = '__free__';
+  var opts = available.map(function (m) { return m.id; });
+  opts.push(FREE);
+  var labels = {};
+  available.forEach(function (m) {
+    var bits = [m.name || m.id];
+    if (m.role) bits.push(m.role);
+    if (m.email) bits.push(m.email);
+    if (m._legacy) bits.push('(legacy)');
+    labels[m.id] = bits.join(' — ');
+  });
+  labels[FREE] = '+ Free-text name (external collaborator)…';
   openForm({
     title: 'Add Personnel',
-    fields: [{ key: 'person', label: 'Person (roster ID or name)', type: 'text', required: true, placeholder: 'roster id or full name' }],
+    fields: [{
+      key: 'who', label: 'Person', type: 'select', required: true,
+      options: opts, optionLabels: labels,
+    }],
     onSave: async function (vals) {
-      var data = await api.load(ITEMS_PATH);
-      var it = data.items.find(function (i) { return i.id === itemId; });
+      var who = vals.who;
+      if (who === FREE) {
+        var freeName = prompt('Name or external id to add to personnel:');
+        if (!freeName || !freeName.trim()) return;
+        who = freeName.trim();
+      }
+      var it = _allItems.find(function (i) { return i.id === itemId; });
       if (!it) return;
       if (!it.personnel) it.personnel = [];
-      if (it.personnel.indexOf(vals.person) === -1) it.personnel.push(vals.person);
-      await api.save(ITEMS_PATH, data);
-      _reloadItems(data); render();
+      if (it.personnel.indexOf(who) === -1) it.personnel.push(who);
+      it.updated_at = today();
+      // V3.130 — surgical write (see saveItemSurgical for full note).
+      await saveItemSurgical(it);
+      render();
     },
   });
 };
 
 window.removePersonnel = async function (itemId, idx) {
-  var data = await api.load(ITEMS_PATH);
-  var it = data.items.find(function (i) { return i.id === itemId; });
+  var it = _allItems.find(function (i) { return i.id === itemId; });
   if (!it || !it.personnel) return;
+  // V3.135 — paper-personnel edits are restricted to first author + admin.
+  if (!_canEditPaper(it)) {
+    alert('You don’t have permission to edit personnel on this paper.');
+    return;
+  }
+  var removed = it.personnel[idx];
   it.personnel.splice(idx, 1);
-  await api.save(ITEMS_PATH, data);
-  _reloadItems(data); render();
+  // V3.133 — keep first_author_uids in sync if the removed personnel was a first author.
+  if (Array.isArray(it.first_author_uids) && it.first_author_uids.indexOf(removed) !== -1) {
+    it.first_author_uids = it.first_author_uids.filter(function (u) { return u !== removed; });
+  }
+  it.updated_at = today();
+  // V3.130 — surgical write (see saveItemSurgical for full note).
+  await saveItemSurgical(it);
+  render();
+};
+
+/* V3.133 — Toggle first-author status for a paper personnel entry.
+ *
+ * Admin-gated client-side: the rendered click handler is a no-op for
+ * non-admins. V3.135 wires the matching server-side rule —
+ * `request.resource.data.first_author_uids == resource.data.first_author_uids`
+ * is required on any non-admin paper update, so first authors can edit
+ * the paper but cannot promote co-authors or self-demote.
+ *
+ * Cap: 2 first authors per paper. Adding a third surfaces an alert
+ * and aborts. V3.135 also requires the pid resolves to a roster entry
+ * with `_firebaseUid: true` — otherwise the Firestore `isFirstAuthor`
+ * check (which compares `request.auth.uid`) wouldn't match.
+ */
+window.toggleFirstAuthor = async function (itemId, pid) {
+  if (!(typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin())) {
+    alert('Only admins can change first-author status.');
+    return;
+  }
+  var it = _allItems.find(function (i) { return i.id === itemId; });
+  if (!it) return;
+  if (it.type !== 'paper') return;
+  if (!Array.isArray(it.first_author_uids)) it.first_author_uids = [];
+  var idx = it.first_author_uids.indexOf(pid);
+  if (idx !== -1) {
+    it.first_author_uids.splice(idx, 1);
+  } else {
+    if (it.first_author_uids.length >= 2) {
+      alert('A paper can have at most 2 first authors. Remove one first.');
+      return;
+    }
+    // Sanity: must be in personnel[].
+    var inPersonnel = (it.personnel || []).indexOf(pid) !== -1;
+    if (!inPersonnel) {
+      alert('First author must be in the Personnel list.');
+      return;
+    }
+    // V3.135 — first authors must have a Firebase UID. The Firestore
+    // rule's isFirstAuthor() check matches request.auth.uid against
+    // this array, so a legacy slug id wouldn't grant any access — the
+    // star would be set with no enforcement. Refuse the toggle.
+    var member = (_roster || []).find(function (m) { return m.id === pid; });
+    if (!member || !member._firebaseUid) {
+      alert('First author must be a lab member with a Firebase account. Promote them via the Members section first.');
+      return;
+    }
+    it.first_author_uids.push(pid);
+  }
+  it.updated_at = today();
+  // V3.130 — surgical write.
+  await saveItemSurgical(it);
+  render();
+};
+
+/* ---- Project Members (V3.126) -------------------------------------
+ * Distinct from the legacy `personnel[]` field above. Members live on
+ * the canonical `projects` Firestore collection (typed JSON paths
+ * `projects/<type>.json`) under `member_uids[]`. PMR queries this field
+ * via `where('member_uids','array-contains',uid)`; the Lab Notebook
+ * filters its in-entry project picker by the same field. Any future
+ * page that gates by project membership reads the same field.
+ *
+ * The roster picker exposes only Firebase-uid lab users (entries
+ * tagged `_firebaseUid: true` by the loadAll merge). Legacy slug-id
+ * roster entries can't be resolved to Firebase auth so they don't
+ * grant access — they remain in the Personnel section for human
+ * attribution. */
+window.addProjectMember = function (itemId) {
+  var canon = _canonicalProjects[itemId];
+  if (!canon) {
+    alert('No canonical project record for "' + itemId + '". Members are stored on the projects collection — open the admin migrate page or edit projects/<type>.json directly to create the canonical record first.');
+    return;
+  }
+  var existing = new Set(canon.member_uids || []);
+  var available = _roster.filter(function (m) {
+    return m._firebaseUid && !existing.has(m.id);
+  });
+  if (!available.length) {
+    alert('All lab members are already assigned to this project.');
+    return;
+  }
+  var opts = available.map(function (m) { return m.id; });
+  var labels = {};
+  available.forEach(function (m) {
+    labels[m.id] = m.name + (m.email ? ' (' + m.email + ')' : '');
+  });
+  openForm({
+    title: 'Add Member',
+    fields: [{
+      key: 'uid', label: 'Lab member', type: 'select', required: true,
+      options: opts, optionLabels: labels,
+    }],
+    onSave: async function (vals) {
+      // V3.130 — surgical write of one projects/{itemId} doc instead of a
+      // full rewrite of every paper/course/etc. in the typed collection.
+      var data = await api.load(canon.sourcePath);
+      var rows = (data && data[canon.sourceKey]) || [];
+      var row = rows.find(function (r) { return r && r.id === itemId; });
+      if (!row) {
+        alert('Project not found in ' + canon.sourcePath + ' (id "' + itemId + '"). The canonical record may have been deleted.');
+        return;
+      }
+      if (!Array.isArray(row.member_uids)) row.member_uids = [];
+      if (row.member_uids.indexOf(vals.uid) < 0) row.member_uids.push(vals.uid);
+      await saveProjectDocSurgical(canon, row);
+      canon.member_uids = row.member_uids.slice();
+      if (!_openSections[itemId]) _openSections[itemId] = {};
+      _openSections[itemId].members = true;
+      render();
+    },
+  });
+};
+
+window.removeProjectMember = async function (itemId, uid) {
+  var canon = _canonicalProjects[itemId];
+  if (!canon) return;
+  var member = _roster.find(function (m) { return m.id === uid; });
+  var displayName = member ? member.name : uid;
+  if (!confirm('Remove ' + displayName + ' from this project? They will lose project-membership access on every page that gates by member_uids[].')) return;
+  // V3.130 — surgical write (see addProjectMember above for the full note).
+  var data = await api.load(canon.sourcePath);
+  var rows = (data && data[canon.sourceKey]) || [];
+  var row = rows.find(function (r) { return r && r.id === itemId; });
+  if (!row) return;
+  row.member_uids = (row.member_uids || []).filter(function (u) { return u !== uid; });
+  await saveProjectDocSurgical(canon, row);
+  canon.member_uids = row.member_uids.slice();
+  render();
 };
 
 /* ---- Funding Account Linking ---- */
@@ -1240,13 +1804,12 @@ window.linkFundingAccount = function (itemId) {
     title: 'Link Funding Account',
     fields: [{ key: 'account_id', label: 'Account', type: 'select', required: true, options: opts, optionLabels: labels }],
     onSave: async function (vals) {
-      var data = await api.load(ITEMS_PATH);
-      var it = data.items.find(function (i) { return i.id === itemId; });
+      // V3.130 — surgical write.
+      var it = _allItems.find(function (i) { return i.id === itemId; });
       if (!it) return;
       if (!it.funding_account_ids) it.funding_account_ids = [];
       if (it.funding_account_ids.indexOf(vals.account_id) === -1) it.funding_account_ids.push(vals.account_id);
-      await api.save(ITEMS_PATH, data);
-      _reloadItems(data);
+      await saveItemSurgical(it);
       if (!_openSections[itemId]) _openSections[itemId] = {};
       _openSections[itemId].funding = true;
       render();
@@ -1272,14 +1835,13 @@ window.parseRepo = async function (itemId) {
     });
     var result = await res.json();
     if (!result.ok) { alert('Parse failed: ' + (result.error || 'Unknown error')); return; }
-    var data = await api.load(ITEMS_PATH);
-    var it = data.items.find(function (i) { return i.id === itemId; });
+    // V3.130 — surgical write.
+    var it = _allItems.find(function (i) { return i.id === itemId; });
     if (it) {
       it.repo_parsed = result.parsed;
       it.repo_parsed_at = today();
       it.updated_at = today();
-      await api.save(ITEMS_PATH, data);
-      _reloadItems(data);
+      await saveItemSurgical(it);
       if (!_openSections[itemId]) _openSections[itemId] = {};
       _openSections[itemId].repo = true;
       render();
@@ -1323,31 +1885,67 @@ function unflattenFromForm(vals, existingItem) {
 }
 
 window.editItemById = function (itemId) {
-  (async function () {
-    var data = await api.load(ITEMS_PATH);
-    var item = data.items.find(function (i) { return i.id === itemId; });
-    if (!item) return;
-    openForm({
-      title: 'Edit ' + typeLabel(item.type),
-      fields: getItemFields(item.type),
-      values: flattenForForm(item),
-      onSave: async function (vals) {
-        var updated = unflattenFromForm(vals, item);
-        updated.id = slugify(vals.title);
-        updated.updated_at = today();
-        var idx = data.items.findIndex(function (i) { return i.id === itemId; });
-        if (idx >= 0) data.items[idx] = updated;
-        await api.save(ITEMS_PATH, data);
-        _reloadItems(data);
-        _expandedId = updated.id;
-        render();
-      },
-    });
-  })();
+  var item = _allItems.find(function (i) { return i.id === itemId; });
+  if (!item) return;
+  // V3.135 — paper edits are restricted to first author + admin.
+  if (!_canEditPaper(item)) {
+    alert('You don’t have permission to edit this paper. First authors and admins can edit.');
+    return;
+  }
+  openForm({
+    title: 'Edit ' + typeLabel(item.type),
+    fields: getItemFields(item.type),
+    values: flattenForForm(item),
+    onSave: async function (vals) {
+      var updated = unflattenFromForm(vals, item);
+      updated.id = slugify(vals.title);
+      updated.updated_at = today();
+      // V3.130 — surgical write (one items/{id} doc) instead of full
+      // collection rewrite. Patch local state in place after the write.
+      await saveItemSurgical(updated);
+      var idx = _allItems.findIndex(function (i) { return i.id === itemId; });
+      if (idx >= 0) _allItems[idx] = updated;
+      else _allItems.push(updated);
+      _items = _filterItemsForCategory(_allItems);
+      _expandedId = updated.id;
+      render();
+    },
+  });
 };
 
 window.deleteItemById = async function (itemId) {
+  // V3.135 — paper deletes are admin-only (other types follow the existing lab-member rule).
+  var preItem = _allItems.find(function (i) { return i.id === itemId; });
+  if (!_canDeleteItem(preItem)) {
+    alert('You don’t have permission to delete this paper. Admins only.');
+    return;
+  }
   if (!confirmAction('Delete this item?')) return;
+  // V3.130 — surgical delete: drop the one items/{id} doc and (only) update
+  // items whose related_ids referenced it. Skips the full-collection rewrite
+  // path of the adapter's collection-save.
+  var crossRefs = _allItems.filter(function (it) {
+    return it.id !== itemId && Array.isArray(it.related_ids) && it.related_ids.indexOf(itemId) !== -1;
+  });
+  if (typeof firebridge !== 'undefined' && firebridge.db && firebridge.getUser && firebridge.getUser()) {
+    try {
+      await firebridge.db().collection('items').doc(itemId).delete();
+      // Patch + persist each cross-ref individually (typically 0-3 docs).
+      for (var i = 0; i < crossRefs.length; i++) {
+        var it = crossRefs[i];
+        it.related_ids = it.related_ids.filter(function (r) { return r !== itemId; });
+        await saveItemSurgical(it);
+      }
+      _allItems = _allItems.filter(function (i) { return i.id !== itemId; });
+      _items = _filterItemsForCategory(_allItems);
+      _expandedId = null;
+      render();
+      return;
+    } catch (err) {
+      console.warn('[projects] surgical delete failed, falling back:', err.message);
+    }
+  }
+  // Fallback: full rewrite via the adapter.
   var data = await api.load(ITEMS_PATH);
   data.items = data.items.filter(function (i) { return i.id !== itemId; });
   data.items.forEach(function (it) {
@@ -1380,11 +1978,21 @@ document.getElementById('add-item').onclick = function () {
 };
 
 function openAddForm(type) {
+  // V3.229 — paper and grant creation runs through the dedicated builder
+  // pages (which write to projects/papers.json and grantDrafts respectively).
+  // Deep-link with ?new=1 so the builder's create modal opens immediately.
+  if (type === 'paper') {
+    window.location.href = '/rm/pages/paper-builder.html?new=1';
+    return;
+  }
+  if (type === 'grant') {
+    window.location.href = '/rm/pages/grant-builder.html?new=1';
+    return;
+  }
   openForm({
     title: 'Add ' + typeLabel(type),
     fields: getItemFields(type),
     onSave: async function (itemVals) {
-      var data = await api.load(ITEMS_PATH);
       var newItem = unflattenFromForm(itemVals, {
         id: slugify(itemVals.title),
         type: type,
@@ -1393,16 +2001,22 @@ function openAddForm(type) {
         repo_parsed: null,
         repo_parsed_at: '',
         personnel: [],
+        // V3.133 — paper-only field; harmless on other types.
+        first_author_uids: type === 'paper' ? [] : undefined,
         funding_account_ids: [],
         tags: [],
         subtasks: [],
         created_at: today(),
         updated_at: today(),
       });
+      // Strip the undefined sentinel so we don't send `first_author_uids: undefined` to Firestore.
+      if (newItem.first_author_uids === undefined) delete newItem.first_author_uids;
       newItem.id = slugify(itemVals.title);
-      data.items.push(newItem);
-      await api.save(ITEMS_PATH, data);
-      _reloadItems(data);
+      // V3.130 — surgical Firestore write (one items/{id} doc) instead of
+      // a full collection rewrite of every item. ~150-300ms vs 5-15s.
+      await saveItemSurgical(newItem);
+      _allItems.push(newItem);
+      _items = _filterItemsForCategory(_allItems);
       _expandedId = newItem.id;
       render();
     },
@@ -1468,12 +2082,7 @@ function _projAttachLiveSync() {
       if (_projLive.savePending) return;
       if (!data || !Array.isArray(data.items)) return;
       _allItems = data.items;
-      _items = _allItems.filter(function (it) {
-        if (it.category !== _pageCategory) return false;
-        var lib = (it.meta || {}).library;
-        if (lib && lib.is_library_entry) return false;
-        return true;
-      });
+      _items = _filterItemsForCategory(_allItems);
       if (!firstFireConsumed) { firstFireConsumed = true; return; }
       _projScheduleRefresh();
     });

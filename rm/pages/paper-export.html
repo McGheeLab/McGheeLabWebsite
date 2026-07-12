@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper Export Workspace — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <link rel="stylesheet" href="/rm/css/paper-export.css">
+  <!-- pdf.js viewer styles (shared with library-paper) -->
+  <link rel="stylesheet" href="/rm/vendor/pdfjs/pdf_viewer.css">
+</head>
+<body>
+  <div class="px-page" id="px-page">
+    <div class="px-header">
+      <a class="px-back" id="px-back" href="/rm/pages/paper-builder.html">&larr; Back to paper</a>
+      <h1 class="px-title" id="px-title">Loading…</h1>
+      <span class="px-status" id="px-status"></span>
+    </div>
+
+    <div class="px-split">
+      <!-- ===== Left column: configuration ===== -->
+      <aside class="px-config" id="px-config">
+        <div id="px-warnings"></div>
+
+        <div class="px-section">
+          <h2>Journal template</h2>
+          <div class="px-row">
+            <label for="px-template">Template</label>
+            <select id="px-template"></select>
+            <small id="px-template-desc" class="form-hint" style="color:#6b7280;font-size:11px;"></small>
+          </div>
+        </div>
+
+        <div class="px-section">
+          <h2>LaTeX add-ons</h2>
+          <div id="px-addons"></div>
+        </div>
+
+        <div class="px-section">
+          <h2>Compile history</h2>
+          <div id="px-staleness" class="px-staleness" hidden></div>
+          <ul id="px-compile-list" class="px-compile-list">
+            <li class="px-compile-empty">No compiles yet.</li>
+          </ul>
+        </div>
+
+        <div class="px-section">
+          <h2>Figure defaults</h2>
+          <div class="px-row">
+            <label for="px-fig-placement">Placement</label>
+            <select id="px-fig-placement">
+              <option value="">(template default)</option>
+              <option value="H">H — exact spot</option>
+              <option value="htbp">htbp — float</option>
+              <option value="t">t — top of page</option>
+              <option value="b">b — bottom of page</option>
+            </select>
+          </div>
+          <div class="px-row">
+            <label for="px-fig-width">Default width</label>
+            <select id="px-fig-width">
+              <option value="">(template default)</option>
+              <option value="0.5\linewidth">0.5 \linewidth</option>
+              <option value="0.7\linewidth">0.7 \linewidth</option>
+              <option value="0.85\linewidth">0.85 \linewidth</option>
+              <option value="1.0\linewidth">1.0 \linewidth</option>
+              <option value="\textwidth">\textwidth</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="px-section">
+          <h2>Table defaults</h2>
+          <div class="px-row">
+            <label for="px-tab-booktabs">Style</label>
+            <select id="px-tab-booktabs">
+              <option value="">(template default)</option>
+              <option value="true">Booktabs (\toprule \midrule \bottomrule)</option>
+              <option value="false">Grid (\hline)</option>
+            </select>
+          </div>
+          <div class="px-row">
+            <label for="px-tab-placement">Placement</label>
+            <select id="px-tab-placement">
+              <option value="">(template default)</option>
+              <option value="H">H — exact spot</option>
+              <option value="htbp">htbp — float</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="px-section">
+          <h2>Equation defaults</h2>
+          <div class="px-row">
+            <label for="px-eq-display">Numbered display env</label>
+            <select id="px-eq-display">
+              <option value="">(template default)</option>
+              <option value="equation">equation</option>
+              <option value="align">align</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="px-section">
+          <h2>Pre-flight checks</h2>
+          <ul class="px-lint-list" id="px-lints"><li>Click <em>Run checks</em> below.</li></ul>
+        </div>
+
+        <div class="px-actions">
+          <button class="btn" id="px-run-lints">Run pre-flight checks</button>
+          <button class="btn primary" id="px-compile">Compile to PDF</button>
+          <button class="btn" id="px-download">Download bundle (.zip)</button>
+        </div>
+
+        <div id="px-log-wrap" hidden>
+          <h2 style="margin-top:14px;">Compile log</h2>
+          <pre class="px-log" id="px-log"></pre>
+        </div>
+      </aside>
+
+      <!-- ===== Right column: PDF preview ===== -->
+      <section class="px-preview">
+        <div class="px-preview-toolbar">
+          <span id="px-preview-title">No compile yet</span>
+          <span style="flex:1"></span>
+          <button class="btn btn-sm" id="px-zoom-out" title="Zoom out">−</button>
+          <span id="px-zoom-label">—</span>
+          <button class="btn btn-sm" id="px-zoom-in" title="Zoom in">+</button>
+          <button class="btn btn-sm" id="px-fit" title="Fit to width">Fit</button>
+        </div>
+        <div class="px-preview-stage" id="px-stage">
+          <div class="px-preview-empty" id="px-empty">
+            Configure the export on the left, then click <strong>Compile to PDF</strong>.
+            <br><br>
+            The PDF is built by a remote Tectonic service and shown here.
+          </div>
+          <div class="px-viewer" id="px-viewer" style="display:none;"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/paper-schemas.js"></script>
+  <script src="/rm/js/paper-yjs.js"></script>
+  <script src="/rm/js/paper-export-tex.js"></script>
+  <script src="/rm/js/paper-export-config.js"></script>
+  <script src="/rm/js/paper-export-lints.js"></script>
+  <!-- JSZip for the local .zip bundle download (no build step). -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script type="module" src="/rm/js/pdf-viewer.js"></script>
+  <script src="/rm/js/paper-export.js"></script>
+</body>
+</html>

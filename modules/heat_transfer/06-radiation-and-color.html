@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radiation &amp; Color — Heat Transfer Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Heat Transfer Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Radiation &amp; Color — Heat That Travels as Light</h1>
+  <p class="subtitle">Heat Transfer Foundations · Lesson 6 of 6 — Two cars park side by side in
+  July. By 2 pm the black seat can blister the backs of your legs while the white one is merely
+  warm. Same sun, same air — the only difference is color. This lesson is about heat that arrives
+  as light, and why color decides how much of it you keep.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="photons">1 · Light Is Energy Delivery</button>
+  <button class="tab-btn" data-tab="color">2 · Why the Black Car Is an Oven</button>
+  <button class="tab-btn" data-tab="glow">3 · Everything Glows</button>
+  <button class="tab-btn" data-tab="levelup">4 · Level Up: Stefan–Boltzmann &amp; Kirchhoff</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: photons -->
+<section id="tab-photons" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: light is energy making a delivery</h2>
+    <p>Press your palm onto a black car seat in July and you get a genuine yelp. Nobody lit a
+    burner under that seat, and the air touching it is the same air touching the white car next
+    to it. The seat has been receiving <b>deliveries</b> all morning: sunlight. Light is not just
+    something to see by — every beam is energy in flight, and when it lands on something, that
+    energy has to go somewhere.</p>
+    <p>This is the third — and strangest — way heat travels. In Lessons 1–5 heat either got
+    handed atom-to-atom through a solid (<b>conduction</b>) or was physically carried by moving
+    air or water (<b>convection</b>). Both need <em>stuff</em>. <b>Radiation</b> needs nothing at
+    all: the energy rides an electromagnetic wave — in particle language, a stream of
+    <b>photons</b> — and crosses even a perfect vacuum. It's how the sun's heat reaches us
+    through 150 million kilometers of empty space.</p>
+    <p>What happens on arrival? Call the arriving power per square meter \(G\) (the
+    <b>irradiance</b>, in W/m²). Each surface has an <b>absorptivity</b> \(\alpha\) ("alpha"):
+    the fraction of the arriving light it swallows. The rest, \(1-\alpha\), bounces off as
+    reflected light and carries its energy elsewhere. Fresh black paint has \(\alpha\approx0.95\);
+    a good mirror is down near 0.05. That single number is what "color" means to heat.</p>
+    <p><b>Put on the atomic lens</b> one last time. When a photon is absorbed, its energy has
+    exactly one place to go: into the <b>jiggle</b> of the atoms that caught it (Lesson 1's
+    definition of heat). And the photon was <em>born</em> the same way — somewhere in the sun, a
+    jiggling charged particle shook an electromagnetic wave loose. So radiation is nothing new:
+    it is <b>jiggle that left a hot object as a wave, flew in a straight line, and became jiggle
+    again on landing</b>. Watch the sim: every absorbed photon makes the surface atoms visibly
+    shake harder.</p>
+    <div class="equation-box">
+      $$ \underbrace{G}_{\text{arriving light, W/m}^2} \;\longrightarrow\;
+         \underbrace{\alpha\,G}_{\text{absorbed — becomes jiggle}} \;+\;
+         \underbrace{(1-\alpha)\,G}_{\text{reflected — bounces away}} $$
+    </div>
+    <div class="worked-example">
+      <p>Stand a panel in strong summer sun: \(G = 1000\ \text{W/m}^2\) is a good midsummer-noon
+      number. Painted black (\(\alpha = 0.95\)) it absorbs
+      \(\alpha G = 0.95 \times 1000 = 950\ \text{W}\) on every square meter — very nearly a full
+      space heater per square meter, all of it becoming atomic vibration. Painted white
+      (\(\alpha = 0.25\)) it keeps only \(250\ \text{W/m}^2\) — almost 4× less — and the other
+      750 W bounce away as light. And "light" is a torrent: one photon of green light carries
+      about \(3.6\times10^{-19}\ \text{J}\), so 1000 W/m² means roughly
+      \(1000 / 3.6\times10^{-19} \approx 3\times10^{21}\) photons landing per square meter,
+      <em>per second</em>.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Radiation is energy traveling as electromagnetic waves (photons). It needs no
+        material in between — it crosses vacuum.</li>
+        <li>A surface absorbs the fraction \(\alpha\) of arriving light and reflects the rest;
+        absorbed power per area = \(\alpha G\).</li>
+        <li>"Color" is heat-transfer hardware: black \(\alpha\approx0.95\), white paint ≈ 0.25,
+        mirror ≈ 0.05.</li>
+        <li>Absorbed light becomes atomic jiggle — radiation is jiggle → wave → jiggle.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>On the <b>Black asphalt</b> scenario, watch single photons: nearly every one dives into
+      the surface and vanishes in a flash — and the atoms below jiggle hard. Read
+      <b>Absorbed αG</b> in the stats.</li>
+      <li>Slide <b>Absorptivity α</b> down to 0.05 (or click <b>Polished mirror</b>). Same sun,
+      but now the photons ricochet away and the atoms calm right down.</li>
+      <li>Click <b>Cloudy day</b>: intensity drops to 300 W/m². Even a dark surface stays tame
+      when the deliveries slow — it's the <em>product</em> αG that matters.</li>
+      <li>Set α ≈ 0.5 and follow ten photons with your eyes: about half sink in, half bounce.
+      Compare with the "of 100 photons" stat.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="photons" data-scen="black" onclick="setScen('photons','black')">Black asphalt</button>
+    <button class="scen-btn" data-tab="photons" data-scen="white" onclick="setScen('photons','white')">White paint</button>
+    <button class="scen-btn" data-tab="photons" data-scen="mirror" onclick="setScen('photons','mirror')">Polished mirror</button>
+    <button class="scen-btn" data-tab="photons" data-scen="cloudy" onclick="setScen('photons','cloudy')">Cloudy day</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Absorptivity α <span id="v-photons-alpha">0.95</span></label>
+        <input type="range" id="s-photons-alpha" min="0.05" max="0.98" step="0.01" value="0.95">
+      </div>
+      <div class="ctrl-group">
+        <label>Light intensity G <span id="v-photons-G">1000 W/m²</span></label>
+        <input type="range" id="s-photons-G" min="200" max="1100" step="10" value="1000">
+      </div>
+      <div class="stats" id="st-photons"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Photons arriving — absorbed ones become jiggle</div>
+        <canvas id="cv-photons" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Energy bookkeeping — where the arriving watts go</div>
+        <canvas id="cv-photons2" width="640" height="190"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-photons"></div>
+    </div>
+  </div>
+</section>
+</main>
+</body>
+</html>

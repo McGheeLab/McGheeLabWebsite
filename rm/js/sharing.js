@@ -30,7 +30,7 @@
     paperAnnotations: {},            // paperId|uid → annotations
     paperAnnotationsUnsubs: {},
     expanded: {},                    // rowKey → boolean
-    error: null,
+    tabErrors: { sent: null, assigned: null, lab: null },
   };
 
   const _unsubs = { sent: null, assigned: null, lab: null };
@@ -78,7 +78,9 @@
           renderBody();
         }, function (err) {
           console.warn('[sharing] sent listener failed:', err && err.message);
-          state.error = 'Sent feed: ' + (err && err.message || 'permission denied');
+          state.tabErrors.sent = (err && err.message)
+            ? err.message
+            : 'permission denied';
           renderBody();
         });
     } catch (err) {
@@ -116,8 +118,9 @@
           renderBody();
         }, function (err) {
           console.warn('[sharing] lab listener failed:', err && err.message);
-          state.error = 'Lab-wide feed: ' + (err && err.message || 'permission denied') +
-                        ' — does the firestore rule allow isAdmin() read on userData tasks?';
+          state.tabErrors.lab = (err && err.message)
+            ? err.message
+            : 'permission denied — does the firestore rule allow isAdmin() collection-group read on tasks?';
           renderBody();
         });
     } catch (err) {
@@ -278,11 +281,16 @@
   function renderBody() {
     const root = $('sh-content');
     if (!root) return;
-    if (state.error) {
-      root.innerHTML = '<div class="sh-error">' + esc(state.error) + '</div>';
-      // fall through — error doesn't preclude rendering whatever data we have
-    } else {
-      root.innerHTML = '';
+    root.innerHTML = '';
+    // Show only the active tab's error, if any. Other tabs' errors stay
+    // silent until the user switches to them — keeps the UI calm when one
+    // listener degrades (e.g. lab-wide pre-rules-deploy).
+    const tabErr = state.tabErrors[state.tab];
+    if (tabErr) {
+      const banner = document.createElement('div');
+      banner.className = 'sh-error';
+      banner.textContent = 'This feed is unavailable: ' + tabErr;
+      root.appendChild(banner);
     }
     // Update tab counts
     const counts = {
@@ -375,7 +383,7 @@
     try {
       const d = await api.load('lab/users.json');
       state.members = ((d && d.users) || [])
-        .filter(u => u.role && u.role !== 'guest')
+        .filter(u => LAB_USERS.isVisible(u))
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       state.membersByUid = {};
       state.members.forEach(m => { state.membersByUid[m.uid || m.id] = Object.assign({ uid: m.uid || m.id }, m); });

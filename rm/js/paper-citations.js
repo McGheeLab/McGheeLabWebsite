@@ -33,6 +33,10 @@
   const _matchesByPage = new Map();
   let _hoverEl = null;
   let _readyDone = false;
+  // V3.310 — reference-driven localization state.
+  let _style = null;          // {family:'numeric-bracket'|'numeric-paren'|'super'|'author-year'|'mixed'|'none', counts}
+  let _refIndex = null;       // Map<refsArrayIndex, [{page,x,y,w,h,token}]> — full-doc sweep
+  let _activeTab = 'page';    // 'page' | 'all'
 
   // Heading patterns at the top of references section. Permissive: matches
   // "References", "REFERENCES", "References:", "1. References", "References 45"
@@ -41,12 +45,80 @@
   // many spans still triggers it.
   const REF_HEADING = /(?:^|[\s\d.])(References?|Bibliography|Works\s+Cited|Literature\s+Cited|Notes?\s+and\s+References)(?:\s|:|$)/i;
 
-  // Numeric inline-cite tokens like [12], [3, 4], [5–7].
-  const RE_NUMERIC = /\[(\d+(?:\s*[–\-,]\s*\d+)*)\]/g;
+  // -------------------------------------------------------------------------
+  // Inline-citation patterns (V3.188 — comprehensive coverage).
+  //
+  // Each style is detected by an independent sub-scanner inside _scanPage,
+  // so we can add/remove styles without cross-contamination. The token
+  // styles we cover:
+  //   • bracketed numeric   [12]   [1, 2]   [1–3]   [1, 3–5, 7]
+  //   • parenthesized num   (12)   (1, 2)   (12–14)         — gated by _isParenNumericInProse
+  //   • unicode superscript phenomenon¹,²,³                  — Nature/Sci Reports
+  //   • geometric supersc.  word + small-height digit-cluster span — Nature variant
+  //   • author-year group   (Smith et al., 2020),
+  //                         (Smith, 2020; Jones, 2021),
+  //                         (Smith et al., 2019, 2020),
+  //                         (Smith 2020)            — Cell house style, comma-less
+  //   • narrative cite      Smith et al. (2020),
+  //                         Smith et al. (2019, 2020)
+  //
+  // SURNAME char class covers Latin Extended-A + Extended-B for European
+  // names (O'Brien, Sørensen, Müller, Świerczek).
+  // V3.190 — surnames can carry 0-2 lowercase particles (van, von, de,
+  // del, della, der, den, du, le, la, ten, ter, d'). Required for cites
+  // like (van der Berg, 2020), (de Vries, 2019), (van Gogh, 1889).
+  const _PARTICLE_SRC = '(?:(?:van|von|der|den|de|del|della|le|la|du|ten|ter|d[\'’])\\s+){0,2}';
+  const _SURNAME_SRC = _PARTICLE_SRC + '[A-Z][A-Za-zÀ-ɏ\'\\-]+';
+  // V3.190 — author group now supports 1, 2, OR 3+ authors. The
+  // middle alternation `(?:\\s*,\\s*SURNAME)*\\s*,?\\s*(?:and|&)\\s+SURNAME`
+  // catches "Smith, Jones, and Williams" and any longer chain — common
+  // in life-science cites where the 3rd-author cutoff for "et al."
+  // varies by journal house style.
+  const _AUTHOR_GROUP_SRC =
+    '(' + _SURNAME_SRC +
+    '(?:\\s+et\\s+al\\.?' +
+    '|(?:\\s*,\\s*' + _SURNAME_SRC + ')*\\s*,?\\s*(?:and|&)\\s+' + _SURNAME_SRC +
+    ')?' +
+    ')';
 
-  // Author-year inline-cite tokens like (Smith, 2020), (Smith et al., 2020),
-  // (Smith and Jones, 2020).
-  const RE_AUTHOR_YEAR = /\(([A-Z][A-Za-zÀ-ſ'-]+(?:\s+et\s+al\.?|(?:\s+(?:and|&)\s+[A-Z][A-Za-zÀ-ſ'-]+))?),?\s+(\d{4}[a-z]?)\)/g;
+  const RE_NUMERIC = /\[\s*(\d+(?:\s*[–\-,]\s*\d+)*)\s*\]/g;
+
+  const RE_PAREN_NUMERIC = /\((\d+(?:\s*[–\-,]\s*\d+)*)\)/g;
+
+  // Unicode super-digits + connectives. Connectives cover commas, ASCII
+  // hyphen, en-dash, superscript-plus (U+207A), superscript-minus
+  // (U+207B), and `\s` (whitespace incl. NBSP). `⁴⁻⁶` is common in
+  // Nature / Sci-Reports as the super-equivalent of `4–6`.
+  const RE_UNICODE_SUPER = /[⁰¹²³⁴-⁹]+(?:[,\-–⁺⁻\s][⁰¹²³⁴-⁹]+)*/g;
+
+  const SUPER_TO_ASCII = {
+    '⁰': '0', '¹': '1', '²': '2', '³': '3',
+    '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7',
+    '⁸': '8', '⁹': '9',
+    // Super hyphen-minus and plus — translated so `⁴⁻⁶` reads as a
+    // range to _expandNumericInner.
+    '⁻': '-', '⁺': '+',
+  };
+
+  // Geom-super: match an entire text item that is just a digit cluster.
+  const RE_GEOM_SUPER_TEXT = /^\s*(\d+(?:\s*[,\-–]\s*\d+)*)\s*$/;
+
+  // Whole paren group — _scanAuthorYearGroup splits the inner on `;` and
+  // runs RE_AY_INNER on each segment.
+  const RE_PAREN_GROUP = /\(([^()]+)\)/g;
+
+  // Single author+year inside a paren segment. Non-global; re-used via
+  // `new RegExp(RE_AY_INNER.source)` for each segment to avoid lastIndex
+  // contamination. The `[\\s,]+` separator covers both `Smith, 2020` and
+  // the comma-less `Smith 2020` Cell house style.
+  const RE_AY_INNER = new RegExp(_AUTHOR_GROUP_SRC + '[\\s,]+(\\d{4}[a-z]?)');
+
+  // Narrative cite — author OUTSIDE parens, year(s) inside.
+  const RE_NARRATIVE = new RegExp(
+    '\\b' + _AUTHOR_GROUP_SRC +
+    '\\s*\\((\\d{4}[a-z]?(?:\\s*,\\s*\\d{4}[a-z]?)*)\\)',
+    'g'
+  );
 
   // DOI / arXiv extraction patterns reused per entry.
   const RE_DOI = /\b10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i;
@@ -300,12 +372,178 @@
 
   // -------------------------------------------------------- per-page citation scan
 
+  // Expand a numeric cluster's inner string ("1, 5, 9" or "3, 5–7") into
+  // a list of { n, charStart, charEnd } where charStart/charEnd are
+  // 0-based offsets WITHIN the inner string. A range token like "5–7"
+  // expands to one entry per ref, all sharing the range's char span (so
+  // hovering ref 6 highlights the literal "5–7" digits — no fake "6"
+  // glyph exists in the PDF).
+  function _expandNumericInner(inner) {
+    const out = [];
+    const re = /(\d+)(?:\s*[–\-]\s*(\d+))?/g;
+    let m;
+    while ((m = re.exec(inner)) !== null) {
+      const a = parseInt(m[1], 10);
+      const b = m[2] ? parseInt(m[2], 10) : a;
+      if (isNaN(a) || isNaN(b) || a > b || b - a > 200) continue;
+      const cs = m.index, ce = m.index + m[0].length;
+      for (let n = a; n <= b; n++) out.push({ n, charStart: cs, charEnd: ce });
+    }
+    return out;
+  }
+
+  // Narrow a regex match's bounding box to just the matched glyphs.
+  // pdf.js text-layer items are sentence- or run-sized, so the naive
+  // "union of every overlapping item" rect can highlight an entire
+  // sentence. We use the DOM Range API on each item's underlying
+  // text-layer span (`item.domSpan`, exposed by pdf-viewer.js's
+  // `_collectTextItems`) to get pixel-perfect client rects — handles
+  // kerning, justified text, and proportional fonts that the previous
+  // char-fraction approximation got wrong (error grew with x-offset
+  // from the start of each run).
+  //
+  // `wrapRect` is the page wrap's getBoundingClientRect() captured by
+  // `_scanPage` once per page; subtracting it converts viewport-coords
+  // to wrap-local coords matching the rest of the codebase.
+  function _rectForRange(ranges, rangeStart, rangeEnd, wrapRect) {
+    if (wrapRect) {
+      const dom = _rectForRangeViaDom(ranges, rangeStart, rangeEnd, wrapRect);
+      if (dom) return dom;
+    }
+    return _rectForRangeViaFraction(ranges, rangeStart, rangeEnd);
+  }
+
+  function _rectForRangeViaDom(ranges, rangeStart, rangeEnd, wrapRect) {
+    // Find first/last overlapping item ranges and collect everything in between.
+    let startRange = null, endRange = null;
+    const items = [];
+    for (const r of ranges) {
+      if (r.end <= rangeStart) continue;
+      if (r.start >= rangeEnd) break;
+      if (!startRange) startRange = r;
+      endRange = r;
+      items.push(r.item);
+    }
+    if (!startRange || !endRange) return null;
+    const startSpan = startRange.item.domSpan;
+    const endSpan = endRange.item.domSpan;
+    if (!startSpan || !endSpan) return null;
+    const startNode = startSpan.firstChild;
+    const endNode = endSpan.firstChild;
+    if (!startNode || !endNode) return null;
+    if (startNode.nodeType !== Node.TEXT_NODE || endNode.nodeType !== Node.TEXT_NODE) return null;
+    const localStart = Math.max(0, Math.min(startNode.length, rangeStart - startRange.start));
+    const localEnd = Math.max(0, Math.min(endNode.length, rangeEnd - endRange.start));
+    let range;
+    try {
+      range = document.createRange();
+      range.setStart(startNode, localStart);
+      range.setEnd(endNode, localEnd);
+    } catch (e) {
+      return null;
+    }
+    const rects = range.getClientRects();
+    if (!rects.length) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < rects.length; i++) {
+      const cr = rects[i];
+      if (cr.width < 0.5 || cr.height < 0.5) continue;
+      minX = Math.min(minX, cr.left - wrapRect.left);
+      minY = Math.min(minY, cr.top - wrapRect.top);
+      maxX = Math.max(maxX, cr.right - wrapRect.left);
+      maxY = Math.max(maxY, cr.bottom - wrapRect.top);
+    }
+    if (!isFinite(minX)) return null;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, items };
+  }
+
+  // Fallback for the rare case domSpan is not available — char-fraction
+  // approximation. Same as the V3.99 implementation.
+  function _rectForRangeViaFraction(ranges, rangeStart, rangeEnd) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const items = [];
+    for (const r of ranges) {
+      if (r.start >= rangeEnd) break;
+      if (r.end <= rangeStart) continue;
+      const itemLen = r.end - r.start;
+      if (itemLen <= 0) continue;
+      const localStart = Math.max(rangeStart, r.start) - r.start;
+      const localEnd = Math.min(rangeEnd, r.end) - r.start;
+      const fracStart = localStart / itemLen;
+      const fracEnd = localEnd / itemLen;
+      const sx = r.item.x + fracStart * r.item.width;
+      const sxe = r.item.x + fracEnd * r.item.width;
+      minX = Math.min(minX, sx);
+      maxX = Math.max(maxX, sxe);
+      minY = Math.min(minY, r.item.y);
+      maxY = Math.max(maxY, r.item.y + r.item.height);
+      items.push(r.item);
+    }
+    if (!items.length || !isFinite(minX)) return null;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, items };
+  }
+
+  // -------------------------------------------------------- scanner helpers
+
+  // V3.188 — translate unicode super-digits (U+2070, U+00B9, …) to ASCII so
+  // _expandNumericInner can chew through them. Each super codepoint maps
+  // 1:1 to an ASCII digit, preserving char-position-in-string so the
+  // resulting char range maps directly back to the source range.
+  function _translateSuperscripts(s) {
+    return String(s).replace(/[⁰¹²³⁴-⁹⁺⁻]/g, c => SUPER_TO_ASCII[c] || c);
+  }
+
+  // Reject paren-numeric tokens that look like enumerated list markers:
+  //   "as follows: (1) intro (2) results"
+  // A real citation always sits inside running prose, so the preceding
+  // non-whitespace char must be alphanumeric (a word). NBSP counts as
+  // whitespace.
+  function _isParenNumericInProse(fullText, matchStart) {
+    let i = matchStart - 1;
+    while (i >= 0 && /[\s ]/.test(fullText[i])) i--;
+    if (i < 0) return false;
+    return /[A-Za-z0-9]/.test(fullText[i]);
+  }
+
   function _scanPage(pageNum) {
     const items = _viewer.getTextItems(pageNum) || [];
     if (!items.length) {
       _matchesByPage.set(pageNum, []);
       return;
     }
+    // Capture the page wrap's viewport rect ONCE per scan. _rectForRange
+    // uses it to convert DOM-Range client coords to wrap-local. Captured
+    // here rather than per-call so we don't trigger many layout reads.
+    const node = _viewer.getPageNode && _viewer.getPageNode(pageNum);
+    const wrapRect = node && node.wrap ? node.wrap.getBoundingClientRect() : null;
+
+    // V3.310 — the raw scanners run in _matchItemsOnPage (shared with the
+    // headless audit harness); what lands in the panel is style-gated and
+    // validated against the stored reference list.
+    const deduped = _filterValidated(_matchItemsOnPage(items, pageNum, wrapRect));
+    _matchesByPage.set(pageNum, deduped);
+
+    // Per-pass diagnostic — V3.190 always logs, even on zero-match pages,
+    // so an "(none)" summary surfaces in the console when a paper uses an
+    // unrecognised citation style.
+    const tally = deduped.reduce((acc, mt) => {
+      acc[mt.kindLabel] = (acc[mt.kindLabel] || 0) + 1;
+      return acc;
+    }, {});
+    const summary = Object.entries(tally).map(([k, v]) => `${k}=${v}`).join(' ') || '(none)';
+    console.info(`[paper-citations] p.${pageNum} matches: ${summary}`);
+    if (window.__PAPER_CITATIONS_DEBUG__) {
+      const sample = items.map(i => i.text).join(' ').replace(/\s+/g, ' ').slice(0, 400);
+      console.info(`[paper-citations] p.${pageNum} text sample: ${JSON.stringify(sample)}`);
+    }
+  }
+
+  /** V3.310 — pure scanning core over a flat text-item array. Shared by
+   *  the viewer flow (_scanPage) and the headless audit harness
+   *  (analyzeDocument). wrapRect=null skips the DOM-Range refinement and
+   *  uses the fraction-math rects. Returns deduped raw matches with NO
+   *  style gating or ref validation — callers filter. */
+  function _matchItemsOnPage(items, pageNum, wrapRect) {
     const parts = [];
     let off = 0;
     const ranges = [];
@@ -316,41 +554,200 @@
       parts.push(' ');
     }
     const fullText = parts.join('');
+
+    // Median item height — drives the geom-super "is this a tiny digit
+    // cluster sitting next to body text?" heuristic.
+    const heights = items.map(i => i.height).filter(h => h > 0).slice().sort((a, b) => a - b);
+    const medianH = heights[Math.floor(heights.length / 2)] || 12;
+
     const matches = [];
 
-    function addMatch(re, kind) {
-      re.lastIndex = 0;
-      let m;
-      while ((m = re.exec(fullText)) !== null) {
-        const start = m.index;
-        const end = start + m[0].length;
-        const hitItems = [];
-        for (const r of ranges) {
-          if (r.start >= end) break;
-          if (r.end <= start) continue;
-          hitItems.push(r.item);
-        }
-        if (!hitItems.length) continue;
-        const x = Math.min(...hitItems.map(i => i.x));
-        const y = Math.min(...hitItems.map(i => i.y));
-        const xe = Math.max(...hitItems.map(i => i.x + i.width));
-        const ye = Math.max(...hitItems.map(i => i.y + i.height));
-        const refKey = kind === 'numeric' ? m[1] : `${m[1]}|${m[2]}`;
-        matches.push({
-          token: m[0],
-          inner: m[1],
-          year: kind === 'numeric' ? '' : m[2],
-          kind,
-          refKey,
-          page: pageNum,
-          x, y, w: xe - x, h: ye - y,
-          items: hitItems,
+    function pushMatch(opts) {
+      matches.push({
+        token: opts.token,
+        inner: opts.inner,
+        year: opts.year || '',
+        kind: opts.kind,
+        kindLabel: opts.kindLabel,
+        refKey: opts.refKey,
+        page: pageNum,
+        x: opts.rect.x, y: opts.rect.y, w: opts.rect.w, h: opts.rect.h,
+        items: opts.rect.items,
+      });
+    }
+
+    // ------------------------------------ 1) bracketed numeric  [12]  [1,2,3]
+    RE_NUMERIC.lastIndex = 0;
+    for (let m; (m = RE_NUMERIC.exec(fullText)) !== null;) {
+      const innerOffset = m.index + m[0].indexOf(m[1]);
+      for (const exp of _expandNumericInner(m[1])) {
+        const rect = _rectForRange(ranges, innerOffset + exp.charStart, innerOffset + exp.charEnd, wrapRect);
+        if (!rect) continue;
+        pushMatch({
+          token: `[${exp.n}]`, inner: String(exp.n),
+          kind: 'numeric', kindLabel: 'numeric:bracket',
+          refKey: String(exp.n), rect,
         });
       }
     }
-    addMatch(RE_NUMERIC, 'numeric');
-    addMatch(RE_AUTHOR_YEAR, 'authoryear');
-    _matchesByPage.set(pageNum, matches);
+
+    // ------------------------------------ 2) parenthesized numeric  (12)  (1, 2)
+    // Gated by _isParenNumericInProse so enumerated list markers like
+    // "(1) intro (2) results" don't surface as fake citations.
+    RE_PAREN_NUMERIC.lastIndex = 0;
+    for (let m; (m = RE_PAREN_NUMERIC.exec(fullText)) !== null;) {
+      if (!_isParenNumericInProse(fullText, m.index)) continue;
+      const innerOffset = m.index + 1;
+      for (const exp of _expandNumericInner(m[1])) {
+        const rect = _rectForRange(ranges, innerOffset + exp.charStart, innerOffset + exp.charEnd, wrapRect);
+        if (!rect) continue;
+        pushMatch({
+          token: `(${exp.n})`, inner: String(exp.n),
+          kind: 'numeric', kindLabel: 'numeric:paren',
+          refKey: String(exp.n), rect,
+        });
+      }
+    }
+
+    // ------------------------------------ 3) unicode superscript  word¹,²,³
+    RE_UNICODE_SUPER.lastIndex = 0;
+    for (let m; (m = RE_UNICODE_SUPER.exec(fullText)) !== null;) {
+      const ascii = _translateSuperscripts(m[0]);
+      // Char positions in ascii map 1:1 back to m[0] because each super
+      // codepoint translates to a single ASCII digit.
+      for (const exp of _expandNumericInner(ascii)) {
+        const rect = _rectForRange(ranges, m.index + exp.charStart, m.index + exp.charEnd, wrapRect);
+        if (!rect) continue;
+        pushMatch({
+          token: `^${exp.n}`, inner: String(exp.n),
+          kind: 'numeric', kindLabel: 'numeric:super-unicode',
+          refKey: String(exp.n), rect,
+        });
+      }
+    }
+
+    // ------------------------------------ 4) geometric superscript
+    // Tiny-height text item containing only digit clusters, immediately
+    // after a body-text item that ends in a letter. Catches the Nature/
+    // Sci-Reports PDF case where superscripts are extracted as plain
+    // ASCII digits in a smaller-font span rather than unicode supers.
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (!it.height || it.height >= medianH * 0.78) continue;
+      const gm = RE_GEOM_SUPER_TEXT.exec(it.text);
+      if (!gm) continue;
+      const innerDigits = gm[1];
+      if (!/\d/.test(innerDigits)) continue;
+      const prev = items[i - 1];
+      if (!prev) continue;
+      // Skip if previous item is also tiny — we're inside a footer/legend
+      // run, not body text.
+      if (prev.height && prev.height < medianH * 0.78) continue;
+      const prevEnd = prev.text.replace(/\s+$/, '');
+      if (!prevEnd) continue;
+      const lastCh = prevEnd[prevEnd.length - 1];
+      // Body word must end in a letter or closing bracket/paren. Reject
+      // digit-followed-by-digit (false-positive risk: "Table 1" + "2"),
+      // period/colon/semicolon (ref-list & sentence-end artefacts).
+      if (!/[A-Za-z)\]]/.test(lastCh)) continue;
+      const itRange = ranges[i];
+      if (!itRange) continue;
+      const innerStart = itRange.start + it.text.indexOf(innerDigits);
+      for (const exp of _expandNumericInner(innerDigits)) {
+        const rect = _rectForRange(ranges, innerStart + exp.charStart, innerStart + exp.charEnd, wrapRect);
+        if (!rect) continue;
+        pushMatch({
+          token: `^${exp.n}`, inner: String(exp.n),
+          kind: 'numeric', kindLabel: 'numeric:super-geom',
+          refKey: String(exp.n), rect,
+        });
+      }
+    }
+
+    // ------------------------------------ 5) author-year paren groups
+    // Match the entire (…) group, then split inner on `;` for clusters,
+    // run RE_AY_INNER per segment, and scan for trailing `, YYYY` years
+    // for same-author multi-year cites.
+    RE_PAREN_GROUP.lastIndex = 0;
+    for (let g; (g = RE_PAREN_GROUP.exec(fullText)) !== null;) {
+      const innerStart = g.index + 1;
+      const inner = g[1];
+      if (!RE_AY_INNER.test(inner)) continue;
+      const segments = inner.split(';');
+      let segOffset = 0;
+      for (let si = 0; si < segments.length; si++) {
+        const seg = segments[si];
+        const segStartInInner = segOffset;
+        segOffset += seg.length + 1;       // +1 for the consumed `;`
+        const ay = new RegExp(RE_AY_INNER.source).exec(seg);
+        if (!ay) continue;
+        const author = ay[1];
+        const year = ay[2];
+        const segStartInFull = innerStart + segStartInInner;
+        const matchStartInFull = segStartInFull + ay.index;
+        const matchEndInFull = matchStartInFull + ay[0].length;
+        const rect = _rectForRange(ranges, matchStartInFull, matchEndInFull, wrapRect);
+        if (rect) {
+          pushMatch({
+            token: ay[0], inner: author, year,
+            kind: 'authoryear',
+            kindLabel: segments.length > 1 ? 'authoryear:cluster' : 'authoryear:single',
+            refKey: `${author}|${year}`, rect,
+          });
+        }
+        // Trailing-year scan for same-author multi-year cites.
+        const afterIdx = ay.index + ay[0].length;
+        const rest = seg.slice(afterIdx);
+        const tRe = /[,\s]+(\d{4}[a-z]?)/g;
+        for (let ty; (ty = tRe.exec(rest)) !== null;) {
+          const yearN = ty[1];
+          const yearStartInRest = ty.index + ty[0].indexOf(yearN);
+          const yearStart = segStartInFull + afterIdx + yearStartInRest;
+          const yrect = _rectForRange(ranges, yearStart, yearStart + yearN.length, wrapRect);
+          if (!yrect) continue;
+          pushMatch({
+            token: `${author}, ${yearN}`, inner: author, year: yearN,
+            kind: 'authoryear', kindLabel: 'authoryear:multiyear',
+            refKey: `${author}|${yearN}`, rect: yrect,
+          });
+        }
+      }
+    }
+
+    // ------------------------------------ 6) narrative cite  Smith et al. (2020)
+    RE_NARRATIVE.lastIndex = 0;
+    for (let m; (m = RE_NARRATIVE.exec(fullText)) !== null;) {
+      const author = m[1];
+      const yearsStr = m[2];
+      const yearsInM0 = m[0].lastIndexOf('(') + 1;
+      const yearRe = /\d{4}[a-z]?/g;
+      for (let ym; (ym = yearRe.exec(yearsStr)) !== null;) {
+        const yearN = ym[0];
+        const yearStart = m.index + yearsInM0 + ym.index;
+        const rect = _rectForRange(ranges, yearStart, yearStart + yearN.length, wrapRect);
+        if (!rect) continue;
+        pushMatch({
+          token: `${author} (${yearN})`, inner: author, year: yearN,
+          kind: 'authoryear', kindLabel: 'authoryear:narrative',
+          refKey: `${author}|${yearN}`, rect,
+        });
+      }
+    }
+
+    // Dedupe — unicode-super and geom-super can both fire on the same
+    // digit span; cluster + narrative can overlap on the same cite.
+    // Collapse anything sharing (page, refKey) whose rect overlaps.
+    const deduped = [];
+    for (const mat of matches) {
+      const dup = deduped.find(o =>
+        o.page === mat.page &&
+        o.refKey === mat.refKey &&
+        Math.abs(o.x - mat.x) < Math.max(o.w, mat.w, 6) &&
+        Math.abs(o.y - mat.y) < Math.max(o.h, mat.h, 6)
+      );
+      if (!dup) deduped.push(mat);
+    }
+    return deduped;
   }
 
   /** Return _refs entries that match a token, by `n` field for numeric or
@@ -359,22 +756,158 @@
   function _matchedRef(match) {
     if (!_refs || !_refs.length) return null;
     if (match.kind === 'numeric') {
-      // Take the first number in the inner group (e.g. "[3, 5–7]" → 3).
-      const firstNum = parseInt((match.inner.match(/\d+/) || [''])[0], 10);
-      if (isNaN(firstNum)) return null;
-      // Prefer entry whose `n` matches; else fall back to position.
-      let r = _refs.find(x => x.n === firstNum);
-      if (!r && firstNum >= 1 && firstNum <= _refs.length) r = _refs[firstNum - 1];
+      // _scanPage already expanded clusters + ranges so match.inner is a
+      // single number per row.
+      const num = parseInt(match.inner, 10);
+      if (isNaN(num)) return null;
+      let r = _refs.find(x => x.n === num);
+      if (!r && num >= 1 && num <= _refs.length) r = _refs[num - 1];
       return r || null;
     }
-    // Author-year.
+    // Author-year. V3.310 — diacritic-insensitive surname compare (a PDF's
+    // "Sorensen" must still hit the stored "Sørensen").
     const authorWord = match.inner.replace(/\s+et\s+al\.?$/, '').replace(/\s+(?:and|&)\s+.*$/, '').trim();
     const yearN = match.year;
+    const want = _normName(authorWord);
     return _refs.find(r =>
       r.year === yearN &&
       r.firstAuthor &&
-      r.firstAuthor.toLowerCase() === authorWord.toLowerCase()
+      _normName(r.firstAuthor) === want
     ) || null;
+  }
+
+  // ------------------------------------------------- V3.310 reference-driven core
+
+  function _normName(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function _familyOf(kindLabel) {
+    if (kindLabel === 'numeric:bracket') return 'numeric-bracket';
+    if (kindLabel === 'numeric:paren') return 'numeric-paren';
+    if (kindLabel === 'numeric:super-unicode' || kindLabel === 'numeric:super-geom') return 'super';
+    return 'author-year';
+  }
+
+  /** Style-gate + ref-validate raw matches. The inversion at the heart of
+   *  V3.310: because we hold the authoritative reference list, a token
+   *  only counts when it resolves to a known reference in the detected
+   *  style family. With no stored refs we keep the legacy permissive
+   *  behavior (better a noisy panel than an empty one on unstored PDFs). */
+  function _filterValidated(matches) {
+    if (!matches || !matches.length) return matches || [];
+    let out = matches;
+    if (_style && _style.family && _style.family !== 'mixed' && _style.family !== 'none') {
+      out = out.filter(m => {
+        const fam = _familyOf(m.kindLabel);
+        if (_style.family === 'author-year') return fam === 'author-year';
+        if (fam === 'author-year') return false;
+        // Numeric papers keep superscript hits alongside their own family
+        // (figure captions often superscript what the body brackets), but
+        // paren-numeric only survives when it IS the detected family —
+        // prose enumerations "(1) … (2)" are the classic false positive.
+        if (_style.family === 'numeric-paren') return fam === 'numeric-paren' || fam === 'super';
+        if (_style.family === 'super') return fam === 'super';
+        return fam === 'numeric-bracket' || fam === 'super';
+      });
+    }
+    if (_refs && _refs.length) out = out.filter(m => !!_matchedRef(m));
+    return out;
+  }
+
+  /** Detect the paper's citation style ONCE by sweeping every page and
+   *  tallying candidates that validate against the stored reference list
+   *  (numeric: n within [1, refCount]; author-year: surname+year hits a
+   *  stored ref). Dominant family wins; two families within 20% → mixed. */
+  function _detectStyle() {
+    _style = null;
+    if (!_viewer || !_viewer.numPages) return;
+    const counts = { 'numeric-bracket': 0, 'numeric-paren': 0, 'super': 0, 'author-year': 0 };
+    for (let p = 1; p <= _viewer.numPages; p++) {
+      const items = _viewer.getTextItems(p) || [];
+      if (!items.length) continue;
+      for (const m of _matchItemsOnPage(items, p, null)) {
+        if (_refs && _refs.length && !_matchedRef(m)) continue;
+        counts[_familyOf(m.kindLabel)]++;
+      }
+    }
+    _style = _pickFamily(counts);
+    console.info('[paper-citations] style detected:', _style.family,
+      JSON.stringify(_style.counts));
+  }
+
+  function _pickFamily(counts) {
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const best = entries[0];
+    const second = entries[1];
+    if (best[1] < 3) return { family: 'none', counts };
+    if (second[1] >= best[1] * 0.8) return { family: 'mixed', counts };
+    return { family: best[0], counts };
+  }
+
+  /** Align stored Semantic Scholar ref numbering to the paper's own
+   *  printed reference list. SS refs are numbered by array index, but
+   *  normalizeReference DROPS entries with no title/DOI — so [12] in the
+   *  PDF can map to stored ref #10. Match printed entries (which carry
+   *  the true printed n) to stored refs by DOI → surname+year → title
+   *  prefix, and restamp n in memory. Applied only when at least half the
+   *  stored refs align (a garbage printed parse must not scramble good
+   *  numbering). */
+  function _applyAlignment(refs, printed) {
+    if (!refs || !refs.length || !printed || !printed.length) return 0;
+    const proposals = [];
+    for (const ref of refs) {
+      let hit = null;
+      if (ref.doi) hit = printed.find(p => p.doi && p.doi.toLowerCase() === ref.doi.toLowerCase());
+      if (!hit && ref.firstAuthor && ref.year) {
+        hit = printed.find(p => p.year === ref.year && p.firstAuthor
+          && _normName(p.firstAuthor) === _normName(ref.firstAuthor));
+      }
+      if (!hit && ref.title) {
+        const t = _normName(ref.title).slice(0, 40);
+        if (t.length >= 20) {
+          hit = printed.find(p => p.title && _normName(p.title).slice(0, 40) === t);
+        }
+      }
+      if (hit && typeof hit.n === 'number' && hit.n > 0) proposals.push([ref, hit.n]);
+    }
+    if (proposals.length < refs.length * 0.5) return 0;
+    let changed = 0;
+    for (const [ref, n] of proposals) {
+      if (ref.n !== n) { ref.n = n; changed++; }
+    }
+    return changed;
+  }
+
+  function _alignRefNumbers() {
+    if (!_refs || !_refs.length) return;
+    if (!(_refs[0] && _refs[0].source === 'semantic_scholar')) return;
+    let printed = [];
+    try { printed = _parseReferences() || []; } catch (_) { return; }
+    const changed = _applyAlignment(_refs, printed);
+    if (changed) {
+      console.info(`[paper-citations] aligned ${changed} SS ref number(s) to the printed list`);
+    }
+  }
+
+  /** Full-document sweep → Map<refsArrayIndex, [{page,x,y,w,h,token}]>.
+   *  Powers the "All refs" tab's located-page chips and the coverage
+   *  stats. Rects use the fraction path (no DOM reads for 40 pages). */
+  function _buildRefIndex() {
+    _refIndex = new Map();
+    if (!_viewer || !_viewer.numPages || !_refs || !_refs.length) return;
+    for (let p = 1; p <= _viewer.numPages; p++) {
+      const items = _viewer.getTextItems(p) || [];
+      if (!items.length) continue;
+      for (const m of _filterValidated(_matchItemsOnPage(items, p, null))) {
+        const ref = _matchedRef(m);
+        if (!ref) continue;
+        const idx = _refs.indexOf(ref);
+        if (idx < 0) continue;
+        if (!_refIndex.has(idx)) _refIndex.set(idx, []);
+        _refIndex.get(idx).push({ page: m.page, x: m.x, y: m.y, w: m.w, h: m.h, token: m.token });
+      }
+    }
   }
 
   // -------------------------------------------------------- per-page flash overlay
@@ -438,6 +971,20 @@
     }) || null;
   }
 
+  // Build a Google Scholar search URL for a parsed reference. Used as
+  // the manual fallback when neither DOI nor arXiv id was extracted —
+  // the user clicks "Look up" and lands on Scholar's results so they
+  // can verify the paper and grab the DOI / PDF themselves.
+  function _scholarUrl(ref) {
+    if (!ref) return null;
+    // Prefer the parsed title; fall back to the raw entry text. Cap the
+    // query length so very long ref strings don't blow past Scholar's
+    // URL limits.
+    const q = (ref.title || ref.raw || '').trim();
+    if (!q) return null;
+    return 'https://scholar.google.com/scholar?q=' + encodeURIComponent(q.slice(0, 250));
+  }
+
   // -------------------------------------------------------- sidebar render
 
   function _refPreview(ref) {
@@ -490,6 +1037,15 @@
             const axDoi = `10.48550/arXiv.${ref.arxiv}`;
             actions = `<button class="btn btn-sm lp-cite-add" data-cite-add-doi="${_esc(axDoi)}" title="Add to library via arXiv DOI">+ Add (arXiv)</button>`;
           }
+        } else if (ref) {
+          // No DOI / no arXiv id — offer Google Scholar as a manual
+          // lookup path. The user verifies on Scholar, finds the DOI
+          // (often visible there) or the publisher's PDF, then can
+          // come back and add via the DOI flow.
+          const sUrl = _scholarUrl(ref);
+          if (sUrl) {
+            actions = `<a class="btn btn-sm lp-cite-lookup" href="${_esc(sUrl)}" target="_blank" rel="noopener" title="Search Google Scholar by title">Look up</a>`;
+          }
         }
 
         const fullText = ref ? _shorten(ref.raw, 600) : '';
@@ -522,15 +1078,49 @@
       }).join('');
     }
 
+    // ---- V3.310: tabbed panel + diagnostic card -------------------------
+    const total = (_refs && _refs.length) || 0;
+    const locatedTotal = _refIndex ? _refIndex.size : 0;
+    if (_activeTab === 'all') body = _renderAllRefsBody();
+    const diag = _diagnosticCardHtml();
+
+    const tabStyle = on =>
+      `border:none;background:${on ? '#1e40af' : 'transparent'};color:${on ? '#fff' : '#6b7280'};` +
+      `border-radius:10px;padding:2px 8px;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:.4px;`;
     _sideEl.innerHTML = `
-      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
-        Citations on page ${_currentPage}
-        <span style="font-weight:400;color:#9ca3af;font-size:10px;">${rows.length || 0} unique${_refState === 'ready' && _refs ? ` · ${_refs.length} refs` : ''}</span>
+      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
+        <button type="button" data-cite-tab="page" style="${tabStyle(_activeTab === 'page')}">This page</button>
+        <button type="button" data-cite-tab="all" style="${tabStyle(_activeTab === 'all')}">All refs (${total})</button>
+        <span style="font-weight:400;color:#9ca3af;font-size:10px;margin-left:auto;">${
+          _activeTab === 'page'
+            ? `${rows.length || 0} unique`
+            : (total ? `${locatedTotal}/${total} located` : '')
+        }</span>
       </div>
+      ${diag}
       <div class="lp-cite-list">${body}</div>
     `;
 
-    _sideEl.querySelectorAll('.lp-cite-row').forEach(row => {
+    _sideEl.querySelectorAll('[data-cite-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _activeTab = btn.getAttribute('data-cite-tab');
+        _renderPanel();
+      });
+    });
+    _sideEl.querySelectorAll('[data-cite-diag]').forEach(btn => {
+      btn.addEventListener('click', _onDiagAction);
+    });
+    _sideEl.querySelectorAll('[data-cite-goto]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = parseInt(btn.getAttribute('data-cite-goto'), 10);
+        const ri = parseInt(btn.getAttribute('data-cite-ref'), 10);
+        if (_viewer && _viewer.gotoPage) _viewer.gotoPage(p);
+        const locs = (_refIndex && _refIndex.get(ri)) || [];
+        const loc = locs.find(l => l.page === p);
+        if (loc) setTimeout(() => _flashRect(p, loc.x, loc.y, loc.w, loc.h), 150);
+      });
+    });
+    _sideEl.querySelectorAll('.lp-cite-row[data-cite-page]').forEach(row => {
       row.addEventListener('mouseenter', _onRowHover);
       row.addEventListener('mouseleave', _clearFlash);
     });
@@ -548,6 +1138,122 @@
     _sideEl.querySelectorAll('[data-cite-add-doi]').forEach(btn => {
       btn.addEventListener('click', _onAddClick);
     });
+  }
+
+  /** V3.310 — "All refs" tab: one row per stored reference with the pages
+   *  its markers were located on. The panel is never empty when refs
+   *  exist, even if this page has no citations. */
+  function _renderAllRefsBody() {
+    if (!_refs || !_refs.length) {
+      return `<div class="lp-cite-empty">No references stored for this paper.</div>`;
+    }
+    const fam = _style && _style.family;
+    const ordered = _refs.map((ref, i) => ({ ref, i }))
+      .sort((a, b) => (a.ref.n || a.i + 1) - (b.ref.n || b.i + 1));
+    return ordered.map(({ ref, i }) => {
+      const locs = (_refIndex && _refIndex.get(i)) || [];
+      const perPage = {};
+      for (const l of locs) perPage[l.page] = (perPage[l.page] || 0) + 1;
+      const chips = Object.keys(perPage).map(Number).sort((a, b) => a - b).map(p =>
+        `<button type="button" data-cite-goto="${p}" data-cite-ref="${i}" style="border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:10px;padding:1px 7px;font-size:10px;cursor:pointer;" title="Jump to page ${p} and flash the marker">p.${p}${perPage[p] > 1 ? '·×' + perPage[p] : ''}</button>`
+      ).join('');
+      const token = (fam === 'author-year')
+        ? `${ref.firstAuthor || '?'} (${ref.year || '?'})`
+        : `[${ref.n != null ? ref.n : i + 1}]`;
+      const inLib = _libraryHitForRef(ref);
+      const chip = inLib
+        ? `<a class="lp-cite-chip lp-cite-chip-lib" href="/rm/pages/library-paper.html?id=${_esc(inLib.id)}" title="Open in library" target="_blank" rel="noopener">✓ in library</a>`
+        : '';
+      return `
+        <div class="lp-cite-row">
+          <div class="lp-cite-row-head" style="cursor:default;">
+            <span class="lp-cite-token">${_esc(token)}</span>
+            <span class="lp-cite-preview">${_refPreview(ref)}</span>
+            ${chip}
+          </div>
+          <div style="padding:2px 8px 7px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+            ${chips || '<span style="font-size:10px;color:#9ca3af;">not located in body text</span>'}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /** V3.310 — the panel explains its failures instead of sitting empty. */
+  function _diagnosticCardHtml() {
+    if (!_readyDone) return '';
+    const cardStyle =
+      'background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;' +
+      'padding:8px 10px;font-size:11px;margin-bottom:8px;';
+    const btnRow = 'margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;';
+    if (_refState === 'none') {
+      return `<div style="${cardStyle}">
+        <div style="font-weight:600;margin-bottom:2px;">No references stored for this paper</div>
+        <div>Inline citation detection needs the reference list. Enrich from Semantic Scholar (works when the paper has a DOI / arXiv / PMID) or set a DOI first.</div>
+        <div style="${btnRow}">
+          <button type="button" class="btn btn-sm" data-cite-diag="enrich">⚡ Enrich from Semantic Scholar</button>
+          <button type="button" class="btn btn-sm" data-cite-diag="adddoi">＋ Add DOI…</button>
+          <button type="button" class="btn btn-sm" data-cite-diag="redetect">↻ Re-detect</button>
+        </div>
+      </div>`;
+    }
+    if (_refState === 'ready' && _refs && _refs.length && _refIndex && _refIndex.size === 0) {
+      return `<div style="${cardStyle}">
+        <div style="font-weight:600;margin-bottom:2px;">⚠ References retrieved, but no inline markers located</div>
+        <div>${_refs.length} reference(s) are stored, yet none matched a marker in the body — likely an unrecognized citation style${_style ? ` (best guess: ${_esc(_style.family)})` : ''}.</div>
+        <div style="${btnRow}">
+          <button type="button" class="btn btn-sm" data-cite-diag="redetect">↻ Re-detect</button>
+          <button type="button" class="btn btn-sm" data-cite-diag="enrich">⚡ Re-enrich refs</button>
+        </div>
+      </div>`;
+    }
+    return '';
+  }
+
+  async function _onDiagAction(ev) {
+    const act = ev.currentTarget.getAttribute('data-cite-diag');
+    const btn = ev.currentTarget;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      if (act === 'enrich') {
+        if (!window.LIBRARY_UPLOAD || !_item || !_item.id) throw new Error('enrichment unavailable here');
+        await LIBRARY_UPLOAD.enrichItemFromSemanticScholar(_item.id);
+        await _reloadRefsFromExtras();
+      } else if (act === 'adddoi') {
+        const doi = window.RM_DIALOG
+          ? await RM_DIALOG.prompt({ title: 'Add DOI for this paper', placeholder: '10.xxxx/…', okText: 'Refresh' })
+          : window.prompt('DOI for this paper (10.xxxx/…):');
+        if (!doi) return;
+        if (window.LIBRARY_REFRESH && _item) {
+          await LIBRARY_REFRESH.fullRefresh(_item, { doi: doi.trim(), interactive: true });
+          await _reloadRefsFromExtras();
+        } else {
+          throw new Error('library-refresh.js not loaded on this page');
+        }
+      }
+      // All paths (incl. plain redetect) re-run the pipeline.
+      _alignRefNumbers();
+      _detectStyle();
+      _buildRefIndex();
+      _scanPage(_currentPage);
+      _renderPanel();
+    } catch (e) {
+      console.warn('[paper-citations] diagnostic action failed:', e);
+      if (window.TOAST) TOAST.error('Citation action failed: ' + (e.message || e));
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
+
+  async function _reloadRefsFromExtras() {
+    if (!window.LIBRARY_EXTRAS || !_item || !_item.id) return;
+    const extras = await LIBRARY_EXTRAS.load(_item.id, _item);
+    const refs = extras && extras.references;
+    if (Array.isArray(refs) && refs.length) {
+      _refs = refs;
+      _refState = 'ready';
+    }
   }
 
   function _onRowHover(ev) {
@@ -594,20 +1300,38 @@
 
   // -------------------------------------------------------- pdf token hover
 
+  // Render one transparent hit-rect div per match into the page's
+  // cite-overlay layer. Hovering each hit-rect fires the panel
+  // highlight for THAT match — fixing the V3.99 regression where a
+  // cluster `[1,2,3]` lived in a single text-layer span, so the
+  // previous per-span listener with a `__citeHoverBound` guard only
+  // surfaced the first match (refs 2 and 3 silently dropped).
+  //
+  // The hit-rects use `pointer-events: auto` to override the
+  // overlay's `pointer-events: none`; native text selection still
+  // works on the rest of the sentence (the hit-rects only intercept
+  // events over the citation marker itself).
   function _wirePageTokenHover(pageNum) {
     const matches = _matchesByPage.get(pageNum) || [];
+    const ov = _ensureCiteOverlay(pageNum);
+    if (!ov) return;
+    // Clear prior hit-rects (re-renders, zoom changes, page nav).
+    ov.querySelectorAll('.pv-cite-hit').forEach(el => el.remove());
     if (!matches.length) return;
-    const node = _viewer.getPageNode(pageNum);
-    if (!node) return;
     for (const m of matches) {
-      for (const it of m.items) {
-        if (!it.domSpan) continue;
-        if (it.domSpan.__citeHoverBound) continue;
-        it.domSpan.__citeHoverBound = true;
-        it.domSpan.style.cursor = 'help';
-        it.domSpan.addEventListener('mouseenter', () => _highlightSidebarRow(m.refKey, m));
-        it.domSpan.addEventListener('mouseleave', _clearSidebarHighlight);
-      }
+      const hit = document.createElement('div');
+      hit.className = 'pv-cite-hit';
+      hit.style.position = 'absolute';
+      hit.style.left = `${m.x - 1}px`;
+      hit.style.top = `${m.y - 1}px`;
+      hit.style.width = `${Math.max(2, m.w + 2)}px`;
+      hit.style.height = `${Math.max(2, m.h + 2)}px`;
+      hit.style.cursor = 'help';
+      hit.style.pointerEvents = 'auto';
+      hit.style.background = 'transparent';
+      hit.addEventListener('mouseenter', () => _highlightSidebarRow(m.refKey, m));
+      hit.addEventListener('mouseleave', _clearSidebarHighlight);
+      ov.appendChild(hit);
     }
   }
 
@@ -660,6 +1384,12 @@
         try { _onCacheRefs(_refs); } catch (e) { console.warn('[paper-citations] onCacheRefs threw:', e); }
       }
     }
+    // V3.310 — reference-driven pipeline: fix SS numbering drift against
+    // the printed list, detect the citation style once, then sweep the
+    // whole document into the ref index that powers the All-refs tab.
+    _alignRefNumbers();
+    _detectStyle();
+    _buildRefIndex();
     _scanPage(_currentPage);
     if (_viewer && _viewer.numPages) {
       for (let p = 1; p <= _viewer.numPages; p++) _wirePageTokenHover(p);
@@ -680,13 +1410,33 @@
     _refs = null;
     _refState = 'pending';
     _matchesByPage.clear();
+    _style = null;
+    _refIndex = null;
+    _activeTab = 'page';
     // V3.93 — short-circuit when the host page already has refs cached
     // on the item (parsed by a previous session or at import time).
-    const cached = _item && _item.meta && _item.meta.library && _item.meta.library.references;
-    if (Array.isArray(cached) && cached.length > 0) {
-      _refs = cached;
+    // V3.206 — references moved to items/{id}/details/main; load via
+    // LIBRARY_EXTRAS which falls back to inline `meta.library.references`
+    // for unmigrated rows.
+    const inlineCached = _item && _item.meta && _item.meta.library && _item.meta.library.references;
+    if (Array.isArray(inlineCached) && inlineCached.length > 0) {
+      _refs = inlineCached;
       _refState = 'ready';
-      console.info(`[paper-citations] using ${cached.length} cached reference(s)`);
+      console.info(`[paper-citations] using ${inlineCached.length} inline cached reference(s)`);
+    } else if (window.LIBRARY_EXTRAS && _item && _item.id) {
+      // Async — kick off the extras read; if it returns refs before the
+      // viewer scan finishes we'll adopt them. Otherwise the parser runs
+      // normally and onCacheRefs persists the result.
+      window.LIBRARY_EXTRAS.load(_item.id, _item).then(extras => {
+        if (_refState !== 'pending') return;        // viewer parse already won
+        const refs = extras && extras.references;
+        if (Array.isArray(refs) && refs.length > 0) {
+          _refs = refs;
+          _refState = 'ready';
+          console.info(`[paper-citations] using ${refs.length} extras-cached reference(s)`);
+          _renderPanel();
+        }
+      }).catch(e => console.warn('[paper-citations] LIBRARY_EXTRAS.load failed:', e.message || e));
     }
     if (!_sideEl) {
       console.warn('[paper-citations] init: no sideEl, panel will not render');
@@ -709,6 +1459,9 @@
     _clearFlash();
     _matchesByPage.clear();
     _refs = null;
+    _style = null;
+    _refIndex = null;
+    _activeTab = 'page';
     if (_sideEl) _sideEl.innerHTML = '';
   }
 
@@ -739,5 +1492,76 @@
     return _parseRefsByPageRange(maxPage, collect);
   }
 
-  window.PAPER_CITATIONS = { init, refreshForPage, refreshLibraryStatus, destroy, parseRefsFromAllItems };
+  /** V3.310 — headless analysis for the citation-audit harness. Runs the
+   *  full reference-driven pipeline (SS-number alignment → style detect →
+   *  validated sweep) over flat text items + stored refs WITHOUT a viewer
+   *  or DOM. Module state is swapped in and restored so this can run on
+   *  pages where the interactive panel is also live. */
+  function analyzeDocument(opts) {
+    const items = (opts && opts.items) || [];
+    const refs = ((opts && opts.refs) || []).map(r => Object.assign({}, r));
+    const saved = { refs: _refs, style: _style };
+    try {
+      _refs = refs;
+      _style = null;
+      if (!items.length) {
+        return { style: 'none', styleCounts: {}, refCount: refs.length,
+                 locatedRefs: 0, markerCount: 0, perRef: [] };
+      }
+      const byPage = new Map();
+      for (const it of items) {
+        const p = it.page || 1;
+        if (!byPage.has(p)) byPage.set(p, []);
+        byPage.get(p).push(it);
+      }
+      if (refs.length && refs[0].source === 'semantic_scholar') {
+        try { _applyAlignment(refs, parseRefsFromAllItems(items)); } catch (_) { /* best-effort */ }
+      }
+      // Detect (validated tally), reusing the raw matches for the sweep.
+      const counts = { 'numeric-bracket': 0, 'numeric-paren': 0, 'super': 0, 'author-year': 0 };
+      const rawByPage = new Map();
+      for (const [p, arr] of byPage) {
+        const ms = _matchItemsOnPage(arr, p, null);
+        rawByPage.set(p, ms);
+        for (const m of ms) {
+          if (refs.length && !_matchedRef(m)) continue;
+          counts[_familyOf(m.kindLabel)]++;
+        }
+      }
+      _style = _pickFamily(counts);
+      const located = new Map();
+      let markerCount = 0;
+      for (const ms of rawByPage.values()) {
+        for (const m of _filterValidated(ms)) {
+          const ref = _matchedRef(m);
+          if (!ref) continue;
+          markerCount++;
+          const idx = refs.indexOf(ref);
+          if (!located.has(idx)) located.set(idx, new Set());
+          located.get(idx).add(m.page);
+        }
+      }
+      const perRef = refs.map((r, i) => ({
+        n: r.n != null ? r.n : i + 1,
+        firstAuthor: r.firstAuthor || '',
+        year: r.year || '',
+        title: r.title || '',
+        located: located.has(i),
+        pages: located.has(i) ? Array.from(located.get(i)).sort((a, b) => a - b) : [],
+      }));
+      return {
+        style: _style.family,
+        styleCounts: _style.counts,
+        refCount: refs.length,
+        locatedRefs: perRef.filter(r => r.located).length,
+        markerCount,
+        perRef,
+      };
+    } finally {
+      _refs = saved.refs;
+      _style = saved.style;
+    }
+  }
+
+  window.PAPER_CITATIONS = { init, refreshForPage, refreshLibraryStatus, destroy, parseRefsFromAllItems, analyzeDocument };
 })();

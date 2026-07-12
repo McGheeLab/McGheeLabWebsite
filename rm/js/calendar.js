@@ -33,33 +33,48 @@ function outlookEventDurMs(ev) {
 
 async function renderOutlookEvents() {
   const content = document.getElementById('content');
-  content.innerHTML = '<div class="empty-state">Loading Outlook events…</div>';
+  content.innerHTML = '<div class="empty-state">Loading upcoming events…</div>';
 
-  let result;
+  const me = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
+  if (!me || !firebridge.db) {
+    content.innerHTML = '<div class="empty-state">Sign in to view your calendar.</div>';
+    return;
+  }
+
+  let events;
   try {
-    const res = await fetch('/api/calendar/outlook-events?days=90');
-    if (!res.ok) {
-      content.innerHTML = `<div class="empty-state">Server error ${res.status}. Make sure the server is running the latest code (restart server.py).</div>`;
-      return;
-    }
-    const text = await res.text();
-    try { result = JSON.parse(text); } catch {
-      content.innerHTML = `<div class="empty-state">Invalid response from server. Restart server.py and reload.</div>`;
-      return;
-    }
+    // Window: today 00:00 → today+90d. Lexicographic compare works for both
+    // ISO datetime (timed events) and YYYY-MM-DD (all-day) field values.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minIso = today.toISOString().slice(0, 10);
+    const maxIso = new Date(Date.now() + 90 * 86400_000).toISOString().slice(0, 10);
+    const snap = await firebridge.db()
+      .collection('userData').doc(me.uid).collection('calendarEvents')
+      .where('start_at', '>=', minIso)
+      .where('start_at', '<', maxIso)
+      .orderBy('start_at', 'asc')
+      .limit(800)
+      .get();
+    events = snap.docs.map(d => {
+      const x = d.data();
+      return {
+        id: d.id,
+        title: x.summary || '(No title)',
+        start: x.start_at || '',
+        end: x.end_at || '',
+        all_day: !!x.all_day,
+        location: x.location || '',
+        recurring: !!x.recurring_event_id,
+      };
+    });
   } catch (err) {
-    content.innerHTML = `<div class="empty-state">Failed to fetch calendar: ${err.message}</div>`;
+    content.innerHTML = `<div class="empty-state">Failed to load calendar: ${err.message}</div>`;
     return;
   }
 
-  if (result.error) {
-    content.innerHTML = `<div class="empty-state">Calendar error: ${result.error}</div>`;
-    return;
-  }
-
-  const events = result.events || [];
   if (events.length === 0) {
-    content.innerHTML = '<div class="empty-state">No upcoming Outlook events in the next 90 days.</div>';
+    content.innerHTML = '<div class="empty-state">No upcoming events in the next 90 days.<br><small style="color:#6b7280">If you haven\'t connected Google Calendar yet, authorize from the email-review page.</small></div>';
     return;
   }
 
@@ -162,31 +177,6 @@ function renderOutlookEventHtml(ev, showDate) {
   </div>`;
 }
 
-// ---- Full Calendar (iframe embed) ----
-
-async function renderFullCalendar() {
-  const content = document.getElementById('content');
-  content.innerHTML = '<div class="empty-state">Loading calendar…</div>';
-
-  let embedUrl = '';
-  try {
-    const res = await fetch('/api/calendar/outlook-events?days=1');
-    const result = await res.json();
-    embedUrl = result.embed_url || '';
-  } catch {
-    // fall through
-  }
-
-  if (!embedUrl) {
-    content.innerHTML = '<div class="empty-state">No calendar embed URL configured.</div>';
-    return;
-  }
-
-  content.innerHTML = `<div class="calendar-embed-wrap">
-    <iframe src="${embedUrl}" class="calendar-embed" allowfullscreen></iframe>
-  </div>`;
-}
-
 // ---- Tab switching ----
 
 let currentTab = 'history';
@@ -201,7 +191,6 @@ function switchTab(tab) {
 
   if (tab === 'outlook') renderOutlookEvents();
   else if (tab === 'history') renderCalendarHistory();
-  else if (tab === 'fullcal') renderFullCalendar();
   else if (tab === 'booked') renderBookedTime();
   else if (tab === 'availability') renderAvailability();
 }
@@ -554,10 +543,18 @@ async function loadCalendarHistoryData() {
     CAL_HISTORY_STATE.ratings = await api.load('calendar_archive/ratings.json');
     if (!CAL_HISTORY_STATE.ratings.by_event) CAL_HISTORY_STATE.ratings.by_event = {};
     if (!CAL_HISTORY_STATE.ratings.by_sub_category) CAL_HISTORY_STATE.ratings.by_sub_category = {};
-  } catch { CAL_HISTORY_STATE.ratings = { by_event: {}, by_sub_category: {} }; }
+    if (!CAL_HISTORY_STATE.ratings.event_meta) CAL_HISTORY_STATE.ratings.event_meta = {};
+  } catch { CAL_HISTORY_STATE.ratings = { by_event: {}, by_sub_category: {}, event_meta: {} }; }
+  _rebuildRatingMetaIndex();
   try {
-    CAL_HISTORY_STATE.overrides = (await api.load('calendar_archive/category_overrides.json')).overrides || {};
-  } catch { CAL_HISTORY_STATE.overrides = {}; }
+    const ovDoc = await api.load('calendar_archive/category_overrides.json');
+    CAL_HISTORY_STATE.overrides = ovDoc.overrides || {};
+    CAL_HISTORY_STATE._overrideMeta = ovDoc.event_meta || {};
+  } catch {
+    CAL_HISTORY_STATE.overrides = {};
+    CAL_HISTORY_STATE._overrideMeta = {};
+  }
+  _rebuildOverrideMetaIndex();
   try {
     const t = await api.load('calendar_archive/trash.json');
     CAL_HISTORY_STATE.trash = Array.isArray(t.trash) ? t.trash : [];
@@ -648,10 +645,83 @@ async function loadCalSubcatTree() {
 }
 
 async function saveCalendarRatings() {
-  await api.save('calendar_archive/ratings.json', CAL_HISTORY_STATE.ratings);
+  const r = CAL_HISTORY_STATE.ratings || {};
+  await api.save('calendar_archive/ratings.json', {
+    by_event: r.by_event || {},
+    by_sub_category: r.by_sub_category || {},
+    event_meta: r.event_meta || {},
+  });
 }
 async function saveCalendarOverrides() {
-  await api.save('calendar_archive/category_overrides.json', { overrides: CAL_HISTORY_STATE.overrides });
+  await api.save('calendar_archive/category_overrides.json', {
+    overrides: CAL_HISTORY_STATE.overrides || {},
+    event_meta: CAL_HISTORY_STATE._overrideMeta || {},
+  });
+}
+
+// V3.227: rating + override lookups fall back to (title, start_date) when the
+// id-keyed direct lookup misses, so a sync that re-keys events doesn't make
+// every rating silently disappear. The reverse indices are derived from each
+// doc's `event_meta` sidecar at load time and again whenever the sidecar
+// changes, so a fresh page render sees fresh fallbacks.
+function _ratingSig(title, startAt) {
+  return (title || '') + '|' + (startAt || '').slice(0, 10);
+}
+function _rebuildRatingMetaIndex() {
+  const r = CAL_HISTORY_STATE.ratings || {};
+  const idx = {};
+  for (const id in (r.event_meta || {})) {
+    const m = r.event_meta[id];
+    if (m && m.title) idx[_ratingSig(m.title, m.start_at)] = id;
+  }
+  r._sigToId = idx;
+}
+function _rebuildOverrideMetaIndex() {
+  const meta = CAL_HISTORY_STATE._overrideMeta || {};
+  const idx = {};
+  for (const id in meta) {
+    const m = meta[id];
+    if (m && m.title) idx[_ratingSig(m.title, m.start_at)] = id;
+  }
+  CAL_HISTORY_STATE._overrideSigToId = idx;
+}
+function calRatingFor(e) {
+  const r = CAL_HISTORY_STATE.ratings || {};
+  const direct = (r.by_event || {})[e.id];
+  if (direct != null) return direct;
+  const fallbackId = (r._sigToId || {})[_ratingSig(e.title, e.start)];
+  if (fallbackId != null) {
+    const v = (r.by_event || {})[fallbackId];
+    if (v != null) return v;
+  }
+  return (r.by_sub_category || {})[e.sub_category] ?? 0;
+}
+function calOverrideFor(e) {
+  const o = CAL_HISTORY_STATE.overrides || {};
+  if (o[e.id]) return o[e.id];
+  const fallbackId = (CAL_HISTORY_STATE._overrideSigToId || {})[_ratingSig(e.title, e.start)];
+  return fallbackId != null ? o[fallbackId] : undefined;
+}
+function _setCalRating(e, v) {
+  const r = CAL_HISTORY_STATE.ratings = CAL_HISTORY_STATE.ratings || { by_event: {}, by_sub_category: {}, event_meta: {} };
+  r.by_event = r.by_event || {};
+  r.event_meta = r.event_meta || {};
+  if (v === 0) {
+    delete r.by_event[e.id];
+    delete r.event_meta[e.id];
+  } else {
+    r.by_event[e.id] = v;
+    r.event_meta[e.id] = { title: e.title || '', start_at: e.start || '' };
+  }
+  _rebuildRatingMetaIndex();
+}
+function _setCalOverride(e, partial) {
+  const o = CAL_HISTORY_STATE.overrides = CAL_HISTORY_STATE.overrides || {};
+  const existing = (typeof o[e.id] === 'object' && o[e.id]) ? o[e.id] : {};
+  o[e.id] = Object.assign({}, existing, partial);
+  CAL_HISTORY_STATE._overrideMeta = CAL_HISTORY_STATE._overrideMeta || {};
+  CAL_HISTORY_STATE._overrideMeta[e.id] = { title: e.title || '', start_at: e.start || '' };
+  _rebuildOverrideMetaIndex();
 }
 
 /* ── Live tab-to-tab sync ──
@@ -732,13 +802,17 @@ function _calAttachLiveSync() {
         const r = data || {};
         if (!r.by_event)        r.by_event        = {};
         if (!r.by_sub_category) r.by_sub_category = {};
+        if (!r.event_meta)      r.event_meta      = {};
         CAL_HISTORY_STATE.ratings = r;
+        _rebuildRatingMetaIndex();
       },
     },
     {
       path: 'calendar_archive/category_overrides.json',
       apply: (data) => {
         CAL_HISTORY_STATE.overrides = (data && data.overrides) || {};
+        CAL_HISTORY_STATE._overrideMeta = (data && data.event_meta) || {};
+        _rebuildOverrideMetaIndex();
       },
     },
     {
@@ -1194,8 +1268,8 @@ async function loadCalendarYear() {
   } catch {}
   CAL_HISTORY_STATE.events = [...archive, ...userEvents];
   for (const e of CAL_HISTORY_STATE.events) {
-    if (CAL_HISTORY_STATE.overrides[e.id]) {
-      const raw = CAL_HISTORY_STATE.overrides[e.id];
+    const raw = calOverrideFor(e);
+    if (raw) {
       const o = (typeof raw === 'string') ? { category: raw } : (raw || {});
       if (o.category) e.category = o.category;
       if (o.sub_category) e.sub_category = o.sub_category;
@@ -1270,7 +1344,7 @@ function renderCalHistSummary() {
   const byCat = {};
   for (const e of all) {
     totalHours += (e.duration_min || 0) / 60;
-    const s = CAL_HISTORY_STATE.ratings.by_event[e.id] || 0;
+    const s = calRatingFor(e) || 0;
     starDist[s] = (starDist[s] || 0) + 1;
     if (s > 0) ratedCount += 1;
     const cs = byCat[e.category] = byCat[e.category] || { events: 0, hours: 0 };
@@ -1425,12 +1499,6 @@ function calCatTag(cat) {
   return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;text-transform:uppercase;background:${CAL_CAT_COLORS[cat] || CAL_CAT_COLORS.unknown};color:${CAL_CAT_TEXT[cat] || CAL_CAT_TEXT.unknown}">${cat}</span>`;
 }
 
-function calRatingFor(e) {
-  return CAL_HISTORY_STATE.ratings.by_event[e.id]
-    ?? CAL_HISTORY_STATE.ratings.by_sub_category[e.sub_category]
-    ?? 0;
-}
-
 function sortCalEvents(arr, mode) {
   const out = arr.slice();
   switch (mode) {
@@ -1557,16 +1625,11 @@ function renderCalEventGroup(g) {
     <div class="col-actions"></div>
   `;
   // Average star rating across member events so the group stars reflect the group.
-  const starVals = g.events
-    .map(e => CAL_HISTORY_STATE.ratings.by_event[e.id] ?? CAL_HISTORY_STATE.ratings.by_sub_category[e.sub_category] ?? 0)
-    .filter(v => v > 0);
+  const starVals = g.events.map(calRatingFor).filter(v => v > 0);
   const avgStar = starVals.length ? Math.round(starVals.reduce((a, b) => a + b, 0) / starVals.length) : 0;
   row.querySelector('.col-stars').appendChild(starBarCal(avgStar, async (v) => {
     // Apply the chosen rating to every event in the group.
-    for (const e of g.events) {
-      if (v === 0) delete CAL_HISTORY_STATE.ratings.by_event[e.id];
-      else CAL_HISTORY_STATE.ratings.by_event[e.id] = v;
-    }
+    for (const e of g.events) _setCalRating(e, v);
     await saveCalendarRatings();
     renderCalHistAll();
   }));
@@ -1617,9 +1680,7 @@ function openBulkRecategorizeDialog(group) {
         e.category = category;
         e.sub_category = sub_category;
         e.category_source = 'manual';
-        const existing = typeof CAL_HISTORY_STATE.overrides[e.id] === 'object'
-          ? CAL_HISTORY_STATE.overrides[e.id] : {};
-        CAL_HISTORY_STATE.overrides[e.id] = { ...existing, category, sub_category };
+        _setCalOverride(e, { category, sub_category });
       }
       await saveCalendarOverrides();
       // Keep the shared sub-category tree in sync so the picker sees the new
@@ -1657,10 +1718,9 @@ function renderCalEventEntry(e) {
     <div class="col-actions"></div>
   `;
   row.querySelector('.col-stars').appendChild(starBarCal(
-    CAL_HISTORY_STATE.ratings.by_event[e.id] ?? CAL_HISTORY_STATE.ratings.by_sub_category[e.sub_category] ?? 0,
+    calRatingFor(e),
     async (v) => {
-      if (v === 0) delete CAL_HISTORY_STATE.ratings.by_event[e.id];
-      else CAL_HISTORY_STATE.ratings.by_event[e.id] = v;
+      _setCalRating(e, v);
       await saveCalendarRatings();
       renderCalHistAll();
     },
@@ -1707,13 +1767,7 @@ function renderCalEventEntry(e) {
         e.category = result.category;
         e.sub_category = result.sub_category;
         e.category_source = 'manual';
-        const existing = typeof CAL_HISTORY_STATE.overrides[e.id] === 'object'
-          ? CAL_HISTORY_STATE.overrides[e.id] : {};
-        CAL_HISTORY_STATE.overrides[e.id] = {
-          ...existing,
-          category: result.category,
-          sub_category: result.sub_category,
-        };
+        _setCalOverride(e, { category: result.category, sub_category: result.sub_category });
         await saveCalendarOverrides();
         await attachEventToTask(e);
         renderCalHistRows();
@@ -1802,9 +1856,7 @@ async function attachEventToTask(e) {
     if (!j.ok) return;
     e.assigned_task_id = j.task_id;
     e.assigned_task_title = j.task_title;
-    const existing = typeof CAL_HISTORY_STATE.overrides[e.id] === 'object'
-      ? CAL_HISTORY_STATE.overrides[e.id] : {};
-    CAL_HISTORY_STATE.overrides[e.id] = { ...existing, assigned_task_id: j.task_id };
+    _setCalOverride(e, { assigned_task_id: j.task_id });
   } catch {}
 }
 

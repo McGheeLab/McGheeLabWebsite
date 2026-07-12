@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roughness &amp; Superhydrophobicity — Surface Functionalization Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Surface Functionalization Foundations ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Roughness — How Texture Makes Water Bounce</h1>
+  <p class="subtitle">Surface Functionalization Foundations · Lesson 4 of 4 — Chemistry alone
+  tops out near 120°. The lotus leaf reaches 160° and shrugs off dirt using nothing but bumps.
+  This is where surface engineering stops being chemistry and starts being architecture.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="recap">1 · The Missing Ingredient</button>
+  <button class="tab-btn" data-tab="wenzel">2 · Wenzel: Roughness Amplifies</button>
+  <button class="tab-btn" data-tab="cassie">3 · Cassie–Baxter: Trapped Air</button>
+  <button class="tab-btn" data-tab="super">4 · Level Up: Lotus, Collapse &amp; Sharklet</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: recap -->
+<section id="tab-recap" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: Same coating, wildly different drop</h2>
+    <p>Lesson 3 ended at a wall. Young's equation says a smooth surface, however cleverly coated,
+    can't push water's contact angle much past ~120°. Yet a lotus leaf holds water at
+    <b>160°</b> — the drop is almost a perfect sphere, barely touching the leaf, rolling off at
+    the slightest tilt and carrying dirt away with it (the famous "self-cleaning" or
+    <em>lotus effect</em>). The waxes on a lotus leaf are ordinary hydrophobic chemistry, no
+    better than what's on a candle. So what's the leaf doing that a flat wax coating can't?</p>
+    <p>The answer is <b>texture</b>. A lotus leaf is covered in microscopic bumps, and each bump
+    is dusted with even finer nanoscale wax tubes — a two-level (hierarchical) roughness. That
+    architecture does something chemistry alone never can: it changes how much of the drop
+    actually <em>touches solid</em>. We measure that with an <b>apparent contact angle</b>
+    \(\theta^*\) — what you'd see and measure on the rough surface — as opposed to the intrinsic
+    <b>Young angle</b> \(\theta\) the same chemistry would give if the surface were mirror-flat.</p>
+    <p>There are two completely different ways texture can change \(\theta^*\), and which one you
+    get decides everything. Either the water sinks <em>into</em> the texture (Tab 2, the Wenzel
+    state) or it bridges <em>across</em> the tops of the texture, trapping air beneath it (Tab 3,
+    the Cassie–Baxter state). One makes a sticky surface, the other makes a lotus. This tab just
+    plants the flag: <b>roughness is the missing ingredient</b>, and \(\theta^*\) can differ
+    hugely from \(\theta\). The next two tabs give you the two equations that predict it.</p>
+    <div class="worked-example">
+      <p>Candle wax has an intrinsic water angle of ~105°. Smear it flat on glass and a drop sits
+      at ~105° — hydrophobic, but it clings when you tilt the glass. Now take the <em>same wax</em>
+      and deposit it as a rough soot-like layer (you can literally do this over a candle flame):
+      the apparent angle jumps to ~160° and drops roll off at a ~2° tilt. Identical chemistry,
+      identical \(\theta = 105°\); the only change is texture, and \(\theta^*\) leapt 55°. That
+      gap is the entire subject of this lesson.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Flat chemistry caps near 120°; real superhydrophobic surfaces (150°+) all use texture.</li>
+        <li>\(\theta\) = intrinsic Young angle (flat); \(\theta^*\) = apparent angle on the rough
+        surface. They can differ enormously.</li>
+        <li>Texture works by changing how much of the drop touches solid vs. air.</li>
+        <li>Two regimes — water sinks in (Wenzel) or bridges over trapped air (Cassie) — with
+        opposite consequences. Tabs 2–3.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>The two droplets share the same intrinsic angle θ but sit on smooth vs. textured
+      surfaces. Drag <b>Intrinsic angle θ</b> and watch how much more the textured drop reacts.</li>
+      <li>Toggle <b>Texture amount</b> from flat to lotus-like. On the plot, watch the rough curve
+      pull away from the smooth identity line.</li>
+      <li>Set θ below 90° (a hydrophilic chemistry). Does texture still exaggerate the behavior?
+      In which direction? (This is a preview of Wenzel's double-edged sword.)</li>
+      <li>From memory: name one everyday superhydrophobic surface and guess whether it's using
+      trapped air or not.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="recap" data-scen="smooth" onclick="setScen('recap','smooth')">Smooth hydrophobe</button>
+    <button class="scen-btn on" data-tab="recap" data-scen="lotus" onclick="setScen('recap','lotus')">Lotus-like texture</button>
+    <button class="scen-btn" data-tab="recap" data-scen="philic" onclick="setScen('recap','philic')">Hydrophilic + texture</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Intrinsic angle θ <span id="v-recap-theta">110</span></label>
+        <input type="range" id="s-recap-theta" min="0" max="130" step="1" value="110">
+      </div>
+      <div class="ctrl-group">
+        <label>Texture amount <span id="v-recap-tex">70</span></label>
+        <input type="range" id="s-recap-tex" min="0" max="100" step="1" value="70">
+      </div>
+      <div class="stats" id="st-recap"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Same chemistry, two surfaces — smooth (left) vs. textured (right)</div>
+        <canvas id="cv-recap" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Apparent angle θ* vs. intrinsic θ — smooth is the identity line</div>
+        <canvas id="cv-recap2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-recap"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: wenzel -->
+<section id="tab-wenzel" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Wenzel — when water fills the grooves, roughness turns up the volume</h2>
+    <p>Suppose the water sinks down and completely fills every groove and crevice of the texture,
+    wetting all of it. Robert Wenzel worked out the consequence in 1936 with a beautifully simple
+    energy argument: a rough surface has <em>more actual area</em> than its flat footprint, and
+    every extra bit of area counts. Define the <b>roughness ratio</b> \(r\) = (true surface area)
+    / (flat projected area), so \(r \ge 1\) always. Then:</p>
+    <div class="equation-box">
+      $$ \cos\theta^* \;=\; r\,\cos\theta \qquad (r \ge 1) $$
+    </div>
+    <p>Read what this does. If the surface is already hydrophobic (\(\theta > 90°\), so
+    \(\cos\theta < 0\)), multiplying by \(r>1\) makes \(\cos\theta^*\) <em>more</em> negative —
+    \(\theta^*\) climbs, <b>more hydrophobic</b>. But if the surface is hydrophilic
+    (\(\theta < 90°\), \(\cos\theta > 0\)), the same \(r\) makes \(\cos\theta^*\) <em>more</em>
+    positive — \(\theta^*\) drops toward 0°, <b>more hydrophilic</b>. Wenzel roughness is an
+    <b>amplifier</b>: it exaggerates whatever the flat chemistry already wanted to do. (This is
+    why rough hydrophilic surfaces can become super-wetting — useful for anti-fog coatings.)</p>
+    <p>There's a catch that matters enormously in practice: in the Wenzel state the water is
+    <em>interlocked</em> with the texture, gripping every wall. So even though \(\theta^*\) can be
+    high, the drop is <b>pinned</b> — it clings when you tilt the surface and leaves a wet trail.
+    High angle, high stickiness. That's not what a lotus leaf does. For a drop that both stands
+    up tall <em>and</em> rolls off freely, we need the drop to <em>not</em> fill the grooves —
+    which is Tab 3.</p>
+    <div class="worked-example">
+      <p>Take a fluorosilane surface with intrinsic \(\theta = 114°\) (from Lesson 3), so
+      \(\cos\theta = -0.407\). Roughen it to \(r = 1.5\) (50% more true area) in the Wenzel state:
+      $$\cos\theta^* = 1.5 \times (-0.407) = -0.61 \;\Rightarrow\; \theta^* \approx 128°.$$
+      Roughness bought 14°. But push \(r\) toward 2.5 and \(\cos\theta^* = -1.02\) — beyond −1,
+      which is impossible: it signals the Wenzel picture has broken down and the drop can no
+      longer stay pinned in the grooves. Physically, that's the cue for it to sit up on trapped
+      air instead. Nature\'s answer is the next tab.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Wenzel state = water fully fills the texture. \(\cos\theta^* = r\cos\theta\),
+        \(r \ge 1\).</li>
+        <li>Roughness amplifies: hydrophobic → more hydrophobic, hydrophilic → more hydrophilic.</li>
+        <li>But the drop is pinned and sticky — high angle, high adhesion, wet trail.</li>
+        <li>When \(r\cos\theta\) would exceed ±1, Wenzel breaks down — hinting at the Cassie state.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start hydrophobic (θ = 114°) and raise <b>roughness r</b> from 1 to 2. Watch θ* climb
+      and the drop settle deeper into the filled grooves. Verify the worked example (r = 1.5 → 128°).</li>
+      <li>Now set θ = 60° (hydrophilic) and raise r again. Which way does θ* move now? Explain
+      "amplifier" in one sentence.</li>
+      <li>Crank r past ~2.4 on the hydrophobic setting. The formula demands cos θ* &lt; −1. What
+      does the verdict say is happening physically?</li>
+      <li>Wenzel drops are sticky. If you needed a self-cleaning surface, why is that a
+      dealbreaker — and what must change?</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="wenzel" data-scen="phobic" onclick="setScen('wenzel','phobic')">Amplified hydrophobe</button>
+    <button class="scen-btn" data-tab="wenzel" data-scen="philic" onclick="setScen('wenzel','philic')">Amplified hydrophilic</button>
+    <button class="scen-btn" data-tab="wenzel" data-scen="break" onclick="setScen('wenzel','break')">Past the limit (r too big)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Roughness ratio r <span id="v-wenzel-r">1.5</span></label>
+        <input type="range" id="s-wenzel-r" min="1" max="3" step="0.05" value="1.5">
+      </div>
+      <div class="ctrl-group">
+        <label>Intrinsic angle θ <span id="v-wenzel-theta">114</span></label>
+        <input type="range" id="s-wenzel-theta" min="0" max="130" step="1" value="114">
+      </div>
+      <div class="stats" id="st-wenzel"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Wenzel state — water sinks in and fills every groove</div>
+        <canvas id="cv-wenzel" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Apparent angle θ* vs. roughness r (dashed = 90° line)</div>
+        <canvas id="cv-wenzel2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-wenzel"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: cassie -->
+<section id="tab-cassie" class="tab-content">
+  <div class="background-section">
+    <h2>Background: Cassie–Baxter — the drop sits on a bed of nails over trapped air</h2>
+    <p>Here is the lotus's actual trick. If the texture is fine enough and hydrophobic enough,
+    water <b>can't afford</b> to sink into the tiny crevices — pushing the water–air interface
+    down into a narrow, high-surface-energy groove would cost more energy than it saves. So the
+    drop does the lazy thing: it bridges across the <em>tops</em> of the bumps, resting on a
+    composite surface that is part solid, part <b>trapped air pocket</b>. Cassie and Baxter
+    (1944) averaged the two contributions. Let \(f_s\) be the <b>solid fraction</b> — the
+    fraction of the footprint that is actually solid (pillar tops), the rest being air:</p>
+    <div class="equation-box">
+      $$ \cos\theta^* \;=\; f_s\,(\cos\theta + 1) \;-\; 1 \qquad (0 \le f_s \le 1) $$
+    </div>
+    <p>The magic is in small \(f_s\). As \(f_s \to 0\) (mostly air, the drop barely touches
+    anything), \(\cos\theta^* \to -1\) and \(\theta^* \to 180°\) — a nearly perfect sphere. And
+    because the drop touches so little solid, there's almost nothing gripping it: it has
+    <b>tiny contact-angle hysteresis</b> and rolls off at the slightest tilt, scooping up dust as
+    it goes. That is exactly the lotus effect — high angle <em>and</em> low adhesion, the
+    combination Wenzel could never give.</p>
+    <p>The air layer sitting under a Cassie drop is called a <b>plastron</b>, and it's not just
+    for lotus leaves: it's how water striders walk on ponds, how some diving insects carry an air
+    supply underwater, and how engineered surfaces reduce drag. The whole game of designing a
+    superhydrophobic surface is: pick hydrophobic chemistry (Lesson 3), then build texture with
+    the <em>smallest reliable</em> \(f_s\) — while keeping the drop from collapsing into the
+    sticky Wenzel state. That "while keeping" is the cliff we walk off in Tab 4.</p>
+    <div class="worked-example">
+      <p>Lotus-scale texture: intrinsic \(\theta = 114°\) (\(\cos\theta = -0.407\)), solid
+      fraction \(f_s = 0.1\) (the drop touches only 10% solid, 90% air):
+      $$\cos\theta^* = 0.1\,(-0.407 + 1) - 1 = 0.1(0.593) - 1 = -0.941
+      \;\Rightarrow\; \theta^* \approx 160°.$$
+      There's the lotus number, straight from the equation. Compare the Wenzel result for the same
+      chemistry at r = 1.5: only 128°, and sticky. Same wax, two architectures, a 32° difference
+      and the difference between "clings" and "self-cleaning." Note also: at \(f_s = 0.1\) even a
+      mildly hydrophobic \(\theta = 100°\) still gives \(\theta^* \approx 157°\) — Cassie is
+      forgiving about the chemistry, which is why lotus wax doesn't need to be exotic.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Cassie–Baxter state = drop bridges the texture on trapped air.
+        \(\cos\theta^* = f_s(\cos\theta+1) - 1\).</li>
+        <li>Small solid fraction \(f_s\) → θ* → 180°, AND very low adhesion (rolls off) →
+        the self-cleaning lotus effect.</li>
+        <li>Unlike Wenzel, Cassie gives high angle <em>and</em> low stickiness.</li>
+        <li>The trapped air layer is a "plastron" — the same physics as water striders and
+        drag reduction.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Solid fraction f_s</b> down from 1 toward 0.05 and watch the drop rise onto the
+      pillar tops as the blue air pockets grow beneath it. Confirm f_s = 0.1 → ~160°.</li>
+      <li>Compare the same chemistry to Tab 2's Wenzel result. Which gives a higher angle? Which
+      lets the drop roll off?</li>
+      <li>Set θ = 100° (weakly hydrophobic wax) at f_s = 0.1. Is θ* still superhydrophobic? What
+      does that tell you about how good the lotus's chemistry needs to be?</li>
+      <li>Push f_s to 0.02. θ* approaches 180° — but think ahead: what might make such a fragile,
+      mostly-air interface dangerous? (Tab 4.)</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="cassie" data-scen="lotus" onclick="setScen('cassie','lotus')">Lotus (f_s ≈ 0.1)</button>
+    <button class="scen-btn" data-tab="cassie" data-scen="dense" onclick="setScen('cassie','dense')">Dense pillars (f_s = 0.4)</button>
+    <button class="scen-btn" data-tab="cassie" data-scen="extreme" onclick="setScen('cassie','extreme')">Extreme (f_s = 0.03)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Solid fraction f_s <span id="v-cassie-fs">0.1</span></label>
+        <input type="range" id="s-cassie-fs" min="0.02" max="1" step="0.01" value="0.1">
+      </div>
+      <div class="ctrl-group">
+        <label>Intrinsic angle θ <span id="v-cassie-theta">114</span></label>
+        <input type="range" id="s-cassie-theta" min="40" max="130" step="1" value="114">
+      </div>
+      <div class="stats" id="st-cassie"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cassie–Baxter state — drop bridges the pillars over trapped air</div>
+        <canvas id="cv-cassie" width="640" height="280"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Apparent angle θ* vs. solid fraction f_s</div>
+        <canvas id="cv-cassie2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-cassie"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: super -->
+<section id="tab-super" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: which state wins, when Cassie collapses, and Sharklet's different game</h2>
+    <p>A textured hydrophobic surface can sit in <em>either</em> state — Cassie (on air, slippery)
+    or Wenzel (flooded, sticky). Which one you actually get is a competition of energies, and the
+    surface will prefer whichever interfacial state is lower in energy. Comparing the two Wenzel
+    and Cassie expressions gives a clean criterion: the <b>Cassie state is favored</b> when the
+    intrinsic angle is large enough that</p>
+    <div class="equation-box">
+      $$ \cos\theta \;<\; \frac{f_s - 1}{r - f_s}
+      \qquad\Longleftrightarrow\qquad
+      \theta \;>\; \theta_{\text{crit}} $$
+    </div>
+    <p>Below that critical angle, Wenzel wins and the drop floods the texture. This is why
+    superhydrophobic surfaces <em>combine</em> two ingredients: hydrophobic chemistry (to push
+    \(\theta\) above \(\theta_{\text{crit}}\)) <b>and</b> fine texture (small \(f_s\), to make
+    Cassie both accessible and extreme). Miss either and you get a sticky Wenzel surface that
+    photographs like a lotus but performs like flypaper.</p>
+    <p>Worse, a Cassie state is often only <b>metastable</b> — a local energy minimum protected by
+    a barrier, not the true bottom. Enough pressure (a heavy drop, an impact, condensation growing
+    inside the texture) can shove the water past the barrier and it <b>collapses irreversibly into
+    Wenzel</b> — "impalement." The lotus survives rain by using <em>hierarchical</em> texture
+    (bumps on bumps): the fine scale raises the collapse-pressure barrier enormously. Robustness,
+    not just a high angle, is the real engineering target.</p>
+    <p><b>A different use of the same idea — Sharklet.</b> Not every textured surface is about
+    repelling water. <b>Sharklet</b> is a micropattern of tiny diamond-arranged ridges (copied
+    from the denticles of shark skin) that <b>resists bacterial colonization</b>. Crucially, it
+    doesn't kill bacteria and it isn't merely "hydrophobic" — the geometry itself makes it
+    energetically and mechanically unfavorable for cells to settle and form biofilms. Same lesson,
+    different payoff: <em>surface topography, not chemistry, controls what sticks</em> — whether
+    that's a water drop or a colony of bacteria.</p>
+    <div class="worked-example">
+      <p>Pillars with \(r = 1.6\), \(f_s = 0.1\). Critical angle:
+      \(\cos\theta_{\text{crit}} = (0.1 - 1)/(1.6 - 0.1) = -0.9/1.5 = -0.6\), so
+      \(\theta_{\text{crit}} = 127°\). A fluorosilane at \(\theta = 114°\) is <em>below</em> this
+      — so on this coarse texture the true equilibrium is Wenzel (sticky), and any Cassie state is
+      only metastable, one raindrop from collapse. Shrink the pillars to \(f_s = 0.03\) and
+      \(\cos\theta_{\text{crit}} = -0.97/1.57 = -0.62\) barely moves — but the finer scale raises
+      the collapse barrier, so the metastable Cassie state now survives real-world impacts. This
+      is precisely why the lotus needs its second, nanoscale tier of roughness.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Cassie is favored when \(\cos\theta < (f_s-1)/(r-f_s)\); otherwise Wenzel wins.</li>
+        <li>Robust superhydrophobicity needs BOTH hydrophobic chemistry and fine (often
+        hierarchical) texture.</li>
+        <li>Cassie is often metastable — pressure/impact can collapse it irreversibly to Wenzel
+        (impalement).</li>
+        <li>Sharklet: micro-topography resists bacterial attachment by geometry, not by killing
+        or by hydrophobicity — texture controls what sticks.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>With the fluorosilane preset, note whether the stable state is Cassie or Wenzel and
+      find θ_crit in the stats. Then lower <b>f_s</b> and watch the stable state and robustness
+      change.</li>
+      <li>Raise the <b>impalement pressure</b> slider on a metastable Cassie surface and watch
+      the drop collapse into the grooves. Once collapsed, does lowering the pressure bring it
+      back? (Note the verdict on irreversibility.)</li>
+      <li>Find a combination that is BOTH in the stable-Cassie region AND robust. What did you
+      have to do to θ and f_s?</li>
+      <li>Switch to the <b>Sharklet</b> preset and read how it works. In one sentence, contrast
+      its goal with the lotus's.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="super" data-scen="robust" onclick="setScen('super','robust')">Robust lotus (Cassie stable)</button>
+    <button class="scen-btn" data-tab="super" data-scen="collapsed" onclick="setScen('super','collapsed')">Collapsed (Wenzel)</button>
+    <button class="scen-btn" data-tab="super" data-scen="sharklet" onclick="setScen('super','sharklet')">Sharklet anti-fouling</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Solid fraction f_s <span id="v-super-fs">0.05</span></label>
+        <input type="range" id="s-super-fs" min="0.02" max="1" step="0.01" value="0.05">
+      </div>
+      <div class="ctrl-group">
+        <label>Roughness ratio r <span id="v-super-r">2.5</span></label>
+        <input type="range" id="s-super-r" min="1" max="4" step="0.05" value="2.5">
+      </div>
+      <div class="ctrl-group">
+        <label>Intrinsic angle θ <span id="v-super-theta">118</span></label>
+        <input type="range" id="s-super-theta" min="40" max="130" step="1" value="118">
+      </div>
+      <div class="ctrl-group">
+        <label>Impalement pressure <span id="v-super-press">0</span></label>
+        <input type="range" id="s-super-press" min="0" max="100" step="1" value="0">
+      </div>
+      <div class="stats" id="st-super"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cassie ⇄ Wenzel — raise the pressure and watch the air pockets collapse (live)</div>
+        <canvas id="cv-super" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Which state is stable? cos θ* for Cassie vs. Wenzel</div>
+        <canvas id="cv-super2" width="640" height="270"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-super"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>R. N. Wenzel, "Resistance of Solid Surfaces to Wetting by Water," <i>Industrial &amp;
+    Engineering Chemistry</i> <b>28</b>, 988–994 (1936). DOI: 10.1021/ie50320a024.</li>
+    <li>A. B. D. Cassie &amp; S. Baxter, "Wettability of porous surfaces," <i>Transactions of the
+    Faraday Society</i> <b>40</b>, 546–551 (1944). DOI: 10.1039/tf9444000546.</li>
+    <li>W. Barthlott &amp; C. Neinhuis, "Purity of the sacred lotus, or escape from contamination
+    in biological surfaces," <i>Planta</i> <b>202</b>, 1–8 (1997). DOI: 10.1007/s004250050096 —
+    the lotus effect and self-cleaning.</li>
+    <li>P.-G. de Gennes, "Wetting: statics and dynamics," <i>Reviews of Modern Physics</i>
+    <b>57</b>, 827–863 (1985). DOI: 10.1103/RevModPhys.57.827 — the physics of contact lines and
+    wetting states.</li>
+    <li>K. K. Chung et al., "Impact of engineered surface microtopography on biofilm formation of
+    Staphylococcus aureus," <i>Biofouling</i> <b>23</b>, 55–62 (2007).
+    DOI: 10.1080/08927010601136957 — the Sharklet AF micropattern and bacterial attachment.</li>
+    <li>L. Gao &amp; T. J. McCarthy, "How Wenzel and Cassie Were Wrong," <i>Langmuir</i>
+    <b>23</b>, 3762–3765 (2007). DOI: 10.1021/la062634a — the caveat that wetting is governed by
+    the contact line, not the area beneath the whole drop.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Surface Functionalization Foundations · Lesson 4 of 4 — You now understand a
+surface from its atoms up: energy, cleaning, plasma chemistry, silane coatings, and texture. Go
+engineer one.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl, xtickFmt, ytickFmt){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(xtickFmt ? xtickFmt(t) : fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(ytickFmt ? ytickFmt(t) : fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+
+function drawAtom(ctx, x, y, r, color){
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.15, x, y, r);
+  g.addColorStop(0, '#dbeafe'); g.addColorStop(1, color);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,58,95,.35)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 4: Roughness & Superhydrophobicity
+   ================================================================ */
+function cosd(d){ return Math.cos(d * Math.PI / 180); }
+function acosdeg(c){ return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI; }
+function wenzelStar(thetaDeg, r){ return acosdeg(r * cosd(thetaDeg)); }
+function cassieStar(thetaDeg, fs){ return acosdeg(fs * (cosd(thetaDeg) + 1) - 1); }
+
+/* draw a droplet cap sitting with apparent angle thetaStar, base center cx on line surfY */
+function drawDrop(ctx, cx, surfY, baseR, thetaStarDeg, fill, edge){
+  const th = Math.max(3, thetaStarDeg) * Math.PI / 180;
+  // choose sphere radius so the wetted base half-width ≈ baseR
+  const R = th < Math.PI / 2 ? baseR / Math.sin(th) : baseR / Math.sin(th);
+  const Rr = Math.max(baseR, Math.min(baseR / Math.max(0.12, Math.sin(th)), baseR * 3.5));
+  const cyc = surfY - Rr * Math.cos(Math.PI - th) * -1; // center above surface
+  const cy = surfY - (-Rr * Math.cos(th));
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - 3 * baseR, 0, 6 * baseR, surfY); ctx.clip();
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.arc(cx, cy, Rr, 0, 7); ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+  return Rr;
+}
+
+/* --- control state --- */
+let activeTab = 'recap';
+const scen = { recap: 'lotus', wenzel: 'phobic', cassie: 'lotus', super: 'robust' };
+
+const FMT = {
+  'recap-theta': v => fmt(v, 0) + '°',
+  'recap-tex':   v => fmt(v, 0) + ' %',
+  'wenzel-r':     v => fmt(v, 2),
+  'wenzel-theta': v => fmt(v, 0) + '°',
+  'cassie-fs':    v => fmt(v, 2),
+  'cassie-theta': v => fmt(v, 0) + '°',
+  'super-fs':    v => fmt(v, 2),
+  'super-r':     v => fmt(v, 2),
+  'super-theta': v => fmt(v, 0) + '°',
+  'super-press': v => fmt(v, 0) + ' %'
+};
+
+const SCEN = {
+  recap: {
+    smooth: { 's-recap-theta': 110, 's-recap-tex': 0 },
+    lotus:  { 's-recap-theta': 110, 's-recap-tex': 70 },
+    philic: { 's-recap-theta': 60,  's-recap-tex': 70 }
+  },
+  wenzel: {
+    phobic: { 's-wenzel-r': 1.5, 's-wenzel-theta': 114 },
+    philic: { 's-wenzel-r': 1.5, 's-wenzel-theta': 60 },
+    break:  { 's-wenzel-r': 2.7, 's-wenzel-theta': 114 }
+  },
+  cassie: {
+    lotus:   { 's-cassie-fs': 0.1,  's-cassie-theta': 114 },
+    dense:   { 's-cassie-fs': 0.4,  's-cassie-theta': 114 },
+    extreme: { 's-cassie-fs': 0.03, 's-cassie-theta': 114 }
+  },
+  super: {
+    robust:    { 's-super-fs': 0.05, 's-super-r': 2.5, 's-super-theta': 118, 's-super-press': 0 },
+    collapsed: { 's-super-fs': 0.1,  's-super-r': 1.6, 's-super-theta': 105, 's-super-press': 85 },
+    sharklet:  { 's-super-fs': 0.5,  's-super-r': 1.8, 's-super-theta': 95,  's-super-press': 0 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation plumbing (TFM pattern): only 'super' animates --- */
+const ANIMATED = new Set(['super']);
+let rafId = null, animClock = 0;
+function animLoop(ts){
+  animClock = (ts || 0) / 1000;
+  if (ANIMATED.has(activeTab)) {
+    try { DRAW[activeTab](); } catch (e) { console.error(e); }
+    rafId = requestAnimationFrame(animLoop);
+  } else rafId = null;
+}
+function startAnim(){ if (ANIMATED.has(activeTab) && rafId == null) rafId = requestAnimationFrame(animLoop); }
+function stopAnim(){ if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; } }
+
+/* draw a row of pillars from x0..x1 on baseline surfY; returns nothing */
+function drawPillars(ctx, x0, x1, surfY, depth, fs, waterFill){
+  const period = 30, pw = period * Math.max(0.06, Math.min(1, fs));
+  ctx.save();
+  for (let x = x0; x < x1 - 2; x += period) {
+    // groove (air or water) between pillars
+    if (waterFill === 'water') {
+      ctx.fillStyle = 'rgba(37,99,235,0.35)';
+      ctx.fillRect(x + pw, surfY, period - pw, depth);
+    } else if (waterFill === 'air') {
+      ctx.fillStyle = 'rgba(147,197,253,0.30)';
+      ctx.fillRect(x + pw, surfY, period - pw, depth);
+    }
+    // pillar
+    ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = COL.axis; ctx.lineWidth = 1;
+    ctx.fillRect(x, surfY, pw, depth); ctx.strokeRect(x, surfY, pw, depth);
+  }
+  ctx.restore();
+}
+
+/* ---------------- TAB 1: recap ---------------- */
+function drawRecap(){
+  const theta = num('s-recap-theta'), tex = num('s-recap-tex') / 100;
+  // treat "texture amount" as a Cassie-like fs shrinking from 1 → 0.12
+  const fs = 1 - tex * 0.88;
+  const starRough = cassieStar(theta, fs);
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-recap'));
+  const surfY = h - 46, half = w / 2;
+  drawLine(ctx, 6, 6, 6, h, COL.grid, 1); // no-op-ish spacer
+  // left: smooth
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(10, surfY, half - 20, h - surfY);
+  drawLine(ctx, 10, surfY, half - 10, surfY, COL.axis, 1.5);
+  drawDrop(ctx, (10 + half - 10) / 2, surfY, 44, theta, 'rgba(37,99,235,0.40)', COL.accent);
+  caption(ctx, (10 + half) / 2, surfY + 20, 'SMOOTH · θ = ' + fmt(theta, 0) + '°', COL.ink, true);
+  caption(ctx, (10 + half) / 2, 20, 'flat coating', COL.axis);
+  // divider
+  drawLine(ctx, half, 10, half, h - 10, COL.grid, 1, [4, 4]);
+  // right: textured
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(half + 10, surfY, half - 20, h - surfY);
+  drawPillars(ctx, half + 12, w - 10, surfY, h - surfY - 2, fs, 'air');
+  drawLine(ctx, half + 10, surfY, w - 10, surfY, COL.axis, 1.5);
+  drawDrop(ctx, (half + 10 + w - 10) / 2, surfY, 44, starRough, 'rgba(37,99,235,0.40)', COL.accent);
+  caption(ctx, (half + w) / 2, surfY + 20, 'TEXTURED · θ* = ' + fmt(starRough, 0) + '°', COL.ink, true);
+  caption(ctx, (half + w) / 2, 20, 'same coating + bumps', COL.axis);
+
+  /* plot */
+  const c2 = setupCanvas(document.getElementById('cv-recap2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 130, 0, 180);
+  ch.grid(); ch.axes('intrinsic angle θ (°)', 'apparent angle θ* (°)');
+  ch.plot([[0, 0], [130, 130]], COL.muted, 1.5, [5, 4]);   // identity (smooth)
+  const pts = [];
+  for (let t = 0; t <= 130; t += 1) pts.push([t, cassieStar(t, fs)]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(theta, theta, COL.muted, 5);
+  ch.dot(theta, starRough, COL.bad, 6);
+  ch.legend([{ label: 'smooth (θ* = θ)', color: COL.muted, dash: [5, 4] },
+             { label: 'textured', color: COL.accent }]);
+
+  setStat('st-recap', [
+    { label: 'Intrinsic θ (smooth)', value: fmt(theta, 0) + '°' },
+    { label: 'Texture amount', value: fmt(tex * 100, 0) + ' %' },
+    { label: 'Apparent θ* (rough)', value: fmt(starRough, 0) + '°', highlight: true },
+    { label: 'Change from texture', value: (starRough >= theta ? '+' : '') + fmt(starRough - theta, 0) + '°' }
+  ]);
+
+  if (tex < 0.05)
+    setVerdict('vd-recap', '', 'No texture — θ* equals θ.',
+      'A flat surface just gives you the Young angle. Add texture and the story changes completely. Turn up the texture slider.');
+  else if (theta > 90 && starRough > theta + 8)
+    setVerdict('vd-recap', 'good', 'Texture pushed a hydrophobe from ' + fmt(theta, 0) + '° to ' + fmt(starRough, 0) + '°.',
+      'Same chemistry, dramatically rounder drop — this is the gap flat coatings can\'t cross. But WHY it happened (air trapped underneath vs. water sunk in) decides whether it\'s slippery or sticky. That\'s the next two tabs: Wenzel and Cassie.');
+  else if (theta < 90)
+    setVerdict('vd-recap', 'warn', 'On a hydrophilic surface, texture makes it even more wetting.',
+      'θ* = ' + fmt(starRough, 0) + '° — texture is an amplifier, and here it amplifies water-loving behavior toward spreading. Roughness cuts both ways; the direction depends on the base chemistry. Tab 2 makes this exact.');
+  else
+    setVerdict('vd-recap', 'warn', 'Texture is nudging θ* — turn it up to see the full effect.',
+      'θ* = ' + fmt(starRough, 0) + '°. The more texture (and the more hydrophobic the base chemistry), the bigger the jump.');
+}
+
+/* ---------------- TAB 2: wenzel ---------------- */
+function drawWenzel(){
+  const r = num('s-wenzel-r'), theta = num('s-wenzel-theta');
+  const rc = r * cosd(theta);
+  const valid = Math.abs(rc) <= 1;
+  const star = acosdeg(rc);
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-wenzel'));
+  const surfY = h - 70, depth = 40;
+  // rough substrate with WATER-filled grooves (Wenzel)
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY + depth, w, h - surfY - depth);
+  // groove depth grows with r
+  const gd = 14 + (r - 1) * 34;
+  const period = 34;
+  for (let x = 4; x < w - 4; x += period) {
+    ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = COL.axis; ctx.lineWidth = 1;
+    ctx.fillRect(x, surfY, period * 0.5, gd); ctx.strokeRect(x, surfY, period * 0.5, gd);
+    // water fills the groove to the right of each pillar
+    ctx.fillStyle = 'rgba(37,99,235,0.38)';
+    ctx.fillRect(x + period * 0.5, surfY, period * 0.5, gd);
+  }
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.2);
+  // drop on top
+  if (valid) {
+    drawDrop(ctx, w / 2, surfY, 60, star, 'rgba(37,99,235,0.40)', COL.accent);
+    caption(ctx, w / 2, surfY + gd + 22, 'water fills every groove — the drop is INTERLOCKED (sticky)', COL.bad, true);
+  } else {
+    caption(ctx, w / 2, h / 2, 'r·cos θ = ' + fmt(rc, 2) + '  →  out of range', COL.bad, true);
+    caption(ctx, w / 2, h / 2 + 20, 'the Wenzel picture has broken down (see verdict)', COL.axis);
+  }
+  caption(ctx, w / 2, 20, 'WENZEL state · θ* = ' + (valid ? fmt(star, 0) + '°' : '—') + '   (r = ' + fmt(r, 2) + ')', COL.ink, true);
+
+  /* plot θ* vs r */
+  const c2 = setupCanvas(document.getElementById('cv-wenzel2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(1, 3, 0, 180);
+  ch.grid(); ch.axes('roughness ratio r', 'apparent angle θ* (°)');
+  ch.hLine(90, COL.muted, [4, 4]);
+  ch.hLine(theta, COL.orange, [2, 4]);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.orange; c2.ctx.font = 'bold 10px sans-serif';
+  c2.ctx.textAlign = 'left'; c2.ctx.fillText('intrinsic θ = ' + fmt(theta, 0) + '°', ch.toX(1.03), ch.toY(theta) - 4);
+  c2.ctx.restore();
+  const pts = [];
+  for (let rr = 1; rr <= 3.001; rr += 0.02) {
+    const v = rr * cosd(theta);
+    pts.push([rr, Math.abs(v) <= 1 ? acosdeg(v) : NaN]);
+  }
+  ch.plot(pts, COL.accent, 2.5);
+  if (valid) ch.dot(r, star, COL.bad, 6);
+  ch.legend([{ label: 'Wenzel: cos θ* = r cos θ', color: COL.accent }]);
+
+  setStat('st-wenzel', [
+    { label: 'Roughness r', value: fmt(r, 2) },
+    { label: 'Intrinsic θ', value: fmt(theta, 0) + '°' },
+    { label: 'r · cos θ', value: fmt(rc, 2) },
+    { label: 'Apparent θ*', value: valid ? fmt(star, 0) + '°' : 'undefined', highlight: true }
+  ]);
+
+  if (!valid)
+    setVerdict('vd-wenzel', 'bad', 'Wenzel has broken down (r·cos θ = ' + fmt(rc, 2) + ', |·| > 1).',
+      'The math is telling you something physical: at this roughness the water can no longer stay pinned filling the grooves. In reality the drop lifts onto trapped air — it switches to the Cassie–Baxter state. That\'s Tab 3, and it\'s where superhydrophobicity actually lives.');
+  else if (theta > 90)
+    setVerdict('vd-wenzel', 'warn', 'More hydrophobic (θ* = ' + fmt(star, 0) + '°) — but pinned and sticky.',
+      'Roughness amplified the hydrophobicity: θ went from ' + fmt(theta, 0) + '° to ' + fmt(star, 0) + '°. Yet because the water fills and grips every groove, the drop CLINGS when you tilt the surface and drags a wet trail. High angle ≠ self-cleaning. For that, keep the water OUT of the grooves → Tab 3.');
+  else
+    setVerdict('vd-wenzel', 'warn', 'More hydrophilic (θ* = ' + fmt(star, 0) + '°) — super-wetting.',
+      'Below 90°, the same amplifier drives θ* DOWN toward zero: rough hydrophilic surfaces spread water into a film. This is the trick behind anti-fog coatings. Roughness always exaggerates the base chemistry — which way depends on whether θ started above or below 90°.');
+}
+
+/* ---------------- TAB 3: cassie ---------------- */
+function drawCassie(){
+  const fs = num('s-cassie-fs'), theta = num('s-cassie-theta');
+  const star = cassieStar(theta, fs);
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-cassie'));
+  const surfY = h - 70, depth = 44;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY + depth, w, h - surfY - depth);
+  // pillars with AIR in the gaps; pillar width = fs*period
+  const period = 40, pw = Math.max(3, period * fs);
+  for (let x = 6; x < w - 4; x += period) {
+    // trapped air pocket
+    ctx.fillStyle = 'rgba(147,197,253,0.45)'; ctx.fillRect(x + pw, surfY, period - pw, depth);
+    ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = COL.axis; ctx.lineWidth = 1;
+    ctx.fillRect(x, surfY, pw, depth); ctx.strokeRect(x, surfY, pw, depth);
+  }
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.2);
+  // the drop bridges the pillar tops (base sits AT surfY)
+  drawDrop(ctx, w / 2, surfY, 62, star, 'rgba(37,99,235,0.42)', COL.accent);
+  // little "air" labels
+  ctx.save(); ctx.fillStyle = '#1d4ed8'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+  for (let x = 6 + period; x < w - 40 && x < w / 2 + 140; x += period * 2)
+    ctx.fillText('air', x + pw + (period - pw) / 2, surfY + depth / 2);
+  ctx.restore();
+  caption(ctx, w / 2, surfY + depth + 22, 'drop rests on pillar tops — ' + fmt((1 - fs) * 100, 0) + '% air underneath', COL.teal, true);
+  caption(ctx, w / 2, 20, 'CASSIE–BAXTER state · θ* = ' + fmt(star, 0) + '°   (f_s = ' + fmt(fs, 2) + ')', COL.ink, true);
+
+  /* plot θ* vs fs */
+  const c2 = setupCanvas(document.getElementById('cv-cassie2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 1, 0, 180);
+  ch.grid(); ch.axes('solid fraction f_s', 'apparent angle θ* (°)');
+  ch.hLine(150, COL.good, [4, 4]);
+  c2.ctx.save(); c2.ctx.fillStyle = COL.good; c2.ctx.font = 'bold 10px sans-serif';
+  c2.ctx.textAlign = 'right'; c2.ctx.fillText('superhydrophobic (150°)', ch.toX(0.98), ch.toY(150) - 4);
+  c2.ctx.restore();
+  const pts = [];
+  for (let f = 0.02; f <= 1.001; f += 0.01) pts.push([f, cassieStar(theta, f)]);
+  ch.plot(pts, COL.accent, 2.5);
+  ch.dot(fs, star, COL.bad, 6);
+  ch.legend([{ label: 'Cassie: cos θ* = f_s(cos θ+1)−1', color: COL.accent }]);
+
+  setStat('st-cassie', [
+    { label: 'Solid fraction f_s', value: fmt(fs, 2) },
+    { label: 'Air fraction', value: fmt((1 - fs) * 100, 0) + ' %' },
+    { label: 'Intrinsic θ', value: fmt(theta, 0) + '°' },
+    { label: 'Apparent θ*', value: fmt(star, 0) + '°', highlight: true }
+  ]);
+
+  if (star >= 150)
+    setVerdict('vd-cassie', 'good', 'Superhydrophobic AND slippery — θ* = ' + fmt(star, 0) + '°.',
+      'The drop touches only ' + fmt(fs * 100, 0) + '% solid and floats on ' + fmt((1 - fs) * 100, 0) + '% trapped air (its "plastron"). With so little solid contact, adhesion is tiny — this drop rolls off at a whisper of tilt, carrying dust away. This is the genuine lotus effect: high angle plus low stickiness, which Wenzel could never deliver.');
+  else if (star >= 120)
+    setVerdict('vd-cassie', 'warn', 'Hydrophobic but not yet lotus-grade (θ* = ' + fmt(star, 0) + '°).',
+      'You\'re in the Cassie state (on air), but f_s = ' + fmt(fs, 2) + ' is too big — too much solid contact. Shrink the solid fraction (finer, sparser pillars) to push θ* past 150° and drop the adhesion further.');
+  else
+    setVerdict('vd-cassie', 'warn', 'Too much solid contact (θ* = ' + fmt(star, 0) + '°).',
+      'At f_s = ' + fmt(fs, 2) + ' the drop touches too much solid to gain much from the trapped air. Note how forgiving Cassie is about chemistry, though — try lowering θ and watch θ* barely budge. The lever here is geometry (f_s), not chemistry.');
+}
+
+/* ---------------- TAB 4: super (animated) ---------------- */
+let superCollapse = 0, superPrevClock = null;   // 0 = Cassie (on air) … 1 = Wenzel (flooded), latches
+
+function drawSuper(){
+  const fs = num('s-super-fs'), r = num('s-super-r'), theta = num('s-super-theta');
+  const press = num('s-super-press') / 100;
+  const cosCrit = (fs - 1) / (r - fs);
+  const cassieFavored = cosd(theta) < cosCrit;   // Cassie is the true minimum
+  const thetaCrit = acosdeg(cosCrit);
+  // collapse-pressure barrier: high for small fs (fine texture), low for coarse
+  const pCrit = Math.min(1, 0.15 + (1 - fs) * 0.55 * (r / 2.5));
+  // update latching collapse state
+  const dt = superPrevClock == null ? 0 : Math.min(0.1, animClock - superPrevClock);
+  superPrevClock = animClock;
+  let target = superCollapse;
+  if (!cassieFavored) target = 1;                    // Wenzel is the true state → floods
+  else if (press > pCrit) target = 1;                // impaled past the barrier
+  // latch: once collapsed it stays collapsed (irreversible) unless truly Cassie-stable & low press
+  if (target > superCollapse) superCollapse += (1 - superCollapse) * (1 - Math.exp(-dt * 6));
+  if (cassieFavored && press < pCrit * 0.4 && superCollapse > 0.99) superCollapse = 0.999; // stays impaled (visual latch)
+  const collapsed = superCollapse;
+  const starCassie = cassieStar(theta, fs), starWenzel = acosdeg(Math.max(-1, Math.min(1, r * cosd(theta))));
+  const star = collapsed > 0.5 ? starWenzel : starCassie;
+  const isShark = scen.super === 'sharklet';
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-super'));
+  const surfY = h - 78, depth = 48;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, surfY + depth, w, h - surfY - depth);
+  const period = 40, pw = Math.max(3, period * fs);
+  for (let x = 6; x < w - 4; x += period) {
+    // groove content: interpolate air→water by collapse
+    const wy = surfY + collapsed * depth;
+    ctx.fillStyle = 'rgba(147,197,253,0.45)'; ctx.fillRect(x + pw, surfY, period - pw, depth);
+    ctx.fillStyle = 'rgba(37,99,235,0.42)'; ctx.fillRect(x + pw, surfY, period - pw, collapsed * depth);
+    ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = COL.axis; ctx.lineWidth = 1;
+    ctx.fillRect(x, surfY, pw, depth); ctx.strokeRect(x, surfY, pw, depth);
+  }
+  drawLine(ctx, 0, surfY, w, surfY, COL.axis, 1.2);
+  // drop
+  const dcx = w / 2 - 40;
+  drawDrop(ctx, dcx, surfY - collapsed * 2, 58, star, collapsed > 0.5 ? 'rgba(220,38,38,0.30)' : 'rgba(37,99,235,0.42)',
+    collapsed > 0.5 ? COL.bad : COL.accent);
+  // pressure arrows pushing down when press > 0
+  if (press > 0.05 && collapsed < 0.99) {
+    for (let k = -1; k <= 1; k++)
+      arrow(ctx, dcx + k * 30, surfY - 90 - 6 * Math.sin(animClock * 4 + k), dcx + k * 30, surfY - 60, COL.bad, 2.5);
+    caption(ctx, dcx, surfY - 96, 'pressure', COL.bad, true);
+  }
+  caption(ctx, dcx, surfY + depth + 22,
+    collapsed > 0.5 ? 'COLLAPSED → Wenzel (flooded, sticky)' : 'Cassie (on air, slippery)',
+    collapsed > 0.5 ? COL.bad : COL.teal, true);
+
+  // Sharklet inset (diamond riblets + bacteria that can't settle)
+  const ix0 = w - 150, iy0 = 12, iw = 140, ih = 92;
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(ix0, iy0, iw, ih);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(ix0, iy0, iw, ih);
+  ctx.save(); ctx.fillStyle = '#94a3b8';
+  // diamond-arranged ribs
+  for (let row = 0; row < 4; row++) for (let col = 0; col < 5; col++) {
+    const rx = ix0 + 12 + col * 26 + (row % 2) * 13, ry = iy0 + 20 + row * 16;
+    ctx.fillRect(rx, ry, 4, 11 - (col % 3) * 2);
+  }
+  ctx.restore();
+  // a couple of frustrated bacteria (green ellipses) hovering, not settling
+  ctx.save();
+  for (let b = 0; b < 3; b++) {
+    const bx = ix0 + 30 + b * 34 + Math.sin(animClock * 1.5 + b) * 4;
+    const by = iy0 + 12 + 4 * Math.sin(animClock * 2 + b);
+    ctx.fillStyle = isShark ? 'rgba(22,163,74,0.8)' : 'rgba(22,163,74,0.35)';
+    ctx.beginPath(); ctx.ellipse(bx, by, 5, 3, 0.5, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = COL.ink; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Sharklet: bacteria can\'t settle', ix0 + iw / 2, iy0 + ih + 12);
+
+  caption(ctx, 100, 24, 'θ* = ' + fmt(star, 0) + '°', COL.ink, true);
+
+  /* plot: cos θ* Cassie vs Wenzel over fs, marking crossover */
+  const c2 = setupCanvas(document.getElementById('cv-super2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, 1, -1, 1);
+  ch.grid(); ch.axes('solid fraction f_s', 'cos θ*  (lower = more repellent)');
+  const ptsC = [], ptsW = [];
+  for (let f = 0.02; f <= 1.001; f += 0.01) {
+    ptsC.push([f, Math.max(-1, Math.min(1, f * (cosd(theta) + 1) - 1))]);
+    ptsW.push([f, Math.max(-1, Math.min(1, r * cosd(theta)))]);
+  }
+  ch.plot(ptsW, COL.orange, 2, [6, 4]);
+  ch.plot(ptsC, COL.teal, 2.5);
+  // stable region: Cassie when cos θ < cosCrit i.e. below crossover fs
+  ch.vLine(fs, COL.muted, [3, 3]);
+  ch.dot(fs, Math.max(-1, Math.min(1, (collapsed > 0.5 ? r * cosd(theta) : fs * (cosd(theta) + 1) - 1))),
+    collapsed > 0.5 ? COL.bad : COL.teal, 6);
+  ch.legend([{ label: 'Cassie', color: COL.teal },
+             { label: 'Wenzel', color: COL.orange, dash: [6, 4] }]);
+
+  setStat('st-super', [
+    { label: 'f_s / r / θ', value: fmt(fs, 2) + ' / ' + fmt(r, 1) + ' / ' + fmt(theta, 0) + '°' },
+    { label: 'θ_crit (Cassie if θ>)', value: fmt(thetaCrit, 0) + '°' },
+    { label: 'True stable state', value: cassieFavored ? 'Cassie' : 'Wenzel', highlight: true },
+    { label: 'Collapse barrier', value: fmt(pCrit * 100, 0) + ' %' },
+    { label: 'Current θ*', value: fmt(star, 0) + '°' }
+  ]);
+
+  if (isShark)
+    setVerdict('vd-super', 'good', 'Sharklet — texture that fights biology, not water.',
+      'This micropattern of diamond-arranged ridges (copied from shark denticles) makes it energetically and mechanically unfavorable for bacteria to attach and form biofilms. It does NOT kill them and it is NOT just "hydrophobic" — the geometry alone controls what can settle. Same lesson as the lotus (topography rules adhesion), aimed at cells instead of droplets.');
+  else if (collapsed > 0.5 && !cassieFavored)
+    setVerdict('vd-super', 'bad', 'Wenzel is the true state here — permanently sticky.',
+      'θ = ' + fmt(theta, 0) + '° is below θ_crit = ' + fmt(thetaCrit, 0) + '°, so the flooded Wenzel state is the real energy minimum: any Cassie you started in was doomed. Fix it by raising θ (better chemistry) AND lowering f_s until θ > θ_crit.');
+  else if (collapsed > 0.5)
+    setVerdict('vd-super', 'bad', 'Impaled! Cassie collapsed into Wenzel — and it won\'t come back.',
+      'You pushed past the collapse barrier (' + fmt(pCrit * 100, 0) + '%). The air pockets are gone, water flooded the texture, and the drop is now pinned. Collapse is essentially irreversible: dropping the pressure does NOT re-inflate the plastron. This is why real superhydrophobic surfaces need a high barrier — hierarchical (bumps-on-bumps) texture.');
+  else if (cassieFavored)
+    setVerdict('vd-super', 'good', 'Robust Cassie — stable AND survives pressure (θ* = ' + fmt(star, 0) + '°).',
+      'θ = ' + fmt(theta, 0) + '° exceeds θ_crit = ' + fmt(thetaCrit, 0) + '°, so Cassie is the true minimum, and the fine texture gives a ' + fmt(pCrit * 100, 0) + '% collapse barrier. This is the engineering target: hydrophobic chemistry (Lesson 3) plus fine, low-f_s texture. Raise the pressure slider and watch it hold — up to a point.');
+  else
+    setVerdict('vd-super', 'warn', 'Metastable Cassie — looks great, one impact from disaster.',
+      'θ = ' + fmt(theta, 0) + '° is below θ_crit = ' + fmt(thetaCrit, 0) + '°, so Wenzel is actually lower in energy; you\'re perched in a metastable Cassie state behind a ' + fmt(pCrit * 100, 0) + '% barrier. Nudge the pressure past it and it collapses irreversibly. Lower f_s or improve chemistry to make Cassie genuinely stable.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { recap: drawRecap, wenzel: drawWenzel, cassie: drawCassie, super: drawSuper };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    if (activeTab === 'super') superCollapse = 0;   // reset collapse when entering
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>

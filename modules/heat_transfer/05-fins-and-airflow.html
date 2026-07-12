@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fins &amp; Flowing Air — Heat Transfer Foundations</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ===== house CSS — Heat Transfer Foundations (verbatim from solid_mechanics reference) ===== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background:#f4f6fa;color:#1e293b;line-height:1.6}
+    header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
+    header h1{font-size:1.6rem;letter-spacing:.01em}
+    .subtitle{opacity:.88;font-size:.95rem;max-width:780px;margin:6px auto 0}
+    .tab-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#fff;
+      padding:10px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10}
+    .tab-btn{border:1px solid #cbd5e1;background:#f8fafc;color:#1e3a5f;padding:8px 14px;
+      border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600}
+    .tab-btn:hover{background:#eff6ff}
+    .tab-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+    main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .background-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+      padding:20px 22px;margin-bottom:16px}
+    .background-section h2{color:#1e3a5f;font-size:1.2rem;margin-bottom:10px}
+    .background-section p{margin:10px 0}
+    .equation-box{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;
+      padding:10px 14px;margin:12px 0;overflow-x:auto}
+    .worked-example{background:#fefce8;border-left:4px solid #d97706;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .worked-example::before{content:"Worked example";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;
+      padding:12px 14px;margin:12px 0}
+    .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .key-takeaways ul{margin-left:20px}
+    .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
+      padding:12px 16px;margin:14px 0}
+    .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .student-task ol{margin-left:20px}
+    .scenario-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0}
+    .scenario-bar-label{font-weight:700;color:#1e3a5f;font-size:.9rem}
+    .scen-btn{border:1px solid #93c5fd;background:#fff;color:#2563eb;padding:6px 12px;
+      border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+    .scen-btn:hover{background:#eff6ff}
+    .scen-btn.on{background:#2563eb;color:#fff;border-color:#2563eb}
+    .panel{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:28px}
+    .ctrl{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;align-self:start}
+    .ctrl h3{color:#1e3a5f;font-size:1rem;margin-bottom:10px}
+    .ctrl-group{margin-bottom:14px}
+    .ctrl-group label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;
+      font-weight:600;color:#334155;margin-bottom:4px}
+    .ctrl-group label span{color:#2563eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+    input[type=range]{width:100%;accent-color:#2563eb}
+    .stats{border-top:1px solid #e2e8f0;padding-top:10px;font-size:.85rem}
+    .stat-row{display:flex;justify-content:space-between;gap:8px;padding:3px 2px;color:#475569}
+    .stat-row b{font-variant-numeric:tabular-nums;color:#1e293b;text-align:right}
+    .stat-row.highlight{background:#eff6ff;border-radius:6px;padding:4px 6px;color:#1e3a5f;font-weight:700}
+    .viz{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .canvas-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+    .canvas-title{font-size:.8rem;font-weight:700;color:#64748b;text-transform:uppercase;
+      letter-spacing:.05em;margin-bottom:6px}
+    canvas{width:100%;height:auto;display:block}
+    .val-verdict{border-radius:10px;padding:12px 14px;font-size:.9rem;border:1px solid #cbd5e1;background:#f8fafc}
+    .val-verdict.good{background:#f0fdf4;border-color:#86efac}
+    .val-verdict.warn{background:#fefce8;border-color:#fde047}
+    .val-verdict.bad{background:#fef2f2;border-color:#fca5a5}
+    .val-verdict b{display:block;margin-bottom:2px;color:#1e3a5f}
+    .sources{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;
+      font-size:.85rem;color:#475569;margin-top:8px}
+    .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
+    .sources ul{margin-left:20px}
+    footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
+    @media(max-width:820px){
+      .panel{grid-template-columns:1fr}
+      header h1{font-size:1.25rem}
+      main{padding:14px 10px 40px}
+      .background-section{padding:14px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Fins &amp; Flowing Air — Engineering Heat Away</h1>
+  <p class="subtitle">Heat Transfer Foundations · Lesson 5 of 6 — You blow on hot soup and it
+  actually works. A CPU cooler is a spiky forest of metal. Both exist because the hardest part of
+  heat's escape is the last few millimetres of air clinging to a hot surface — and engineers have
+  exactly two tricks to beat it: move the air, or grow more surface.</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="film">1 · Air Steals Heat</button>
+  <button class="tab-btn" data-tab="blow">2 · Blow On It</button>
+  <button class="tab-btn" data-tab="fins">3 · Why Heatsinks Are Spiky</button>
+  <button class="tab-btn" data-tab="levelup">4 · Level Up: Fin Efficiency &amp; Biot</button>
+</div>
+
+<main>
+
+<!-- ============================================================ TAB 1: film -->
+<section id="tab-film" class="tab-content active">
+  <div class="background-section">
+    <h2>Background: air steals heat — but only through a thin, lazy blanket</h2>
+    <p>Hold your hand a few centimetres above a hot pan (don't touch!). You feel warm air rising.
+    Air that touches the hot surface warms up, gets lighter, and floats away; cooler room air
+    slides in to take its place, warms up, and floats away too. The air is running a conveyor
+    belt that hauls heat off the surface. That conveyor is <b>convection</b> — you met it briefly
+    in Lesson&nbsp;1, and now it gets the full treatment.</p>
+    <p>But zoom in on the surface itself and there's a catch. The air <em>right against</em> the
+    plate is essentially stuck to it — fluids cling to surfaces — and the air just above that
+    moves only sluggishly. This slow-moving film hugging the surface is called the
+    <b>boundary layer</b>, and it is the bottleneck of the whole operation: heat must first
+    <em>conduct</em> across this nearly-still air blanket (and Lesson&nbsp;3 taught you how bad
+    still air is at conducting) before the moving air beyond it can carry the heat off. Watch it
+    in the sim below: particles inside the layer crawl, while particles that escape it drift
+    happily away with their stolen jiggle.</p>
+    <p>Engineers wrap all of this messy fluid physics into one honest bookkeeping number, and
+    write <b>Newton's law of cooling</b>:</p>
+    <div class="equation-box">
+      $$ q \;=\; h\,A\,(T_s - T_\infty) $$
+    </div>
+    <p>Here \(q\) is the heat flow in watts, \(A\) is the surface area in m², \(T_s\) is the
+    surface temperature, and \(T_\infty\) ("T-infinity") is the temperature of the air far from
+    the surface — the room. Everything hard hides inside \(h\), the <b>convection
+    coefficient</b> (W/m²K): how good the air is at hauling heat away from each square metre per
+    degree of temperature difference. Still room air manages only \(h \approx 5\)–25; a fan can
+    push it toward 100. A useful way to picture \(h\): it behaves like a still-air film of
+    effective thickness \(\delta \approx k_{\text{air}}/h\) (with \(k_{\text{air}} \approx
+    0.026\) W/m·K from Lesson&nbsp;3) — crank \(h\) up and the blanket thins.</p>
+    <div class="worked-example">
+      <p>A mug of coffee: outer surface \(A \approx 0.03\ \text{m}^2\), coffee at
+      \(T_s = 60\ ^\circ\text{C}\) in a \(T_\infty = 20\ ^\circ\text{C}\) room, still air
+      \(h \approx 10\ \text{W/m}^2\text{K}\). Newton's law:
+      \(q = 10 \times 0.03 \times 40 = 12\ \text{W}\) — a dim night-light of heat leaking out.
+      Cooling 300&nbsp;g of coffee by 10&nbsp;°C releases \(0.3 \times 4186 \times 10 \approx
+      12.6\ \text{kJ}\) (Lesson&nbsp;2!), so at 12&nbsp;W that first 10-degree drop takes about
+      \(12{,}600/12 \approx 1050\ \text{s} \approx 17\) minutes. That's why coffee goes lukewarm
+      on exactly the timescale of a meeting.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Moving air steals heat from surfaces: \(q = hA(T_s - T_\infty)\) — Newton's law of
+        cooling.</li>
+        <li>The bottleneck is the boundary layer: a thin film of nearly-still air hugging the
+        surface that heat must conduct across first.</li>
+        <li>\(h\) bundles all the fluid physics into one number: bigger \(h\) = thinner blanket
+        = faster theft. \(\delta \approx k_{\text{air}}/h\).</li>
+        <li>Double the temperature difference and you double the heat flow — the line through
+        the origin has slope \(hA\).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Drag <b>Surface temperature</b> up and down and watch the dot ride the straight line
+      in the plot — double the excess \(T_s - T_\infty\), double \(q\). The slope is \(hA\).</li>
+      <li>Now crank <b>Convection h</b> from 2 to 100. Watch the dashed boundary-layer edge slide
+      down — the blanket thins — and the plume of escaping particles speed up.</li>
+      <li>Compare the <b>Hot pan, still air</b> and <b>Fan on the pan</b> scenarios. Same surface
+      temperature — how many times bigger is \(q\) in the stats?</li>
+      <li>Read the <b>film thickness δ</b> stat at \(h = 10\), then at \(h = 100\). Millimetres of
+      insulating air shrink to a fraction of a millimetre.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="film" data-scen="mug" onclick="setScen('film','mug')">Warm mug, still air</button>
+    <button class="scen-btn" data-tab="film" data-scen="pan" onclick="setScen('film','pan')">Hot pan, still air</button>
+    <button class="scen-btn" data-tab="film" data-scen="fan" onclick="setScen('film','fan')">Fan on the pan</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Surface temperature T_s <span id="v-film-ts">55</span></label>
+        <input type="range" id="s-film-ts" min="25" max="150" step="1" value="55">
+      </div>
+      <div class="ctrl-group">
+        <label>Convection h <span id="v-film-h">8</span></label>
+        <input type="range" id="s-film-h" min="2" max="100" step="1" value="8">
+      </div>
+      <div class="stats" id="st-film"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Air over a hot plate — the slow layer is the bottleneck</div>
+        <canvas id="cv-film" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Heat flow q vs. surface excess (T_s − T∞) — slope = hA</div>
+        <canvas id="cv-film2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-film"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 2: blow -->
+<section id="tab-blow" class="tab-content">
+  <div class="background-section">
+    <h2>Background: blow on it — forced convection</h2>
+    <p>Your soup instinct is real engineering. When you blow across a hot spoonful, you rip the
+    warmed air blanket off the surface and replace it with fresh cool air before it has time to
+    heat up. In the language of Tab&nbsp;1: blowing <b>thins the boundary layer</b>, which
+    <b>raises \(h\)</b>. Convection you have to pay for with a fan, wind, or your own lungs is
+    called <b>forced convection</b>; the free version driven by warm air floating upward is
+    <b>natural convection</b>.</p>
+    <p>How much does wind help? A famous old rule of thumb — an <em>empirical</em> fit to
+    wind-over-flat-surface measurements collected in W. H. McAdams' 1954 textbook
+    <i>Heat Transmission</i> — says:</p>
+    <div class="equation-box">
+      $$ h \;\approx\; 5.7 \;+\; 3.8\,v \qquad
+      \left[\,h \text{ in W/m}^2\text{K},\; v = \text{wind speed in m/s}\,\right] $$
+    </div>
+    <p>Be honest about what this is: a decades-old measured correlation, good to order of
+    magnitude for air blowing along a flat surface — not a law of nature, and real values depend
+    on geometry. But the trend is exactly right: even at \(v=0\) you get a baseline
+    \(h \approx 5.7\) from natural convection, and every extra metre-per-second of wind adds
+    about 3.8 more.</p>
+    <p>Now the payoff question: how long does a hot object take to cool? For a small object
+    that stays close to one uniform temperature throughout (Tab&nbsp;4 makes this "small enough"
+    idea precise with the Biot number), the energy balance gives an exponential slide toward
+    room temperature:</p>
+    <div class="equation-box">
+      $$ T(t) \;=\; T_\infty + (T_0 - T_\infty)\,e^{-t/\tau}, \qquad
+         \tau \;=\; \frac{m\,c}{h\,A} $$
+    </div>
+    <p>Here \(T_0\) is the starting temperature, \(m\) is the object's mass, \(c\) its specific
+    heat (Lesson&nbsp;2), \(A\) its surface area, and \(\tau\) (tau) is the <b>time constant</b> —
+    the time to close 63% of the gap to room temperature. Notice \(h\) sits in the denominator:
+    triple \(h\) and the whole cooling movie plays three times faster. That is, precisely, why
+    you blow on soup.</p>
+    <div class="worked-example">
+      <p>Our sim object is a small hot copper ball: \(m = 20\ \text{g}\),
+      \(c = 385\ \text{J/kg·K}\), surface \(A \approx 8.2\ \text{cm}^2 = 8.2\times10^{-4}\
+      \text{m}^2\), starting at \(T_0 = 90\ ^\circ\text{C}\) in a 20&nbsp;°C room.
+      <b>Still air</b> (\(v = 0\)): \(h \approx 5.7\), so
+      \(\tau = 0.02 \times 385 / (5.7 \times 8.2\times10^{-4}) \approx 1650\ \text{s} \approx
+      27\ \text{min}\). <b>A breeze</b> (\(v = 4\ \text{m/s}\)):
+      \(h \approx 5.7 + 3.8\times4 = 20.9 \approx 21\), so
+      \(\tau \approx 7.7/0.0171 \approx 450\ \text{s} \approx 7.5\ \text{min}\). Blowing made the
+      cooling <b>3.7× faster</b> — same ball, same room, thinner blanket.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Wind thins the boundary layer, so \(h\) climbs — roughly \(h \approx 5.7 + 3.8v\)
+        (an old empirical wind formula; order of magnitude only).</li>
+        <li>Small objects cool exponentially: \(T(t) = T_\infty + (T_0 - T_\infty)e^{-t/\tau}\)
+        with \(\tau = mc/(hA)\).</li>
+        <li>\(\tau \propto 1/h\): triple the convection, triple the cooling speed. Blowing on
+        soup is legitimate thermal engineering.</li>
+        <li>Even "still" air gives \(h \approx 5\) for free — natural convection never fully
+        switches off.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Start at <b>Wind speed</b> = 0. Watch the particles near the plate crawl and glow —
+      the boundary layer is thick. Now slide to 15&nbsp;m/s and watch it visibly thin as
+      everything streams past.</li>
+      <li>Find the wind speed that <em>halves</em> the still-air time constant τ (hint:
+      τ ∝ 1/h, so you need h ≈ 11.4 — check the stats as you slide).</li>
+      <li>Compare the <b>Breeze</b> and <b>Leaf blower</b> scenarios: read the "time to reach
+      30 °C" stat for each. Worth the noise?</li>
+      <li>Look at the h-vs-v plot: it's a straight line, yet the cooling curves bunch up at high
+      wind. Going 0→5 m/s changes τ far more than 10→15 m/s. Why? (τ ∝ 1/h.)</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="blow" data-scen="still" onclick="setScen('blow','still')">Still room</button>
+    <button class="scen-btn" data-tab="blow" data-scen="breeze" onclick="setScen('blow','breeze')">Breeze</button>
+    <button class="scen-btn" data-tab="blow" data-scen="blower" onclick="setScen('blow','blower')">Leaf blower</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Wind speed v <span id="v-blow-v">0</span></label>
+        <input type="range" id="s-blow-v" min="0" max="15" step="0.1" value="0">
+      </div>
+      <div class="stats" id="st-blow"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Wind over a hot surface — the boundary layer thins as v rises</div>
+        <canvas id="cv-blow" width="640" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Convection coefficient h vs. wind speed v (McAdams)</div>
+        <canvas id="cv-blow2" width="640" height="220"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Cooling curve of the hot copper ball — τ = mc/(hA)</div>
+        <canvas id="cv-blow3" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-blow"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: fins -->
+<section id="tab-fins" class="tab-content">
+  <div class="background-section">
+    <h2>Background: can't move the air harder? Grow more surface</h2>
+    <p>Look inside a computer, at a motorcycle engine, at the back of an old refrigerator — all
+    spiky, ridged, bladed. Why? Newton's law \(q = hA(T_s - T_\infty)\) gives an engineer three
+    knobs. The temperature difference is usually fixed by the job (your CPU must stay below
+    ~90&nbsp;°C in a 25&nbsp;°C case). Raising \(h\) costs a bigger, louder fan. But
+    <b>area is nearly free</b> — it's just shaped metal. So we bolt on <b>fins</b>: thin blades
+    sticking out into the air, each one adding two whole faces of extra surface for the air to
+    steal heat from.</p>
+    <div class="equation-box">
+      $$ q \;=\; h\,A_{\text{total}}\,(T_s - T_\infty), \qquad
+         A_{\text{total}} \;=\; A_{\text{base}} \;+\; N \cdot 2\,L\,D $$
+    </div>
+    <p>Here \(N\) is the number of fins, \(L\) is how far each fin sticks out, and \(D\) is the
+    fin's depth (into the screen). Each fin contributes both of its faces, \(2LD\). In this sim
+    the base plate is 10&nbsp;cm × 10&nbsp;cm, fins are 2&nbsp;mm thick, the surface runs
+    40&nbsp;K above the room, and \(h = 15\ \text{W/m}^2\text{K}\) is held fixed — only the
+    geometry changes. (We also assume the fins are perfectly conductive, uniformly hot metal —
+    Tab&nbsp;4 confesses and repairs that lie.)</p>
+    <p>One catch, and you can find it with the sliders: <b>crowding</b>. Pack fins too close and
+    the channels between them choke — fresh air can no longer flow through, each fin sits in
+    its neighbor's warmed exhaust, and extra fins stop paying rent. Our sim applies a gentle
+    spacing-based derating to capture this, and we say plainly: <b>the derating is qualitative</b>
+    — real heatsink design uses measured flow correlations. But the lesson it teaches is real:
+    there is an optimum fin spacing (a few millimetres, in gently moving air), and "more fins" is
+    not always "more cooling".</p>
+    <div class="worked-example">
+      <p>Bare plate: \(A_{\text{base}} = 0.1 \times 0.1 = 0.01\ \text{m}^2\), so
+      \(q = 15 \times 0.01 \times 40 = 6\ \text{W}\). Now add \(N = 10\) fins,
+      \(L = 30\ \text{mm}\) long, \(D = 0.1\ \text{m}\) deep:
+      \(A_{\text{fins}} = 10 \times 2 \times 0.03 \times 0.1 = 0.06\ \text{m}^2\), giving
+      \(A_{\text{total}} \approx 0.07\ \text{m}^2\) and
+      \(q = 15 \times 0.07 \times 40 = 42\ \text{W}\) — <b>seven times</b> the bare plate, from
+      the same footprint. (At this spacing — about 7&nbsp;mm — the sim's crowding factor is 0.93,
+      trimming the answer to ≈ 40&nbsp;W.)</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Fins attack the \(A\) in \(q = hA\Delta T\): surface area is the cheapest knob an
+        engineer has.</li>
+        <li>Each fin adds two faces: \(A_{\text{total}} = A_{\text{base}} + N\cdot 2LD\) — that's
+        why heatsinks look like combs.</li>
+        <li>Crowding is real: fins packed too tightly choke the airflow between them, and the
+        gain rolls off (our derating is qualitative, the effect is not).</li>
+        <li>There is a sweet spot in fin count — after it, more metal buys almost no more
+        cooling.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Set <b>Fin length</b> to 30 mm and sweep <b>Fin count</b> from 1 to 30. Watch the blue
+      curve peel away from the dashed ideal line as the channels narrow.</li>
+      <li>Hold N = 10 and stretch the fins from 5 to 60 mm. Longer fins add area with no
+      crowding penalty — watch q climb.</li>
+      <li>Load the <b>Crammed fins</b> scenario and read the spacing and crowding-factor stats.
+      Thirty fins, and most of them are suffocating.</li>
+      <li>Hunt for the sweet spot: at L = 40 mm, find the fin count that gives the biggest q
+      (it's near N ≈ 19–20, not 30!).</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn" data-tab="fins" data-scen="bare" onclick="setScen('fins','bare')">Bare plate</button>
+    <button class="scen-btn on" data-tab="fins" data-scen="cpu" onclick="setScen('fins','cpu')">CPU cooler</button>
+    <button class="scen-btn" data-tab="fins" data-scen="cram" onclick="setScen('fins','cram')">Crammed fins</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Fin count N <span id="v-fins-n">12</span></label>
+        <input type="range" id="s-fins-n" min="1" max="30" step="1" value="12">
+      </div>
+      <div class="ctrl-group">
+        <label>Fin length L <span id="v-fins-len">35</span></label>
+        <input type="range" id="s-fins-len" min="5" max="60" step="1" value="35">
+      </div>
+      <div class="stats" id="st-fins"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Heatsink cross-section (base 10 cm, fins 2 mm thick)</div>
+        <canvas id="cv-fins" width="640" height="260"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Heat flow q vs. fin count N — ideal (dashed) vs. with crowding</div>
+        <canvas id="cv-fins2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-fins"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: levelup -->
+<section id="tab-levelup" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: fin efficiency and the Biot number</h2>
+    <p>Tab 3 quietly assumed every fin is uniformly hot from root to tip. A real fin can't be:
+    the heat must <em>conduct along the metal</em> while it continuously <em>leaks out the
+    sides</em> into the air, so the temperature sags toward the tip — and the cool tip area
+    steals less heat than we paid for. The 1-D fin equation (energy balance on a slice of fin,
+    solved with an insulated-tip boundary condition) gives the classic result. Define the
+    <b>excess temperature</b> \(\theta = T - T_\infty\), with \(\theta_b\) its value at the fin
+    base, \(P\) the fin's perimeter (the exposed edge length of its cross-section), \(A_c\) the
+    cross-sectional area the heat conducts through, and \(k\) the metal's conductivity:</p>
+    <div class="equation-box">
+      $$ m \;=\; \sqrt{\frac{h\,P}{k\,A_c}} \qquad\quad
+         \frac{\theta(x)}{\theta_b} \;=\; \frac{\cosh m(L-x)}{\cosh mL} \qquad\quad
+         \eta \;=\; \frac{\tanh(mL)}{mL} $$
+    </div>
+    <p>Careful with the symbols: this \(m\) is the <b>fin parameter</b> (units m⁻¹), <em>not</em>
+    mass. It measures the competition between sideways leakage (\(hP\)) and axial conduction
+    (\(kA_c\)); the length \(1/m\) is roughly how far heat can penetrate along the fin before the
+    air has bled it away. The dimensionless product \(mL\) then tells you everything:
+    \(mL \ll 1\) → the whole fin stays near \(\theta_b\); \(mL \gg 1\) → the outer end is dead
+    metal. The <b>fin efficiency</b> \(\eta\) (eta) is the fraction of the ideal, uniformly-hot
+    heat flow the fin actually delivers: \(q_{\text{fin}} = \eta\,h\,(PL)\,\theta_b\), and
+    \(\eta = \tanh(mL)/mL\) falls from 1 as \(mL\) grows.</p>
+    <p>The same physics gives the general "is it all one temperature?" test used everywhere in
+    heat transfer: the <b>Biot number</b> \( \mathrm{Bi} = h L_c / k \), the ratio of conduction
+    resistance <em>inside</em> a body to convection resistance at its surface, with \(L_c\) a
+    characteristic length (for our fin's cross-section, the half-thickness \(t/2\)). When
+    \(\mathrm{Bi} < 0.1\), the inside equalizes much faster than the surface can leak, and the
+    body is effectively "all one temperature" — which is exactly the lumped assumption Tab&nbsp;2's
+    exponential cooling curve relied on. Metals in air almost always qualify; that's why fin
+    theory only worries about the sag <em>along</em> the fin, not across it.</p>
+    <div class="worked-example">
+      <p>An aluminum plate fin, per metre of width: \(k = 205\ \text{W/m·K}\), thickness
+      \(t = 2\ \text{mm}\), length \(L = 30\ \text{mm}\), \(h = 25\ \text{W/m}^2\text{K}\).
+      Per metre of width, \(P \approx 2\ \text{m}\) (two faces) and
+      \(A_c = t \times 1 = 0.002\ \text{m}^2\). Then
+      \(m = \sqrt{25 \times 2/(205 \times 0.002)} = \sqrt{122} \approx 11.0\ \text{m}^{-1}\),
+      \(mL \approx 11.0 \times 0.03 = 0.33\), and
+      \(\eta = \tanh(0.33)/0.33 \approx 0.97\) — a short, fat aluminum fin is 97% of perfect.
+      Swap in <b>steel</b> (\(k = 45\)): \(m = \sqrt{50/0.09} \approx 23.6\ \text{m}^{-1}\),
+      \(mL \approx 0.71\), \(\eta = \tanh(0.71)/0.71 \approx 0.86\) — and falling fast if you
+      make it any longer. And the Biot check: \(\mathrm{Bi} = 25 \times 0.001/205 \approx
+      1.2\times10^{-4} \ll 0.1\) — across its thickness the fin really is one temperature.</p>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Real fins sag toward the tip: \(\theta/\theta_b = \cosh m(L-x)/\cosh mL\), with fin
+        parameter \(m = \sqrt{hP/(kA_c)}\) (not mass!).</li>
+        <li>Fin efficiency \(\eta = \tanh(mL)/mL\): keep \(mL\) small — short, thick,
+        high-\(k\) fins stay hot and earn their area.</li>
+        <li>If \(\eta\) drops below ~0.75, the outer fin is dead metal: make it shorter, fatter,
+        or more conductive.</li>
+        <li>Biot number \(\mathrm{Bi} = hL_c/k < 0.1\) means "all one temperature" — the license
+        behind lumped cooling (Tab 2) and 1-D fin theory itself.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load the <b>Aluminum</b> scenario and check the stats against the worked example:
+      m ≈ 11 m⁻¹, mL ≈ 0.33, η ≈ 0.97.</li>
+      <li>Switch to <b>Steel</b>. Same shape, same air — watch the profile sag and the tip go
+      cold. η drops to ≈ 0.86.</li>
+      <li>Staying on steel, rescue the fin two different ways: shorten <b>Fin length L</b> until
+      η is back above 0.95 (≈ 16 mm), or instead thicken <b>Thickness t</b> toward 9 mm.
+      Shorter or fatter — both shrink mL.</li>
+      <li>Back on aluminum, crank <b>Convection h</b> to 100. Even the best conductor struggles
+      when the air steals faster than the metal can resupply — watch η and the verdict.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="levelup" data-scen="alu" onclick="setScen('levelup','alu')">Aluminum (k = 205)</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="copper" onclick="setScen('levelup','copper')">Copper (k = 401)</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="steel" onclick="setScen('levelup','steel')">Steel (k = 45)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Convection h <span id="v-levelup-h">25</span></label>
+        <input type="range" id="s-levelup-h" min="5" max="100" step="1" value="25">
+      </div>
+      <div class="ctrl-group">
+        <label>Fin length L <span id="v-levelup-len">30</span></label>
+        <input type="range" id="s-levelup-len" min="5" max="100" step="1" value="30">
+      </div>
+      <div class="ctrl-group">
+        <label>Thickness t <span id="v-levelup-t">2</span></label>
+        <input type="range" id="s-levelup-t" min="1" max="10" step="0.5" value="2">
+      </div>
+      <div class="ctrl-group">
+        <label>Conductivity k <span id="v-levelup-k">205</span></label>
+        <input type="range" id="s-levelup-k" min="10" max="420" step="1" value="205">
+      </div>
+      <div class="stats" id="st-levelup"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The fin, colored by local temperature (base at left, θ_b = 50 K)</div>
+        <canvas id="cv-levelup" width="640" height="190"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Temperature profile along the fin — θ/θ_b = cosh m(L−x)/cosh mL</div>
+        <canvas id="cv-levelup2" width="640" height="280"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-levelup"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>F. P. Incropera, D. P. DeWitt, T. L. Bergman &amp; A. S. Lavine, <i>Fundamentals of Heat
+    and Mass Transfer</i>, 7th ed., Wiley (2011) — Ch. 3 (extended surfaces: fin parameter,
+    efficiency, temperature profile), Ch. 5 (Biot number and lumped capacitance), Ch. 6–7
+    (convection and boundary layers, Newton's law of cooling).</li>
+    <li>Y. A. Çengel &amp; A. J. Ghajar, <i>Heat and Mass Transfer: Fundamentals and
+    Applications</i>, 5th ed., McGraw-Hill (2015) — convection coefficients, fin efficiency and
+    heatsink design, optimum fin spacing in natural convection.</li>
+    <li>W. H. McAdams, <i>Heat Transmission</i>, 3rd ed., McGraw-Hill (1954) — the empirical
+    flat-surface wind correlation h ≈ 5.7 + 3.8 v W/m²K used in Tab 2.</li>
+  </ul>
+</div>
+
+</main>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Lesson 5 of 6 — Next: radiation — heat that
+travels as light, and why black cars bake.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; } }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 5: Fins & Flowing Air
+   ================================================================ */
+
+/* --- physics constants & models --- */
+const TINF = 20;                          // room air temperature, °C
+const A_PLATE = 0.1;                      // m² — tab-1 hot plate area
+const K_AIR = 0.026;                      // W/m·K, still air (Lesson 3)
+const hWind = v => 5.7 + 3.8 * v;         // McAdams (1954) empirical flat-surface wind correlation
+const BALL = { m: 0.02, c: 385, A: 8.2e-4, T0: 90 };  // tab-2 small copper ball
+const HS = { W: 0.1, D: 0.1, t: 0.002, h: 15, dT: 40, sCrit: 2 }; // tab-3 heatsink; sCrit in mm
+const THB = 50;                           // tab-4 base excess temperature θ_b, K
+
+/* blue (cold) → red (hot) color ramp, f in [0,1] */
+function tempColor(f){
+  f = Math.max(0, Math.min(1, f));
+  const r = Math.round(37 + f * (220 - 37)),
+        g = Math.round(99 + f * (38 - 99)),
+        b = Math.round(235 + f * (38 - 235));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+/* --- control state --- */
+let activeTab = 'film';
+const scen = { film: 'mug', blow: 'still', fins: 'cpu', levelup: 'alu' };
+
+const FMT = {
+  'film-ts':     v => fmt(v, 0) + ' °C',
+  'film-h':      v => fmt(v, 0) + ' W/m²K',
+  'blow-v':      v => fmt(v, 1) + ' m/s',
+  'fins-n':      v => fmt(v, 0) + (v > 1 ? ' fins' : ' fin'),
+  'fins-len':    v => fmt(v, 0) + ' mm',
+  'levelup-h':   v => fmt(v, 0) + ' W/m²K',
+  'levelup-len': v => fmt(v, 0) + ' mm',
+  'levelup-t':   v => fmt(v, 1) + ' mm',
+  'levelup-k':   v => fmt(v, 0) + ' W/m·K'
+};
+
+const SCEN = {
+  film: {
+    mug: { 's-film-ts': 55,  's-film-h': 8 },
+    pan: { 's-film-ts': 150, 's-film-h': 12 },
+    fan: { 's-film-ts': 150, 's-film-h': 60 }
+  },
+  blow: {
+    still:  { 's-blow-v': 0 },
+    breeze: { 's-blow-v': 4 },
+    blower: { 's-blow-v': 15 }
+  },
+  fins: {
+    bare: { 's-fins-n': 1,  's-fins-len': 5 },
+    cpu:  { 's-fins-n': 12, 's-fins-len': 35 },
+    cram: { 's-fins-n': 30, 's-fins-len': 40 }
+  },
+  levelup: {
+    alu:    { 's-levelup-k': 205, 's-levelup-t': 2, 's-levelup-len': 30, 's-levelup-h': 25 },
+    copper: { 's-levelup-k': 401, 's-levelup-t': 2, 's-levelup-len': 30, 's-levelup-h': 25 },
+    steel:  { 's-levelup-k': 45,  's-levelup-t': 2, 's-levelup-len': 30, 's-levelup-h': 25 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation pattern (house standard for this course) --- */
+let animId = null, animT = 0;
+const ANIMATED = { film: true, blow: true };
+function tick(){ animT += 1 / 60; refreshActiveTab(); animId = requestAnimationFrame(tick); }
+function startAnim(){ if (!animId && ANIMATED[activeTab]) animId = requestAnimationFrame(tick); }
+function stopAnim(){ if (animId){ cancelAnimationFrame(animId); animId = null; } }
+document.addEventListener('visibilitychange', () => { document.hidden ? stopAnim() : startAnim(); });
+
+/* --- seeded particle phases/paths (mulberry32; no Math.random per frame) --- */
+function seedParticles(seed, n, build){
+  const r = mulberry32(seed);
+  return Array.from({ length: n }, () => build(r));
+}
+const FILM_PLUME = seedParticles(101, 30, r =>
+  ({ x0: r(), per: 5 + 5 * r(), ph: r(), ph2: r(), sway: 8 + 20 * r() }));
+const FILM_LAYER = seedParticles(102, 12, r =>
+  ({ x0: r(), yf: 0.15 + 0.75 * r(), sp: 0.4 + 0.8 * r(), ph: r() }));
+const BLOW_P = seedParticles(103, 46, r =>
+  ({ x0: r(), yf: Math.pow(r(), 1.4), sp: 0.75 + 0.5 * r(), ph: r() }));
+
+/* --- small shared drawing bits --- */
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+
+/* ---------------- TAB 1: film ---------------- */
+function drawFilm(){
+  const ts = num('s-film-ts'), hh = num('s-film-h');
+  const dT = ts - TINF;
+  const q = hh * A_PLATE * dT;
+  const deltaMm = K_AIR / hh * 1000;
+  const hot = Math.max(0, Math.min(1, dT / 130));
+
+  // physical picture: hot plate, boundary layer, wandering air particles
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-film'));
+  const plateTop = h - 36;
+  caption(ctx, w / 2, 16, 'room air  T∞ = 20 °C', COL.muted);
+
+  const dpx = Math.max(12, Math.min(110, 140 / Math.sqrt(hh)));
+  const grad = ctx.createLinearGradient(0, plateTop - dpx, 0, plateTop);
+  grad.addColorStop(0, 'rgba(220,38,38,0)');
+  grad.addColorStop(1, 'rgba(220,38,38,' + (0.10 + 0.25 * hot) + ')');
+  ctx.fillStyle = grad; ctx.fillRect(0, plateTop - dpx, w, dpx);
+  drawLine(ctx, 0, plateTop - dpx, w, plateTop - dpx, COL.warn, 1, [6, 5]);
+  caption(ctx, w - 128, plateTop - dpx - 6, 'edge of the slow layer', COL.warn);
+
+  // slow boundary-layer particles (the bottleneck)
+  for (const p of FILM_LAYER) {
+    const y = plateTop - 4 - p.yf * (dpx - 8) + 1.5 * Math.sin(animT * 10 + p.ph * 30);
+    const x = ((p.x0 * w + animT * (4 + hh * 0.25) * p.sp) % w + w) % w;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = tempColor(0.25 + 0.7 * (1 - p.yf) * (0.4 + 0.6 * hot));
+    ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // plume particles: pick up jiggle at the surface, drift off and cool
+  const sf = Math.max(0.05, Math.min(1.3, dT / 70)) * (0.55 + hh / 60);
+  for (const p of FILM_PLUME) {
+    const u = ((animT * sf) / p.per + p.ph) % 1;
+    const y = (plateTop - 6) - u * (plateTop - 6 - 28);
+    const jig = (1 - u) * Math.min(4, dT / 25) * Math.sin(animT * 16 + p.ph * 44);
+    const x = ((p.x0 * w + p.sway * Math.sin(2 * Math.PI * (1.4 * u + p.ph2)) + jig) % w + w) % w;
+    ctx.globalAlpha = Math.max(0.15, 0.9 - 0.7 * u);
+    ctx.fillStyle = tempColor((1 - u) * (0.3 + 0.7 * hot));
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // the plate
+  ctx.fillStyle = tempColor(0.35 + 0.65 * hot);
+  ctx.fillRect(30, plateTop, w - 60, 22);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(30, plateTop, w - 60, 22);
+  caption(ctx, w / 2, plateTop + 16, 'hot plate  T_s = ' + fmt(ts, 0) + ' °C  (A = 0.1 m²)', '#fff', true);
+
+  // plot: q vs (T_s − T∞), straight line of slope hA
+  const c2 = setupCanvas(document.getElementById('cv-film2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const dTmax = 130;
+  const yMax = Math.max(hh, 12) * A_PLATE * dTmax * 1.06;
+  ch.setRange(0, dTmax, 0, yMax);
+  ch.grid(); ch.axes('surface excess  T_s − T∞  (K)', 'q (W)');
+  ch.plot([[0, 0], [dTmax, 5 * A_PLATE * dTmax]], COL.muted, 1.5, [2, 3]);
+  ch.plot([[0, 0], [dTmax, hh * A_PLATE * dTmax]], COL.accent, 3);
+  ch.dot(dT, q, COL.accent, 6);
+  ch.legend([{ label: 'your h (slope = hA)', color: COL.accent },
+             { label: 'h = 5, still air', color: COL.muted, dash: [2, 3] }]);
+
+  setStat('st-film', [
+    { label: 'Excess T_s − T∞', value: fmt(dT, 0) + ' K' },
+    { label: 'Convection h', value: fmt(hh, 0) + ' W/m²K' },
+    { label: 'Heat flow q = hAΔT', value: fmt(q, 1) + ' W', highlight: true },
+    { label: 'Film thickness δ ≈ k_air/h', value: fmt(deltaMm, 2) + ' mm' }
+  ]);
+
+  if (hh <= 10)
+    setVerdict('vd-film', 'warn', 'Still air — the blanket is winning.',
+      'With h = ' + fmt(hh, 0) + ' W/m²K, the surface is wrapped in the equivalent of ' + fmt(deltaMm, 1) + ' mm of still air, and only ' + fmt(q, 1) + ' W escapes. Natural convection is the slow lane: warm air drifting lazily upward is all the stirring you get.');
+  else if (hh < 40)
+    setVerdict('vd-film', 'good', 'A well-stirred film.',
+      'h = ' + fmt(hh, 0) + ' W/m²K has squeezed the effective air blanket down to ' + fmt(deltaMm, 2) + ' mm, and q = ' + fmt(q, 1) + ' W flows. Notice the plot: q is exactly proportional to T_s − T∞ — Newton\'s law of cooling is a straight line through the origin with slope hA.');
+  else
+    setVerdict('vd-film', 'good', 'Forced-convection territory.',
+      'h = ' + fmt(hh, 0) + ' W/m²K is fan-or-wind country — the boundary layer is a mere ' + fmt(deltaMm, 2) + ' mm and the plate sheds ' + fmt(q, 0) + ' W. To beat this you\'d need faster air (Tab 2) or more area (Tab 3).');
+}
+
+/* ---------------- TAB 2: blow ---------------- */
+function drawBlow(){
+  const v = num('s-blow-v');
+  const hh = hWind(v);
+  const tau = BALL.m * BALL.c / (hh * BALL.A);
+  const tau0 = BALL.m * BALL.c / (hWind(0) * BALL.A);
+  const t30 = tau * Math.log((BALL.T0 - TINF) / (30 - TINF));
+  const deltaMm = K_AIR / hh * 1000;
+
+  // physical picture: wind over a hot surface
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-blow'));
+  const plateTop = h - 30;
+  const dpx = Math.max(16, Math.min(100, 100 / Math.sqrt(1 + 1.2 * v)));
+
+  const grad = ctx.createLinearGradient(0, plateTop - dpx, 0, plateTop);
+  grad.addColorStop(0, 'rgba(220,38,38,0)');
+  grad.addColorStop(1, 'rgba(220,38,38,0.28)');
+  ctx.fillStyle = grad; ctx.fillRect(0, plateTop - dpx, w, dpx);
+  drawLine(ctx, 0, plateTop - dpx, w, plateTop - dpx, COL.warn, 1, [6, 5]);
+  caption(ctx, w - 120, plateTop - dpx - 6, 'boundary layer edge', COL.warn);
+
+  // wind arrows
+  for (let i = 0; i < 3; i++) {
+    const y = 24 + i * 20;
+    arrow(ctx, 12, y, 32 + v * 5, y, COL.teal, 2);
+  }
+  caption(ctx, 60, 90, 'v = ' + fmt(v, 1) + ' m/s', COL.teal, true);
+
+  // streaming particles: slow + hot inside the layer, fast + cool above it
+  const U = 16 + 30 * v;
+  for (const p of BLOW_P) {
+    const yAb = 4 + p.yf * (plateTop - 34);
+    const y = plateTop - yAb;
+    const frac = Math.min(1, yAb / dpx);
+    const sp = (6 + U * frac) * p.sp;
+    const x = (((p.x0 * (w + 40) + animT * sp) % (w + 40)) + (w + 40)) % (w + 40) - 20;
+    const heat = Math.exp(-yAb / dpx * 1.1);
+    const jig = heat * 1.6 * Math.sin(animT * 14 + p.ph * 40);
+    const len = 2 + sp * 0.10;
+    const col = tempColor(0.12 + 0.8 * heat);
+    ctx.globalAlpha = 0.85;
+    drawLine(ctx, x - len, y + jig, x, y + jig, col, 2.4);
+    ctx.globalAlpha = 1;
+  }
+
+  // the hot surface
+  ctx.fillStyle = tempColor(0.8);
+  ctx.fillRect(0, plateTop, w, 18);
+  caption(ctx, w / 2, plateTop + 14, 'hot surface', '#fff', true);
+
+  // plot 1: h vs v
+  const c2 = setupCanvas(document.getElementById('cv-blow2'));
+  const ch2 = new Chart(c2.ctx, c2.w, c2.h);
+  ch2.setRange(0, 15, 0, 68);
+  ch2.grid(); ch2.axes('wind speed v (m/s)', 'h (W/m²K)');
+  const ptsH = [];
+  for (let x = 0; x <= 15.001; x += 0.25) ptsH.push([x, hWind(x)]);
+  ch2.plot(ptsH, COL.accent, 2.5);
+  ch2.dot(v, hh, COL.accent, 6);
+  ch2.legend([{ label: 'h ≈ 5.7 + 3.8 v  (McAdams, empirical)', color: COL.accent }]);
+
+  // plot 2: exponential cooling curve of the copper ball
+  const c3 = setupCanvas(document.getElementById('cv-blow3'));
+  const ch3 = new Chart(c3.ctx, c3.w, c3.h);
+  const tMaxMin = 75;
+  ch3.setRange(0, tMaxMin, 15, 95);
+  ch3.grid(); ch3.axes('time (minutes)', 'ball temperature (°C)');
+  ch3.hLine(TINF, COL.axis, [3, 3]);
+  const cool = (sec, ta) => TINF + (BALL.T0 - TINF) * Math.exp(-sec / ta);
+  const p0 = [], p1 = [];
+  for (let tm = 0; tm <= tMaxMin; tm += 0.5) {
+    p0.push([tm, cool(tm * 60, tau0)]);
+    p1.push([tm, cool(tm * 60, tau)]);
+  }
+  ch3.plot(p0, COL.orange, 2, [6, 4]);
+  ch3.plot(p1, COL.accent, 3);
+  ch3.vLine(tau / 60, COL.muted, [2, 4]);
+  ch3.dot(tau / 60, cool(tau, tau), COL.accent, 5);
+  ch3.legend([{ label: 'your wind', color: COL.accent },
+              { label: 'still air (v = 0)', color: COL.orange, dash: [6, 4] },
+              { label: 'τ', color: COL.muted, dash: [2, 4] }]);
+
+  setStat('st-blow', [
+    { label: 'Convection h', value: fmt(hh, 1) + ' W/m²K', highlight: true },
+    { label: 'Film thickness δ ≈ k_air/h', value: fmt(deltaMm, 2) + ' mm' },
+    { label: 'Time constant τ = mc/(hA)', value: fmt(tau / 60, 1) + ' min' },
+    { label: 'Ball reaches 30 °C in', value: fmt(t30 / 60, 1) + ' min' },
+    { label: 'Speed-up vs still air', value: fmt(tau0 / tau, 1) + '×' }
+  ]);
+
+  if (v === 0)
+    setVerdict('vd-blow', 'warn', 'Still air — natural convection only.',
+      'h sits at the free baseline of 5.7 W/m²K, so the ball needs τ ≈ ' + fmt(tau / 60, 0) + ' minutes per time constant and almost an hour to become touchable. The boundary layer is at its thickest — watch the particles near the plate barely crawl.');
+  else if (v < 5)
+    setVerdict('vd-blow', 'good', 'A breeze — the cheapest cooling upgrade there is.',
+      'At v = ' + fmt(v, 1) + ' m/s the correlation gives h ≈ ' + fmt(hh, 1) + ' W/m²K, ' + fmt(hh / 5.7, 1) + '× the still-air value, and the cooling time shrinks by the same factor (τ ∝ 1/h). This is exactly what blowing on soup does. (Remember the formula is an old empirical wind fit — order of magnitude, not gospel.)');
+  else
+    setVerdict('vd-blow', 'good', 'Leaf-blower regime — fast, but with diminishing returns.',
+      'h ≈ ' + fmt(hh, 0) + ' W/m²K and τ is down to ' + fmt(tau / 60, 1) + ' min — ' + fmt(tau0 / tau, 1) + '× faster than still air. But note: h grows linearly with v while τ ∝ 1/h, so each extra m/s of wind now buys a smaller slice of time. The first breeze was the bargain.');
+}
+
+/* ---------------- TAB 3: fins ---------------- */
+function drawFins(){
+  const N = num('s-fins-n'), Lmm = num('s-fins-len');
+  const L = Lmm / 1000;
+  const Abase = HS.W * HS.D;
+  const Afins = N * 2 * L * HS.D;
+  const smm = (HS.W * 1000 - N * HS.t * 1000) / (N + 1);
+  const f = 1 / (1 + Math.pow(HS.sCrit / Math.max(smm, 0.2), 2));
+  const q = HS.h * HS.dT * (Abase + f * Afins);
+  const qIdeal = HS.h * HS.dT * (Abase + Afins);
+  const qBare = HS.h * HS.dT * Abase;
+
+  // heatsink cross-section
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-fins'));
+  const baseW = 480, x0 = (w - baseW) / 2, pxmm = baseW / 100;
+  const baseTop = h - 58, baseH = 26;
+  const ftw = HS.t * 1000 * pxmm;
+  const gap = (baseW - N * ftw) / (N + 1);
+  const fh = Math.min(150, Lmm * 2.3);
+
+  // rising-air arrows in the channels, faded when crowded
+  ctx.globalAlpha = Math.max(0.12, f * 0.9);
+  const step = Math.max(1, Math.ceil((N + 1) / 12));
+  for (let i = 0; i <= N; i += step) {
+    const gx = x0 + i * (gap + ftw) + gap / 2;
+    arrow(ctx, gx, baseTop - 6, gx, Math.max(26, baseTop - fh - 26), COL.teal, 2);
+  }
+  ctx.globalAlpha = 1;
+
+  // fins
+  for (let i = 0; i < N; i++) {
+    const fx = x0 + gap + i * (ftw + gap);
+    const fg = ctx.createLinearGradient(0, baseTop, 0, baseTop - fh);
+    fg.addColorStop(0, tempColor(0.9)); fg.addColorStop(1, tempColor(0.55));
+    ctx.fillStyle = fg;
+    ctx.fillRect(fx, baseTop - fh, ftw, fh);
+  }
+
+  // base plate
+  ctx.fillStyle = tempColor(0.9);
+  ctx.fillRect(x0, baseTop, baseW, baseH);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(x0, baseTop, baseW, baseH);
+  caption(ctx, w / 2, baseTop + baseH + 18,
+    'base 10 cm × 10 cm · ΔT = 40 K · h = 15 W/m²K · spacing ' + fmt(smm, 1) + ' mm', COL.muted);
+  caption(ctx, w / 2, 16,
+    f > 0.85 ? 'air rises freely between the fins'
+      : f > 0.6 ? 'channels narrowing — the airflow is slowing'
+      : 'channels choked — fresh air can barely get through',
+    f > 0.85 ? COL.teal : f > 0.6 ? COL.warn : COL.bad, true);
+
+  // plot: q vs N, ideal vs crowded
+  const c2 = setupCanvas(document.getElementById('cv-fins2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const qAt = (n, derate) => {
+    const af = n * 2 * L * HS.D;
+    const sm = (100 - n * 2) / (n + 1);
+    const ff = derate ? 1 / (1 + Math.pow(HS.sCrit / Math.max(sm, 0.2), 2)) : 1;
+    return HS.h * HS.dT * (Abase + ff * af);
+  };
+  ch.setRange(0, 30, 0, qAt(30, false) * 1.08);
+  ch.grid(); ch.axes('fin count N', 'q (W)');
+  const pD = [], pI = [];
+  for (let n = 0; n <= 30; n += 0.5) { pD.push([n, qAt(n, true)]); pI.push([n, qAt(n, false)]); }
+  ch.plot(pI, COL.muted, 1.5, [4, 4]);
+  ch.plot(pD, COL.accent, 3);
+  ch.hLine(qBare, COL.orange, [2, 4]);
+  ch.dot(N, q, COL.accent, 6);
+  ch.legend([{ label: 'with crowding (qualitative)', color: COL.accent },
+             { label: 'ideal q = hA_total ΔT', color: COL.muted, dash: [4, 4] },
+             { label: 'bare plate', color: COL.orange, dash: [2, 4] }]);
+
+  setStat('st-fins', [
+    { label: 'Total area A', value: fmt(Abase + Afins, 3) + ' m²' },
+    { label: 'Area vs bare plate', value: fmt((Abase + Afins) / Abase, 1) + '×' },
+    { label: 'Fin spacing', value: fmt(smm, 1) + ' mm' },
+    { label: 'Crowding factor (qualitative)', value: fmt(f, 2) },
+    { label: 'Heat flow q', value: fmt(q, 1) + ' W', highlight: true },
+    { label: 'Bare plate would give', value: fmt(qBare, 0) + ' W' }
+  ]);
+
+  if (f > 0.85)
+    setVerdict('vd-fins', 'good', 'Every fin is earning its keep.',
+      'With ' + fmt(smm, 1) + ' mm between fins the channels breathe freely, so nearly all of the ' + fmt((Abase + Afins) / Abase, 1) + '× area gain converts to heat flow: q = ' + fmt(q, 0) + ' W vs ' + fmt(qBare, 0) + ' W for the bare plate. This is the whole reason heatsinks are spiky.');
+  else if (f > 0.6)
+    setVerdict('vd-fins', 'warn', 'Diminishing returns — the channels are narrowing.',
+      'Spacing is down to ' + fmt(smm, 1) + ' mm and the crowding factor to ' + fmt(f, 2) + ': each new fin now sits partly in its neighbors\' warmed air. You still get ' + fmt(q, 0) + ' W, but the blue curve is bending away from the ideal dashed line.');
+  else
+    setVerdict('vd-fins', 'bad', 'Choked — more metal, barely more cooling.',
+      'At ' + fmt(smm, 1) + ' mm spacing the airflow between fins has collapsed (crowding factor ' + fmt(f, 2) + '). Much of your ' + fmt((Abase + Afins) / Abase, 1) + '× area is wasted: fewer, better-spaced fins would cool nearly as well — check the hump in the blue curve.');
+}
+
+/* ---------------- TAB 4: levelup ---------------- */
+function drawLevelup(){
+  const hh = num('s-levelup-h'), Lmm = num('s-levelup-len'),
+        tmm = num('s-levelup-t'), k = num('s-levelup-k');
+  const L = Lmm / 1000, t = tmm / 1000;
+  const P = 2, Ac = t;                       // per metre of fin width
+  const m = Math.sqrt(hh * P / (k * Ac));    // fin parameter, m⁻¹ (not mass!)
+  const mL = m * L;
+  const eta = mL < 1e-6 ? 1 : Math.tanh(mL) / mL;
+  const Bi = hh * (t / 2) / k;
+  const qfin = eta * hh * P * L * THB;       // W per metre of width
+  const tipFrac = 1 / Math.cosh(mL);
+
+  // fin colored by local temperature
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-levelup'));
+  const wallX = 70, cy = h / 2 + 8;
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(wallX - 18, cy - 70, 18, 140);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(wallX - 18, cy - 70, 18, 140);
+  caption(ctx, wallX - 9, cy - 78, 'hot wall (θ_b = 50 K)', COL.ink, true);
+  const finLpx = Math.min(540, 80 + Lmm * 4.4);
+  const finHpx = 10 + tmm * 4;
+  const slices = 64;
+  for (let i = 0; i < slices; i++) {
+    const xa = i / slices;
+    const frac = Math.cosh(m * (L - xa * L)) / Math.cosh(mL);
+    ctx.fillStyle = tempColor(0.12 + 0.88 * frac);
+    ctx.fillRect(wallX + xa * finLpx, cy - finHpx / 2, finLpx / slices + 1, finHpx);
+  }
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(wallX, cy - finHpx / 2, finLpx, finHpx);
+  caption(ctx, Math.min(w - 60, wallX + finLpx), cy - finHpx / 2 - 10,
+    'tip: ' + fmt(tipFrac * 100, 0) + '% of θ_b', COL.ink, true);
+  caption(ctx, wallX + finLpx / 2, cy + finHpx / 2 + 20,
+    'L = ' + fmt(Lmm, 0) + ' mm · t = ' + fmt(tmm, 1) + ' mm · k = ' + fmt(k, 0) + ' W/m·K', COL.muted);
+
+  // temperature profile plot
+  const c2 = setupCanvas(document.getElementById('cv-levelup2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  ch.setRange(0, Lmm, 0, 1.08);
+  ch.grid(); ch.axes('distance from base x (mm)', 'θ/θ_b (excess temperature fraction)');
+  ch.hLine(1, COL.muted, [4, 4]);
+  const pts = [];
+  for (let i = 0; i <= 200; i++) {
+    const x = i / 200 * L;
+    pts.push([x * 1000, Math.cosh(m * (L - x)) / Math.cosh(mL)]);
+  }
+  ch.plot(pts, COL.accent, 3);
+  ch.dot(Lmm, tipFrac, COL.purple, 6);
+  ch.legend([{ label: 'θ/θ_b = cosh m(L−x) / cosh mL', color: COL.accent },
+             { label: 'perfect fin (η = 1)', color: COL.muted, dash: [4, 4] }]);
+
+  setStat('st-levelup', [
+    { label: 'Fin parameter m', value: fmt(m, 1) + ' m⁻¹' },
+    { label: 'mL', value: fmt(mL, 2) },
+    { label: 'Efficiency η = tanh(mL)/mL', value: fmt(eta * 100, 0) + ' %', highlight: true },
+    { label: 'Tip excess θ/θ_b', value: fmt(tipFrac * 100, 0) + ' %' },
+    { label: 'Biot number Bi = h(t/2)/k', value: fmt(Bi, 4) },
+    { label: 'q_fin (per m width)', value: fmt(qfin, 0) + ' W' }
+  ]);
+
+  const biNote = Bi < 0.1
+    ? ' Bi = ' + fmt(Bi, 4) + ' < 0.1: across its thickness the fin really is "all one temperature", so the 1-D theory (and Tab 2\'s lumped cooling) is legitimate.'
+    : ' Careful: Bi = ' + fmt(Bi, 2) + ' ≥ 0.1, so even the cross-section is developing temperature gradients — 1-D fin theory itself is getting strained.';
+  if (eta >= 0.9)
+    setVerdict('vd-levelup', 'good', 'Nearly ideal — the fin stays hot to the tip.',
+      'mL = ' + fmt(mL, 2) + ' is small, so η = ' + fmt(eta * 100, 0) + '%: the tip still holds ' + fmt(tipFrac * 100, 0) + '% of the base excess and almost every square millimetre of fin is pulling its weight (q_fin ≈ ' + fmt(qfin, 0) + ' W per metre of width).' + biNote);
+  else if (eta >= 0.75)
+    setVerdict('vd-levelup', 'warn', 'The tip is going cold.',
+      'mL = ' + fmt(mL, 2) + ' has pushed η down to ' + fmt(eta * 100, 0) + '% — the outer end of the fin runs at only ' + fmt(tipFrac * 100, 0) + '% of the base excess, so the last stretch of metal is underemployed. Conduction along the fin can no longer keep up with the air\'s theft from its sides.' + biNote);
+  else
+    setVerdict('vd-levelup', 'bad', 'Wasted metal — η below 0.75.',
+      'With mL = ' + fmt(mL, 2) + ', efficiency is only ' + fmt(eta * 100, 0) + '% and the tip has sagged to ' + fmt(tipFrac * 100, 0) + '% of θ_b: you are shipping dead aluminum-or-worse. Make it shorter, fatter, or more conductive — anything that shrinks m = √(hP/(kA_c)) times L.' + biNote);
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { film: drawFilm, blow: drawBlow, fins: drawFins, levelup: drawLevelup };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
+</body>
+</html>
