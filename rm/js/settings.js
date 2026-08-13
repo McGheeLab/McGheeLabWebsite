@@ -46,29 +46,28 @@ var CONN_COLUMNS = [
   { label: 'Actions', key: null },
 ];
 
+// V3.575 — three tabs only: Profile · Notifications · Connections. The old
+// per-type registry filters (Email/Calendars/Repos/Messaging/Finance), the
+// separate Calendar Sync tab, and the always-visible integrations-host
+// connectors that used to sit at the bottom of Profile are ALL folded into
+// one Connections tab (Alex: "single tab for all of the connectors … no
+// calendar sync tab … connections should only be in the connections tab").
 const TABS = [
   { key: 'profile',       label: 'Profile' },
   { key: 'notifications', label: 'Notifications' },
-  // V3.54 — Calendar Sync (Google + Outlook + Apple ICS imports via the
-  // /rm/js/calendar-service.js singleton brought into RM in V3.51). Tab
-  // key `cal-sync` rather than `calendar` to avoid colliding with the
-  // existing connection-registry filter below that filters on
-  // connections.type === 'calendar'.
-  { key: 'cal-sync',      label: 'Calendar Sync' },
-  { key: 'all',           label: 'All Connections' },
-  { key: 'email',         label: 'Email' },
-  { key: 'calendar',      label: 'Calendars' },
-  { key: 'repository',    label: 'Repositories' },
-  { key: 'messaging',     label: 'Messaging' },
-  { key: 'finance',       label: 'Finance' },
+  { key: 'connections',   label: 'Connections' },
 ];
 
 let activeTab = 'profile';
 
 function _isConnectionTab() {
-  return activeTab !== 'profile'
-      && activeTab !== 'notifications'
-      && activeTab !== 'cal-sync';
+  return activeTab === 'connections';
+}
+
+// Host for the Calendar-Sync provider block once it's nested inside the
+// Connections tab (falls back to #content if ever rendered standalone).
+function _calSyncHost() {
+  return document.getElementById('conn-calsync') || document.getElementById('content');
 }
 
 function connectionStatusChip(s) {
@@ -95,10 +94,7 @@ async function loadAndRender() {
   tabsEl.innerHTML = '';
   TABS.forEach(t => {
     let label = t.label;
-    if (t.key === 'all') label += ' (' + connections.length + ')';
-    else if (_isConnectionTabKey(t.key)) {
-      label += ' (' + connections.filter(c => c.type === t.key).length + ')';
-    }
+    if (t.key === 'connections') label += ' (' + connections.length + ')';
     const btn = document.createElement('button');
     btn.className = 'tab-btn' + (activeTab === t.key ? ' active' : '');
     btn.textContent = label;
@@ -114,15 +110,39 @@ async function loadAndRender() {
   if (addBtn) addBtn.style.display = _isConnectionTab() ? '' : 'none';
 
   const content = document.getElementById('content');
-  if (activeTab === 'profile') return renderProfile(content);
   if (activeTab === 'notifications') return renderNotifications(content);
-  if (activeTab === 'cal-sync') return renderCalendarSync(content);
-  return renderConnections(content, connections);
+  if (activeTab === 'connections') return renderConnectionsTab(content, connections);
+  return renderProfile(content);
 }
 
-// Helper: is `key` a connection-type filter (vs a personal-config tab)?
-function _isConnectionTabKey(k) {
-  return k !== 'profile' && k !== 'notifications' && k !== 'cal-sync';
+/* ─── Connections tab (V3.575) ───────────────────────────────
+ * One tab folds in everything connection-related:
+ *   1. OAuth account connectors (Gmail · Google Calendar · Outlook .ics) —
+ *      oauth-connections.js renders these into #integrations-host. This is
+ *      the block that used to sit permanently at the bottom of every tab
+ *      (looking like part of Profile); it now lives ONLY here.
+ *   2. CalendarService providers (Apple / Outlook ICS + Huddle blackout) —
+ *      the old "Calendar Sync" tab, tucked into a <details> so its
+ *      Google/Outlook options don't visually duplicate the OAuth cards.
+ *   3. The manual connection registry (the old per-type filter tabs).
+ */
+function renderConnectionsTab(content, connections) {
+  content.innerHTML =
+    '<div id="integrations-host"></div>' +
+    '<details class="settings-conn-more">' +
+      '<summary>More calendar sync options — Apple Calendar, .ics files, Huddle blackout</summary>' +
+      '<div id="conn-calsync"></div>' +
+    '</details>' +
+    '<div class="settings-conn-registry">' +
+      '<h2 class="settings-conn-h">Other connections</h2>' +
+      '<div id="conn-registry"></div>' +
+    '</div>';
+  // 1) OAuth account connectors — oauth-connections.js mounts into #integrations-host.
+  try { if (window.OAUTH_CONNECTIONS && OAUTH_CONNECTIONS.render) OAUTH_CONNECTIONS.render(); } catch (e) {}
+  // 2) CalendarService providers (async; fills #conn-calsync when ready).
+  renderCalendarSync(document.getElementById('conn-calsync'));
+  // 3) Manual registry.
+  renderConnections(document.getElementById('conn-registry'), connections);
 }
 
 /* ─── Profile tab ───────────────────────────────────────── */
@@ -224,6 +244,7 @@ function _defaultNotifSettings() {
         huddle: { push: true },
         scheduler: { push: true },
         activityTracker: { push: false },
+        releases: { push: true },
       },
     },
   };
@@ -274,6 +295,7 @@ async function renderNotifications(content) {
       row('n-huddle',    'The Huddle',       'Weekly plan updates and join requests',      !!(apps.huddle && apps.huddle.push)) +
       row('n-scheduler', 'Scheduler',        'Schedule invitations and assignment changes', !!(apps.scheduler && apps.scheduler.push)) +
       row('n-activity',  'Activity Tracker', 'Daily logging reminders',                     !!(apps.activityTracker && apps.activityTracker.push)) +
+      row('n-releases',  'App Updates',      "What's-new announcements when the app ships a batch of changes", !(apps.releases && apps.releases.push === false)) +
 
       '<h3 class="settings-h3">Quiet Hours</h3>' +
       row('n-quiet', 'Do Not Disturb', 'Silence notifications during the hours below.', qh.enabled) +
@@ -318,6 +340,7 @@ async function renderNotifications(content) {
             huddle:          { push: !!document.getElementById('n-huddle').checked },
             scheduler:       { push: !!document.getElementById('n-scheduler').checked },
             activityTracker: { push: !!document.getElementById('n-activity').checked },
+            releases:        { push: !!document.getElementById('n-releases').checked },
           },
         },
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -528,7 +551,7 @@ function wireCalendarSync(cal) {
     if (!clientId) { showStatus('Enter your OAuth Client ID', 'error'); return; }
     try {
       await cal.connectGoogle(clientId);
-      renderCalendarSync(document.getElementById('content'));
+      renderCalendarSync(_calSyncHost());
       showStatus('Google Calendar connected', 'success');
     } catch (err) {
       showStatus('Google OAuth error: ' + (err.message || err), 'error');
@@ -538,7 +561,7 @@ function wireCalendarSync(cal) {
   const gDisc = document.getElementById('cal-gcal-disconnect');
   if (gDisc) gDisc.addEventListener('click', () => {
     cal.disconnectGoogle();
-    renderCalendarSync(document.getElementById('content'));
+    renderCalendarSync(_calSyncHost());
     showStatus('Google Calendar disconnected', 'success');
   });
 
@@ -549,7 +572,7 @@ function wireCalendarSync(cal) {
     if (!clientId) { showStatus('Enter your Azure App ID', 'error'); return; }
     try {
       await cal.connectOutlook(clientId);
-      renderCalendarSync(document.getElementById('content'));
+      renderCalendarSync(_calSyncHost());
       showStatus('Outlook connected', 'success');
     } catch (err) {
       showStatus('Outlook auth error: ' + (err.message || err), 'error');
@@ -559,7 +582,7 @@ function wireCalendarSync(cal) {
   const msDisc = document.getElementById('cal-msal-disconnect');
   if (msDisc) msDisc.addEventListener('click', () => {
     cal.disconnectOutlook();
-    renderCalendarSync(document.getElementById('content'));
+    renderCalendarSync(_calSyncHost());
     showStatus('Outlook disconnected', 'success');
   });
 
@@ -570,7 +593,7 @@ function wireCalendarSync(cal) {
     if (!file) return;
     try {
       const result = await cal.importICSFile(file, 'outlook_ics');
-      renderCalendarSync(document.getElementById('content'));
+      renderCalendarSync(_calSyncHost());
       showStatus('Imported ' + result.count + ' Outlook event' + (result.count !== 1 ? 's' : ''), 'success');
     } catch (err) {
       showStatus('Failed to parse file: ' + (err.message || err), 'error');
@@ -581,7 +604,7 @@ function wireCalendarSync(cal) {
   if (outIcsClear) outIcsClear.addEventListener('click', () => {
     if (cal.clearProvider) cal.clearProvider('outlook_ics');
     cal.saveConfig({ outlookIcsUrl: '' });
-    renderCalendarSync(document.getElementById('content'));
+    renderCalendarSync(_calSyncHost());
     showStatus('Outlook ICS cleared', 'success');
   });
 
@@ -594,7 +617,7 @@ function wireCalendarSync(cal) {
     try {
       await cal.saveConfig({ outlookIcsUrl: url });
       const result = await cal.fetchICSFromUrl(url, 'outlook_ics');
-      renderCalendarSync(document.getElementById('content'));
+      renderCalendarSync(_calSyncHost());
       showStatus('Outlook ICS fetched — ' + result.count + ' event' + (result.count !== 1 ? 's' : ''), 'success');
     } catch (err) {
       outIcsFetch.disabled = false; outIcsFetch.textContent = 'Fetch';
@@ -609,7 +632,7 @@ function wireCalendarSync(cal) {
     if (!file) return;
     try {
       const result = await cal.importICSFile(file, 'ics');
-      renderCalendarSync(document.getElementById('content'));
+      renderCalendarSync(_calSyncHost());
       showStatus('Imported ' + result.count + ' event' + (result.count !== 1 ? 's' : ''), 'success');
     } catch (err) {
       showStatus('Failed to parse file: ' + (err.message || err), 'error');
@@ -625,7 +648,7 @@ function wireCalendarSync(cal) {
     try {
       await cal.saveConfig({ icsUrl: url });
       const result = await cal.fetchICSFromUrl(url, 'ics');
-      renderCalendarSync(document.getElementById('content'));
+      renderCalendarSync(_calSyncHost());
       showStatus('ICS fetched — ' + result.count + ' event' + (result.count !== 1 ? 's' : ''), 'success');
     } catch (err) {
       aIcsFetch.disabled = false; aIcsFetch.textContent = 'Fetch';
@@ -637,7 +660,7 @@ function wireCalendarSync(cal) {
   if (aIcsClear) aIcsClear.addEventListener('click', () => {
     if (cal.clearProvider) cal.clearProvider('ics');
     cal.saveConfig({ icsUrl: '' });
-    renderCalendarSync(document.getElementById('content'));
+    renderCalendarSync(_calSyncHost());
     showStatus('Apple ICS cleared', 'success');
   });
 
@@ -688,13 +711,11 @@ function _appleIcon() {
 /* ─── Connections tab (existing behavior) ───────────────── */
 
 function renderConnections(content, connections) {
-  // Filter
-  const filtered = activeTab === 'all'
-    ? connections
-    : connections.filter(c => c.type === activeTab);
+  // One Connections tab now → always show the full registry.
+  const filtered = connections;
 
   if (filtered.length === 0) {
-    content.innerHTML = '<div class="empty-state">No connections in this category. Click <strong>+ Add Connection</strong> to add one.</div>';
+    content.innerHTML = '<div class="empty-state">No manual connections yet. Click <strong>+ Add Connection</strong> to add one.</div>';
     return;
   }
 
@@ -782,7 +803,7 @@ function esc(s) {
 }
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view settings.');
   await loadAndRender();
   // No LIVE_SYNC.attach: settings are per-user, single-tab in practice.
 })();

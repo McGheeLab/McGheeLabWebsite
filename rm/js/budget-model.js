@@ -375,7 +375,7 @@
   };
 
   (async function () {
-    if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+    if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view the budget model.');
     await init();
     // No LIVE_SYNC.attach: budget-model reads cached items + receipts
     // collections; reload covers cross-tab edits.

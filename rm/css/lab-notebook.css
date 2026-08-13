@@ -568,6 +568,13 @@
   padding: 2px 4px;
   border-radius: 4px;
   width: fit-content;
+  /* V3.506 — this row can be a <button> (a protocol mounted live in-situ,
+     jump-to-it) as well as an <a> (a legacy ref-only link out); reset the
+     button chrome so both look identical. */
+  background: none;
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
 }
 .ln-protocol-row:hover {
   background: #ecfdf5;
@@ -575,6 +582,14 @@
 }
 .ln-protocol-icon { font-size: 14px; }
 .ln-protocol-name { font-weight: 500; }
+.ln-protocol-live-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  font-weight: 600;
+  color: #0d9488;
+  margin-left: 2px;
+}
 
 /* V3.127 — protocol picker row layout. The row's name + status + the
  * "ref only" sub-action all live on one line; the sub-action floats
@@ -1895,11 +1910,503 @@
   text-align: center;
 }
 
-/* ── Mobile: stack rail above editor ──────────────────────────── */
-@media (max-width: 720px) {
+/* ══════════════════════════════════════════════════════════════
+ * V3.359–V3.362 — FuturePlan 10 additions
+ * ══════════════════════════════════════════════════════════════ */
+
+/* ── Toolbar: drawer toggle, New ▾ split, ＋Today, pulse ───────── */
+.ln-drawer-toggle {
+  display: none;                 /* phone-only; see ≤640px block */
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.ln-new-split { display: inline-flex; }
+.ln-new-split #ln-new {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.ln-new-split .ln-new-caret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgba(255,255,255,.35);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+#ln-today { cursor: pointer; white-space: nowrap; }
+.ln-pulse {
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* New ▾ menu (fixed-position popover) */
+.ln-new-menu {
+  position: fixed;
+  z-index: 260;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.16);
+  padding: 6px;
+  min-width: 230px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.ln-new-menu .ln-new-sep {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #9ca3af;
+  font-weight: 600;
+  padding: 8px 10px 2px 10px;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 4px;
+}
+.ln-new-menu .ln-new-sep:first-child { border-top: none; margin-top: 0; }
+.ln-new-menu .ln-new-item-row { display: flex; align-items: center; }
+.ln-new-menu .ln-new-item-row .ln-new-item { flex: 1 1 auto; }
+.ln-new-menu .ln-new-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #1f2937;
+}
+.ln-new-menu .ln-new-item:hover { background: #f3f4f6; }
+.ln-new-menu .ln-new-mini {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: #9ca3af;
+  font-size: 12px;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.ln-new-menu .ln-new-mini:hover { background: #f3f4f6; color: #374151; }
+
+/* ── Rail phase chips ─────────────────────────────────────────── */
+.ln-rail-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 6px 10px 2px 10px;
+}
+.ln-rail-chip {
+  font-size: 11px;
+  padding: 3px 9px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.ln-rail-chip:hover { border-color: #93c5fd; color: #1d4ed8; }
+.ln-rail-chip.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+/* ── Empty-pane quick capture ─────────────────────────────────── */
+.ln-empty-capture {
+  display: block;
+  margin: 18px auto 0 auto;
+  font-size: 14px;
+  padding: 12px 18px;
+  min-height: 44px;
+  border: 1px solid #2563eb;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+}
+.ln-empty-capture:hover { background: #1d4ed8; }
+
+/* ── Phone action bar (hidden on desktop) ─────────────────────── */
+.ln-action-bar {
+  display: none;                 /* shown ≤640px */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 220;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid #e5e7eb;
+  padding: 6px 8px calc(6px + var(--safe-bottom, 0px)) 8px;
+  gap: 4px;
+  transition: transform .12s ease-out;
+}
+.ln-action-bar button {
+  flex: 1 1 0;
+  min-height: 48px;
+  border: none;
+  background: none;
+  border-radius: 10px;
+  font-size: 20px;
+  line-height: 1.1;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.ln-action-bar button span {
+  font-size: 10px;
+  color: #6b7280;
+  letter-spacing: .2px;
+}
+.ln-action-bar button:active { background: #eff6ff; }
+.ln-action-bar button.ln-ab-dim { opacity: .45; }
+
+/* ── Observation mini-form + mic ──────────────────────────────── */
+.ln-obs-form {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  background: #f8faff;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ln-obs-form-text-row { display: flex; gap: 6px; align-items: flex-start; }
+.ln-obs-form-text-row textarea {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+  min-height: 44px;
+}
+.ln-mic-btn {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #d1d5db;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 17px;
+  cursor: pointer;
+}
+.ln-mic-btn.recording {
+  background: #fee2e2;
+  border-color: #dc2626;
+  animation: ln-mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ln-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.35); }
+  50%      { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+}
+.ln-obs-form-metric-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.ln-obs-form-metric-row input {
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  min-width: 0;
+}
+.ln-obs-form-metric-row input:nth-child(1) { flex: 2 1 120px; }
+.ln-obs-form-metric-row input:nth-child(2) { flex: 1 1 70px; }
+.ln-obs-form-metric-row input:nth-child(3) { flex: 1 1 60px; }
+.ln-obs-form-actions { display: flex; gap: 8px; }
+.ln-obs-form-actions button {
+  font-size: 13px;
+  padding: 8px 14px;
+  min-height: 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.ln-obs-form-actions button.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+  font-weight: 500;
+}
+
+/* ── Tag chip input ───────────────────────────────────────────── */
+.ln-tag-input {
+  font-size: 12px;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 3px 10px;
+  min-width: 72px;
+  max-width: 160px;
+  background: none;
+  color: #374151;
+}
+.ln-tag-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  border-style: solid;
+}
+.ln-tag-input::placeholder { color: #9ca3af; }
+
+/* ── 🧭 Plan panel ────────────────────────────────────────────── */
+.ln-plan {
+  margin: 0 0 12px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+.ln-plan.ln-plan-active { border-color: #bfdbfe; background: #f8faff; }
+.ln-plan summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  padding: 9px 12px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+.ln-plan summary::-webkit-details-marker { display: none; }
+.ln-plan .ln-plan-summary {
+  font-weight: 400;
+  color: #9ca3af;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ln-plan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 2px 12px 12px 12px;
+}
+.ln-plan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 600;
+  color: #6b7280;
+}
+.ln-plan-field.ln-plan-wide { grid-column: 1 / -1; }
+.ln-plan-field input,
+.ln-plan-field textarea {
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2937;
+  resize: vertical;
+}
+.ln-plan-field input:focus,
+.ln-plan-field textarea:focus { outline: none; border-color: #2563eb; }
+
+/* ── Backlinks ("Linked from") ───────────────────────────────── */
+.ln-backlinks {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #f3f4f6;
+}
+.ln-backlinks h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}
+.ln-backlink-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.ln-backlink {
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+.ln-backlink:hover { border-color: #93c5fd; background: #eff6ff; }
+.ln-backlink .ln-backlink-date { color: #9ca3af; font-size: 11px; }
+
+/* ── Slash-command menu ───────────────────────────────────────── */
+.ln-slash-menu {
+  position: fixed;
+  z-index: 260;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.16);
+  padding: 4px;
+  min-width: 200px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.ln-slash-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #1f2937;
+}
+.ln-slash-item:hover,
+.ln-slash-item.active { background: #eff6ff; color: #1e40af; }
+
+/* ── DOE results column + progress chip ───────────────────────── */
+.ln-design-results-chip {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 10px;
+  padding: 2px 8px;
+  vertical-align: 1px;
+}
+.ln-design-results-chip.all-done { color: #065f46; background: #d1fae5; }
+.ln-doe-table-results .ln-doe-th-result { min-width: 90px; }
+.ln-doe-td-result { padding: 2px 4px !important; }
+.ln-doe-result {
+  width: 100%;
+  min-width: 70px;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fffdf5;
+}
+.ln-doe-result:focus { outline: none; border-color: #2563eb; background: #fff; }
+
+/* ══════════════════════════════════════════════════════════════
+ * Mobile — canonical breakpoints (V3.359 rewrite of the old 720px
+ * one-liner). Tablet ≤1024px narrows the rail; phone ≤640px turns the
+ * rail into the shared left drawer (rm-mobile-drawer-* rules in
+ * style.css do the sliding) and shows the bottom action bar.
+ * ══════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .ln-layout { grid-template-columns: 240px 1fr; gap: 12px; }
+  .ln-editor { padding: 14px 16px; }
+}
+
+@media (max-width: 640px) {
   .ln-layout { grid-template-columns: 1fr; }
-  .ln-rail {
+  /* The rail is a drawer now (rm-mobile-drawer-left) — style.css takes
+   * over its positioning; these keep its inner layout sane in-drawer. */
+  .ln-rail.rm-mobile-drawer-left {
+    border: none;
+    border-radius: 0;
+    padding-top: calc(8px + var(--safe-top, 0px));
+  }
+  /* Fallback when mobile-drawers.js didn't load: stacked rail (the old
+   * 720px behavior) so entries stay reachable. */
+  .ln-rail:not(.rm-mobile-drawer-left) {
     position: static;
     max-height: 320px;
+  }
+  .ln-rail .ln-entry-row { padding: 12px 14px; min-height: 44px; }
+
+  .ln-drawer-toggle { display: inline-flex; align-items: center; }
+
+  .ln-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    margin-left: calc(-1 * var(--page-pad-mobile, 12px));
+    margin-right: calc(-1 * var(--page-pad-mobile, 12px));
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .ln-toolbar input[type="search"] {
+    min-width: 0;
+    flex: 1 1 100px;
+    min-height: 40px;
+  }
+  .ln-toolbar button { min-height: 40px; }
+  .ln-pulse { display: none; }   /* pulse yields space to search on phone */
+
+  .ln-editor {
+    padding: 12px 12px calc(84px + var(--safe-bottom, 0px)) 12px;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    margin-left: calc(-1 * var(--page-pad-mobile, 12px));
+    margin-right: calc(-1 * var(--page-pad-mobile, 12px));
+  }
+  .ln-editor input.ln-title { font-size: 19px; }
+  .ln-meta-row { gap: 8px; }
+  .ln-meta-row select,
+  .ln-meta-row input[type="date"] { min-height: 40px; }
+
+  /* 44px touch targets on the body toolbar; horizontal scroll instead
+   * of a three-row wrap. */
+  .ln-body-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 2px;
+    scrollbar-width: none;
+  }
+  .ln-body-toolbar::-webkit-scrollbar { display: none; }
+  .ln-body-toolbar button {
+    min-height: 44px;
+    min-width: 40px;
+    flex: 0 0 auto;
+    font-size: 13px;
+  }
+  .ln-body { scroll-margin-bottom: 96px; }
+
+  .ln-action-bar { display: flex; }
+
+  .ln-plan-grid { grid-template-columns: 1fr; }
+
+  .ln-att-thumb { width: 84px; height: 84px; }
+  .ln-att-thumb .del { display: flex; }  /* no hover on touch — always visible */
+
+  .ln-ref-row { flex-wrap: wrap; }
+
+  /* Popovers + menus go near-full-width on phone. */
+  .ln-inv-popover,
+  .ln-new-menu,
+  .ln-slash-menu {
+    left: 8px !important;
+    right: 8px;
+    max-width: none;
+    width: auto;
+  }
+
+  /* Modals stay reachable above the home indicator. */
+  .ln-modal {
+    max-height: calc(100vh - 24px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
   }
 }

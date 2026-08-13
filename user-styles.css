@@ -114,6 +114,84 @@ select:focus {
   font-size: .9rem;
 }
 
+.auth-notice {
+  background: rgba(22,163,74,.15);
+  color: #86efac;
+  padding: .75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: .9rem;
+}
+
+.auth-link-btn {
+  background: none;
+  border: none;
+  color: var(--muted, #a8b3c7);
+  font-size: .85rem;
+  cursor: pointer;
+  padding: .5rem 0 0;
+  text-align: left;
+}
+.auth-link-btn:hover { color: var(--text, #eef2f7); text-decoration: underline; }
+.auth-link-btn:disabled { opacity: .6; cursor: not-allowed; text-decoration: none; }
+
+/* ─── Auth loading spinner (V3.332) ──────────────────────────── */
+.auth-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 1rem;
+}
+.auth-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid var(--border, #2a3040);
+  border-top-color: var(--accent, #60a5fa);
+  animation: mcghee-spin .8s linear infinite;
+}
+@keyframes mcghee-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-spinner { animation: none; display: none; }
+}
+
+/* ─── Profile-load failure banner (V3.332) ───────────────────── */
+.profile-load-notice {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  max-width: min(92vw, 520px);
+  background: var(--card, #151a24);
+  border: 1px solid rgba(185,28,28,.5);
+  color: #fca5a5;
+  padding: .75rem 1rem;
+  border-radius: 8px;
+  font-size: .9rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+}
+.profile-load-notice button {
+  background: none;
+  border: 1px solid rgba(252,165,165,.5);
+  color: #fca5a5;
+  border-radius: 6px;
+  padding: .25rem .6rem;
+  cursor: pointer;
+  font-size: .85rem;
+  flex-shrink: 0;
+}
+.profile-load-notice button:hover { background: rgba(185,28,28,.15); }
+.profile-load-notice .profile-notice-close {
+  border: none;
+  font-size: 1rem;
+  padding: .25rem .4rem;
+}
+
 /* ─── Forms (shared) ─────────────────────────────────────────── */
 .form-group {
   display: flex;
@@ -3185,8 +3263,20 @@ summary.assoc-header h4{
   transition: background .12s ease;
   position: relative;
   touch-action: none;
+  /* Skeleton (V3.349): lift paintable cells off the page surface so the
+     field reads as slots. Inline heat backgrounds (admin view) still win. */
+  background: color-mix(in srgb, var(--surface, #121620) 93%, #fff);
 }
-.ff-block:hover { filter: brightness(1.2); }
+.ff-block:hover { box-shadow: inset 0 0 0 1px var(--accent, #5baed1); }
+/* Hour rhythm: strong line at each hour (over the 1px gap seam), labels
+   only on hour rows and brighter than the muted half-row seams. */
+.ff-cell.ff-hour { border-top: 2px solid rgba(255,255,255,.18); }
+.ff-time-label.ff-hour { color: var(--text, #eef2f7); }
+/* Today column: accent underline on the header, faint accent edges down
+   the column. Inset shadows so heat/selected backgrounds are untouched. */
+.ff-day-header.ff-today { color: var(--accent, #5baed1); box-shadow: inset 0 -2px 0 var(--accent, #5baed1); }
+.ff-block.ff-today { box-shadow: inset 1px 0 0 rgba(91,174,209,.4), inset -1px 0 0 rgba(91,174,209,.4); }
+.ff-block.ff-today:hover { box-shadow: inset 0 0 0 1px var(--accent, #5baed1); }
 .ff-block.ff-selected {
   background: var(--accent, #5baed1) !important;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.25);
@@ -3227,11 +3317,14 @@ summary.assoc-header h4{
   .schedule-cell { padding: 6px 4px; min-height: 44px; }
   .schedule-time-header { font-size: .7rem; padding-right: 6px; }
   .schedule-day-header { font-size: .7rem; }
-  .vote-check { width: 22px; height: 22px; }
+  /* Finger-sized targets for the guest picker (V3.342) */
+  .vote-check { width: 28px; height: 28px; }
+  .schedule-slot-vote { min-height: 44px; }
   .scheduler-table { font-size: .75rem; }
   .scheduler-table th, .scheduler-table td { padding: 6px; }
   .freeform-grid { font-size: .65rem; }
-  .ff-cell { min-height: 26px; padding: 2px; }
+  .ff-cell { min-height: 40px; padding: 2px; }
+  .ff-block { min-height: 40px; }
   .ff-time-label { font-size: .6rem; }
   .ff-day-header { font-size: .6rem; }
   .mode-toggle { width: 100%; }
@@ -3242,7 +3335,7 @@ summary.assoc-header h4{
   .sb-left { flex: none; }
   .sb-dg-time { font-size: .6rem; padding: 0 3px; }
   .sb-dg-dayhead { font-size: .65rem; padding: 4px 2px; }
-  .sb-dg-cell { min-height: 16px; }
+  .sb-dg-cell { min-height: 34px; } /* finger-sized (V3.342) */
   .sb-session-item { padding: 8px; }
   .sb-session-info strong { font-size: .8rem; }
 }

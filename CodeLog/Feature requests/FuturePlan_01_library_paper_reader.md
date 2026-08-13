@@ -6,6 +6,10 @@
 > `V3.310_citation_localization_refresh.md`, Release 4 →
 > `V3.311_missing_pdf_queue.md`. Functions + rules deployed; awaiting FTP
 > push of the client tree. Do NOT re-implement from this doc.
+> **Addendum (same day): V3.326 bulk re-check** — user asked for the
+> ability to re-check papers ALREADY in the library for all metadata;
+> shipped as `rm/js/library-recheck.js` + "⟳ Re-check metadata" toolbar
+> button (see `CodeLog/ClaudesPlan/V3.326_library_metadata_recheck.md`).
 > **Origin:** wishlist roadmap session, 2026-07-11.
 > **Ship order:** this was doc 01 of 05 — Library + paper reader shipped first.
 

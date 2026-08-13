@@ -44,6 +44,7 @@
   /* ── DOM refs ── */
 
   var titleInput     = document.getElementById('pe-title');
+  var statusSel      = document.getElementById('pe-status');   // V3.365
   var saveStateEl    = document.getElementById('pe-savestate');
   var readonlyBanner = document.getElementById('pe-readonly-banner');
   var outlineEl      = document.getElementById('pe-outline');
@@ -53,6 +54,7 @@
   var paragraphSkelEl = document.getElementById('pe-paragraph-skel');
   var contentEl      = document.getElementById('pe-content');
   var addSectionBtn  = document.getElementById('pe-add-section-btn');
+  var appendixBtn    = document.getElementById('pe-appendix-btn');   // V3.456
   var viewFilterSel  = document.getElementById('pe-view-filter');
   var statusFilterSel= document.getElementById('pe-status-filter');
   var topbarEl       = document.querySelector('.pe-topbar');
@@ -62,7 +64,9 @@
   var inviteBtnEl   = null;
   var resetBtnEl    = null;
   var exportBtnEl   = null;
+  var docViewBtnEl  = null;   // V3.387 — Document view toggle
   var versionsBtnEl = null;
+  var importRefsBtnEl = null; // V3.483 — import references → library + attach
   var commentsBtnEl = null;
   var hasImportFile = false;  // detected during connect
 
@@ -131,6 +135,19 @@
       var data = await api.load('projects/papers.json');
       var rows = (data && data.papers) || [];
       var found = rows.find(function (p) { return p.id === paramId; });
+      if (!found && typeof api.invalidate === 'function') {
+        // V3.485 — a just-imported paper is written by a direct single-doc
+        // set (bypassing api.save), so the stale-while-revalidate list can lag
+        // one load and miss it → a spurious "not found"/blank page right after
+        // import that only clears on a manual refresh. Bust the cache and
+        // refetch ONCE before giving up.
+        try {
+          await api.invalidate('projects/papers.json');
+          data = await api.load('projects/papers.json');
+          rows = (data && data.papers) || [];
+          found = rows.find(function (p) { return p.id === paramId; });
+        } catch (e) { /* fall through to the not-found message */ }
+      }
       if (!found) {
         contentEl.innerHTML = '<div class="empty-state">Paper "' + escapeHtml(paramId) +
           '" not found. <a href="/rm/pages/paper-builder.html">Back to papers</a>.</div>';
@@ -139,6 +156,7 @@
       state.meta = found;
       titleInput.value = found.title || '';
       document.title = (found.title || 'Paper') + ' — Editor';
+      populateStatusSelect(found.status || 'drafting');
     } catch (err) {
       contentEl.innerHTML = '<div class="empty-state">Failed to load paper metadata: ' + escapeHtml(err.message) + '</div>';
     }
@@ -177,10 +195,28 @@
       hideReadonlyBanner();
     }
 
+    /* V3.365 — status selector gate. projects/papers.json rows live in
+     * the `projects` collection, whose write rule is admin-only — so the
+     * select is only enabled for admins; author students see the current
+     * status with a "ask the PI" tooltip instead of a save that would
+     * die on permission-denied. */
+    if (statusSel) {
+      var canSetStatus = firebridge.isAdmin();
+      statusSel.disabled = !canSetStatus;
+      statusSel.title = canSetStatus
+        ? 'Paper status — `published` marks this draft\'s library associations inactive'
+        : 'Status: ' + (state.meta.status || 'drafting') +
+          ' — only admins can change it (shared papers list is admin-write)';
+    }
+
     setSaveStatus('Connecting…', 'saving');
     // Kick off the citation index in parallel with the Yjs connect — items.json
     // can be ~MB-sized and the editor doesn't need it for first paint.
     loadCitationIndex();
+    /* V3.344 — load the paper's export-template citation style so chips
+     * render as the journal will typeset them (superscript / [1] / (1) /
+     * author-year). Non-blocking; falls back to Author-Year labels. */
+    if (window.PaperCiteStyle) window.PaperCiteStyle.init(state.paperId);
     var conn = await window.PaperYjs.connect(state.paperId);
     state.conn = conn;
     state.Y = conn.Y;
@@ -236,6 +272,24 @@
       }
     }, 'init');
 
+    /* V3.389 — re-run the citation-style init now that the paper is
+     * connected, THEN force a full re-render once the family resolves. The
+     * family loads async (it polls for PaperExportTex + reads paperExports)
+     * and almost always lands AFTER the blocks first render, so the chips
+     * were built with no family = legacy "Author Year". The per-paragraph
+     * 'paper-equations-changed' repaint proved unreliable here, so mirror
+     * what the citation-index-loaded path does: render() the whole document
+     * (unless the user is mid-edit in a block). This is the fix that makes
+     * citations actually flip to the journal's numbering on load. */
+    if (window.PaperCiteStyle && window.PaperCiteStyle.init) {
+      window.PaperCiteStyle.init(state.paperId).then(function () {
+        if (!(window.PaperCiteStyle.getFamily && window.PaperCiteStyle.getFamily())) return;
+        if (document.activeElement && document.activeElement.classList &&
+            document.activeElement.classList.contains('pe-block-content')) return;
+        if (state.sectionsArr) render();
+      });
+    }
+
     var metaY = paperMap.get('meta');
     var titleY = metaY.get('title');
     if (!(titleY instanceof conn.Y.Text)) {
@@ -254,9 +308,16 @@
     // Reset button) AND migrates if Yjs is currently empty.
     await maybeMigrateLegacy();
     // If still empty (no legacy + first visit) and user can edit, seed the
-    // template's starter sections so the editor isn't a wall of nothing.
+    // structure. V3.472 — a paper created by the grant importer carries
+    // `import_seed`; hydrate the prepared section tree from its bundle
+    // instead of the template's empty starter sections. Falls back to the
+    // template if the bundle can't be fetched.
     if (state.sectionsArr.length === 0 && state.editable) {
-      seedFromTemplate();
+      if (state.meta && state.meta.import_seed) {
+        hydrateFromImport(state.meta.import_seed);
+      } else {
+        seedFromTemplate();
+      }
     }
 
     // Bind the title input to titleY.
@@ -272,6 +333,19 @@
 
     // Observe structural changes to refresh the outline + main pane.
     state.sectionsArr.observe(function () { render(); });
+
+    /* V3.366 — cited-in-drafts sync (library-cited-sync.js). Local edits
+     * (origin ≠ 'remote', the provider's own convention) schedule a
+     * debounced diff of the doc's [@key] set against each library item's
+     * meta.library.cited_in_drafts. Read-only sessions never write —
+     * CITED_SYNC.init gates on editable. */
+    if (window.CITED_SYNC) {
+      conn.yDoc.on('update', function (u, origin) {
+        if (origin !== 'remote') window.CITED_SYNC.schedule();
+      });
+      window.CITED_SYNC.init({ editable: state.editable });
+      window.addEventListener('pagehide', function () { window.CITED_SYNC.runNow(); });
+    }
     // Watch the title for tab-title updates from remote edits.
     titleY.observe(function () {
       document.title = (titleY.toString() || 'Paper') + ' — Editor';
@@ -376,6 +450,21 @@
     m.set('label', new Y.Text(sec.label ? String(sec.label) : ''));
     m.set('order', typeof sec.order === 'number' ? sec.order : 0);
     m.set('status', sec.status || 'draft');
+    /* V3.369 — section completion (lock + final form). Must round-trip
+     * through all three tree functions or a section reorder drops it. */
+    if (sec.completed_at) m.set('completed_at', sec.completed_at);
+    if (sec.completed_by) m.set('completed_by', sec.completed_by);
+    /* V3.455 — needs-revision flag metadata: same round-trip contract. */
+    if (sec.revision_by) m.set('revision_by', sec.revision_by);
+    if (sec.revision_at) m.set('revision_at', sec.revision_at);
+    /* V3.465 — grant attached-doc upload pointer: same round-trip contract. */
+    if (sec.uploaded_file) m.set('uploaded_file', sec.uploaded_file);
+    /* V3.413 — section styles: same round-trip contract. */
+    if (sec.special) m.set('special', sec.special);
+    if (sec.special_render) m.set('special_render', sec.special_render);
+    /* Appendix flag + cross-ref anchor — same round-trip contract. */
+    if (sec.appendix) m.set('appendix', true);
+    if (sec.ref_label) m.set('ref_label', sec.ref_label);
     var childrenArr = new Y.Array();
     m.set('children', childrenArr);
     (sec.children || []).forEach(function (blk) {
@@ -394,6 +483,41 @@
     m.set('skeleton', new Y.Text(blk.skeleton ? String(blk.skeleton) : ''));
     m.set('body', new Y.Text(blk.body ? String(blk.body) : ''));
     m.set('attrs', new Y.Map());
+    /* Restore ALL attrs — scalars fast-path; deep values (table `cells`
+     * Y.Map of Y.Text, `caption` Y.Text, figure `subfigures` Y.Array)
+     * rehydrate through the same _writeAttrValue used by within-section
+     * moves. Before this fix a SECTION move silently destroyed table
+     * cells/captions and figure panel labels (deep attrs were skipped).
+     * Plain JS arrays from schema-factory trees (e.g. newFigure's
+     * `subfigures: []`) convert to their live Y shapes. */
+    var attrs = m.get('attrs');
+    if (blk.attrs && typeof blk.attrs === 'object') {
+      Object.keys(blk.attrs).forEach(function (k) {
+        var v = blk.attrs[k];
+        if (v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+          attrs.set(k, v);
+        } else if (v && v.__ytype) {
+          _writeAttrValue(attrs, k, v, Y);
+        } else if (Array.isArray(v)) {
+          _writeAttrValue(attrs, k, {
+            __ytype: 'array',
+            items: v.map(function (item) {
+              if (item && typeof item === 'object' && !Array.isArray(item)) {
+                var entries = {};
+                Object.keys(item).forEach(function (ik) {
+                  var iv = item[ik];
+                  if (iv === null || typeof iv === 'string' || typeof iv === 'number' || typeof iv === 'boolean') entries[ik] = iv;
+                });
+                return { __ytype: 'map', entries: entries };
+              }
+              return item;
+            }),
+          }, Y);
+        } else {
+          attrs.set(k, v);   // plain object — stored as a JSON value (unchanged)
+        }
+      });
+    }
     return m;
   }
 
@@ -410,6 +534,247 @@
     }, 'seed-template');
   }
 
+  /* V3.472 — hydrate a fresh paper from a prepared import bundle
+   * (rm/data/grant-imports/<id>.json): the full section tree
+   * (custom narrative sections, subheadings at their verbatim depth,
+   * paragraphs, figure blocks with captions, a References Cited section).
+   * Runs ONCE, only when the doc is empty (the seed guard), so it never
+   * clobbers an edited paper. Figures import caption-only (empty
+   * storage_path) — the author attaches each image via the normal figure
+   * UI. Falls back to the template starter if the bundle can't be fetched.
+   * This is the reusable paper-import seam (the GELS NSF CAREER bundle is
+   * the first user; general markdown/JSON import-export builds on it). */
+  function hydrateFromImport(importId) {
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(String(importId || ''))) { seedFromTemplate(); return; }
+    _loadImportPackage(importId)
+      .then(function (pkg) { return _hydrateBundle(pkg); })
+      .catch(function (e) {
+        console.warn('[paper-editor] import hydrate failed (' + (e && e.message) + '); using template.');
+        if (state.sectionsArr.length === 0) seedFromTemplate();
+      });
+  }
+
+  /* Source the bundle: an uploaded .paperbundle.zip was unzipped on the
+   * list page and stashed in IndexedDB (import_source==='upload'); a
+   * built-in grant bundle is a fixed server file. Returns
+   * {bundle, assets:{relpath:base64}, comments:[], stashKey?}. */
+  function _loadImportPackage(importId) {
+    if (state.meta && state.meta.import_source === 'upload' && window.LOCAL_CACHE) {
+      return window.LOCAL_CACHE.scope('paperImport::' + importId, 3600 * 1000).get().then(function (w) {
+        if (!w || !w.data || !w.data.manifest) throw new Error('import stash missing (reload the Papers list and re-import)');
+        return { bundle: w.data.manifest, assets: w.data.assets || {}, comments: w.data.comments || [], stashKey: importId };
+      });
+    }
+    return fetch('/rm/data/grant-imports/' + importId + '.json', { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error('bundle ' + r.status); return r.json(); })
+      .then(function (b) { return { bundle: b, assets: {}, comments: [] }; });
+  }
+
+  /* Full hydration: tree (ids preserved) + equation library + unplaced
+   * figure/table libraries in one transact; then config → paperExports;
+   * then figure bytes re-uploaded + attrs re-pointed; then the stash is
+   * cleared. Tolerant of the older/minimal bundle shape (missing fields
+   * are skipped), so the built-in GELS bundle still imports. */
+  async function _hydrateBundle(pkg) {
+    var bundle = pkg.bundle;
+    var secs = bundle && bundle.tree && bundle.tree.sections;
+    if (!Array.isArray(secs) || !secs.length) throw new Error('empty bundle');
+    if (state.sectionsArr.length !== 0) return;   // double-hydrate guard
+    var Y = state.Y;
+
+    state.conn.yDoc.transact(function () {
+      secs.forEach(function (sec, i) {
+        appendSectionFromTree(state.sectionsArr, {
+          id: sec.id,                              // V3.47x — PRESERVE (comments bind to block ids)
+          kind: sec.kind || 'custom',
+          label: sec.label || 'Untitled',
+          order: (typeof sec.order === 'number') ? sec.order : i,
+          status: sec.status,
+          completed_at: sec.completed_at, completed_by: sec.completed_by,
+          revision_by: sec.revision_by, revision_at: sec.revision_at,
+          special: sec.special, special_render: sec.special_render,
+          appendix: sec.appendix, ref_label: sec.ref_label,
+          uploaded_file: sec.uploaded_file,
+          children: sec.children || [],
+        });
+      });
+      // Inline equation library.
+      var eqSrc = bundle.equation_library || [];
+      var lib = state.paperMap && state.paperMap.get('equation_library');
+      if (lib && eqSrc.length) {
+        eqSrc.forEach(function (e) {
+          var m = new Y.Map(); lib.push([m]);
+          m.set('id', e.id || window.PaperSchemas.shortId('eq-'));
+          m.set('name', new Y.Text(e.name || ''));
+          m.set('latex', new Y.Text(e.latex || ''));
+          m.set('type', e.type === 'main' ? 'main' : 'inline');
+        });
+      }
+      // Unplaced figure/table libraries (same block shape).
+      ['figure_unplaced', 'table_unplaced'].forEach(function (k) {
+        var arr = bundle[k];
+        var yarr = state.paperMap && state.paperMap.get(k);
+        if (yarr && Array.isArray(arr)) arr.forEach(function (blk) { appendBlockFromTree(yarr, blk); });
+      });
+    }, 'seed-import');
+
+    // Figures: re-upload the bundled bytes under this paper id, then patch
+    // every block/GA/attachment storage pointer. Best-effort; the built-in
+    // caption-only bundle has no assets, so this is a no-op there.
+    var remap = await _reuploadImportedAssets(pkg);
+
+    // Config → paperExports (after remap so graphicalAbstract points fresh).
+    if (bundle.config && typeof firebridge !== 'undefined' && firebridge.db) {
+      try {
+        var cfg = Object.assign({}, bundle.config);
+        if (cfg.graphicalAbstract && cfg.graphicalAbstract.storage_path && remap[cfg.graphicalAbstract.storage_path]) {
+          cfg.graphicalAbstract = Object.assign({}, cfg.graphicalAbstract, remap[cfg.graphicalAbstract.storage_path]);
+        }
+        cfg.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        var u = firebridge.getUser();
+        cfg.updatedBy = u ? (u.email || u.uid) : '';
+        await firebridge.db().collection('paperExports').doc(state.paperId).set(cfg, { merge: true });
+      } catch (e) { console.warn('[paper-editor] import config write failed', e); }
+    }
+
+    // Comments — restored via the E3 Cloud Function (skipped until live).
+    if (pkg.comments && pkg.comments.length && typeof _restoreImportedComments === 'function') {
+      try { await _restoreImportedComments(pkg.comments); } catch (e) { console.warn('[paper-editor] comment restore skipped', e); }
+    }
+
+    // V3.485 — bundled references run OFF the critical import path. They used
+    // to be awaited here (V3.484), which entangled ~210 Firestore writes + a
+    // whole-document marker-rewrite transact with the editor's first paint and
+    // left a white page until a manual refresh. Now: hydrate resolves and the
+    // sections paint first; the reference work is scheduled afterward, fully
+    // isolated, so it can never blank or block the initial render.
+    if (Array.isArray(bundle.references) && bundle.references.length) {
+      setTimeout(function () {
+        _materializeBundleReferences(bundle).catch(function (e) {
+          console.warn('[paper-editor] deferred reference materialization failed', e);
+        });
+      }, 600);
+    }
+
+    if (pkg.stashKey && window.LOCAL_CACHE) {
+      try { await window.LOCAL_CACHE.scope('paperImport::' + pkg.stashKey, 1).clear(); } catch (e) { /* ignore */ }
+    }
+    _importNumberingHint(bundle);
+  }
+
+  /* base64 → Blob (browser). */
+  function _b64ToBlob(b64, mime) {
+    var bin = atob(b64);
+    var len = bin.length;
+    var bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime || 'application/octet-stream' });
+  }
+  var MIME_BY_EXT = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+    webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf' };
+
+  /* Re-upload each bundled asset under this paper id; return a map
+   * {oldStoragePath → {storage_path, download_url, hash, mime}} and patch
+   * the live Yjs attrs (figure/composed-panel/section-attachment). */
+  async function _reuploadImportedAssets(pkg) {
+    var remap = {};
+    var assetList = (pkg.bundle && pkg.bundle.assets) || [];
+    if (!assetList.length || !pkg.assets || !window.PAPER_FIGURES || !window.PAPER_FIGURES.uploadImage) return remap;
+    for (var i = 0; i < assetList.length; i++) {
+      var a = assetList[i];
+      var b64 = pkg.assets[a.relpath];
+      if (!b64 || !a.storage_path_original) continue;
+      try {
+        var blob = _b64ToBlob(b64, MIME_BY_EXT[a.ext] || 'application/octet-stream');
+        var res = await window.PAPER_FIGURES.uploadImage(state.paperId, blob);
+        remap[a.storage_path_original] = { storage_path: res.storage_path, download_url: res.download_url, hash: res.hash, mime: res.mime };
+      } catch (e) { console.warn('[paper-editor] asset re-upload failed', a.relpath, e); }
+    }
+    if (Object.keys(remap).length) _patchStoragePointers(remap);
+    return remap;
+  }
+
+  function _patchBlockStorage(b, remap) {
+    var attrs = b && b.get && b.get('attrs');
+    if (!attrs || !attrs.get) return;
+    var sp = attrs.get('storage_path');
+    if (sp && remap[sp]) { attrs.set('storage_path', remap[sp].storage_path); attrs.set('download_url', remap[sp].download_url); if (remap[sp].hash) attrs.set('hash', remap[sp].hash); }
+    var pj = attrs.get('panels_json');
+    if (pj) {
+      try {
+        var panels = JSON.parse(pj), changed = false;
+        panels.forEach(function (p) {
+          if (p && p.storage_path && remap[p.storage_path]) {
+            var r = remap[p.storage_path];
+            p.storage_path = r.storage_path; p.download_url = r.download_url; if (r.hash) p.hash = r.hash;
+            changed = true;
+          }
+        });
+        if (changed) attrs.set('panels_json', JSON.stringify(panels));
+      } catch (e) { /* malformed panels_json — leave */ }
+    }
+  }
+  function _patchStoragePointers(remap) {
+    state.conn.yDoc.transact(function () {
+      state.sectionsArr.forEach(function (secMap) {
+        var uf = secMap.get('uploaded_file');
+        if (uf && uf.storage_path && remap[uf.storage_path]) {
+          secMap.set('uploaded_file', Object.assign({}, uf, remap[uf.storage_path]));
+        }
+        var kids = secMap.get('children');
+        if (kids && kids.forEach) kids.forEach(function (b) { _patchBlockStorage(b, remap); });
+      });
+      ['figure_unplaced', 'table_unplaced'].forEach(function (k) {
+        var yarr = state.paperMap && state.paperMap.get(k);
+        if (yarr && yarr.forEach) yarr.forEach(function (b) { _patchBlockStorage(b, remap); });
+      });
+    }, 'import-figures');
+  }
+
+  /* V3.481 (E3) — faithful comment restore via the restorePaperComments
+   * Cloud Function (Admin SDK preserves true authorUid + timestamps). The
+   * function is health-gated: if it isn't deployed yet, comment restore is
+   * silently skipped (the rest of the import already succeeded). The
+   * editor's own comment subscription then picks up the restored docs. */
+  var _RESTORE_COMMENTS_URL = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/restorePaperComments';
+  var _restoreCommentsHealth = null;
+  function _commentRestoreAvailable() {
+    if (_restoreCommentsHealth) return _restoreCommentsHealth;
+    _restoreCommentsHealth = fetch(_RESTORE_COMMENTS_URL, { method: 'GET' })
+      .then(function (r) { return r.ok; }).catch(function () { return false; });
+    return _restoreCommentsHealth;
+  }
+  function _restoreImportedComments(comments) {
+    return _commentRestoreAvailable().then(function (ok) {
+      if (!ok) { console.info('[paper-editor] comment-restore function not live; skipping ' + comments.length + ' comments.'); return; }
+      var user = (typeof firebridge !== 'undefined') ? firebridge.getUser() : null;
+      return Promise.resolve(user ? user.getIdToken() : null).then(function (tok) {
+        return fetch(_RESTORE_COMMENTS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (tok || '') },
+          body: JSON.stringify({ paperId: state.paperId, comments: comments }),
+        });
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok) throw new Error(j.error || ('restore failed ' + r.status));
+          console.info('[paper-editor] restored ' + (j.restored || 0) + ' comment(s).');
+        });
+      });
+    });
+  }
+
+  /* The imported subheadings carry their own verbatim numbers ("3.1.1 …");
+   * a one-time toast tells the author to set Numbering → Off on the Export
+   * page if the auto section numbers double up. Non-blocking, best-effort. */
+  function _importNumberingHint(bundle) {
+    if (!bundle || bundle.sectionNumbering !== 'off') return;
+    try {
+      if (window.RM && window.RM.toast) {
+        window.RM.toast('Imported. Tip: on the Export page set Numbering → Off — the headings already carry their numbers.');
+      }
+    } catch (e) { /* toast is optional */ }
+  }
+
   /* ── Render ── */
 
   function render() {
@@ -417,6 +782,13 @@
     addSectionBtn.disabled = !state.editable;
 
     var sections = state.sectionsArr.toArray();
+    /* V3.456 — the § Appendices placer shows only while no divider
+     * exists (and there is a section to place it before). */
+    if (appendixBtn) {
+      appendixBtn.disabled = !state.editable;
+      appendixBtn.hidden = !state.editable || !sections.length ||
+        _appendixBoundaryIdx(sections) >= 0;
+    }
     if (!state.activeSectionId && sections.length) {
       state.activeSectionId = sections[0].get('id');
     }
@@ -424,8 +796,42 @@
     teardownBlockSubscriptions();
     renderOutline(sections);
     renderMain(sections);
+    /* V3.346 — fill the section word-count badges on first paint (the
+     * throttled paper-panel-changed listener keeps them fresh after). */
+    setTimeout(_updateSectionWordBadges, 0);
     renderPresenceRow();
     ensureInviteButton();
+  }
+
+  /* V3.369 — manuscript numbering for a completed section's blocks.
+   * The per-block number badges live in the (hidden) block toolbars, so
+   * final form re-labels in place: the figure/table "Caption" label
+   * becomes "Figure N." / "Table N.", and numbered display equations
+   * get a right-aligned (N). Numbers come from the document-order
+   * walkers, so they match the rest of the manuscript. */
+  function _decorateFinalBlock(blockEl, blockMap) {
+    if (!blockEl || !blockMap) return;
+    try {
+      var kind = blockMap.get('kind');
+      var blockId = blockMap.get('id');
+      if (kind === 'figure') {
+        var fig = getNumberedFigures().find(function (f) { return f.blockId === blockId; });
+        var figLbl = blockEl.querySelector('.pe-figure-caption-label');
+        if (figLbl) figLbl.textContent = fig ? 'Figure ' + fig.num + '.' : 'Figure.';
+      } else if (kind === 'table') {
+        var tab = getNumberedTables().find(function (t) { return t.blockId === blockId; });
+        var tabLbl = blockEl.querySelector('.pe-table-caption-label');
+        if (tabLbl) tabLbl.textContent = tab ? 'Table ' + tab.num + '.' : 'Table.';
+      } else if (kind === 'equation') {
+        var eq = getNumberedEquations().find(function (e) { return e.blockId === blockId; });
+        if (eq) {
+          var num = document.createElement('span');
+          num.className = 'pe-final-eqnum';
+          num.textContent = '(' + eq.num + ')';
+          blockEl.appendChild(num);
+        }
+      }
+    } catch (e) { /* decoration is cosmetic — never break render */ }
   }
 
   function renderOutline(sections) {
@@ -438,6 +844,14 @@
       var labelSpan = document.createElement('span');
       labelSpan.textContent = readSectionLabel(sec);
       li.appendChild(labelSpan);
+      /* V3.369 — completed marker in the outline. */
+      if (sec.get('completed_at')) {
+        var doneMark = document.createElement('span');
+        doneMark.textContent = '✓';
+        doneMark.title = 'Section completed — final form';
+        doneMark.style.cssText = 'color:#047857;font-weight:700;margin-left:4px;';
+        li.appendChild(doneMark);
+      }
       var meta = document.createElement('span');
       meta.style.cssText = 'font-size:11px;color:#9ca3af';
       meta.textContent = (sec.get('children') ? sec.get('children').length : 0) + 'p';
@@ -465,9 +879,177 @@
       if (emptyAdd) emptyAdd.addEventListener('click', addSectionPrompt);
       return;
     }
-    sections.forEach(function (sec) {
+    var boundaryIdx = _appendixBoundaryIdx(sections);
+    sections.forEach(function (sec, i) {
+      if (i === boundaryIdx) contentEl.appendChild(_renderAppendixDivider(i, sections.length));
       contentEl.appendChild(renderSection(sec));
     });
+  }
+
+  /* V3.456 — the appendix boundary: index of the FIRST appendix-flagged
+   * section. Export emits \appendix once before it and the doc view
+   * flips to A/B/C numbering there — both one-way — so a single divider
+   * is the honest UI for the existing model. */
+  function _appendixBoundaryIdx(sections) {
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].get('appendix')) return i;
+    }
+    return -1;
+  }
+
+  /* Place (or clear) the divider: exactly ONE section keeps the
+   * `appendix` flag — the boundary. Also normalizes legacy multi-flag
+   * docs (harmless before: consumers stop reading flags after the
+   * first). targetIdx null/out-of-range clears all flags. */
+  function _setAppendixBoundary(targetIdx) {
+    if (!state.editable || !state.conn) return;
+    var sections = state.sectionsArr.toArray();
+    if (typeof targetIdx !== 'number' || targetIdx < 0 || targetIdx >= sections.length) {
+      targetIdx = -1;
+    }
+    state.conn.yDoc.transact(function () {
+      sections.forEach(function (secMap, i) {
+        if (i === targetIdx) secMap.set('appendix', true);
+        else if (secMap.get('appendix')) secMap.delete('appendix');
+      });
+    }, 'appendix-divider');
+  }
+
+  function _renderAppendixDivider(idx, total) {
+    var bar = document.createElement('div');
+    bar.className = 'pe-appendix-divider';
+    var label = document.createElement('span');
+    label.className = 'pe-appendix-divider-label';
+    label.textContent = '§ Appendices start here';
+    label.title = 'Sections below compile after \\appendix and number as Appendix A, B, C in the document view. ' +
+      'Moving a section across this divider moves it in or out of the appendices.';
+    bar.appendChild(label);
+    if (state.editable) {
+      var ctrls = document.createElement('span');
+      ctrls.className = 'pe-appendix-divider-ctrls';
+      var up = document.createElement('button');
+      up.type = 'button';
+      up.textContent = '▲';
+      up.title = 'Move the divider up — the section above becomes an appendix';
+      up.disabled = idx <= 0;
+      up.addEventListener('click', function () { _setAppendixBoundary(idx - 1); });
+      ctrls.appendChild(up);
+      var down = document.createElement('button');
+      down.type = 'button';
+      down.textContent = '▼';
+      down.title = (idx + 1 < total)
+        ? 'Move the divider down — the section below it leaves the appendices'
+        : 'Move the divider past the last section — removes it';
+      down.addEventListener('click', function () {
+        _setAppendixBoundary(idx + 1 < total ? idx + 1 : null);
+      });
+      ctrls.appendChild(down);
+      var clear = document.createElement('button');
+      clear.type = 'button';
+      clear.textContent = '✕';
+      clear.title = 'Remove the divider — all sections return to normal numbering';
+      clear.addEventListener('click', function () { _setAppendixBoundary(null); });
+      ctrls.appendChild(clear);
+      bar.appendChild(ctrls);
+    }
+    return bar;
+  }
+
+  /* V3.465 — is this a grant attached-document kind (biosketch,
+   * facilities, budget, …)? Reads PaperSchemas so there's one source of
+   * truth. */
+  function _isGrantAttachedKind(kind) {
+    var list = (window.PaperSchemas && window.PaperSchemas.GRANT_ATTACHED_KINDS) || [];
+    return list.indexOf(kind) >= 0;
+  }
+
+  /* Generic upload slot for a grant attached-doc section. Accepts a PDF
+   * (matches the paper-figures Storage path + rules exactly — no
+   * storage-rules change), stores the pointer on the section Y.Map as a
+   * scalar object `uploaded_file`. Wholesale replace only (never mutated
+   * in place), so a plain object leaf is safe in Yjs. */
+  function _renderUploadSlot(secMap, secId) {
+    var slot = document.createElement('div');
+    slot.className = 'pe-upload-slot';
+    var editable = !!state.editable;
+
+    function render() {
+      slot.innerHTML = '';
+      var file = secMap.get('uploaded_file') || null;
+      var label = document.createElement('span');
+      label.className = 'pe-upload-label';
+      label.textContent = '📎 Final document';
+      slot.appendChild(label);
+
+      if (file && file.download_url) {
+        var link = document.createElement('a');
+        link.className = 'pe-upload-file';
+        link.href = file.download_url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = (file.filename || 'attachment.pdf') +
+          (file.size_bytes ? ' (' + (file.size_bytes / 1024 / 1024).toFixed(1) + ' MB)' : '');
+        slot.appendChild(link);
+        if (editable) {
+          slot.appendChild(_uploadBtn(secMap, secId, render, 'Replace'));
+          var rm = document.createElement('button');
+          rm.type = 'button';
+          rm.className = 'pe-upload-remove';
+          rm.textContent = 'Remove';
+          rm.addEventListener('click', function () {
+            state.conn.yDoc.transact(function () { secMap.delete('uploaded_file'); }, 'section-upload');
+            render();
+          });
+          slot.appendChild(rm);
+        }
+      } else {
+        var empty = document.createElement('span');
+        empty.className = 'pe-upload-empty';
+        empty.textContent = editable ? 'No file attached yet.' : 'No file attached.';
+        slot.appendChild(empty);
+        if (editable) slot.appendChild(_uploadBtn(secMap, secId, render, 'Upload PDF…'));
+      }
+    }
+    render();
+    return slot;
+  }
+
+  function _uploadBtn(secMap, secId, onDone, text) {
+    var wrap = document.createElement('label');
+    wrap.className = 'pe-upload-btn';
+    wrap.textContent = text;
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,.pdf';
+    input.style.display = 'none';
+    wrap.appendChild(input);
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      if (f.type && f.type !== 'application/pdf') { alert('Please attach a PDF (the compiled final document).'); return; }
+      if (!window.PAPER_FIGURES || !window.PAPER_FIGURES.uploadImage) { alert('Upload unavailable — file service not loaded.'); return; }
+      wrap.classList.add('pe-upload-busy');
+      wrap.textContent = 'Uploading…';
+      window.PAPER_FIGURES.uploadImage(state.paperId, f).then(function (res) {
+        state.conn.yDoc.transact(function () {
+          secMap.set('uploaded_file', {
+            filename: f.name || 'attachment.pdf',
+            storage_path: res.storage_path,
+            download_url: res.download_url,
+            mime: res.mime,
+            size_bytes: res.size_bytes,
+            uploaded_at: res.uploaded_at,
+          });
+        }, 'section-upload');
+        wrap.classList.remove('pe-upload-busy');
+        onDone();
+      }).catch(function (e) {
+        wrap.classList.remove('pe-upload-busy');
+        wrap.textContent = text;
+        alert('Upload failed: ' + (e.message || e));
+      });
+    });
+    return wrap;
   }
 
   function renderSection(secMap) {
@@ -476,18 +1058,43 @@
     wrap.className = 'pe-section';
     var secId = secMap.get('id');
     wrap.dataset.sectionId = secId;
+    /* V3.334 — expose the section kind on the DOM so the Writing Guide
+     * tab can resolve the focused section's kind from the focused
+     * contenteditable via closest('.pe-section'). */
+    wrap.dataset.sectionKind = secMap.get('kind') || 'custom';
+
+    /* V3.369 — completed sections lock out and render in final document
+     * form: every block read-only in prose view (citations resolved via
+     * the journal style, KaTeX, cross-refs), edit chrome hidden,
+     * manuscript CSS. Derived from `completed_at` on the section map. */
+    var sectionLocked = !!secMap.get('completed_at');
+    if (sectionLocked) {
+      wrap.classList.add('pe-section-final');
+      wrap.dataset.completed = '1';
+    }
 
     var header = document.createElement('div');
     header.className = 'pe-section-header';
 
+    /* S-β — submission-document sections never render in the manuscript;
+     * they compile as separate PDFs from the Export page. */
+    var SUBMISSION_KINDS = { cover_letter: 1, suggested_reviewers: 1, rebuttal: 1 };
+    if (SUBMISSION_KINDS[secMap.get('kind')]) {
+      wrap.classList.add('pe-section-submission');
+      var subBanner = document.createElement('div');
+      subBanner.className = 'pe-submission-banner';
+      subBanner.textContent = '📨 Not part of the manuscript — compiles as a separate PDF (Export page → Submission documents).';
+      wrap.appendChild(subBanner);
+    }
+
     /* Section label — bound to a Y.Text. */
     var labelEl = document.createElement('div');
     labelEl.className = 'pe-section-label';
-    labelEl.contentEditable = state.editable ? 'true' : 'false';
+    labelEl.contentEditable = (state.editable && !sectionLocked) ? 'true' : 'false';
     var labelY = secMap.get('label');
     if (labelY instanceof state.Y.Text) {
       bindYTextToContentEditable(labelY, labelEl, {
-        readOnly: !state.editable,
+        readOnly: !state.editable || sectionLocked,
         onLocalChange: function () {
           // Mirror to outline label without re-rendering everything.
           updateOutlineLabel(secId, labelY.toString());
@@ -504,15 +1111,120 @@
     kindTag.textContent = secMap.get('kind');
     header.appendChild(kindTag);
 
+    /* V3.346 — live word-count badge (red when over the section kind's
+     * advisory maxWords). Filled by _updateSectionWordBadges. */
+    var wordsTag = document.createElement('span');
+    wordsTag.className = 'pe-section-words';
+    header.appendChild(wordsTag);
+
+    /* Cross-reference label — the anchor a [!sec:label] token points at.
+     * Scalar on the section map; set on blur so it doesn't re-render
+     * mid-type (secMap.observe re-renders). */
+    if (state.editable && !sectionLocked) {
+      var refInput = document.createElement('input');
+      refInput.type = 'text';
+      refInput.className = 'pe-section-reflabel';
+      refInput.placeholder = '🔖 sec:label';
+      refInput.title = 'Cross-reference label — reference this section elsewhere with [!sec:label]';
+      refInput.value = secMap.get('ref_label') || '';
+      refInput.addEventListener('change', function () {
+        var v = refInput.value.trim();
+        state.conn.yDoc.transact(function () {
+          if (v) secMap.set('ref_label', v); else secMap.delete('ref_label');
+        }, 'section-ref-label');
+      });
+      header.appendChild(refInput);
+    }
+
     if (state.editable) {
       var actions = document.createElement('div');
       actions.className = 'pe-section-actions';
       actions.appendChild(mkIconBtn('▲', 'Move section up',   function () { moveSection(secId, -1); }));
       actions.appendChild(mkIconBtn('▼', 'Move section down', function () { moveSection(secId,  1); }));
-      actions.appendChild(mkIconBtn('✕', 'Delete section',    function () { deleteSection(secId); }));
+      /* V3.456 — the per-section "§ Appendix" toggle is gone (header
+       * clutter). Appendices are now marked by ONE movable divider bar
+       * rendered between sections in renderMain; the model is unchanged
+       * (first `appendix`-flagged section opens the zone — export and
+       * doc view already read it that way). */
+      /* V3.455 — section STATUS pill (was a "✓ Complete" action button
+       * that read as an already-done state). Shows where the section IS:
+       * amber "✎ Editing section" (draft) / green "✓ Completed section"
+       * (locked, final form) / red "⚑ Needs revision" (unlocked, sent
+       * back by the lead author or PI). Click advances: editing →
+       * completed; needs-revision → completed (revision addressed);
+       * completed → reopened for editing. Delete still requires the
+       * unlocked state (a completed section shouldn't vanish on a
+       * stray click). */
+      var secStatus = String(secMap.get('status') || 'draft');
+      if (secStatus !== 'complete' && sectionLocked) secStatus = 'complete';   // legacy: completed_at set, status stale
+      var statusPill = document.createElement('button');
+      statusPill.type = 'button';
+      if (secStatus === 'complete') {
+        statusPill.className = 'pe-section-status-pill pe-section-status-complete';
+        statusPill.textContent = '✓ Completed section';
+        statusPill.title = 'This section is complete (locked, final form). Click to reopen it for editing.';
+        statusPill.addEventListener('click', function () { _setSectionStatus(secId, 'draft'); });
+      } else if (secStatus === 'needs-review') {
+        statusPill.className = 'pe-section-status-pill pe-section-status-revision';
+        var _rBy = secMap.get('revision_by') || '';
+        var _rWhen = String(secMap.get('revision_at') || '').slice(0, 10);
+        statusPill.textContent = '⚑ Needs revision';
+        statusPill.title = 'Sent back for revision' + (_rBy ? ' by ' + _rBy : '') +
+          (_rWhen ? ' on ' + _rWhen : '') + '. Edit the section, then click to mark it complete.';
+        statusPill.addEventListener('click', function () { _setSectionStatus(secId, 'complete'); });
+      } else {
+        statusPill.className = 'pe-section-status-pill pe-section-status-editing';
+        statusPill.textContent = '✎ Editing section';
+        statusPill.title = 'This section is being edited. Click to mark it complete — locks it and shows the final document form.';
+        statusPill.addEventListener('click', function () { _setSectionStatus(secId, 'complete'); });
+      }
+      actions.appendChild(statusPill);
+      /* ⚑ send-back — lead author / PI only. */
+      if (secStatus !== 'needs-review' &&
+          ((firebridge.isLeadAuthor && firebridge.isLeadAuthor(state.meta)) ||
+           (firebridge.isAdmin && firebridge.isAdmin()))) {
+        var flagBtn = document.createElement('button');
+        flagBtn.type = 'button';
+        flagBtn.className = 'pe-section-flag-btn';
+        flagBtn.textContent = '⚑';
+        flagBtn.title = 'Mark as "Needs revision" — sends the section back for editing (lead author / PI)';
+        flagBtn.addEventListener('click', function () { _setSectionStatus(secId, 'needs-review'); });
+        actions.appendChild(flagBtn);
+      }
+      if (!sectionLocked) {
+        actions.appendChild(mkIconBtn('✕', 'Delete section', function () { deleteSection(secId); }));
+      }
       header.appendChild(actions);
     }
     wrap.appendChild(header);
+
+    /* V3.369 — completion banner. */
+    if (sectionLocked) {
+      var finalBanner = document.createElement('div');
+      finalBanner.className = 'pe-final-banner';
+      var _cBy = secMap.get('completed_by') || '';
+      var _cWhen = String(secMap.get('completed_at') || '').slice(0, 10);
+      finalBanner.textContent = '🔒 Final form — completed' +
+        (_cBy ? ' by ' + _cBy : '') + (_cWhen ? ' · ' + _cWhen : '') +
+        (state.editable ? '. Click the green status pill to reopen.' : '.');
+      wrap.appendChild(finalBanner);
+    } else if (String(secMap.get('status') || '') === 'needs-review') {
+      /* V3.455 — send-back banner (visible to read-only viewers too). */
+      var revBanner = document.createElement('div');
+      revBanner.className = 'pe-revision-banner';
+      var _rvBy = secMap.get('revision_by') || '';
+      var _rvWhen = String(secMap.get('revision_at') || '').slice(0, 10);
+      revBanner.textContent = '⚑ Needs revision' +
+        (_rvBy ? ' — sent back by ' + _rvBy : '') + (_rvWhen ? ' · ' + _rvWhen : '');
+      wrap.appendChild(revBanner);
+    }
+
+    /* V3.494 — the per-section PDF upload slot is RETIRED. Final grant PDFs
+     * now live on the Grant Docs page (paperExports.grantDocs), not on the
+     * manuscript section Y.Map. `_renderUploadSlot`/`_uploadBtn` remain defined
+     * (a legacy `uploaded_file` on an old doc still renders its 📎 link via the
+     * doc-view / export bundle) but are no longer mounted for new attachments.
+     * See CodeLog/ClaudesPlan/V3.490_import_engine_grant_docs.md. */
 
     /* Render each block. */
     var ctx = {
@@ -521,8 +1233,11 @@
       /* V3.125 — sectionId on ctx so block-side reorder controls can
        * call moveBlockUp/Down without re-walking sectionsArr. */
       sectionId: secId,
-      editable: state.editable,
-      viewFilter: state.viewFilter,
+      /* V3.369 — a completed section renders every block read-only (the
+       * blocks' readOnly path IS the final-form renderer: resolved
+       * citations, KaTeX, cross-ref chips) and always in prose view. */
+      editable: state.editable && !sectionLocked,
+      viewFilter: sectionLocked ? 'body' : state.viewFilter,
       onDelete: function (blockId) { deleteBlock(secId, blockId); },
       onFocusBlock: function (blockId) {
         if (state.conn) state.conn.setFocusBlock(blockId);
@@ -580,25 +1295,30 @@
     var inserterAtTopAdded = false;
     childrenArr.forEach(function (blockMap, arrIdx) {
       var s = blockMap.get('status') || 'draft';
-      var keep = (sf === 'all') ||
+      /* V3.369 — final form always shows every block, regardless of the
+       * status filter: the document view must be complete. */
+      var keep = sectionLocked ||
+                 (sf === 'all') ||
                  (sf === 'not-complete' && s !== 'complete') ||
                  (sf === s);
       if (!keep) { hiddenCount++; return; }
-      if (state.editable) {
+      if (state.editable && !sectionLocked) {
         if (!inserterAtTopAdded) {
           wrap.appendChild(_buildBlockInserter(secId, secMap, arrIdx));
           inserterAtTopAdded = true;
         }
       }
-      wrap.appendChild(window.PaperBlocks.renderYBlock(blockMap, ctx));
-      if (state.editable) {
+      var blockEl = window.PaperBlocks.renderYBlock(blockMap, ctx);
+      wrap.appendChild(blockEl);
+      if (sectionLocked) _decorateFinalBlock(blockEl, blockMap);
+      if (state.editable && !sectionLocked) {
         wrap.appendChild(_buildBlockInserter(secId, secMap, arrIdx + 1));
       }
       visibleIdx++;
     });
     /* If no blocks were visible, still show one inserter so the user
      * can add their first block. */
-    if (state.editable && !inserterAtTopAdded) {
+    if (state.editable && !sectionLocked && !inserterAtTopAdded) {
       wrap.appendChild(_buildBlockInserter(secId, secMap, 0));
     }
     if (hiddenCount > 0) {
@@ -618,6 +1338,17 @@
         render();
       }
     };
+    /* V3.369 — the sectionsArr observer is shallow, so a completion
+     * toggle (a scalar set on THIS map) never reaches it. Observe the
+     * section map itself so both the local toggle and remote
+     * collaborators' toggles re-render this section. */
+    var secMetaObserver = function () { render(); };
+    secMap.observe(secMetaObserver);
+    state.blockSubscriptions.push({
+      yMap: secMap,
+      unobserve: function () { secMap.unobserve(secMetaObserver); },
+    });
+
     childrenArr.observe(childrenObserver);
     state.blockSubscriptions.push({
       yMap: childrenArr,
@@ -664,6 +1395,7 @@
       style_overrides: {},
     });
     var allowFigures = !secStyle || secStyle.allowFigures !== false;
+    var allowSubsections = !secStyle || secStyle.allowSubsections !== false;
 
     function mkItem(label, onClick, disabled) {
       var item = document.createElement('button');
@@ -680,6 +1412,15 @@
 
     menu.appendChild(mkItem('Paragraph', function () {
       insertBlockAt(sectionId, idx, 'paragraph');
+    }));
+    /* Subheading — a \subsection heading in the section flow. Gated by
+     * the section style (abstract/keywords/references disallow them). */
+    menu.appendChild(mkItem('Subheading', function () {
+      insertBlockAt(sectionId, idx, 'subheading');
+    }, !allowSubsections));
+    /* List — itemize / enumerate block. */
+    menu.appendChild(mkItem('List', function () {
+      insertBlockAt(sectionId, idx, 'list');
     }));
     /* V3.132 — Equation / Figure / Table options now open a panel-side
      * picker rather than directly creating an in-doc block. The picker
@@ -797,6 +1538,31 @@
     }, 'add-paragraph');
   }
 
+  /* ONE table-attr seeder for all three creation paths (addTable /
+   * createUnplacedTable / insertBlockAt) — they had drifted (addTable
+   * was missing numbered/label/booktabs/header_row/align). Must run
+   * inside a transact with `attrs` already attached to the doc. */
+  function _seedTableAttrs(attrs) {
+    var Y = state.Y;
+    attrs.set('rows', 2);
+    attrs.set('cols', 2);
+    attrs.set('cells', new Y.Map());
+    var cells = attrs.get('cells');
+    cells.set('0-0', new Y.Text(''));
+    cells.set('0-1', new Y.Text(''));
+    cells.set('1-0', new Y.Text(''));
+    cells.set('1-1', new Y.Text(''));
+    attrs.set('caption', new Y.Text(''));
+    attrs.set('numbered', true);
+    attrs.set('label', '');
+    attrs.set('booktabs', true);
+    attrs.set('header_row', true);
+    attrs.set('align', 'll');
+    attrs.set('anchor', 'flow');        // V3.395 — layout intent
+    attrs.set('span', 'column');
+    attrs.set('lock', false);
+  }
+
   function addTable(sectionId) {
     var hit = findSection(sectionId);
     if (!hit) return;
@@ -811,17 +1577,7 @@
       m.set('skeleton', new Y.Text(''));
       m.set('body', new Y.Text(''));
       m.set('attrs', new Y.Map());
-      var attrs = m.get('attrs');
-      attrs.set('rows', 2);
-      attrs.set('cols', 2);
-      attrs.set('cells', new Y.Map());
-      attrs.set('caption', new Y.Text(''));
-      // Seed the four cells.
-      var cells = attrs.get('cells');
-      cells.set('0-0', new Y.Text(''));
-      cells.set('0-1', new Y.Text(''));
-      cells.set('1-0', new Y.Text(''));
-      cells.set('1-1', new Y.Text(''));
+      _seedTableAttrs(m.get('attrs'));
     }, 'add-table');
   }
 
@@ -847,6 +1603,7 @@
       // a numbered display equation directly. Defaults preserve the
       // pre-V3.124 behavior (display=true, no numbering).
       attrs.set('display', opts.display !== false);
+      attrs.set('span', 'column');   // V3.412 — layout span (page = both columns)
       if (opts.numbered) attrs.set('numbered', true);
       if (opts.label) attrs.set('label', opts.label);
     }, 'add-equation');
@@ -883,6 +1640,12 @@
       // V3.115 — seed numbered=true and an empty Y.Array of subfigures.
       attrs.set('numbered', true);
       attrs.set('subfigures', new Y.Array());
+      // V3.395 — layout intent (Layout Mode); presence of `anchor` opts
+      // the block into PaperLayout.resolveFloat at export.
+      attrs.set('anchor', 'flow');
+      attrs.set('span', 'column');
+      attrs.set('lock', false);
+      attrs.set('size_key', 'single');
     }, 'add-figure');
   }
 
@@ -1211,6 +1974,10 @@
       attrs.set('alt', '');
       attrs.set('numbered', true);
       attrs.set('subfigures', new Y.Array());
+      attrs.set('anchor', 'flow');        // V3.395 — layout intent
+      attrs.set('span', 'column');
+      attrs.set('lock', false);
+      attrs.set('size_key', 'single');
     }, 'create-unplaced-figure');
     return blockId;
   }
@@ -1229,21 +1996,7 @@
       m.set('skeleton', new Y.Text(''));
       m.set('body', new Y.Text(''));
       m.set('attrs', new Y.Map());
-      var attrs = m.get('attrs');
-      attrs.set('rows', 2);
-      attrs.set('cols', 2);
-      attrs.set('cells', new Y.Map());
-      var cells = attrs.get('cells');
-      cells.set('0-0', new Y.Text(''));
-      cells.set('0-1', new Y.Text(''));
-      cells.set('1-0', new Y.Text(''));
-      cells.set('1-1', new Y.Text(''));
-      attrs.set('caption', new Y.Text(''));
-      attrs.set('numbered', true);
-      attrs.set('label', '');
-      attrs.set('booktabs', true);
-      attrs.set('header_row', true);
-      attrs.set('align', 'll');
+      _seedTableAttrs(m.get('attrs'));
     }, 'create-unplaced-table');
     return blockId;
   }
@@ -1366,8 +2119,13 @@
       var attrs = m.get('attrs');
       if (kind === 'paragraph') {
         // Skeleton items list (V3.115). Leave empty; renderer migrates.
+      } else if (kind === 'subheading') {
+        attrs.set('level', opts.level === 3 ? 3 : 2);   // 2 = subsection
+      } else if (kind === 'list') {
+        attrs.set('list_type', opts.list_type === 'number' ? 'number' : 'bullet');
       } else if (kind === 'equation') {
         attrs.set('display', opts.display !== false);
+        attrs.set('span', 'column');   // V3.412
         if (opts.numbered) attrs.set('numbered', true);
         if (opts.label) attrs.set('label', opts.label);
       } else if (kind === 'figure') {
@@ -1382,21 +2140,12 @@
         attrs.set('alt', '');
         attrs.set('numbered', true);
         attrs.set('subfigures', new Y.Array());
+        attrs.set('anchor', 'flow');      // V3.395 — layout intent
+        attrs.set('span', 'column');
+        attrs.set('lock', false);
+        attrs.set('size_key', 'single');
       } else if (kind === 'table') {
-        attrs.set('rows', 2);
-        attrs.set('cols', 2);
-        attrs.set('cells', new Y.Map());
-        var cells = attrs.get('cells');
-        cells.set('0-0', new Y.Text(''));
-        cells.set('0-1', new Y.Text(''));
-        cells.set('1-0', new Y.Text(''));
-        cells.set('1-1', new Y.Text(''));
-        attrs.set('caption', new Y.Text(''));
-        attrs.set('numbered', true);
-        attrs.set('label', '');
-        attrs.set('booktabs', true);
-        attrs.set('header_row', true);
-        attrs.set('align', 'll');
+        _seedTableAttrs(attrs);
       }
     }, 'insert-block-at');
     return blockId;
@@ -1435,6 +2184,20 @@
       label: labelStr,
       order: secMap.get('order') || 0,
       status: secMap.get('status') || 'draft',
+      /* V3.369 — completion survives the snapshot→delete→rehydrate
+       * dance of moveSection. */
+      completed_at: secMap.get('completed_at') || null,
+      completed_by: secMap.get('completed_by') || null,
+      /* V3.455 — needs-revision flag metadata survives moves too. */
+      revision_by: secMap.get('revision_by') || null,
+      revision_at: secMap.get('revision_at') || null,
+      /* V3.465 — grant attached-doc upload pointer survives moves too. */
+      uploaded_file: secMap.get('uploaded_file') || null,
+      /* V3.413 — section styles: survive the reorder snapshot. */
+      special: secMap.get('special') || null,
+      special_render: secMap.get('special_render') || null,
+      appendix: !!secMap.get('appendix'),
+      ref_label: secMap.get('ref_label') || null,
       children: children,
     };
   }
@@ -1442,13 +2205,23 @@
     var Y = state.Y;
     var sk = b.get('skeleton');
     var bd = b.get('body');
+    /* Snapshot ALL attrs so they survive moveSection — scalars as-is,
+     * deep Y types (table cells/caption, subfigures) via _snapshotYValue
+     * (the {__ytype} shapes appendBlockFromTree rehydrates). */
+    var attrs = {};
+    var ya = b.get('attrs');
+    if (ya && typeof ya.forEach === 'function') {
+      ya.forEach(function (v, k) {
+        attrs[k] = _snapshotYValue(v);
+      });
+    }
     return {
       id: b.get('id'),
       kind: b.get('kind'),
       status: b.get('status') || 'draft',
       skeleton: (sk instanceof Y.Text) ? sk.toString() : String(sk || ''),
       body:     (bd instanceof Y.Text) ? bd.toString() : String(bd || ''),
-      attrs: {},
+      attrs: attrs,
     };
   }
 
@@ -1461,6 +2234,19 @@
     if (sec.label) m.get('label').insert(0, sec.label);
     m.set('order', sec.order || 0);
     m.set('status', sec.status || 'draft');
+    /* V3.369 — completion round-trip (see sectionMapToTree). */
+    if (sec.completed_at) m.set('completed_at', sec.completed_at);
+    if (sec.completed_by) m.set('completed_by', sec.completed_by);
+    /* V3.455 — needs-revision round-trip. */
+    if (sec.revision_by) m.set('revision_by', sec.revision_by);
+    if (sec.revision_at) m.set('revision_at', sec.revision_at);
+    /* V3.465 — grant attached-doc upload pointer round-trip. */
+    if (sec.uploaded_file) m.set('uploaded_file', sec.uploaded_file);
+    /* V3.413 — section styles round-trip. */
+    if (sec.special) m.set('special', sec.special);
+    if (sec.special_render) m.set('special_render', sec.special_render);
+    if (sec.appendix) m.set('appendix', true);
+    if (sec.ref_label) m.set('ref_label', sec.ref_label);
     m.set('children', new Y.Array());
     var children = m.get('children');
     (sec.children || []).forEach(function (blk) {
@@ -1468,8 +2254,12 @@
     });
   }
 
-  function deleteSection(sectionId) {
-    if (!confirm('Delete this section and all its paragraphs?')) return;
+  function deleteSection(sectionId, opts) {
+    /* V3.416 — opts.skipConfirm lets the Document view's popover run its
+     * own confirm (a nested browser confirm inside the overlay is fine,
+     * but the caller owns the phrasing). */
+    if (!(opts && opts.skipConfirm) &&
+        !confirm('Delete this section and all its paragraphs?')) return;
     var hit = findSection(sectionId);
     if (!hit) return;
     state.conn.yDoc.transact(function () {
@@ -1481,23 +2271,228 @@
     }
   }
 
-  function addSectionPrompt() {
-    if (!state.editable) return;
+  /* V3.369/V3.455 — set a section's workflow status. Status + completion
+   * are section metadata on the Y.Map, so they sync to every
+   * collaborator; the per-section map observer in renderSection
+   * re-renders both locally and remotely. */
+  function _setSectionStatus(sectionId, status) {
+    /* V3.455 — three states: 'draft' (editing, unlocked), 'complete'
+     * (locked + final form via completed_at), 'needs-review' (unlocked,
+     * red pill — set by the lead author / PI's ⚑). 'needs-review' is
+     * already in PaperSchemas.BLOCK_STATUSES, so normalizeTree passes it
+     * and every tree round-trip copies it verbatim. */
+    if (!state.editable || !state.conn) return;
+    if (['draft', 'complete', 'needs-review'].indexOf(status) < 0) return;
+    var hit = findSection(sectionId);
+    if (!hit) return;
+    var prof = firebridge.getProfile();
+    var user = firebridge.getUser();
+    var name = (prof && prof.name) || (user && user.email) || 'unknown';
+    state.conn.yDoc.transact(function () {
+      hit.map.set('status', status);
+      if (status === 'complete') {
+        hit.map.set('completed_at', new Date().toISOString());
+        hit.map.set('completed_by', name);
+      } else {
+        hit.map.set('completed_at', null);
+        hit.map.set('completed_by', null);
+      }
+      if (status === 'needs-review') {
+        hit.map.set('revision_by', name);
+        hit.map.set('revision_at', new Date().toISOString());
+      } else {
+        hit.map.delete('revision_by');
+        hit.map.delete('revision_at');
+      }
+    }, 'section-status');
+    /* Cite numbers / word badges refresh; the map observer already
+     * triggered the re-render. */
+    window.dispatchEvent(new CustomEvent('paper-panel-changed'));
+  }
+
+  /* V3.416 — headless section creation (the Document view's Insert menu
+   * + the editor palette both funnel here). opts: {special,
+   * special_render, atIndex, seedParagraph=true}. Appends, then walks
+   * the new section into `atIndex` with the existing moveSection
+   * machinery (append-then-reorder — sectionsArr has no insertAt). */
+  function addSection(kind, label, opts) {
+    if (!state.editable) return null;
+    opts = opts || {};
     var schemas = window.PaperSchemas;
-    var kinds = schemas.PAPER_SECTION_KINDS;
-    var kind = window.prompt('Section kind?\n\nOptions: ' + kinds.join(', '), 'introduction');
-    if (!kind) return;
-    if (kinds.indexOf(kind) < 0) kind = 'custom';
-    var defaultLabel = schemas.SECTION_KIND_LABELS[kind] || 'New section';
-    var label = window.prompt('Section title?', defaultLabel);
-    if (label === null) return;
-    var sec = schemas.newSection(kind, label || defaultLabel, state.sectionsArr.length);
-    sec.children.push(schemas.newParagraph());
+    var sec = schemas.newSection(kind, label, state.sectionsArr.length, {
+      special: opts.special || null,
+      special_render: opts.special_render || null,
+    });
+    if (opts.seedParagraph !== false) sec.children.push(schemas.newParagraph());
     var newSecId = sec.id;
     state.conn.yDoc.transact(function () {
       appendSectionFromTree(state.sectionsArr, sec);
     }, 'add-section');
+    if (typeof opts.atIndex === 'number' && opts.atIndex >= 0 &&
+        opts.atIndex < state.sectionsArr.length - 1) {
+      var delta = opts.atIndex - (state.sectionsArr.length - 1);
+      moveSection(newSecId, delta);
+    }
     state.activeSectionId = newSecId;
+    return newSecId;
+  }
+
+  /* V3.416 — light section listing for menus (singleton greying,
+   * landing-position math) without handing out Y types. */
+  function getSectionsSummary() {
+    var out = [];
+    state.sectionsArr.forEach(function (m, i) {
+      var labelY = m.get('label');
+      out.push({
+        id: m.get('id'),
+        kind: m.get('kind'),
+        label: (labelY && labelY.toString) ? labelY.toString() : String(labelY || ''),
+        special: m.get('special') || null,
+        index: i,
+      });
+    });
+    return out;
+  }
+
+  /* V3.457 — "+ Add section" opens a typed dropdown (was two stacked
+   * window.prompt()s asking for a kind string). Body kinds + submission
+   * documents come from PAPER_SECTION_KINDS/SECTION_KIND_LABELS; a
+   * Custom row takes a free label. Kinds that only make sense once
+   * (abstract, keywords, …) grey out when present. The function keeps
+   * its old name — the toolbar button and the empty-state button both
+   * already wire to it. */
+  var _addSecMenuEl = null;
+  function _closeAddSectionMenu() {
+    if (_addSecMenuEl) { _addSecMenuEl.remove(); _addSecMenuEl = null; }
+    document.removeEventListener('mousedown', _addSecMenuOutside, true);
+    document.removeEventListener('keydown', _addSecMenuKey, true);
+  }
+  function _addSecMenuOutside(ev) {
+    if (_addSecMenuEl && !_addSecMenuEl.contains(ev.target)) _closeAddSectionMenu();
+  }
+  function _addSecMenuKey(ev) {
+    if (ev.key === 'Escape') _closeAddSectionMenu();
+  }
+  var ADDSEC_BODY_KINDS = ['abstract', 'keywords', 'introduction', 'background',
+    'methods', 'results', 'discussion', 'conclusions', 'acknowledgements'];
+  var ADDSEC_SUBMISSION_KINDS = ['cover_letter', 'suggested_reviewers', 'rebuttal'];
+  /* V3.464 — grant attached-document kinds come from PaperSchemas (read
+   * lazily so script eval-order can't leave them empty). Each is
+   * normally one-per-paper → singleton. The grant NARRATIVE is authored
+   * as plain custom sections (the Custom row below), matching how real
+   * proposals are written. */
+  var ADDSEC_GRANT_SUBMISSION_KINDS = ['cover_letter', 'suggested_reviewers'];
+  var ADDSEC_SINGLETONS = { abstract: 1, keywords: 1, acknowledgements: 1,
+    cover_letter: 1, suggested_reviewers: 1, rebuttal: 1 };
+  function _grantAttachedKinds() {
+    return (window.PaperSchemas && window.PaperSchemas.GRANT_ATTACHED_KINDS) || [];
+  }
+  function _isSingleton(kind) {
+    return !!ADDSEC_SINGLETONS[kind] || _grantAttachedKinds().indexOf(kind) >= 0;
+  }
+  /* Groups shown in the Add Section menu, keyed by paper_type. Unknown /
+   * editorial / book-chapter fall back to the journal groups (today's
+   * behavior). */
+  function _addSecGroups(paperType) {
+    if (paperType === 'grant') {
+      return [
+        { head: 'Attached documents', kinds: _grantAttachedKinds() },
+        { head: 'Submission documents', kinds: ADDSEC_GRANT_SUBMISSION_KINDS },
+      ];
+    }
+    return [
+      { head: 'Body sections', kinds: ADDSEC_BODY_KINDS },
+      { head: 'Submission documents', kinds: ADDSEC_SUBMISSION_KINDS },
+    ];
+  }
+  function addSectionPrompt(ev) {
+    if (!state.editable) return;
+    _closeAddSectionMenu();
+    var schemas = window.PaperSchemas;
+    var labels = schemas.SECTION_KIND_LABELS || {};
+    var present = {};
+    state.sectionsArr.toArray().forEach(function (s) { present[s.get('kind')] = true; });
+
+    var menu = document.createElement('div');
+    menu.className = 'pe-addsec-menu';
+    var anchor = (ev && ev.currentTarget && ev.currentTarget.getBoundingClientRect)
+      ? ev.currentTarget : addSectionBtn;
+    var r = anchor.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 248)) + 'px';
+    menu.style.top = Math.round(r.bottom + 6) + 'px';
+
+    function pick(kind, label) {
+      _closeAddSectionMenu();
+      var id = addSection(kind, label);
+      if (id) setTimeout(function () {
+        var el = document.querySelector('[data-section-id="' + id + '"]');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    }
+    function head(text) {
+      var h = document.createElement('div');
+      h.className = 'pe-addsec-head';
+      h.textContent = text;
+      menu.appendChild(h);
+    }
+    function item(kind) {
+      var taken = _isSingleton(kind) && present[kind];
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pe-addsec-item';
+      b.textContent = labels[kind] || kind;
+      if (taken) {
+        b.disabled = true;
+        var note = document.createElement('span');
+        note.className = 'pe-addsec-note';
+        note.textContent = 'already added';
+        b.appendChild(note);
+      } else {
+        b.addEventListener('click', function () { pick(kind, labels[kind] || kind); });
+      }
+      menu.appendChild(b);
+    }
+
+    var paperType = (state.meta && state.meta.paper_type) || 'journal';
+    _addSecGroups(paperType).forEach(function (g) {
+      if (!g.kinds || !g.kinds.length) return;
+      head(g.head);
+      g.kinds.forEach(item);
+    });
+
+    /* For grants the narrative (Overview, Background, Aims, …) is authored
+     * as plain custom sections — make the Custom row's purpose explicit. */
+    head(paperType === 'grant' ? 'Narrative / custom section' : 'Custom');
+    var row = document.createElement('div');
+    row.className = 'pe-addsec-custom';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = (paperType === 'grant') ? 'e.g. Research Plan, Background…' : 'Section title…';
+    var go = document.createElement('button');
+    go.type = 'button';
+    go.textContent = 'Add';
+    function submitCustom() {
+      var v = input.value.trim();
+      if (v) pick('custom', v);
+    }
+    go.addEventListener('click', submitCustom);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitCustom(); }
+    });
+    row.appendChild(input);
+    row.appendChild(go);
+    menu.appendChild(row);
+
+    document.body.appendChild(menu);
+    _addSecMenuEl = menu;
+    /* Keep the menu on-screen when the anchor sits near the bottom. */
+    var mr = menu.getBoundingClientRect();
+    if (mr.bottom > window.innerHeight - 8) {
+      menu.style.top = Math.max(8, r.top - mr.height - 6) + 'px';
+    }
+    document.addEventListener('mousedown', _addSecMenuOutside, true);
+    document.addEventListener('keydown', _addSecMenuKey, true);
+    setTimeout(function () { input.focus(); }, 0);
   }
 
   /* ── View filter ── */
@@ -1513,6 +2508,59 @@
     });
   }
   addSectionBtn.addEventListener('click', addSectionPrompt);
+  /* V3.456 — place the appendix divider before the last section; the
+   * user then moves it with the ▲▼ on the bar. */
+  if (appendixBtn) {
+    appendixBtn.addEventListener('click', function () {
+      var n = state.sectionsArr.length;
+      if (n > 0) _setAppendixBoundary(n - 1);
+    });
+  }
+
+  /* ── Status selector → papers.json (V3.365) ──
+   * Statuses come from util.js ITEM_TYPES.paper. The save is the same
+   * read-modify-write as the title sync below; on failure the select
+   * reverts. Flipping to `published` is the association-lifecycle
+   * transition — LIBRARY_ASSOC (reader/library pages) derives every pill
+   * for this draft inactive from the new status. */
+
+  function populateStatusSelect(current) {
+    if (!statusSel) return;
+    var statuses = (typeof ITEM_TYPES !== 'undefined' && ITEM_TYPES.paper && ITEM_TYPES.paper.statuses)
+      ? ITEM_TYPES.paper.statuses
+      : ['drafting', 'submitted', 'revising', 'rejected', 'published'];
+    statusSel.innerHTML = statuses.map(function (s) {
+      return '<option value="' + s + '"' + (s === current ? ' selected' : '') + '>' + s + '</option>';
+    }).join('');
+  }
+
+  async function syncStatusToPapersJson(newStatus) {
+    var prev = (state.meta && state.meta.status) || 'drafting';
+    try {
+      var data = await api.load('projects/papers.json');
+      var rows = (data && data.papers) || [];
+      var row = rows.find(function (p) { return p.id === state.paperId; });
+      if (!row) throw new Error('paper row not found');
+      if (row.status === newStatus) { state.meta.status = newStatus; return; }
+      row.status = newStatus;
+      await api.save('projects/papers.json', { papers: rows });
+      state.meta.status = newStatus;
+      if (window.LIBRARY_ASSOC && window.LIBRARY_ASSOC.invalidate) window.LIBRARY_ASSOC.invalidate();
+      setSaveStatus(newStatus === 'published'
+        ? 'Published — library associations to this draft are now inactive'
+        : 'Status: ' + newStatus, 'saved');
+    } catch (err) {
+      console.warn('[paper-editor] Status sync to papers.json failed:', err.message);
+      populateStatusSelect(prev);
+      setSaveStatus('Status save failed: ' + (err.message || err), 'err');
+    }
+  }
+
+  if (statusSel) {
+    statusSel.addEventListener('change', function () {
+      syncStatusToPapersJson(statusSel.value);
+    });
+  }
 
   /* ── Title sync to papers.json (debounced) ── */
 
@@ -1664,6 +2712,19 @@
       resetBtnEl.remove();
       resetBtnEl = null;
     }
+    /* V3.387 — Document view: journal-styled page-sheet preview of the
+     * paper (paper-doc-view.js). NOT gated on editable — read-only lab
+     * members may look; the view gates its interactive pieces (template
+     * switch, figure popover) on isEditable itself. */
+    if (!docViewBtnEl && window.PaperDocView) {
+      docViewBtnEl = document.createElement('button');
+      docViewBtnEl.type = 'button';
+      docViewBtnEl.className = 'btn pe-invite-btn';
+      docViewBtnEl.textContent = '📄 Document';
+      docViewBtnEl.title = 'Preview the paper as journal-styled pages — design figure layout and switch the target journal';
+      docViewBtnEl.addEventListener('click', function () { window.PaperDocView.open(); });
+      topbarEl.insertBefore(docViewBtnEl, saveStateEl);
+    }
     /* Export to LaTeX — visible to anyone who can edit the paper. V3.231
      * opens the Paper Export Workspace page (template + addons + style
      * overrides + PDF preview). The legacy openExportDialog (local
@@ -1690,11 +2751,152 @@
       versionsBtnEl.addEventListener('click', openVersionsDialog);
       topbarEl.insertBefore(versionsBtnEl, saveStateEl);
     }
+    /* V3.483 — Import references: parse a BibTeX / DOI list into library
+     * citation entries, link them to this draft, and (opt-in) rewrite
+     * numeric [N] markers → [@key]. Editors only. */
+    if (state.editable && !importRefsBtnEl && window.REFERENCE_IMPORT) {
+      importRefsBtnEl = document.createElement('button');
+      importRefsBtnEl.type = 'button';
+      importRefsBtnEl.className = 'btn pe-invite-btn';
+      importRefsBtnEl.textContent = 'Import refs';
+      importRefsBtnEl.title = 'Import a reference list (BibTeX or DOIs) into the library, attach to this paper, and convert numeric [N] markers to [@key]';
+      importRefsBtnEl.addEventListener('click', openImportReferences);
+      topbarEl.insertBefore(importRefsBtnEl, saveStateEl);
+    }
     /* V3.234 — Linked files: external URLs (Synology share, Drive, etc.)
      * attached to the paper. Stored on the top-level papers/{paperId}
      * doc as `externalLinks[]`; the Yjs body is untouched. Visible to
      * lab readers; only editors can add / remove. */
     ensureExternalLinksBtn();
+  }
+
+  /* ── V3.483 Import references (editor surface) ───────────────────────
+   * Opens the shared REFERENCE_IMPORT dialog in editor mode. The dialog
+   * commits new citation-only entries to the library; here we then link
+   * each to this draft and offer a numeric-marker → [@key] rewrite. */
+  function openImportReferences() {
+    if (!window.REFERENCE_IMPORT) { window.alert('Reference importer not loaded on this page.'); return; }
+    api.load('items.json').then(function (data) {
+      var existing = (data && data.items) || [];
+      REFERENCE_IMPORT.open({
+        mode: 'editor',
+        draftId: state.paperId,
+        existingItems: existing,
+        onCommit: function (r) {
+          if (r.close) r.close();
+          var chain = Promise.resolve();
+          if (window.LIBRARY_LINKS && state.paperId) {
+            r.builtItems.forEach(function (it) {
+              chain = chain.then(function () { return LIBRARY_LINKS.toggleDraftLink(it.id, state.paperId, true); });
+            });
+          }
+          chain
+            .then(function () { return loadCitationIndex(); })
+            .then(function () { _maybeRewriteMarkers(r.keyByOrder); })
+            .catch(function (e) { console.warn('[paper-editor] reference import post-commit failed', e); });
+        },
+      });
+    }).catch(function (e) { window.alert('Could not load the library: ' + (e && e.message)); });
+  }
+
+  function _docHasNumericMarkers() {
+    var Y = state.Y, found = false;
+    state.sectionsArr.forEach(function (secMap) {
+      var kids = secMap.get('children');
+      if (!kids || !kids.forEach) return;
+      kids.forEach(function (blk) {
+        var b = blk.get('body');
+        if (b instanceof Y.Text && /\[\s*\d[\d\s,–-]*\]/.test(b.toString())) found = true;
+      });
+    });
+    return found;
+  }
+
+  function _rewriteNumericCitations(keyByOrder) {
+    var Y = state.Y, replaced = 0, unmapped = [];
+    state.conn.yDoc.transact(function () {
+      state.sectionsArr.forEach(function (secMap) {
+        var kids = secMap.get('children');
+        if (!kids || !kids.forEach) return;
+        kids.forEach(function (blk) {
+          try {
+            var bodyY = blk.get('body');
+            if (!(bodyY instanceof Y.Text)) return;
+            var old = bodyY.toString();
+            var rw = REFERENCE_IMPORT.rewriteNumericMarkers(old, keyByOrder);
+            if (rw.text !== old) { bodyY.delete(0, bodyY.length); bodyY.insert(0, rw.text); replaced += rw.replaced; }
+            rw.unmapped.forEach(function (u) { if (unmapped.indexOf(u) < 0) unmapped.push(u); });
+          } catch (be) { /* one bad block never aborts the rest of the rewrite */ }
+        });
+      });
+    }, 'ref-marker-rewrite');
+    return { replaced: replaced, unmapped: unmapped };
+  }
+
+  function _maybeRewriteMarkers(keyByOrder) {
+    if (!keyByOrder || !keyByOrder.length || !_docHasNumericMarkers()) return;
+    if (!window.confirm('Rewrite this paper\'s numeric [N] citations to [@key] using the imported reference order?\n\nThis edits the section body text. Markers not covered by this import (out-of-range numbers) are left unchanged.')) return;
+    var res = _rewriteNumericCitations(keyByOrder);
+    var msg = 'Converted ' + res.replaced + ' citation group(s) to [@key].';
+    if (res.unmapped.length) msg += '\n' + res.unmapped.length + ' marker(s) left unchanged (out of range / unresolved): ' + res.unmapped.slice(0, 12).join(' ');
+    window.alert(msg);
+  }
+
+  /* V3.484 — materialize a bundle's baked `references[]` (unified metadata in
+   * citation order) on paper import: create citation entries in the library
+   * (deduped against the live library, collision-safe keys), attach each to
+   * this draft, then rewrite the narrative's [N] markers to [@key] using the
+   * resulting key order. Reuses the V3.483 reference-import core so keying is
+   * consistent whether references arrive via the editor button or a bundle.
+   * Best-effort: any failure is logged and the paper import still succeeds. */
+  async function _materializeBundleReferences(bundle) {
+    var refs = bundle && bundle.references;
+    if (!Array.isArray(refs) || !refs.length) return;   // ordinary papers: silent no-op
+    // Visible feedback (V3.488): this ran silently before, so a deploy gap /
+    // empty references[] / runtime failure all looked identical ("nothing
+    // happened"). Now every phase reports to the topbar and the finish (or any
+    // failure) pops a summary so import is diagnosable at a glance.
+    if (!window.REFERENCE_IMPORT) {
+      window.alert('This paper carries ' + refs.length + ' references, but the reference importer ' +
+        '(rm/js/reference-import.js) is not loaded on this page. Deploy the latest rm/ and reopen the paper.');
+      return;
+    }
+    try {
+      setSaveStatus('📚 Importing ' + refs.length + ' references…', 'saving');
+      var data = await api.load('items.json');
+      var existing = (data && data.items) || [];
+      var res = window.REFERENCE_IMPORT.dedupeAndKey(refs, existing);
+      var fresh = window.REFERENCE_IMPORT.newItems(res);
+      if (fresh.length) {
+        setSaveStatus('📚 Adding ' + fresh.length + ' references to the library…', 'saving');
+        await window.REFERENCE_IMPORT.commitToLibrary(fresh);
+      }
+      // Attach every reference (new + already-in-library) to this draft.
+      var linked = 0;
+      if (window.LIBRARY_LINKS && state.paperId) {
+        setSaveStatus('🔗 Linking references to this paper…', 'saving');
+        for (var i = 0; i < res.entries.length; i++) {
+          var e = res.entries[i];
+          var id = e.status === 'existing' ? e.existingId : (e.item && e.item.id);
+          if (id) { try { await LIBRARY_LINKS.toggleDraftLink(id, state.paperId, true); linked++; } catch (le) { /* keep going */ } }
+        }
+      }
+      try { await loadCitationIndex(); } catch (ie) { /* live chips may lag until reload; compile reads fresh */ }
+      // Fresh-import doc → rewrite markers without a confirm.
+      var rw = _rewriteNumericCitations(res.keyByOrder);
+      setSaveStatus('✓ ' + fresh.length + ' references added, ' + linked + ' linked', 'saved');
+      window.alert('References imported:\n' +
+        '• ' + fresh.length + ' added to the library\n' +
+        '• ' + linked + ' linked to this paper\n' +
+        '• ' + rw.replaced + ' [N] citation group(s) converted to [@key]' +
+        (rw.unmapped.length ? '\n• ' + rw.unmapped.length + ' marker(s) left unchanged (out of range)' : '') +
+        '\n\nOpen the Library to see them; the bibliography generates on compile.');
+    } catch (e) {
+      console.warn('[paper-editor] bundled reference materialization failed', e);
+      setSaveStatus('Reference import failed', 'err');
+      window.alert('Reference import failed: ' + (e && e.message || e) +
+        '\n\n(The paper itself imported fine — this only affects the references.)');
+    }
   }
 
   /* ── V3.234 External links topbar button + popover ───────────────────
@@ -3397,6 +4599,26 @@
           key: key,
           firstAuthor: firstAuthor,
           year: year,
+          /* V3.345 — family names for the bibliography preview (capped;
+           * the preview renders "A, B, C, et al."). */
+          authors: (lib.authors || []).slice(0, 6).map(function (a) {
+            return (a && (a.family || a.given)) || '';
+          }).filter(Boolean),
+          authorCount: (lib.authors || []).length,
+          /* V3.388 — richer author + identifier fields for the Document
+           * view's per-journal bibliography (initials, volume/issue/pages/
+           * doi). Additive: the flat `authors`/`authorCount` above stay for
+           * the other consumers (References-tab rows, cite chips). */
+          authorsFull: (lib.authors || []).slice(0, 10).map(function (a) {
+            return { family: (a && a.family) || '', given: (a && a.given) || '' };
+          }),
+          volume: lib.volume || '',
+          issue: lib.issue || '',
+          pages: lib.pages || '',
+          doi: lib.doi || '',
+          /* V3.351 — light library richness for popover/ref rows. */
+          hasPdf: !!(lib.pdf && (lib.pdf.storage_path || lib.pdf.download_url)),
+          tags: Array.isArray(lib.tags) ? lib.tags.slice(0, 3) : [],
           shortLabel: firstAuthor && year ? firstAuthor + ' ' + year : key,
           title: it.title || lib.title || '',
           journal: lib.journal || '',
@@ -3406,6 +4628,11 @@
            * second items.json fetch. The array is a slice() copy so
            * panel-side mutations don't leak back into the cached entry. */
           linkedDrafts: Array.isArray(lib.linked_drafts) ? lib.linked_drafts.slice() : [],
+          /* V3.366 — citedInDrafts mirrors meta.library.cited_in_drafts so
+           * CITED_SYNC can diff the doc's cited set against Firestore
+           * without a second fetch. NOT a slice-protected copy on purpose:
+           * CITED_SYNC patches it in place after each successful write. */
+          citedInDrafts: Array.isArray(lib.cited_in_drafts) ? lib.cited_in_drafts.slice() : [],
           searchHaystack: (key + ' ' + firstAuthor + ' ' + year + ' ' +
                           (it.title || '') + ' ' + (lib.journal || '')).toLowerCase(),
         };
@@ -3415,6 +4642,7 @@
       list.sort(function (a, b) { return a.key.localeCompare(b.key); });
       state.citationByKey = byKey;
       state.citationList = list;
+      state.citationIndexLoadedAt = Date.now();   // V3.351 — staleness window
       // Re-render any already-displayed paragraphs so chips pick up tooltips.
       window.dispatchEvent(new CustomEvent('paper-citations-loaded'));
       return byKey;
@@ -3423,6 +4651,34 @@
       state.citationByKey = {};
       state.citationList = [];
     });
+  }
+
+  /* V3.351 — re-fetch the citation index when it has gone stale (papers
+   * added to the library mid-session were invisible until reload). The
+   * adapter's MAX(updatedAt) probe makes an unchanged re-fetch cheap.
+   * Fire-and-forget: callers re-render on 'paper-citations-loaded'. */
+  function ensureFreshCitationIndex(maxAgeMs) {
+    var maxAge = typeof maxAgeMs === 'number' ? maxAgeMs : 5 * 60 * 1000;
+    if (!state.citationByKey) return loadCitationIndex();
+    if ((Date.now() - (state.citationIndexLoadedAt || 0)) < maxAge) {
+      return Promise.resolve(state.citationByKey);
+    }
+    invalidateCitationIndex();
+    return loadCitationIndex();
+  }
+
+  /* V3.351 — lazy, memoized abstract fetch for the References-tab rows.
+   * Abstracts live in the extras subdoc items/{id}/details/main
+   * (LIBRARY_EXTRAS); read rule is isLabMember(). */
+  var _abstractCache = {};
+  function fetchAbstract(itemId) {
+    if (!itemId) return Promise.resolve('');
+    if (_abstractCache[itemId]) return _abstractCache[itemId];
+    _abstractCache[itemId] = (window.LIBRARY_EXTRAS && window.LIBRARY_EXTRAS.load
+      ? window.LIBRARY_EXTRAS.load(itemId).then(function (x) { return (x && x.abstract) || ''; })
+      : Promise.resolve('')
+    ).catch(function () { return ''; });
+    return _abstractCache[itemId];
   }
 
   /* ── Citation popover ──────────────────────────────────────────────────
@@ -3470,13 +4726,86 @@
     claimContext: null,     // null | [{ claim, papersByKey }]
     claimContextLoading: false,
     expandedClaimEvidence: null,  // Set<"claimId|citationKey">
+    /* V3.366 — popover scope. Default = papers associated with this
+     * draft (linkedDrafts ∋ paperId) or already cited; the "All library"
+     * chip lifts it. Session-sticky (this object persists). citedNowSet
+     * caches getCitedKeysInPaper() per popover open. */
+    scopeAll: false,
+    citedNowSet: null,
   };
+
+  /* V3.346 — refresh every section header's word-count badge. Cheap
+   * (one tree walk); throttled on paper-panel-changed. */
+  function _updateSectionWordBadges() {
+    if (!state.paperMap || !contentEl) return;
+    var sections = state.paperMap.get('sections');
+    if (!sections || typeof sections.forEach !== 'function') return;
+    sections.forEach(function (secMap) {
+      if (!secMap || typeof secMap.get !== 'function') return;
+      var id = secMap.get('id');
+      var el = contentEl.querySelector('.pe-section[data-section-id="' + id + '"] .pe-section-words');
+      if (!el) return;
+      var words = 0;
+      var children = secMap.get('children');
+      if (children && typeof children.forEach === 'function') {
+        children.forEach(function (blk) {
+          if (!blk || typeof blk.get !== 'function' || blk.get('kind') !== 'paragraph') return;
+          var b = blk.get('body');
+          var t = (b && b.toString) ? b.toString() : '';
+          t = t.replace(/\$[^$]*\$/g, ' ')
+               .replace(/\[[@!^][^\]\n]*\]/g, ' ')
+               .replace(/[*~^`_]/g, ' ');
+          var m = t.match(/\S+/g);
+          words += m ? m.length : 0;
+        });
+      }
+      var maxWords = null;
+      try {
+        var st = window.PaperSchemas.styleFor({ kind: secMap.get('kind'), style_overrides: {} });
+        maxWords = st.maxWords || null;
+      } catch (e) {}
+      el.textContent = maxWords ? (words + ' / ' + maxWords + ' w') : (words + ' w');
+      el.classList.toggle('over', !!(maxWords && words > maxWords));
+    });
+  }
+  var _wordBadgeTimer = null;
+  window.addEventListener('paper-panel-changed', function () {
+    if (_wordBadgeTimer) return;
+    _wordBadgeTimer = setTimeout(function () {
+      _wordBadgeTimer = null;
+      _updateSectionWordBadges();
+    }, 1500);
+  });
 
   function rememberFocus(el) {
     lastFocusedEditable = el;
     lastFocusedCaret = readCaretCharOffset(el) || 0;
     /* V3.197 — mirror the focused paragraph's skeleton in the sidebar. */
     _updateSidebarParagraphMirror(el);
+    /* V3.334 — notify the Writing Guide tab of the focused section/block.
+     * rememberFocus fires on every keystroke, so only dispatch when the
+     * resolved section or block id actually changes. */
+    _notifyFocusChanged(el);
+  }
+
+  /* V3.334 — resolve + broadcast the focus context for paper-writing-guide.js. */
+  var _lastGuideFocusKey = null;
+  function _notifyFocusChanged(el) {
+    var sectionId = null, sectionKind = null, blockId = null, blockKind = null;
+    if (el && el.closest) {
+      var secEl = el.closest('.pe-section[data-section-id]');
+      if (secEl) { sectionId = secEl.dataset.sectionId; sectionKind = secEl.dataset.sectionKind || null; }
+      var blkEl = el.closest('.pe-block[data-block-id]');
+      if (blkEl) { blockId = blkEl.dataset.blockId; blockKind = blkEl.dataset.kind || null; }
+    }
+    var key = sectionId + '|' + blockId;
+    if (key === _lastGuideFocusKey) return;
+    _lastGuideFocusKey = key;
+    try {
+      window.dispatchEvent(new CustomEvent('paper-focus-changed', {
+        detail: { sectionId: sectionId, sectionKind: sectionKind, blockId: blockId, blockKind: blockKind },
+      }));
+    } catch (e) {}
   }
 
   /* V3.197 — sidebar tab switch + paragraph-skeleton mirror.
@@ -3655,11 +4984,19 @@
     pop.innerHTML =
       '<div class="pe-cite-pop-title">Insert citation</div>' +
       '<input type="text" class="pe-cite-pop-search" placeholder="Search by key, author, year, or title…" autocomplete="off">' +
+      /* V3.366 — scope chips: associated-with-this-draft (default) vs
+       * whole library. */
+      '<div class="pe-cite-pop-scope"></div>' +
       '<div class="pe-cite-pop-selected-bar" hidden></div>' +
       '<div class="pe-cite-pop-claims" hidden></div>' +
       '<div class="pe-cite-pop-list" role="listbox"></div>' +
       '<div class="pe-cite-pop-foot">' +
         '<button type="button" class="pe-cite-pop-remove" hidden>Remove citation</button>' +
+        /* V3.344 — narrative citation: "Smith et al. (2024) showed…".
+         * Applies to single-key picks; writes a [@*key] token. */
+        '<label class="pe-cite-pop-narrative" title="Author (Year) inline in the sentence — single citation only">' +
+          '<input type="checkbox"> Narrative' +
+        '</label>' +
         '<span class="pe-cite-pop-foot-spacer"></span>' +
         '<button type="button" class="pe-cite-pop-cancel">Cancel</button>' +
         '<button type="button" class="pe-cite-pop-commit" disabled>Insert</button>' +
@@ -3677,15 +5014,38 @@
     var commitBtn = pop.querySelector('.pe-cite-pop-commit');
     var removeBtn = pop.querySelector('.pe-cite-pop-remove');
     var cancelBtn = pop.querySelector('.pe-cite-pop-cancel');
+    var narrativeCb = pop.querySelector('.pe-cite-pop-narrative input');  // V3.344
     var activeIdx = 0;
     var current = [];
 
     function refresh() {
       var q = input.value.trim().toLowerCase();
       var src = state.citationList || [];
+      /* V3.366 — scope the pool to papers associated with this draft
+       * (linked via meta.library.linked_drafts) or already cited in it,
+       * unless the "All library" chip is on. Already-cited entries stay
+       * in scope so the edit/remove flow always finds its own key. */
+      var scoped = null;
+      if (!citationPopoverState.scopeAll) {
+        if (!citationPopoverState.citedNowSet) {
+          try {
+            citationPopoverState.citedNowSet = new Set(getCitedKeysInPaper());
+          } catch (e) {
+            citationPopoverState.citedNowSet = new Set();
+          }
+        }
+        var citedNow = citationPopoverState.citedNowSet;
+        scoped = src.filter(function (e) {
+          return (Array.isArray(e.linkedDrafts) && e.linkedDrafts.indexOf(state.paperId) >= 0)
+            || citedNow.has(e.key);
+        });
+      }
+      _refreshScopeBar(scoped === null ? src.length : scoped.length, src.length);
+      var pool = (scoped !== null) ? scoped : src;
+      citationPopoverState._scopedEmpty = (scoped !== null && !scoped.length);
       var matched = q
-        ? src.filter(function (e) { return e.searchHaystack.indexOf(q) >= 0; })
-        : src.slice(0, 20);
+        ? pool.filter(function (e) { return e.searchHaystack.indexOf(q) >= 0; })
+        : pool.slice(0, 20);
       /* V3.157 — surface already-selected entries at the top so the
        * user sees what's checked even when they're searching for more.
        * Dedup by key. */
@@ -3719,10 +5079,33 @@
       _refreshCommitBtn();
       _refreshClaimsBar();
     }
+    /* V3.366 — scope chip row (rendered fresh on every refresh; counts
+     * track the live index). onclick assignment, not addEventListener —
+     * refresh() runs per keystroke and must not stack handlers. */
+    function _refreshScopeBar(scopedCount, allCount) {
+      var scopeBar = pop.querySelector('.pe-cite-pop-scope');
+      if (!scopeBar) return;
+      var onAll = !!citationPopoverState.scopeAll;
+      scopeBar.innerHTML =
+        '<button type="button" class="pe-cite-scope-btn' + (onAll ? '' : ' on') + '" data-scope="draft" title="Only papers associated with this draft (or already cited in it)">Linked to this draft' + (onAll ? '' : ' (' + scopedCount + ')') + '</button>' +
+        '<button type="button" class="pe-cite-scope-btn' + (onAll ? ' on' : '') + '" data-scope="all" title="Every paper in the lab library">All library (' + allCount + ')</button>';
+      scopeBar.onclick = function (ev) {
+        var btn = ev.target.closest('.pe-cite-scope-btn');
+        if (!btn) return;
+        var wantAll = btn.getAttribute('data-scope') === 'all';
+        if (wantAll === citationPopoverState.scopeAll) return;
+        citationPopoverState.scopeAll = wantAll;
+        refresh();
+        input.focus();
+      };
+    }
+
     function renderList() {
       listEl.innerHTML = '';
       if (!current.length) {
-        listEl.innerHTML = '<div class="pe-cite-pop-empty">No matching library entries. Add one in /pages/library.html first.</div>';
+        listEl.innerHTML = citationPopoverState._scopedEmpty
+          ? '<div class="pe-cite-pop-empty">No papers associated with this draft yet. Switch to <b>All library</b>, or associate papers via the References tab search / the library reader’s "Used in paper drafts" pills.</div>'
+          : '<div class="pe-cite-pop-empty">No matching library entries. Add one in /pages/library.html first.</div>';
         return;
       }
       var sel = citationPopoverState.selectedKeys;
@@ -3743,6 +5126,13 @@
               escapeHtmlForCE(e.firstAuthor || '') +
               (e.year ? ' (' + escapeHtmlForCE(String(e.year)) + ')' : '') +
               (e.journal ? ' · <i>' + escapeHtmlForCE(e.journal) + '</i>' : '') +
+              /* V3.351 — light library richness. */
+              (e.hasPdf ? ' <span class="pe-cite-pdf" title="PDF in the library">📄</span>' : '') +
+              (e.tags && e.tags.length
+                ? ' ' + e.tags.map(function (t) {
+                    return '<span class="pe-cite-tag">' + escapeHtmlForCE(t) + '</span>';
+                  }).join(' ')
+                : '') +
             '</div>' +
             (e.title ? '<div class="pe-cite-pop-title-line">' + escapeHtmlForCE(e.title.slice(0, 140)) + '</div>' : '') +
           '</div>';
@@ -4003,8 +5393,11 @@
       var sel = citationPopoverState.selectedKeys;
       var keys = [];
       if (sel) sel.forEach(function (k) { keys.push(k); });
+      /* V3.344 — narrative flag rides along; consumers apply it only to
+       * single-key picks. Read before hide() resets the checkbox. */
+      var narrative = !!(narrativeCb && narrativeCb.checked);
       hide();
-      if (cb) cb(keys);
+      if (cb) cb(keys, narrative);
     }
     function removeEntirely() {
       var cb = citationPopoverState.onRemove;
@@ -4048,6 +5441,7 @@
 
     function hide() {
       pop.hidden = true;
+      if (narrativeCb) narrativeCb.checked = false;   // V3.344
       citationPopoverState.onPick = null;
       citationPopoverState.onPickKeys = null;
       citationPopoverState.onRemove = null;
@@ -4065,6 +5459,9 @@
     pop._focus = function () { input.focus(); input.select(); };
     pop._hide = hide;
     pop._setTitle = function (t) { titleEl.textContent = t; };
+    /* V3.344 — pre-set the narrative checkbox (chip-edit flow re-opens
+     * the popover on an existing [@*key] token). */
+    pop._setNarrative = function (on) { if (narrativeCb) narrativeCb.checked = !!on; };
     return pop;
   }
 
@@ -4220,6 +5617,10 @@
     if (!state.citationList || !state.citationList.length) {
       // Index might still be loading. Wait briefly.
       loadCitationIndex().then(function () { openCitationPopover(opts); });
+    } else {
+      /* V3.351 — refresh a stale index in the background; the popover
+       * re-renders via its own refresh() when rows change. */
+      ensureFreshCitationIndex();
     }
     var pop = ensureCitationPopover();
     citationPopoverState.onPick = opts && opts.onPick || null;
@@ -4240,6 +5641,8 @@
     pop._setTitle(opts && opts.title
       ? opts.title
       : (citationPopoverState.editing ? 'Edit citation' : 'Insert citation'));
+    /* V3.344 — restore the narrative state when editing a [@*key] chip. */
+    if (pop._setNarrative) pop._setNarrative(!!(opts && opts.initialNarrative));
     /* V3.192 — kick off the claim-context load when the caller supplied
      * a paragraphEl. The popover renders a "Claims for this paragraph"
      * section above the search list once the data arrives. */
@@ -4247,6 +5650,9 @@
     citationPopoverState.claimContext = null;
     citationPopoverState.claimContextLoading = false;
     citationPopoverState.expandedClaimEvidence = new Set();
+    /* V3.366 — recompute the cited set per popover open (scopeAll itself
+     * is session-sticky by design). */
+    citationPopoverState.citedNowSet = null;
     if (citationPopoverState.paragraphEl) {
       citationPopoverState.claimContextLoading = true;
       var pendingParagraph = citationPopoverState.paragraphEl;
@@ -4292,14 +5698,18 @@
    * group rather than separate brackets, since the latter renders as
    * separate inline citations whereas the former reads as one citation
    * group in academic style. */
-  function insertCitationKeysAtFocus(citationKeys) {
+  function insertCitationKeysAtFocus(citationKeys, opts) {
     if (!lastFocusedEditable) return;
     var keys = (citationKeys || []).filter(Boolean);
     if (!keys.length) return;
     var el = lastFocusedEditable;
     el.focus();
     setCaretCharOffset(el, lastFocusedCaret);
-    var token = '[@' + keys.join('; @') + ']';
+    /* V3.344 — opts.narrative + a single key writes the [@*key] narrative
+     * token (renders "Smith et al. (2024)" inline / exports \citet). */
+    var token = (opts && opts.narrative && keys.length === 1)
+      ? '[@*' + keys[0] + ']'
+      : '[@' + keys.join('; @') + ']';
     var ok = document.execCommand && document.execCommand('insertText', false, token);
     if (!ok) {
       var sel = window.getSelection();
@@ -4322,6 +5732,7 @@
     var srcEnd = parseInt(groupEl.dataset.citeSrcEnd, 10);
     if (isNaN(srcStart) || isNaN(srcEnd)) return;
     var initialKeys = (groupEl.dataset.citeKeys || '').split(';').filter(Boolean);
+    var initialNarrative = groupEl.dataset.citeNarrative === '1';   // V3.344
     /* Stash the paragraph element on lastFocused so the commit path
      * (which routes through replaceParagraphRange + execCommand) lands
      * in the right contenteditable. */
@@ -4330,13 +5741,19 @@
       anchorEl: groupEl,
       editing: true,
       initialKeys: initialKeys,
+      initialNarrative: initialNarrative,
       title: 'Edit citation (' + initialKeys.length + ' key' + (initialKeys.length === 1 ? '' : 's') + ')',
-      onPickKeys: function (keys) {
+      onPickKeys: function (keys, narrative) {
         /* Source-text offsets reflect the SOURCE state at render time.
          * Once the contenteditable focuses, its DOM is the source text
          * via the focus handler — so srcStart/srcEnd map directly to
          * positions in el.textContent. */
-        var newToken = keys.length ? '[@' + keys.join('; @') + ']' : '';
+        var newToken = '';
+        if (keys.length) {
+          newToken = (narrative && keys.length === 1)
+            ? '[@*' + keys[0] + ']'
+            : '[@' + keys.join('; @') + ']';
+        }
         replaceParagraphRange(paragraphEl, srcStart, srcEnd, newToken);
       },
       onRemove: function () {
@@ -4596,6 +6013,21 @@
         }
       }
 
+      // [!sec:<label>] reference to a section / subheading. Renders as
+      // the target's TITLE in the editor; the document viewer upgrades it
+      // to the computed number ("Section 3.2"); export emits \ref/\cref.
+      if (ch === '[' && text[i + 1] === '!' && text.slice(i + 2, i + 6) === 'sec:') {
+        var endSec = text.indexOf(']', i + 6);
+        if (endSec > i + 6) {
+          var secLabel = text.slice(i + 6, endSec).trim();
+          if (/^[\w:.\-]+$/.test(secLabel)) {
+            out += renderSecRefChip(secLabel);
+            i = endSec + 1;
+            continue;
+          }
+        }
+      }
+
       // [@key] / [@k1; @k2]  (Pandoc citations)
       if (ch === '[' && text[i + 1] === '@') {
         var endBracket = text.indexOf(']', i + 2);
@@ -4603,7 +6035,7 @@
           var inner = text.slice(i + 2, endBracket);
           // Validate: each token starts with @ (after the first) and contains
           // only citation-key-friendly chars + a separator.
-          if (/^[\w:.\-+/]+(\s*;\s*@[\w:.\-+/]+)*$/.test(inner)) {
+          if (/^\*?[\w:.\-+/]+(\s*;\s*@[\w:.\-+/]+)*$/.test(inner)) {  // V3.344 - optional leading * = narrative
             /* V3.157 — pass the source-text range so the rendered
              * .pe-cite-group can be clicked + edited later. The
              * paragraph's source text is the same string we're
@@ -4613,6 +6045,18 @@
             i = endBracket + 1;
             continue;
           }
+        }
+      }
+
+      // V3.345 — [^text] footnote. Renders as a superscript dagger chip
+      // whose tooltip shows the note text; exports as \footnote{}.
+      if (ch === '[' && text[i + 1] === '^') {
+        var endFn = findFootnoteEnd(text, i + 2);
+        if (endFn > i + 2) {
+          var fnInner = text.slice(i + 2, endFn);
+          out += renderFootnoteChip(fnInner, i, endFn + 1);
+          i = endFn + 1;
+          continue;
         }
       }
 
@@ -4705,29 +6149,174 @@
    * group came from and open the popover in edit mode pre-filled with
    * the existing keys. */
   function renderCitationChip(inner, srcStart, srcEnd) {
-    var keys = inner.split(/\s*;\s*@?/).map(function (s) { return s.trim(); }).filter(Boolean);
-    var parts = keys.map(function (key) {
-      var hit = state.citationByKey ? state.citationByKey[key] : null;
-      var label = hit && hit.shortLabel ? hit.shortLabel : key;
-      var tooltip = hit ? (hit.title || key) : ('Unknown citation key: ' + key);
-      var cls = hit ? 'pe-cite-chip' : 'pe-cite-chip pe-cite-chip-unknown';
-      return '<span class="' + cls + '" data-key="' + escapeAttr(key) +
+    /* V3.344 — a leading `*` marks a NARRATIVE citation ("Smith et al.
+     * (2024) showed…"), written by the popover's narrative checkbox.
+     * Only meaningful for a single key; the `*` is not part of the key. */
+    var narrative = inner.charAt(0) === '*';
+    var keys = (narrative ? inner.slice(1) : inner)
+      .split(/\s*;\s*@?/).map(function (s) { return s.trim().replace(/^\*/, ''); }).filter(Boolean);
+    if (keys.length !== 1) narrative = false;
+
+    /* V3.344 — chips follow the export template's citation family when
+     * paper-cite-style.js has loaded one (superscript ¹ / [1] / (1) /
+     * author-year); otherwise the legacy "Author Year" short label. */
+    var family = (window.PaperCiteStyle && window.PaperCiteStyle.getFamily()) || null;
+    var numericFamily = family === 'superscript' || family === 'numeric-bracket' || family === 'numeric-paren';
+
+    /* One display span; may cover several keys (a collapsed range).
+     * data-key carries every covered key ';'-joined (no other consumer
+     * reads it — verified V3.393); the tooltip lists one "n. Title"
+     * line per key. */
+    function chipHtml(rs, label) {
+      var known = rs.every(function (r) { return !!r.hit; });
+      var tooltip = rs.map(function (r) {
+        var t = r.hit ? (r.hit.title || r.key) : ('Unknown citation key: ' + r.key);
+        return r.n != null ? (r.n + '. ' + t) : t;
+      }).join('\n');
+      var cls = known ? 'pe-cite-chip' : 'pe-cite-chip pe-cite-chip-unknown';
+      return '<span class="' + cls + '" data-key="' +
+             escapeAttr(rs.map(function (r) { return r.key; }).join(';')) +
              '" title="' + escapeAttr(tooltip) + '">' + escapeHtmlForCE(label) + '</span>';
-    });
+    }
+
+    var parts;
+    if (numericFamily) {
+      /* V3.393 — journal-style sort & compress (what natbib's
+       * sort&compress / the cite package do at compile time): numbers
+       * sort ascending and consecutive runs of 3+ collapse to an
+       * en-dash range — [@a;@b;@c;@d] cited as 1,2,3,9 renders "1–3,9".
+       * Runs of two stay "1,2". Only the DISPLAY is sorted/collapsed;
+       * the source token (data-src below) keeps the author's key order
+       * verbatim. Keys with no number yet (index still loading) render
+       * as the bare key after the numbers. Duplicates dedupe. */
+      var seenKeys = Object.create(null);
+      var resolved = [];
+      keys.forEach(function (key) {
+        if (seenKeys[key]) return;
+        seenKeys[key] = 1;
+        resolved.push({
+          key: key,
+          hit: state.citationByKey ? state.citationByKey[key] : null,
+          n: window.PaperCiteStyle.getNumber(key),
+        });
+      });
+      var numbered = resolved.filter(function (r) { return r.n != null; })
+        .sort(function (a, b) { return a.n - b.n; });
+      var bare = resolved.filter(function (r) { return r.n == null; });
+      parts = [];
+      var ri = 0;
+      while (ri < numbered.length) {
+        var rj = ri;
+        while (rj + 1 < numbered.length && numbered[rj + 1].n === numbered[rj].n + 1) rj++;
+        if (rj - ri >= 2) {
+          parts.push(chipHtml(numbered.slice(ri, rj + 1),
+                              numbered[ri].n + '–' + numbered[rj].n));
+          ri = rj + 1;
+        } else {
+          parts.push(chipHtml([numbered[ri]], String(numbered[ri].n)));
+          ri++;
+        }
+      }
+      bare.forEach(function (r) { parts.push(chipHtml([r], r.key)); });
+    } else {
+      parts = keys.map(function (key) {
+        var hit = state.citationByKey ? state.citationByKey[key] : null;
+        var label;
+        if (narrative && hit) {
+          label = (hit.firstAuthor || key) + ' (' + (hit.year || '?') + ')';
+        } else {
+          label = hit && hit.shortLabel ? hit.shortLabel : key;
+        }
+        return chipHtml([{ key: key, hit: hit, n: null }], label);
+      });
+    }
     var srcAttrs = '';
     /* V3.159 — atomic chip: contenteditable=false + data-src=[@k1; @k2]
      * so the chip-mode renderer treats it as a single non-editable
      * unit and the serializer reads the exact source token back. */
-    var srcToken = '[@' + keys.join('; @') + ']';
+    var srcToken = narrative
+      ? '[@*' + keys[0] + ']'
+      : '[@' + keys.join('; @') + ']';
     if (typeof srcStart === 'number' && typeof srcEnd === 'number') {
       srcAttrs = ' data-cite-src-start="' + srcStart +
                  '" data-cite-src-end="' + srcEnd +
                  '" data-cite-keys="' + escapeAttr(keys.join(';')) + '"' +
+                 (narrative ? ' data-cite-narrative="1"' : '') +
                  ' title="Click to edit citation"';
     }
-    return '<span class="pe-cite-group" contenteditable="false" data-src="' + escapeAttr(srcToken) + '"' + srcAttrs + '>' +
-             parts.join('<span class="pe-cite-sep">; </span>') +
+    /* V3.344 — family wrapping: numeric families join with ", " and wrap
+     * the whole group; author-year keeps "; " and wraps in parens
+     * (except narrative, which reads inline in the sentence). */
+    var sep, open = '', close = '', famCls = '';
+    if (numericFamily) {
+      /* V3.393 — packed, no space ("1–3,9" like the journals set it).
+       * The old ", " separator contained a space that justified text
+       * stretched into huge gaps between superscript numbers. */
+      sep = '<span class="pe-cite-sep">,</span>';
+      if (family === 'numeric-bracket') { open = '['; close = ']'; }
+      if (family === 'numeric-paren')   { open = '('; close = ')'; }
+      famCls = ' pe-cite-family-' + family;
+    } else {
+      /* V3.453 — no raw space in the separator: the doc view justifies
+       * paragraphs, and a space here was a justification opportunity
+       * that stretched into wide gaps (same bug V3.393 fixed for
+       * numeric families). The visual gap is CSS now (editor:
+       * .pe-cite-sep padding-right; sheet: margin, which justify can't
+       * stretch). The <wbr> keeps the line-break opportunity a real
+       * space used to provide, so long author-year clusters still wrap. */
+      sep = '<span class="pe-cite-sep">;</span><wbr>';
+      if (family === 'author-year' && !narrative) { open = '('; close = ')'; famCls = ' pe-cite-family-author-year'; }
+    }
+    return '<span class="pe-cite-group' + famCls + '" contenteditable="false" data-src="' + escapeAttr(srcToken) + '"' + srcAttrs + '>' +
+             open + parts.join(sep) + close +
            '</span>';
+  }
+
+  /* V3.345 — render a [^text] footnote chip: a superscript dagger whose
+   * tooltip shows the note text. Atomic (contenteditable=false) with the
+   * exact source token in data-src so the chip serializer round-trips it.
+   * data-fn-src-start/end let the delegated mousedown handler open a
+   * prompt-based editor over the source byte range (same mechanism as
+   * citation chips). */
+  /* V3.345 — find the closing `]` of a [^…] footnote, allowing ONE
+   * level of nested bracket tokens ([@cite] / [!fig:…]) inside the
+   * note text. Returns -1 when unterminated or a newline intervenes. */
+  function findFootnoteEnd(text, from) {
+    var depth = 0;
+    for (var j = from; j < text.length; j++) {
+      var c = text[j];
+      if (c === '\n') return -1;
+      if (c === '[') depth++;
+      else if (c === ']') {
+        if (depth === 0) return j;
+        depth--;
+      }
+    }
+    return -1;
+  }
+
+  /* V3.345 — newlines always break the token; brackets are allowed when
+   * balanced (nested [@cite]/[!fig:…] tokens), stripped otherwise. */
+  function _sanitizeFootnoteText(txt) {
+    txt = String(txt || '').replace(/\n/g, ' ').trim();
+    var depth = 0, balanced = true;
+    for (var i = 0; i < txt.length; i++) {
+      if (txt[i] === '[') depth++;
+      else if (txt[i] === ']') { depth--; if (depth < 0) { balanced = false; break; } }
+    }
+    if (!balanced || depth !== 0) txt = txt.replace(/[\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+    return txt;
+  }
+
+  function renderFootnoteChip(inner, srcStart, srcEnd) {
+    var srcToken = '[^' + inner + ']';
+    var srcAttrs = '';
+    if (typeof srcStart === 'number' && typeof srcEnd === 'number') {
+      srcAttrs = ' data-fn-src-start="' + srcStart +
+                 '" data-fn-src-end="' + srcEnd + '"';
+    }
+    return '<span class="pe-footnote-chip" contenteditable="false" data-src="' + escapeAttr(srcToken) + '"' +
+           srcAttrs + ' title="Footnote: ' + escapeAttr(inner) + ' (click to edit)">†</span>';
   }
 
   /* V3.109 — render an inline-library equation chip. Looks up the entry
@@ -4832,6 +6421,49 @@
            '" data-block-id="' + escapeAttr(hit.blockId) + '">Tab. ' + hit.num + '</span>';
   }
 
+  /* Section / subheading reference chip. Shows the target's TITLE in the
+   * editor (the editor has no journal numbering); the document viewer
+   * upgrades it to "Section N" post-mount via data-secref-label. Unknown
+   * label → faded [?§ label]. */
+  function renderSecRefChip(label) {
+    var srcToken = '[!sec:' + label + ']';
+    var tgt = getSectionRefTargets()[label];
+    if (!tgt) {
+      return '<span class="pe-secref-chip pe-secref-chip-unknown" contenteditable="false" data-src="' + escapeAttr(srcToken) +
+             '" data-secref-label="' + escapeAttr(label) + '">[?§ ' + escapeHtmlForCE(label) + ']</span>';
+    }
+    return '<span class="pe-secref-chip" contenteditable="false" data-src="' + escapeAttr(srcToken) +
+           '" data-secref-label="' + escapeAttr(label) +
+           (tgt.id ? '" data-section-id="' + escapeAttr(tgt.id) : '') +
+           '" title="' + escapeAttr(tgt.title) + '">§ ' + escapeHtmlForCE(tgt.title || label) + '</span>';
+  }
+
+  /* Map of ref_label → {title, id} across sections + subheading blocks —
+   * the anchors a [!sec:label] token can point at. */
+  function getSectionRefTargets() {
+    var map = {};
+    var sections = state.sectionsArr;
+    if (!sections || typeof sections.forEach !== 'function') return map;
+    sections.forEach(function (sec) {
+      if (!sec || typeof sec.get !== 'function') return;
+      var rl = sec.get('ref_label');
+      if (rl) map[String(rl)] = { title: readSectionLabel(sec), id: sec.get('id') };
+      var children = sec.get('children');
+      if (children && typeof children.forEach === 'function') {
+        children.forEach(function (blk) {
+          if (!blk || typeof blk.get !== 'function' || blk.get('kind') !== 'subheading') return;
+          var a = blk.get('attrs');
+          var brl = a && typeof a.get === 'function' && a.get('ref_label');
+          if (brl) {
+            var bd = blk.get('body');
+            map[String(brl)] = { title: (bd && bd.toString) ? bd.toString() : String(bd || ''), id: blk.get('id') };
+          }
+        });
+      }
+    });
+    return map;
+  }
+
   function renderOneMath(src, displayMode, fallback) {
     try {
       return _katex.renderToString(src, {
@@ -4883,11 +6515,21 @@
         var endBracket = text.indexOf(']', i + 2);
         if (endBracket > i) {
           var inner = text.slice(i + 2, endBracket);
-          if (/^[\w:.\-+/]+(\s*;\s*@[\w:.\-+/]+)*$/.test(inner)) {
+          if (/^\*?[\w:.\-+/]+(\s*;\s*@[\w:.\-+/]+)*$/.test(inner)) {  // V3.344 - optional leading * = narrative
             out += renderCitationChip(inner, i, endBracket + 1);
             i = endBracket + 1;
             continue;
           }
+        }
+      }
+      /* V3.345 — [^text] footnote chip. */
+      if (ch === '[' && text[i + 1] === '^') {
+        var endFn = findFootnoteEnd(text, i + 2);
+        if (endFn > i + 2) {
+          var fnInner = text.slice(i + 2, endFn);
+          out += renderFootnoteChip(fnInner, i, endFn + 1);
+          i = endFn + 1;
+          continue;
         }
       }
       /* [!eqi:…] */
@@ -4935,6 +6577,18 @@
           if (figMatch) {
             out += renderFigRefChip(figMatch[1], figMatch[2] || null);
             i = endFig + 1;
+            continue;
+          }
+        }
+      }
+      /* [!sec:label] */
+      if (ch === '[' && text[i + 1] === '!' && text.slice(i + 2, i + 6) === 'sec:') {
+        var endSec2 = text.indexOf(']', i + 6);
+        if (endSec2 > i + 6) {
+          var secLabel2 = text.slice(i + 6, endSec2).trim();
+          if (/^[\w:.\-]+$/.test(secLabel2)) {
+            out += renderSecRefChip(secLabel2);
+            i = endSec2 + 1;
             continue;
           }
         }
@@ -5075,6 +6729,22 @@
      * source text before we can read its data-cite-* attributes). */
     el.addEventListener('mousedown', function (ev) {
       if (opts.readOnly) return;
+      /* V3.345 — footnote chip → prompt-based text editor over the
+       * chip's source byte range. Checked before the cite group since
+       * both are atomic chips inside the same contenteditable. */
+      var fnEl = ev.target && ev.target.closest && ev.target.closest('.pe-footnote-chip');
+      if (fnEl && el.contains(fnEl) && fnEl.dataset.fnSrcStart != null) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var fnStart = parseInt(fnEl.dataset.fnSrcStart, 10);
+        var fnEnd = parseInt(fnEl.dataset.fnSrcEnd, 10);
+        var currentText = (fnEl.dataset.src || '').replace(/^\[\^/, '').replace(/\]$/, '');
+        var next = window.prompt('Footnote text (empty removes the footnote):', currentText);
+        if (next === null) return;                    // cancelled
+        next = _sanitizeFootnoteText(next);
+        replaceParagraphRange(el, fnStart, fnEnd, next ? '[^' + next + ']' : '');
+        return;
+      }
       var groupEl = ev.target && ev.target.closest && ev.target.closest('.pe-cite-group');
       if (!groupEl || !el.contains(groupEl)) return;
       if (groupEl.dataset.citeSrcStart == null) return;
@@ -5153,7 +6823,9 @@
       var v = yText.toString();
       // Cheap optimization: only re-render if the source actually
       // contains an equation token. Saves work on prose without any.
-      if (v.indexOf('[!eqi:') === -1 && v.indexOf('[!eqr:') === -1 && v.indexOf('[!fig:') === -1 && v.indexOf('[!tab:') === -1) return;
+      /* V3.344 — `[@` included so numeric citation chips renumber when
+       * citations are added/moved elsewhere in the doc. */
+      if (v.indexOf('[!eqi:') === -1 && v.indexOf('[!eqr:') === -1 && v.indexOf('[!fig:') === -1 && v.indexOf('[!tab:') === -1 && v.indexOf('[@') === -1) return;
       applyRendered(el, v, renderFn, fireOnRendered);
     };
     window.addEventListener('paper-equations-changed', onEquationsChanged);
@@ -5678,7 +7350,9 @@
       var m;
       while ((m = re.exec(text))) {
         m[1].split(/\s*;\s*@?/).forEach(function (k) {
-          k = (k || '').trim();
+          /* V3.344 — a leading `*` (narrative citation) is not part of
+           * the key. */
+          k = (k || '').trim().replace(/^\*/, '');
           if (k && /^[\w:.\-+/]+$/.test(k)) keys[k] = true;
         });
       }
@@ -5696,8 +7370,8 @@
       children.forEach(function (blk) {
         if (!blk || typeof blk.get !== 'function') return;
         var kind = blk.get('kind');
-        // body holds the prose for paragraphs / figure captions.
-        if (kind === 'paragraph' || kind === 'figure') {
+        // body holds the prose for paragraphs / figure captions / subheadings / lists.
+        if (kind === 'paragraph' || kind === 'figure' || kind === 'subheading' || kind === 'list') {
           scanText(yTextStr(blk.get('body')));
         }
         // V3.115 — skeleton bullets carry their own text Y.Texts.
@@ -5763,6 +7437,8 @@
     getCitedKeysInPaper: getCitedKeysInPaper,
     loadCitationIndex: loadCitationIndex,
     invalidateCitationIndex: invalidateCitationIndex,
+    ensureFreshCitationIndex: ensureFreshCitationIndex,   // V3.351
+    fetchAbstract: fetchAbstract,                         // V3.351
     insertCitationAtFocus: insertCitationAtFocus,
     insertCitationKeysAtFocus: insertCitationKeysAtFocus,
     /* V3.124 — equation block creation from the panel. */
@@ -5773,6 +7449,16 @@
     moveBlockBefore: moveBlockBefore,
     insertBlockAt: insertBlockAt,
     deleteBlockAt: deleteBlock,
+    /* V3.416 — headless section API (Document-view Insert menu +
+     * heading popover). Origins: add-section/delete-section/move-section. */
+    addSection: addSection,
+    deleteSection: deleteSection,
+    moveSection: moveSection,
+    getSectionsSummary: getSectionsSummary,
+    /* V3.456 — appendix divider (Document view Insert menu uses these;
+     * -1 = no divider). setAppendixBoundary(null) clears. */
+    getAppendixBoundaryIdx: function () { return _appendixBoundaryIdx(state.sectionsArr ? state.sectionsArr.toArray() : []); },
+    setAppendixBoundary: _setAppendixBoundary,
     /* V3.132 — unplaced figure / table libraries (panel-first authoring,
      * doc-side picker placement). */
     getUnplacedFigures: getUnplacedFigures,
@@ -5802,6 +7488,12 @@
     /* Expose state.paperMap for paper-equations.js — a tiny accessor
      * keeps that module from poking into the editor's private state. */
     getPaperMap: function () { return state.paperMap; },
+    /* V3.387 — Document view (paper-doc-view.js) dependencies: the
+     * lazy KaTeX loader (math must be ready BEFORE page measurement)
+     * and the papers.json row (default templateId fallback mirrors
+     * paper-export.js _defaultConfig). */
+    ensureKatex: ensureKatex,
+    getPaperMeta: function () { return state.meta || {}; },
     getY: function () { return state.Y; },
     isEditable: function () { return !!state.editable; },
     getPaperId: function () { return state.paperId; },
@@ -5842,7 +7534,7 @@
         /* V3.192 — pass the source paragraph so the popover can
          * surface its claims + linked highlights. */
         paragraphEl: lastFocusedEditable,
-        onPickKeys: function (keys) { insertCitationKeysAtFocus(keys); },
+        onPickKeys: function (keys, narrative) { insertCitationKeysAtFocus(keys, { narrative: narrative }); },
       });
     }
   });

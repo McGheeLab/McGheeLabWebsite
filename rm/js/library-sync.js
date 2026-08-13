@@ -15,6 +15,8 @@
  *       merged:  [{ paper_id, title, hash }],
  *       skipped: [{ paper_id, reason }],
  *       errors:  [{ paper_id, error }],
+ *       notMember: true    // caller isn't on the capture allowlist (V3.583);
+ *                          // nothing was read, nothing to report
  *   }>
  */
 
@@ -28,6 +30,54 @@
   function _authedUser() {
     if (typeof firebase === 'undefined' || !firebase.auth) return null;
     return firebase.auth().currentUser || null;
+  }
+
+  /* V3.583 — is the signed-in user actually allowed to touch the capture
+   * queue? firestore.rules gates pending_captures on isExtensionMember():
+   * admin, or an email listed in labConfig/extensionMembers. That list is
+   * currently EMPTY, so every student's library page opened with
+   * "pending_captures read failed: Missing or insufficient permissions" —
+   * once on load and again on every window refocus. The read was always
+   * going to be denied, and the error had nothing to do with whatever the
+   * student was actually doing (in one case it sent a grad student chasing
+   * a PDF import that had in fact worked). Check membership first: one read
+   * of a doc every signed-in user is allowed to read, memoized per page. */
+  let _memberCheck = null;
+  function _isCaptureMember() {
+    if (_memberCheck) return _memberCheck;
+    _memberCheck = (async () => {
+      const db = _firestore();
+      if (!db) return false;
+      // Wait for the profile hop before asking isAdmin() — it reads
+      // `_profile.role`, which is still null on first paint, and an admin
+      // misread as a non-member would have capture silently switched off
+      // for the whole session.
+      try {
+        if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
+          await firebridge.whenAuthResolved();
+        }
+      } catch (e) { /* fall through with whatever auth state we have */ }
+      const user = _authedUser();
+      if (!user) return false;
+      try {
+        if (typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin()) {
+          return true;
+        }
+      } catch (e) { /* fall through to the allowlist read */ }
+      const email = (user.email || '').toLowerCase();
+      if (!email) return false;
+      try {
+        const snap = await db.collection('labConfig').doc('extensionMembers').get();
+        const emails = (snap.exists && snap.data().emails) || [];
+        return emails.some(e => String(e).toLowerCase() === email);
+      } catch (e) {
+        // Can't read the allowlist → assume not a member. Treating an
+        // unreadable allowlist as membership would just reinstate the
+        // guaranteed-denied query this check exists to avoid.
+        return false;
+      }
+    })();
+    return _memberCheck;
   }
 
   function _isMetadataSparse(meta) {
@@ -204,6 +254,10 @@
     const db = _firestore();
     if (!db) return out;
     if (!_authedUser()) return out;
+    if (!(await _isCaptureMember())) {
+      out.notMember = true;
+      return out;
+    }
 
     let snap;
     try {

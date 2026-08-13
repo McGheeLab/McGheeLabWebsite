@@ -66,6 +66,10 @@
    * when any formula input changes. */
   function bindYTextWithVars(el, yText, opts) {
     opts = opts || {};
+    // V3.403 — the topbar 🔗 Reference picker (protocol-editor.js) finds
+    // the focused block's Y.Text through this stamp to insert [!var:]
+    // tokens at the caret, so users never type the syntax by hand.
+    el._preVarsYText = yText;
 
     function showRendered() {
       var raw = yText.toString();
@@ -222,6 +226,32 @@
     var unbind = bindYTextWithVars(body, yBlock.get('body'), { onInput: ctx.markDirty });
     ctx.registerCleanup(unbind);
     bodyWrap.appendChild(body);
+
+    // V3.503 — optional one-line "cheat sheet" version of this step, shown in
+    // the ?view=cheat condensed render; blank = auto first-line fallback there.
+    // Plain scalar attr (like heading `code`) — the generic Yjs hydrate/
+    // dehydrate carries it, and observe reflects remote edits.
+    var attrs = yBlock.get('attrs');
+    var cheatRow = document.createElement('div');
+    cheatRow.className = 'pre-step-cheat';
+    var cheatInp = document.createElement('input');
+    cheatInp.type = 'text';
+    cheatInp.className = 'pre-step-cheat-input';
+    cheatInp.placeholder = '📋 Cheat-sheet line (optional) — blank auto-uses the first line';
+    cheatInp.title = 'The bare-minimum, one-line version of this step shown on the printable cheat sheet (?view=cheat).';
+    cheatInp.value = attrs.get('cheat') || '';
+    cheatInp.disabled = !ctx.canEdit;
+    cheatInp.addEventListener('input', function () {
+      attrs.set('cheat', cheatInp.value);
+      ctx.markDirty();
+    });
+    attrs.observe(function (event) {
+      if (event.keysChanged && event.keysChanged.has('cheat')) {
+        if (document.activeElement !== cheatInp) cheatInp.value = attrs.get('cheat') || '';
+      }
+    });
+    cheatRow.appendChild(cheatInp);
+    bodyWrap.appendChild(cheatRow);
 
     root.appendChild(bodyWrap);
     root.appendChild(renderControls(yBlock, ctx));
@@ -1896,6 +1926,55 @@
     return root;
   }
 
+  /* ── FuturePlan 06 — node-graph design block (editor) ──────────
+   * Mounts the vanilla canvas editor against the block's plain-JSON
+   * {nodes, edges} attrs. Graph edits write the whole arrays back (the
+   * coarse-grained, single-author model); a raw-JSON escape hatch
+   * covers environments where the canvas module didn't load. */
+  function renderDesign(yBlock, ctx) {
+    var root = document.createElement('div');
+    root.className = 'pre-block pre-block-design';
+    root.dataset.blockId = yBlock.get('id');
+    var attrs = yBlock.get('attrs');
+
+    var tag = document.createElement('div');
+    tag.className = 'pre-docheader-tag';
+    tag.textContent = '🕸 Design (node graph)';
+    root.appendChild(tag);
+
+    var labelWrap = _attrTextField(attrs, ctx, 'label', 'Label', 'Design');
+    root.appendChild(labelWrap);
+
+    // The node canvas moved to the editor's Nodes viewing mode; here the
+    // block is a compact stub that jumps there. (It stays a block so the
+    // doc view / notebook run render its compiled inputs + lists in place.)
+    var host = document.createElement('div');
+    host.className = 'pre-design-canvas-host';
+    root.appendChild(host);
+
+    var nodes = _plainArray(attrs, 'nodes');
+    var edges = _plainArray(attrs, 'edges');
+    var stub = document.createElement('div');
+    stub.className = 'pre-design-stub';
+    var meta = document.createElement('span');
+    meta.textContent = nodes.length + ' node' + (nodes.length === 1 ? '' : 's') +
+      ' · ' + edges.length + ' wire' + (edges.length === 1 ? '' : 's') +
+      ' — edited in the Nodes view';
+    stub.appendChild(meta);
+    var open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'btn pre-design-open';
+    open.textContent = '⬡ Open Nodes view';
+    open.addEventListener('click', function () {
+      document.dispatchEvent(new CustomEvent('pre-open-nodes'));
+    });
+    stub.appendChild(open);
+    host.appendChild(stub);
+
+    root.appendChild(renderControls(yBlock, ctx));
+    return root;
+  }
+
   /* Dispatcher. ctx provides editor-side helpers. */
   function renderBlock(yBlock, ctx) {
     var kind = yBlock.get('kind');
@@ -1916,6 +1995,7 @@
       case 'calculator': return renderCalculator(yBlock, ctx);
       case 'builder':   return renderBuilder(yBlock, ctx);
       case 'layoutMap': return renderLayoutMap(yBlock, ctx);
+      case 'design':    return renderDesign(yBlock, ctx);
       default:
         // Unknown kind (e.g. a future `formula` block in a doc loaded by
         // Phase 1). Render a neutral placeholder so the block isn't lost
@@ -1995,6 +2075,7 @@
     ySec.set('label', plainSection.label || 'Untitled section');
     ySec.set('order', plainSection.order || 0);
     ySec.set('status', plainSection.status || 'draft');
+    ySec.set('completed', !!plainSection.completed);
     var yChildren = new Y.Array();
     (plainSection.children || []).forEach(function (b) {
       yChildren.push([hydrateBlockToYjs(b, Y)]);
@@ -2085,6 +2166,7 @@
       label: ySec.get('label') || '',
       order: ySec.get('order') || 0,
       status: ySec.get('status') || 'draft',
+      completed: !!ySec.get('completed'),
       children: children,
     };
   }

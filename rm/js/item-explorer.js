@@ -499,7 +499,10 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+      await firebridge.requireSignIn('Sign in to browse lab items.');
+    }
     wire();
     render();  // initial empty state
   });

@@ -366,5 +366,8 @@
     getClaim: getClaim,
     flagBullet: flagBullet,
     openClaimDetail: openClaimDetail,
+    /* V3.350 — snapshot of this draft's claims for the Evidence Inbox
+     * (paper-evidence-inbox.js walks supporting/counter_evidence_ids). */
+    getAllClaims: function () { return _state.claims.slice(); },
   };
 })();

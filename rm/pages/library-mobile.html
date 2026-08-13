@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Library — Ourlab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/library-groups.css">
+  <link rel="stylesheet" href="/rm/css/library-mobile.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body class="lib-m">
+  <div class="page libm-page">
+    <div class="libm-head">
+      <h1 class="libm-h1">📚 Library</h1>
+      <div class="libm-seg" id="libm-seg" role="tablist">
+        <button type="button" data-view="papers" class="on" role="tab">Papers</button>
+        <button type="button" data-view="comments" role="tab">Comments</button>
+      </div>
+    </div>
+
+    <div id="libm-view-papers">
+      <input type="search" id="libm-search" class="libm-search"
+             placeholder="Search title, author, journal, tag…"
+             autocapitalize="off" autocorrect="off">
+      <div class="libm-count-row">
+        <span id="libm-count" class="libm-count"></span>
+        <span id="libm-status" class="libm-status"></span>
+      </div>
+      <div id="libm-recent" hidden></div>
+      <div id="libm-chips" class="libm-chips" hidden></div>
+      <div id="libm-list" class="libm-list">
+        <div class="libm-empty">Loading…</div>
+      </div>
+    </div>
+
+    <div id="libm-view-comments" hidden>
+      <div id="libm-feed" class="libm-feed"></div>
+      <button class="btn libm-feed-more" id="libm-feed-more" type="button">Load more</button>
+    </div>
+  </div>
+
+  <input type="file" id="libm-file" accept="application/pdf" multiple hidden>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/paper-semantic-scholar.js"></script>
+  <script src="/rm/js/library-tags.js"></script>
+  <script src="/rm/js/library-prefs.js"></script>
+  <script src="/rm/js/library-groups.js"></script>
+  <script src="/rm/js/library-metadata.js"></script>
+  <script src="/rm/js/library-upload.js"></script>
+  <script src="/rm/js/app-sheet.js"></script>
+  <!-- pdf-viewer is NOT loaded at boot — library-mobile.js lazily injects
+       page-layout.js + the viewer module on the first PDF upload (the
+       metadata first-page sniff needs it; the list itself doesn't). -->
+  <script src="/rm/js/library-mobile.js"></script>
+</body>
+</html>

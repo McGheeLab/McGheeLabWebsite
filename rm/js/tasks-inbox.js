@@ -206,7 +206,7 @@ async function loadPinnedBuckets() {
 }
 
 function checkFirebridge() {
-  INBOX.firebridgeReady = !!(window.firebridge && typeof window.firebridge.isAdmin === 'function');
+  INBOX.firebridgeReady = !!(typeof firebridge !== 'undefined' && typeof firebridge.isAdmin === 'function');
 }
 
 /* ---------- save helpers ---------- */
@@ -1171,7 +1171,7 @@ async function bulkRecategorize() {
 /* ---------- daily tracker bridge ---------- */
 
 async function openDailyTrackerDialog(task) {
-  if (!window.firebridge || !window.firebridge.isAdmin()) {
+  if (typeof firebridge === 'undefined' || !firebridge.isAdmin || !firebridge.isAdmin()) {
     return alert('Sign in as admin (Settings) to log to the daily tracker.');
   }
   const back = document.createElement('div');

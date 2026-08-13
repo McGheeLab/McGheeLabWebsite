@@ -66,6 +66,13 @@
   }
   function _saveActive() {
     try {
+      // V3.619 — honor _loadActive's `?draft=` contract: a URL-focused
+      // session must not overwrite the user's persisted set (previously any
+      // save during such a session clobbered it).
+      const qp = new URLSearchParams(window.location.search);
+      if (qp.get('draft') || qp.get('grant')) return;
+    } catch (_) { /* no window — fall through */ }
+    try {
       localStorage.setItem(_storageKey(), JSON.stringify(Array.from(_active)));
     } catch (_) { /* quota — ignore */ }
   }
@@ -203,12 +210,13 @@
     const status = item.status ? `(${item.status})` : '';
     return [left, status].filter(Boolean).join(' ');
   }
-  // Reload the linked-drafts list from the open paper's
-  // meta.library.linked_drafts and refresh the popover. The id is
-  // resolved against BOTH projects/papers.json (paper drafts) and
-  // items.json (grants); titles and kind chips come from there.
-  async function _refreshLinkedDrafts() {
-    if (!_paperItem) return;
+  // Fetch + enrich the linked-drafts list from the open paper's
+  // meta.library.linked_drafts. The id is resolved against BOTH
+  // projects/papers.json (paper drafts) and items.json (grants); titles
+  // and kind chips come from there. Assigns _linkedDrafts only — callers
+  // decide what happens to _active (V3.619 split, see _refreshLinkedDrafts).
+  async function _fetchLinkedDrafts() {
+    if (!_paperItem) return false;
     let itemsData, papersData;
     try {
       [itemsData, papersData] = await Promise.all([
@@ -217,7 +225,7 @@
       ]);
     } catch (e) {
       console.warn('[paper-overlays] refresh failed:', e.message || e);
-      return;
+      return false;
     }
     const items = (itemsData && itemsData.items) || [];
     const papers = (papersData && papersData.papers) || [];
@@ -249,48 +257,59 @@
       return { id, title: (it && it.title) || id, kind: 'paper' };
     });
     _linkedDrafts = enriched;
-    // Prune _active to live ids; auto-activate newly-linked.
+    return true;
+  }
+
+  // Refresh after a link/unlink (or an external caller's request).
+  // V3.619 — this used to force-activate EVERY linked draft and persist,
+  // and init() called it before reading localStorage, so the user's saved
+  // per-paper overlay selection was clobbered to "all on" on every load.
+  // Now: prune to live ids, auto-activate only drafts that newly appeared
+  // (a fresh link should show its highlights), leave deliberate toggles-off
+  // alone.
+  async function _refreshLinkedDrafts() {
+    const prevLive = new Set(_linkedDrafts.map(d => d.id));
+    const ok = await _fetchLinkedDrafts();
+    if (!ok) return;
     const live = new Set(_linkedDrafts.map(d => d.id));
     for (const id of Array.from(_active)) if (!live.has(id)) _active.delete(id);
-    for (const d of _linkedDrafts) if (!_active.has(d.id)) _active.add(d.id);
+    for (const d of _linkedDrafts) {
+      if (!prevLive.has(d.id) && !_active.has(d.id)) _active.add(d.id);
+    }
     _saveActive();
+    /* V3.365 — preserve popover visibility instead of force-opening it.
+     * The picker-save flow (popover open behind the modal) still sees it
+     * re-open; refreshes triggered by the sidebar association pills or
+     * the annotation-panel auto-link no longer pop it up unrequested. */
+    const prevPop = _mountEl && _mountEl.querySelector('#lp-overlays-pop');
+    const wasOpen = !!(prevPop && prevPop.style.display !== 'none');
     _emitChange();
     _render();
-    const pop = _mountEl && _mountEl.querySelector('#lp-overlays-pop');
-    if (pop) { pop.style.display = 'block'; _renderPop(); }
+    if (wasOpen) {
+      const pop = _mountEl && _mountEl.querySelector('#lp-overlays-pop');
+      if (pop) { pop.style.display = 'block'; _renderPop(); }
+    }
   }
 
   // Public: link / unlink a draft from this library paper. Writes
   // meta.library.linked_drafts on items.json. Idempotent.
+  /* V3.352 — both routed through LIBRARY_LINKS.toggleDraftLink (atomic
+   * single-doc arrayUnion/arrayRemove; no items.json round-trip). The
+   * returned fresh array is patched onto the in-memory item. */
   async function linkDraft(draftId) {
     if (!_paperItem || !draftId) return;
-    const data = await api.load('items.json');
-    const items = (data && data.items) || [];
-    const idx = items.findIndex(i => i.id === _paperItem.id);
-    if (idx < 0) throw new Error('Open paper not found in items.json');
-    items[idx].meta = items[idx].meta || {};
-    items[idx].meta.library = items[idx].meta.library || {};
-    const arr = Array.isArray(items[idx].meta.library.linked_drafts)
-      ? items[idx].meta.library.linked_drafts.slice() : [];
-    if (arr.indexOf(draftId) === -1) arr.push(draftId);
-    items[idx].meta.library.linked_drafts = arr;
-    await api.save('items.json', { items });
-    _paperItem = items[idx];
+    const fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, draftId, true);
+    _paperItem.meta = _paperItem.meta || {};
+    _paperItem.meta.library = _paperItem.meta.library || {};
+    _paperItem.meta.library.linked_drafts = fresh;
     await _refreshLinkedDrafts();
   }
   async function unlinkDraft(draftId) {
     if (!_paperItem || !draftId) return;
-    const data = await api.load('items.json');
-    const items = (data && data.items) || [];
-    const idx = items.findIndex(i => i.id === _paperItem.id);
-    if (idx < 0) return;
-    items[idx].meta = items[idx].meta || {};
-    items[idx].meta.library = items[idx].meta.library || {};
-    const arr = Array.isArray(items[idx].meta.library.linked_drafts)
-      ? items[idx].meta.library.linked_drafts.filter(x => x !== draftId) : [];
-    items[idx].meta.library.linked_drafts = arr;
-    await api.save('items.json', { items });
-    _paperItem = items[idx];
+    const fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, draftId, false);
+    _paperItem.meta = _paperItem.meta || {};
+    _paperItem.meta.library = _paperItem.meta.library || {};
+    _paperItem.meta.library.linked_drafts = fresh;
     await _refreshLinkedDrafts();
   }
 
@@ -569,16 +588,23 @@
         modal.querySelectorAll('input[data-draft-id]').forEach(c => {
           if (c.checked) desired.add(c.getAttribute('data-draft-id'));
         });
-        // Single write: rebuild meta.library.linked_drafts from `desired`.
-        const data = await api.load('items.json');
-        const items = (data && data.items) || [];
-        const idx = items.findIndex(i => i.id === _paperItem.id);
-        if (idx < 0) throw new Error('Open paper not found in items.json');
-        items[idx].meta = items[idx].meta || {};
-        items[idx].meta.library = items[idx].meta.library || {};
-        items[idx].meta.library.linked_drafts = Array.from(desired);
-        await api.save('items.json', { items });
-        _paperItem = items[idx];
+        /* V3.352 — diff against the current set and apply atomic
+         * arrayUnion/arrayRemove ops via LIBRARY_LINKS instead of
+         * rebuilding the whole array (which raced other writers). */
+        const current = new Set(
+          (_paperItem.meta && _paperItem.meta.library &&
+           Array.isArray(_paperItem.meta.library.linked_drafts))
+            ? _paperItem.meta.library.linked_drafts : []);
+        let fresh = Array.from(current);
+        for (const id of desired) {
+          if (!current.has(id)) fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, id, true);
+        }
+        for (const id of current) {
+          if (!desired.has(id)) fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, id, false);
+        }
+        _paperItem.meta = _paperItem.meta || {};
+        _paperItem.meta.library = _paperItem.meta.library || {};
+        _paperItem.meta.library.linked_drafts = fresh;
         close();
         await _refreshLinkedDrafts();
       } catch (e) {
@@ -598,7 +624,12 @@
       console.warn('[paper-overlays] init: paperItem required');
       return;
     }
-    await _refreshLinkedDrafts();
+    // V3.619 — fetch first WITHOUT persisting, THEN read the saved active
+    // set (previous order saved an all-on set before loading, so the user's
+    // per-paper selection never survived a reload). _loadActive's no-key
+    // default of "all linked drafts on" still works because _linkedDrafts
+    // is populated by the fetch.
+    await _fetchLinkedDrafts();
     _active = _loadActive();
     const live = new Set(_linkedDrafts.map(d => d.id));
     _active = new Set(Array.from(_active).filter(id => live.has(id)));
@@ -628,6 +659,8 @@
     linkDraft, unlinkDraft,
     openLinkPicker: _openLinkPicker,   // exposed so the inline evidence
                                         // form can offer "+ Add draft".
+    refreshLinks: _refreshLinkedDrafts, // V3.365 — sidebar association
+                                        // pills call this after a toggle.
     onChange, destroy,
     // Backward-compat aliases (operate on drafts now). One-cycle bridge
     // for annotation-overlay.js stripes + annotation-panel.js chips.

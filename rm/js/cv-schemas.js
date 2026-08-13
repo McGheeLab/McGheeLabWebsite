@@ -62,7 +62,7 @@ var CV_SCHEMAS = {
     { key:'authors', label:'Authors', type:'text', span:2, required:true, hint:'Smith J, Doe A, ...' },
     { key:'journal', label:'Journal', type:'text', required:true },
     { key:'year', label:'Year', type:'number', required:true },
-    { key:'doi', label:'DOI', type:'text', span:2 },
+    { key:'doi', label:'DOI', type:'text', span:2, hint:'paste it and click "Fetch from DOI" — fills the rest of the form' },
     { key:'volume', label:'Volume', type:'text' },
     { key:'issue', label:'Issue', type:'text' },
     { key:'pages', label:'Pages', type:'text' },
@@ -111,7 +111,7 @@ var CV_SCHEMAS = {
   ]},
   presentations: { fields: [
     { key:'title', label:'Title', type:'text', span:2, required:true },
-    { key:'event', label:'Event / Venue', type:'text', required:true },
+    { key:'event', label:'Event / Venue', type:'text', required:true, hint:'e.g. BMES Annual Meeting, department seminar, thesis defense' },
     { key:'location', label:'Location', type:'text' },
     { key:'date', label:'Date', type:'date', required:true },
     { key:'type', label:'Type', type:'select', options:['Invited Talk','Keynote','Contributed Talk','Seminar','Webinar','Panel','Workshop'] },
@@ -149,7 +149,7 @@ var CV_SCHEMAS = {
     { key:'description', label:'Description', type:'textarea', span:2 },
   ]},
   service: { fields: [
-    { key:'role', label:'Role', type:'text', required:true },
+    { key:'role', label:'Role', type:'text', required:true, hint:'e.g. Reviewer, Session Chair, Outreach Volunteer' },
     { key:'organization', label:'Organization', type:'text', required:true },
     { key:'type', label:'Type', type:'select', options:['Journal Editor','Associate Editor','Reviewer','Editorial Board','Committee','Program Chair','Organizing Committee','Advisory Board','Department','University','Professional Society','Other'] },
     { key:'start_year', label:'Start Year', type:'number' },

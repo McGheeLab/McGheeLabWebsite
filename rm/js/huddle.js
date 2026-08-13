@@ -1,11 +1,20 @@
 /* ================================================================
-   The Huddle — RM-native port (V3.50)
+   The Huddle — RM-native port (V3.50; IA redesign V3.508–V3.513)
    ================================================================
-   Community-driven weekly planning board. Lab members post what
-   protocols/methods they plan to do; others watch / join. Includes
-   the Plan feed, Help requests, the Rundown (non-timeframe weekly
-   tasks with join-request workflow), and the Lab Schedule view
-   (Team Availability Gantt + recurring availability templates).
+   Community-driven weekly planning board, four tabs:
+     • This Week — member filter chips, inline plan composer
+       (day/time optional; recurrence gated on Day), the shared time
+       grid (timed plans), "Anytime this week" cards (untimed plans;
+       join-request workflow, absorbed the old Rundown per V3.509
+       migration), open-help strip.
+     • Help — inline composer + open requests across ALL weeks
+       (carry-over), resolved-this-week collapsed.
+     • Team Availability — Gantt + recurring availability templates.
+     • Settings — plan defaults, grid hours, admin categories +
+       rundown migration/purge.
+   Old 11-tab section ids alias via normalizeSection(). Per-user
+   seen state (huddleSeen/{uid}) drives "new" dots + nav badge
+   (rm/js/huddle-badge.js). Deep links: ?kind=plan|help&item=<id>.
 
    Lifted from /apps/huddle/app.js (2,888 LOC) with the same lift-
    and-patch playbook as V3.41 meetings + V3.49 activity-tracker:
@@ -55,9 +64,21 @@ window.McgheeLab = window.McgheeLab || {};
   let _currentWeekOffset = 0;
   let _currentDayOffset = 0;      // for daily view
   let _currentMonth = null;        // {year, month} for monthly view
-  let _currentSection = 'planfeed';
+  let _currentSection = 'week';
   let _huddleSettings = null;      // user's huddle defaults (Firestore)
-  let _myPlansView = 'weekly';     // 'daily' | 'weekly' | 'monthly'
+  let _myPlansView = 'weekly';     // This Week view: 'daily' | 'weekly' | 'monthly'
+  let _composerOpen = false;       // inline plan composer expanded?
+  let _featureFlags = {};          // labConfig/featureFlags (V3.533 retirement)
+  let _helpComposerOpen = false;   // inline help composer expanded?
+  let _helpFilterMine = false;     // Help tab "Mine" chip
+  let _resolvedHelp = [];          // current real week's resolved help (one-shot load)
+
+  // Per-user seen state (V3.511) — huddleSeen/{uid}. The baseline is frozen
+  // at page load so "new" dots stay visible for the whole visit; the stored
+  // timestamps advance on tab enter / page hide for the NEXT session and
+  // the nav badge (huddle-badge.js).
+  let _seenBaseline = { week: 0, help: 0 };
+  let _seenWriteTimer = null;
   let _unsubscribe = null;
   let _unsubHelp = null;
   let _toastTimer = null;
@@ -66,6 +87,7 @@ window.McgheeLab = window.McgheeLab || {};
   let _popupPlanId = null;         // plan popup on time grid
   let _prefill = null;             // { plannedDay, startTime, endTime } for drag-to-create
   let _gridDrag = null;            // pointer drag state for creating plans on time grid
+  let _pendingDeepLink = null;     // { kind, item } from ?kind=&item= — cleared after scroll+flash
 
   // Filters
   let _filterMembers = new Set();
@@ -77,8 +99,6 @@ window.McgheeLab = window.McgheeLab || {};
   let _projects = [];              // cached projectPackages for dropdown
   let _unsubRundown = null;
   let _unsubRundownConfig = null;
-  let _editingTaskId = null;
-  let _filterRundownCategory = '';
 
   // Schedule / Availability state
   let _teamViewDay = null;               // selected day index for team view (0=Mon)
@@ -131,8 +151,7 @@ window.McgheeLab = window.McgheeLab || {};
       console.warn('[Huddle] firebridge not available');
       return;
     }
-    firebridge.gateSignedIn();
-    if (firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+    if (firebridge.requireSignIn) await firebridge.requireSignIn();
 
     _user = firebridge.getUser ? firebridge.getUser() : null;
     _profile = firebridge.getProfile ? firebridge.getProfile() : null;
@@ -140,8 +159,15 @@ window.McgheeLab = window.McgheeLab || {};
 
     const now = new Date();
     _currentMonth = { year: now.getFullYear(), month: now.getMonth() };
-    await loadSettings();
+    await Promise.all([loadSettings(), loadSeenState(), loadFeatureFlags()]);
+    if (_huddleSettings?.defaultView) _myPlansView = _huddleSettings.defaultView;
+    await applyDeepLink();
     render();
+    markSeen(_currentSection);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') markSeen(_currentSection, true);
+    });
+    window.addEventListener('pagehide', () => markSeen(_currentSection, true));
     subscribePlans();
     subscribeHelp();
     subscribeRundown();
@@ -164,7 +190,7 @@ window.McgheeLab = window.McgheeLab || {};
 
     if (McgheeLab.MobileShell && McgheeLab.MobileShell.enableTabSwipe) {
       McgheeLab.MobileShell.enableTabSwipe(
-        [{ id: 'planfeed' }, { id: 'helpfeed' }, { id: 'rundown' }, { id: 'teamavail' }, { id: 'addplan' }, { id: 'requesthelp' }, { id: 'addrundown' }, { id: 'myplans' }, { id: 'myhelp' }, { id: 'mytasks' }, { id: 'settings' }],
+        [{ id: 'week' }, { id: 'help' }, { id: 'teamavail' }, { id: 'settings' }],
         () => _currentSection,
         (id) => { _currentSection = id; render(); }
       );
@@ -232,6 +258,127 @@ window.McgheeLab = window.McgheeLab || {};
 
   function currentWeekId() { return getWeekId(_currentWeekOffset); }
 
+  // Invert getWeekId by scanning nearby offsets — keeps the Sunday quirk
+  // in getMonday consistent instead of re-deriving ISO-week math twice.
+  function weekIdToOffset(weekId) {
+    if (!weekId) return null;
+    for (let off = 0; off <= 104; off++) {
+      if (getWeekId(off) === weekId) return off;
+      if (off && getWeekId(-off) === weekId) return -off;
+    }
+    return null;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     DEEP LINKS — ?kind=plan|help|rundown&item=<docId>[&tab=<section>]
+     Push notifications (functions/huddle.js) link here so a tap
+     lands on the relevant plan/help thread, not the default feed.
+     ═══════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     SEEN STATE (V3.511) — huddleSeen/{uid}
+     ═══════════════════════════════════════════════════════════ */
+  async function loadSeenState() {
+    try {
+      const doc = await db().collection('huddleSeen').doc(_user.uid).get();
+      if (doc.exists) {
+        const d = doc.data();
+        _seenBaseline.week = d.weekSeenAt?.toMillis?.() || 0;
+        _seenBaseline.help = d.helpSeenAt?.toMillis?.() || 0;
+      }
+    } catch (err) { console.warn('[Huddle] Seen-state load failed:', err); }
+  }
+
+  function markSeen(section, immediate) {
+    const field = normalizeSection(section) === 'help' ? 'helpSeenAt'
+      : normalizeSection(section) === 'week' ? 'weekSeenAt' : null;
+    if (!field || !_user) return;
+    const write = () => {
+      db().collection('huddleSeen').doc(_user.uid).set({
+        [field]: firebase.firestore.Timestamp.now(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(() => {});
+    };
+    clearTimeout(_seenWriteTimer);
+    if (immediate) write();
+    else _seenWriteTimer = setTimeout(write, 800);
+  }
+
+  // "New since my last visit" — someone else's doc touched after the baseline.
+  function isNewDoc(item, tab) {
+    if (!item || item.ownerUid === _user.uid) return false;
+    const ms = item.updatedAt?.toMillis?.() || 0;
+    return ms > (_seenBaseline[tab] || 0);
+  }
+
+  // A help request is "new" if it's someone else's and changed, OR mine with
+  // a response I haven't seen.
+  function isNewHelp(req) {
+    if (req.status !== 'open') return false;
+    if (req.ownerUid !== _user.uid) return isNewDoc(req, 'help');
+    const base = _seenBaseline.help || 0;
+    return (req.responses || []).some(r => (Date.parse(r.createdAt || 0) || 0) > base);
+  }
+
+  function countNewWeekItems() {
+    return _plans.filter(p => isNewDoc(p, 'week')).length +
+      _rundownTasks.filter(t => isNewDoc(t, 'week')).length;
+  }
+
+  function countNewHelpItems() {
+    return _helpRequests.filter(isNewHelp).length;
+  }
+
+  // Pre-V3.508 section ids (11-tab layout) map onto the 4-tab layout so
+  // old deep links, notifications, and swipe state keep working.
+  const SECTION_ALIASES = {
+    planfeed: 'week', myplans: 'week', rundown: 'week', mytasks: 'week',
+    addplan: 'week', addrundown: 'week',
+    helpfeed: 'help', myhelp: 'help', requesthelp: 'help'
+  };
+  function normalizeSection(id) { return SECTION_ALIASES[id] || id; }
+
+  async function applyDeepLink() {
+    const params = new URLSearchParams(location.search);
+    const kind = params.get('kind');
+    const tab = params.get('tab');
+    if (!kind && !tab) return;
+
+    const sectionByKind = { plan: 'week', help: 'help', rundown: 'week' };
+    if (tab) _currentSection = normalizeSection(tab);
+    else if (sectionByKind[kind]) _currentSection = sectionByKind[kind];
+
+    const item = params.get('item');
+    if (!item) return;
+    const collByKind = { plan: 'huddlePlans', help: 'huddleHelpRequests', rundown: 'huddleRundown' };
+    if (!collByKind[kind]) return;
+    try {
+      const snap = await db().collection(collByKind[kind]).doc(item).get();
+      if (!snap.exists) return;
+      const data = snap.data();
+      // Jump to the item's week so week-scoped listeners actually load it.
+      if (data.weekId) {
+        const off = weekIdToOffset(data.weekId);
+        if (off !== null) _currentWeekOffset = off;
+      }
+      if (kind === 'plan' && data.plannedDay) _popupPlanId = item;
+      _pendingDeepLink = { kind, item };
+    } catch (err) {
+      console.warn('[Huddle] Deep-link lookup failed:', err);
+    }
+  }
+
+  // After a render that contains the target, scroll to it and flash it once.
+  function flashDeepLinkTarget() {
+    if (!_pendingDeepLink) return;
+    const id = _pendingDeepLink.item;
+    const el = appEl.querySelector(`[data-item-id="${id}"], [data-plan-id="${id}"]`);
+    if (!el) return; // target's snapshot hasn't landed yet — try on next render
+    _pendingDeepLink = null;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('hud-flash');
+    setTimeout(() => el.classList.remove('hud-flash'), 2600);
+  }
+
   function getDayDate(offset) {
     const d = new Date();
     d.setDate(d.getDate() + offset);
@@ -277,6 +424,48 @@ window.McgheeLab = window.McgheeLab || {};
     return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
   }
 
+  // Side-by-side lane assignment for overlapping timed plans within one day
+  // column — the same collision-clustering algorithm calendar UIs (Google
+  // Calendar, Outlook) use for a day view: sort by start time, sweep, and
+  // greedily pack each event into the first lane whose last occupant has
+  // already ended; group contiguous overlaps into "clusters" so a cluster
+  // of 2 doesn't waste width just because 5 other non-overlapping plans
+  // exist elsewhere in the same day. Returns Map<planId, {lane, laneCount}>.
+  function computeDayLanes(dayPlans, startHour) {
+    const events = dayPlans
+      .filter(p => p.startTime)
+      .map(p => {
+        const start = timeToSlot(p.startTime, startHour);
+        const end = Math.max(p.endTime ? timeToSlot(p.endTime, startHour) : start + 2, start + 1);
+        return { id: p.id, start, end };
+      })
+      .sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+
+    let cluster = null;
+    let clusterEnd = -Infinity;
+    const placements = [];
+
+    events.forEach(ev => {
+      if (!cluster || ev.start >= clusterEnd) {
+        cluster = { colEnds: [] };
+        clusterEnd = ev.end;
+      } else {
+        clusterEnd = Math.max(clusterEnd, ev.end);
+      }
+      let lane = cluster.colEnds.findIndex(end => end <= ev.start);
+      if (lane === -1) { lane = cluster.colEnds.length; cluster.colEnds.push(ev.end); }
+      else cluster.colEnds[lane] = ev.end;
+      placements.push({ id: ev.id, lane, cluster });
+    });
+
+    const lanes = new Map();
+    // Read cluster.colEnds.length AFTER the sweep — clusters keep growing
+    // lanes as later events are placed, so the final count is only known
+    // once every event in that cluster has been processed.
+    placements.forEach(p => lanes.set(p.id, { lane: p.lane, laneCount: p.cluster.colEnds.length }));
+    return lanes;
+  }
+
   function timeLabels(startHour, endHour) {
     const labels = [];
     for (let h = startHour; h < endHour; h++) {
@@ -304,14 +493,36 @@ window.McgheeLab = window.McgheeLab || {};
 
   function subscribeHelp() {
     if (_unsubHelp) _unsubHelp();
-    const weekId = currentWeekId();
+    // Open requests are NOT week-scoped: an unresolved ask must survive the
+    // week rollover instead of silently vanishing (V3.508). Resolved ones
+    // load separately per current week (loadResolvedHelp).
     _unsubHelp = db().collection('huddleHelpRequests')
-      .where('weekId', '==', weekId)
+      .where('status', '==', 'open')
       .onSnapshot(snap => {
         _helpRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         _helpRequests.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-        if (_currentSection === 'helpfeed' || _currentSection === 'myhelp' || _currentSection === 'planfeed') renderMain();
+        if (_currentSection === 'help' || _currentSection === 'week') renderMain();
       }, err => { console.warn('[Huddle] Help listener error:', err); });
+    loadResolvedHelp();
+  }
+
+  async function loadResolvedHelp() {
+    try {
+      const snap = await db().collection('huddleHelpRequests')
+        .where('weekId', '==', getWeekId(0)).get();
+      _resolvedHelp = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(r => r.status === 'resolved')
+        .sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+      if (_currentSection === 'help') renderMain();
+    } catch (err) { console.warn('[Huddle] Resolved-help load failed:', err); }
+  }
+
+  /* V3.533 — retirement flags via day-distribute's cached reader (loaded
+   * on this page since V3.530); falls back to no flags if it's absent. */
+  async function loadFeatureFlags() {
+    try {
+      _featureFlags = window.DAY_DISTRIBUTE ? await DAY_DISTRIBUTE.getFeatureFlags() : {};
+    } catch (_) { _featureFlags = {}; }
   }
 
   async function createPlan(data) {
@@ -323,8 +534,9 @@ window.McgheeLab = window.McgheeLab || {};
       startTime: data.startTime || null, endTime: data.endTime || null,
       text: data.text, notes: data.notes || '',
       protocol: data.protocol || null,
-      projectId: null, projectName: null,
-      watchers: [], joiners: [],
+      categoryId: data.categoryId || null, categoryLabel: data.categoryLabel || null,
+      projectId: data.projectId || null, projectName: data.projectName || null,
+      watchers: [], joiners: [], joinRequests: [],
       status: 'planned', statusReason: null, delayedToWeek: null,
       seriesId: data.seriesId || null,
       recurrence: data.recurrence || null,
@@ -376,12 +588,40 @@ window.McgheeLab = window.McgheeLab || {};
     });
   }
 
+  // Join-request flow for UNTIMED plans (merged rundown semantics, V3.508):
+  // same shape as huddleRundown joinRequests so the anytime cards render both.
+  async function requestJoinPlan(planId, joinData) {
+    const plan = _plans.find(p => p.id === planId);
+    if (!plan) return;
+    const joinRequests = [...(plan.joinRequests || []).filter(j => j.uid !== _user.uid), {
+      uid: _user.uid, name: _profile.name || _user.displayName || '',
+      skillLevel: joinData.skillLevel || 'learning',
+      note: joinData.note || '',
+      status: 'pending',
+      requestedAt: new Date().toISOString()
+    }];
+    await db().collection('huddlePlans').doc(planId).update({
+      joinRequests, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  async function respondToPlanJoinRequest(planId, requesterUid, response) {
+    const plan = _plans.find(p => p.id === planId);
+    if (!plan) return;
+    const joinRequests = (plan.joinRequests || []).map(j =>
+      j.uid === requesterUid ? { ...j, status: response } : j
+    );
+    await db().collection('huddlePlans').doc(planId).update({
+      joinRequests, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
   // Help CRUD
   async function createHelpRequest(data) {
     const name = _profile.name || _user.displayName || _user.email;
     return db().collection('huddleHelpRequests').add({
       ownerUid: _user.uid, ownerName: name, ownerCategory: _profile.category || '',
-      weekId: currentWeekId(), title: data.title, description: data.description,
+      weekId: getWeekId(0), title: data.title, description: data.description,
       whatFailed: data.whatFailed || '', whatTried: data.whatTried || '',
       status: 'open', responses: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -417,10 +657,59 @@ window.McgheeLab = window.McgheeLab || {};
     _unsubRundown = db().collection('huddleRundown')
       .where('weekId', '==', weekId)
       .onSnapshot(snap => {
-        _rundownTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        _rundownTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+          .filter(t => !t.migratedTo); // migrated docs live on as huddlePlans (V3.509)
         _rundownTasks.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
-        if (_currentSection === 'rundown' || _currentSection === 'mytasks') renderMain();
+        if (_currentSection === 'week') renderMain();
       }, err => { console.warn('[Huddle] Rundown listener error:', err); });
+  }
+
+  // ── One-time admin migration: huddleRundown → untimed huddlePlans ──
+  // Idempotent (skips docs already stamped migratedTo); source docs are
+  // kept with a migratedTo back-ref — a purge button comes later (R5).
+  async function migrateRundownToPlans(progressCb) {
+    const snap = await db().collection('huddleRundown').get();
+    const pending = snap.docs.filter(d => !d.data().migratedTo);
+    if (!pending.length) return { migrated: 0, skipped: snap.size };
+
+    const STATUS_MAP = { open: 'planned', done: 'completed', scheduled: 'planned' };
+    let migrated = 0;
+    // 2 ops per task (create plan + stamp source) → chunk well under the
+    // 500-op batch limit.
+    for (let i = 0; i < pending.length; i += 200) {
+      const chunk = pending.slice(i, i + 200);
+      const batch = db().batch();
+      chunk.forEach(docSnap => {
+        const t = docSnap.data();
+        const newRef = db().collection('huddlePlans').doc();
+        batch.set(newRef, {
+          ownerUid: t.ownerUid, ownerName: t.ownerName || '', ownerCategory: t.ownerCategory || '',
+          weekId: t.weekId || getWeekId(0),
+          plannedDay: null, startTime: null, endTime: null,
+          text: t.text || '', notes: t.notes || '',
+          protocol: null,
+          categoryId: t.categoryId || null, categoryLabel: t.categoryLabel || null,
+          projectId: t.projectId || null, projectName: t.projectName || null,
+          watchers: [], joiners: [],
+          joinRequests: t.joinRequests || [],
+          status: STATUS_MAP[t.status] || 'planned',
+          statusReason: null, delayedToWeek: null,
+          seriesId: null, recurrence: null,
+          scheduledPlanId: t.scheduledPlanId || null,
+          migratedFrom: docSnap.id,
+          createdAt: t.createdAt || firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        batch.update(docSnap.ref, {
+          migratedTo: newRef.id,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+      await batch.commit();
+      migrated += chunk.length;
+      if (progressCb) progressCb(migrated, pending.length);
+    }
+    return { migrated, skipped: snap.size - pending.length };
   }
 
   function subscribeRundownConfig() {
@@ -453,23 +742,6 @@ window.McgheeLab = window.McgheeLab || {};
     return cat ? cat.color : '#94a3b8';
   }
 
-  async function createRundownTask(data) {
-    const name = _profile.name || _user.displayName || _user.email;
-    return db().collection('huddleRundown').add({
-      ownerUid: _user.uid, ownerName: name, ownerCategory: _profile.category || '',
-      weekId: currentWeekId(),
-      text: data.text,
-      categoryId: data.categoryId || 'other',
-      categoryLabel: data.categoryLabel || 'Other',
-      projectId: data.projectId || null,
-      projectName: data.projectName || null,
-      status: 'open',
-      joinRequests: [],
-      scheduledPlanId: null,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }
 
   async function updateRundownTask(taskId, data) {
     return db().collection('huddleRundown').doc(taskId).update({
@@ -621,11 +893,6 @@ window.McgheeLab = window.McgheeLab || {};
   /* ═══════════════════════════════════════════════════════════
      FILTERS
      ═══════════════════════════════════════════════════════════ */
-  function getUniqueMembers() {
-    const map = new Map();
-    _plans.forEach(p => { if (!map.has(p.ownerUid)) map.set(p.ownerUid, p.ownerName || 'Unknown'); });
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }
 
   function applyFilters(plans) {
     let f = plans;
@@ -647,6 +914,7 @@ window.McgheeLab = window.McgheeLab || {};
     wireSidebar();
     wireSection();
     notifyResize();
+    flashDeepLinkTarget();
     if (McgheeLab.MobileShell?.centerActiveTab) {
       McgheeLab.MobileShell.centerActiveTab(document.getElementById('hud-tabs'), '.active');
     }
@@ -658,38 +926,35 @@ window.McgheeLab = window.McgheeLab || {};
     m.innerHTML = renderSection();
     wireSection();
     notifyResize();
+    flashDeepLinkTarget();
   }
 
   /* ─── Sidebar ─────────────────────────────────────────── */
   function sidebarHTML() {
     const helpCount = _helpRequests.filter(r => r.status === 'open' && r.ownerUid !== _user.uid).length;
 
-    const pendingJoinCount = _rundownTasks.filter(t => t.ownerUid === _user.uid && (t.joinRequests || []).some(j => j.status === 'pending')).length;
+    // Pending join requests on anything I own (untimed plans + legacy rundown tasks)
+    const pendingJoinCount =
+      _plans.filter(p => p.ownerUid === _user.uid && (p.joinRequests || []).some(j => j.status === 'pending')).length +
+      _rundownTasks.filter(t => t.ownerUid === _user.uid && (t.joinRequests || []).some(j => j.status === 'pending')).length;
+
+    const weekNew = countNewWeekItems();
+    const helpNew = countNewHelpItems();
+    const newBadge = (n) => n ? ` <span class="hud-new-badge" title="New since your last visit">${n}</span>` : '';
 
     const sections = [
-      { heading: 'Feeds', items: [
-        { id: 'planfeed', label: 'Plan Feed', icon: calendarIcon() },
-        { id: 'helpfeed', label: 'Help Feed' + (helpCount ? ` (${helpCount})` : ''), icon: helpIcon() },
-        { id: 'rundown', label: 'Rundown', icon: rundownIcon() },
+      { heading: '', items: [
+        { id: 'week', label: 'This Week' + (pendingJoinCount ? ` (${pendingJoinCount})` : '') + newBadge(weekNew), icon: calendarIcon() },
+        { id: 'help', label: 'Help' + (helpCount ? ` (${helpCount})` : '') + newBadge(helpNew), icon: helpIcon() },
         { id: 'teamavail', label: 'Team Availability', icon: teamAvailIcon() },
-      ]},
-      { heading: 'Create', items: [
-        { id: 'addplan', label: 'Add Plan', icon: plusIcon() },
-        { id: 'requesthelp', label: 'Request Help', icon: requestHelpIcon() },
-        { id: 'addrundown', label: 'Add Task', icon: addTaskIcon() },
-      ]},
-      { heading: 'My Stuff', items: [
-        { id: 'myplans', label: 'My Plans', icon: myPlansIcon() },
-        { id: 'myhelp', label: 'My Help', icon: myHelpIcon() },
-        { id: 'mytasks', label: 'My Tasks' + (pendingJoinCount ? ` (${pendingJoinCount})` : ''), icon: myTasksIcon() },
       ]},
       { heading: '', items: [
         { id: 'settings', label: 'Settings', icon: settingsIcon() },
       ]}
     ];
 
-    return sections.map(sec => `
-      ${sec.heading ? `<div class="hud-sidebar-heading">${sec.heading}</div>` : '<div class="hud-sidebar-divider"></div>'}
+    return sections.map((sec, si) => `
+      ${sec.heading ? `<div class="hud-sidebar-heading">${sec.heading}</div>` : (si ? '<div class="hud-sidebar-divider"></div>' : '')}
       ${sec.items.map(it => `
         <button class="hud-sidebar-btn ${_currentSection === it.id ? 'active' : ''}" data-section="${it.id}">
           ${it.icon} ${it.label}
@@ -707,112 +972,417 @@ window.McgheeLab = window.McgheeLab || {};
         _editingPlanId = null;
         _popupPlanId = null;
         _signupPlanId = null;
+        _composerOpen = false;
+        _helpComposerOpen = false;
+        markSeen(section);
         render();
       });
     });
   }
 
   function renderSection() {
+    _currentSection = normalizeSection(_currentSection);
     switch (_currentSection) {
-      case 'planfeed':    return renderPlanFeed();
-      case 'myplans':     return renderMyPlans();
-      case 'addplan':     return renderAddPlan();
-      case 'helpfeed':    return renderHelpFeed();
-      case 'myhelp':      return renderMyHelp();
-      case 'requesthelp': return renderRequestHelp();
-      case 'rundown':     return renderRundownFeed();
-      case 'addrundown':  return renderAddRundown();
-      case 'mytasks':     return renderMyTasks();
-      case 'teamavail':   return renderTeamAvailability();
-      case 'settings':    return renderSettings();
-      default:            return renderPlanFeed();
+      case 'week':      return renderThisWeek();
+      case 'help':      return renderHelpTab();
+      case 'teamavail': return renderTeamAvailability();
+      case 'settings':  return renderSettings();
+      default:          return renderThisWeek();
     }
   }
 
   function wireSection() {
     switch (_currentSection) {
-      case 'planfeed':    wirePlanFeed(); break;
-      case 'myplans':     wireMyPlans(); break;
-      case 'addplan':     wireAddPlan(); break;
-      case 'helpfeed':    wireHelpFeed(); break;
-      case 'myhelp':      wireMyHelp(); break;
-      case 'requesthelp': wireRequestHelp(); break;
-      case 'rundown':     wireRundownFeed(); break;
-      case 'addrundown':  wireAddRundown(); break;
-      case 'mytasks':     wireMyTasks(); break;
-      case 'teamavail':   wireTeamAvailability(); break;
-      case 'settings':    wireSettings(); break;
+      case 'week':      wireThisWeek(); break;
+      case 'help':      wireHelpTab(); break;
+      case 'teamavail': wireTeamAvailability(); break;
+      case 'settings':  wireSettings(); break;
     }
+    // In-content tab jumps (empty-state CTAs, "see all" links)
+    appEl.querySelectorAll('[data-goto-section]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _currentSection = normalizeSection(btn.dataset.gotoSection);
+        if (btn.dataset.gotoItem) _pendingDeepLink = { kind: 'help', item: btn.dataset.gotoItem };
+        render();
+      });
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════
-     1. PLAN FEED — Weekly Time Grid
+     THIS WEEK — unified feed (V3.508)
+     Grid (timed plans) + "Anytime this week" (untimed plans +
+     legacy rundown tasks) + open-help strip, with member chips
+     replacing the old filter panel and My-Stuff tabs.
      ═══════════════════════════════════════════════════════════ */
-  function renderPlanFeed() {
-    const days = getWeekDays(_currentWeekOffset);
-    const today = todayStr();
+  function getFeedMembers() {
+    const map = new Map();
+    _plans.forEach(p => { if (!map.has(p.ownerUid)) map.set(p.ownerUid, p.ownerName || 'Unknown'); });
+    _rundownTasks.forEach(t => { if (!map.has(t.ownerUid)) map.set(t.ownerUid, t.ownerName || 'Unknown'); });
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }
+
+  // Chips double as a color legend (V3.516) — each member's dot matches the
+  // color used for their blocks on the grid, so "whose block is that?" has
+  // an at-a-glance answer instead of relying on the border tint alone.
+  function chipsRowHTML() {
+    const members = getFeedMembers();
+    const mineOnly = _filterMembers.size === 1 && _filterMembers.has(_user.uid);
+    const dot = (uid) => `<span class="hud-chip-dot" style="background:${getUserColor(uid)}"></span>`;
+    return `<div class="hud-chips-row">
+      <button class="hud-chip ${_filterMembers.size === 0 ? 'active' : ''}" data-chip="all">All</button>
+      <button class="hud-chip ${mineOnly ? 'active' : ''}" data-chip="mine">${dot(_user.uid)}Mine</button>
+      ${members.filter(([uid]) => uid !== _user.uid).map(([uid, name]) =>
+        `<button class="hud-chip ${_filterMembers.has(uid) && !mineOnly ? 'active' : ''}" data-chip-uid="${uid}">${dot(uid)}${escHTML(name)}</button>`).join('')}
+    </div>`;
+  }
+
+  function wireChips() {
+    appEl.querySelectorAll('.hud-chip[data-chip], .hud-chip[data-chip-uid]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        if (chip.dataset.chip === 'all') _filterMembers.clear();
+        else if (chip.dataset.chip === 'mine') { _filterMembers.clear(); _filterMembers.add(_user.uid); }
+        else {
+          const uid = chip.dataset.chipUid;
+          if (_filterMembers.has(uid)) _filterMembers.delete(uid); else _filterMembers.add(uid);
+        }
+        renderMain();
+      });
+    });
+  }
+
+  function renderThisWeek() {
     const filtered = applyFilters(_plans);
-    const bounds = getGridBounds(filtered);
-    const slots = timeLabels(bounds.startHour, bounds.endHour);
+    const untimed = filtered.filter(p => !p.plannedDay);
+    let legacyTasks = _rundownTasks;
+    if (_filterMembers.size) legacyTasks = legacyTasks.filter(t => _filterMembers.has(t.ownerUid));
 
-    // Filter UI
-    const members = getUniqueMembers();
-    let filterHTML = '';
-    if (_plans.length) {
-      filterHTML = `
-        <div class="hud-filters">
-          <div class="hud-filter-toggle" id="hud-filter-toggle">
-            ${filterIcon()} Filters ${(_filterMembers.size + _filterStatus.size) ? `<span class="hud-filter-count">${_filterMembers.size + _filterStatus.size}</span>` : ''}
-          </div>
-          <div class="hud-filter-panel" id="hud-filter-panel" style="display:none;">
-            <div class="hud-filter-group">
-              <div class="hud-filter-label">Members</div>
-              ${members.map(([uid, name]) => `<label class="hud-filter-check"><input type="checkbox" data-filter="member" data-uid="${uid}" ${_filterMembers.has(uid) ? 'checked' : ''} /> ${escHTML(name)}</label>`).join('')}
-            </div>
-            ${(_filterMembers.size + _filterStatus.size) ? '<button class="hud-filter-clear" id="hud-filter-clear">Clear all</button>' : ''}
-          </div>
-        </div>`;
-    }
+    const viewToggleHTML = `<div class="hud-view-toggle">
+      <button class="hud-view-btn ${_myPlansView === 'daily' ? 'active' : ''}" data-view="daily">Day</button>
+      <button class="hud-view-btn ${_myPlansView === 'weekly' ? 'active' : ''}" data-view="weekly">Week</button>
+      <button class="hud-view-btn ${_myPlansView === 'monthly' ? 'active' : ''}" data-view="monthly">Month</button>
+    </div>`;
 
-    // Time grid
-    const gridHTML = buildTimeGrid(days, filtered, bounds, slots, today, false);
-
-    // Popup
     let popupHTML = '';
     if (_popupPlanId) {
       const plan = _plans.find(p => p.id === _popupPlanId);
       if (plan) popupHTML = planPopupHTML(plan);
     }
 
-    const zoomHTML = `<div class="hud-zoom-controls">
-      <button class="hud-zoom-btn" id="hud-zoom-out" title="Zoom out">−</button>
-      <button class="hud-zoom-btn" id="hud-zoom-in" title="Zoom in">+</button>
-    </div>`;
+    let calHTML = '';
+    if (_myPlansView === 'monthly') {
+      // Month view is personal by design — everyone's dots would be noise.
+      calHTML = viewToggleHTML + renderMyMonthly(_plans.filter(p => p.ownerUid === _user.uid));
+    } else if (_myPlansView === 'daily') {
+      calHTML = renderMyDaily(filtered, viewToggleHTML);
+    } else {
+      calHTML = renderMyWeekly(filtered, viewToggleHTML);
+    }
 
-    return `<div class="hud-cal-layout">
-      <div class="hud-cal-header">
-        ${weekNavHTML()}
-        <div class="hud-legend-row">${filterHTML}${zoomHTML}</div>
-      </div>
+    return `
+      ${chipsRowHTML()}
+      ${planComposerHTML()}
       ${popupHTML}
-      <div class="hud-cal-body">
-        <div class="hud-cal-scroll-area">
-          <div class="hud-grid-wrap" data-slot-h="${ZOOM_LEVELS[_zoomIdx]}">${gridHTML}</div>
-          <div class="hud-time-slider" id="hud-time-slider">
-            <div class="hud-time-slider-track"></div>
-            <div class="hud-time-slider-thumb" id="hud-time-slider-thumb"></div>
+      ${calHTML}
+      ${anytimeSectionHTML(untimed, legacyTasks)}
+      ${helpStripHTML()}`;
+  }
+
+  function wireThisWeek() {
+    wireChips();
+    wirePlanComposer();
+    wirePopup();
+
+    appEl.querySelectorAll('.hud-view-btn[data-view]').forEach(btn => {
+      btn.addEventListener('click', () => { _myPlansView = btn.dataset.view; _popupPlanId = null; renderMain(); });
+    });
+
+    switch (_myPlansView) {
+      case 'monthly': wireMyMonthly(); break;
+      case 'daily':   wireMyDaily(); wireGridClicks(); wireDragDrop(); wireCalFeatures(); break;
+      default:        wireWeekNav(); wireGridClicks(); wireDragDrop(); wireCalFeatures(); break;
+    }
+
+    wireAnytimeCards();
+  }
+
+  /* ─── Anytime this week (untimed plans + legacy rundown) ── */
+  function anytimeSectionHTML(untimedPlans, legacyTasks) {
+    const items = [
+      ...untimedPlans.map(p => ({ kind: 'plan', item: p })),
+      ...legacyTasks.map(t => ({ kind: 'task', item: t }))
+    ];
+    const cards = items.map(({ kind, item }) => renderAnytimeCard(kind, item)).join('');
+    return `<div class="hud-anytime-section">
+      <h3 class="hud-section-heading">Anytime this week</h3>
+      ${items.length ? `<div class="hud-rundown-list">${cards}</div>`
+        : `<p class="hud-anytime-empty">Plans without a day or time land here — add one above.</p>`}
+    </div>`;
+  }
+
+  function renderAnytimeCard(kind, item) {
+    const isOwner = item.ownerUid === _user.uid;
+    const isPlan = kind === 'plan';
+    const catColor = item.categoryId ? getCategoryColor(item.categoryId) : getUserColor(item.ownerUid);
+    const joinReqs = item.joinRequests || [];
+    const pending = joinReqs.filter(j => j.status === 'pending');
+    const acceptedCount = joinReqs.filter(j => j.status === 'accepted').length;
+    const alreadyRequested = joinReqs.some(j => j.uid === _user.uid);
+    const status = item.status || (isPlan ? 'planned' : 'open');
+    const isDone = status === 'done' || status === 'completed';
+    const isOpen = status === 'open' || status === 'planned';
+
+    let statusBadge = '';
+    if (status === 'scheduled') statusBadge = '<span class="hud-status-badge" style="background:var(--accent);">Scheduled</span>';
+    else if (isDone) statusBadge = '<span class="hud-status-badge" style="background:var(--success);">Done</span>';
+
+    let joinBtn = '';
+    if (!isOwner) {
+      if (alreadyRequested) joinBtn = `<span class="hud-rd-join-status">Requested</span>`;
+      else if (isOpen) joinBtn = `<button class="app-btn app-btn--secondary hud-any-join-btn" data-kind="${kind}" data-id="${item.id}" style="font-size:.75rem; padding:.2rem .5rem;">Request to Join</button>`;
+    }
+
+    let ownerControls = '';
+    if (isOwner) {
+      ownerControls = `<span style="flex:1;"></span>
+        ${isPlan ? `<button class="hud-icon-btn hud-any-edit" data-id="${item.id}" title="Edit">${editIcon()}</button>` : ''}
+        <button class="hud-icon-btn hud-any-delete" data-kind="${kind}" data-id="${item.id}" title="Delete">${deleteIcon()}</button>`;
+    }
+
+    let requestsHTML = '';
+    if (isOwner && joinReqs.length) {
+      requestsHTML = `<div class="hud-join-requests">
+        <div class="hud-join-requests-heading">Join Requests (${joinReqs.length})</div>
+        ${joinReqs.map(j => `<div class="hud-join-request">
+          <div class="hud-join-request-info">
+            <strong>${escHTML(j.name)}</strong>
+            <span class="hud-join-skill">${j.skillLevel === 'canTeach' ? 'Can Teach' : j.skillLevel === 'practiced' ? 'Practiced' : 'Learning'}</span>
+            ${j.note ? `<span class="hud-join-note">${escHTML(j.note)}</span>` : ''}
           </div>
+          <div class="hud-join-actions">
+            ${j.status === 'pending' ? `
+              <button class="app-btn app-btn--primary hud-any-accept" data-kind="${kind}" data-id="${item.id}" data-uid="${j.uid}" data-name="${escHTML(j.name)}" style="font-size:.7rem; padding:.15rem .4rem;">Accept</button>
+              <button class="app-btn app-btn--secondary hud-any-decline" data-kind="${kind}" data-id="${item.id}" data-uid="${j.uid}" style="font-size:.7rem; padding:.15rem .4rem;">Decline</button>
+            ` : `<span class="hud-join-status-label hud-join-status-${j.status}">${j.status}</span>`}
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    const catChip = item.categoryLabel
+      ? `<span class="hud-rundown-category-chip" style="background:${catColor}22; color:${catColor}; border:1px solid ${catColor}44;">${escHTML(item.categoryLabel)}</span>` : '';
+
+    return `<div class="hud-rundown-card ${isDone ? 'hud-status-completed' : ''}" style="border-left:3px solid ${catColor};" data-item-id="${item.id}">
+      <div class="hud-rundown-card-top">
+        ${isNewDoc(item, 'week') ? '<span class="hud-new-dot" title="New since your last visit"></span>' : ''}
+        <span class="hud-plan-avatar hud-avatar-sm" style="background:${getUserColor(item.ownerUid)}">${getInitials(item.ownerName)}</span>
+        <span class="hud-plan-name" style="font-size:.78rem;">${escHTML(item.ownerName || '')}</span>
+        ${catChip}
+        ${item.projectName ? `<span class="hud-rundown-project-chip">${escHTML(item.projectName)}</span>` : ''}
+        ${statusBadge}
+        ${ownerControls}
+      </div>
+      <div class="hud-rundown-card-text">${escHTML(item.text)}</div>
+      ${item.notes ? `<div class="hud-plan-notes">${escHTML(item.notes)}</div>` : ''}
+      ${requestsHTML}
+      <div class="hud-rundown-card-bottom">
+        <div class="hud-rundown-card-meta">
+          ${pending.length && isOwner ? `<span style="color:var(--warning); font-size:.72rem;">${pending.length} pending</span>` : ''}
+          ${acceptedCount ? `<span style="color:var(--success); font-size:.72rem;">${acceptedCount} joined</span>` : ''}
+        </div>
+        <div style="display:flex; gap:.35rem; align-items:center;">
+          ${isOwner && isOpen ? `<button class="app-btn app-btn--secondary hud-any-done" data-kind="${kind}" data-id="${item.id}" style="font-size:.72rem; padding:.2rem .5rem;">Mark Done</button>` : ''}
+          ${joinBtn}
         </div>
       </div>
     </div>`;
   }
 
-  function wirePlanFeed() {
-    wireWeekNav();
-    wireFilters();
-    wireGridClicks();
-    wirePopup();
-    wireCalFeatures();
+  function wireAnytimeCards() {
+    appEl.querySelectorAll('.hud-any-join-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.kind === 'plan') showJoinPlanModal(btn.dataset.id);
+        else showJoinTaskModal(btn.dataset.id);
+      });
+    });
+    appEl.querySelectorAll('.hud-any-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _editingPlanId = btn.dataset.id;
+        _composerOpen = true;
+        renderMain();
+      });
+    });
+    appEl.querySelectorAll('.hud-any-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this?')) return;
+        if (btn.dataset.kind === 'plan') await deletePlan(btn.dataset.id);
+        else await deleteRundownTask(btn.dataset.id);
+        toast('Deleted');
+      });
+    });
+    appEl.querySelectorAll('.hud-any-done').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (btn.dataset.kind === 'plan') await updatePlan(btn.dataset.id, { status: 'completed' });
+        else await updateRundownTask(btn.dataset.id, { status: 'done' });
+        toast('Marked done');
+      });
+    });
+    appEl.querySelectorAll('.hud-any-accept').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { kind, id, uid, name } = btn.dataset;
+        if (kind === 'plan') {
+          await respondToPlanJoinRequest(id, uid, 'accepted');
+          toast('Request accepted');
+          const plan = _plans.find(p => p.id === id);
+          if (plan) showSchedulePlanModal(plan, uid, name);
+        } else {
+          await respondToJoinRequest(id, uid, 'accepted');
+          toast('Request accepted');
+          const task = _rundownTasks.find(t => t.id === id);
+          if (task) showScheduleFromRundownModal(task, uid, name);
+        }
+      });
+    });
+    appEl.querySelectorAll('.hud-any-decline').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { kind, id, uid } = btn.dataset;
+        if (kind === 'plan') await respondToPlanJoinRequest(id, uid, 'declined');
+        else await respondToJoinRequest(id, uid, 'declined');
+        toast('Request declined');
+      });
+    });
+  }
+
+  /* ─── Open-help strip on This Week ────────────────────── */
+  function helpStripHTML() {
+    const others = _helpRequests.filter(r => r.status === 'open' && r.ownerUid !== _user.uid);
+    if (!others.length) return '';
+    return `<div class="hud-help-strip">
+      <h3 class="hud-section-heading">Open help requests
+        <button class="hud-link-btn" data-goto-section="help">See all (${others.length}) →</button>
+      </h3>
+      ${others.slice(0, 3).map(r => `<button class="hud-help-strip-row" data-goto-section="help" data-goto-item="${r.id}">
+        <span class="hud-plan-avatar hud-avatar-sm" style="background:${getUserColor(r.ownerUid)}">${getInitials(r.ownerName)}</span>
+        <span class="hud-help-strip-title">${escHTML(r.title)}</span>
+        <span class="hud-help-strip-meta">${(r.responses || []).length ? ((r.responses || []).length + ' repl' + ((r.responses || []).length === 1 ? 'y' : 'ies')) : 'no replies yet'}</span>
+      </button>`).join('')}
+    </div>`;
+  }
+
+  /* ─── Join / schedule modals for untimed PLANS ────────── */
+  function showJoinPlanModal(planId) {
+    const plan = _plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'hud-modal-overlay';
+    overlay.innerHTML = `<div class="hud-modal">
+      <h3>Request to Join</h3>
+      <p style="color:var(--muted); font-size:.82rem; margin:0 0 .75rem;">
+        <strong>${escHTML(plan.ownerName)}</strong>: ${escHTML(plan.text)}
+      </p>
+      <div style="margin:.75rem 0;">
+        <label class="app-label">Your skill level for this task</label>
+        <select id="hud-jp-skill" class="app-input">
+          <option value="learning">Learning (first time / shadowing)</option>
+          <option value="practiced">Practiced (can help)</option>
+          <option value="canTeach">Can Teach (expert)</option>
+        </select>
+      </div>
+      <div style="margin:.75rem 0;">
+        <label class="app-label">Note (optional)</label>
+        <input id="hud-jp-note" class="app-input" type="text" placeholder="What do you want to learn or how can you help?" />
+      </div>
+      <div class="hud-modal-actions">
+        <button class="app-btn app-btn--secondary" id="hud-jp-cancel">Cancel</button>
+        <button class="app-btn app-btn--primary" id="hud-jp-confirm">Send Request</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#hud-jp-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#hud-jp-confirm').addEventListener('click', async () => {
+      const skillLevel = overlay.querySelector('#hud-jp-skill').value;
+      const note = overlay.querySelector('#hud-jp-note').value.trim();
+      await requestJoinPlan(planId, { skillLevel, note });
+      toast('Request sent!');
+      overlay.remove();
+    });
+  }
+
+  // Accepting a join request on an untimed plan → give it a slot on the SAME
+  // doc (no second plan doc, unlike the legacy rundown flow).
+  function showSchedulePlanModal(plan, requesterUid, requesterName) {
+    const days = getWeekDays(_currentWeekOffset);
+    let overlapHTML = '';
+    const dayOptions = days.map(d => {
+      const overlaps = McgheeLab.ScheduleService ? McgheeLab.ScheduleService.resolveAvailabilityOverlap(_user.uid, requesterUid, d.date) : [];
+      const overlapStr = overlaps.length > 0
+        ? overlaps.map(o => `${fmtTime(o.startTime)}-${fmtTime(o.endTime)}`).join(', ')
+        : '';
+      return { date: d.date, label: `${d.dayShort} ${d.monthDay}`, overlaps, overlapStr };
+    });
+    if (dayOptions.some(d => d.overlaps.length > 0)) {
+      overlapHTML = `<div class="hud-sched-overlap-info">
+        <div style="font-size:.75rem; color:var(--muted); margin-bottom:.35rem;">Schedule overlaps with ${escHTML(requesterName)}:</div>
+        ${dayOptions.filter(d => d.overlaps.length > 0).map(d =>
+          `<div style="font-size:.78rem; margin:.15rem 0;"><strong>${d.label}</strong>: ${d.overlapStr}</div>`
+        ).join('')}
+      </div>`;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'hud-modal-overlay';
+    overlay.innerHTML = `<div class="hud-modal">
+      <h3>Schedule Plan</h3>
+      <p style="color:var(--muted); font-size:.82rem; margin:0 0 .75rem;">
+        Pick a time for <em>${escHTML(plan.text)}</em> with <strong>${escHTML(requesterName)}</strong>
+      </p>
+      ${overlapHTML}
+      <div class="hud-form-row">
+        <div class="hud-form-field" style="flex:1;">
+          <label class="app-label">Date</label>
+          <input id="hud-sp-day" class="app-input" type="date" />
+        </div>
+        <div class="hud-form-field">
+          <label class="app-label">Start</label>
+          <input id="hud-sp-start" class="app-input" type="time" value="${_huddleSettings?.defaultStartTime || '09:00'}" />
+        </div>
+        <div class="hud-form-field">
+          <label class="app-label">End</label>
+          <input id="hud-sp-end" class="app-input" type="time" value="${_huddleSettings?.defaultEndTime || '10:00'}" />
+        </div>
+      </div>
+      <div class="hud-modal-actions">
+        <button class="app-btn app-btn--secondary" id="hud-sp-cancel">Skip</button>
+        <button class="app-btn app-btn--primary" id="hud-sp-confirm">Schedule</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#hud-sp-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#hud-sp-confirm').addEventListener('click', async () => {
+      const plannedDay = overlay.querySelector('#hud-sp-day').value || null;
+      const startTime = overlay.querySelector('#hud-sp-start').value || null;
+      const endTime = overlay.querySelector('#hud-sp-end').value || null;
+      if (!plannedDay) { toast('Please pick a date'); return; }
+      try {
+        await db().collection('huddlePlans').doc(plan.id).update({
+          plannedDay, startTime, endTime,
+          joiners: firebase.firestore.FieldValue.arrayUnion({
+            uid: requesterUid, name: requesterName,
+            skillLevel: '', helpNote: 'Joined from weekly plan', type: 'join'
+          }),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        toast('Plan scheduled!');
+        overlay.remove();
+      } catch (err) {
+        console.warn('[Huddle] Schedule plan error:', err);
+        toast('Error scheduling plan');
+      }
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -828,11 +1398,8 @@ window.McgheeLab = window.McgheeLab || {};
 
     plans.forEach(p => {
       const key = p.plannedDay;
-      if (!key || !byDay[key]) {
-        // Unscheduled → put in first day as all-day
-        if (days[0]) allDay[days[0].date].push(p);
-        return;
-      }
+      if (!key) return; // untimed → rendered in "Anytime this week", not the grid (V3.508)
+      if (!byDay[key]) return; // scheduled outside the visible days
       if (!p.startTime) { allDay[key].push(p); return; }
       byDay[key].push(p);
     });
@@ -871,10 +1438,13 @@ window.McgheeLab = window.McgheeLab || {};
       });
     }
 
-    // Overlay plan blocks on the grid
+    // Overlay plan blocks on the grid \u2014 side-by-side lanes so overlapping
+    // plans from different owners sit next to each other instead of
+    // stacking on top of one another (computeDayLanes, V3.516).
     let overlayBlocks = '';
     days.forEach((d, colIdx) => {
       const dayPlans = byDay[d.date] || [];
+      const lanes = computeDayLanes(dayPlans, bounds.startHour);
       dayPlans.forEach(p => {
         if (!p.startTime) return;
         const startSlot = timeToSlot(p.startTime, bounds.startHour);
@@ -884,10 +1454,18 @@ window.McgheeLab = window.McgheeLab || {};
         const gridCol = colIdx + 2;
         const gridRow = startSlot + 3; // +1 for header, +1 for all-day, +1 for 1-index
         const timeLabel = `${fmtTime(p.startTime)}${p.endTime ? '\u2013' + fmtTime(p.endTime) : ''}`;
-        overlayBlocks += `<div class="hud-grid-block" style="grid-column:${gridCol}; grid-row:${gridRow}/span ${spanSlots}; border-left-color:${getUserColor(p.ownerUid)}; background:${getUserColor(p.ownerUid)}22;"
-          data-plan-id="${p.id}" ${draggable ? 'draggable="true"' : ''}>
+        const { lane, laneCount } = lanes.get(p.id) || { lane: 0, laneCount: 1 };
+        const laneWidth = (100 / laneCount).toFixed(3);
+        const color = getUserColor(p.ownerUid);
+        const tooltip = `${p.ownerName || ''}: ${p.text} (${timeLabel})`;
+        overlayBlocks += `<div class="hud-grid-block ${isNewDoc(p, 'week') ? 'hud-block-new' : ''}"
+          style="grid-column:${gridCol}; grid-row:${gridRow}/span ${spanSlots}; width:calc(${laneWidth}% - 4px); margin-left:calc(${laneWidth}% * ${lane} + 2px); border-left-color:${color}; background:${color}22; z-index:${1 + lane};"
+          data-plan-id="${p.id}" data-lane-count="${laneCount}" title="${escHTML(tooltip)}" ${draggable && p.ownerUid === _user.uid ? 'draggable="true"' : ''}>
+          <div class="hud-block-head">
+            <span class="hud-block-avatar" style="background:${color}">${getInitials(p.ownerName)}</span>
+            <span class="hud-block-owner">${escHTML(p.ownerName || '')}</span>
+          </div>
           <span class="hud-block-text">${escHTML(p.text)}</span>
-          <span class="hud-block-owner">${escHTML(p.ownerName || '')}</span>
           <span class="hud-block-time">${timeLabel}</span>
         </div>`;
       });
@@ -905,8 +1483,8 @@ window.McgheeLab = window.McgheeLab || {};
 
   function planBlockHTML(p, slot, draggable) {
     const color = getUserColor(p.ownerUid);
-    return `<div class="hud-allday-block" style="background:${color}22; border-left:2px solid ${color};" data-plan-id="${p.id}" ${draggable ? 'draggable="true"' : ''}>
-      ${escHTML(p.text.slice(0, 30))}${p.text.length > 30 ? '...' : ''}
+    return `<div class="hud-allday-block ${isNewDoc(p, 'week') ? 'hud-block-new' : ''}" style="background:${color}22; border-left:2px solid ${color};" data-plan-id="${p.id}" title="${escHTML((p.ownerName || '') + ': ' + p.text)}" ${draggable && p.ownerUid === _user.uid ? 'draggable="true"' : ''}>
+      <span class="hud-block-avatar hud-block-avatar--inline" style="background:${color}">${getInitials(p.ownerName)}</span>${escHTML(p.text.slice(0, 24))}${p.text.length > 24 ? '...' : ''}
     </div>`;
   }
 
@@ -1086,7 +1664,7 @@ window.McgheeLab = window.McgheeLab || {};
 
     const editBtn = document.getElementById('hud-popup-edit');
     if (editBtn) editBtn.addEventListener('click', () => {
-      _editingPlanId = _popupPlanId; _popupPlanId = null; _currentSection = 'addplan'; render();
+      _editingPlanId = _popupPlanId; _popupPlanId = null; _composerOpen = true; renderMain();
     });
 
     const deleteBtn = document.getElementById('hud-popup-delete');
@@ -1101,36 +1679,8 @@ window.McgheeLab = window.McgheeLab || {};
   }
 
   /* ═══════════════════════════════════════════════════════════
-     2. MY PLANS — Calendar Views
+     CALENDAR VIEW RENDERERS (Day / Week / Month) — used by This Week
      ═══════════════════════════════════════════════════════════ */
-  function renderMyPlans() {
-    const myPlans = _plans.filter(p => p.ownerUid === _user.uid);
-
-    // View toggle — included in cal-header for day/week, standalone for month
-    const viewToggleHTML = `<div class="hud-view-toggle">
-      <button class="hud-view-btn ${_myPlansView === 'daily' ? 'active' : ''}" data-view="daily">Day</button>
-      <button class="hud-view-btn ${_myPlansView === 'weekly' ? 'active' : ''}" data-view="weekly">Week</button>
-      <button class="hud-view-btn ${_myPlansView === 'monthly' ? 'active' : ''}" data-view="monthly">Month</button>
-    </div>`;
-
-    let content = '';
-    switch (_myPlansView) {
-      case 'daily':  content = renderMyDaily(myPlans, viewToggleHTML); break;
-      case 'weekly': content = renderMyWeekly(myPlans, viewToggleHTML); break;
-      case 'monthly': content = renderMyMonthly(myPlans); break;
-    }
-
-    // Popup
-    let popupHTML = '';
-    if (_popupPlanId) {
-      const plan = _plans.find(p => p.id === _popupPlanId);
-      if (plan) popupHTML = planPopupHTML(plan);
-    }
-
-    // For month view, viewToggle is outside cal-layout; for day/week it's inside cal-header
-    const prefix = _myPlansView === 'monthly' ? viewToggleHTML : '';
-    return `${prefix}${popupHTML}${content}`;
-  }
 
   function renderMyDaily(myPlans, viewToggle) {
     const d = getDayDate(_currentDayOffset);
@@ -1245,36 +1795,6 @@ window.McgheeLab = window.McgheeLab || {};
     return `${nav}<div class="hud-month-grid">${cells}</div>`;
   }
 
-  function wireMyPlans() {
-    // View toggle
-    appEl.querySelectorAll('.hud-view-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        _myPlansView = btn.dataset.view;
-        _popupPlanId = null;
-        renderMain();
-      });
-    });
-
-    wirePopup();
-
-    switch (_myPlansView) {
-      case 'daily':
-        wireMyDaily();
-        wireGridClicks();
-        wireDragDrop();
-        wireCalFeatures();
-        break;
-      case 'weekly':
-        wireWeekNav();
-        wireGridClicks();
-        wireDragDrop();
-        wireCalFeatures();
-        break;
-      case 'monthly':
-        wireMyMonthly();
-        break;
-    }
-  }
 
   function wireMyDaily() {
     const prev = document.getElementById('hud-day-prev');
@@ -1410,8 +1930,8 @@ window.McgheeLab = window.McgheeLab || {};
       _prefill = { plannedDay: _gridDrag.date, startTime, endTime };
       _gridDrag = null;
       _editingPlanId = null;
-      _currentSection = 'addplan';
-      render();
+      _composerOpen = true;
+      renderMain();
     });
 
     grid.addEventListener('pointercancel', () => {
@@ -1421,31 +1941,65 @@ window.McgheeLab = window.McgheeLab || {};
   }
 
   /* ═══════════════════════════════════════════════════════════
-     3. ADD PLAN — Dedicated Form Page
+     3. PLAN COMPOSER — inline expanding card on This Week (V3.508)
+     Collapsed: a one-line prompt. Expanded: the full plan form.
+     Day/time are OPTIONAL — no day = an "Anytime this week" plan.
      ═══════════════════════════════════════════════════════════ */
-  function renderAddPlan() {
+  function planComposerHTML() {
     const isEditing = _editingPlanId != null;
-    const plan = isEditing ? _plans.find(p => p.id === _editingPlanId) : null;
-    const rec = plan?.recurrence;
-
-    // Build date options for next 14 days
-    const dateOptions = [];
-    for (let i = 0; i < 14; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      dateOptions.push({ value: localDateStr(d), label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) });
+    if (!_composerOpen && !isEditing) {
+      // V3.533 — retirement flag (labConfig/featureFlags): when flipped,
+      // new plans are composed in My Day and distributed back here. The
+      // composer code stays intact (editing existing plans still opens
+      // it), so rollback is flipping the flag — no redeploy.
+      if (_featureFlags.myday_retire_huddle_composer) {
+        return `<a class="hud-composer hud-composer--collapsed" href="/rm/pages/my-day.html?compose=1"
+          style="display:block;text-decoration:none;text-align:center">
+          ＋ Plan your week in My Day → <span style="opacity:.65;font-size:.85em">(it posts here too)</span>
+        </a>`;
+      }
+      return `<button class="hud-composer hud-composer--collapsed" id="hud-composer-open">
+        ＋ What are you planning this week?
+      </button>`;
     }
 
+    const plan = isEditing ? _plans.find(p => p.id === _editingPlanId) : null;
+    const rec = plan?.recurrence;
+    const cats = getRundownCategories();
+    const catOptions = cats.map(c =>
+      `<option value="${c.id}" ${plan && plan.categoryId === c.id ? 'selected' : ''}>${escHTML(c.label)}</option>`
+    ).join('');
+    const projOptions = _projects.map(p =>
+      `<option value="${p.id}" ${plan && plan.projectId === p.id ? 'selected' : ''}>${escHTML(p.title)}</option>`
+    ).join('');
+    const hasDay = !!(isEditing && plan && plan.plannedDay) || !!(_prefill?.plannedDay);
+
     const html = `
-      <div class="hud-add-form hud-add-page">
-        <h2>${isEditing ? 'Edit Plan' : 'Add a New Plan'}</h2>
+      <div class="hud-add-form hud-composer hud-composer--open" id="hud-composer">
+        <h2>${isEditing ? 'Edit Plan' : 'New Plan'}</h2>
         <div class="hud-form-field">
           <label class="app-label">What are you working on?</label>
           <input id="hud-plan-text" class="app-input" type="text" placeholder="e.g., Cell culture passage, Western blot..." value="${isEditing && plan ? escHTML(plan.text) : ''}" />
         </div>
         <div class="hud-form-row">
           <div class="hud-form-field" style="flex:1;">
-            <label class="app-label">Day</label>
+            <label class="app-label">Category</label>
+            <select id="hud-plan-cat" class="app-input">
+              <option value="">None</option>
+              ${catOptions}
+            </select>
+          </div>
+          <div class="hud-form-field" style="flex:1;">
+            <label class="app-label">Project (optional)</label>
+            <select id="hud-plan-proj" class="app-input">
+              <option value="">None</option>
+              ${projOptions}
+            </select>
+          </div>
+        </div>
+        <div class="hud-form-row">
+          <div class="hud-form-field" style="flex:1;">
+            <label class="app-label">Day (optional — leave blank for "anytime this week")</label>
             <input id="hud-plan-day" class="app-input" type="date" value="${isEditing && plan && plan.plannedDay ? plan.plannedDay : (_prefill?.plannedDay || '')}" />
           </div>
           <div class="hud-form-field">
@@ -1472,7 +2026,7 @@ window.McgheeLab = window.McgheeLab || {};
           </div>
         </div>
 
-        <div class="hud-recurrence-section">
+        <div class="hud-recurrence-section" id="hud-rec-wrap" style="${hasDay ? '' : 'display:none;'}">
           <label class="hud-filter-check" style="margin-bottom:.5rem;">
             <input type="checkbox" id="hud-recurring-toggle" ${rec ? 'checked' : ''} />
             <strong>Recurring task</strong>
@@ -1539,14 +2093,40 @@ window.McgheeLab = window.McgheeLab || {};
 
         <div class="hud-form-actions" style="margin-top:1rem;">
           <button id="hud-plan-submit" class="app-btn app-btn--primary">${isEditing ? 'Update Plan' : 'Create Plan'}</button>
-          ${isEditing ? '<button id="hud-plan-cancel-edit" class="app-btn app-btn--secondary">Cancel</button>' : ''}
+          <button id="hud-plan-cancel-edit" class="app-btn app-btn--secondary">Cancel</button>
         </div>
       </div>`;
     _prefill = null; // Clear prefill after form is built
     return html;
   }
 
-  function wireAddPlan() {
+  function wirePlanComposer() {
+    // Collapsed → expand on click
+    const openBtn = document.getElementById('hud-composer-open');
+    if (openBtn) {
+      openBtn.addEventListener('click', () => {
+        _composerOpen = true;
+        renderMain();
+        document.getElementById('hud-plan-text')?.focus();
+      });
+      return; // collapsed — nothing else to wire
+    }
+
+    // Editing an existing plan: bring the composer into view
+    if (_editingPlanId) {
+      document.getElementById('hud-composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Recurrence only makes sense once a Day is picked
+    // (generateRecurringInstances requires plannedDay).
+    const dayInput = document.getElementById('hud-plan-day');
+    const recWrap = document.getElementById('hud-rec-wrap');
+    if (dayInput && recWrap) {
+      dayInput.addEventListener('input', () => {
+        recWrap.style.display = dayInput.value ? '' : 'none';
+      });
+    }
+
     const recurToggle = document.getElementById('hud-recurring-toggle');
     const recFields = document.getElementById('hud-recurrence-fields');
     if (recurToggle && recFields) {
@@ -1602,9 +2182,15 @@ window.McgheeLab = window.McgheeLab || {};
         const protoUrl = document.getElementById('hud-protocol-url')?.value?.trim() || '';
         const protocol = protoTitle || protoUrl ? { title: protoTitle || protoUrl, url: protoUrl, protocolId: null } : null;
 
+        const catId = document.getElementById('hud-plan-cat')?.value || null;
+        const cat = catId ? getRundownCategories().find(c => c.id === catId) : null;
+        const projId = document.getElementById('hud-plan-proj')?.value || null;
+        const proj = projId ? _projects.find(p => p.id === projId) : null;
+
         let recurrence = null;
         let seriesId = null;
-        if (document.getElementById('hud-recurring-toggle')?.checked) {
+        // Untimed plans can't recur — instance generation needs a plannedDay.
+        if (plannedDay && document.getElementById('hud-recurring-toggle')?.checked) {
           seriesId = _editingPlanId ? (_plans.find(p => p.id === _editingPlanId)?.seriesId || genUUID()) : genUUID();
           const freq = document.getElementById('hud-rec-freq')?.value || 'weekly';
           const endTypeVal = document.getElementById('hud-rec-end-type')?.value || 'never';
@@ -1631,20 +2217,36 @@ window.McgheeLab = window.McgheeLab || {};
           };
         }
 
+        const fields = {
+          text, plannedDay, startTime, endTime, notes, protocol, seriesId, recurrence,
+          categoryId: catId, categoryLabel: cat ? cat.label : null,
+          projectId: projId, projectName: proj ? proj.title : null
+        };
+
         submitBtn.disabled = true;
         try {
           if (_editingPlanId) {
-            await updatePlan(_editingPlanId, { text, plannedDay, startTime, endTime, notes, protocol, seriesId, recurrence });
+            await updatePlan(_editingPlanId, fields);
             toast('Plan updated!');
-            _editingPlanId = null;
-            _currentSection = 'myplans';
-            render();
           } else {
-            await createPlan({ text, plannedDay, startTime, endTime, notes, protocol, seriesId, recurrence });
+            const ref = await createPlan(fields);
             toast('Plan created!');
-            _currentSection = 'planfeed';
-            render();
+            // V3.530 — double-dip: offer to fan this plan out to other
+            // surfaces (notebook stub, tracker event, …) via My Day.
+            if (window.DAY_DISTRIBUTE) DAY_DISTRIBUTE.renderChipsFloating({
+              source: 'huddle',
+              nativeDocPath: ref && ref.id ? 'huddlePlans/' + ref.id : '',
+              draft: {
+                title: fields.text, notes: fields.notes,
+                date: fields.plannedDay || undefined,
+                startTime: fields.startTime, endTime: fields.endTime,
+                details: { projectId: fields.projectId, projectName: fields.projectName },
+              },
+            });
           }
+          _editingPlanId = null;
+          _composerOpen = false;
+          renderMain();
         } catch (err) {
           console.warn('[Huddle] Save error:', err);
           toast(err.code === 'permission-denied' ? 'Permission denied — try refreshing' : 'Error saving plan');
@@ -1654,59 +2256,60 @@ window.McgheeLab = window.McgheeLab || {};
     }
 
     const cancelBtn = document.getElementById('hud-plan-cancel-edit');
-    if (cancelBtn) cancelBtn.addEventListener('click', () => { _editingPlanId = null; _currentSection = 'myplans'; render(); });
+    if (cancelBtn) cancelBtn.addEventListener('click', () => { _editingPlanId = null; _composerOpen = false; _prefill = null; renderMain(); });
   }
 
   /* ═══════════════════════════════════════════════════════════
-     4. HELP FEED — Others' help requests
+     6. HELP TAB — merged feed + inline composer (V3.508)
+     Open requests from ALL weeks; "Mine" chip; resolved (this
+     week) collapsed at the bottom.
      ═══════════════════════════════════════════════════════════ */
-  function renderHelpFeed() {
-    const otherOpen = _helpRequests.filter(r => r.ownerUid !== _user.uid && r.status === 'open');
+  function renderHelpTab() {
+    const open = _helpRequests.filter(r => r.status === 'open');
+    const shown = _helpFilterMine ? open.filter(r => r.ownerUid === _user.uid) : open;
+    const resolved = _helpFilterMine ? _resolvedHelp.filter(r => r.ownerUid === _user.uid) : _resolvedHelp;
 
-    return `${weekNavHTML()}
-      <h2 style="font-size:1rem; margin:0 0 .75rem; color:var(--text);">Help Feed</h2>
-      <p style="font-size:.82rem; color:var(--muted); margin:0 0 1rem;">Lab members need help. Offer assistance, suggest solutions, or share advice.</p>
-      ${otherOpen.length ? otherOpen.map(r => helpCardHTML(r, false)).join('') : '<div class="hud-empty"><p>No open help requests from others this week.</p></div>'}`;
-  }
-
-  function wireHelpFeed() {
-    wireWeekNav();
-    wireHelpResponses();
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     5. MY HELP — Own help requests
-     ═══════════════════════════════════════════════════════════ */
-  function renderMyHelp() {
-    const mine = _helpRequests.filter(r => r.ownerUid === _user.uid);
-    const open = mine.filter(r => r.status === 'open');
-    const resolved = mine.filter(r => r.status === 'resolved');
+    const chips = `<div class="hud-chips-row">
+      <button class="hud-chip ${!_helpFilterMine ? 'active' : ''}" data-help-chip="all">All</button>
+      <button class="hud-chip ${_helpFilterMine ? 'active' : ''}" data-help-chip="mine">Mine</button>
+    </div>`;
 
     let resolvedHTML = '';
     if (resolved.length) {
       resolvedHTML = `<details class="hud-resolved-section" style="margin-top:1rem;">
-        <summary style="color:var(--muted); font-size:.82rem; cursor:pointer;">Resolved (${resolved.length})</summary>
-        ${resolved.map(r => helpCardHTML(r, true)).join('')}
+        <summary style="color:var(--muted); font-size:.82rem; cursor:pointer;">Resolved this week (${resolved.length})</summary>
+        ${resolved.map(r => helpCardHTML(r, r.ownerUid === _user.uid)).join('')}
       </details>`;
     }
 
-    return `${weekNavHTML()}
-      <h2 style="font-size:1rem; margin:0 0 .75rem; color:var(--text);">My Help Requests</h2>
-      ${open.length ? open.map(r => helpCardHTML(r, true)).join('') : '<div class="hud-empty"><p>You haven\'t posted any help requests this week.</p></div>'}
+    return `
+      <h2 style="font-size:1rem; margin:0 0 .35rem; color:var(--text);">Help</h2>
+      <p style="font-size:.82rem; color:var(--muted); margin:0 0 .75rem;">Ask the lab for help, or jump in on someone else's problem. Open requests stay here until resolved — even across weeks.</p>
+      ${helpComposerHTML()}
+      ${chips}
+      ${shown.length ? shown.map(r => helpCardHTML(r, r.ownerUid === _user.uid)).join('')
+        : `<div class="hud-empty"><p>${_helpFilterMine ? 'You have no open help requests.' : 'No open help requests. Stuck on something?'}</p><button class="app-btn app-btn--primary" id="hud-help-empty-cta">＋ Request help</button></div>`}
       ${resolvedHTML}`;
   }
 
-  function wireMyHelp() {
-    wireWeekNav();
+  function wireHelpTab() {
+    wireHelpComposer();
     wireHelpResponses();
+    appEl.querySelectorAll('[data-help-chip]').forEach(chip => {
+      chip.addEventListener('click', () => { _helpFilterMine = chip.dataset.helpChip === 'mine'; renderMain(); });
+    });
+    const emptyCta = document.getElementById('hud-help-empty-cta');
+    if (emptyCta) emptyCta.addEventListener('click', () => { _helpComposerOpen = true; renderMain(); });
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     6. REQUEST HELP — Dedicated Form Page
-     ═══════════════════════════════════════════════════════════ */
-  function renderRequestHelp() {
+  function helpComposerHTML() {
+    if (!_helpComposerOpen) {
+      return `<button class="hud-composer hud-composer--collapsed" id="hud-help-composer-open">
+        ＋ Stuck on something? Ask the lab for help
+      </button>`;
+    }
     return `
-      <div class="hud-add-form hud-add-page">
+      <div class="hud-add-form hud-composer hud-composer--open">
         <h2>Request Help</h2>
         <p style="color:var(--muted); font-size:.82rem; margin:0 0 1rem;">
           Describe what's going wrong. Be specific so others can help effectively.
@@ -1729,11 +2332,25 @@ window.McgheeLab = window.McgheeLab || {};
         </div>
         <div class="hud-form-actions">
           <button id="hud-help-submit" class="app-btn app-btn--primary">Post Help Request</button>
+          <button id="hud-help-cancel" class="app-btn app-btn--secondary">Cancel</button>
         </div>
       </div>`;
   }
 
-  function wireRequestHelp() {
+  function wireHelpComposer() {
+    const openBtn = document.getElementById('hud-help-composer-open');
+    if (openBtn) {
+      openBtn.addEventListener('click', () => {
+        _helpComposerOpen = true;
+        renderMain();
+        document.getElementById('hud-help-title')?.focus();
+      });
+      return;
+    }
+
+    const cancelBtn = document.getElementById('hud-help-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => { _helpComposerOpen = false; renderMain(); });
+
     const btn = document.getElementById('hud-help-submit');
     if (!btn) return;
     btn.addEventListener('click', async () => {
@@ -1746,7 +2363,8 @@ window.McgheeLab = window.McgheeLab || {};
       try {
         await createHelpRequest({ title, description, whatFailed, whatTried });
         toast('Help request posted!');
-        _currentSection = 'myhelp'; render();
+        _helpComposerOpen = false;
+        renderMain();
       } catch (err) {
         console.warn('[Huddle] Help error:', err);
         toast(err.code === 'permission-denied' ? 'Permission denied — try refreshing' : 'Error posting request');
@@ -1758,11 +2376,20 @@ window.McgheeLab = window.McgheeLab || {};
   /* ═══════════════════════════════════════════════════════════
      SHARED HELP CARD + WIRE
      ═══════════════════════════════════════════════════════════ */
+  // "week of Jul 14" tag for help requests carried over from earlier weeks
+  function weekTagLabel(weekId) {
+    const off = weekIdToOffset(weekId);
+    if (off === null) return weekId;
+    return 'week of ' + getWeekDays(off)[0].monthDay;
+  }
+
   function helpCardHTML(req, isOwnerView) {
     const initials = getInitials(req.ownerName);
     const isOwner = req.ownerUid === _user.uid;
     const responses = req.responses || [];
     const isResolved = req.status === 'resolved';
+    const weekTag = req.weekId && req.weekId !== getWeekId(0)
+      ? `<span class="hud-week-tag">${weekTagLabel(req.weekId)}</span>` : '';
 
     const typeLabel = (t) => t === 'offer_help' ? 'Offering to help' : t === 'suggestion' ? 'Suggestion' : t === 'followup' ? 'Follow-up' : 'Advice';
 
@@ -1797,12 +2424,14 @@ window.McgheeLab = window.McgheeLab || {};
       </div>`;
     }
 
-    return `<div class="hud-plan-card hud-help-card ${isResolved ? 'hud-status-completed' : ''}">
+    return `<div class="hud-plan-card hud-help-card ${isResolved ? 'hud-status-completed' : ''}" data-item-id="${req.id}">
       <div class="hud-plan-top">
         <div class="hud-plan-owner">
+          ${isNewHelp(req) ? '<span class="hud-new-dot" title="New since your last visit"></span>' : ''}
           <div class="hud-plan-avatar" style="background:${getUserColor(req.ownerUid)}">${initials}</div>
           <span class="hud-plan-name">${escHTML(req.ownerName)}</span>
           ${isResolved ? '<span class="hud-status-badge completed">Resolved</span>' : '<span class="hud-status-badge" style="background:rgba(233,30,99,.15); color:var(--danger);">Needs Help</span>'}
+          ${weekTag}
         </div>
         <div class="hud-plan-owner-actions">
           ${isOwner && !isResolved ? `<button data-help-action="resolve" data-help-id="${req.id}" title="Mark resolved">${checkIcon()}</button>` : ''}
@@ -1886,7 +2515,7 @@ window.McgheeLab = window.McgheeLab || {};
     // Resolve / delete
     appEl.querySelectorAll('[data-help-action]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (btn.dataset.helpAction === 'resolve') { await resolveHelpRequest(btn.dataset.helpId); toast('Marked as resolved'); }
+        if (btn.dataset.helpAction === 'resolve') { await resolveHelpRequest(btn.dataset.helpId); toast('Marked as resolved'); loadResolvedHelp(); }
         else if (btn.dataset.helpAction === 'delete') { await deleteHelpRequest(btn.dataset.helpId); toast('Request deleted'); }
       });
     });
@@ -2027,305 +2656,6 @@ window.McgheeLab = window.McgheeLab || {};
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     overlay.querySelector('#hud-sd-one').addEventListener('click', async () => { await deletePlan(planId); toast('Plan deleted'); _popupPlanId = null; overlay.remove(); });
     overlay.querySelector('#hud-sd-all').addEventListener('click', async () => { await deleteSeriesPlans(seriesId); toast('Series deleted'); _popupPlanId = null; overlay.remove(); });
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     8. RUNDOWN — Weekly Task Feed
-     ═══════════════════════════════════════════════════════════ */
-
-  function renderRundownFeed() {
-    const cats = getRundownCategories();
-
-    // Group tasks by owner
-    let tasks = _rundownTasks;
-    if (_filterRundownCategory) tasks = tasks.filter(t => t.categoryId === _filterRundownCategory);
-
-    const grouped = new Map();
-    for (const t of tasks) {
-      if (!grouped.has(t.ownerUid)) grouped.set(t.ownerUid, { name: t.ownerName, uid: t.ownerUid, tasks: [] });
-      grouped.get(t.ownerUid).tasks.push(t);
-    }
-
-    const catOptions = cats.map(c =>
-      `<option value="${c.id}" ${_filterRundownCategory === c.id ? 'selected' : ''}>${escHTML(c.label)}</option>`
-    ).join('');
-
-    let cardsHTML = '';
-    if (grouped.size === 0) {
-      cardsHTML = `<div style="color:var(--muted); text-align:center; padding:2rem;">No tasks this week. Be the first to add one!</div>`;
-    } else {
-      for (const [uid, group] of grouped) {
-        const color = getUserColor(uid);
-        cardsHTML += `<div class="hud-rundown-group">
-          <div class="hud-rundown-group-header">
-            <span class="hud-plan-avatar" style="background:${color}">${getInitials(group.name)}</span>
-            <span class="hud-plan-name">${escHTML(group.name)}</span>
-            <span style="color:var(--muted); font-size:.75rem;">${group.tasks.length} task${group.tasks.length !== 1 ? 's' : ''}</span>
-          </div>
-          ${group.tasks.map(t => renderRundownCard(t, uid === _user.uid)).join('')}
-        </div>`;
-      }
-    }
-
-    return `
-      ${weekNavHTML()}
-      <div class="hud-rundown-filters">
-        <select id="hud-rd-cat-filter" class="app-input" style="max-width:200px; font-size:.8rem;">
-          <option value="">All Categories</option>
-          ${catOptions}
-        </select>
-      </div>
-      <div class="hud-rundown-list">${cardsHTML}</div>`;
-  }
-
-  function renderRundownCard(task, isOwner) {
-    const catColor = getCategoryColor(task.categoryId);
-    const pendingCount = (task.joinRequests || []).filter(j => j.status === 'pending').length;
-    const acceptedCount = (task.joinRequests || []).filter(j => j.status === 'accepted').length;
-    const alreadyRequested = (task.joinRequests || []).some(j => j.uid === _user.uid);
-
-    let joinBtn = '';
-    if (!isOwner) {
-      if (alreadyRequested) {
-        joinBtn = `<span class="hud-rd-join-status">Requested</span>`;
-      } else if (task.status === 'open') {
-        joinBtn = `<button class="app-btn app-btn--secondary hud-rd-join-btn" data-task-id="${task.id}" style="font-size:.75rem; padding:.2rem .5rem;">Request to Join</button>`;
-      }
-    }
-
-    let statusBadge = '';
-    if (task.status === 'scheduled') statusBadge = '<span class="hud-status-badge" style="background:var(--accent);">Scheduled</span>';
-    else if (task.status === 'done') statusBadge = '<span class="hud-status-badge" style="background:var(--success);">Done</span>';
-
-    return `<div class="hud-rundown-card" style="border-left:3px solid ${catColor};">
-      <div class="hud-rundown-card-top">
-        <span class="hud-rundown-category-chip" style="background:${catColor}22; color:${catColor}; border:1px solid ${catColor}44;">${escHTML(task.categoryLabel)}</span>
-        ${task.projectName ? `<span class="hud-rundown-project-chip">${escHTML(task.projectName)}</span>` : ''}
-        ${statusBadge}
-      </div>
-      <div class="hud-rundown-card-text">${escHTML(task.text)}</div>
-      <div class="hud-rundown-card-bottom">
-        <div class="hud-rundown-card-meta">
-          ${pendingCount ? `<span style="color:var(--warning); font-size:.72rem;">${pendingCount} pending</span>` : ''}
-          ${acceptedCount ? `<span style="color:var(--success); font-size:.72rem;">${acceptedCount} joined</span>` : ''}
-        </div>
-        ${joinBtn}
-      </div>
-    </div>`;
-  }
-
-  function wireRundownFeed() {
-    wireWeekNav();
-    const catFilter = document.getElementById('hud-rd-cat-filter');
-    if (catFilter) catFilter.addEventListener('change', () => { _filterRundownCategory = catFilter.value; renderMain(); });
-
-    appEl.querySelectorAll('.hud-rd-join-btn').forEach(btn => {
-      btn.addEventListener('click', () => showJoinTaskModal(btn.dataset.taskId));
-    });
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     9. ADD RUNDOWN TASK
-     ═══════════════════════════════════════════════════════════ */
-
-  function renderAddRundown() {
-    const cats = getRundownCategories();
-    const editing = _editingTaskId ? _rundownTasks.find(t => t.id === _editingTaskId) : null;
-
-    const catOptions = cats.map(c =>
-      `<option value="${c.id}" ${editing && editing.categoryId === c.id ? 'selected' : ''}>${escHTML(c.label)}</option>`
-    ).join('');
-
-    const projOptions = _projects.map(p =>
-      `<option value="${p.id}" ${editing && editing.projectId === p.id ? 'selected' : ''}>${escHTML(p.title)}</option>`
-    ).join('');
-
-    return `<div class="hud-add-form hud-add-page">
-      <h2>${editing ? 'Edit Task' : 'Add Rundown Task'}</h2>
-      <p style="color:var(--muted); font-size:.82rem; margin:0 0 1.25rem;">Add what you plan to do this week. Others can request to join or shadow.</p>
-      <div class="hud-form-field">
-        <label class="app-label">What are you planning to do?</label>
-        <input id="hud-rd-text" class="app-input" type="text" placeholder="e.g. Passage HUVECs, run Western blot..." value="${editing ? escHTML(editing.text) : ''}" />
-      </div>
-      <div class="hud-form-row">
-        <div class="hud-form-field" style="flex:1;">
-          <label class="app-label">Category</label>
-          <select id="hud-rd-cat" class="app-input">${catOptions}</select>
-        </div>
-        <div class="hud-form-field" style="flex:1;">
-          <label class="app-label">Project (optional)</label>
-          <select id="hud-rd-proj" class="app-input">
-            <option value="">None</option>
-            ${projOptions}
-          </select>
-        </div>
-      </div>
-      <div style="margin-top:1rem;">
-        <button class="app-btn app-btn--primary" id="hud-rd-submit">${editing ? 'Update Task' : 'Add Task'}</button>
-        ${editing ? `<button class="app-btn app-btn--secondary" id="hud-rd-cancel-edit" style="margin-left:.5rem;">Cancel</button>` : ''}
-      </div>
-    </div>`;
-  }
-
-  function wireAddRundown() {
-    const btn = document.getElementById('hud-rd-submit');
-    if (btn) btn.addEventListener('click', async () => {
-      const text = document.getElementById('hud-rd-text').value.trim();
-      if (!text) { toast('Please describe your task'); return; }
-      const catId = document.getElementById('hud-rd-cat').value;
-      const cats = getRundownCategories();
-      const cat = cats.find(c => c.id === catId);
-      const projEl = document.getElementById('hud-rd-proj');
-      const projId = projEl.value || null;
-      const proj = projId ? _projects.find(p => p.id === projId) : null;
-
-      try {
-        if (_editingTaskId) {
-          await updateRundownTask(_editingTaskId, {
-            text, categoryId: catId, categoryLabel: cat ? cat.label : catId,
-            projectId: projId, projectName: proj ? proj.title : null
-          });
-          toast('Task updated');
-          _editingTaskId = null;
-        } else {
-          await createRundownTask({
-            text, categoryId: catId, categoryLabel: cat ? cat.label : catId,
-            projectId: projId, projectName: proj ? proj.title : null
-          });
-          toast('Task added!');
-        }
-        _currentSection = 'rundown';
-        render();
-      } catch (err) {
-        console.warn('[Huddle] Add rundown error:', err);
-        toast('Error saving task');
-      }
-    });
-
-    const cancelBtn = document.getElementById('hud-rd-cancel-edit');
-    if (cancelBtn) cancelBtn.addEventListener('click', () => {
-      _editingTaskId = null;
-      renderMain();
-    });
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     10. MY TASKS — Owner's Rundown with Join Requests
-     ═══════════════════════════════════════════════════════════ */
-
-  function renderMyTasks() {
-    const myTasks = _rundownTasks.filter(t => t.ownerUid === _user.uid);
-
-    if (myTasks.length === 0) {
-      return `${weekNavHTML()}
-        <div style="color:var(--muted); text-align:center; padding:2rem;">
-          No tasks this week. <button class="app-btn app-btn--primary" id="hud-mt-add" style="font-size:.8rem; padding:.25rem .75rem; margin-left:.5rem;">Add Task</button>
-        </div>`;
-    }
-
-    const cardsHTML = myTasks.map(task => {
-      const catColor = getCategoryColor(task.categoryId);
-      const joinReqs = task.joinRequests || [];
-      const pending = joinReqs.filter(j => j.status === 'pending');
-
-      let requestsHTML = '';
-      if (joinReqs.length > 0) {
-        requestsHTML = `<div class="hud-join-requests">
-          <div class="hud-join-requests-heading">Join Requests (${joinReqs.length})</div>
-          ${joinReqs.map(j => `<div class="hud-join-request">
-            <div class="hud-join-request-info">
-              <strong>${escHTML(j.name)}</strong>
-              <span class="hud-join-skill">${j.skillLevel === 'canTeach' ? 'Can Teach' : j.skillLevel === 'practiced' ? 'Practiced' : 'Learning'}</span>
-              ${j.note ? `<span class="hud-join-note">${escHTML(j.note)}</span>` : ''}
-            </div>
-            <div class="hud-join-actions">
-              ${j.status === 'pending' ? `
-                <button class="app-btn app-btn--primary hud-join-accept" data-task-id="${task.id}" data-uid="${j.uid}" data-name="${escHTML(j.name)}" style="font-size:.7rem; padding:.15rem .4rem;">Accept</button>
-                <button class="app-btn app-btn--secondary hud-join-decline" data-task-id="${task.id}" data-uid="${j.uid}" style="font-size:.7rem; padding:.15rem .4rem;">Decline</button>
-              ` : `<span class="hud-join-status-label hud-join-status-${j.status}">${j.status}</span>`}
-            </div>
-          </div>`).join('')}
-        </div>`;
-      }
-
-      let statusBadge = '';
-      if (task.status === 'scheduled') statusBadge = '<span class="hud-status-badge" style="background:var(--accent);">Scheduled</span>';
-      else if (task.status === 'done') statusBadge = '<span class="hud-status-badge" style="background:var(--success);">Done</span>';
-
-      return `<div class="hud-rundown-card hud-mytask-card" style="border-left:3px solid ${catColor};">
-        <div class="hud-rundown-card-top">
-          <span class="hud-rundown-category-chip" style="background:${catColor}22; color:${catColor}; border:1px solid ${catColor}44;">${escHTML(task.categoryLabel)}</span>
-          ${task.projectName ? `<span class="hud-rundown-project-chip">${escHTML(task.projectName)}</span>` : ''}
-          ${statusBadge}
-          <span style="flex:1;"></span>
-          <button class="hud-icon-btn hud-mt-edit" data-task-id="${task.id}" title="Edit">${editIcon()}</button>
-          <button class="hud-icon-btn hud-mt-delete" data-task-id="${task.id}" title="Delete">${deleteIcon()}</button>
-        </div>
-        <div class="hud-rundown-card-text">${escHTML(task.text)}</div>
-        ${pending.length ? `<div style="color:var(--warning); font-size:.75rem; margin:.25rem 0;">${pending.length} pending request${pending.length !== 1 ? 's' : ''}</div>` : ''}
-        ${requestsHTML}
-        ${task.status === 'open' ? `<div style="margin-top:.5rem;">
-          <button class="app-btn app-btn--secondary hud-mt-done" data-task-id="${task.id}" style="font-size:.72rem; padding:.2rem .5rem;">Mark Done</button>
-        </div>` : ''}
-      </div>`;
-    }).join('');
-
-    return `${weekNavHTML()}<div class="hud-rundown-list">${cardsHTML}</div>`;
-  }
-
-  function wireMyTasks() {
-    wireWeekNav();
-
-    const addBtn = document.getElementById('hud-mt-add');
-    if (addBtn) addBtn.addEventListener('click', () => { _currentSection = 'addrundown'; render(); });
-
-    // Edit task
-    appEl.querySelectorAll('.hud-mt-edit').forEach(btn => {
-      btn.addEventListener('click', () => {
-        _editingTaskId = btn.dataset.taskId;
-        _currentSection = 'addrundown';
-        render();
-      });
-    });
-
-    // Delete task
-    appEl.querySelectorAll('.hud-mt-delete').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (confirm('Delete this task?')) {
-          await deleteRundownTask(btn.dataset.taskId);
-          toast('Task deleted');
-        }
-      });
-    });
-
-    // Mark done
-    appEl.querySelectorAll('.hud-mt-done').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        await updateRundownTask(btn.dataset.taskId, { status: 'done' });
-        toast('Task marked done');
-      });
-    });
-
-    // Accept join request → open schedule modal
-    appEl.querySelectorAll('.hud-join-accept').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const taskId = btn.dataset.taskId;
-        const requesterUid = btn.dataset.uid;
-        const requesterName = btn.dataset.name;
-        await respondToJoinRequest(taskId, requesterUid, 'accepted');
-        toast('Request accepted');
-        const task = _rundownTasks.find(t => t.id === taskId);
-        if (task) showScheduleFromRundownModal(task, requesterUid, requesterName);
-      });
-    });
-
-    // Decline join request
-    appEl.querySelectorAll('.hud-join-decline').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        await respondToJoinRequest(btn.dataset.taskId, btn.dataset.uid, 'declined');
-        toast('Request declined');
-      });
-    });
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -2745,6 +3075,18 @@ window.McgheeLab = window.McgheeLab || {};
             <button class="app-btn app-btn--secondary" id="hud-cat-add" style="font-size:.78rem;">+ Add Category</button>
             <button class="app-btn app-btn--primary" id="hud-cat-save" style="font-size:.78rem;">Save Categories</button>
           </div>
+        </div>
+        <div class="hud-settings-group">
+          <h3 class="hud-settings-heading">Legacy Rundown Migration (Admin)</h3>
+          <p style="color:var(--muted); font-size:.78rem; margin:0 0 .75rem;">
+            One-time: convert every legacy Rundown task (all weeks) into an
+            "anytime" weekly plan. Safe to re-run — already-migrated tasks are
+            skipped, and the originals are kept with a back-reference.
+          </p>
+          <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+            <button class="app-btn app-btn--secondary" id="hud-migrate-rundown" style="font-size:.78rem;">⇪ Migrate legacy rundown tasks</button>
+            <button class="app-btn app-btn--danger" id="hud-purge-rundown" style="font-size:.78rem;">🗑 Purge migrated originals</button>
+          </div>
         </div>` : ''}
 
         <div class="hud-form-actions" style="margin-top:1.25rem;">
@@ -2802,6 +3144,47 @@ window.McgheeLab = window.McgheeLab || {};
       btn.addEventListener('click', () => btn.closest('.hud-category-row').remove());
     });
 
+    // Admin: one-time rundown → plans migration
+    const migrateBtn = document.getElementById('hud-migrate-rundown');
+    if (migrateBtn) {
+      migrateBtn.addEventListener('click', async () => {
+        if (!confirm('Convert all legacy Rundown tasks into anytime plans? Already-migrated tasks are skipped.')) return;
+        migrateBtn.disabled = true;
+        try {
+          const res = await migrateRundownToPlans((done, total) => toast(`Migrating… ${done}/${total}`));
+          toast(res.migrated ? `Migrated ${res.migrated} task${res.migrated !== 1 ? 's' : ''} (${res.skipped} already done)` : 'Nothing to migrate');
+        } catch (err) {
+          console.warn('[Huddle] Rundown migration error:', err);
+          toast('Migration failed — see console');
+        }
+        migrateBtn.disabled = false;
+      });
+    }
+
+    // Admin: delete rundown originals that were already migrated to plans.
+    // Only touches docs stamped migratedTo — unmigrated tasks are never deleted.
+    const purgeBtn = document.getElementById('hud-purge-rundown');
+    if (purgeBtn) {
+      purgeBtn.addEventListener('click', async () => {
+        if (!confirm('Permanently delete rundown originals that were already migrated to plans? (Unmigrated tasks are untouched.)')) return;
+        purgeBtn.disabled = true;
+        try {
+          const snap = await db().collection('huddleRundown').get();
+          const targets = snap.docs.filter(d => d.data().migratedTo);
+          for (let i = 0; i < targets.length; i += 400) {
+            const batch = db().batch();
+            targets.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
+          toast(targets.length ? `Purged ${targets.length} migrated original${targets.length !== 1 ? 's' : ''}` : 'Nothing to purge');
+        } catch (err) {
+          console.warn('[Huddle] Rundown purge error:', err);
+          toast('Purge failed — see console');
+        }
+        purgeBtn.disabled = false;
+      });
+    }
+
     saveBtn.addEventListener('click', async () => {
       const recDays = [];
       appEl.querySelectorAll('[data-rec-day]').forEach(cb => {
@@ -2845,22 +3228,13 @@ window.McgheeLab = window.McgheeLab || {};
 
   function wireWeekNav() {
     const p = document.getElementById('hud-week-prev'), n = document.getElementById('hud-week-next'), t = document.getElementById('hud-week-today');
-    if (p) p.addEventListener('click', () => { _currentWeekOffset--; subscribePlans(); subscribeHelp(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
-    if (n) n.addEventListener('click', () => { _currentWeekOffset++; subscribePlans(); subscribeHelp(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
-    if (t) t.addEventListener('click', () => { _currentWeekOffset = 0; subscribePlans(); subscribeHelp(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
+    // Help is no longer week-scoped (open requests carry over), so week nav
+    // only resubscribes the week-keyed listeners.
+    if (p) p.addEventListener('click', () => { _currentWeekOffset--; subscribePlans(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
+    if (n) n.addEventListener('click', () => { _currentWeekOffset++; subscribePlans(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
+    if (t) t.addEventListener('click', () => { _currentWeekOffset = 0; subscribePlans(); subscribeRundown(); McgheeLab.ScheduleService?.setWeekOffset(_currentWeekOffset); renderMain(); });
   }
 
-  function wireFilters() {
-    const toggle = document.getElementById('hud-filter-toggle');
-    const panel = document.getElementById('hud-filter-panel');
-    if (toggle && panel) toggle.addEventListener('click', () => { panel.style.display = panel.style.display === 'none' ? '' : 'none'; });
-
-    appEl.querySelectorAll('[data-filter="member"]').forEach(cb => {
-      cb.addEventListener('change', () => { if (cb.checked) _filterMembers.add(cb.dataset.uid); else _filterMembers.delete(cb.dataset.uid); renderMain(); });
-    });
-    const clearBtn = document.getElementById('hud-filter-clear');
-    if (clearBtn) clearBtn.addEventListener('click', () => { _filterMembers.clear(); _filterStatus.clear(); renderMain(); });
-  }
 
   /* ═══════════════════════════════════════════════════════════
      HELPERS
@@ -2896,20 +3270,12 @@ window.McgheeLab = window.McgheeLab || {};
 
   /* ─── SVG Icons ───────────────────────────────────────── */
   function calendarIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'; }
-  function myPlansIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'; }
-  function plusIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'; }
   function helpIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'; }
-  function myHelpIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'; }
-  function requestHelpIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'; }
   function protocolIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'; }
-  function filterIcon() { return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>'; }
   function checkIcon() { return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
   function deleteIcon() { return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'; }
   function settingsIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'; }
   // Rundown & Schedule icons
-  function rundownIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg>'; }
-  function addTaskIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>'; }
-  function myTasksIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>'; }
   function teamAvailIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'; }
   function scheduleIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'; }
   function lockIcon() { return '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'; }

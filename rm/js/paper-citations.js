@@ -34,9 +34,10 @@
   let _hoverEl = null;
   let _readyDone = false;
   // V3.310 — reference-driven localization state.
-  let _style = null;          // {family:'numeric-bracket'|'numeric-paren'|'super'|'author-year'|'mixed'|'none', counts}
+  let _style = null;          // {family:'numeric-bracket'|'numeric-paren'|'super'|'author-year'|'link'|'mixed'|'none', counts}
   let _refIndex = null;       // Map<refsArrayIndex, [{page,x,y,w,h,token}]> — full-doc sweep
   let _activeTab = 'page';    // 'page' | 'all'
+  let _linkMatchesByPage = null; // V3.335 — Map<page, match[]> from PDF Link annotations
 
   // Heading patterns at the top of references section. Permissive: matches
   // "References", "REFERENCES", "References:", "1. References", "References 45"
@@ -363,6 +364,9 @@
         title: title.replace(/\s+/g, ' ').trim().slice(0, 220),
         journal: journal.replace(/\s+/g, ' ').trim().slice(0, 80),
         firstPage: e.page,
+        // V3.335 — the entry's start y (same coord basis as the text
+        // items) so internal link destinations can be mapped to entries.
+        listY: e.items.length ? e.items[0].y : null,
       };
     });
 
@@ -520,7 +524,8 @@
     // V3.310 — the raw scanners run in _matchItemsOnPage (shared with the
     // headless audit harness); what lands in the panel is style-gated and
     // validated against the stored reference list.
-    const deduped = _filterValidated(_matchItemsOnPage(items, pageNum, wrapRect));
+    const deduped = _mergeLinkMatches(pageNum,
+      _filterValidated(_matchItemsOnPage(items, pageNum, wrapRect, _flatSuperOpts())));
     _matchesByPage.set(pageNum, deduped);
 
     // Per-pass diagnostic — V3.190 always logs, even on zero-match pages,
@@ -542,18 +547,42 @@
    *  the viewer flow (_scanPage) and the headless audit harness
    *  (analyzeDocument). wrapRect=null skips the DOM-Range refinement and
    *  uses the fraction-math rects. Returns deduped raw matches with NO
-   *  style gating or ref validation — callers filter. */
-  function _matchItemsOnPage(items, pageNum, wrapRect) {
+   *  style gating or ref validation — callers filter.
+   *  scanOpts (V3.337): {flatSuper:true} enables the high-risk flattened-
+   *  superscript scanner — callers set it only when the detected family
+   *  is super/none AND stored refs exist to validate against. */
+  function _matchItemsOnPage(items, pageNum, wrapRect, scanOpts) {
+    // V3.333 — gap-aware joining: pdf.js frequently splits one visual token
+    // ("[12]") across text items; the old unconditional space-join turned
+    // it into "[1 2]" and every regex missed it. Join with NO separator
+    // when two items sit on the same line closer than ~a third of a
+    // character width. The ranges offset map stays exact for _rectForRange.
     const parts = [];
     let off = 0;
     const ranges = [];
+    let prevIt = null;
     for (const it of items) {
+      if (prevIt) {
+        const sameLine = Math.abs(it.y - prevIt.y) <= Math.max(2, Math.max(prevIt.height || 0, it.height || 0) * 0.5);
+        const charW = prevIt.text.length ? ((prevIt.width || 0) / prevIt.text.length) : 4;
+        const gap = it.x - (prevIt.x + (prevIt.width || 0));
+        const glue = sameLine && gap > -2 && gap < Math.max(0.8, charW * 0.35);
+        if (!glue) { parts.push(' '); off += 1; }
+      }
       parts.push(it.text);
       ranges.push({ start: off, end: off + it.text.length, item: it });
-      off += it.text.length + 1;
-      parts.push(' ');
+      off += it.text.length;
+      prevIt = it;
     }
     const fullText = parts.join('');
+    // V3.333 — offset-preserving normalization (strictly 1:1 char swaps) so
+    // scanners see canonical separators: em-dash/minus/U+2010 → known range
+    // chars, NBSP → space. Ligatures are NOT 1:1 and stay out (backlog).
+    const scanText = fullText
+      .replace(/—/g, '–')
+      .replace(/−/g, '-')
+      .replace(/‐/g, '-')
+      .replace(/ /g, ' ');
 
     // Median item height — drives the geom-super "is this a tiny digit
     // cluster sitting next to body text?" heuristic.
@@ -578,7 +607,7 @@
 
     // ------------------------------------ 1) bracketed numeric  [12]  [1,2,3]
     RE_NUMERIC.lastIndex = 0;
-    for (let m; (m = RE_NUMERIC.exec(fullText)) !== null;) {
+    for (let m; (m = RE_NUMERIC.exec(scanText)) !== null;) {
       const innerOffset = m.index + m[0].indexOf(m[1]);
       for (const exp of _expandNumericInner(m[1])) {
         const rect = _rectForRange(ranges, innerOffset + exp.charStart, innerOffset + exp.charEnd, wrapRect);
@@ -595,8 +624,8 @@
     // Gated by _isParenNumericInProse so enumerated list markers like
     // "(1) intro (2) results" don't surface as fake citations.
     RE_PAREN_NUMERIC.lastIndex = 0;
-    for (let m; (m = RE_PAREN_NUMERIC.exec(fullText)) !== null;) {
-      if (!_isParenNumericInProse(fullText, m.index)) continue;
+    for (let m; (m = RE_PAREN_NUMERIC.exec(scanText)) !== null;) {
+      if (!_isParenNumericInProse(scanText, m.index)) continue;
       const innerOffset = m.index + 1;
       for (const exp of _expandNumericInner(m[1])) {
         const rect = _rectForRange(ranges, innerOffset + exp.charStart, innerOffset + exp.charEnd, wrapRect);
@@ -611,7 +640,7 @@
 
     // ------------------------------------ 3) unicode superscript  word¹,²,³
     RE_UNICODE_SUPER.lastIndex = 0;
-    for (let m; (m = RE_UNICODE_SUPER.exec(fullText)) !== null;) {
+    for (let m; (m = RE_UNICODE_SUPER.exec(scanText)) !== null;) {
       const ascii = _translateSuperscripts(m[0]);
       // Char positions in ascii map 1:1 back to m[0] because each super
       // codepoint translates to a single ASCII digit.
@@ -631,29 +660,38 @@
     // after a body-text item that ends in a letter. Catches the Nature/
     // Sci-Reports PDF case where superscripts are extracted as plain
     // ASCII digits in a smaller-font span rather than unicode supers.
+    // V3.333 — a superscript cluster ("1,4–6") often arrives SPLIT across
+    // several tiny items; merge the same-line x-adjacent tiny run before
+    // testing so the whole cluster matches (was single-item only).
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       if (!it.height || it.height >= medianH * 0.78) continue;
-      const gm = RE_GEOM_SUPER_TEXT.exec(it.text);
-      if (!gm) continue;
-      const innerDigits = gm[1];
-      if (!/\d/.test(innerDigits)) continue;
+      let runEnd = i;
+      while (runEnd + 1 < items.length) {
+        const a = items[runEnd];
+        const b = items[runEnd + 1];
+        if (!b.height || b.height >= medianH * 0.78) break;
+        const sameLine = Math.abs(b.y - a.y) <= Math.max(2, a.height);
+        const charW = a.text.length ? ((a.width || 0) / a.text.length) : 3;
+        if (!sameLine || (b.x - (a.x + (a.width || 0))) > Math.max(1.5, charW)) break;
+        runEnd++;
+      }
+      const combined = scanText.slice(ranges[i].start, ranges[runEnd].end);
+      const gm = RE_GEOM_SUPER_TEXT.exec(combined);
+      if (!gm || !/\d/.test(gm[1])) { i = runEnd; continue; }
       const prev = items[i - 1];
-      if (!prev) continue;
+      if (!prev) { i = runEnd; continue; }
       // Skip if previous item is also tiny — we're inside a footer/legend
       // run, not body text.
-      if (prev.height && prev.height < medianH * 0.78) continue;
+      if (prev.height && prev.height < medianH * 0.78) { i = runEnd; continue; }
       const prevEnd = prev.text.replace(/\s+$/, '');
-      if (!prevEnd) continue;
-      const lastCh = prevEnd[prevEnd.length - 1];
+      const lastCh = prevEnd ? prevEnd[prevEnd.length - 1] : '';
       // Body word must end in a letter or closing bracket/paren. Reject
       // digit-followed-by-digit (false-positive risk: "Table 1" + "2"),
       // period/colon/semicolon (ref-list & sentence-end artefacts).
-      if (!/[A-Za-z)\]]/.test(lastCh)) continue;
-      const itRange = ranges[i];
-      if (!itRange) continue;
-      const innerStart = itRange.start + it.text.indexOf(innerDigits);
-      for (const exp of _expandNumericInner(innerDigits)) {
+      if (!/[A-Za-z)\]]/.test(lastCh)) { i = runEnd; continue; }
+      const innerStart = ranges[i].start + combined.indexOf(gm[1]);
+      for (const exp of _expandNumericInner(gm[1])) {
         const rect = _rectForRange(ranges, innerStart + exp.charStart, innerStart + exp.charEnd, wrapRect);
         if (!rect) continue;
         pushMatch({
@@ -662,6 +700,48 @@
           refKey: String(exp.n), rect,
         });
       }
+      i = runEnd;
+    }
+
+    // ------------------------------------ 4b) V3.337 ref-word numerics
+    // "Ref. 12", "Refs. 12–14", "reference 3" — physics/engineering style.
+    const RE_REFWORD = /\b[Rr]e(?:fs?\.?|ferences?)\s+(\d+(?:\s*[,–\-]\s*\d+)*)/g;
+    for (let m; (m = RE_REFWORD.exec(scanText)) !== null;) {
+      const innerOffset = m.index + m[0].indexOf(m[1]);
+      for (const exp of _expandNumericInner(m[1])) {
+        const rect = _rectForRange(ranges, innerOffset + exp.charStart, innerOffset + exp.charEnd, wrapRect);
+        if (!rect) continue;
+        pushMatch({
+          token: `Ref. ${exp.n}`, inner: String(exp.n),
+          kind: 'numeric', kindLabel: 'numeric:refword',
+          refKey: String(exp.n), rect,
+        });
+      }
+    }
+
+    // ------------------------------------ 4c) V3.337 flattened superscripts
+    // Some PDFs export superscripts at body height with no size cue:
+    // "…in cells12 showed…". High false-positive risk (gene symbols,
+    // glued units), so triple-gated: caller-enabled only for super/none
+    // families WITH stored refs (scanOpts.flatSuper); the glued word must
+    // END lowercase (rejects STAT3 / CDK4); and every match must still
+    // resolve to a stored ref downstream (_filterValidated). Comma lists
+    // only — glued ranges ("pH7-8") are too ambiguous.
+    if (scanOpts && scanOpts.flatSuper) {
+      const RE_FLAT = /([A-Za-z]{2,}[a-z])(\d{1,3}(?:,\d{1,3})*)(?=[\s.,;:)\]]|$)/g;
+      for (let m; (m = RE_FLAT.exec(scanText)) !== null;) {
+        if (/^\d{4}/.test(m[2])) continue;               // year glued to a word
+        const innerOffset = m.index + m[1].length;
+        for (const exp of _expandNumericInner(m[2])) {
+          const rect = _rectForRange(ranges, innerOffset + exp.charStart, innerOffset + exp.charEnd, wrapRect);
+          if (!rect) continue;
+          pushMatch({
+            token: `${m[1]}^${exp.n}`, inner: String(exp.n),
+            kind: 'numeric', kindLabel: 'numeric:flat-super',
+            refKey: String(exp.n), rect,
+          });
+        }
+      }
     }
 
     // ------------------------------------ 5) author-year paren groups
@@ -669,10 +749,13 @@
     // run RE_AY_INNER per segment, and scan for trailing `, YYYY` years
     // for same-author multi-year cites.
     RE_PAREN_GROUP.lastIndex = 0;
-    for (let g; (g = RE_PAREN_GROUP.exec(fullText)) !== null;) {
+    for (let g; (g = RE_PAREN_GROUP.exec(scanText)) !== null;) {
       const innerStart = g.index + 1;
       const inner = g[1];
-      if (!RE_AY_INNER.test(inner)) continue;
+      // V3.337 — the old whole-group RE_AY_INNER gate skipped corporate-
+      // author-only groups like "(WHO, 2020)". Cheap year gate instead;
+      // the per-segment logic below decides standard vs corporate.
+      if (!/(?:19|20)\d{2}/.test(inner)) continue;
       const segments = inner.split(';');
       let segOffset = 0;
       for (let si = 0; si < segments.length; si++) {
@@ -680,7 +763,29 @@
         const segStartInInner = segOffset;
         segOffset += seg.length + 1;       // +1 for the consumed `;`
         const ay = new RegExp(RE_AY_INNER.source).exec(seg);
-        if (!ay) continue;
+        if (!ay) {
+          // V3.337 — corporate/consortium author: "(WHO, 2020)",
+          // "(The UniProt Consortium, 2019)". Emit with the phrase's LAST
+          // word as the surname candidate — Semantic Scholar's surname
+          // extraction also keeps the last token, so _matchedRef resolves
+          // real ones and _filterValidated drops the rest.
+          const cm = /^\s*(?:see\s+|e\.g\.,?\s+|cf\.\s+)?([^,]{3,60}?),?\s+((?:19|20)\d{2}[a-z]?)\s*$/.exec(seg);
+          if (cm && !/\d/.test(cm[1])) {
+            const lastWord = (cm[1].trim().split(/\s+/).pop() || '').replace(/[^A-Za-zÀ-ɏ'\-]/g, '');
+            if (lastWord.length >= 3) {
+              const segStart = innerStart + segStartInInner;
+              const rect = _rectForRange(ranges, segStart, segStart + seg.length, wrapRect);
+              if (rect) {
+                pushMatch({
+                  token: seg.trim().slice(0, 60), inner: lastWord, year: cm[2],
+                  kind: 'authoryear', kindLabel: 'authoryear:corporate',
+                  refKey: `${lastWord}|${cm[2]}`, rect,
+                });
+              }
+            }
+          }
+          continue;
+        }
         const author = ay[1];
         const year = ay[2];
         const segStartInFull = innerStart + segStartInInner;
@@ -711,12 +816,28 @@
             refKey: `${author}|${yearN}`, rect: yrect,
           });
         }
+        // V3.337 — bare year-letter suffixes: "(Smith et al., 2020a, b)".
+        // The letter must be comma-separated and boundary-terminated, so
+        // ", and" ("a" + "n") can't fire.
+        const baseYear = year.replace(/[a-z]$/, '');
+        const lRe = /,\s*([a-z])(?=[\s,;)]|$)/g;
+        for (let ly; (ly = lRe.exec(rest)) !== null;) {
+          const suffix = ly[1];
+          const yStart = segStartInFull + afterIdx + ly.index + ly[0].indexOf(suffix);
+          const yrect = _rectForRange(ranges, yStart, yStart + 1, wrapRect);
+          if (!yrect) continue;
+          pushMatch({
+            token: `${author}, ${baseYear}${suffix}`, inner: author, year: `${baseYear}${suffix}`,
+            kind: 'authoryear', kindLabel: 'authoryear:multiyear',
+            refKey: `${author}|${baseYear}${suffix}`, rect: yrect,
+          });
+        }
       }
     }
 
     // ------------------------------------ 6) narrative cite  Smith et al. (2020)
     RE_NARRATIVE.lastIndex = 0;
-    for (let m; (m = RE_NARRATIVE.exec(fullText)) !== null;) {
+    for (let m; (m = RE_NARRATIVE.exec(scanText)) !== null;) {
       const author = m[1];
       const yearsStr = m[2];
       const yearsInM0 = m[0].lastIndexOf('(') + 1;
@@ -783,9 +904,14 @@
   }
 
   function _familyOf(kindLabel) {
-    if (kindLabel === 'numeric:bracket') return 'numeric-bracket';
+    if (kindLabel === 'link') return 'link';
+    // V3.337 — "Ref. 12" prose mentions ride the bracket family: pure
+    // ref-word papers (AIP style) then detect as numeric-bracket, and
+    // _filterValidated passes refword in every numeric family anyway.
+    if (kindLabel === 'numeric:bracket' || kindLabel === 'numeric:refword') return 'numeric-bracket';
     if (kindLabel === 'numeric:paren') return 'numeric-paren';
-    if (kindLabel === 'numeric:super-unicode' || kindLabel === 'numeric:super-geom') return 'super';
+    if (kindLabel === 'numeric:super-unicode' || kindLabel === 'numeric:super-geom'
+        || kindLabel === 'numeric:flat-super') return 'super';
     return 'author-year';
   }
 
@@ -800,8 +926,16 @@
     if (_style && _style.family && _style.family !== 'mixed' && _style.family !== 'none') {
       out = out.filter(m => {
         const fam = _familyOf(m.kindLabel);
+        // V3.335 — link markers are authoritative in every family; and when
+        // links ARE the detected family, textual matches survive on ref
+        // validation alone (supplements for link-less mentions).
+        if (fam === 'link') return true;
+        if (_style.family === 'link') return true;
         if (_style.family === 'author-year') return fam === 'author-year';
         if (fam === 'author-year') return false;
+        // V3.337 — explicit "Ref. 12" mentions are unambiguous in every
+        // numeric family (ref validation still applies downstream).
+        if (m.kindLabel === 'numeric:refword') return true;
         // Numeric papers keep superscript hits alongside their own family
         // (figure captions often superscript what the body brackets), but
         // paren-numeric only survives when it IS the detected family —
@@ -815,6 +949,90 @@
     return out;
   }
 
+  /** V3.335 — map internal Link annotations onto printed reference entries.
+   *  links carry {page,x,y,w,h,url,targetPage,targetY} in the same coord
+   *  basis as the text items; printed entries carry {n, firstPage, listY}.
+   *  A link maps to the entry with the greatest listY ≤ targetY on the
+   *  target page (first entry of the page when the dest has no usable y).
+   *  Returns Map<page, match[]> of standard match objects (kindLabel
+   *  'link'). Page-granular dests resolving to the page's first entry is a
+   *  known limitation — still validated via n like every other match. */
+  function _linkMatchesFromAnnotations(links, printed) {
+    const map = new Map();
+    const positioned = (printed || []).filter(p =>
+      typeof p.n === 'number' && p.firstPage && typeof p.listY === 'number');
+    if (!positioned.length || !links || !links.length) return map;
+    let minPage = Infinity, maxPage = -Infinity;
+    for (const e of positioned) {
+      if (e.firstPage < minPage) minPage = e.firstPage;
+      if (e.firstPage > maxPage) maxPage = e.firstPage;
+    }
+    let total = 0;
+    for (const a of links) {
+      if (!a || a.url || a.targetPage == null) continue;
+      if (a.targetPage < minPage || a.targetPage > maxPage) continue;
+      let best = null;
+      for (const e of positioned) {
+        if (e.firstPage !== a.targetPage) continue;
+        if (e.listY <= (a.targetY || 0) + 3) {
+          if (!best || e.listY > best.listY) best = e;
+        }
+      }
+      if (!best) {
+        for (const e of positioned) {
+          if (e.firstPage !== a.targetPage) continue;
+          if (!best || e.listY < best.listY) best = e;
+        }
+      }
+      if (!best) continue;
+      const m = {
+        token: `[${best.n}]`, inner: String(best.n), year: '',
+        kind: 'numeric', kindLabel: 'link',
+        refKey: String(best.n),
+        page: a.page, x: a.x, y: a.y, w: a.w, h: a.h, items: [],
+      };
+      if (!map.has(a.page)) map.set(a.page, []);
+      map.get(a.page).push(m);
+      total++;
+    }
+    if (total) console.info(`[paper-citations] link scanner mapped ${total} internal citation link(s)`);
+    return map;
+  }
+
+  function _buildLinkIndex() {
+    _linkMatchesByPage = new Map();
+    if (!_viewer || typeof _viewer.getLinkAnnotations !== 'function') return;
+    if (!_refs || !_refs.length || !_viewer.numPages) return;
+    let printed = [];
+    try { printed = _parseReferences() || []; } catch (_) { return; }
+    const links = [];
+    for (let p = 1; p <= _viewer.numPages; p++) {
+      for (const a of (_viewer.getLinkAnnotations(p) || [])) links.push(a);
+    }
+    _linkMatchesByPage = _linkMatchesFromAnnotations(links, printed);
+  }
+
+  // V3.337 — the flattened-superscript scanner is opt-in per scan: only
+  // when the detected family is super (or none, with refs stored to
+  // validate against) is the risk worth it. Style detection itself runs
+  // flat-blind so the scanner can't vote for its own family.
+  function _flatSuperOpts() {
+    const on = !!(_refs && _refs.length && _style
+      && (_style.family === 'super' || _style.family === 'none'));
+    return on ? { flatSuper: true } : null;
+  }
+
+  // Merge a page's authoritative link matches ahead of textual ones,
+  // dropping textual matches that overlap a link with the same refKey.
+  function _mergeLinkMatches(pageNum, textual) {
+    const linkMs = (_linkMatchesByPage && _linkMatchesByPage.get(pageNum)) || [];
+    if (!linkMs.length) return textual;
+    return linkMs.concat((textual || []).filter(m =>
+      !linkMs.some(l => l.refKey === m.refKey &&
+        Math.abs(l.x - m.x) < Math.max(l.w, m.w, 6) &&
+        Math.abs(l.y - m.y) < Math.max(l.h, m.h, 6))));
+  }
+
   /** Detect the paper's citation style ONCE by sweeping every page and
    *  tallying candidates that validate against the stored reference list
    *  (numeric: n within [1, refCount]; author-year: surname+year hits a
@@ -822,6 +1040,21 @@
   function _detectStyle() {
     _style = null;
     if (!_viewer || !_viewer.numPages) return;
+    // V3.335 — authoritative short-circuit: when the PDF's internal links
+    // cover most stored references, links ARE the style; textual scanners
+    // become supplements (see _filterValidated).
+    if (_linkMatchesByPage && _refs && _refs.length) {
+      const covered = new Set();
+      for (const arr of _linkMatchesByPage.values()) {
+        for (const m of arr) covered.add(m.refKey);
+      }
+      if (covered.size >= _refs.length * 0.5) {
+        _style = { family: 'link', counts: { link: covered.size } };
+        console.info('[paper-citations] style detected: link',
+          `(${covered.size}/${_refs.length} refs covered by internal links)`);
+        return;
+      }
+    }
     const counts = { 'numeric-bracket': 0, 'numeric-paren': 0, 'super': 0, 'author-year': 0 };
     for (let p = 1; p <= _viewer.numPages; p++) {
       const items = _viewer.getTextItems(p) || [];
@@ -898,8 +1131,10 @@
     if (!_viewer || !_viewer.numPages || !_refs || !_refs.length) return;
     for (let p = 1; p <= _viewer.numPages; p++) {
       const items = _viewer.getTextItems(p) || [];
-      if (!items.length) continue;
-      for (const m of _filterValidated(_matchItemsOnPage(items, p, null))) {
+      const textual = items.length
+        ? _filterValidated(_matchItemsOnPage(items, p, null, _flatSuperOpts()))
+        : [];
+      for (const m of _mergeLinkMatches(p, textual)) {
         const ref = _matchedRef(m);
         if (!ref) continue;
         const idx = _refs.indexOf(ref);
@@ -1234,6 +1469,7 @@
       }
       // All paths (incl. plain redetect) re-run the pipeline.
       _alignRefNumbers();
+      _buildLinkIndex();
       _detectStyle();
       _buildRefIndex();
       _scanPage(_currentPage);
@@ -1385,9 +1621,11 @@
       }
     }
     // V3.310 — reference-driven pipeline: fix SS numbering drift against
-    // the printed list, detect the citation style once, then sweep the
-    // whole document into the ref index that powers the All-refs tab.
+    // the printed list, map internal link annotations (V3.335), detect the
+    // citation style once, then sweep the whole document into the ref
+    // index that powers the All-refs tab.
     _alignRefNumbers();
+    _buildLinkIndex();
     _detectStyle();
     _buildRefIndex();
     _scanPage(_currentPage);
@@ -1413,6 +1651,7 @@
     _style = null;
     _refIndex = null;
     _activeTab = 'page';
+    _linkMatchesByPage = null;
     // V3.93 — short-circuit when the host page already has refs cached
     // on the item (parsed by a previous session or at import time).
     // V3.206 — references moved to items/{id}/details/main; load via
@@ -1462,6 +1701,7 @@
     _style = null;
     _refIndex = null;
     _activeTab = 'page';
+    _linkMatchesByPage = null;
     if (_sideEl) _sideEl.innerHTML = '';
   }
 
@@ -1514,8 +1754,17 @@
         if (!byPage.has(p)) byPage.set(p, []);
         byPage.get(p).push(it);
       }
+      let alignedCount = 0;
+      let printed = [];
+      try { printed = parseRefsFromAllItems(items) || []; } catch (_) { printed = []; }
       if (refs.length && refs[0].source === 'semantic_scholar') {
-        try { _applyAlignment(refs, parseRefsFromAllItems(items)); } catch (_) { /* best-effort */ }
+        try { alignedCount = _applyAlignment(refs, printed); } catch (_) { /* best-effort */ }
+      }
+      // V3.335 — internal link annotations become authoritative markers.
+      let linkMap = new Map();
+      const anns = (opts && opts.annotations) || [];
+      if (anns.length && refs.length) {
+        try { linkMap = _linkMatchesFromAnnotations(anns, printed); } catch (_) { linkMap = new Map(); }
       }
       // Detect (validated tally), reusing the raw matches for the sweep.
       const counts = { 'numeric-bracket': 0, 'numeric-paren': 0, 'super': 0, 'author-year': 0 };
@@ -1528,11 +1777,31 @@
           counts[_familyOf(m.kindLabel)]++;
         }
       }
-      _style = _pickFamily(counts);
+      const linkCovered = new Set();
+      for (const arr of linkMap.values()) {
+        for (const m of arr) linkCovered.add(m.refKey);
+      }
+      _style = (refs.length && linkCovered.size >= refs.length * 0.5)
+        ? { family: 'link', counts: { link: linkCovered.size } }
+        : _pickFamily(counts);
       const located = new Map();
       let markerCount = 0;
-      for (const ms of rawByPage.values()) {
-        for (const m of _filterValidated(ms)) {
+      // V3.337 — flattened-superscript pass: re-scan with the gated
+      // scanner when the detected family warrants it (detection itself
+      // ran flat-blind on rawByPage).
+      const flatOn = !!(refs.length && _style
+        && (_style.family === 'super' || _style.family === 'none'));
+      for (const [p, ms] of rawByPage) {
+        const linkMs = linkMap.get(p) || [];
+        const baseMs = flatOn
+          ? _matchItemsOnPage(byPage.get(p) || [], p, null, { flatSuper: true })
+          : ms;
+        const textual = _filterValidated(baseMs);
+        const merged = linkMs.concat(textual.filter(m =>
+          !linkMs.some(l => l.refKey === m.refKey &&
+            Math.abs(l.x - m.x) < Math.max(l.w, m.w, 6) &&
+            Math.abs(l.y - m.y) < Math.max(l.h, m.h, 6))));
+        for (const m of merged) {
           const ref = _matchedRef(m);
           if (!ref) continue;
           markerCount++;
@@ -1549,14 +1818,53 @@
         located: located.has(i),
         pages: located.has(i) ? Array.from(located.get(i)).sort((a, b) => a - b) : [],
       }));
-      return {
+      const out = {
         style: _style.family,
         styleCounts: _style.counts,
         refCount: refs.length,
         locatedRefs: perRef.filter(r => r.located).length,
         markerCount,
         perRef,
+        alignedCount,
       };
+      // V3.331 — debug diagnostics for the audit harness: WHY misses miss.
+      if (opts && opts.debug) {
+        const pageTexts = new Map();
+        for (const [p, arr] of byPage) {
+          pageTexts.set(p, arr.map(i => i.text).join(' ').replace(/\s+/g, ' '));
+        }
+        // Space-join fragmentation artifacts: "[ 12" / "12 ]" mean a marker
+        // was split across text items and the joiner broke the regex.
+        let frag = 0;
+        for (const t of pageTexts.values()) {
+          const m = t.match(/\[\s+\d|\d\s+\]/g);
+          if (m) frag += m.length;
+        }
+        out.fragmentationSuspects = frag;
+        const isNumeric = out.style !== 'author-year';
+        const missDetails = [];
+        for (const r of perRef) {
+          if (r.located || missDetails.length >= 15) continue;
+          const needle = isNumeric ? String(r.n) : (r.firstAuthor || '');
+          if (!needle) continue;
+          const contexts = [];
+          for (const [p, t] of pageTexts) {
+            if (contexts.length >= 3) break;
+            const re = isNumeric
+              ? new RegExp(`[\\[\\(,;\\s–-]${needle}[\\]\\),;\\s–-]`, 'g')
+              : new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            let m;
+            while ((m = re.exec(t)) !== null && contexts.length < 3) {
+              contexts.push(`p.${p}: …${t.slice(Math.max(0, m.index - 60), m.index + needle.length + 60)}…`);
+            }
+          }
+          if (contexts.length) {
+            missDetails.push({ n: r.n, firstAuthor: r.firstAuthor, year: r.year, contexts });
+          }
+        }
+        out.missDetails = missDetails;
+      }
+      return out;
     } finally {
       _refs = saved.refs;
       _style = saved.style;

@@ -1,0 +1,594 @@
+/* library-themes.css — V3.367/V3.368
+ * Lab Themes tab (library.html?tab=themes) rendered by
+ * js/library-themes.js: theme cards grid → detail view with ranked paper
+ * list (👍 helped-me votes, "Start here" badges), co-written synthesis
+ * notes, and the SECTION_COMMENTS discussion. Violet is the theme accent
+ * (distinct from indigo drafts / teal grants in library-associations). */
+
+.lt-intro {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f5f3ff;
+  border: 1px solid #ede9fe;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+/* ── Cards grid ── */
+
+.lt-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.lt-card {
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: box-shadow .12s, border-color .12s;
+}
+.lt-card:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.10);
+}
+.lt-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #4c1d95;
+  margin-bottom: 4px;
+}
+.lt-card-desc {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.45;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lt-card-meta {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.lt-archived { grid-column: 1 / -1; margin-top: 6px; }
+.lt-archived summary { font-size: 12px; color: #6b7280; cursor: pointer; }
+.lt-archived-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: #6b7280; padding: 4px 8px;
+}
+
+.lt-empty {
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 12px 4px;
+}
+
+/* ── Detail view ── */
+
+.lt-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.lt-detail-name { margin: 0; font-size: 18px; color: #4c1d95; flex: 1; }
+.lt-detail-desc {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.lt-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+.lt-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.lt-section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 700;
+  color: #6d28d9;
+}
+.lt-section-hint { font-size: 11px; color: #9ca3af; flex: 1; }
+
+/* ── Paper rows + voting ── */
+
+.lt-paper-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+.lt-paper-row:last-child { border-bottom: none; }
+.lt-paper-title {
+  color: #1e3a8a;
+  text-decoration: none;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46%;
+}
+.lt-paper-title:hover { text-decoration: underline; }
+.lt-paper-meta { font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lt-paper-spacer { flex: 1; }
+
+.lt-vote-btn {
+  font-size: 11px;
+  padding: 2px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 11px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lt-vote-btn.on {
+  background: #6d28d9;
+  border-color: #6d28d9;
+  color: #fff;
+}
+
+.lt-start-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 700;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.lt-remove-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.lt-remove-btn:hover { color: #b91c1c; }
+
+/* ── Synthesis notes ── */
+
+.lt-notes { display: flex; flex-direction: column; gap: 10px; }
+
+.lt-note {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafaf9;
+}
+.lt-note-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.lt-note-byline { font-size: 10px; color: #9ca3af; flex: 1; }
+.lt-note-notice {
+  font-size: 10px;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 8px;
+  padding: 1px 8px;
+}
+.lt-note-body {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #1f2937;
+  outline: none;
+}
+.lt-note-body:focus {
+  background: #fff;
+  border-radius: 0 0 10px 10px;
+  box-shadow: inset 0 0 0 1.5px #c4b5fd;
+}
+.lt-note-body a { color: #4338ca; }
+
+/* ── Theme meta modal form (inside the lp-oim card) ── */
+
+.lt-meta-form { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 10px; }
+.lt-meta-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+}
+.lt-meta-form input,
+.lt-meta-form textarea {
+  font-size: 13px;
+  padding: 6px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+/* ── Reader sidebar theme chips (library-paper.js _renderThemeEditor) ── */
+
+.lp-theme-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+  border-radius: 14px;
+  padding: 2px 8px;
+  font-size: 11px;
+  text-decoration: none;
+  max-width: 200px;
+}
+.lp-theme-chip .lp-theme-x {
+  background: none;
+  border: none;
+  color: #5b21b6;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: .7;
+}
+.lp-theme-chip .lp-theme-x:hover { opacity: 1; }
+
+/* ── V3.496 reader chip relevance select ── */
+.lp-theme-chip { max-width: 280px; }
+.lp-theme-chip .lp-theme-chip-link { flex: 1 1 auto; min-width: 30px; }
+.lp-theme-chip .lp-theme-rel {
+  font-size: 9.5px;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  background: #fff;
+  color: #5b21b6;
+  padding: 0 2px;
+  max-width: 88px;
+}
+
+/* ── V3.496 research groups (key labs) ── */
+
+.lt-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+.lt-group-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color .12s, box-shadow .12s, background .12s;
+}
+.lt-group-card:hover { border-color: #c4b5fd; box-shadow: 0 2px 8px rgba(109, 40, 217, .08); }
+.lt-group-card.active {
+  border-color: #6d28d9;
+  background: #f5f3ff;
+  box-shadow: inset 0 0 0 1px #6d28d9;
+}
+.lt-group-card.starred { background: linear-gradient(0deg, #fffbeb, #fff); }
+.lt-group-card.starred.active { background: #f5f3ff; }
+.lt-group-card.unattributed { opacity: .78; }
+.lt-group-top { display: flex; align-items: center; gap: 6px; }
+.lt-group-star { color: #d97706; font-size: 12px; }
+.lt-group-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #4c1d95;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lt-group-score {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6d28d9;
+  background: #ede9fe;
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+.lt-group-edit {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.lt-group-card:hover .lt-group-edit { opacity: 1; }
+.lt-group-edit:hover { color: #6d28d9; }
+@media (hover: none) { .lt-group-edit { opacity: 1; } }
+.lt-group-sub { font-size: 10.5px; color: #9ca3af; margin-top: 2px; }
+.lt-group-note {
+  font-size: 11px;
+  color: #4b5563;
+  margin-top: 4px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lt-group-more-wrap { margin-top: 8px; }
+.lt-group-more { font-size: 11px; }
+
+/* Card action row: suggested-papers toggle + recent-papers finder */
+.lt-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 6px;
+}
+.lt-group-sugg-toggle,
+.lt-group-recent {
+  background: none;
+  border: none;
+  color: #6d28d9;
+  cursor: pointer;
+  font-size: 10.5px;
+  padding: 2px 0;
+  text-align: left;
+}
+.lt-group-sugg-toggle:hover,
+.lt-group-recent:hover { text-decoration: underline; }
+.lt-group-recent { color: #4338ca; }
+
+/* Suggested papers on a group card (PI as last author or coauthor) */
+.lt-group-sugg {
+  margin-top: 4px;
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 4px;
+  max-height: 168px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lt-sugg-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.lt-sugg-add {
+  flex: none;
+  background: #ede9fe;
+  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 6px;
+}
+.lt-sugg-add:hover { background: #ddd6fe; }
+.lt-sugg-title {
+  flex: 1;
+  color: #1e3a8a;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lt-sugg-title:hover { text-decoration: underline; }
+.lt-sugg-tag {
+  flex: none;
+  font-size: 9px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  border-radius: 6px;
+  padding: 0 5px;
+}
+
+/* Recent-papers finder: relevance badge in the import modal */
+.lt-rel-badge {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.lt-rel-high { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.lt-rel-med  { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
+.lt-rel-low  { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+
+/* Bulk "import list into theme" modal */
+.lt-imp-text {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.lt-imp-relrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  margin: 8px 0;
+}
+.lt-imp-relrow select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+.lt-imp-badge {
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  border-radius: 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.lt-imp-new   { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.lt-imp-exist { background: #eef2ff; color: #4338ca; border: 1px solid #e0e7ff; }
+
+/* Recent-papers finder: PI-attribution signals / warning (V3.500) */
+.lt-match-sig {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: #166534;
+}
+.lt-match-warn {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #b45309;
+}
+
+/* Paper-list group filter banner + per-row relevance select */
+.lt-filter-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #4c1d95;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  padding: 5px 10px;
+  margin-bottom: 8px;
+}
+.lt-filter-clear {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #c4b5fd;
+  color: #6d28d9;
+  border-radius: 8px;
+  font-size: 11px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+.lt-filter-clear:hover { background: #ede9fe; }
+.lt-rel-select {
+  font-size: 10.5px;
+  padding: 1px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #4b5563;
+  background: #fff;
+  max-width: 104px;
+}
+
+/* Group curation editor (inside the lp-oim card) */
+.lt-grp-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: 400 !important;
+  color: #4b5563 !important;
+  font-size: 12px !important;
+}
+.lt-grp-check input { width: auto; }
+.lt-grp-merge {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 8px;
+  margin-top: 2px;
+}
+.lt-grp-merge-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.lt-grp-merge-hint { font-size: 10.5px; color: #9ca3af; margin-bottom: 6px; line-height: 1.4; }
+.lt-grp-merge-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px !important;
+  color: #374151 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: 400 !important;
+  padding: 2px 0;
+}
+.lt-grp-merge-row input { width: auto; }
+.lt-grp-merge-count { color: #9ca3af; font-size: 11px; }
+
+/* ── V3.496 related themes (explore next) ── */
+
+.lt-related-list { display: flex; flex-direction: column; gap: 6px; }
+.lt-related-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px 10px;
+}
+.lt-related-name {
+  flex: 1;
+  font-size: 13px;
+  color: #4c1d95;
+  font-weight: 500;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lt-related-name:hover { text-decoration: underline; }
+.lt-related-controls { display: flex; gap: 2px; }
+.lt-related-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 6px;
+}
+.lt-related-btn:hover:not([disabled]) { color: #6d28d9; background: #ede9fe; }
+.lt-related-btn[disabled] { opacity: .3; cursor: default; }

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ourlab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <style>
+    /* Persistent app shell layout. The top bar + bottom tab bar (mobile-shell)
+       are fixed and never reload; each tab is an iframe filling the middle. */
+    html, body { height: 100%; margin: 0; overflow: hidden; background: #f5f6fa; }
+    #app-topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 8000;
+      box-sizing: border-box;
+      height: calc(50px + env(safe-area-inset-top, 0px));
+      padding: 0 16px; padding-top: env(safe-area-inset-top, 0px);
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-bottom: 1px solid var(--border, #e2e8f0);
+    }
+    .app-tb-brand { display: flex; align-items: center; gap: 8px; }
+    .app-tb-brand .ourlab-mark { width: 24px; height: 24px; display: block; }
+    .app-tb-name { font-weight: 700; color: var(--primary, #2563eb); font-size: 15px; }
+    .app-tb-avatar {
+      width: 32px; height: 32px; border-radius: 50%; border: none;
+      background: var(--primary, #2563eb); color: #fff; font-weight: 700; font-size: 13px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+    }
+    #app-frames {
+      position: fixed; left: 0; right: 0;
+      top: calc(50px + env(safe-area-inset-top, 0px));
+      bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+      background: #f5f6fa;
+    }
+    .app-frame-wrap { position: absolute; inset: 0; }
+    .app-frame { width: 100%; height: 100%; border: 0; display: block; background: #f5f6fa; }
+  </style>
+  <script src="/rm/js/runtime-mode.js"></script>
+</head>
+<body data-app-shell="1">
+  <!-- app-shell.js builds #app-frames + the persistent top bar; the app-build
+       step injects the shell script (bottom tab bar + auth gate) before the
+       closing body tag. -->
+
+  <!-- Auth + data core (mirrors the RM page boot, minus nav / page modules).
+       The Firebase compat srcs below are rewritten to the local /rm/vendor
+       copies at app-build time. -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+
+  <!-- The shell host (iframes + top bar + click hijack). -->
+  <script src="/rm/js/app-shell.js"></script>
+</body>
+</html>

@@ -56,13 +56,14 @@
   // (a list of these keys) overrides this; any key not in section_order is
   // appended to the end so future-added sections surface for older docs.
   const DEFAULT_SECTION_ORDER = [
-    'goals', 'project_overview', 'open_tasks', 'reference_links',
+    'goals', 'focus_review', 'project_overview', 'open_tasks', 'reference_links',
     'weekly_entries', 'activity', 'stats', 'barriers', 'paper_writing',
     'figure_reviews', 'discussion', 'past_pmrs',
   ];
   // Friendly labels per key (used for the block header H2 + the reorder UI).
   const SECTION_LABELS = {
     goals: 'Goals',
+    focus_review: 'Weekly focus review',
     project_overview: 'Project overview',
     open_tasks: 'Open tasks',
     reference_links: 'Reference links',
@@ -137,6 +138,12 @@
     // SectionComments instances. We track them so renderBody() can unmount
     // before re-rendering (otherwise live-sync would create ghost panes).
     commentMounts: [],
+    // V3.517 — the viewed user's lab-notebook index rows, loaded cross-user
+    // via direct firebridge.db() refs (the api adapter hard-codes the
+    // signed-in uid). Filtered by date into each PMR week; full entry bodies
+    // are lazy-loaded + cached on expand, keyed by `uid|entryId`.
+    notebookIndexRows: [],
+    notebookEntryCache: {},
   };
 
   const STALE_DAYS = 14;
@@ -189,6 +196,20 @@
   }
   function pmrCommentsCollPath(uid, periodId) {
     return 'userData/' + uid + '/pmr/' + periodId + '/comments';
+  }
+
+  // V3.517 — cross-user lab-notebook refs. Same rationale as the pmr refs
+  // above: the api adapter hard-codes the signed-in uid, so to read a
+  // student's notebook while an admin/mentor views their PMR we go direct
+  // via firebridge.db(). Gated server-side by the notebook read rule
+  // (owner || mentor || admin) added in V3.517.
+  function notebookIndexDocRef(uid) {
+    return firebridge.db().collection('userData').doc(uid)
+      .collection('notebook').doc('_index');
+  }
+  function notebookEntryDocRef(uid, entryId) {
+    return firebridge.db().collection('userData').doc(uid)
+      .collection('notebook').doc(entryId);
   }
 
   function periodPathFor(periodId) { return 'pmr/' + periodId + '.json'; }
@@ -341,6 +362,61 @@
       state.projectsByUid[uid] = [];
       return [];
     }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * V3.517 — Lab notebook pull-in (read-only, under Weekly entries)
+   *
+   * Loads the viewed user's notebook `_index` (one doc) so each weekly
+   * block can surface the entries dated within its range. Works cross-user
+   * (admin/mentor viewing a student) thanks to the V3.517 notebook read
+   * rule + the direct db refs above. Full entry bodies are fetched lazily
+   * on expand and cached. Errors are swallowed → the section just stays
+   * empty, matching how the other cross-user pulls degrade.
+   * ───────────────────────────────────────────────────────────── */
+  async function loadNotebookIndex() {
+    state.notebookIndexRows = [];
+    state.notebookEntryCache = {};
+    const uid = viewedUid();
+    if (!uid) return;
+    try {
+      const snap = await notebookIndexDocRef(uid).get();
+      if (snap.exists) {
+        const data = snap.data() || {};
+        state.notebookIndexRows = Array.isArray(data.entries) ? data.entries : [];
+      }
+    } catch (err) {
+      console.warn('[pmr] notebook index load failed:', err && err.message);
+      state.notebookIndexRows = [];
+    }
+  }
+
+  /* Entries whose `date` (YYYY-MM-DD) falls inside a week's range.
+   * Lexicographic string compare is safe for the repo's canonical date
+   * format. Undated entries can't be placed in a week, so they're skipped. */
+  function notebookEntriesForWeek(wk) {
+    const rows = state.notebookIndexRows || [];
+    const start = wk && wk.date_range_start;
+    const end = wk && wk.date_range_end;
+    if (!start && !end) return [];
+    return rows.filter(e => {
+      const d = e && e.date;
+      if (!d) return false;
+      if (start && d < start) return false;
+      if (end && d > end) return false;
+      return true;
+    }).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  }
+
+  /* Lazy-load + cache one full notebook entry (for the expand view). */
+  async function loadNotebookEntry(entryId) {
+    const uid = viewedUid();
+    const key = uid + '|' + entryId;
+    if (state.notebookEntryCache[key]) return state.notebookEntryCache[key];
+    const snap = await notebookEntryDocRef(uid, entryId).get();
+    const data = snap.exists ? (snap.data() || {}) : {};
+    state.notebookEntryCache[key] = data;
+    return data;
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -1466,6 +1542,10 @@
       loadIndex(),
       loadPaperDraftsFor(uid),
       loadOpenTasks(),
+      // V3.517 — the viewed user's notebook index. loadOpenTasks above
+      // no-ops cross-user (buckets aren't admin-readable), but the V3.517
+      // notebook read rule lets this one succeed for admins/mentors.
+      loadNotebookIndex(),
     ]);
     pickInitialPeriod();
     renderAll();
@@ -1531,6 +1611,7 @@
     // are skipped; missing keys are appended via effectiveSectionOrder().
     const SECTION_RENDERERS = {
       goals:            renderGoalsBlock,
+      focus_review:     renderFocusReviewBlock,
       project_overview: renderProjectOverviewBlock,
       open_tasks:       renderOpenTasksBlock,
       reference_links:  renderReferenceLinksBlock,
@@ -2473,6 +2554,146 @@
     return outer;
   }
 
+  /* ── Block: Weekly focus review (V3.541) ─────────────────────
+   * Derived, read-only rollup of the mentor↔mentee weekly focus loop
+   * (userData/{uid}/focusAreas via window.FOCUS_AREAS). Grouped by week
+   * with month subheads, so it serves the weekly 1:1 AND the monthly
+   * review in one block. Source of truth stays the focus docs — edits
+   * happen on Team Focus / My Day; here the PI and student review
+   * expectations vs outcomes (with linked notebook entries carrying the
+   * narrative). Exempt from scheduleSave. */
+  function renderFocusReviewBlock() {
+    const block = document.createElement('section');
+    block.className = 'pmr-block';
+    block.innerHTML = '<h2>Weekly focus review <span class="pmr-help">mentor-agreed focus areas vs outcomes — weekly + monthly</span></h2>';
+    const host = document.createElement('div');
+    host.className = 'pmr-focus-review';
+    host.innerHTML = '<div style="color:#9ca3af;font-size:13px">Loading focus areas…</div>';
+    block.appendChild(host);
+    buildCommentToggle(block, 'focus_review', null, 'Weekly focus discussion');
+
+    (async () => {
+      try {
+        if (!window.FOCUS_AREAS) { host.innerHTML = ''; return; }
+        const uid = viewedUid();
+        // Week range from the period's weekly entries; fallback = the
+        // last 12 weeks up to the current one.
+        const weeks = (state.doc && state.doc.weekly_entries) || [];
+        let fromWk = null, toWk = null;
+        weeks.forEach(wk => {
+          if (wk.date_range_start) {
+            const w = FOCUS_AREAS.weekIdFor(wk.date_range_start);
+            if (!fromWk || w < fromWk) fromWk = w;
+            if (!toWk || w > toWk) toWk = w;
+          }
+        });
+        const nowWk = FOCUS_AREAS.weekIdFor();
+        if (!fromWk) fromWk = FOCUS_AREAS.weekIdForOffset(-12);
+        if (!toWk || toWk < nowWk) toWk = nowWk;
+
+        const focuses = await FOCUS_AREAS.listForRange(uid, fromWk, toWk);
+        if (!focuses.length) {
+          host.innerHTML = '<div style="color:#9ca3af;font-size:13px">No focus areas in this period yet — set them up on <a href="/rm/pages/team-focus.html?uid=' + encodeURIComponent(uid) + '">Team Focus</a>.</div>';
+          return;
+        }
+
+        // V3.550 — optional group-by-research-focus view. Focus areas carry
+        // focus_ref {id,title} (the researchFoci card they advance); when any
+        // do, offer a toggle that buckets the period's weeks under each
+        // research thrust instead of chronologically.
+        const hasRefs = focuses.some(f => f.focus_ref && f.focus_ref.id);
+        let groupByThrust = false;
+        const renderBody = () => {
+          const toggle = hasRefs
+            ? '<div class="pmr-fr-toggle"><label><input type="checkbox" data-fr-group' + (groupByThrust ? ' checked' : '') + '> group by research focus</label></div>'
+            : '';
+          host.innerHTML = toggle + (groupByThrust ? renderByThrust() : renderByWeek());
+          const cb = host.querySelector('[data-fr-group]');
+          if (cb) cb.addEventListener('change', () => { groupByThrust = cb.checked; renderBody(); });
+        };
+
+        const focusCard = f => {
+          const meta = FOCUS_AREAS.STATUS_META[f.status] || {};
+          const om = f.report ? (FOCUS_AREAS.OUTCOME_META[f.report.outcome] || {}) : null;
+          const tasks = f.tasks || [];
+          const done = tasks.filter(t => t.done).length;
+          return '<div class="pmr-fr-card">' +
+            '<div class="pmr-fr-head">' +
+              '<span class="pmr-fr-title">🎯 ' + escHTML(f.title) + '</span>' +
+              '<span class="pmr-fr-chip" style="color:' + meta.color + ';background:' + meta.bg + '">' + escHTML(meta.label || f.status) + '</span>' +
+              (om ? '<span class="pmr-fr-outcome">' + (om.icon || '') + ' ' + escHTML(om.label || '') + '</span>' : '') +
+              (tasks.length ? '<span class="pmr-fr-tasks">' + done + '/' + tasks.length + ' tasks</span>' : '') +
+              /* V3.602 — grouped by thrust the card name is already the
+               * group head, so the chip narrows to the analysis alone;
+               * ungrouped it shows the full "card › analysis" path. */
+              (f.focus_ref && (!groupByThrust || f.focus_ref.analysis_title)
+                ? '<a class="pmr-fr-nb" href="/rm/pages/research.html?id=' + encodeURIComponent(f.focus_ref.id) +
+                    (f.focus_ref.analysis_id ? '#rmap-' + f.focus_ref.analysis_id : '') + '">🎯 ' +
+                    escHTML(groupByThrust
+                      ? f.focus_ref.analysis_title
+                      : (FOCUS_AREAS.focusRefLabel ? FOCUS_AREAS.focusRefLabel(f.focus_ref) : f.focus_ref.title)) +
+                  '</a>'
+                : '') +
+            '</div>' +
+            (f.description ? '<div class="pmr-fr-desc">' + escHTML(f.description) + '</div>' : '') +
+            ((f.paper_refs || []).map(r =>
+              '<a class="pmr-fr-nb" href="/rm/pages/paper-builder.html?id=' + encodeURIComponent(r.id) + '">📝 ' + escHTML(r.title) + '</a>').join(' ')) +
+            (f.report && f.report.summary ? '<div class="pmr-fr-summary">' + escHTML(f.report.summary) + '</div>' : '') +
+            ((f.report && f.report.notebook_entry_ids || []).map(id =>
+              '<a class="pmr-fr-nb" href="/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(id) + '">📓 notebook entry</a>').join(' ')) +
+          '</div>';
+        };
+
+        const renderByThrust = () => {
+          const byRef = {};
+          focuses.forEach(f => {
+            const key = (f.focus_ref && f.focus_ref.id) || '__none__';
+            (byRef[key] = byRef[key] || { ref: f.focus_ref, rows: [] }).rows.push(f);
+          });
+          const keys = Object.keys(byRef).sort((a, b) => (a === '__none__') - (b === '__none__'));
+          return keys.map(k => {
+            const g = byRef[k];
+            const head = g.ref
+              ? '<a href="/rm/pages/research.html?id=' + encodeURIComponent(g.ref.id) + '">🎯 ' + escHTML(g.ref.title) + '</a>'
+              : 'Not aligned with a research focus';
+            const rows = g.rows.sort((a, b) => (b.weekId || '').localeCompare(a.weekId || ''))
+              .map(f => '<div class="pmr-fr-weekhead">Week ' + escHTML(f.weekId) + '</div>' + focusCard(f)).join('');
+            return '<div class="pmr-fr-week"><div class="pmr-fr-thrust">' + head + '</div>' + rows + '</div>';
+          }).join('');
+        };
+
+        const renderByWeek = () => {
+        // Group by weekId (desc — most recent first), month subheads.
+        const byWeek = {};
+        focuses.forEach(f => { (byWeek[f.weekId] = byWeek[f.weekId] || []).push(f); });
+        const weekIds = Object.keys(byWeek).sort().reverse();
+        let lastMonth = null;
+        return weekIds.map(wid => {
+          // Monday of the ISO week → month label for the monthly rollup.
+          const m = wid.match(/^(\d{4})-W(\d{2})$/);
+          let monthHead = '';
+          if (m) {
+            const jan4 = new Date(Date.UTC(+m[1], 0, 4));
+            const mon = new Date(jan4.getTime());
+            mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (+m[2] - 1) * 7);
+            const label = mon.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+            if (label !== lastMonth) { lastMonth = label; monthHead = '<div class="pmr-fr-month">' + escHTML(label) + '</div>'; }
+          }
+          const cards = byWeek[wid].map(focusCard).join('');
+          return monthHead + '<div class="pmr-fr-week"><div class="pmr-fr-weekhead">Week ' + escHTML(wid) + '</div>' + cards + '</div>';
+        }).join('');
+        };
+
+        renderBody();
+      } catch (err) {
+        console.warn('[pmr] focus review load failed:', err && err.message);
+        host.innerHTML = '<div style="color:#9ca3af;font-size:13px">Focus areas unavailable.</div>';
+      }
+    })();
+
+    return block;
+  }
+
   /* ── Block: Weekly entries ─────────────────────────────────── */
   function renderWeeklyEntriesBlock() {
     const block = document.createElement('section');
@@ -2549,6 +2770,35 @@
     // V3.190 — discussed toggle in the week header.
     head.appendChild(buildDiscussedToggle(wk, () => { scheduleSave(); renderBody(); }));
 
+    // V3.532 — assemble the week from what the student already did
+    // (notebook entries, tracker events, done subtasks, My Day plans).
+    // Owner-only: the reviewer view is read-only anyway.
+    if (!isReadOnlyView() && window.PMR_WEEK_ASSEMBLE) {
+      const asm = document.createElement('button');
+      asm.className = 'pmr-add-btn';
+      asm.textContent = '⤓ Assemble';
+      asm.title = 'Pull this week’s notebook entries, tracker events, completed tasks and My Day plans into the week';
+      asm.onclick = () => PMR_WEEK_ASSEMBLE.open(wk, state.doc, {
+        onInsert: (picked) => {
+          wk.subsections = (wk.subsections && wk.subsections.length)
+            ? wk.subsections : [{ name: 'Experimental update', items: [] }];
+          picked.forEach(({ bySubsection, item }) => {
+            let dest = wk.subsections.find(s => (s.name || '') === bySubsection);
+            if (!dest) {
+              dest = wk.subsections.find(s => (s.name || '').toLowerCase().includes(
+                bySubsection === 'Reading/Writing' ? 'read' : 'experiment')) || wk.subsections[0];
+            }
+            dest.items = dest.items || [];
+            dest.items.push(item);
+          });
+          scheduleSave();
+          renderBody();
+          if (window.TOAST) TOAST.success(picked.length + ' item' + (picked.length === 1 ? '' : 's') + ' added to the week');
+        },
+      });
+      head.appendChild(asm);
+    }
+
     const del = document.createElement('span');
     del.className = 'del'; del.textContent = '✕'; del.title = 'Remove week';
     del.onclick = () => {
@@ -2560,6 +2810,19 @@
     };
     head.appendChild(del);
     div.appendChild(head);
+
+    // V3.532 — the student's 2-sentence narrative on top of the assembled
+    // items ("Summarize my week"). Schema-additive: old week objects
+    // simply have no `summary`.
+    const summary = document.createElement('textarea');
+    summary.className = 'pmr-week-summary';
+    summary.placeholder = 'Summarize my week — the 2-sentence story above the items…';
+    summary.value = wk.summary || '';
+    summary.rows = 2;
+    summary.style.cssText = 'width:100%;margin:4px 0 8px;padding:6px 8px;border:1px solid var(--border,#e1e4e8);border-radius:8px;font:inherit;font-size:.9em;background:transparent;color:inherit;resize:vertical';
+    summary.readOnly = isReadOnlyView();
+    summary.addEventListener('input', () => { wk.summary = summary.value; scheduleSave(); });
+    div.appendChild(summary);
 
     (wk.subsections || []).forEach((sub, si) => div.appendChild(renderSubsection(wk, sub, si)));
 
@@ -2573,10 +2836,128 @@
       renderBody();
     };
     div.appendChild(addSub);
+    // V3.517 — read-only lab-notebook entries dated within this week,
+    // surfaced for the owner + PMR reviewers (PI / mentors).
+    const nbBlock = renderWeekNotebook(wk);
+    if (nbBlock) div.appendChild(nbBlock);
     // V3.157 — per-week comment thread (so admin/student can talk about a
     // specific week's progress, not just the section as a whole).
     buildCommentToggle(div, 'weekly_entries', wk.id, 'Discussion for week ' + (wk.date_range_start || ''));
     return div;
+  }
+
+  /* ── V3.517: read-only lab-notebook entries under a week ─────────
+   * The notebook is the source of truth, so this is a cross-reference
+   * only — never editable PMR content (exempt from scheduleSave). Shown
+   * to the owner and to PMR reviewers (admin/mentors via the V3.517
+   * notebook read rule). Hidden entirely when the week has no entries. */
+  function renderWeekNotebook(wk) {
+    const rows = notebookEntriesForWeek(wk);
+    if (!rows.length) return null;
+    const wrap = document.createElement('div');
+    wrap.className = 'pmr-week-notebook';
+    const head = document.createElement('div');
+    head.className = 'pmr-wn-head';
+    head.textContent = '📓 Lab notebook (' + rows.length + ')';
+    wrap.appendChild(head);
+    rows.forEach(row => wrap.appendChild(renderWeekNotebookRow(row)));
+    return wrap;
+  }
+
+  function renderWeekNotebookRow(row) {
+    const item = document.createElement('div');
+    item.className = 'pmr-wn-item';
+
+    const header = document.createElement('div');
+    header.className = 'pmr-wn-row';
+
+    const twist = document.createElement('span');
+    twist.className = 'pmr-wn-twist';
+    twist.textContent = '▸';
+    header.appendChild(twist);
+
+    const title = document.createElement('span');
+    title.className = 'pmr-wn-title';
+    title.textContent = row.title || row.id || 'Untitled entry';
+    header.appendChild(title);
+
+    const date = document.createElement('span');
+    date.className = 'pmr-wn-date';
+    date.textContent = row.date || '';
+    header.appendChild(date);
+
+    const pillText = row.phase || row.status;
+    if (pillText) {
+      const pill = document.createElement('span');
+      pill.className = 'pmr-wn-pill s-' + pillText;
+      pill.textContent = pillText;
+      header.appendChild(pill);
+    }
+
+    // Owner only: a shortcut into the full notebook page. Omitted for
+    // reviewers because lab-notebook.html is uid-scoped to the signed-in
+    // user (it would open the reviewer's own notebook, not the student's).
+    if (!isReadOnlyView()) {
+      const open = document.createElement('a');
+      open.className = 'pmr-wn-open';
+      open.href = '/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(row.id);
+      open.target = '_blank';
+      open.rel = 'noopener';
+      open.textContent = 'open ↗';
+      open.title = 'Open in lab notebook';
+      open.addEventListener('click', ev => ev.stopPropagation());
+      header.appendChild(open);
+    }
+    item.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'pmr-wn-body';
+    body.style.display = 'none';
+    item.appendChild(body);
+
+    let loaded = false;
+    header.addEventListener('click', async () => {
+      const isOpen = body.style.display !== 'none';
+      if (isOpen) { body.style.display = 'none'; twist.textContent = '▸'; return; }
+      body.style.display = '';
+      twist.textContent = '▾';
+      if (loaded) return;
+      loaded = true;
+      body.innerHTML = '<div class="pmr-empty" style="padding:6px">Loading…</div>';
+      try {
+        const full = await loadNotebookEntry(row.id);
+        renderNotebookEntryBody(body, full);
+      } catch (err) {
+        loaded = false; // allow retry on next expand
+        body.innerHTML = '<div class="pmr-empty" style="padding:6px;color:#991b1b">Could not load entry: '
+          + escapeHtml((err && err.message) || 'error') + '</div>';
+      }
+    });
+    return item;
+  }
+
+  /* Render one entry's content read-only. body_html is already sanitized on
+   * the notebook side (images are tokenized Storage download URLs, so they
+   * render for reviewers too), so we inject it directly — the same trusted-
+   * render pattern PMR uses for barrier descriptions. */
+  function renderNotebookEntryBody(container, entry) {
+    container.innerHTML = '';
+    if (entry && entry.summary) {
+      const sum = document.createElement('div');
+      sum.className = 'pmr-wn-summary';
+      sum.textContent = entry.summary;
+      container.appendChild(sum);
+    }
+    const rich = document.createElement('div');
+    rich.className = 'pmr-wn-rich';
+    if (entry && entry.body_html) {
+      rich.innerHTML = entry.body_html;
+    } else if (entry && entry.body_text) {
+      rich.textContent = entry.body_text;
+    } else {
+      rich.innerHTML = '<div class="pmr-empty" style="padding:6px">(empty entry)</div>';
+    }
+    container.appendChild(rich);
   }
 
   function renderSubsection(wk, sub, si) {
@@ -3621,7 +4002,10 @@
     det.appendChild(sum);
 
     entries.forEach(e => {
-      // V3.321 — hours are dead: rows show day + category + text only.
+      // V3.327 — hybrid model: manual entries carry `duration` (hours),
+      // auto-captured events (page-time / producers) don't. Show hours
+      // when present so the PMR matches the tracker; blank for presence
+      // events (they still show on the heatmap strip above).
       const row = document.createElement('div');
       row.className = 'pmr-activity-row';
       const day = document.createElement('span');
@@ -3634,6 +4018,11 @@
         ? e.categoryPath.join(' › ') : '(uncategorized)';
       cat.textContent = catStr + ' — ' + (e.text || '');
       row.appendChild(cat);
+      const hrs = document.createElement('span');
+      hrs.className = 'pmr-activity-hours';
+      const mins = (e.duration != null && isFinite(e.duration) && e.status !== 'pending') ? Number(e.duration) : 0;
+      hrs.textContent = mins > 0 ? (mins / 60).toFixed(1) + 'h' : '';
+      row.appendChild(hrs);
       det.appendChild(row);
     });
     return det;
@@ -3646,7 +4035,7 @@
     const block = document.createElement('section');
     block.className = 'pmr-block';
     const head = document.createElement('h2');
-    head.innerHTML = 'Stats <span class="pmr-help">activity events by category for this period</span>';
+    head.innerHTML = 'Stats <span class="pmr-help">logged hours by category for this period</span>';
     block.appendChild(head);
 
     const body = document.createElement('div');
@@ -3687,8 +4076,10 @@
     } else {
       entries = await window.ActivitySignals.listForPeriod(uid, { from: fromDate, to: toDate });
     }
-    // V3.321 — hours are dead: stats are EVENT COUNTS by category.
-    // Schedule markers (future-work placeholders) are excluded.
+    // V3.327 — hours by category (from manual entries' `duration`), to
+    // match the tracker. Schedule markers are excluded; auto-captured
+    // presence events (no duration) contribute 0 hours here — they show
+    // on the heatmap strip in the Activity block instead.
     const work = entries.filter(e =>
       !(e.kind === 'schedule' || (!e.kind && e.scheduled_for && e.status === 'pending')));
     renderStatsContent(host, work, fromDate, toDate);
@@ -3696,26 +4087,28 @@
 
   function renderStatsContent(host, entries, fromDate, toDate) {
     host.innerHTML = '';
-    if (!entries.length) {
+    // Aggregate minutes by top-level category.
+    const byCat = {};
+    let totalMins = 0;
+    entries.forEach(e => {
+      const mins = (e.duration != null && isFinite(e.duration) && e.status !== 'pending') ? Number(e.duration) : 0;
+      if (mins <= 0) return;
+      const cat = (Array.isArray(e.categoryPath) && e.categoryPath[0]) || 'other';
+      byCat[cat] = (byCat[cat] || 0) + mins;
+      totalMins += mins;
+    });
+    if (!totalMins) {
       const empty = document.createElement('div');
       empty.className = 'pmr-stats-empty';
-      empty.textContent = 'No activity in this period.';
+      empty.textContent = 'No logged hours in this period yet — log time on the Activity tracker (Daily) and it rolls up here.';
       host.appendChild(empty);
       return;
     }
-    // Aggregate event counts by top-level category.
-    const byCat = {};
-    let total = 0;
-    entries.forEach(e => {
-      const cat = (Array.isArray(e.categoryPath) && e.categoryPath[0]) || 'other';
-      byCat[cat] = (byCat[cat] || 0) + 1;
-      total += 1;
-    });
-    // Sort descending by count.
+    // Sort descending by hours.
     const cats = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
     cats.forEach(cat => {
-      const count = byCat[cat];
-      const pct = count / total * 100;
+      const mins = byCat[cat];
+      const pct = mins / totalMins * 100;
       const row = document.createElement('div');
       row.className = 'pmr-stats-bar';
       const label = document.createElement('div');
@@ -3732,10 +4125,10 @@
       fill.style.width = pct.toFixed(1) + '%';
       track.appendChild(fill);
       row.appendChild(track);
-      const countEl = document.createElement('div');
-      countEl.className = 'pmr-stats-hours';
-      countEl.textContent = count + (count === 1 ? ' event' : ' events');
-      row.appendChild(countEl);
+      const hrsEl = document.createElement('div');
+      hrsEl.className = 'pmr-stats-hours';
+      hrsEl.textContent = (mins / 60).toFixed(1) + 'h';
+      row.appendChild(hrsEl);
       const pctEl = document.createElement('div');
       pctEl.className = 'pmr-stats-pct';
       pctEl.textContent = Math.round(pct) + '%';
@@ -3743,17 +4136,17 @@
       host.appendChild(row);
     });
 
-    // Daily sparkline across the period (event counts per day).
+    // Daily sparkline across the period (hours per day).
     const spark = document.createElement('div');
     spark.className = 'pmr-stats-sparkline';
     const byDay = {};
     entries.forEach(e => {
-      if (!e.date) return;
-      byDay[e.date] = (byDay[e.date] || 0) + 1;
+      const mins = (e.duration != null && isFinite(e.duration) && e.status !== 'pending') ? Number(e.duration) : 0;
+      if (!e.date || mins <= 0) return;
+      byDay[e.date] = (byDay[e.date] || 0) + mins;
     });
     const dates = enumerateDates(fromDate, toDate);
     const maxDay = Math.max(1, ...Object.values(byDay));
-    // Cap to a reasonable display width: if very long period, sample weekly.
     const step = Math.max(1, Math.floor(dates.length / 60));
     dates.forEach((d, i) => {
       if (i % step !== 0) return;
@@ -3761,7 +4154,7 @@
       bar.className = 'pmr-stats-spark-bar';
       const v = byDay[d] || 0;
       bar.style.height = Math.max(2, (v / maxDay) * 100) + '%';
-      bar.title = d + ': ' + v + ' event' + (v === 1 ? '' : 's');
+      bar.title = d + ': ' + (v / 60).toFixed(1) + 'h';
       spark.appendChild(bar);
     });
     host.appendChild(spark);
@@ -4287,11 +4680,11 @@
 
   async function boot() {
     try {
-      if (typeof firebridge === 'undefined' || !firebridge.gateSignedIn) {
+      if (typeof firebridge === 'undefined' || !firebridge.requireSignIn) {
         document.getElementById('pmr-content').innerHTML = '<div class="pmr-empty">firebridge missing — load order issue.</div>';
         return;
       }
-      const gate = await firebridge.gateSignedIn('PMR is for lab members. Sign in with your @arizona.edu (or admin Google) account.');
+      const gate = await firebridge.requireSignIn('PMR is for lab members. Sign in with your @arizona.edu (or admin Google) account.');
       if (!gate.allowed) return;
 
       // Refuse access to guest accounts.
@@ -4317,6 +4710,9 @@
         loadPaperDraftsFor(state.user.uid),
         // V3.243 — mentee lookup so non-admin mentors get a rail.
         loadMyMentees(),
+        // V3.517 — the signed-in user's own notebook index (cross-user
+        // loads happen later via switchToUser when viewing a mentee).
+        loadNotebookIndex(),
       ]);
       pickInitialPeriod();
 

@@ -79,6 +79,43 @@
     .pmr-item input[type="text"]:focus{border-color:#d1d5db;background:#fff}
     .pmr-item .del{cursor:pointer;color:#dc2626;text-align:center;font-size:13px;padding:2px}
     .pmr-item .del:hover{background:#fee2e2;border-radius:4px}
+    /* V3.541 — weekly focus review block (derived, read-only) */
+    .pmr-fr-month{font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px}
+    .pmr-fr-week{margin-bottom:8px}
+    .pmr-fr-weekhead{font-size:11px;color:#6b7280;font-weight:600;margin-bottom:4px}
+    .pmr-fr-card{border:1px solid #e5e7eb;border-left:3px solid #2563eb;border-radius:8px;padding:8px 10px;margin-bottom:6px;background:#fafbfc}
+    .pmr-fr-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .pmr-fr-title{font-weight:600;font-size:13px}
+    .pmr-fr-chip{font-size:10px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+    .pmr-fr-outcome{font-size:12px;font-weight:600}
+    .pmr-fr-tasks{font-size:11px;color:#6b7280}
+    .pmr-fr-desc{font-size:12px;color:#6b7280;margin-top:2px}
+    .pmr-fr-summary{font-size:12px;color:#374151;margin-top:2px;font-style:italic}
+    .pmr-fr-nb{font-size:11px}
+
+    /* V3.517 — read-only lab-notebook entries surfaced under each week */
+    .pmr-week-notebook{margin:8px 0 2px 0;padding:8px 0 2px 12px;border-top:1px dashed #e5e7eb}
+    .pmr-wn-head{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
+    .pmr-wn-item{border-radius:6px;margin-bottom:2px}
+    .pmr-wn-row{display:flex;align-items:center;gap:8px;padding:4px 6px;cursor:pointer;border-radius:6px;font-size:13px}
+    .pmr-wn-row:hover{background:#f1f5f9}
+    .pmr-wn-twist{color:#9ca3af;font-size:10px;width:10px;flex:none}
+    .pmr-wn-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827;font-weight:500}
+    .pmr-wn-date{color:#9ca3af;font-size:11px;flex:none;font-variant-numeric:tabular-nums}
+    .pmr-wn-pill{font-size:10px;padding:1px 7px;border-radius:999px;flex:none;background:#e5e7eb;color:#374151;text-transform:capitalize}
+    .pmr-wn-pill.s-running{background:#fef3c7;color:#92400e}
+    .pmr-wn-pill.s-complete{background:#dcfce7;color:#166534}
+    .pmr-wn-pill.s-plan{background:#e0e7ff;color:#3730a3}
+    .pmr-wn-pill.s-closed{background:#dcfce7;color:#166534}
+    .pmr-wn-pill.s-archived{background:#e5e7eb;color:#6b7280}
+    .pmr-wn-open{font-size:11px;color:#2563eb;text-decoration:none;flex:none;padding:1px 4px}
+    .pmr-wn-open:hover{text-decoration:underline}
+    .pmr-wn-body{margin:2px 0 8px 24px;padding:8px 12px;border-left:2px solid #e5e7eb;background:#fff;border-radius:0 6px 6px 0;max-height:420px;overflow:auto}
+    .pmr-wn-summary{font-size:12px;font-style:italic;color:#6b7280;margin-bottom:6px}
+    .pmr-wn-rich{font-size:13px;line-height:1.55;color:#1f2937;word-wrap:break-word;overflow-wrap:anywhere}
+    .pmr-wn-rich img{max-width:100%;height:auto;border-radius:6px;margin:6px 0}
+    .pmr-wn-rich table{border-collapse:collapse;max-width:100%}
+    .pmr-wn-rich td,.pmr-wn-rich th{border:1px solid #e5e7eb;padding:3px 6px}
 
     /* ── Discussion / next steps ───────────────────────────────── */
     .pmr-disc-card{border:1px solid #e5e7eb;border-left:4px solid #2563eb;border-radius:6px;padding:8px 10px;margin-bottom:8px;background:#fff;display:grid;grid-template-columns:90px 1fr auto;gap:8px;align-items:flex-start}
@@ -146,6 +183,7 @@
   <!-- V3.157 — Storage SDK powers barrier figure uploads via paper-figures.js. -->
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
@@ -157,6 +195,17 @@
   <script src="/rm/js/section-comments.js"></script>
   <!-- V3.194 — bridge to Tasks-page subtasks (Add to PMR + completion sync). -->
   <script src="/rm/js/task-pmr-sync.js"></script>
+  <!-- V3.532 — "⤓ Assemble" pulls the week's notebook/tracker/tasks/My Day
+       work into weekly entries (notebook is canonical; PMR is curated). -->
+  <script src="/rm/js/pmr-week-assemble.js"></script>
+  <!-- V3.541 — weekly focus review block (mentor↔mentee focus loop rollup) -->
+  <!-- V3.602 — a weekly focus can align to a specific roadmap ANALYSIS;
+       focus-areas.js reads roadmaps through ROADMAP_DATA and mirrors the
+       pick into roadmapClaims, so this must load first. -->
+  <script src="/rm/js/roadmap-data.js"></script>
+  <script src="/rm/js/focus-areas.js"></script>
   <script src="/rm/js/pmr.js"></script>
+  <!-- V3.535 -- which-surface-for-what orientation banner -->
+  <script src="/rm/js/surface-guide.js" defer></script>
 </body>
 </html>

@@ -5602,3 +5602,34 @@ img.cb295-chat-msg-icon-photo {
   .tc-class-head{ flex-direction: column; align-items: flex-start; }
   .tc-roster-table td:nth-child(3){ display: none; } /* joined-date column */
 }
+
+/* ── Research Foci overview (V3.553 — public #/projects) ─────────
+   Published from RM's research page (publicFoci). Three bands with
+   expandable overviews (text / images / video / YouTube / sandboxed HTML). */
+.foci-band{ margin: 2.5rem 0; }
+.foci-band-title{ margin: 0 0 .25rem; }
+.foci-band-blurb{ color: var(--muted, #6b7280); margin: 0 0 1rem; }
+.foci-grid{ display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.foci-grid-specialty{ grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.foci-card{ --foci-accent: #2563eb; display: flex; flex-direction: column; overflow: hidden; border-top: 3px solid var(--foci-accent); }
+.foci-cover{ aspect-ratio: 16/9; overflow: hidden; }
+.foci-cover img{ width: 100%; height: 100%; object-fit: cover; }
+.foci-card-body{ padding: 1rem; }
+.foci-card-body h4{ margin: 0 0 .25rem; }
+.foci-abbr{ color: var(--muted, #6b7280); font-weight: 400; }
+.foci-liner{ color: var(--muted, #6b7280); margin: 0 0 .5rem; }
+.foci-expand{ background: none; border: 1px solid var(--border, #e1e4e8); border-radius: 8px; padding: 4px 12px; cursor: pointer; color: var(--foci-accent); font: inherit; }
+.foci-overview{ padding: 0 1rem 1rem; display: flex; flex-direction: column; gap: 1rem; }
+.foci-ov-text{ line-height: 1.6; }
+.foci-ov-youtube{ position: relative; aspect-ratio: 16/9; }
+.foci-ov-youtube iframe{ position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 8px; }
+.foci-ov-image img{ width: 100%; border-radius: 8px; }
+.foci-ov-image figcaption, .foci-ov-video figcaption, .foci-ov-html figcaption{ color: var(--muted, #6b7280); font-size: .85rem; margin-top: .25rem; }
+.foci-ov-video video{ width: 100%; border-radius: 8px; }
+.foci-ov-html{ position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: #f3f4f6; }
+.foci-html-shell{ position: absolute; inset: 0; }
+.foci-html-run{ position: absolute; inset: 0; width: 100%; height: 100%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #f3f4f6; }
+.foci-html-poster{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .55; }
+.foci-html-ph{ font-size: 42px; }
+.foci-html-run span{ position: relative; z-index: 1; background: rgba(255,255,255,.85); border-radius: 999px; padding: 4px 16px; font-weight: 600; }
+.foci-html-frame{ position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

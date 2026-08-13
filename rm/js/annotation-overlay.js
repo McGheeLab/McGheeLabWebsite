@@ -17,6 +17,8 @@
   let _container = null;
   let _onCreate = null;
   let _onSelect = null;
+  let _onCaptureEquation = null;   // E3 — equation capture action
+  let _onCaptureFigure = null;     // V3.610 — figure capture action
   let _getColors = () => [];
   let _annotations = [];
   let _toolbarEl = null;
@@ -77,6 +79,41 @@
       tb.appendChild(swatch);
     }
 
+    // E3 — capture the selected region as an EQUATION (snip + MathLive
+    // transcription + note; saved as a kind:'equation' annotation).
+    if (_onCaptureEquation) {
+      const eqBtn = document.createElement('button');
+      eqBtn.className = 'ann-toolbar-eq';
+      eqBtn.textContent = 'ƒ';
+      eqBtn.title = 'Capture equation — snip this region and transcribe it';
+      eqBtn.addEventListener('mousedown', (e) => e.preventDefault());
+      eqBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _hideToolbar();
+        _onCaptureEquation({ anchors });
+      });
+      tb.appendChild(eqBtn);
+    }
+
+    // V3.610 — capture the selected region as a FIGURE (snip → Storage +
+    // a kind:'figure' annotation; surfaces in the paper builder's Figure
+    // board picker). Pairs with geom-selection's marquee mode.
+    if (_onCaptureFigure) {
+      const figBtn = document.createElement('button');
+      figBtn.className = 'ann-toolbar-eq';
+      figBtn.textContent = '🖼';
+      figBtn.title = 'Capture figure — snip this region as a reference image';
+      figBtn.addEventListener('mousedown', (e) => e.preventDefault());
+      figBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _hideToolbar();
+        _onCaptureFigure({ anchors });
+      });
+      tb.appendChild(figBtn);
+    }
+
     // Cancel chip
     const cancel = document.createElement('button');
     cancel.className = 'ann-toolbar-cancel';
@@ -109,6 +146,11 @@
   function _onDocClick(ev) {
     if (_toolbarEl && _toolbarEl.contains(ev.target)) return;
     if (_container && _container.contains(ev.target)) return;  // click was on viewer — let geom handle it
+    // V3.613 — taps inside an APP_SHEET bottom sheet (the mobile reader's
+    // post-selection surface) synthesize mousedown on iOS; the sheet is a
+    // body child, so without this guard every tap in it would clear the
+    // selection preview mid-interaction.
+    if (ev.target && ev.target.closest && ev.target.closest('.app-sheet-back')) return;
     _hideToolbar();
     if (window.GEOM_SELECTION) window.GEOM_SELECTION.clear();
   }
@@ -218,6 +260,33 @@
     redraw();
   }
 
+  /* V3.613 — coordinate hit-test for touch: .ann-rect is deliberately
+   * pointer-events:none, so the mobile reader resolves a tap to an
+   * annotation id by geometry. (x, y) are page-wrap-local CSS pixels on
+   * pageNumber. Respects the active filter; smallest-area hit wins so a
+   * short highlight nested inside a long one is pickable. Returns the
+   * annotation id or null. */
+  function annotationAt(pageNumber, x, y) {
+    if (!_viewer) return null;
+    let bestId = null, bestArea = Infinity;
+    for (const ann of _annotations) {
+      if (!_filterFn(ann)) continue;
+      const pages = (ann.target && ann.target.pages) || [];
+      const pageAnchor = pages.find(p => p.page === pageNumber);
+      if (!pageAnchor) continue;
+      let rects = [];
+      try { rects = window.ANNOTATION_ANCHOR.anchorToRects(_viewer, pageAnchor) || []; }
+      catch (_) { continue; }
+      for (const r of rects) {
+        if (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height) {
+          const area = r.width * r.height;
+          if (area < bestArea) { bestArea = area; bestId = ann.id; }
+        }
+      }
+    }
+    return bestId;
+  }
+
   function focus(annotationId) {
     _focusedId = annotationId;
     if (!annotationId) { redraw(); return; }
@@ -253,6 +322,8 @@
     _container = opts.container;
     _onCreate = opts.onCreate || null;
     _onSelect = opts.onSelect || null;
+    _onCaptureEquation = opts.onCaptureEquation || null;   // E3
+    _onCaptureFigure = opts.onCaptureFigure || null;       // V3.610
     _getColors = opts.getColors || (() => []);
     document.addEventListener('mousedown', _onDocClick);
   }
@@ -274,6 +345,7 @@
     redraw,
     redrawPage,
     focus,
+    annotationAt,
     destroy,
     onSelectionCommit,
   };

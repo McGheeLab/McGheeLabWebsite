@@ -370,8 +370,8 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
-      firebridge.whenAuthResolved().then(render).catch(render);
+    if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+      firebridge.requireSignIn('Sign in to view lab trainings.').then(render).catch(render);
     } else {
       render();
     }

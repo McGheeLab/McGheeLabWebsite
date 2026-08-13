@@ -34,7 +34,7 @@
 
   function getMyUid() {
     try {
-      return (window.firebridge && window.firebridge.getUser && window.firebridge.getUser() || {}).uid || '';
+      return (typeof firebridge !== 'undefined' && firebridge.getUser && firebridge.getUser() || {}).uid || '';
     } catch (e) { return ''; }
   }
 

@@ -81,6 +81,51 @@ Update when:
 - Data flow between components changes
 - New external dependencies are introduced
 
+## Release Batching (V3.604+)
+
+Small changes are **collected, not individually pushed**. The per-change
+ritual (CHANGELOG entry, plan doc, sw.js CACHE_VERSION bump) is unchanged,
+but FTP + the user-facing announcement wait for a batch:
+
+1. **After every small change**, append ONE plain-language entry to
+   [CodeLog/Updates/PENDING_RELEASE.md](CodeLog/Updates/PENDING_RELEASE.md)
+   — written for lab members, not developers ("You can now…", "Fixed:…").
+2. **When the ledger reaches 5+ entries, tell Alex it's ready to push.**
+   Alex saying **"push"** overrides the threshold at any count.
+3. **At push time, run the release script** — it ships the web AND the phone
+   app from the ledger, so the two can't drift:
+
+   ```bash
+   python3 scripts/release_push.py            # --force to push under 5
+   python3 scripts/release_push.py --dry-run  # show everything, change nothing
+   ```
+
+   It writes the Ourlab mobile changelog entry (generated from the ledger),
+   bumps `CURRENT_PROJECT_VERSION`, runs `sync-rm` + `cap sync`, gates on
+   device verification, archives/exports/uploads the TestFlight build, prints
+   the ready-to-paste announcement block, and rolls the ledger into
+   **Shipped**. Run it from a real terminal — codesign fails under a sandbox.
+
+4. **Two manual steps remain:** Cyberduck FTP the repo, then open
+   `mcgheelab.com/rm/pages/whats-new.html` as admin, paste the printed block
+   (including the app build), and press "Send to all lab members" — one click
+   writes the `releases` history doc AND sends a single push + My Day feed
+   item to every lab member via the `releaseAnnounce` Cloud Function.
+
+**Why the app ships with every batch:** Ourlab mobile is not a URL wrapper —
+`OurlabMobile/scripts/sync-rm.mjs` bundles the whole `rm/` tree into the app
+at build time. An FTP-only push updates browser users and silently leaves
+phone users on old code, so each batch cuts a matching TestFlight build and
+the announcement names the build that carries the changes. The mobile repo
+keeps its own `m-vX.Y.Z` version line and its own
+`CodeLog/Updates/CHANGELOG.md` — **don't hand-author that entry**, the script
+generates it (patch bump for a bundle refresh, minor when native/Swift/config
+files changed; `--minor` / `--patch` override).
+
+Exception: changes needing `firebase deploy` (rules/indexes/functions) still
+deploy their backend parts immediately in the documented order — only the
+FTP + notification are batched.
+
 ## Version Control Workflow
 
 1. Work on `Version-X.Y` branch

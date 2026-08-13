@@ -1,0 +1,250 @@
+/* ================================================================
+   voice-call.css — Slack-style huddle call panel (V3.525 MVP).
+   Fixed bottom-right panel rendered by rm/js/voice-call.js, plus the
+   📞 header button live-state in chat. Uses tokens.css variables with
+   fallbacks (panel floats over any page background).
+   ================================================================ */
+
+/* ── call panel ── */
+#vc-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9990;               /* under toasts (99999), over chat chrome */
+  width: 260px;
+  background: var(--surface-1, #1e2126);
+  color: var(--text-1, #e8eaed);
+  border: 1px solid var(--border-1, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  padding: 12px;
+  font-size: 13px;
+}
+
+#vc-panel.vc-panel--pulse {
+  animation: vc-pulse 0.6s ease;
+}
+@keyframes vc-pulse {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.vc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.vc-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34d399;
+  flex-shrink: 0;
+  animation: vc-blink 1.6s ease infinite;
+}
+@keyframes vc-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+.vc-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vc-count {
+  background: var(--surface-2, rgba(255, 255, 255, 0.08));
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+/* ── participant tiles ── */
+.vc-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vc-tile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 20px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  border: 2px solid transparent;
+  max-width: 100%;
+}
+
+.vc-tile--speaking {
+  border-color: #34d399;         /* green speaking ring */
+}
+
+.vc-tile--connecting { opacity: 0.55; }
+.vc-tile--failed {
+  opacity: 0.55;
+  border-color: #dc2626;
+}
+
+.vc-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent, #4f7cff);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.vc-tile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+}
+
+.vc-muted-icon { font-size: 11px; }
+
+/* ── controls ── */
+.vc-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.vc-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-1, rgba(255, 255, 255, 0.14));
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.vc-btn:hover { background: var(--surface-3, rgba(255, 255, 255, 0.12)); }
+
+.vc-btn--active {
+  background: #b45309;           /* amber = you are muted */
+  border-color: #b45309;
+  color: #fff;
+}
+
+.vc-btn--danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+.vc-btn--danger:hover { background: #b91c1c; }
+
+/* ── chat header 📞 button live state ── */
+.chat-call-btn--live {
+  color: #34d399 !important;
+  animation: vc-blink 1.6s ease infinite;
+}
+
+/* ── incoming-call banner (V3.584) — the answer/decline surface,
+      inline with the chat chrome ── */
+.chat-callring {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--surface-1, #1e2126);
+  color: var(--text-1, #e8eaed);
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  border-left: 4px solid #34d399;
+  border-radius: 8px;
+  margin: 6px 8px;
+  font-size: 13px;
+}
+
+.chat-callring--ringing {
+  animation: vc-ring-glow 1.2s ease infinite;
+}
+.chat-callring--ringing .chat-callring-icon {
+  animation: vc-ring-shake 1.2s ease infinite;
+}
+
+@keyframes vc-ring-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  50%      { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.25); }
+}
+@keyframes vc-ring-shake {
+  0%, 100% { transform: rotate(0deg); }
+  20%      { transform: rotate(-14deg); }
+  40%      { transform: rotate(12deg); }
+  60%      { transform: rotate(-8deg); }
+  80%      { transform: rotate(6deg); }
+}
+
+.chat-callring-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.chat-callring-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-callring-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chat-callring-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat-callring-btn--join {
+  background: #059669;
+  color: #fff;
+}
+.chat-callring-btn--join:hover { background: #047857; }
+
+.chat-callring-btn--decline {
+  background: var(--surface-2, rgba(255, 255, 255, 0.08));
+  color: inherit;
+  border-color: var(--border-1, rgba(255, 255, 255, 0.14));
+}
+.chat-callring-btn--decline:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .chat-callring { margin: 6px; padding: 8px 10px; }
+  .chat-callring-text { white-space: normal; }
+}
+
+@media (max-width: 640px) {
+  #vc-panel {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: auto;
+  }
+}

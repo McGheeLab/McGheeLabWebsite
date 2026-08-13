@@ -1,0 +1,90 @@
+{
+  "format": "protocol-import-v1",
+  "protocol": {
+    "id": "lesson-1-variables-and-wires",
+    "title": "Node lesson 1 — Variables & wires",
+    "summary": "A guided build: construct a two-input → equation workflow yourself, then watch the document read your numbers live. Opens in the ⬡ Nodes view with the tour running.",
+    "tags": [
+      "demo",
+      "tutorial",
+      "nodes"
+    ],
+    "tree": {
+      "sections": [
+        {
+          "label": "Start here",
+          "order": 0,
+          "children": [
+            {
+              "kind": "docHeader",
+              "body": "",
+              "attrs": {
+                "brand": "RM Node lessons",
+                "tag": "Lesson 1 of 4 · beginner · guided build",
+                "title": "Variables & wires",
+                "chips": [
+                  {
+                    "text": "you build it — nothing is pre-made",
+                    "var": ""
+                  },
+                  {
+                    "text": "~7 min",
+                    "var": ""
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "note"
+              },
+              "body": "<b>How this lesson works.</b> It opens in the <b>⬡ Nodes</b> view on an <b>empty canvas</b>, with a guided tour running: a pulsing ring points at the next control, the card in the top-right says what to do, and each step ticks off the moment you actually do it. This page is the reference; the canvas is the workbench. Reopen the lesson anytime — steps you've already done skip themselves."
+            },
+            {
+              "kind": "step",
+              "body": "A <b>node</b> is one box on the canvas, and each node makes one or more <b>variables</b>. You'll build two <b>Input</b> nodes — <code>volume_each</code> and <code>replicates</code> — that the person running the protocol sets with sliders, and one <b>Equation</b> node that computes <code>total_volume</code> from them. Units are <b>picked, not typed</b>: choose a Type (Volume, Mass, …) and the unit dropdown narrows to that dimension's real options (µL, mL, …)."
+            },
+            {
+              "kind": "step",
+              "body": "Every variable has a dot on each side of its row. The <b>right dot</b> passes the variable out; the <b>left dot</b> plugs a value in. A <b>wire</b> carries one variable from a right dot to a left dot — the tour will have you drag both inputs into the equation."
+            },
+            {
+              "kind": "step",
+              "body": "Names are the contract. Equations use variables <b>by name</b>, and this document reads them by name too — that's why the tour asks for <code>volume_each</code>, <code>replicates</code>, and <code>total_volume</code> exactly. (Picking a unit type first auto-names a fresh node <code>volume_01</code>-style — just overwrite it with the lesson's exact name.) Rename carelessly and the wiring survives but the prose goes blind."
+            },
+            {
+              "kind": "step",
+              "body": "Formulas are <b>built, never typed</b>. On the Equation node, every wired variable becomes a button with a <b>dimension alias</b> — <code>V1</code> for the first volume, <code>X1</code> for unitless — and a pad of operators sits below. Tap a variable, an operator, a variable; anything that would break the math stays greyed out. Need a plain number? Use the small <code>123</code> slot — but a constant <b>with a unit</b> belongs in a wired 📌 Constant node. Tapped the wrong variable? <b>Tap its chip in the strip and swap it</b> for another."
+            },
+            {
+              "kind": "step",
+              "body": "Once wired, the numbers are <b>live</b>: each node's header shows its current value, and the equation recomputes the instant an input changes. Getting around is gesture-driven: <b>new nodes land in open canvas</b> (never on top of each other), the <b>⌖ in a node's header</b> — or <b>double-clicking its card</b> — zooms straight to it, and <b>double-clicking empty canvas</b> Fits everything back in view. Made a wrong wire? Click it to delete it — or hold <b>Shift</b> and drag a line through several to cut them all. Nodes move by their header; wires reroute around the boxes on their own."
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "note"
+              },
+              "body": "<b>The writing reads the graph.</b> Once you've built and named <code>total_volume</code>, you'll finish this very sentence with the <b>🔗 Reference</b> button in the ✎ Editor — click where the number belongs, pick the variable, and the live value drops in as a chip. No syntax to type, ever. Change a slider afterwards and the number follows. Before a value can be referenced it must be GATED: wire <code>total_volume</code> into a 📊 <b>Cards</b> node in the graph (the tour walks you through it) — that puts it on the document AND into the 🔗 picker. Then finish the sentence: Total volume to prepare:"
+            },
+            {
+              "kind": "step",
+              "body": "That's the whole idea: nodes make variables, wires move them, equations combine them, and the document reads the live values. When the tour finishes, open <b>Lesson 2</b> to build bindings — wires that drive a node's <i>settings</i>."
+            },
+            {
+              "kind": "design",
+              "body": "",
+              "attrs": {
+                "label": "Build it here — the guided tour walks you through it",
+                "formula": "",
+                "nodes": [],
+                "edges": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

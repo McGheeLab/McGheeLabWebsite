@@ -198,8 +198,8 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
-      firebridge.whenAuthResolved().then(init).catch(init);
+    if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+      firebridge.requireSignIn('Sign in to track your training progress.').then(init).catch(init);
     } else {
       init();
     }

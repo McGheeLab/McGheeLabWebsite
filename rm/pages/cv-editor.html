@@ -25,13 +25,68 @@
   </script>
   <style>
     .cve-layout{display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:start}
-    @media (max-width:900px){.cve-layout{grid-template-columns:1fr}}
+    .cve-toolbar{display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;margin-bottom:14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px}
     .cve-side{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px}
     .cve-side button{display:block;width:100%;text-align:left;background:transparent;border:none;padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:#374151}
     .cve-side button:hover{background:#f3f4f6}
     .cve-side button.active{background:#eff6ff;color:#1e40af;font-weight:600}
     .cve-side .cve-side-group{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;padding:8px 10px 4px}
     .cve-side .cve-side-count{float:right;color:#9ca3af;font-size:11px}
+    .cve-side .cve-trash-link{margin-top:8px;border-top:1px solid #f1f5f9;padding-top:10px;color:#6b7280;font-size:12px}
+    .cve-profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+
+    /* ── onboarding rail + health chip (V3.357) ── */
+    .cve-onboard{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+    .cve-onboard-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .cve-onboard-title{font-size:13px;font-weight:700;color:#1e40af;flex:1}
+    .cve-onboard-progress{font-size:12px;color:#3b82f6;font-variant-numeric:tabular-nums}
+    .cve-onboard-dismiss{border:none;background:transparent;color:#93c5fd;cursor:pointer;font-size:13px;padding:2px 6px}
+    .cve-onboard-dismiss:hover{color:#1e40af}
+    .cve-onboard-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+    .cve-onboard-step{display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:8px 10px}
+    .cve-onboard-step.done{opacity:.65}
+    .cve-onboard-step .btn{margin-left:auto;flex:0 0 auto;font-size:12px;padding:4px 8px}
+    .cve-onboard-mark{color:#2563eb;font-weight:700;padding-top:1px}
+    .cve-onboard-step.done .cve-onboard-mark{color:#059669}
+    .cve-onboard-body{min-width:0}
+    .cve-onboard-label{font-size:12.5px;font-weight:600;color:#111827}
+    .cve-onboard-detail{font-size:11px;color:#6b7280}
+    .cve-health-chip{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:999px;font-size:12px;padding:4px 10px;cursor:pointer}
+    .cve-health-chip.complete{border-color:#a7f3d0;background:#ecfdf5;color:#059669}
+
+    /* ── live preview pane (V3.354) ── */
+    .cve-layout.with-preview{grid-template-columns:200px 1fr minmax(360px,.95fr)}
+    .cve-preview{position:sticky;top:12px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;flex-direction:column;height:calc(100dvh - 40px);overflow:hidden}
+    .cve-preview-head{display:flex;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid #f1f5f9}
+    .cve-preview iframe{flex:1;border:none;width:100%;background:#fff}
+    @media (max-width:1150px){
+      .cve-layout.with-preview{grid-template-columns:200px 1fr}
+      .cve-preview{grid-column:1/-1;position:static;height:70vh}
+    }
+    @media (max-width:900px){
+      .cve-layout.with-preview{grid-template-columns:1fr}
+    }
+
+    /* ── responsive (V3.353) — the section list becomes a sticky
+       horizontal rail; the entry modal goes full-screen on phones. ── */
+    @media (max-width:900px){
+      .cve-layout{grid-template-columns:1fr;gap:10px}
+      .cve-side{display:flex;overflow-x:auto;gap:4px;position:sticky;top:0;z-index:5;-webkit-overflow-scrolling:touch;padding:6px;border-radius:8px}
+      .cve-side .cve-side-group{display:none}
+      .cve-side button{display:inline-block;width:auto;white-space:nowrap;min-height:var(--tap-min,44px);flex:0 0 auto}
+      .cve-side .cve-side-count{float:none;margin-left:6px}
+      .cve-side .cve-trash-link{margin-top:0;border-top:none;padding-top:8px}
+    }
+    @media (max-width:640px){
+      .cve-toolbar button{min-height:var(--tap-min,44px)}
+      .cve-modal-back{padding:0}
+      .cve-modal{max-width:100%;min-height:100dvh;border-radius:0;padding-bottom:calc(16px + var(--safe-bottom,0px))}
+      .cve-form{grid-template-columns:1fr}
+      .cve-profile-grid{grid-template-columns:1fr}
+      .cve-entry{padding:12px}
+      .cve-entry .actions .del{padding:10px 6px;margin:-10px -6px}
+      .cve-dialog-panel{max-width:100%}
+    }
 
     .cve-main{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;min-height:400px}
     .cve-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -41,6 +96,13 @@
 
     .cve-entry{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:background .1s}
     .cve-entry:hover{background:#f9fafb;border-color:#93c5fd}
+    .cve-entry.dragging{opacity:.45}
+    .cve-entry.dragover{border-color:#2563eb;box-shadow:0 -2px 0 0 #2563eb inset}
+    .cve-yr-head{font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.6px;margin:14px 0 6px;padding-bottom:2px;border-bottom:1px solid #f1f5f9}
+    .cve-yr-head:first-of-type{margin-top:0}
+    .cve-move{border:none;background:transparent;color:#9ca3af;cursor:pointer;font-size:10px;padding:2px 4px;line-height:1}
+    .cve-move:hover:not(:disabled){color:#2563eb}
+    .cve-move:disabled{opacity:.3;cursor:default}
     .cve-entry .t{font-weight:600;color:#111827;margin-bottom:2px}
     .cve-entry .m{font-size:12px;color:#6b7280}
     .cve-entry .y{font-variant-numeric:tabular-nums;color:#2563eb;font-weight:600;float:right;margin-left:10px}
@@ -73,25 +135,33 @@
     html[data-cv-tab="mine"] .cv-lab-block  { display: none; }
   </style>
 </head>
-<body class="rm-desktop-only">
+<body>
   <div class="page">
     <div class="tab-bar" id="cv-hub-tabs"></div>
     <script>
+      /* V3.353 — "Lab Overview" is admin-only (firestore.rules restrict
+       * cross-user cvData reads to admins; non-admins used to see an
+       * all-zeros table). Render "My CV" immediately, append the lab tab
+       * once auth resolves for admins. */
       document.addEventListener('DOMContentLoaded', () => {
-        const HUB = [
-          { tab: 'mine', label: 'My CV' },
-          { tab: 'lab',  label: 'Lab Overview' },
-        ];
         const bar = document.getElementById('cv-hub-tabs');
         const current = window.__CV_TAB;
-        HUB.forEach(t => {
+        const addTab = (tab, label) => {
           const a = document.createElement('a');
-          a.href = '/rm/pages/cv-editor.html' + (t.tab === 'lab' ? '?tab=lab' : '');
-          a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
-          a.textContent = t.label;
+          a.href = '/rm/pages/cv-editor.html' + (tab === 'lab' ? '?tab=lab' : '');
+          a.className = 'tab-btn' + (tab === current ? ' active' : '');
+          a.textContent = label;
           a.style.textDecoration = 'none';
           bar.appendChild(a);
-        });
+        };
+        addTab('mine', 'My CV');
+        if (typeof firebridge !== 'undefined') {
+          firebridge.onAuth(() => {
+            if (firebridge.isAdmin() && !bar.querySelector('[href$="tab=lab"]')) {
+              addTab('lab', 'Lab Overview');
+            }
+          });
+        }
       });
     </script>
 
@@ -138,11 +208,11 @@
   <!-- Shared scripts -->
   <script src="/rm/js/util.js"></script>
   <script src="/rm/js/nav.js"></script>
-  <script src="/rm/js/desktop-only-guard.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
@@ -159,9 +229,15 @@
       var mineScripts = [
         '/rm/js/cv-importers.js',
         '/rm/js/cv-export.js',
+        '/rm/js/cv-profile-sync.js',
+        '/rm/js/cv-library-pull.js',
+        '/rm/js/cv-onboarding.js',
         '/rm/js/cv-editor.js'
       ];
-      var labScripts = ['/rm/js/cv-overview.js'];
+      var labScripts = [
+        '/rm/js/cv-export.js',   // V3.358 — drill-in renders a member CV
+        '/rm/js/cv-overview.js'
+      ];
       var srcs = (tab === 'lab') ? labScripts : mineScripts;
       srcs.forEach(function (s) {
         document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');

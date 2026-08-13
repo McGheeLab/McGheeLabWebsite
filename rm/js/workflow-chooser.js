@@ -23,7 +23,8 @@
     // tab is handled by all-pages.js on the same container.
     if (window.__RM_HOME_VIEW && window.__RM_HOME_VIEW !== 'workflows') return;
     if (typeof firebridge === 'undefined') return;
-    await firebridge.whenAuthResolved();
+    if (firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to see your workflows.');
+    else await firebridge.whenAuthResolved();
     if (!firebridge.getUser()) {
       var root = document.getElementById('rm-home-root');
       if (root) root.innerHTML = '<div class="empty-state">Sign in to see your workflows.</div>';

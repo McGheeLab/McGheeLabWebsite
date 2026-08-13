@@ -1,0 +1,401 @@
+/* paper-figure-board.css — the 🧭 Figure board planning canvas
+ * (V3.609, figure-board program R1). Loaded by paper-builder.html in
+ * editor mode; all selectors are namespaced .pfb-*. */
+
+/* The board toggles visibility via the `hidden` attribute (empty-state
+ * instructions, ▶ Review, image slots, status pills). Any explicit
+ * display on those elements (.pfb-empty-hint's flex, .btn's inline-flex)
+ * outranks the UA's `[hidden] {display:none}`, which kept the canvas
+ * instructions painted forever — so hidden wins unconditionally here. */
+.pfb-wrap [hidden] { display: none !important; }
+
+.pfb-wrap {
+  display: flex;
+  flex-direction: column;
+  /* the tool-page root already provides page padding; the canvas wants
+   * the remaining viewport height */
+  height: calc(100vh - 190px);
+  min-height: 420px;
+}
+
+/* ── toolbar ─────────────────────────────────────────────────────── */
+
+.pfb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 2px;
+}
+.pfb-bar-spacer, .pfb-foot-spacer, .pfb-head-spacer { flex: 1; }
+.pfb-zoom-pct {
+  font-size: 12px;
+  color: var(--text-secondary, #667);
+  min-width: 42px;
+  text-align: center;
+}
+.pfb-status {
+  font-size: 12px;
+  color: var(--text-secondary, #667);
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pfb-status-err { color: #c0392b; }
+.pfb-connect-armed {
+  background: var(--accent, #2563eb);
+  color: #fff;
+}
+
+/* ── canvas / world ──────────────────────────────────────────────── */
+
+.pfb-canvas {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #d9dce3);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle, var(--border-color, #d9dce3) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--bg-secondary, #f6f7fa);
+  touch-action: none;      /* pointer events own pan/pinch */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pfb-canvas:active { cursor: grabbing; }
+.pfb-canvas.pfb-connecting { cursor: crosshair; }
+.pfb-world {
+  position: absolute;
+  top: 0; left: 0;
+  width: 0; height: 0;
+  transform-origin: 0 0;
+}
+
+/* V3.617 — zoom cluster floats over the canvas (top-right), one group */
+.pfb-zoomctl {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #d9dce3);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(20, 30, 60, 0.12);
+  z-index: 40;                 /* below the comments panel (50) */
+  cursor: default;
+}
+.pfb-zoomctl button {
+  border: none;
+  background: none;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text-primary, #334);
+}
+.pfb-zoomctl button:hover { background: #eef1f6; }
+
+.pfb-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  color: var(--text-secondary, #667);
+  padding: 24px;
+}
+.pfb-empty-hint h2 { margin: 0 0 8px; color: var(--text-primary, #223); }
+.pfb-empty-hint p { max-width: 52ch; margin: 4px 0; }
+.pfb-empty-sub { font-size: 12px; opacity: 0.8; }
+
+/* ── arrows ──────────────────────────────────────────────────────── */
+
+.pfb-arrows {
+  position: absolute;
+  top: 0; left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.pfb-arrows #pfb-arrowhead polygon { fill: var(--text-secondary, #66708a); }
+.pfb-arrow {
+  fill: none;
+  stroke: var(--text-secondary, #66708a);
+  stroke-width: 2;
+  pointer-events: none;
+}
+.pfb-arrow-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.pfb-arrow-hit:hover + .pfb-arrow { stroke: #c0392b; }
+
+/* ── cards ───────────────────────────────────────────────────────── */
+
+.pfb-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #d9dce3);
+  border-top: 4px solid #94a3b8;
+  box-shadow: 0 2px 8px rgba(20, 30, 60, 0.10);
+  cursor: grab;
+}
+.pfb-card:active { cursor: grabbing; }
+.pfb-card-figure     { border-top-color: #2563eb; }
+.pfb-card-experiment { border-top-color: #d97706; }
+.pfb-card-snip       { border-top-color: #7c3aed; }
+.pfb-card-note       { border-top-color: #eab308; background: #fdf9e7; }
+.pfb-connect-from { outline: 3px dashed var(--accent, #2563eb); outline-offset: 2px; }
+.pfb-connecting .pfb-card { cursor: crosshair; }
+
+.pfb-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pfb-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #667);
+  white-space: nowrap;
+}
+.pfb-stat {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: #eef1f6;
+  color: #445;
+}
+.pfb-stat-planned   { background: #eef1f6; color: #445; }
+.pfb-stat-running,
+.pfb-stat-expected  { background: #fef3c7; color: #92400e; }
+.pfb-stat-done,
+.pfb-stat-collected { background: #dcfce7; color: #166534; }
+.pfb-del {
+  border: none;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-secondary, #99a);
+  cursor: pointer;
+  padding: 0 2px;
+}
+.pfb-del:hover { color: #c0392b; }
+
+.pfb-title {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary, #223);
+  padding: 2px 0;
+  outline: none;
+  cursor: text;
+}
+.pfb-title:focus { border-bottom: 1px solid var(--accent, #2563eb); }
+/* V3.617 — rich-text body (contentEditable div; lists via the pop-up bar) */
+.pfb-body {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-primary, #334);
+  outline: none;
+  min-height: 34px;
+  max-height: 320px;
+  overflow-y: auto;
+  cursor: text;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.pfb-body:empty::before {
+  content: attr(data-ph);
+  color: var(--text-secondary, #9aa3b5);
+  pointer-events: none;
+}
+.pfb-body ul, .pfb-body ol { margin: 4px 0; padding-left: 20px; }
+.pfb-body li { margin: 1px 0; }
+
+.pfb-richbar {
+  display: none;
+  gap: 4px;
+  padding: 4px 0 0;
+  border-top: 1px dashed var(--border-color, #e2e5ec);
+  margin-top: 4px;
+}
+.pfb-bodywrap:focus-within .pfb-richbar { display: flex; }
+.pfb-richbar button {
+  border: 1px solid var(--border-color, #d9dce3);
+  background: var(--bg-primary, #fff);
+  border-radius: 5px;
+  font-size: 11px;
+  padding: 2px 7px;
+  cursor: pointer;
+  color: var(--text-primary, #334);
+}
+.pfb-richbar button:hover {
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+}
+
+.pfb-img-wrap { position: relative; }
+.pfb-img {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e2e5ec);
+  background: #fff;
+  pointer-events: none;   /* drag the card, not the image ghost */
+}
+.pfb-img-swap {
+  position: absolute;
+  top: 4px; right: 4px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.pfb-img-wrap:hover .pfb-img-swap { opacity: 1; }
+
+.pfb-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+}
+.pfb-img-btn {
+  border: 1px dashed var(--border-color, #c8cdd8);
+  background: none;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-secondary, #667);
+  cursor: pointer;
+  padding: 3px 8px;
+}
+.pfb-img-btn:hover { border-color: var(--accent, #2563eb); color: var(--accent, #2563eb); }
+.pfb-src-link { font-size: 11px; }
+
+.pfb-resize {
+  position: absolute;
+  right: 0; bottom: 0;
+  width: 16px; height: 16px;
+  cursor: ew-resize;
+  background:
+    linear-gradient(135deg, transparent 55%, var(--border-color, #c8cdd8) 55%, var(--border-color, #c8cdd8) 65%,
+      transparent 65%, transparent 75%, var(--border-color, #c8cdd8) 75%, var(--border-color, #c8cdd8) 85%, transparent 85%);
+  border-bottom-right-radius: 10px;
+}
+
+/* ── per-card comment panel (V3.611) ─────────────────────────────── */
+
+.pfb-comment-btn {
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--text-secondary, #667);
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 6px;
+}
+.pfb-comment-btn:hover { background: #eef1f6; }
+.pfb-comment-btn.pfb-has-comments {
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+}
+
+.pfb-comments-panel {
+  position: absolute;
+  top: 10px; right: 10px; bottom: 10px;
+  width: min(340px, 85%);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #d9dce3);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(20, 30, 60, 0.18);
+  z-index: 50;
+  cursor: default;
+}
+.pfb-comments-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color, #e2e5ec);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary, #223);
+}
+.pfb-comments-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px 10px;
+}
+
+/* library capture browser rows (modal shell styles come from
+ * paper-editor.css's pe-eqviz-* / pe-doc-picker-*) */
+.pfb-browse-img {
+  max-width: 220px;
+  max-height: 160px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e2e5ec);
+  background: #fff;
+}
+
+/* ── change review (V3.612) ──────────────────────────────────────── */
+
+.pfb-card.pfb-changed {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+.pfb-card.pfb-changed .pfb-chip::after {
+  content: ' · changed';
+  color: #b45309;
+  font-weight: 700;
+}
+.pfb-review { border-color: #f59e0b; color: #b45309; }
+@keyframes pfb-flash-anim {
+  0%   { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.55); }
+  100% { box-shadow: 0 2px 8px rgba(20, 30, 60, 0.10); }
+}
+.pfb-card.pfb-flash { animation: pfb-flash-anim 1.2s ease-out; }
+
+.pfb-placeholder {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary, #667);
+}
+
+/* ── mobile ──────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .pfb-wrap { height: calc(100vh - 230px); }
+  .pfb-toolbar { gap: 6px; }
+  .pfb-toolbar .btn { padding: 4px 8px; font-size: 12px; }
+  .pfb-status { display: none; }
+}

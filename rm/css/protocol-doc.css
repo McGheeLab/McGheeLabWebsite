@@ -1,10 +1,30 @@
-/* protocol-doc.css — V3.315 — read-only protocol document view.
+/* protocol-doc.css — read-only protocol document view.
  *
- * Matches the gold-standard interactive-protocol look: single 860px
- * column, branded masthead band, numbered stage rules, color-coded
- * callouts, timing pill, live calculator cards. @media print at the
+ * The GOLD STANDARD look (V3.375): mirrors the hand-authored GELS HTML
+ * protocol — dark navy full-bleed masthead, blue stage codes on ink
+ * rules, numbered blue-ring steps, color-coded callouts, a two-panel
+ * calculator with a dark head bar, and a dark circular-well plate map.
+ * This is the standard every protocol renders in. @media print at the
  * bottom makes browser print-to-PDF the export path.
  */
+
+:root {
+  --prd-ink: #17324D;        /* primary structure / text */
+  --prd-ink-2: #2E4C6B;
+  --prd-blue: #3F63A8;       /* stage codes, accents */
+  --prd-paper: #FBFBFC;
+  --prd-line: #DCE1E8;
+  --prd-line-soft: #EAEDF2;
+  --prd-crit: #B23A2E;   --prd-crit-bg: #FBECEA;
+  --prd-note: #5A6B7B;   --prd-note-bg: #EDF0F3;
+  --prd-time: #2E7D4F;   --prd-time-bg: #E8F3ED;
+  --prd-assume-bg: #F3F6FB; --prd-assume-line: #D3DEEF;
+  --prd-func: #B5651D;   --prd-func-bg: #FBF0E2;   /* size L / functional */
+  --prd-sz-s: #2E7D4F;   --prd-sz-s-bg: #E8F3ED;
+  --prd-sz-m: #3F63A8;   --prd-sz-m-bg: #E7EDF8;
+  --prd-sz-l: #B5651D;   --prd-sz-l-bg: #FBF0E2;
+  --prd-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
 
 .prd-shell {
   min-height: 100vh;
@@ -16,13 +36,13 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  max-width: 860px;
+  max-width: 920px;
   margin: 0 auto;
   padding: 16px 16px 0;
 }
 
 .prd-status {
-  max-width: 860px;
+  max-width: 920px;
   margin: 24px auto;
   padding: 0 16px;
   color: #667;
@@ -30,148 +50,173 @@
 }
 
 .prd-doc {
-  max-width: 860px;
+  max-width: 920px;
   margin: 16px auto 0;
   background: #fff;
   border: 1px solid #dfe3ea;
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: 0 2px 12px rgba(20, 30, 50, 0.06);
-  padding: 0 56px 48px;
-  color: #1c2430;
-  line-height: 1.55;
+  padding: 0 0 48px;              /* masthead is full-bleed; body pads itself */
+  color: var(--prd-ink);
+  line-height: 1.6;
   font-size: 15px;
+  overflow: hidden;              /* clip the masthead to the rounded corners */
 }
+/* body blocks (everything after the masthead) get the reading gutter */
+.prd-doc > .prd-section,
+.prd-doc > .prd-footer { padding-left: 56px; padding-right: 56px; }
 
-/* ── Masthead ─────────────────────────────────────────────────── */
+/* ── Masthead — dark navy, full-bleed band ────────────────────── */
 .prd-masthead {
-  margin: 0 -56px 32px;
-  padding: 36px 56px 28px;
-  border-bottom: 3px solid #1c2430;
-  background: linear-gradient(180deg, #f7f9fc 0%, #fff 100%);
-  border-radius: 8px 8px 0 0;
+  margin: 0 0 8px;
+  padding: 28px 56px 24px;
+  background: var(--prd-ink);
+  color: #fff;
 }
-.prd-brand {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+.prd-brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.prd-brand-name {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: #fff;
+}
+.prd-brand-tag {
+  font-size: 11.5px;
+  letter-spacing: 2.4px;
   text-transform: uppercase;
-  color: #8a1e2d;   /* UA cardinal */
-  margin-bottom: 10px;
+  color: #9FB4D0;
 }
 .prd-title {
-  font-size: 30px;
-  font-weight: 750;
+  font-size: 25px;
+  font-weight: 800;
   line-height: 1.15;
-  margin: 0 0 8px;
-  letter-spacing: -0.01em;
+  margin: 14px 0 5px;
+  letter-spacing: -0.4px;
+  color: #fff;
 }
 .prd-subtitle {
-  font-size: 15px;
-  color: #55606e;
-  margin-bottom: 14px;
+  font-size: 14.5px;
+  color: #B9C8DE;
+  margin: 0 0 4px;
 }
 .prd-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 .prd-chip {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  padding: 3px 10px;
-  border: 1px solid #d7dce4;
-  border-radius: 14px;
-  background: #f4f6f9;
-  font-size: 12px;
-  color: #444e5c;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.09);
+  font-family: var(--prd-mono);
+  font-size: 11px;
+  color: #DCE6F3;
 }
-.prd-chip strong { color: #1c2430; }
-.prd-chip-meta { background: #fff; color: #778; }
+.prd-chip strong { color: #fff; font-weight: 700; }
+.prd-chip-meta { background: rgba(255, 255, 255, 0.04); }
 
 /* ── Stage headings ───────────────────────────────────────────── */
 .prd-stage {
-  margin: 36px 0 16px;
-  padding-top: 18px;
-  border-top: 2px solid #1c2430;
+  margin: 34px 0 6px;
+  padding-top: 20px;
+  border-top: 2px solid var(--prd-ink);
 }
 .prd-stage-norule { border-top: none; padding-top: 0; }
 .prd-stage-title {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
   font-size: 19px;
-  font-weight: 700;
+  font-weight: 800;
   margin: 0;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.3px;
+  color: var(--prd-ink);
 }
 .prd-stage-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--prd-mono);
   font-size: 14px;
-  font-weight: 600;
-  color: #8a1e2d;
+  font-weight: 700;
+  color: var(--prd-blue);
 }
 .prd-section > .prd-stage:first-child { margin-top: 8px; }
+.prd-section:first-of-type > .prd-stage:first-child { border-top: none; padding-top: 4px; }
 
-/* ── Steps ────────────────────────────────────────────────────── */
+/* ── Steps — numbered blue ring ───────────────────────────────── */
 .prd-step {
   display: flex;
   gap: 14px;
-  margin: 14px 0;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--prd-line-soft);
 }
+.prd-step:last-child { border-bottom: none; }
 .prd-step-num {
-  flex: 0 0 26px;
-  height: 26px;
+  flex: 0 0 27px;
+  height: 27px;
   border-radius: 50%;
-  background: #1c2430;
-  color: #fff;
+  background: #fff;
+  border: 1.5px solid var(--prd-blue);
+  color: var(--prd-blue);
+  font-family: var(--prd-mono);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-top: 1px;
 }
-.prd-step-body { flex: 1; }
+.prd-step-body { flex: 1; padding-top: 2px; }
 
 /* ── Callouts ─────────────────────────────────────────────────── */
 .prd-callout {
-  margin: 16px 0;
-  padding: 12px 16px;
-  border-left: 4px solid #99a3b0;
+  margin: 14px 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--prd-note);
   border-radius: 0 6px 6px 0;
-  background: #f5f7fa;
+  background: var(--prd-note-bg);
+  font-size: 13.5px;
+  color: #3c4a57;
 }
 .prd-callout-label {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-  color: #55606e;
+  letter-spacing: 0.06em;
+  font-family: var(--prd-mono);
+  margin-bottom: 3px;
+  color: var(--prd-note);
 }
-.prd-callout-critical { border-left-color: #c23b3b; background: #fdf3f3; }
-.prd-callout-critical .prd-callout-label { color: #a32e2e; }
-.prd-callout-note     { border-left-color: #2f6db3; background: #f1f6fc; }
-.prd-callout-note .prd-callout-label { color: #2a5f9c; }
-.prd-callout-assume   { border-left-color: #8259b3; background: #f6f2fb; }
-.prd-callout-assume .prd-callout-label { color: #6f4a9c; }
+.prd-callout-critical { border-left-color: var(--prd-crit); background: var(--prd-crit-bg); }
+.prd-callout-critical .prd-callout-label { color: var(--prd-crit); }
+.prd-callout-note     { border-left-color: var(--prd-note); background: var(--prd-note-bg); }
+.prd-callout-note .prd-callout-label { color: var(--prd-note); }
+/* assume = boxed blue panel (all borders), not just a left rule */
+.prd-callout-assume {
+  border: 1px solid var(--prd-assume-line);
+  border-left: 1px solid var(--prd-assume-line);
+  border-radius: 8px;
+  background: var(--prd-assume-bg);
+}
+.prd-callout-assume .prd-callout-label { color: var(--prd-blue); }
 
-.prd-timing { margin: 14px 0; }
+.prd-timing { margin: 12px 0; }
 .prd-timing-pill {
   display: inline-flex;
   align-items: baseline;
   gap: 7px;
-  padding: 5px 14px;
-  border-radius: 16px;
-  background: #fff7e8;
-  border: 1px solid #e8cf9a;
-  color: #7a5b16;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--prd-time-bg);
+  border: 1px solid #BEE0CC;
+  color: var(--prd-time);
+  font-family: var(--prd-mono);
+  font-size: 12px;
+  font-weight: 700;
 }
-.prd-timing-icon { font-size: 13px; }
+.prd-timing-icon { font-size: 12px; }
 
 /* ── Materials + generic tables ───────────────────────────────── */
 .prd-materials { margin: 16px 0; }
@@ -194,17 +239,18 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #667;
-  border-bottom: 2px solid #1c2430;
-  padding: 6px 10px;
+  color: var(--prd-note);
+  background: #F4F6F9;
+  border-bottom: 1px solid var(--prd-line);
+  padding: 7px 9px;
 }
 .prd-table td {
-  padding: 6px 10px;
-  border-bottom: 1px solid #e6eaf0;
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--prd-line-soft);
   vertical-align: top;
 }
 .prd-col-num { text-align: right; white-space: nowrap; width: 64px; }
-.prd-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.prd-mono { font-family: var(--prd-mono); font-size: 13px; }
 
 /* ── Figures ──────────────────────────────────────────────────── */
 .prd-figure { margin: 20px 0; text-align: center; }
@@ -220,23 +266,53 @@
   text-align: left;
 }
 
-/* ── Calculator cards (formula blocks) ────────────────────────── */
+/* ── Calculator card (dark head bar + two-panel body) ─────────── */
 .prd-calc {
-  margin: 18px 0;
-  border: 1px solid #d7dce4;
-  border-radius: 8px;
-  padding: 16px 18px;
-  background: #fafbfd;
+  margin: 16px 0 8px;
+  border: 1px solid var(--prd-line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(23, 50, 77, 0.05);
 }
-.prd-calc-label {
-  font-size: 14px;
+.prd-calc-headbar {
+  background: var(--prd-ink);
+  color: #fff;
+  padding: 12px 18px;
   font-weight: 700;
-  margin-bottom: 2px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
+.prd-calc-headbar-k {
+  font-family: var(--prd-mono);
+  font-size: 11px;
+  color: #9FB4D0;
+  font-weight: 400;
+  text-align: right;
+}
+/* legacy plain label (calcs without a head bar) */
+.prd-calc-label { font-size: 14px; font-weight: 700; padding: 14px 18px 0; }
 .prd-calc-desc {
   font-size: 13px;
-  color: #667;
-  margin-bottom: 10px;
+  color: var(--prd-note);
+  padding: 10px 18px 0;
+}
+/* two-panel body: inputs on the left, outputs on the right */
+.prd-calc-body2 { display: grid; grid-template-columns: 280px 1fr; }
+.prd-calc-inpanel {
+  padding: 18px;
+  border-right: 1px solid var(--prd-line);
+  background: #FAFBFD;
+}
+.prd-calc-inpanel:empty { display: none; }
+.prd-calc-inpanel:empty + .prd-calc-outpanel { grid-column: 1 / -1; }
+.prd-calc-outpanel { padding: 18px; min-width: 0; }
+@media (max-width: 680px) {
+  .prd-calc-body2 { grid-template-columns: 1fr; }
+  .prd-calc-inpanel { border-right: none; border-bottom: 1px solid var(--prd-line); }
 }
 .prd-calc-inputs {
   display: grid;
@@ -273,7 +349,7 @@
   font-size: 24px;
   font-weight: 750;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #8a1e2d;
+  color: var(--prd-ink);
 }
 .prd-calc-out-error { font-size: 14px; color: #a32e2e; }
 .prd-calc-out-label {
@@ -353,23 +429,20 @@
     border: none;
     border-radius: 0;
     box-shadow: none;
-    padding: 0 8px;
+    padding: 0;
     font-size: 12.5px;
   }
-  .prd-masthead {
-    margin: 0 -8px 20px;
-    padding: 8px 8px 16px;
-    background: none;
+  .prd-doc > .prd-section, .prd-doc > .prd-footer { padding-left: 8px; padding-right: 8px; }
+  /* keep the dark masthead + plate + calc head bar in print */
+  .prd-masthead, .prd-calc-headbar, .prd-layoutmap-wrap, .prd-table th, .prd-calc-card {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .prd-title { font-size: 24px; }
+  .prd-masthead { margin: 0 0 18px; padding: 16px 8px; }
+  .prd-title { font-size: 22px; }
   .prd-stage { break-after: avoid; }
-  .prd-step, .prd-callout, .prd-calc, .prd-figure, .prd-materials {
+  .prd-step, .prd-callout, .prd-calc, .prd-figure, .prd-materials, .prd-layoutmap {
     break-inside: avoid;
-  }
-  .prd-calc-input-row input {
-    border: none;
-    border-bottom: 1px solid #bbb;
-    border-radius: 0;
   }
   a { color: inherit; text-decoration: none; }
 }
@@ -431,12 +504,11 @@
   padding: 0 4px;
 }
 .prd-timeline-dot {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  background: #1c2430;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px #1c2430;
+  background: #fff;
+  border: 2px solid var(--prd-func);
   margin: 0 auto 8px;
   position: relative;
 }
@@ -444,7 +516,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   font-weight: 600;
-  color: #8a1e2d;
+  color: var(--prd-ink);
 }
 .prd-timeline-label { font-size: 13px; font-weight: 600; margin-top: 2px; }
 .prd-timeline-sub { font-size: 11.5px; color: #778; margin-top: 1px; }
@@ -472,12 +544,12 @@
 .prd-calc-control-value {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 600;
-  color: #8a1e2d;
+  color: var(--prd-ink);
   font-size: 13px;
 }
 .prd-calc-control input[type="range"] {
   width: 100%;
-  accent-color: #8a1e2d;
+  accent-color: var(--prd-ink);
 }
 .prd-calc-control input[type="number"] {
   width: 110px;
@@ -500,17 +572,18 @@
   margin: 14px 0 4px;
 }
 .prd-calc-card {
-  border: 1px solid #d7dce4;
+  border: 1px solid var(--prd-line);
+  border-top: 3px solid var(--prd-func);
   border-radius: 8px;
   background: #fff;
   padding: 12px 14px;
-  text-align: center;
+  text-align: left;
 }
 .prd-calc-card-value {
   font-size: 22px;
-  font-weight: 750;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #8a1e2d;
+  font-weight: 700;
+  font-family: var(--prd-mono);
+  color: var(--prd-ink);
 }
 .prd-calc-card-unit {
   font-size: 12px;
@@ -593,39 +666,226 @@
   color: #fff;
 }
 
-/* ── V3.324 — plate map ───────────────────────────────────────── */
-.prd-layoutmap { margin: 20px 0; }
-.prd-layoutmap-wrap { overflow-x: auto; }
-.prd-plate { border-collapse: separate; border-spacing: 4px; margin: 0 auto; }
+/* ── Plate map — dark panel with circular wells ───────────────── */
+.prd-layoutmap { margin: 14px 0; }
+.prd-layoutmap-wrap {
+  overflow-x: auto;
+  background: #20303F;
+  border-radius: 14px;
+  padding: 20px;
+}
+.prd-plate { border-collapse: separate; border-spacing: 8px; margin: 0 auto; }
 .prd-plate th {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: #99a3b0;
+  font-family: var(--prd-mono);
+  color: #8FA3B8;
   padding: 2px 4px;
   text-align: center;
   border: none;
 }
 .prd-well {
-  width: 74px;
-  height: 54px;
-  border: 1px solid #d7dce4;
-  border-radius: 10px;
+  width: 66px;
+  height: 66px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
   text-align: center;
   vertical-align: middle;
-  padding: 3px 4px;
-  background: #fff;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
 }
-.prd-well-label { font-size: 11.5px; font-weight: 600; line-height: 1.2; overflow: hidden; }
-.prd-well-sub { font-size: 10px; color: #667; margin-top: 1px; }
-.prd-well-spare { background: #f4f6f9; border-style: dashed; }
-.prd-well-spare .prd-well-label { color: #b7bfc9; font-weight: 400; }
-.prd-well-filled { background: #eef3fa; border-color: #b9cbe4; }
-/* 8-class palette for colorField values (first-seen order). */
-.prd-well-c0 { background: #eef3fa; border-color: #b9cbe4; }
-.prd-well-c1 { background: #eaf6ee; border-color: #b4d9c0; }
-.prd-well-c2 { background: #fdf3f3; border-color: #e4b8b8; }
-.prd-well-c3 { background: #fff7e8; border-color: #e8cf9a; }
-.prd-well-c4 { background: #f6f2fb; border-color: #d9c4ee; }
-.prd-well-c5 { background: #eef8f8; border-color: #aed8d8; }
-.prd-well-c6 { background: #fbf0f7; border-color: #e3b9d3; }
-.prd-well-c7 { background: #f4f4ec; border-color: #d5d5a8; }
+.prd-well-label { font-size: 10.5px; font-weight: 700; line-height: 1.15; color: #fff; overflow: hidden; }
+.prd-well-sub { font-family: var(--prd-mono); font-size: 10px; margin-top: 2px; color: #C7D4E5; }
+.prd-well-spare { background: rgba(255, 255, 255, 0.04); border-style: dashed; border-color: rgba(255, 255, 255, 0.14); }
+.prd-well-spare .prd-well-label { color: #7C8D9E; font-weight: 500; font-size: 9.5px; }
+.prd-well-filled { background: rgba(63, 99, 168, 0.30); border-color: #6E90D6; }
+/* 8-class palette for colorField values (first-seen order) — tinted
+ * fills on the dark plate, keyed to the size/functional accent hues. */
+.prd-well-c0 { background: rgba(46, 125, 79, 0.30);  border-color: #4F9E72; }
+.prd-well-c1 { background: rgba(63, 99, 168, 0.30);  border-color: #6E90D6; }
+.prd-well-c2 { background: rgba(181, 101, 29, 0.30); border-color: #D08A3E; }
+.prd-well-c3 { background: rgba(178, 58, 46, 0.30);  border-color: #D06256; }
+.prd-well-c4 { background: rgba(130, 89, 179, 0.30); border-color: #A07DD1; }
+.prd-well-c5 { background: rgba(31, 158, 158, 0.30); border-color: #4FBEBE; }
+.prd-well-c6 { background: rgba(198, 63, 143, 0.30); border-color: #D06EB0; }
+.prd-well-c7 { background: rgba(120, 120, 40, 0.30); border-color: #B0B050; }
+
+/* ── FuturePlan 06 — run-time grid assignment + prep totals ────── */
+.prd-assign { margin: 12px 0; }
+.prd-assign-palette {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+}
+.prd-assign-chip {
+  padding: 4px 12px; border: 1px solid #c9d0da; border-radius: 14px;
+  background: #fff; font-size: 12.5px; cursor: pointer;
+}
+.prd-assign-chip-on { outline: 2px solid #1c2430; font-weight: 600; }
+.prd-assign-grids { display: flex; flex-wrap: wrap; gap: 18px; }
+.prd-assign-grid-head {
+  font-size: 12px; font-weight: 600; color: #55606e;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.prd-assign-dim { width: 48px; font-size: 12px; padding: 1px 4px; border: 1px solid #ccd; border-radius: 3px; }
+.prd-assign-plate .prd-well { cursor: pointer; }
+.prd-well-orphan { background: #fdf0f0; border-color: #eab8b8; }
+.prd-well-orphan .prd-well-label { color: #a32e2e; }
+.prd-preptotals { margin-top: 16px; }
+.prd-preptotals-grand td { border-top: 2px solid var(--prd-ink); }
+
+/* ── Plate planner (interactive layoutMap: pick / plates / auto-fill) ── */
+.prd-planner { margin: 14px 0; }
+.prd-planner-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.prd-planner-note { font-size: 12px; color: var(--prd-note); margin-bottom: 8px; }
+.prd-planner-warn { font-size: 12px; color: var(--prd-crit); margin-bottom: 8px; min-height: 0; }
+.prd-planner-warn:empty { display: none; }
+/* the assignment grids get the same dark plate backing as the map so the
+ * white-on-dark wells stay legible */
+.prd-planner .prd-assign-grids {
+  background: #20303F; border-radius: 14px; padding: 18px; overflow-x: auto;
+  margin-top: 4px;
+}
+.prd-planner .prd-assign-grid-head { color: #8FA3B8; }
+.prd-planner .prd-assign-dim {
+  background: rgba(255,255,255,0.08); color: #DCE6F3;
+  border-color: rgba(255,255,255,0.2);
+}
+.prd-planner .prd-builder-chip-rm { color: #C7D4E5; }
+.prd-planner .prd-assign-plate .prd-well { width: 58px; height: 58px; }
+
+/* ── Drag-and-drop (V3.436) ─────────────────────────────────────── */
+.prd-assign-chip, .prd-assign-plate .prd-well { touch-action: none; user-select: none; -webkit-user-select: none; }
+.prd-assign-chip { cursor: grab; }
+/* the floating piece under the pointer */
+.prd-well-ghost {
+  position: fixed; z-index: 9600; pointer-events: none;
+  transform: translate(-50%, -50%);
+  min-width: 46px; height: 30px; padding: 0 8px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; font-size: 10.5px; font-weight: 700; color: #fff;
+  background: #3a4a5c; box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  opacity: 0.94; white-space: nowrap;
+}
+/* target well under the pointer + the lifted source well */
+.prd-assign-plate .prd-well.prd-well-drop-hover {
+  outline: 3px solid #6cc6ff; outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgba(108,198,255,0.35);
+}
+.prd-assign-plate .prd-well.prd-well-drag-src { opacity: 0.35; }
+/* "drop here to remove" zone, revealed only while dragging a filled well */
+.prd-planner-trash, .prd-assign > .prd-planner-trash {
+  display: none; margin-top: 12px; padding: 12px 16px;
+  border: 2px dashed rgba(226,118,118,0.7); border-radius: 12px;
+  color: #e08585; font-size: 12px; font-weight: 600; text-align: center;
+  background: rgba(226,118,118,0.08);
+}
+.prd-planner-trash.prd-planner-trash-show { display: block; }
+.prd-planner-trash.prd-planner-trash-over {
+  background: rgba(226,118,118,0.22); border-color: #e27676; color: #f2a5a5;
+}
+/* "+ Add plate ▾" dropdown */
+.prd-addplate { position: relative; display: inline-block; }
+.prd-addplate-menu {
+  position: absolute; z-index: 9500; top: calc(100% + 4px); left: 0;
+  min-width: 170px; background: #fff; border: 1px solid #d0d5dd;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.16); padding: 4px;
+}
+.prd-addplate-item {
+  display: block; width: 100%; text-align: left;
+  padding: 7px 10px; border: 0; background: none; border-radius: 5px;
+  font-size: 12.5px; color: #2a3340; cursor: pointer;
+  font-family: var(--prd-mono, ui-monospace, monospace);
+}
+.prd-addplate-item:hover { background: #eef2f7; }
+
+/* ── Arrange strategy control group (V3.438) ─────────────────────── */
+.prd-arrange {
+  display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 4px 6px; border: 1px solid #d5dbe4; border-radius: 8px; background: #fff;
+}
+.prd-arrange-opts { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #55606e; }
+.prd-arrange-mode, .prd-arrange-field, .prd-arrange-seed {
+  font-size: 12.5px; padding: 3px 6px; border: 1px solid #ccd3dd; border-radius: 5px; background: #fff;
+}
+.prd-arrange-seed { width: 92px; }
+.prd-arrange-check { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #55606e; }
+.prd-arrange-die { padding: 3px 8px; }
+
+/* Run panel shell inside the lab notebook (widgets reuse prd-* above). */
+.ln-protocol-run {
+  margin: 16px 0;
+  border: 1px solid #d7dce4;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fbfcfe;
+}
+.ln-protocol-run h4 { margin: 0 0 8px; font-size: 13px; }
+.ln-run-load-btn {
+  font-size: 12.5px; padding: 4px 12px; margin: 2px 4px 2px 0;
+  border: 1px solid #c9d0da; border-radius: 6px; background: #fff; cursor: pointer;
+}
+.ln-run-load-btn:hover { background: #eef1f5; }
+.ln-run-frozen-badge {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  color: #7a5b16; background: #fff7e8; border: 1px solid #e8cf9a;
+  border-radius: 10px; padding: 1px 8px; margin-left: 6px;
+}
+.ln-run-factor { font-size: 12.5px; margin: 10px 0; display: flex; align-items: center; gap: 6px; }
+.ln-run-factor input { width: 70px; padding: 3px 6px; border: 1px solid #c9d0da; border-radius: 4px; }
+.ln-run-section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #667; margin: 14px 0 6px;
+}
+
+/* ── V3.504 — the loaded protocol rendered as its real output document ── */
+/* Toolbar above the embedded document card. */
+.ln-run-toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid #e6eaf0;
+}
+.ln-run-toolbar-title { font-size: 13px; font-weight: 700; color: var(--prd-ink); flex: 1 1 auto; }
+.ln-run-toolbar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ln-run-view-toggle {
+  display: inline-flex; border: 1px solid #c9d0da; border-radius: 6px; overflow: hidden;
+}
+.ln-run-view-btn {
+  font-size: 12px; padding: 4px 10px; border: 0; background: #fff; cursor: pointer;
+  color: #55606e; border-right: 1px solid #e2e6ee;
+}
+.ln-run-view-btn:last-child { border-right: 0; }
+.ln-run-view-btn.active { background: var(--prd-blue); color: #fff; font-weight: 600; }
+.ln-run-finalize-btn {
+  font-size: 12.5px; font-weight: 600; padding: 5px 14px; cursor: pointer;
+  border: 1px solid #2e7d4f; border-radius: 6px; background: #2e7d4f; color: #fff;
+}
+.ln-run-finalize-btn:hover { background: #276a43; }
+.ln-run-reopen-btn {
+  font-size: 12.5px; padding: 5px 12px; cursor: pointer;
+  border: 1px solid #c9d0da; border-radius: 6px; background: #fff; color: #55606e;
+}
+.ln-run-reopen-btn:hover { background: #eef1f5; }
+.ln-run-unload-btn { color: #9a4b3e; }
+
+/* The embedded document card — the same .prd-doc look, sized to the panel. */
+.ln-run-doc {
+  max-width: 100%;
+  margin: 0;
+}
+.ln-run-doc-frozen { opacity: 0.98; }
+.ln-run-doc-frozen .prd-masthead { background: #3a3320; }  /* warm "locked" tint */
+/* Cheat-sheet view reuses .prc-doc / .prc-* styling from protocol-cheat.css
+   (loaded alongside protocol-doc.css by _ensureProtocolRunDeps). */
+
+/* Run-only prep aids, boxed off from the document body. */
+.ln-run-prep {
+  margin-top: 14px; padding: 12px 14px;
+  border: 1px solid #e0e5ee; border-radius: 8px; background: #f7f9fc;
+}
+.ln-run-prep-head { margin-top: 0; }
+
+/* Finalized numeric record. */
+.ln-run-record { margin-top: 14px; font-size: 13px; }
+.ln-run-record > summary {
+  cursor: pointer; font-weight: 700; font-size: 12px; color: #7a5b16;
+  letter-spacing: 0.04em; padding: 4px 0;
+}
+.ln-run-record-body { padding-top: 8px; }

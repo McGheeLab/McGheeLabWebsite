@@ -1,4 +1,7 @@
-/* cv-overview.js — read-only view of all lab members' CV data from Firestore cvData collection */
+/* cv-overview.js — read-only view of all lab members' CV data from Firestore
+ * cvData collection. Admin-only (V3.353). V3.358: member names drill into a
+ * rendered read-only CV (CVExport.toHTML in an iframe) with a nudge mailto
+ * for stale/missing CVs. */
 
 (function () {
   var content = document.getElementById('content');
@@ -6,6 +9,8 @@
   var _allPubs = []; // for copy-to-clipboard
   var _sortKey = null;
   var _sortDir = 'asc';
+  var _cvMap = {};   // uid → cvData doc (for drill-in)
+  var _userMap = {}; // uid → roster row (name/email)
   var CV_COLUMNS = [
     { label: 'Name', key: 'name' },
     { label: 'Category', key: 'category' },
@@ -41,6 +46,19 @@
       return;
     }
 
+    /* V3.353 — firestore.rules restrict cross-user cvData reads to admins;
+     * non-admins used to get an all-zeros table (each read failing into a
+     * silent catch below). Say so instead. */
+    if (!firebridge.isAdmin()) {
+      if (copyBtn) copyBtn.style.display = 'none';
+      content.innerHTML =
+        '<div class="empty-state">' +
+          '<p>Lab Overview is an admin view.</p>' +
+          '<p style="margin-top:8px">Your own CV lives in <a href="/rm/pages/cv-editor.html">My CV</a>.</p>' +
+        '</div>';
+      return;
+    }
+
     content.innerHTML = '<div class="empty-state">Loading CV data&hellip;</div>';
 
     try {
@@ -55,6 +73,9 @@
         }).catch(function () {});
       });
       await Promise.all(promises);
+      _cvMap = cvMap;
+      _userMap = {};
+      users.forEach(function (u) { _userMap[u.id] = u; });
 
       // Aggregate lab-wide totals
       var totals = { journals: 0, conferences: 0, books: 0, patents: 0, presentations: 0, grants: 0, awards: 0, software: 0 };
@@ -64,6 +85,7 @@
       users.forEach(function (u) {
         var cv = cvMap[u.id];
         var row = {
+          uid: u.id,
           name: u.name || u.email || 'Unnamed',
           category: u.category || '',
           journals: 0, conferences: 0, books: 0, patents: 0,
@@ -135,7 +157,9 @@
 
       rows.forEach(function (r) {
         html += '<tr>';
-        html += '<td><strong>' + r.name + '</strong></td>';
+        html += r.hasCV
+          ? '<td><a href="#" onclick="onCVDrillIn(\'' + r.uid + '\');return false" style="font-weight:700;color:var(--primary);text-decoration:none">' + r.name + '</a></td>'
+          : '<td><strong>' + r.name + '</strong></td>';
         html += '<td>' + r.category + '</td>';
         if (!r.hasCV) {
           html += '<td colspan="6" style="color:var(--text-muted);font-style:italic;">No CV data</td>';
@@ -176,6 +200,53 @@
     if (_sortKey === key) { _sortDir = _sortDir === 'asc' ? 'desc' : 'asc'; }
     else { _sortKey = key; _sortDir = 'asc'; }
     loadAndRender();
+  };
+
+  /* V3.358 — drill into one member's rendered CV (read-only). */
+  window.onCVDrillIn = function (uid) {
+    var cv = _cvMap[uid];
+    var u = _userMap[uid] || {};
+    if (!cv) return;
+    var name = u.name || u.email || 'Member';
+    var back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:stretch;justify-content:center;padding:24px';
+    var panel = document.createElement('div');
+    panel.style.cssText = 'background:#fff;border-radius:10px;max-width:900px;width:100%;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,.3)';
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid #e5e7eb';
+    var title = document.createElement('div');
+    title.style.cssText = 'flex:1;font-weight:700;font-size:14px;color:#111827';
+    title.textContent = name + ' — CV (read-only)';
+    head.appendChild(title);
+    head.insertAdjacentHTML('beforeend', stalenessChip(cv.updatedAt));
+    if (u.email) {
+      var nudge = document.createElement('a');
+      nudge.className = 'btn';
+      nudge.style.cssText = 'font-size:12px;text-decoration:none';
+      nudge.textContent = '📧 Nudge';
+      nudge.title = 'Email ' + u.email + ' a CV-refresh reminder';
+      nudge.href = 'mailto:' + encodeURIComponent(u.email) +
+        '?subject=' + encodeURIComponent('Quick CV refresh?') +
+        '&body=' + encodeURIComponent('Hi ' + (u.name || '') + ',\n\nCould you give your CV a quick refresh in RM when you get a chance?\n\nhttps://mcgheelab.com/rm/pages/cv-editor.html\n\nThanks!');
+      head.appendChild(nudge);
+    }
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'btn';
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'font-size:12px;padding:4px 10px';
+    head.appendChild(closeBtn);
+    panel.appendChild(head);
+    var frame = document.createElement('iframe');
+    frame.style.cssText = 'flex:1;border:none;width:100%';
+    frame.setAttribute('sandbox', 'allow-same-origin');
+    frame.title = name + ' CV preview';
+    frame.srcdoc = CVExport.toHTML(cv);
+    panel.appendChild(frame);
+    back.appendChild(panel);
+    document.body.appendChild(back);
+    var close = function () { if (back.parentNode) document.body.removeChild(back); };
+    closeBtn.addEventListener('click', close);
+    back.addEventListener('click', function (e) { if (e.target === back) close(); });
   };
 
   // Copy publication list to clipboard

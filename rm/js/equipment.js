@@ -62,6 +62,7 @@ window.McgheeLab = window.McgheeLab || {};
   let _currentTab = 'equipment';  // 'equipment' | 'calendar' | 'mybookings' | 'admin'
   let _calView = 'week';          // 'week' | 'month'
   let _weekOffset = 0;
+  let _dayIdx = null;             // V3.339: 0-6 (Mon-Sun) day shown on narrow screens; null = not yet picked
   let _monthDate = null;          // { year, month }
   let _selectedEquipId = '';      // '' = all equipment
   let _adminSection = 'devices';  // 'devices' | 'training' | 'settings'
@@ -70,6 +71,13 @@ window.McgheeLab = window.McgheeLab || {};
   let _unsubEquipment = null;
   let _toastTimer = null;
   let _gcalToken = null;
+
+  // V3.597 — notify-me watches. `_watchMode` turns the calendar's
+  // drag-select from "book this" into "watch this", so the same gesture
+  // serves both without a second interaction to learn.
+  let _myWatches = [];
+  let _watchMode = false;
+  let _watchRange = null;   // 'from..to' of the loaded week; guards re-render loops
 
   // Zoom state for weekly calendar (index into ZOOM_LEVELS)
   // 48 slots per day — at 4px/slot the full day is 192px (fits any screen)
@@ -89,6 +97,28 @@ window.McgheeLab = window.McgheeLab || {};
   function getPriorityColors() {
     return (_settings && _settings.priorityColors) || DEFAULT_PRIORITY_COLORS;
   }
+
+  /* ─── Criticality (V3.588) ──────────────────────────────────
+     The stored `priority` enum is unchanged (normal|high|urgent|
+     maintenance) so old bookings keep working and firestore.rules
+     needs no edit — only the labels students see change. The
+     adjacency notification engine in functions/ weights on the same
+     enum: Soft bookings neither exert handoff pressure nor receive
+     nudges, Hard bookings radiate the most signal. */
+  const PRIORITY_LABELS = {
+    normal:      'Soft',
+    high:        'Firm',
+    urgent:      'Hard',
+    maintenance: 'Maintenance'
+  };
+  const PRIORITY_HINTS = {
+    normal:      'Flexible — running late has no downstream effect',
+    high:        'Must start on time; duration flexible; high importance',
+    urgent:      'Zero flexibility — mission critical',
+    maintenance: 'Device blocked for maintenance'
+  };
+  function priorityLabel(p) { return PRIORITY_LABELS[p] || PRIORITY_LABELS.normal; }
+  function priorityHint(p)  { return PRIORITY_HINTS[p]  || PRIORITY_HINTS.normal; }
   function getCertDefs() {
     return (_settings && _settings.certificationDefs) || [];
   }
@@ -130,17 +160,42 @@ window.McgheeLab = window.McgheeLab || {};
       data.createdAt = TS();
       data.updatedAt = TS();
       const ref = await db().collection('equipmentBookings').add(data);
+      _todayCache.date = null; // V3.340: refresh the equipment-card glance
       return ref.id;
     },
     async updateBooking(id, data) {
       data.updatedAt = TS();
       await db().collection('equipmentBookings').doc(id).update(data);
+      _todayCache.date = null;
     },
     async cancelBooking(id) {
       await db().collection('equipmentBookings').doc(id).update({
         status: 'cancelled',
         updatedAt: TS()
       });
+      _todayCache.date = null;
+    },
+
+    /* Notify-me watches (V3.597).
+       Rules allow create + delete + own-read only — `lastNotifiedAt` and
+       `status: 'fulfilled'` are Admin-SDK-only, so there is deliberately
+       no updateWatch(). Changing a window = delete + create. */
+    async createWatch(data) {
+      const ref = await db().collection('equipmentWatches').add(
+        Object.assign({ status: 'active' }, data, { createdAt: TS() }));
+      return ref.id;
+    },
+    async deleteWatch(id) {
+      await db().collection('equipmentWatches').doc(id).delete();
+    },
+    async listMyWatches(fromDate, toDate) {
+      if (!_user) return [];
+      let q = db().collection('equipmentWatches').where('uid', '==', _user.uid);
+      if (fromDate) q = q.where('date', '>=', fromDate);
+      if (toDate) q = q.where('date', '<=', toDate);
+      const snap = await q.get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(w => w.status === 'active');
     },
 
     /* Training */
@@ -188,8 +243,7 @@ window.McgheeLab = window.McgheeLab || {};
       console.warn('[Equipment] firebridge not available');
       return;
     }
-    firebridge.gateSignedIn();
-    if (firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+    if (firebridge.requireSignIn) await firebridge.requireSignIn();
 
     _user = firebridge.getUser ? firebridge.getUser() : null;
     _profile = firebridge.getProfile ? firebridge.getProfile() : null;
@@ -207,6 +261,13 @@ window.McgheeLab = window.McgheeLab || {};
       if (_profile && _profile.role === 'admin') tabs.push({ id: 'admin' });
       McgheeLab.MobileShell.enableTabSwipe(tabs, () => _currentTab, (id) => { _currentTab = id; render(); });
     }
+
+    // V3.339 — re-render the calendar when crossing the narrow-screen
+    // breakpoint (week grid ⇄ single-day view)
+    const mq = window.matchMedia('(max-width: 640px)');
+    const onBreakpointFlip = () => { if (_currentTab === 'calendar') renderCalendar(); };
+    if (mq.addEventListener) mq.addEventListener('change', onBreakpointFlip);
+    else if (mq.addListener) mq.addListener(onBreakpointFlip);
 
     // Re-render on profile-role flips so the Admin tab unlocks
     // immediately after promotion without a manual reload.
@@ -282,6 +343,16 @@ window.McgheeLab = window.McgheeLab || {};
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
   function todayStr() { return localDateStr(new Date()); }
+
+  // V3.339 — matches the canonical RM mobile breakpoint (640px). Note:
+  // these date helpers deliberately stay local instead of adopting
+  // McgheeLab.ScheduleUtils — that module isn't loaded by equipment.html,
+  // its getWeekDays returns label objects (not Dates), and its getMonday
+  // jumps to NEXT week's Monday when today is Sunday; this file's version
+  // handles Sunday correctly.
+  function isNarrowScreen() {
+    return window.matchMedia('(max-width: 640px)').matches;
+  }
 
   function getMonday(offset) {
     const d = new Date();
@@ -412,6 +483,194 @@ window.McgheeLab = window.McgheeLab || {};
     return isAdmin() || isEquipmentManager(equip) || (equip.extendedTimeUsers || []).includes(_user.uid);
   }
 
+  /* ─── Availability window (V3.336) ──────────────────────── */
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Normalized restriction view of a device's posted window, or null when
+  // the device is effectively unrestricted (no days saved, all 7 days, or
+  // hours spanning the full 0-24 range).
+  function availabilityRestrictions(equip) {
+    if (!equip) return null;
+    const days = Array.isArray(equip.availableDays) ? equip.availableDays : null;
+    const hours = equip.availableHours || null;
+    const daysRestricted = days && days.length > 0 && days.length < 7;
+    const hoursRestricted = hours && (((hours.start ?? 0) > 0) || ((hours.end ?? 24) < 24));
+    if (!daysRestricted && !hoursRestricted) return null;
+    return {
+      days: daysRestricted ? days : null,
+      startMin: hoursRestricted ? (hours.start ?? 0) * 60 : 0,
+      endMin: hoursRestricted ? (hours.end ?? 24) * 60 : 24 * 60,
+    };
+  }
+
+  function minToTimeLabel(min) {
+    if (min >= 1440) return '11:59 PM';
+    const h = Math.floor(min / 60), m = min % 60;
+    return fmtTime(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  }
+
+  // "Mon–Fri, 8 AM–6 PM" style label; '' when unrestricted.
+  function fmtDayList(days) {
+    const sorted = [...new Set(days)].sort((a, b) => a - b);
+    const runs = [];
+    let start = sorted[0], prev = sorted[0];
+    for (let i = 1; i <= sorted.length; i++) {
+      const d = sorted[i];
+      if (d === prev + 1) { prev = d; continue; }
+      runs.push(start === prev ? DAY_LABELS[start] : `${DAY_LABELS[start]}–${DAY_LABELS[prev]}`);
+      start = prev = d;
+    }
+    return runs.join(', ');
+  }
+  function availabilityLabel(equip) {
+    const r = availabilityRestrictions(equip);
+    if (!r) return '';
+    const dayPart = r.days ? fmtDayList(r.days) : 'every day';
+    return `${dayPart}, ${minToTimeLabel(r.startMin)}–${minToTimeLabel(r.endMin)}`;
+  }
+
+  // Enforce the device's posted availability window on a proposed booking.
+  // Admins and equipment managers bypass (maintenance blocks, supervised
+  // after-hours sessions).
+  function checkAvailability(equip, date, endDate, start, end) {
+    const r = availabilityRestrictions(equip);
+    if (!r) return { ok: true };
+    if (isAdmin() || isEquipmentManager(equip)) return { ok: true, bypassed: true };
+    const label = availabilityLabel(equip);
+    const name = equip.shortName || equip.name;
+    if (r.days) {
+      for (let d = new Date(date + 'T00:00:00'); localDateStr(d) <= endDate; d.setDate(d.getDate() + 1)) {
+        if (!r.days.includes(d.getDay())) {
+          return { ok: false, reason: `${name} is bookable ${label} — ${DAY_LABELS[d.getDay()]} is outside its available days.` };
+        }
+      }
+    }
+    if (r.startMin > 0 || r.endMin < 1440) {
+      // An overnight/multi-day booking is by definition outside posted hours
+      if (endDate > date) {
+        return { ok: false, reason: `${name} is bookable ${label} — overnight bookings need a manager or admin.` };
+      }
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      if (sh * 60 + sm < r.startMin || eh * 60 + em > r.endMin) {
+        return { ok: false, reason: `${name} is bookable ${label}.` };
+      }
+    }
+    return { ok: true };
+  }
+
+  function timeToMin(t) {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  /* V3.606 — place a booking on one absolute timeline so overlap is a
+   * single comparison regardless of how many days it spans.
+   *
+   * Comparing bare 'HH:MM' strings only works when both bookings sit on
+   * the same day; the moment one spans midnight, "20:00" is EARLIER than
+   * "09:00" by string order but LATER in real time. Date.UTC gives a
+   * DST-immune day index (Arizona has no DST today, but this must not
+   * quietly depend on that). */
+  function dayIndex(dateStr) {
+    const p = String(dateStr).split('-');
+    return Math.floor(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000);
+  }
+  function absMin(dateStr, timeStr) {
+    return dayIndex(dateStr) * 1440 + timeToMin(timeStr);
+  }
+
+  /** Do [aStart,aEnd) and [bStart,bEnd) overlap on the absolute timeline? */
+  function rangesOverlap(aStartDate, aStartTime, aEndDate, aEndTime,
+                         bStartDate, bStartTime, bEndDate, bEndTime) {
+    const aS = absMin(aStartDate, aStartTime), aE = absMin(aEndDate, aEndTime);
+    const bS = absMin(bStartDate, bStartTime), bE = absMin(bEndDate, bEndTime);
+    if (!(aE > aS) || !(bE > bS)) return false;   // malformed → never conflict
+    return bS < aE && bE > aS;
+  }
+
+  /* ─── Day glance (V3.340) ───────────────────────────────── */
+  // One-shot cache of today's confirmed bookings across ALL devices —
+  // the calendar subscription (_bookings) only covers the viewed range,
+  // which may not include today.
+  let _todayCache = { date: null, pending: false, bookings: [] };
+  function ensureTodayBookings() {
+    const today = todayStr();
+    if (_todayCache.date === today || _todayCache.pending) return;
+    _todayCache.pending = true;
+    const wideStart = new Date(today + 'T00:00:00');
+    wideStart.setDate(wideStart.getDate() - 30); // catch multi-day bookings still running
+    db().collection('equipmentBookings')
+      .where('date', '>=', localDateStr(wideStart))
+      .where('date', '<=', today)
+      .get()
+      .then(snap => {
+        _todayCache = {
+          date: today,
+          pending: false,
+          bookings: snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .filter(b => b.status === 'confirmed' && (b.endDate || b.date) >= today),
+        };
+        if (_currentTab === 'equipment') renderEquipmentTab();
+      })
+      .catch(err => {
+        console.warn('[Equipment] today-glance fetch failed:', err);
+        _todayCache.pending = false;
+      });
+  }
+
+  // "Free until 2 PM" / "In use until 11:30 AM" / "Closed today" chip
+  // for an equipment card. Returns { label, cls } or null.
+  function computeDayGlance(e, todaysBookings, now) {
+    if (e.status !== 'available') return null;
+    const today = localDateStr(now);
+    const r = availabilityRestrictions(e);
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    if (r && r.days && !r.days.includes(now.getDay())) return { label: 'Closed today', cls: 'off' };
+    const openMin = r ? r.startMin : 0;
+    const closeMin = r ? r.endMin : 1440;
+    if (nowMin >= closeMin) return { label: 'Closed for today', cls: 'off' };
+    // Today's confirmed intervals for this device, as minutes-of-day
+    const iv = todaysBookings
+      .filter(b => b.equipmentId === e.id)
+      .map(b => [
+        b.date < today ? 0 : timeToMin(b.startTime),
+        (b.endDate || b.date) > today ? 1440 : timeToMin(b.endTime),
+      ])
+      .sort((a, b) => a[0] - b[0]);
+    // If now is inside a booking, walk chained bookings to the real free point
+    let busyUntil = null;
+    for (const [s, en] of iv) {
+      if (busyUntil === null) {
+        if (nowMin >= s && nowMin < en) busyUntil = en;
+      } else if (s <= busyUntil) {
+        busyUntil = Math.max(busyUntil, en);
+      }
+    }
+    if (busyUntil !== null) {
+      if (busyUntil >= closeMin) {
+        return { label: closeMin < 1440 ? 'Booked until close' : 'Booked all day', cls: 'busy' };
+      }
+      return { label: `In use until ${minToTimeLabel(busyUntil)}`, cls: 'busy' };
+    }
+    if (nowMin < openMin) return { label: `Opens at ${minToTimeLabel(openMin)}`, cls: 'off' };
+    const next = iv.find(([s]) => s > nowMin);
+    if (next) return { label: `Free until ${minToTimeLabel(next[0])}`, cls: 'free' };
+    return (r && closeMin < 1440)
+      ? { label: `Free until close (${minToTimeLabel(closeMin)})`, cls: 'free' }
+      : { label: 'Free rest of day', cls: 'free' };
+  }
+
+  // True when a 30-min grid slot falls outside the device's posted window.
+  function isSlotClosed(equip, jsDay, slotTime) {
+    const r = availabilityRestrictions(equip);
+    if (!r) return false;
+    if (r.days && !r.days.includes(jsDay)) return true;
+    const [h, m] = slotTime.split(':').map(Number);
+    const slotMin = h * 60 + m;
+    return slotMin < r.startMin || slotMin + 30 > r.endMin;
+  }
+
   /* ═══════════════════════════════════════════════════════════
      MAIN RENDER
      ═══════════════════════════════════════════════════════════ */
@@ -485,14 +744,22 @@ window.McgheeLab = window.McgheeLab || {};
       return;
     }
 
-    // Count today's bookings per device
+    // Today's confirmed bookings across all devices (V3.340: one-shot
+    // fetch — _bookings only covers the calendar's viewed range). Falls
+    // back to _bookings until the fetch lands, then re-renders.
+    ensureTodayBookings();
     const today = todayStr();
-    const todayBookings = _bookings.filter(b => b.status === 'confirmed' && b.date <= today && (b.endDate || b.date) >= today);
+    const glanceReady = _todayCache.date === today;
+    const todayBookings = glanceReady
+      ? _todayCache.bookings
+      : _bookings.filter(b => b.status === 'confirmed' && b.date <= today && (b.endDate || b.date) >= today);
+    const now = new Date();
 
     function equipCard(e) {
       const icon = CATEGORY_ICONS[e.category] || CATEGORY_ICONS.other;
       const statusClass = e.status === 'available' ? 'eq-ecard-status--ok' : e.status === 'maintenance' ? 'eq-ecard-status--warn' : 'eq-ecard-status--off';
       const todayCount = todayBookings.filter(b => b.equipmentId === e.id).length;
+      const glance = glanceReady ? computeDayGlance(e, todayBookings, now) : null;
       const perm = canUserBook(e);
       const certDefs = getCertDefs();
       const requiredCerts = (e.training && e.training.required && e.training.certifications)
@@ -509,6 +776,7 @@ window.McgheeLab = window.McgheeLab || {};
           </div>
           ${e.description ? `<p class="eq-ecard-desc">${esc(e.description)}</p>` : ''}
           <div class="eq-ecard-meta">
+            ${glance ? `<span class="eq-ecard-glance eq-ecard-glance--${glance.cls}">${esc(glance.label)}</span>` : ''}
             ${e.location ? `<span class="eq-ecard-tag">📍 ${esc(e.location)}</span>` : ''}
             <span class="eq-ecard-tag">${e.maxDurationMin || 480} min max</span>
             ${todayCount > 0 ? `<span class="eq-ecard-tag eq-ecard-tag--active">${todayCount} booking${todayCount > 1 ? 's' : ''} today</span>` : ''}
@@ -558,7 +826,7 @@ window.McgheeLab = window.McgheeLab || {};
 
     const pc = getPriorityColors();
     const legend = Object.entries(pc).map(([k, c]) =>
-      `<span class="eq-legend-item"><span class="eq-legend-dot" style="background:${c}"></span>${k}</span>`
+      `<span class="eq-legend-item" title="${esc(priorityHint(k))}"><span class="eq-legend-dot" style="background:${c}"></span>${priorityLabel(k)}</span>`
     ).join('');
 
     content.innerHTML = `
@@ -580,6 +848,8 @@ window.McgheeLab = window.McgheeLab || {};
             <button class="eq-nav-btn" id="eq-next">&rsaquo;</button>
           </div>
           <div class="eq-toolbar-right">
+            ${_calView === 'week' ? `<button class="app-btn ${_watchMode ? 'app-btn--primary' : 'app-btn--secondary'}" id="eq-watch-mode"
+              title="Drag across the calendar to be notified if that time frees up">🔔 ${_watchMode ? 'Watching — drag a window' : 'Notify me'}</button>` : ''}
             <button class="app-btn app-btn--primary" id="eq-new-booking">+ New Booking</button>
           </div>
         </div>
@@ -590,6 +860,8 @@ window.McgheeLab = window.McgheeLab || {};
             <button class="eq-zoom-btn" id="eq-zoom-in" title="Zoom in">+</button>
           </div>` : ''}
         </div>
+        ${_watchMode ? `<div class="eq-watch-banner">Drag across a busy stretch to be
+          notified if it frees up. Your watches show as hatched bands.</div>` : ''}
       </div>
       <div id="eq-calendar-body" class="eq-cal-body"></div>`;
     wireCalendarToolbar();
@@ -601,6 +873,12 @@ window.McgheeLab = window.McgheeLab || {};
     if (filter) filter.addEventListener('change', () => {
       _selectedEquipId = filter.value;
       subscribeBookings();
+    });
+    // V3.597 — flip the drag gesture between booking and watching.
+    const watchBtn = document.getElementById('eq-watch-mode');
+    if (watchBtn) watchBtn.addEventListener('click', () => {
+      _watchMode = !_watchMode;
+      renderCalendar();
     });
     document.querySelectorAll('.eq-view-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -653,15 +931,41 @@ window.McgheeLab = window.McgheeLab || {};
   function renderCalendarBody() {
     const body = document.getElementById('eq-calendar-body');
     if (!body) return;
-    if (_calView === 'week') renderWeekView(body);
-    else renderMonthView(body);
+    if (_calView === 'week') {
+      // V3.597 — watch bands need the visible week's watches. Paint now
+      // with whatever we have (usually correct, since the range only
+      // changes on navigation) and repaint once if a fetch was needed.
+      // `_watchRange` guards against a render → load → render loop.
+      const wd = getWeekDays(_weekOffset);
+      const from = localDateStr(wd[0]), to = localDateStr(wd[6]);
+      const rangeKey = from + '..' + to;
+      if (_watchRange !== rangeKey) {
+        _watchRange = rangeKey;
+        loadMyWatches(from, to).then(() => {
+          // Only repaint if we're still on the same week + view.
+          if (_calView === 'week' && _watchRange === rangeKey) renderCalendarBody();
+        });
+      }
+      renderWeekView(body);
+    } else {
+      renderMonthView(body);
+    }
     notifyResize();
   }
 
   /* ─── Week View ─────────────────────────────────────────── */
   function renderWeekView(container) {
-    const days = getWeekDays(_weekOffset);
+    const weekDays = getWeekDays(_weekOffset);
     const today = todayStr();
+    // V3.339 — on narrow screens show a single day with a day-chip pager
+    // instead of cramming 7 columns onto a phone
+    const narrow = isNarrowScreen();
+    if (narrow && _dayIdx === null) {
+      const ti = weekDays.findIndex(d => localDateStr(d) === today);
+      _dayIdx = ti >= 0 ? ti : 0;
+    }
+    if (_dayIdx !== null) _dayIdx = Math.max(0, Math.min(6, _dayIdx));
+    const days = narrow ? [weekDays[_dayIdx]] : weekDays;
     const startHour = 0, endHour = 24;
     const slots = generateTimeSlots(startHour, endHour);
     const activeBookings = _bookings.filter(b => b.status !== 'cancelled');
@@ -683,12 +987,16 @@ window.McgheeLab = window.McgheeLab || {};
       return `<div class="eq-wk-time" style="grid-row:${i + 2}">${fmtTime(t)}</div>`;
     }).join('');
 
-    // Grid cells (clickable)
+    // Grid cells (clickable). With a device filter active, slots outside the
+    // device's posted availability window render greyed (V3.336).
+    const selEquip = _selectedEquipId ? _equipment.find(e => e.id === _selectedEquipId) : null;
     let cells = '';
     days.forEach((d, col) => {
       const ds = localDateStr(d);
+      const jsDay = d.getDay();
       slots.forEach((t, row) => {
-        cells += `<div class="eq-wk-cell" data-date="${ds}" data-time="${t}" style="grid-column:${col + 2};grid-row:${row + 2}"></div>`;
+        const closed = selEquip && isSlotClosed(selEquip, jsDay, t);
+        cells += `<div class="eq-wk-cell${closed ? ' eq-wk-cell--closed' : ''}"${closed ? ' data-closed="1"' : ''} data-date="${ds}" data-time="${t}" style="grid-column:${col + 2};grid-row:${row + 2}"></div>`;
       });
     });
 
@@ -752,6 +1060,28 @@ window.McgheeLab = window.McgheeLab || {};
       });
     });
 
+    // V3.597 — the user's own notify-me watch windows, drawn as hatched
+    // bands ABOVE the cells but BELOW the sticky headers (z-index 2 vs 1
+    // and 3). pointer-events stay off the band itself so drag-to-book
+    // still works through it; only the 🔔✕ pill is clickable.
+    let watchBands = '';
+    _myWatches.forEach(w => {
+      const dayIdx = days.findIndex(d => localDateStr(d) === w.date);
+      if (dayIdx < 0) return;
+      if (_selectedEquipId && w.equipmentId !== _selectedEquipId) return;
+      const startRow = timeToRow(w.startTime);
+      const endRow = timeToRow(w.endTime);
+      const span = endRow - startRow;
+      if (span <= 0) return;
+      const eqObj = _equipment.find(e => e.id === w.equipmentId);
+      const eqLabel = eqObj ? (eqObj.shortName || eqObj.name) : (w.equipmentName || '');
+      watchBands += `<div class="eq-wk-watch" data-watch-id="${w.id}"
+        style="grid-column:${dayIdx + 2};grid-row:${startRow + 1}/span ${span};"
+        title="Watching ${esc(eqLabel)} ${fmtTime(w.startTime)}–${fmtTime(w.endTime)} — you'll be notified if it frees up">
+        <button type="button" class="eq-wk-watch-x" data-watch-del="${w.id}" aria-label="Stop watching">🔔✕</button>
+      </div>`;
+    });
+
     const slotH = ZOOM_LEVELS[_zoomIdx];
 
     // Preserve scroll position across re-renders (zoom, booking updates)
@@ -759,15 +1089,25 @@ window.McgheeLab = window.McgheeLab || {};
     const prevScrollTop = oldWrap ? oldWrap.scrollTop : null;
     const prevSlotH = oldWrap ? parseFloat(oldWrap.dataset.slotH || '0') : 0;
 
+    // V3.339 — day-chip pager for the narrow-screen single-day view
+    const dayChips = !narrow ? '' : `<div class="eq-day-pager">${weekDays.map((d, i) => {
+      const ds = localDateStr(d);
+      return `<button class="eq-day-chip ${i === _dayIdx ? 'eq-day-chip--active' : ''} ${ds === today ? 'eq-day-chip--today' : ''}" data-day-idx="${i}">
+        ${d.toLocaleDateString('en-US', { weekday: 'short' })}<span class="eq-day-chip-num">${d.getDate()}</span>
+      </button>`;
+    }).join('')}</div>`;
+
     container.innerHTML = `
+      ${dayChips}
       <div class="eq-cal-scroll-area">
         <div class="eq-week-wrap" data-slot-h="${slotH}">
-          <div class="eq-week-grid" style="grid-template-rows:auto repeat(${slots.length},${slotH}px);">
+          <div class="eq-week-grid ${narrow ? 'eq-week-grid--day' : ''}" style="grid-template-rows:auto repeat(${slots.length},${slotH}px);">
             <div class="eq-wk-corner eq-wk-sticky-head"></div>
             ${dayHeaders}
             ${timeLabels}
             ${cells}
             ${blocks}
+            ${watchBands}
           </div>
         </div>
         <div class="eq-time-slider" id="eq-time-slider">
@@ -777,6 +1117,12 @@ window.McgheeLab = window.McgheeLab || {};
       </div>`;
 
     wireWeekGrid(container);
+    container.querySelectorAll('.eq-day-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        _dayIdx = parseInt(chip.dataset.dayIdx);
+        renderCalendarBody();
+      });
+    });
     const wrap = container.querySelector('.eq-week-wrap');
     wirePinchZoom(wrap);
     wireTimeSlider(wrap);
@@ -799,6 +1145,10 @@ window.McgheeLab = window.McgheeLab || {};
   function wireWeekGrid(container) {
     const grid = container.querySelector('.eq-week-grid');
     if (!grid) return;
+    // V3.336 — drag-to-book can't start in or extend into closed slots;
+    // admins/managers keep the bypass (they can still book via the modal).
+    const selEquip = _selectedEquipId ? _equipment.find(e => e.id === _selectedEquipId) : null;
+    const canBypassClosed = selEquip ? (isAdmin() || isEquipmentManager(selEquip)) : false;
     const cells = container.querySelectorAll('.eq-wk-cell');
     const cellMap = new Map(); // "col-row" -> element
     cells.forEach(cell => {
@@ -850,6 +1200,7 @@ window.McgheeLab = window.McgheeLab || {};
     cells.forEach(cell => {
       cell.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        if (cell.dataset.closed && !canBypassClosed) return;
         const info = getCellInfo(cell);
         _drag = { col: info.col, startRow: info.row, endRow: info.row, endCol: info.col, date: info.date, endDate: info.date };
         highlightRange(info.col, info.row, info.col, info.row);
@@ -861,6 +1212,7 @@ window.McgheeLab = window.McgheeLab || {};
       if (!_drag) return;
       const el = document.elementFromPoint(e.clientX, e.clientY);
       if (!el || !el.classList.contains('eq-wk-cell')) return;
+      if (el.dataset.closed && !canBypassClosed) return;
       const info = getCellInfo(el);
       _drag.endRow = info.row;
       _drag.endCol = info.col;
@@ -882,6 +1234,9 @@ window.McgheeLab = window.McgheeLab || {};
       const startTime = rowToTime(startRow);
       const endTime = rowToTime(endRow + 1);
       _drag = null;
+      // V3.597 — same gesture, two meanings. Watch mode short-circuits
+      // before the booking modal.
+      if (_watchMode) { openWatchConfirm(startDate, startTime, endTime); return; }
       openBookingModal({ date: startDate, endDate, startTime, endTime });
     });
 
@@ -900,6 +1255,139 @@ window.McgheeLab = window.McgheeLab || {};
         showBookingDetail(block.dataset.bookingId);
       });
     });
+
+    // V3.597 — 🔔✕ on a watch band stops the watch.
+    container.querySelectorAll('[data-watch-del]').forEach(btn => {
+      btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.watchDel;
+        try {
+          await EDB.deleteWatch(id);
+          _myWatches = _myWatches.filter(w => w.id !== id);
+          showToast('Watch removed');
+          renderCalendarBody();
+        } catch (err) {
+          showToast('Could not remove watch: ' + err.message);
+        }
+      });
+    });
+  }
+
+  /* ─── Notify-me watches (V3.597) ──────────────────────────── */
+
+  /**
+   * Is any live booking sitting in this window? Reads the already-
+   * subscribed `_bookings`, so it costs no query. Single-day only, which
+   * matches what a watch can express.
+   *
+   * (openBookingModal has its own async checkConflicts() for the booking
+   * flow — that one is nested in the modal closure and reports WHO
+   * clashes for the displacement UI. This only needs a yes/no.)
+   */
+  function hasBookingOverlap(equipmentId, date, startTime, endTime) {
+    return _bookings.some(b => {
+      if (b.equipmentId !== equipmentId) return false;
+      if (b.status === 'cancelled' || b.status === 'needs-rebooking') return false;
+      // V3.606 — was `(b.endDate || b.date) !== date → skip`, which made an
+      // overnight booking invisible here, so a window it fully covered was
+      // offered as "already free".
+      return rangesOverlap(date, startTime, date, endTime,
+                           b.date, b.startTime, b.endDate || b.date, b.endTime);
+    });
+  }
+
+  /**
+   * Confirm a dragged watch window. Two things this deliberately does:
+   *
+   *  - Requires a device. A watch has to name one instrument; "notify me
+   *    if ANY scope frees up" is a different feature.
+   *  - Checks whether the window is ALREADY free, and offers to book it
+   *    instead. Watching time you could just take is the most obvious way
+   *    to waste a student's afternoon.
+   */
+  async function openWatchConfirm(date, startTime, endTime) {
+    const eqId = _selectedEquipId;
+    if (!eqId) {
+      showToast('Pick one device in the filter first — a watch needs a specific instrument.');
+      return;
+    }
+    const eq = _equipment.find(e => e.id === eqId);
+    if (!eq) { showToast('Unknown device'); return; }
+
+    // Note the arg order: (equip, date, endDate, start, end).
+    const avail = checkAvailability(eq, date, date, startTime, endTime);
+    const alreadyFree = avail.ok && !hasBookingOverlap(eqId, date, startTime, endTime);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'eq-modal-overlay';
+    overlay.innerHTML = `
+      <div class="eq-modal eq-modal--narrow">
+        <div class="eq-modal-header">
+          <h3>🔔 Notify me if it frees up</h3>
+          <button class="eq-modal-close">&times;</button>
+        </div>
+        <div class="eq-modal-body">
+          <p class="eq-watch-target"><strong>${esc(eq.shortName || eq.name)}</strong><br>
+            ${esc(date)} · ${fmtTime(startTime)}–${fmtTime(endTime)}</p>
+          ${alreadyFree
+            ? `<div class="eq-watch-free">This window is <strong>already free</strong> — you can
+                 book it right now instead of waiting.</div>`
+            : `<p class="eq-watch-note">You'll get one notification if a usable gap
+                 (30 min or more) opens up in this window. The watch stays active until the
+                 day passes or you book the device — it won't spam you.</p>`}
+        </div>
+        <div class="eq-modal-footer">
+          <button class="app-btn app-btn--secondary" id="eq-watch-cancel">Cancel</button>
+          ${alreadyFree ? '<button class="app-btn app-btn--primary" id="eq-watch-book">Book it now</button>' : ''}
+          <button class="app-btn ${alreadyFree ? 'app-btn--secondary' : 'app-btn--primary'}" id="eq-watch-save">
+            ${alreadyFree ? 'Watch anyway' : 'Notify me'}</button>
+        </div>
+      </div>`;
+
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('.eq-modal-close').addEventListener('click', close);
+    overlay.querySelector('#eq-watch-cancel').addEventListener('click', close);
+
+    overlay.querySelector('#eq-watch-book')?.addEventListener('click', () => {
+      close();
+      openBookingModal({ date, endDate: date, startTime, endTime });
+    });
+
+    overlay.querySelector('#eq-watch-save').addEventListener('click', async () => {
+      try {
+        const id = await EDB.createWatch({
+          uid: _user.uid,
+          userName: _profile?.name || _user.displayName || _user.email || '',
+          equipmentId: eqId,
+          equipmentName: eq.shortName || eq.name,
+          date, startTime, endTime,
+        });
+        _myWatches.push({
+          id, uid: _user.uid, equipmentId: eqId,
+          equipmentName: eq.shortName || eq.name,
+          date, startTime, endTime, status: 'active',
+        });
+        close();
+        showToast(`Watching ${eq.shortName || eq.name} — we'll tell you if it frees up.`);
+        renderCalendarBody();
+      } catch (err) {
+        showToast('Could not save watch: ' + err.message);
+      }
+    });
+
+    document.body.appendChild(overlay);
+  }
+
+  /** Own active watches for the visible week; failure is non-fatal. */
+  async function loadMyWatches(fromDate, toDate) {
+    try {
+      _myWatches = await EDB.listMyWatches(fromDate, toDate);
+    } catch (err) {
+      console.warn('[equipment] watch load failed:', err && err.message);
+      _myWatches = [];
+    }
   }
 
   /* ─── Pinch-to-Zoom on week grid ─────────────────────────── */
@@ -1015,6 +1503,9 @@ window.McgheeLab = window.McgheeLab || {};
     const lastOfMonth = new Date(y, m + 1, 0);
     const pc = getPriorityColors();
     const activeBookings = _bookings.filter(b => b.status !== 'cancelled');
+    // V3.336 — with a device filter active, tint days outside its window
+    const selEquip = _selectedEquipId ? _equipment.find(eq => eq.id === _selectedEquipId) : null;
+    const selRestrict = selEquip ? availabilityRestrictions(selEquip) : null;
 
     // Build grid starting from Monday
     const startDay = firstOfMonth.getDay() === 0 ? 6 : firstOfMonth.getDay() - 1;
@@ -1041,7 +1532,8 @@ window.McgheeLab = window.McgheeLab || {};
           return `<span class="eq-month-dot" style="background:${c}" title="${esc(b.equipmentName || '')} - ${esc(b.userName || '')}"></span>`;
         }).join('');
         const more = dayBookings.length > 4 ? `<span class="eq-month-more">+${dayBookings.length - 4}</span>` : '';
-        html += `<div class="eq-month-cell ${isToday ? 'eq-month-cell--today' : ''} ${!inMonth ? 'eq-month-cell--out' : ''}" data-date="${ds}">
+        const closedDay = selRestrict && selRestrict.days && !selRestrict.days.includes(date.getDay());
+        html += `<div class="eq-month-cell ${isToday ? 'eq-month-cell--today' : ''} ${!inMonth ? 'eq-month-cell--out' : ''} ${closedDay ? 'eq-month-cell--closed' : ''}" data-date="${ds}">
           <span class="eq-month-num">${date.getDate()}</span>
           <div class="eq-month-dots">${dots}${more}</div>
         </div>`;
@@ -1059,6 +1551,7 @@ window.McgheeLab = window.McgheeLab || {};
         const currentMonday = getMonday(0);
         const diffDays = Math.floor((d - currentMonday) / 86400000);
         _weekOffset = Math.floor(diffDays / 7);
+        _dayIdx = (d.getDay() + 6) % 7; // land on the clicked day in the narrow single-day view
         _calView = 'week';
         subscribeBookings();
         renderCalendar();
@@ -1072,7 +1565,8 @@ window.McgheeLab = window.McgheeLab || {};
   function openBookingModal(prefill, editBooking) {
     const isEdit = !!editBooking;
     const equip = _equipment.filter(e => e.status === 'available');
-    const preEquipId = editBooking ? editBooking.equipmentId : (_selectedEquipId || (equip[0] ? equip[0].id : ''));
+    const preEquipId = editBooking ? editBooking.equipmentId
+      : ((prefill && prefill.equipId) || _selectedEquipId || (equip[0] ? equip[0].id : ''));
     const preDate = editBooking ? editBooking.date : (prefill && prefill.date) || todayStr();
     const preEndDate = editBooking ? (editBooking.endDate || editBooking.date) : (prefill && prefill.endDate) || preDate;
     const preStart = editBooking ? editBooking.startTime : (prefill && prefill.startTime) || '09:00';
@@ -1091,7 +1585,7 @@ window.McgheeLab = window.McgheeLab || {};
 
     const pc = getPriorityColors();
     const priorityOpts = ['normal', 'high', 'urgent'].map(p =>
-      `<option value="${p}" ${p === prePriority ? 'selected' : ''}>${p.charAt(0).toUpperCase() + p.slice(1)}</option>`
+      `<option value="${p}" ${p === prePriority ? 'selected' : ''}>${priorityLabel(p)}</option>`
     ).join('');
     if (isAdmin()) {
       // Admin can also create maintenance blocks
@@ -1111,6 +1605,7 @@ window.McgheeLab = window.McgheeLab || {};
             <select id="eq-bk-equip" class="eq-input">${equipOpts}</select>
           </div>
           <div id="eq-bk-perm-msg"></div>
+          <div id="eq-bk-avail-msg"></div>
           <div class="eq-form-row">
             <div class="eq-form-group">
               <label>Start Date</label>
@@ -1131,12 +1626,19 @@ window.McgheeLab = window.McgheeLab || {};
               <select id="eq-bk-end" class="eq-input">${timeOpts}</select>
             </div>
           </div>
+          <div class="eq-dur-chips">
+            ${[30, 60, 120, 240].map(m =>
+              `<button type="button" class="eq-dur-chip" data-min="${m}">${m < 60 ? m + ' min' : (m / 60) + ' hr'}</button>`
+            ).join('')}
+            <button type="button" class="eq-dur-chip" data-min="max">Max</button>
+          </div>
           <div class="eq-form-group">
-            <label>Priority</label>
+            <label>How critical is this booking?</label>
             <div class="eq-priority-row">
               <select id="eq-bk-priority" class="eq-input">${priorityOpts}${isAdmin() ? '<option value="maintenance">Maintenance</option>' : ''}</select>
               <span class="eq-priority-preview" id="eq-bk-priority-dot"></span>
             </div>
+            <div class="eq-priority-hint" id="eq-bk-priority-hint"></div>
           </div>
           <div class="eq-form-group" id="eq-bk-coop-group" style="display:none">
             <label>Co-operator (required)</label>
@@ -1199,6 +1701,31 @@ window.McgheeLab = window.McgheeLab || {};
       const p = overlay.querySelector('#eq-bk-priority').value;
       const dot = overlay.querySelector('#eq-bk-priority-dot');
       dot.style.background = pc[p] || pc.normal;
+      const hint = overlay.querySelector('#eq-bk-priority-hint');
+      if (hint) hint.textContent = priorityHint(p);
+    }
+
+    // V3.336 — show the device's posted window and flag violations live
+    function updateAvailabilityUI() {
+      const eqId = overlay.querySelector('#eq-bk-equip').value;
+      const eq = _equipment.find(x => x.id === eqId);
+      const el = overlay.querySelector('#eq-bk-avail-msg');
+      if (!availabilityRestrictions(eq)) { el.innerHTML = ''; return; }
+      const name = eq.shortName || eq.name;
+      const label = availabilityLabel(eq);
+      const date = overlay.querySelector('#eq-bk-date').value;
+      const endDate = overlay.querySelector('#eq-bk-end-date').value;
+      const start = overlay.querySelector('#eq-bk-start').value;
+      const end = overlay.querySelector('#eq-bk-end').value;
+      const check = (date && endDate && start && end)
+        ? checkAvailability(eq, date, endDate, start, end)
+        : { ok: true };
+      if (!check.ok) {
+        el.innerHTML = `<div class="eq-avail-line eq-avail-line--violation">⏰ ${esc(check.reason)}</div>`;
+      } else {
+        const suffix = check.bypassed ? ' — manager/admin override active' : '';
+        el.innerHTML = `<div class="eq-avail-line">⏰ ${esc(name)} is bookable ${esc(label)}${esc(suffix)}</div>`;
+      }
     }
 
     let _conflictDocs = []; // stash for submit handler
@@ -1223,25 +1750,14 @@ window.McgheeLab = window.McgheeLab || {};
           const b = d.data();
           if (b.status !== 'confirmed' && b.status !== 'needs-rebooking') return false;
           const bEndDate = b.endDate || b.date;
-          // Check if date ranges overlap
-          if (bEndDate < date || b.date > endDate) return false;
-          // If bookings share only the start date boundary, check times
-          if (bEndDate === date && b.date === date && endDate === date) {
-            return b.startTime < end && b.endTime > start;
-          }
-          // If existing booking ends on our start date, check time overlap
-          if (bEndDate === date && b.date < date) {
-            return b.endTime > start;
-          }
-          // If existing booking starts on our end date, check time overlap
-          if (b.date === endDate && bEndDate > endDate) {
-            return b.startTime < end;
-          }
-          // Same single day for both bookings
-          if (b.date === bEndDate && b.date === date && date === endDate) {
-            return b.startTime < end && b.endTime > start;
-          }
-          return true; // date ranges overlap across full days
+          // V3.606 — ONE comparison on the absolute timeline. This used to
+          // be a five-branch ladder over date boundaries that ended in an
+          // unconditional `return true`, so whenever the NEW booking was
+          // multi-day every branch missed and the time check never ran:
+          // an overnight booking was reported as displacing every other
+          // booking on the days it touched, however far apart the hours.
+          return rangesOverlap(date, start, endDate, end,
+                               b.date, b.startTime, bEndDate, b.endTime);
         })
         .map(d => ({ id: d.id, ...d.data() }));
       if (_conflictDocs.length > 0) {
@@ -1265,19 +1781,47 @@ window.McgheeLab = window.McgheeLab || {};
     }
 
     // Wire events
-    overlay.querySelector('#eq-bk-equip').addEventListener('change', () => { updatePermissionUI(); checkConflicts(); });
+    overlay.querySelector('#eq-bk-equip').addEventListener('change', () => { updatePermissionUI(); updateAvailabilityUI(); checkConflicts(); });
     overlay.querySelector('#eq-bk-date').addEventListener('change', () => {
       // Auto-advance end date if it's before start date
       const endDateEl = overlay.querySelector('#eq-bk-end-date');
       if (endDateEl.value < overlay.querySelector('#eq-bk-date').value) {
         endDateEl.value = overlay.querySelector('#eq-bk-date').value;
       }
+      updateAvailabilityUI();
       checkConflicts();
     });
-    overlay.querySelector('#eq-bk-end-date').addEventListener('change', checkConflicts);
-    overlay.querySelector('#eq-bk-start').addEventListener('change', checkConflicts);
-    overlay.querySelector('#eq-bk-end').addEventListener('change', checkConflicts);
+    overlay.querySelector('#eq-bk-end-date').addEventListener('change', () => { updateAvailabilityUI(); checkConflicts(); });
+    overlay.querySelector('#eq-bk-start').addEventListener('change', () => { updateAvailabilityUI(); checkConflicts(); });
+    overlay.querySelector('#eq-bk-end').addEventListener('change', () => { updateAvailabilityUI(); checkConflicts(); });
     overlay.querySelector('#eq-bk-priority').addEventListener('change', updatePriorityDot);
+    // V3.340 — duration quick-picks: set end date/time from start + duration
+    overlay.querySelectorAll('.eq-dur-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const eqSel = _equipment.find(x => x.id === overlay.querySelector('#eq-bk-equip').value);
+        const mins = chip.dataset.min === 'max'
+          ? ((eqSel && eqSel.maxDurationMin) || 480)
+          : parseInt(chip.dataset.min);
+        const date = overlay.querySelector('#eq-bk-date').value;
+        const start = overlay.querySelector('#eq-bk-start').value;
+        if (!date || !start) return;
+        // Snap to the 30-min slot grid the end-time select offers
+        let endMin = Math.round((timeToMin(start) + mins) / 30) * 30;
+        const endDateEl = overlay.querySelector('#eq-bk-end-date');
+        if (endMin >= 1440) {
+          const d = new Date(date + 'T00:00:00');
+          d.setDate(d.getDate() + Math.floor(endMin / 1440));
+          endDateEl.value = localDateStr(d);
+          endMin = endMin % 1440;
+        } else {
+          endDateEl.value = date;
+        }
+        overlay.querySelector('#eq-bk-end').value =
+          `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+        updateAvailabilityUI();
+        checkConflicts();
+      });
+    });
     overlay.querySelector('.eq-modal-close').addEventListener('click', () => overlay.remove());
     overlay.querySelector('.eq-modal-cancel').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
@@ -1353,6 +1897,13 @@ window.McgheeLab = window.McgheeLab || {};
       const durMin = (dayDiffDays * 24 * 60) + (eh * 60 + em) - (sh * 60 + sm);
       if (eq.minDurationMin && durMin < eq.minDurationMin) {
         errorEl.textContent = `Minimum booking duration is ${eq.minDurationMin} minutes.`;
+        return;
+      }
+
+      // Availability window check (V3.336) — posted hours/days are enforced
+      const avail = checkAvailability(eq, date, endDate, start, end);
+      if (!avail.ok) {
+        errorEl.textContent = avail.reason;
         return;
       }
 
@@ -1483,6 +2034,17 @@ window.McgheeLab = window.McgheeLab || {};
           }
           if (!needsApproval) await syncBookingToGCal({ id: newId, ...bookingData }, 'create');
           showToast(needsApproval ? 'Booking submitted for manager approval' : (_conflictDocs.length ? 'Booking confirmed — displaced bookings marked for rebooking' : 'Booking confirmed'));
+          // V3.530 — double-dip: offer to fan the booking out (huddle
+          // plan, notebook stub, tracker event) via My Day.
+          if (window.DAY_DISTRIBUTE) DAY_DISTRIBUTE.renderChipsFloating({
+            source: 'equipment', type: 'equipment',
+            nativeDocPath: 'equipmentBookings/' + newId,
+            draft: {
+              title: notes || ('Session on ' + bookingData.equipmentName),
+              date, startTime: start, endTime: end,
+              details: { equipmentId: eqId, equipmentName: bookingData.equipmentName },
+            },
+          });
         }
         overlay.remove();
         // Ensure calendar refreshes with latest data
@@ -1497,6 +2059,7 @@ window.McgheeLab = window.McgheeLab || {};
     });
 
     updatePermissionUI();
+    updateAvailabilityUI();
     updatePriorityDot();
     checkConflicts();
   }
@@ -1535,7 +2098,7 @@ window.McgheeLab = window.McgheeLab || {};
           <div class="eq-detail-row"><strong>Duration:</strong> ${b.durationMin ? (b.durationMin >= 1440 ? Math.floor(b.durationMin / 1440) + 'd ' + (b.durationMin % 1440 >= 60 ? Math.floor((b.durationMin % 1440) / 60) + 'h' : '') : (b.durationMin >= 60 ? Math.floor(b.durationMin / 60) + 'h ' + (b.durationMin % 60 ? b.durationMin % 60 + 'min' : '') : b.durationMin + ' min')) : '?'}</div>
           <div class="eq-detail-row"><strong>Booked by:</strong> ${esc(b.userName)}</div>
           ${b.coOperatorName ? `<div class="eq-detail-row"><strong>Co-operator:</strong> ${esc(b.coOperatorName)}</div>` : ''}
-          <div class="eq-detail-row"><strong>Priority:</strong> <span class="eq-priority-badge" style="background:${color}33;color:${color}">${b.priority}</span></div>
+          <div class="eq-detail-row"><strong>Criticality:</strong> <span class="eq-priority-badge" style="background:${color}33;color:${color}">${priorityLabel(b.priority)}</span> <span class="eq-detail-hint">${esc(priorityHint(b.priority))}</span></div>
           ${b.notes ? `<div class="eq-detail-row"><strong>Notes:</strong> ${esc(b.notes)}</div>` : ''}
           <div class="eq-detail-row"><strong>Status:</strong> <span class="eq-status-inline eq-status-inline--${b.status}">${statusLabel}</span></div>
           ${b.displacedByName && b.status === 'needs-rebooking' ? `<div class="eq-detail-row eq-displaced-info">Displaced by ${esc(b.displacedByName)} — please rebook a new time or re-confirm this slot.</div>` : ''}
@@ -1633,18 +2196,22 @@ window.McgheeLab = window.McgheeLab || {};
         const past = all.filter(b => (b.endDate || b.date) < today || !activeStatuses.includes(b.status));
         const pc = getPriorityColors();
 
-        function bookingRow(b) {
+        function bookingRow(b, isPast) {
           const color = pc[b.priority] || pc.normal;
           const isMultiDay = b.endDate && b.endDate !== b.date;
           const dateLabel = isMultiDay
             ? `${fmtDate(b.date)} ${fmtTime(b.startTime)} – ${fmtDate(b.endDate)} ${fmtTime(b.endTime)}`
             : `${fmtDate(b.date)} &middot; ${fmtTime(b.startTime)}–${fmtTime(b.endTime)}`;
+          // V3.340 — one-tap rebook of a past/cancelled slot (only for
+          // devices still in the catalog and bookable)
+          const canRebook = isPast && _equipment.some(e => e.id === b.equipmentId && e.status === 'available');
           return `<div class="eq-my-row" data-booking-id="${b.id}">
             <span class="eq-my-dot" style="background:${color}"></span>
             <div class="eq-my-info">
               <strong>${esc(b.equipmentName || '')}</strong>
               <span>${dateLabel}</span>
             </div>
+            ${canRebook ? `<button class="app-btn app-btn--secondary eq-my-rebook" data-booking-id="${b.id}">Rebook</button>` : ''}
             <span class="eq-my-status eq-my-status--${b.status}">${b.status === 'needs-rebooking' ? 'needs rebooking' : b.status === 'pending-approval' ? 'pending approval' : b.status}</span>
           </div>`;
         }
@@ -1652,17 +2219,32 @@ window.McgheeLab = window.McgheeLab || {};
         content.innerHTML = `
           <div class="eq-my-section">
             <h3>Upcoming</h3>
-            ${upcoming.length ? upcoming.map(bookingRow).join('') : '<p class="eq-empty">No upcoming bookings.</p>'}
+            ${upcoming.length ? upcoming.map(b => bookingRow(b, false)).join('') : '<p class="eq-empty">No upcoming bookings.</p>'}
           </div>
           <div class="eq-my-section">
             <h3>Past / Cancelled</h3>
-            ${past.length ? past.map(bookingRow).join('') : '<p class="eq-empty">No past bookings.</p>'}
+            ${past.length ? past.map(b => bookingRow(b, true)).join('') : '<p class="eq-empty">No past bookings.</p>'}
           </div>`;
 
         content.querySelectorAll('.eq-my-row').forEach(row => {
           row.addEventListener('click', () => {
             const b = all.find(x => x.id === row.dataset.bookingId);
             if (b) showBookingDetailDirect(b);
+          });
+        });
+        content.querySelectorAll('.eq-my-rebook').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const b = all.find(x => x.id === btn.dataset.bookingId);
+            if (!b) return;
+            const today = todayStr();
+            openBookingModal({
+              equipId: b.equipmentId,
+              date: today,
+              endDate: today,
+              startTime: b.startTime,
+              endTime: b.endTime,
+            });
           });
         });
         notifyResize();
@@ -1829,6 +2411,14 @@ window.McgheeLab = window.McgheeLab || {};
               </select>
             </div>
           </div>
+          <div class="eq-form-group">
+            <label>Available days (bookings outside these days are blocked)</label>
+            <div class="eq-cert-checks eq-day-checks">
+              ${[1, 2, 3, 4, 5, 6, 0].map(d =>
+                `<label class="eq-checkbox-label"><input type="checkbox" class="eq-dev-day" value="${d}" ${(e.availableDays || [1, 2, 3, 4, 5]).includes(d) ? 'checked' : ''} /> ${DAY_LABELS[d]}</label>`
+              ).join('')}
+            </div>
+          </div>
           <h4 class="eq-form-section-title">Training & Access</h4>
           <div class="eq-form-group">
             <label class="eq-checkbox-label">
@@ -1924,6 +2514,9 @@ window.McgheeLab = window.McgheeLab || {};
       const certChecks = overlay.querySelectorAll('#eq-dev-cert-section input[type=checkbox]:checked');
       const certs = Array.from(certChecks).map(c => c.value);
       const catRestricts = Array.from(overlay.querySelectorAll('.eq-dev-catRestrict:checked')).map(c => c.value);
+      // No days checked = open all week (avoids accidentally bricking a device)
+      const dayChecks = Array.from(overlay.querySelectorAll('.eq-dev-day:checked')).map(c => parseInt(c.value));
+      const availableDays = dayChecks.length ? dayChecks : [0, 1, 2, 3, 4, 5, 6];
 
       const data = {
         name,
@@ -1939,7 +2532,7 @@ window.McgheeLab = window.McgheeLab || {};
           start: parseInt(overlay.querySelector('#eq-dev-hourStart').value) || 0,
           end: parseInt(overlay.querySelector('#eq-dev-hourEnd').value) || 24,
         },
-        availableDays: [1, 2, 3, 4, 5],
+        availableDays,
         training: {
           required: trainReq,
           certifications: trainReq ? certs : [],
@@ -2068,13 +2661,32 @@ window.McgheeLab = window.McgheeLab || {};
         <button class="app-btn app-btn--secondary" id="eq-cert-add" style="margin-top:.5rem">+ Add Certification</button>
       </div>
       <div class="eq-admin-panel">
-        <h3>Priority Colors</h3>
+        <h3>Criticality Colors</h3>
         <div class="eq-form-row">
           ${['normal','high','urgent','maintenance'].map(p => `
             <div class="eq-form-group">
-              <label>${p}</label>
+              <label>${priorityLabel(p)} <span class="eq-label-sub">(${p})</span></label>
               <input type="color" class="eq-color-input" data-priority="${p}" value="${pc[p]}" />
             </div>`).join('')}
+        </div>
+      </div>
+      <div class="eq-admin-panel">
+        <h3>Shift-change Notifications</h3>
+        <p class="eq-panel-note">When two bookings on one device sit this close
+          together, the lab treats it as a handoff: the person finishing gets
+          told to be on time, and both sides hear when the other one moves or
+          cancels. Soft bookings never trigger these.</p>
+        <div class="eq-form-row">
+          <div class="eq-form-group">
+            <label>Handoff gap threshold (minutes)</label>
+            <input type="number" min="0" max="240" step="5" class="eq-input"
+                   id="eq-set-adjgap" value="${Number(_settings?.adjacencyGapMin ?? 30)}" />
+          </div>
+          <div class="eq-form-group">
+            <label>Repeat-notice cooldown (minutes)</label>
+            <input type="number" min="0" max="60" step="1" class="eq-input"
+                   id="eq-set-adjsuppress" value="${Number(_settings?.adjacencySuppressMin ?? 3)}" />
+          </div>
         </div>
       </div>
       <button class="app-btn app-btn--primary" id="eq-save-settings" style="margin-top:1rem">Save Settings</button>
@@ -2126,10 +2738,18 @@ window.McgheeLab = window.McgheeLab || {};
         colors[inp.dataset.priority] = inp.value;
       });
 
+      // V3.594 — clamp the shift-change thresholds client-side; the Cloud
+      // Function also falls back to defaults on a non-finite read, so a
+      // blanked field can never disable notifications by accident.
+      const gapRaw = Number(panel.querySelector('#eq-set-adjgap')?.value);
+      const supRaw = Number(panel.querySelector('#eq-set-adjsuppress')?.value);
+
       const data = {
         gcalClientId: panel.querySelector('#eq-set-gcalId').value.trim(),
         certificationDefs: certs,
         priorityColors: colors,
+        adjacencyGapMin: Number.isFinite(gapRaw) ? Math.max(0, Math.min(240, gapRaw)) : 30,
+        adjacencySuppressMin: Number.isFinite(supRaw) ? Math.max(0, Math.min(60, supRaw)) : 3,
       };
 
       try {
@@ -2185,7 +2805,7 @@ window.McgheeLab = window.McgheeLab || {};
         const gcalEndDate = booking.endDate || booking.date;
         const event = {
           summary: `${booking.equipmentName}: ${booking.userName}`,
-          description: `Priority: ${booking.priority}\n${booking.notes || ''}`.trim(),
+          description: `Criticality: ${priorityLabel(booking.priority)}\n${booking.notes || ''}`.trim(),
           start: { dateTime: `${booking.date}T${booking.startTime}:00`, timeZone: 'America/Phoenix' },
           end: { dateTime: `${gcalEndDate}T${booking.endTime}:00`, timeZone: 'America/Phoenix' },
         };
@@ -2201,7 +2821,7 @@ window.McgheeLab = window.McgheeLab || {};
         const gcalEndDate = booking.endDate || booking.date;
         const event = {
           summary: `${booking.equipmentName}: ${booking.userName}`,
-          description: `Priority: ${booking.priority}\n${booking.notes || ''}`.trim(),
+          description: `Criticality: ${priorityLabel(booking.priority)}\n${booking.notes || ''}`.trim(),
           start: { dateTime: `${booking.date}T${booking.startTime}:00`, timeZone: 'America/Phoenix' },
           end: { dateTime: `${gcalEndDate}T${booking.endTime}:00`, timeZone: 'America/Phoenix' },
         };
@@ -2247,6 +2867,9 @@ window.McgheeLab = window.McgheeLab || {};
      TOAST / RESIZE / UTILITIES
      ═══════════════════════════════════════════════════════════ */
   function showToast(msg) {
+    // V3.336 — delegate to the shared RM toast (rm/js/toast.js, already
+    // loaded by equipment.html); keep the local fallback just in case.
+    if (window.TOAST && window.TOAST.success) { window.TOAST.success(msg); return; }
     let toast = document.getElementById('eq-toast');
     if (!toast) {
       toast = document.createElement('div');

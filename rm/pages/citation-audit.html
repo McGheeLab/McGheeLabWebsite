@@ -16,8 +16,12 @@
       PDF + stored references. Read-only; tune the detector against real
       styles, not one paper at a time.
     </p>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
       <button class="btn" id="ca-run">▶ Run audit</button>
+      <button class="btn" id="ca-export" title="Download this run as JSON (V3.331)">⬇ Export JSON</button>
+      <label class="btn" style="cursor:pointer;" title="Load a previous export — the table gains a Δ-located comparison column">
+        Load baseline<input type="file" id="ca-baseline" accept="application/json" hidden>
+      </label>
       <span id="ca-status" style="font-size:12px;color:#6b7280;"></span>
     </div>
     <div id="ca-totals" style="font-size:13px;margin-bottom:8px;"></div>
@@ -29,12 +33,16 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/toast.js"></script>
   <script src="/rm/js/library-extras.js"></script>
   <script src="/rm/js/library-upload.js"></script>
   <script src="/rm/js/paper-citations.js"></script>
+  <!-- V3.371 — shared page-layout segmentation engine; must load before
+       pdf-viewer so extractTextItemsFromPdf + the viewer both use it. -->
+  <script src="/rm/js/page-layout.js"></script>
   <script type="module" src="/rm/js/pdf-viewer.js"></script>
   <script src="/rm/js/citation-audit.js"></script>
 </body>

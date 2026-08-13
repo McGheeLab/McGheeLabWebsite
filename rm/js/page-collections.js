@@ -50,7 +50,7 @@
 
     /* ── Research mgmt ──────────────────────────────────────── */
     'compliance':               ['compliance', 'complianceSubmissions', 'labConfig'],
-    'equipment':                ['equipment', 'equipmentBookings', 'equipmentSettings', 'equipmentTraining', 'labConfig'],
+    'equipment':                ['equipment', 'equipmentBookings', 'equipmentSettings', 'equipmentTraining', 'equipmentWatches', 'labConfig'],
     'funding':                  ['funding', 'labConfig', 'projects'],
     'inventory':                ['inventory', 'labConfig', 'projects'],
     'procurement':              ['inventory', 'labConfig', 'procurementTickets'],

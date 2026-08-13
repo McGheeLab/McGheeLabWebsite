@@ -1,0 +1,223 @@
+{
+  "bundle_version": 1,
+  "exported_at": "2026-07-21T00:00:00.000Z",
+  "paper": {
+    "title": "A Minimal Example Manuscript",
+    "paper_type": "journal",
+    "grant_subtype": null,
+    "template_id": "mebp-journal",
+    "target_journal": "Journal of Examples",
+    "repo_path": "",
+    "repo_org": "",
+    "notes": "Hand-authored via the paper-bundle skill."
+  },
+  "config": {
+    "templateId": "mebp-journal",
+    "paperType": "journal",
+    "addons": [],
+    "overrides": {},
+    "authors": [
+      { "name": "Alex McGhee", "affiliationIdx": 0, "corresponding": true, "email": "mcgheealex@arizona.edu" }
+    ],
+    "affiliations": [
+      "Department of Biomedical Engineering, University of Arizona, Tucson, AZ, USA"
+    ],
+    "buildTarget": "submission",
+    "sectionNumbering": "auto"
+  },
+  "tree": {
+    "meta": { "title": "A Minimal Example Manuscript" },
+    "sections": [
+      {
+        "id": "sec-abs0001",
+        "kind": "abstract",
+        "label": "Abstract",
+        "order": 0,
+        "status": "draft",
+        "children": [
+          {
+            "id": "p-abs0001",
+            "kind": "paragraph",
+            "status": "draft",
+            "skeleton_items": [
+              { "id": "sk-abs001", "depth": 0, "text": "one-line summary of the whole paper", "claim_id": null }
+            ],
+            "body": "We demonstrate the minimal structure of a paper bundle. Prior work established the format [1]; here we extend it [2].",
+            "attrs": {}
+          }
+        ]
+      },
+      {
+        "id": "sec-int0001",
+        "kind": "introduction",
+        "label": "Introduction",
+        "order": 1,
+        "status": "draft",
+        "children": [
+          {
+            "id": "p-int0001",
+            "kind": "paragraph",
+            "status": "draft",
+            "skeleton_items": [
+              { "id": "sk-int001", "depth": 0, "text": "motivate the problem", "claim_id": null }
+            ],
+            "body": "Portable paper bundles let a manuscript move between tools without loss. As shown in Fig. [!fig:overview], the pipeline is simple.",
+            "attrs": {}
+          },
+          {
+            "id": "p-int0002",
+            "kind": "subheading",
+            "status": "draft",
+            "body": "Scope",
+            "attrs": { "level": 2 }
+          },
+          {
+            "id": "p-int0003",
+            "kind": "list",
+            "status": "draft",
+            "body": "author paper.json\nembed assets\nzip and import",
+            "attrs": { "list_type": "number" }
+          }
+        ]
+      },
+      {
+        "id": "sec-met0001",
+        "kind": "methods",
+        "label": "Materials and Methods",
+        "order": 2,
+        "status": "draft",
+        "children": [
+          {
+            "id": "p-met0001",
+            "kind": "paragraph",
+            "status": "draft",
+            "skeleton_items": [
+              { "id": "sk-met001", "depth": 0, "text": "describe the build", "claim_id": null }
+            ],
+            "body": "The bundle is a zip containing $paper.json$ plus an $assets/$ directory. The governing relation is given in Eq. [!eqr:key].",
+            "attrs": {}
+          },
+          {
+            "id": "p-met0002",
+            "kind": "equation",
+            "status": "draft",
+            "body": "E = mc^2",
+            "attrs": { "display": true, "numbered": true, "label": "key", "span": "column" }
+          }
+        ]
+      },
+      {
+        "id": "sec-res0001",
+        "kind": "results",
+        "label": "Results",
+        "order": 3,
+        "status": "draft",
+        "children": [
+          {
+            "id": "p-res0001",
+            "kind": "paragraph",
+            "status": "draft",
+            "skeleton_items": [
+              { "id": "sk-res001", "depth": 0, "text": "state the finding", "claim_id": null }
+            ],
+            "body": "Round-trip import preserved every block. Table [!tab:summary] reports the counts.",
+            "attrs": {}
+          },
+          {
+            "id": "p-res0002",
+            "kind": "figure",
+            "status": "draft",
+            "body": "Overview of the bundle import pipeline.",
+            "attrs": {
+              "storage_path": "imports/example/fig-overview.png",
+              "download_url": "",
+              "hash": "fig-overview",
+              "mime": "image/png",
+              "width": "\\linewidth",
+              "placement": "H",
+              "centering": true,
+              "label": "overview",
+              "alt": "Flow diagram of the import pipeline",
+              "numbered": true,
+              "subfigures": [],
+              "anchor": "flow",
+              "span": "column",
+              "lock": false
+            }
+          },
+          {
+            "id": "p-res0003",
+            "kind": "table",
+            "status": "draft",
+            "body": "",
+            "attrs": {
+              "rows": 2,
+              "cols": 2,
+              "cells": {
+                "__ytype": "map",
+                "entries": {
+                  "0-0": { "__ytype": "text", "value": "Block kind" },
+                  "0-1": { "__ytype": "text", "value": "Count" },
+                  "1-0": { "__ytype": "text", "value": "figure" },
+                  "1-1": { "__ytype": "text", "value": "1" }
+                }
+              },
+              "caption": { "__ytype": "text", "value": "Summary of preserved blocks." },
+              "numbered": true,
+              "label": "summary",
+              "booktabs": true,
+              "header_row": true,
+              "align": "lc",
+              "anchor": "flow",
+              "span": "column",
+              "lock": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "sec-ref0001",
+        "kind": "references",
+        "label": "References",
+        "order": 4,
+        "status": "draft",
+        "children": []
+      }
+    ]
+  },
+  "equation_library": [],
+  "figure_unplaced": [],
+  "table_unplaced": [],
+  "references": [
+    {
+      "title": "The original paper bundle format",
+      "authors": [ { "family": "Doe", "given": "Jane" }, { "family": "Roe", "given": "Richard" } ],
+      "year": "2024",
+      "journal": "Journal of Formats",
+      "volume": "12",
+      "issue": "3",
+      "pages": "101-115",
+      "doi": "10.1000/example.2024.001",
+      "url": "https://doi.org/10.1000/example.2024.001",
+      "source": "manual"
+    },
+    {
+      "title": "Extending portable manuscripts",
+      "authors": [ { "family": "McGhee", "given": "Alex" } ],
+      "year": "2026",
+      "journal": "Journal of Examples",
+      "doi": "10.1000/example.2026.002",
+      "url": "https://doi.org/10.1000/example.2026.002",
+      "source": "manual"
+    }
+  ],
+  "assets": [
+    {
+      "hash": "fig-overview",
+      "ext": "png",
+      "storage_path_original": "imports/example/fig-overview.png",
+      "relpath": "assets/fig-overview.png"
+    }
+  ],
+  "comment_count": 0
+}

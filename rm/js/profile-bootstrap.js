@@ -47,7 +47,22 @@
       if (user.photoURL) {
         payload.photo = { thumb: user.photoURL, medium: user.photoURL, full: user.photoURL };
       }
-      await fb.firestore().collection('users').doc(user.uid).set(payload, { merge: true });
+      // V3.338 — retry with backoff: a transient failure here used to strand
+      // the user with no profile (and no overlay) until a full reload.
+      var delays = [0, 800, 2400];
+      var lastErr = null;
+      for (var i = 0; i < delays.length; i++) {
+        if (delays[i]) await new Promise(function (r) { setTimeout(r, delays[i]); });
+        try {
+          await fb.firestore().collection('users').doc(user.uid).set(payload, { merge: true });
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (err && err.code === 'permission-denied') break; // retry won't help
+        }
+      }
+      if (lastErr) throw lastErr;
       await firebridge.refreshProfile();
     } catch (err) {
       console.warn('[profile-bootstrap] Failed to create users/' + user.uid + ' doc:', err.message);
@@ -55,4 +70,17 @@
       _bootstrapping = false;
     }
   });
+
+  // V3.338 — manual retry hook for firebridge.retryProfile(): clears the
+  // one-attempt-per-uid latch and re-fires the auth pipeline so the handler
+  // above runs again (profile still null → bootstrap re-attempts, then
+  // refreshProfile re-reads).
+  window.PROFILE_BOOTSTRAP = {
+    retry: function () {
+      _attemptedFor = null;
+      if (typeof firebridge !== 'undefined' && firebridge.refreshProfile) {
+        firebridge.refreshProfile();
+      }
+    },
+  };
 })();

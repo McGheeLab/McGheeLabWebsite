@@ -64,8 +64,11 @@
     window.addEventListener('hashchange', onRouteChange);
     onRouteChange();
 
-    // Re-render current page when auth state resolves or changes
-    let lastAuthUid = null;
+    // Re-render current page when auth state resolves or changes.
+    // V3.332 — starts undefined (not null) so the FIRST resolution fires the
+    // re-render even for logged-out visitors (uid null !== undefined); the
+    // render() auth gate depends on this to clear its loading spinner.
+    let lastAuthUid;
     if (window.McgheeLab?.Auth?.onChange) {
       window.McgheeLab.Auth.onChange((user) => {
         const uid = user?.uid || null;
@@ -241,6 +244,20 @@
     state.observers.forEach(o => o.disconnect()); state.observers = [];
     state.cleanups.forEach(fn => { try{ fn(); }catch{} }); state.cleanups = [];
     state.idCounters = Object.create(null); // reset id counters per page
+
+    // V3.332 — don't render auth-gated pages (or bounce off #/login) until
+    // Firebase has restored the session. The Auth.onChange handler above
+    // re-renders once the first onAuthStateChanged fires. 'apps' is excluded
+    // (lab-apps.js self-handles); 'logout' is excluded (must stay reachable).
+    const AUTH_GATED = ['dashboard', 'admin', 'cv', 'login'];
+    const authApi = window.McgheeLab?.Auth;
+    if (AUTH_GATED.includes(page) && authApi && !authApi._authStateResolved) {
+      const v = sectionEl();
+      v.innerHTML = window.McgheeLab?.authLoadingHTML?.('Loading…') || '<p class="loading-text">Loading…</p>';
+      appEl.innerHTML = '';
+      appEl.appendChild(v);
+      return; // nothing to wire on a spinner
+    }
 
     let view;
     try {
@@ -434,22 +451,34 @@
       }
     } catch (err) { console.warn('User system wiring error:', err); }
 
-    // Load Firestore-driven projects page
+    // Load Firestore-driven projects page.
+    // V3.553 — published Research Foci overviews (publicFoci, authored on
+    // RM's research page) are the primary content; the legacy
+    // projectPackages stack renders only while no foci are published yet.
     if (page === 'projects' && window.McgheeLab?.DB) {
       const stackEl = appEl.querySelector('#projects-stack');
       if (stackEl) {
         try {
-          const projects = await McgheeLab.DB.getPublishedProjects();
-          if (!projects.length) {
-            stackEl.innerHTML = '<div class="empty-state-card"><p>No projects published yet.</p></div>';
-          } else {
-            stackEl.innerHTML = '';
-            for (const p of projects) {
-              const card = await buildProjectStackCard(p);
-              stackEl.appendChild(card);
-            }
+          let foci = [];
+          try { foci = await McgheeLab.DB.getPublicFoci(); } catch (e) { console.warn('publicFoci load:', e); }
+          if (foci.length) {
+            stackEl.innerHTML = buildFociSections(foci);
+            wireFociInteractions(stackEl);
             enableReveal();
             enableLazyImages();
+          } else {
+            const projects = await McgheeLab.DB.getPublishedProjects();
+            if (!projects.length) {
+              stackEl.innerHTML = '<div class="empty-state-card"><p>No projects published yet.</p></div>';
+            } else {
+              stackEl.innerHTML = '';
+              for (const p of projects) {
+                const card = await buildProjectStackCard(p);
+                stackEl.appendChild(card);
+              }
+              enableReveal();
+              enableLazyImages();
+            }
           }
         } catch (e) {
           stackEl.innerHTML = '<p class="error-text">Failed to load projects.</p>';
@@ -1240,14 +1269,131 @@
     const wrap = sectionEl();
     wrap.innerHTML = `
       <div class="max-w">
-        <h2>Projects</h2>
-        <p class="page-subtitle">Active research projects in the McGhee Lab.</p>
+        <h2>Research Projects</h2>
+        <p class="page-subtitle">The lab's research map \u2014 our core capabilities, the concepts they combine into, and the grants, papers, and patents we're building.</p>
       </div>
       <div class="max-w" id="projects-stack">
         <p class="loading-text">Loading projects\u2026</p>
       </div>
     `;
     return wrap;
+  }
+
+  /* \u2500\u2500 Research Foci sections (V3.553 \u2014 publicFoci snapshots) \u2500\u2500
+     Published from RM's research page. Three bands: specialty chips,
+     concept cards, output cards; a card with overview blocks expands to
+     its designed overview (text / images / video / YouTube autoplay /
+     sandboxed interactive HTML). */
+  const FOCI_LEVELS = {
+    specialty: { title: 'Core capabilities', blurb: 'The techniques that make our lab unique.' },
+    concept:   { title: 'Concepts we explore', blurb: 'Big ideas that combine our capabilities.' },
+    output:    { title: 'What we\u2019re building', blurb: 'Grants, papers, and patents in motion.' },
+  };
+
+  // Render a focus icon value — emoji as text, custom-upload URL as an
+  // <img> — on the public overview (mirrors RM's ICON_PICKER.html).
+  function fociIconHtml(icon){
+    return /^(https?:|data:)/i.test(String(icon||''))
+      ? `<img class="foci-icon-img" src="${esc(icon)}" alt="" style="width:1.1em;height:1.1em;object-fit:contain;vertical-align:middle;">`
+      : esc(icon);
+  }
+
+  function buildFociSections(foci) {
+    return ['specialty', 'concept', 'output'].map(level => {
+      const rows = foci.filter(f => f.level === level);
+      if (!rows.length) return '';
+      const meta = FOCI_LEVELS[level];
+      return `
+        <section class="foci-band foci-band-${level} reveal">
+          <h3 class="foci-band-title">${esc(meta.title)}</h3>
+          <p class="foci-band-blurb">${esc(meta.blurb)}</p>
+          <div class="foci-grid foci-grid-${level}">${rows.map(buildFociCard).join('')}</div>
+        </section>`;
+    }).join('');
+  }
+
+  function buildFociCard(f) {
+    const hasOverview = Array.isArray(f.overview_blocks) && f.overview_blocks.length;
+    const cover = (f.media || []).find(m => m.kind === 'image' && m.variants);
+    const coverSrc = cover ? (cover.variants.medium || cover.variants.full || '') : '';
+    return `
+      <article class="card foci-card${hasOverview ? ' foci-expandable' : ''}" data-foci="${esc(f.id)}"${f.color ? ` style="--foci-accent:${esc(f.color)}"` : ''}>
+        ${coverSrc ? `<div class="foci-cover"><img data-src="${esc(coverSrc)}" alt="${esc(f.title)}" loading="lazy"></div>` : ''}
+        <div class="foci-card-body">
+          <h4>${f.icon ? fociIconHtml(f.icon) + ' ' : ''}${esc(f.title)}${f.abbr ? ` <span class="foci-abbr">(${esc(f.abbr)})</span>` : ''}</h4>
+          ${f.one_liner ? `<p class="foci-liner">${esc(f.one_liner)}</p>` : ''}
+          ${hasOverview ? '<button type="button" class="foci-expand" aria-expanded="false">Explore \u2192</button>' : ''}
+        </div>
+        ${hasOverview ? `<div class="foci-overview" hidden>${f.overview_blocks.map(b => buildFociBlock(b, f)).join('')}</div>` : ''}
+      </article>`;
+  }
+
+  function buildFociBlock(b, f) {
+    if (b.kind === 'text') {
+      // Admin-authored, sanitized at save time in RM (publicFoci is
+      // admin-write-only) \u2014 safe to render.
+      return `<div class="foci-ov-text">${b.html || ''}</div>`;
+    }
+    if (b.kind === 'youtube' && b.video_id) {
+      const auto = b.autoplay !== false;
+      const q = auto
+        ? `?autoplay=1&mute=1&playsinline=1&loop=1&playlist=${encodeURIComponent(b.video_id)}`
+        : '?playsinline=1';
+      return `<div class="foci-ov-youtube"><iframe loading="lazy" src="https://www.youtube.com/embed/${esc(b.video_id)}${q}" title="Video" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>`;
+    }
+    const md = (f.media || []).find(m => m.id === b.media_id);
+    if (!md) return '';
+    if (md.kind === 'image') {
+      const src = md.variants ? (md.variants.full || md.variants.medium || '') : '';
+      return src ? `<figure class="foci-ov-image"><img data-src="${esc(src)}" alt="${esc(md.caption || '')}" loading="lazy">${md.caption ? `<figcaption>${esc(md.caption)}</figcaption>` : ''}</figure>` : '';
+    }
+    if (md.kind === 'video') {
+      return `<figure class="foci-ov-video"><video controls preload="metadata"${md.poster_url ? ` poster="${esc(md.poster_url)}"` : ''} src="${esc(md.url)}"></video>${md.caption ? `<figcaption>${esc(md.caption)}</figcaption>` : ''}</figure>`;
+    }
+    if (md.kind === 'html') {
+      const poster = md.poster_url
+        ? `<img class="foci-html-poster" src="${esc(md.poster_url)}" alt="">`
+        : '<span class="foci-html-ph">\ud83d\udd79</span>';
+      return `<figure class="foci-ov-html" style="aspect-ratio:${esc(md.aspect || '16/9')}">
+        <div class="foci-html-shell" data-embed-src="${esc(md.url)}">
+          <button type="button" class="foci-html-run">${poster}<span>\u25b6 Run: ${esc(md.title || 'Interactive')}</span></button>
+        </div>${md.caption ? `<figcaption>${esc(md.caption)}</figcaption>` : ''}</figure>`;
+    }
+    return '';
+  }
+
+  function wireFociInteractions(rootEl) {
+    rootEl.addEventListener('click', e => {
+      const expand = e.target.closest('.foci-expand');
+      if (expand) {
+        const card = expand.closest('.foci-card');
+        const ov = card?.querySelector('.foci-overview');
+        if (ov) {
+          const open = ov.hidden;
+          ov.hidden = !open;
+          expand.setAttribute('aria-expanded', String(open));
+          expand.textContent = open ? 'Close \u2715' : 'Explore \u2192';
+          if (open) enableLazyImages();
+        }
+        return;
+      }
+      const run = e.target.closest('.foci-html-run');
+      if (run) {
+        const shell = run.closest('.foci-html-shell');
+        if (!shell || shell.querySelector('iframe')) return;
+        const iframe = document.createElement('iframe');
+        iframe.src = shell.getAttribute('data-embed-src');
+        // No allow-same-origin: the sim runs JS but stays isolated from
+        // the site's origin (it is also cross-origin from Storage anyway).
+        iframe.setAttribute('sandbox', 'allow-scripts allow-pointer-lock allow-fullscreen');
+        iframe.setAttribute('loading', 'lazy');
+        iframe.setAttribute('referrerpolicy', 'no-referrer');
+        iframe.setAttribute('allowfullscreen', '');
+        iframe.className = 'foci-html-frame';
+        run.remove();
+        shell.appendChild(iframe);
+      }
+    });
   }
 
   /* ── Project stack card (Firestore-driven) ── */

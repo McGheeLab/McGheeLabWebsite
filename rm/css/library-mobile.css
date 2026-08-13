@@ -1,0 +1,247 @@
+/* library-mobile.css — V3.613 the Ourlab app's Library pages.
+ *
+ * Styles for pages/library-mobile.html (list) and
+ * pages/library-mobile-paper.html (single-paper touch reader). Everything
+ * is scoped under body.lib-m — these rules never touch the desktop
+ * library/reader. No media-query coupling: the pages ARE the mobile
+ * experience (they render fine on an iPad too).
+ */
+
+/* ================= list page ================= */
+
+body.lib-m .libm-page { max-width: 720px; margin: 0 auto; padding: 12px 14px 90px; }
+
+body.lib-m .libm-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+body.lib-m .libm-h1 { font-size: 20px; margin: 0; }
+
+body.lib-m .libm-seg { display: flex; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; overflow: hidden; }
+body.lib-m .libm-seg button {
+  border: none; background: var(--card, #fff); color: var(--text-muted, #64748b);
+  font-size: 13px; font-weight: 600; padding: 8px 14px; min-height: var(--tap-min-compact, 36px);
+  cursor: pointer;
+}
+body.lib-m .libm-seg button.on { background: var(--primary, #2563eb); color: #fff; }
+
+body.lib-m .libm-search {
+  width: 100%; box-sizing: border-box; font-size: 16px;
+  padding: 10px 12px; border: 1px solid var(--border, #e2e8f0); border-radius: 10px;
+  background: var(--card, #fff); margin-bottom: 6px;
+}
+body.lib-m .libm-count-row { display: flex; justify-content: space-between; gap: 8px; min-height: 18px; margin-bottom: 4px; }
+body.lib-m .libm-count { font-size: 12px; color: var(--text-muted, #64748b); }
+body.lib-m .libm-status { font-size: 12px; color: #92400e; }
+
+body.lib-m .libm-sec-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted, #64748b); margin: 8px 0 4px;
+}
+body.lib-m .libm-recent-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+body.lib-m .libm-recent-chip {
+  flex: 0 0 auto; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 12px; padding: 7px 10px; border: 1px solid var(--border, #e2e8f0); border-radius: 14px;
+  background: var(--card, #fff); color: var(--text, #0f172a); text-decoration: none;
+}
+
+body.lib-m .libm-chips { display: flex; gap: 6px; overflow-x: auto; padding: 6px 0; -webkit-overflow-scrolling: touch; }
+body.lib-m .libm-chip {
+  flex: 0 0 auto; font-size: 12px; padding: 7px 12px; min-height: var(--tap-min-compact, 36px);
+  border: 1px solid var(--border, #e2e8f0); border-radius: 16px;
+  background: var(--card, #fff); color: var(--text, #0f172a); cursor: pointer; white-space: nowrap;
+}
+body.lib-m .libm-chip.on { background: var(--primary, #2563eb); border-color: var(--primary, #2563eb); color: #fff; }
+body.lib-m .libm-chip-tag { font-family: ui-monospace, monospace; font-size: 11px; }
+
+body.lib-m .libm-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+body.lib-m .libm-card {
+  position: relative; display: flex; align-items: stretch;
+  border: 1px solid var(--border, #e2e8f0); border-radius: 12px; background: var(--card, #fff);
+}
+body.lib-m .libm-star {
+  flex: 0 0 44px; border: none; background: transparent; font-size: 18px;
+  color: #9ca3af; cursor: pointer; border-radius: 12px 0 0 12px;
+}
+body.lib-m .libm-star.on { color: #f59e0b; }
+body.lib-m .libm-card-main {
+  flex: 1; min-width: 0; padding: 10px 4px 10px 0; text-decoration: none; color: inherit;
+}
+body.lib-m .libm-card-title { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--text, #0f172a); }
+body.lib-m .libm-card-sub {
+  font-size: 12px; color: var(--text-muted, #64748b); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+body.lib-m .libm-card-badges { display: flex; gap: 8px; font-size: 11px; color: var(--text-muted, #64748b); margin-top: 4px; }
+body.lib-m .libm-badge-nopdf { color: #b45309; }
+body.lib-m .libm-more {
+  flex: 0 0 44px; border: none; background: transparent; font-size: 20px;
+  color: var(--text-muted, #64748b); cursor: pointer; border-radius: 0 12px 12px 0;
+}
+body.lib-m .libm-empty { padding: 28px 8px; text-align: center; color: var(--text-muted, #64748b); font-size: 13px; }
+
+/* Row / quick-add sheets (inside APP_SHEET bodies) */
+.libm-sheet-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  font-size: 16px; padding: 13px 8px; min-height: var(--tap-min, 44px);
+  border: none; background: transparent; cursor: pointer; border-radius: 10px;
+  color: var(--text, #0f172a);
+}
+.libm-sheet-row:active { background: var(--bg, #f1f5f9); }
+.libm-sheet-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted, #64748b);
+}
+.libm-sheet-addrow { display: flex; gap: 8px; }
+.libm-sheet-addrow input { flex: 1; }
+.libm-sheet-addrow .btn { flex: 0 0 auto; min-height: var(--tap-min, 44px); }
+.libm-sheet-div { border-top: 1px solid var(--border, #e2e8f0); margin: 4px 0; }
+
+/* Comments feed */
+body.lib-m .libm-feed { display: flex; flex-direction: column; gap: 8px; }
+body.lib-m .libm-feed-row {
+  display: block; border: 1px solid var(--border, #e2e8f0); border-radius: 12px;
+  background: var(--card, #fff); padding: 10px 12px; text-decoration: none; color: inherit;
+}
+body.lib-m .libm-feed-paper { font-size: 12px; font-weight: 700; color: var(--text-muted, #64748b); }
+body.lib-m .libm-feed-quote { font-size: 13px; margin-top: 4px; color: var(--text, #0f172a); }
+body.lib-m .libm-feed-comment { font-size: 13px; margin-top: 4px; }
+body.lib-m .libm-feed-meta { font-size: 11px; color: var(--text-muted, #64748b); margin-top: 4px; }
+body.lib-m .libm-feed-more { width: 100%; margin-top: 10px; min-height: var(--tap-min, 44px); }
+
+/* The library-groups picker modal (reused for "Add to group…") gets full
+ * phone width. Scoped to lib-m so the desktop modal is untouched. */
+body.lib-m .lg-modal { width: calc(100vw - 28px); max-width: 480px; }
+
+/* ================= reader page ================= */
+
+body.lmp-body { overflow: hidden; }
+/* The reader owns its viewport: kill the app-shell body padding so the
+ * viewer really is edge-to-edge between the bar and the tab bar. */
+body.lib-m.lmp-body { padding-bottom: 0 !important; }
+
+.lmp-page {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: #374151;
+}
+/* Inside the app the fixed top-nav is hidden on this page (reader owns the
+ * top chrome); mobile-shell's has-nav padding is neutralized by the fixed
+ * positioning above. */
+body.lmp-body .top-nav { display: none; }
+
+.lmp-bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+  background: var(--card, #fff); border-bottom: 1px solid var(--border, #e2e8f0);
+  padding: 6px 8px;
+}
+.lmp-bar-btn {
+  flex: 0 0 auto; min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px);
+  border: none; background: transparent; font-size: 20px; cursor: pointer;
+  border-radius: 10px; color: var(--text, #0f172a);
+  -webkit-tap-highlight-color: transparent;
+}
+.lmp-bar-btn:active { background: var(--bg, #f1f5f9); }
+.lmp-bar-btn.on { background: #eef2ff; box-shadow: inset 0 0 0 2px #6366f1; }
+.lmp-title {
+  flex: 1; min-width: 0; font-size: 14px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The scroll container (keeps id=lp-viewer for overlay focus math).
+ * V3.614 — align-items:flex-start, NOT center: a flexbox that centers a
+ * child wider than itself puts the left overflow at negative coordinates,
+ * which is unreachable by scrolling (the "left edge keeps bouncing back"
+ * bug when zoomed in). Children center themselves with auto margins,
+ * which collapse to 0 when the page is wider than the screen. */
+.lmp-viewer {
+  flex: 1; position: relative; overflow: auto; -webkit-overflow-scrolling: touch;
+  background: #374151; padding: 10px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+  /* Clear the app tab bar so the last page isn't hidden under it. */
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}
+
+.lmp-status {
+  position: absolute; left: 12px; right: 12px; top: calc(64px + env(safe-area-inset-top, 0px));
+  z-index: 40; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+  color: #92400e; font-size: 13px; padding: 10px 12px;
+}
+.lmp-status:empty, .lmp-status[hidden] { display: none; }
+
+.lmp-pill {
+  position: fixed; left: 14px; bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 50; background: rgba(15, 23, 42, 0.78); color: #fff;
+  font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 14px;
+  transition: opacity .4s ease; opacity: 1; pointer-events: none;
+}
+.lmp-pill.fade { opacity: 0; }
+
+/* Notes panel: full-height slide-up. Class-driven (no 640px media query)
+ * so it behaves the same on iPad. */
+.lmp-panel-back {
+  position: fixed; inset: 0; z-index: 8990; background: rgba(15, 23, 42, 0.45);
+}
+.lmp-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
+  height: 86dvh; max-height: 86dvh;
+  background: var(--card, #fff); border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+  display: flex; flex-direction: column;
+  transform: translateY(105%); transition: transform .22s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.lmp-panel.open { transform: translateY(0); }
+/* In the app the native tab bar (64px + safe area) overlays the panel's
+ * bottom edge — reserve space so the last card's buttons stay reachable. */
+body.ourlab-app .lmp-panel { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+.lmp-panel-grip { flex: 0 0 auto; width: 38px; height: 4px; border-radius: 2px; background: var(--border, #e2e8f0); margin: 8px auto 4px; }
+.lmp-panel-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 14px 6px; }
+.lmp-panel-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted, #64748b); }
+.lmp-panel-close {
+  min-width: var(--tap-min-compact, 36px); min-height: var(--tap-min-compact, 36px);
+  border: 1px solid var(--border, #e2e8f0); background: var(--card, #fff);
+  border-radius: 8px; font-size: 16px; cursor: pointer; color: var(--text-muted, #64748b);
+}
+.lmp-info { flex: 0 0 auto; border-bottom: 1px solid var(--border, #e2e8f0); padding: 0 14px 8px; }
+.lmp-info summary { font-size: 13px; font-weight: 600; padding: 6px 0; cursor: pointer; }
+.lmp-info-row { display: flex; gap: 8px; font-size: 12.5px; padding: 3px 0; }
+.lmp-info-k { flex: 0 0 88px; color: var(--text-muted, #64748b); font-weight: 600; }
+.lmp-info-v { flex: 1; min-width: 0; word-break: break-word; }
+.lmp-tag {
+  display: inline-block; font-family: ui-monospace, monospace; font-size: 11px;
+  background: var(--bg, #f1f5f9); border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px; padding: 1px 7px; margin: 1px 2px 1px 0;
+}
+
+/* The annotation panel module renders into this scrollable body. */
+.lmp-panel-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 6px; }
+/* Tap-target lift for the panel's controls on the phone (module markup is
+ * shared with desktop — only the sizing changes here). */
+.lmp-panel-body .ann-card-foot button,
+.lmp-panel-body .ann-row-group, .lmp-panel-body .ann-row-color,
+.lmp-panel-body .ann-row-vis, .lmp-panel-body .ann-draft-add,
+.lmp-panel-body .ann-evidence-draft,
+.lmp-panel-body .ann-section-save, .lmp-panel-body .ann-section-cancel {
+  min-height: var(--tap-min-compact, 36px);
+}
+.lmp-panel-body textarea, .lmp-panel-body input[type="text"], .lmp-panel-body select {
+  font-size: 16px;   /* iOS: no zoom-on-focus */
+}
+
+/* New-highlight sheet internals (inside APP_SHEET body) */
+.lmp-swatches { display: flex; flex-direction: column; gap: 4px; }
+.lmp-swatch-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  min-height: var(--tap-min, 44px); padding: 8px; border: none; border-radius: 10px;
+  background: transparent; cursor: pointer;
+}
+.lmp-swatch-row:active { background: var(--bg, #f1f5f9); }
+.lmp-swatch-dot { flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.lmp-swatch-text { display: flex; flex-direction: column; min-width: 0; }
+.lmp-swatch-name { font-size: 15px; font-weight: 600; color: var(--text, #0f172a); }
+.lmp-swatch-meaning { font-size: 12px; color: var(--text-muted, #64748b); }
+.lmp-create-details summary { font-size: 13px; font-weight: 600; color: var(--text-muted, #64748b); padding: 4px 0; cursor: pointer; }
+.lmp-create-details textarea { width: 100%; box-sizing: border-box; margin-top: 6px; }
+.lmp-create-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.lmp-create-row label { flex: 0 0 72px; font-size: 12px; font-weight: 600; color: var(--text-muted, #64748b); }
+.lmp-create-row select { flex: 1; }
+.lmp-create-hint { font-size: 12px; color: var(--text-muted, #64748b); text-align: center; padding: 4px 0 2px; }

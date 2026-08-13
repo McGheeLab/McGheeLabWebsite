@@ -24,6 +24,9 @@ let chosenModels = {
 let availableModels = ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-7'];
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+    await firebridge.requireSignIn('Sign in to view API usage.');
+  }
   $('btn-plan').addEventListener('click', loadPlan);
   $('btn-run').addEventListener('click', startRun);
   $('btn-stop').addEventListener('click', stopRun);

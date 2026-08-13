@@ -15,6 +15,12 @@
 }
 .pb-status-ok  { color: #047857; }
 .pb-status-err { color: #b91c1c; }
+/* V3.470 — grant-builder legacy hand-off note. */
+.gb-legacy-note {
+  font-size: 12.5px; line-height: 1.5; color: #334155;
+  background: #eef0f9; border: 1px solid #c7cded; border-radius: 10px;
+  padding: 10px 14px; margin: 0 0 14px;
+}
 
 .pb-list {
   display: grid;
@@ -23,6 +29,7 @@
 }
 .pb-card {
   display: block;
+  position: relative;
   padding: 14px 16px;
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -38,7 +45,19 @@
 .pb-card-row {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 10px; margin-bottom: 6px;
+  padding-right: 24px;   /* clear the corner delete button (V3.482) */
 }
+/* V3.482 — per-card delete control (hover-revealed, top-right corner). */
+.pb-card-del {
+  position: absolute; top: 8px; right: 8px;
+  border: none; background: transparent; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 4px 6px; border-radius: 6px;
+  color: #9ca3af; opacity: 0;
+  transition: opacity .12s ease, background .12s ease, color .12s ease;
+}
+.pb-card:hover .pb-card-del,
+.pb-card-del:focus-visible { opacity: 1; }
+.pb-card-del:hover { background: #fee2e2; color: #dc2626; }
 .pb-card-title {
   font-weight: 600; font-size: 15px; line-height: 1.35;
 }
@@ -117,6 +136,55 @@
 .pe-title-input:focus {
   outline: none; border-color: #93c5fd; background: #fff;
 }
+/* V3.365 — draft status selector in the topbar. Admin-enabled only
+ * (projects/papers.json is admin-write); disabled state still shows the
+ * current status to authors. */
+.pe-status-select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  max-width: 110px;
+}
+.pe-status-select:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* V3.366 — citation-popover scope chips (linked-to-draft vs all library)
+ * + the amber hollow "not yet cited" dot on linked References rows. */
+.pe-cite-pop-scope {
+  display: flex;
+  gap: 4px;
+  padding: 4px 10px 2px;
+}
+.pe-cite-scope-btn {
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+}
+.pe-cite-scope-btn.on {
+  background: #4338ca;
+  border-color: #4338ca;
+  color: #fff;
+}
+.pe-ref-uncited-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid #fbbf24;
+  margin-left: 4px;
+  vertical-align: baseline;
+}
+
 .pe-savestate {
   font-size: 12px; color: #6b7280; min-width: 90px; text-align: right;
 }
@@ -500,6 +568,11 @@
   background: #fef3c7; color: #92400e; border-color: #fcd34d;
 }
 .pe-cite-sep { color: #9ca3af; padding: 0 2px; }
+/* V3.453 — the author-year separator lost its literal space (justified
+ * doc-view paragraphs stretched it); restore the editor's "; " look with
+ * padding instead. Numeric families keep the packed 2px. */
+.pe-cite-group.pe-cite-family-author-year .pe-cite-sep,
+.pe-cite-group:not([class*="pe-cite-family-"]) .pe-cite-sep { padding-right: 6px; }
 
 /* ── Add-block button row ── */
 .pe-add-block-row {
@@ -528,6 +601,47 @@
   text-align: center;
   padding: 12px;
 }
+
+/* ── Subheading block (\subsection / \subsubsection) ── */
+.pe-block-subheading { border-left: 3px solid #f59e0b; }
+.pe-block-subheading .pe-subheading-text {
+  font-weight: 700;
+  font-size: 1.1em;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+.pe-block-subheading[data-level="3"] .pe-subheading-text {
+  font-size: 1em;
+  font-style: italic;
+}
+.pe-block-subheading .pe-subheading-text:focus {
+  background: #fff;
+  border-color: #d1d5db;
+}
+.pe-block-subheading .pe-subheading-text[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ── List block (itemize / enumerate) ── */
+.pe-block-list { border-left: 3px solid #10b981; }
+.pe-block-list .pe-list-body {
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  white-space: pre-wrap;   /* focused: one raw item per line */
+}
+.pe-block-list .pe-list-body:focus { background: #fff; border-color: #d1d5db; }
+.pe-block-list .pe-list-body[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-style: italic;
+}
+.pe-block-list .pe-list-body ul,
+.pe-block-list .pe-list-body ol { margin: 0; padding-left: 1.4em; white-space: normal; }
 
 /* ── Status filter note ── */
 .pe-filter-note {
@@ -1323,6 +1437,205 @@
   overflow-y: auto;
 }
 .pe-equations-pane[hidden] { display: none; }
+
+/* ── MathLive Visual ⇄ LaTeX toggle (E1) ── */
+:root { --keyboard-zindex: 5000; }   /* virtual keyboard above panels/modals/doc-view */
+.pe-visual-toggle {
+  display: inline-flex;
+  gap: 2px;
+  margin: 2px 0;
+}
+.pe-visual-toggle button {
+  font-size: 10.5px;
+  padding: 1px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+}
+.pe-visual-toggle button.active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+  font-weight: 600;
+}
+math-field.pe-mathfield {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 17px;
+  padding: 6px 8px;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  background: #fff;
+}
+
+/* S-β — submission-document sections */
+.pe-section-submission { border-left: 3px solid #6366f1; }
+.pe-submission-banner {
+  font-size: 11.5px;
+  color: #3730a3;
+  background: #eef2ff;
+  border: 1px dashed #c7d2fe;
+  border-radius: 6px;
+  padding: 5px 10px;
+  margin: 6px 0 2px;
+}
+
+/* F1 — figure panel composer + Figure-builder placeholder */
+.pe-figbuilder-card {
+  margin: 6px 10px;
+  padding: 8px 10px;
+  border: 1px dashed #c7d2fe;
+  border-radius: 8px;
+  background: #f5f3ff;
+  font-size: 11.5px;
+  color: #4c1d95;
+  line-height: 1.45;
+}
+.pfc-overlay {
+  position: fixed; inset: 0;
+  z-index: 4500;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.pfc-card {
+  background: #fff; border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  padding: 14px 16px;
+  width: min(860px, 95vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.pfc-head { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+.pfc-hint { display: block; font-weight: 400; font-size: 11px; color: #6b7280; margin-top: 2px; }
+.pfc-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.pfc-ctl { font-size: 12px; color: #374151; }
+.pfc-ctl input { width: 58px; }
+.pfc-body { display: flex; gap: 12px; align-items: flex-start; }
+.pfc-list { flex: 0 0 300px; max-height: 55vh; overflow-y: auto; }
+.pfc-panel {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid #f3f4f6; border-radius: 6px;
+  padding: 5px; margin-bottom: 4px;
+}
+.pfc-panel img { width: 54px; height: 40px; object-fit: contain; background: #f8fafc; border-radius: 3px; }
+.pfc-panel-meta { font-weight: 700; width: 18px; text-align: center; }
+.pfc-preview { flex: 1; min-width: 0; max-height: 55vh; overflow: auto; border: 1px dashed #e5e7eb; border-radius: 6px; padding: 6px; background: #fafafa; }
+.pfc-preview-canvas { max-width: 100%; height: auto; display: block; }
+.pfc-empty { font-size: 12px; color: #9ca3af; font-style: italic; padding: 12px; }
+.pfc-status { font-size: 11.5px; color: #b45309; min-height: 16px; margin-top: 6px; }
+.pfc-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* E4 — equation import + capture browser */
+.pe-eqimport-ta {
+  width: 100%; box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; padding: 6px 8px;
+  border: 1px solid #e5e7eb; border-radius: 4px;
+  margin-bottom: 6px;
+}
+.pe-eqimport-hint { font-size: 11.5px; color: #6b7280; margin: 4px 0 8px; }
+.pe-eqimport-rows { max-height: 40vh; overflow-y: auto; margin-top: 8px; }
+.pe-eqimport-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px; border: 1px solid #f3f4f6; border-radius: 6px; margin-bottom: 4px;
+}
+.pe-eqimport-prev { flex: 1; min-width: 0; overflow-x: auto; }
+.pe-eqimport-row input { width: 180px; flex: none; }
+.pe-eqcap-browse-list { max-height: 55vh; overflow-y: auto; margin-top: 6px; }
+.pe-eqcap-browse-row {
+  border: 1px solid #f3f4f6; border-radius: 6px;
+  padding: 8px; margin-bottom: 6px;
+}
+.pe-eqcap-browse-meta { font-size: 11.5px; color: #6b7280; margin: 4px 0; }
+.pe-eqcap-browse-copy { display: block; font-size: 11.5px; color: #374151; margin: 4px 0; cursor: pointer; }
+.pe-eqcap-linked {
+  font-size: 9.5px; font-weight: 700; color: #0f766e;
+  background: #ccfbf1; border-radius: 8px; padding: 0 6px; margin-left: 6px;
+}
+
+/* E2 — in-doc visual-equation overlay */
+.pe-eq-visual-btn {
+  font-size: 11px;
+  padding: 1px 8px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pe-eq-visual-btn:hover { background: #e0e7ff; }
+.pe-eqviz-overlay {
+  position: fixed; inset: 0;
+  z-index: 4500;                    /* above modals 4000, below keyboard 5000 */
+  background: rgba(15, 23, 42, 0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.pe-eqviz-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+  padding: 14px 16px;
+  width: min(640px, 92vw);
+}
+.pe-eqviz-head { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+.pe-eqviz-host { min-height: 56px; }
+.pe-eqviz-host math-field.pe-mathfield { font-size: 21px; padding: 10px; }
+.pe-eqviz-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* ── Tables II — merge selection + width controls ── */
+.pe-grid-table td.pe-cell-selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+  background: #eff6ff;
+}
+.pe-grid-table td.pe-cell-merged { background: #fafaf9; }
+.pe-table-width-sel {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  padding: 0 2px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fff;
+  color: #6b7280;
+  max-width: 64px;
+}
+.pe-table-notes {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+/* ── Pill PAGES — the pane mounted full-width as a tool page ──
+ * (?page=guide|equations|figures|tables|references). The pane keeps its
+ * DOM + ids; only the chrome changes: static flow, full width, no
+ * resize handle / close button / internal tab nav (the header pills ARE
+ * the navigation). */
+.pe-toolpage {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 10px 18px 60px;
+}
+.pe-toolpage-pane.pe-equations-pane {
+  position: static;
+  height: auto;
+  width: 100% !important;   /* beats the persisted inline width */
+  border-left: none;
+  box-shadow: none;
+  z-index: auto;
+  overflow-y: visible;
+}
+.pe-toolpage-pane .pe-pane-resize-handle,
+.pe-toolpage-pane .pe-equations-head,
+.pe-toolpage-pane .pe-tab-nav { display: none; }
 .pe-equations-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 14px;
@@ -2056,6 +2369,37 @@
   font-size: 11px;
   cursor: not-allowed;
 }
+
+/* Section-reference chip + the ref-label inputs. */
+.pe-secref-chip {
+  display: inline-block;
+  background: #e0e7ff; color: #3730a3;
+  border: 1px solid #c7d2fe;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 0.92em;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pe-secref-chip:hover { background: #c7d2fe; }
+.pe-secref-chip-unknown {
+  background: #fee2e2; color: #991b1b;
+  border-color: #fecaca;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  cursor: not-allowed;
+}
+.pe-section-reflabel, .pe-subheading-reflabel {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 1px 6px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  width: 96px;
+}
+.pe-section-reflabel::placeholder, .pe-subheading-reflabel::placeholder { color: #a5b4fc; }
 
 /* ── References tab (V3.122) ──────────────────────────────────────── */
 .pe-ref-search-input {
@@ -3406,4 +3750,936 @@ details.pe-equations-collapsible:not([open]) > summary::after {
 }
 
 
+/* ── V3.334 — Writing Guide tab ──────────────────────────────────────
+ * Section-aware curated guidance + live self-checks. Compact by
+ * default; deeper detail lives behind <details> disclosures. */
+.pe-guide {
+  padding: 14px 14px 20px;
+  font-size: 13px;
+  color: #374151;
+}
+.pe-guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pe-guide-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.pe-guide-icon { font-size: 18px; line-height: 1; }
+.pe-guide-kind {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pe-guide-pin { font-size: 14px; }
+.pe-guide-pin[aria-pressed="true"] { background: #eef2ff; }
 
+.pe-guide-purpose {
+  color: #6b7280;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+/* Rhetorical moves — click a row to reveal its hint. */
+.pe-guide-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  counter-reset: pe-guide-move;
+}
+.pe-guide-move {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  overflow: hidden;
+}
+.pe-guide-move.open { background: #fff; border-color: #d1d5db; }
+.pe-guide-move-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: #111827;
+}
+.pe-guide-move-num { counter-increment: pe-guide-move; display: inline-flex; }
+.pe-guide-move-num::before {
+  content: counter(pe-guide-move);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pe-guide-move-label { flex: 1; font-weight: 500; }
+.pe-guide-move-hint {
+  padding: 0 10px 9px 36px;
+  color: #6b7280;
+  line-height: 1.45;
+  font-size: 12.5px;
+}
+
+/* Live self-checks. */
+.pe-guide-checks {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 10px;
+  margin-bottom: 14px;
+}
+.pe-guide-checks-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+.pe-guide-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  line-height: 1.4;
+}
+.pe-guide-check-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: #9ca3af;
+}
+.pe-guide-check--warn .pe-guide-check-dot { background: #f59e0b; }
+.pe-guide-check--info .pe-guide-check-dot { background: #3b82f6; }
+.pe-guide-check--ok   .pe-guide-check-dot { background: #10b981; }
+.pe-guide-check--warn .pe-guide-check-msg { color: #92400e; }
+.pe-guide-check-msg { flex: 1; }
+
+/* Collapsed detail disclosures. */
+.pe-guide-details { margin-bottom: 8px; }
+.pe-guide-details > summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  color: #374151;
+  padding: 6px 16px 6px 0;
+  position: relative;
+}
+.pe-guide-details > summary::-webkit-details-marker { display: none; }
+.pe-guide-details > summary::after {
+  content: '▾';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 100ms;
+  color: #9ca3af;
+  font-size: 10px;
+}
+.pe-guide-details:not([open]) > summary::after {
+  transform: translateY(-50%) rotate(-90deg);
+}
+.pe-guide-list {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+.pe-guide-list li { margin-bottom: 4px; }
+
+/* Good vs. weak example. */
+.pe-guide-example {
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid #e5e7eb;
+}
+.pe-guide-example--good { background: #f0fdf4; border-color: #bbf7d0; }
+.pe-guide-example--bad  { background: #fef2f2; border-color: #fecaca; }
+.pe-guide-example-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.pe-guide-example--good .pe-guide-example-tag { color: #15803d; }
+.pe-guide-example--bad  .pe-guide-example-tag { color: #b91c1c; }
+.pe-guide-example-text { color: #374151; line-height: 1.45; font-size: 12.5px; }
+.pe-guide-example-note { color: #6b7280; font-style: italic; font-size: 12px; margin-top: 2px; }
+
+/* Footer lesson link. */
+.pe-guide-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; }
+.pe-guide-lesson-link { color: #4338ca; font-weight: 600; text-decoration: none; }
+.pe-guide-lesson-link:hover { text-decoration: underline; }
+
+/* Paper-level (no focus) view — per-section word counts. */
+.pe-guide-section-counts { margin-top: 12px; border-top: 1px solid #f3f4f6; padding-top: 10px; }
+.pe-guide-section-count {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f9fafb;
+}
+.pe-guide-section-name { color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pe-guide-section-words { color: #9ca3af; flex: none; font-variant-numeric: tabular-nums; }
+.pe-guide-section-words.over { color: #b91c1c; font-weight: 600; }
+
+
+
+
+
+/* ── V3.344 — template-aware citation chip families ─────────────────
+ * paper-cite-style.js loads the export template's render_family and
+ * renderCitationChip stamps the group with a family class. Superscript
+ * raises the whole group; bracket/paren wrapping is emitted as text. */
+.pe-cite-group.pe-cite-family-superscript {
+  vertical-align: super;
+  font-size: 0.72em;
+  line-height: 1;
+}
+.pe-cite-group.pe-cite-family-superscript .pe-cite-chip { padding: 0 2px; }
+/* V3.393 — numeric groups never split across lines (matches the
+ * compiled output, where \cite superscripts/brackets are unbreakable). */
+.pe-cite-group.pe-cite-family-superscript,
+.pe-cite-group.pe-cite-family-numeric-bracket,
+.pe-cite-group.pe-cite-family-numeric-paren {
+  white-space: nowrap;
+}
+
+/* Narrative checkbox in the citation popover footer. */
+.pe-cite-pop-narrative {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #4b5563;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pe-cite-pop-narrative input { margin: 0; }
+
+
+/* ── V3.345 — footnote chips + bibliography preview ────────────────── */
+.pe-footnote-chip {
+  display: inline-block;
+  vertical-align: super;
+  font-size: 0.72em;
+  line-height: 1;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #92400e;
+  cursor: pointer;
+  user-select: none;
+}
+.pe-footnote-chip:hover { background: #fde68a; }
+
+.pe-bib-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+}
+.pe-bib-num {
+  flex: none;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+}
+.pe-bib-body { flex: 1; min-width: 0; }
+.pe-bib-row-unresolved .pe-bib-body { color: #b91c1c; }
+
+
+/* ── V3.346 — section word-count badges + shortcuts card ──────────── */
+.pe-section-words {
+  font-size: 11px;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.pe-section-words.over { color: #b91c1c; font-weight: 600; }
+
+.pe-shortcuts-pop {
+  position: fixed;
+  z-index: 1200;
+  width: 360px;
+  max-width: 92vw;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: #374151;
+}
+.pe-shortcuts-title { font-weight: 600; margin-bottom: 8px; color: #111827; }
+.pe-shortcuts-table { border-collapse: collapse; width: 100%; }
+.pe-shortcuts-table td { padding: 3px 6px 3px 0; vertical-align: top; line-height: 1.4; }
+.pe-shortcuts-table td:first-child { white-space: nowrap; color: #4b5563; }
+.pe-shortcuts-table kbd {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+
+/* ── V3.350 — Evidence Inbox (References tab) ──────────────────────── */
+.pe-evidence-group-head {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+.pe-evidence-group-title { color: inherit; text-decoration: none; }
+.pe-evidence-group-title:hover { text-decoration: underline; }
+.pe-evidence-row {
+  padding: 7px 9px;
+  margin-bottom: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+}
+.pe-evidence-row--used { opacity: 0.55; }
+.pe-evidence-quote {
+  font-style: italic;
+  font-size: 12px;
+  color: #374151;
+  border-left: 3px solid #d1d5db;
+  padding-left: 8px;
+  line-height: 1.45;
+}
+.pe-evidence-comment {
+  font-size: 12px;
+  color: #4b5563;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.pe-evidence-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.pe-evidence-meta-spacer { flex: 1; }
+.pe-evidence-stance, .pe-evidence-type, .pe-evidence-used-mark {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #4b5563;
+  white-space: nowrap;
+}
+.pe-evidence-stance-for { background: #dcfce7; color: #15803d; }
+.pe-evidence-stance-against { background: #fee2e2; color: #b91c1c; }
+.pe-evidence-claim-mark { background: #ede9fe; color: #6d28d9; }
+.pe-evidence-used-mark { background: #f0fdf4; color: #15803d; }
+.pe-evidence-refresh { margin-left: 6px; font-size: 12px; }
+.pe-evidence-meta .btn.btn-sm { font-size: 11px; padding: 2px 8px; }
+
+
+/* ── V3.351 — citation-row library richness ────────────────────────── */
+.pe-cite-pdf { font-size: 11px; }
+.pe-cite-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #4338ca;
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+.pe-ref-abstract {
+  margin-top: 6px;
+  padding: 7px 9px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4b5563;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* ── V3.369 — completed section: locked + final manuscript form ──
+ * .pe-section-final wraps a section whose completed_at is set: every
+ * block renders read-only through renderParagraphHtml (resolved
+ * citations / KaTeX / cross-refs), edit chrome hides, prose goes serif
+ * + justified like a manuscript page (on screen — not the PDF export). */
+
+/* V3.455 — section STATUS pill: reflects state, click advances it.
+ * Amber = editing (draft) · green = completed (locked) · red = needs
+ * revision (sent back by lead author / PI via the ⚑ button). */
+.pe-section-status-pill {
+  font-size: 11px;
+  padding: 2px 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pe-section-status-editing {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+.pe-section-status-editing:hover { background: #fde68a; }
+.pe-section-status-complete {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+.pe-section-status-complete:hover { background: #d1fae5; }
+.pe-section-status-revision {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+.pe-section-status-revision:hover { background: #fecaca; }
+.pe-section-flag-btn {
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff;
+  color: #b91c1c;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pe-section-flag-btn:hover { background: #fee2e2; }
+
+/* V3.456 — appendix DIVIDER bar (replaces the per-section § toggle):
+ * one movable rule between sections; everything below it is the
+ * appendix zone (A/B/C numbering + \appendix on compile). */
+.pe-appendix-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 18px;
+  color: #6d28d9;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pe-appendix-divider::before,
+.pe-appendix-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 2px dashed #c4b5fd;
+}
+.pe-appendix-divider-label { cursor: help; }
+.pe-appendix-divider-ctrls { display: inline-flex; gap: 4px; }
+.pe-appendix-divider-ctrls button {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  background: #f5f3ff;
+  color: #6d28d9;
+  cursor: pointer;
+}
+.pe-appendix-divider-ctrls button:hover { background: #ede9fe; }
+.pe-appendix-divider-ctrls button:disabled { opacity: 0.4; cursor: default; }
+
+/* V3.457 — "+ Add section" dropdown (replaces the window.prompt pair). */
+.pe-addsec-menu {
+  position: fixed;
+  z-index: 3600;
+  width: 236px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+.pe-addsec-head {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  padding: 7px 8px 3px;
+}
+.pe-addsec-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #1f2937;
+  cursor: pointer;
+}
+.pe-addsec-item:hover { background: #f3f4f6; }
+.pe-addsec-item:disabled { color: #b6bcc6; cursor: default; }
+.pe-addsec-item:disabled:hover { background: none; }
+.pe-addsec-note { font-size: 10px; color: #b6bcc6; }
+.pe-addsec-custom { display: flex; gap: 6px; padding: 4px 8px 6px; }
+.pe-addsec-custom input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+.pe-addsec-custom button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+.pe-addsec-custom button:hover { background: #1d4ed8; }
+
+/* ── V3.459 — ∑ Symbols page (paper-symbols.js) ──
+ * Section cards with copy-to-clipboard tiles; drag ≡ / ▲▼ reorder. */
+.pe-symbols { max-width: 1100px; margin: 0 auto; padding: 4px 2px 40px; }
+.pe-sym-hint { font-size: 12px; color: #6b7280; margin: 2px 2px 12px; }
+.pe-symcard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.pe-symcard-dragging { opacity: 0.45; }
+.pe-symcard-dropline { box-shadow: 0 -3px 0 0 #2563eb; }
+.pe-symcard-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border-bottom: 1px solid #eef0f3;
+  cursor: pointer;
+  user-select: none;
+}
+.pe-symcard-collapsed .pe-symcard-head { border-bottom: none; }
+.pe-symcard-handle {
+  cursor: grab;
+  color: #9ca3af;
+  font-size: 15px;
+  padding: 0 2px;
+  touch-action: none;
+}
+.pe-symcard-handle:active { cursor: grabbing; }
+.pe-symcard-title { font-size: 13px; font-weight: 700; color: #111827; }
+.pe-symcard-count {
+  font-size: 10px;
+  color: #6b7280;
+  background: #eef0f3;
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+.pe-symcard-spacer { flex: 1; }
+.pe-symcard-head button {
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+.pe-symcard-head button:hover { background: #f3f4f6; }
+.pe-symcard-head button:disabled { opacity: 0.35; cursor: default; }
+.pe-symcard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+  padding: 10px;
+}
+.pe-symcard-collapsed .pe-symcard-grid { display: none; }
+.pe-symtile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 62px;
+  padding: 8px 6px 6px;
+  border: 1px solid #eef0f3;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  overflow: hidden;
+}
+.pe-symtile:hover { border-color: #bfdbfe; background: #f8fbff; }
+.pe-symtile-math { font-size: 15px; min-height: 22px; display: flex; align-items: center; }
+.pe-symtile-math .katex-display { margin: 0; }
+.pe-symtile-cap {
+  font-size: 9.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #9ca3af;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pe-symtile-copied::after {
+  content: '✓ copied';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #047857;
+  background: rgba(236, 253, 245, 0.94);
+}
+
+.pe-section-final {
+  background: #fffdf8;
+  border: 1px solid #ece5d3;
+  border-radius: 10px;
+  padding: 2px 22px 18px;
+  margin-bottom: 18px;
+}
+
+.pe-final-banner {
+  font-size: 11px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 4px 10px;
+  margin: 6px 0 12px;
+}
+
+/* V3.455 — needs-revision send-back banner. */
+.pe-revision-banner {
+  font-size: 11px;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 4px 10px;
+  margin: 6px 0 12px;
+}
+
+/* V3.468 — Grant submission checklist (paper-grant-checklist.js). */
+.pgc { margin: 0 0 26px; }
+.pgc-none, .pgc-loading { font-size: 13px; color: #6b7280; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
+.pgc-head { margin-bottom: 8px; }
+.pgc-title { font-size: 16px; font-weight: 700; color: #111827; }
+.pgc-solic { font-size: 12px; color: #6b7280; }
+.pgc-deadline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 8px 0 4px; font-size: 12.5px; }
+.pgc-deadline label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #475569; }
+.pgc-deadline-input { font-size: 12.5px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 6px; }
+.pgc-countdown { font-weight: 600; color: #b3742a; }
+.pgc-countdown.pgc-urgent { color: #b1402a; }
+.pgc-deadline-hint { color: #9ca3af; }
+.pgc-subhead { font-size: 14px; margin: 18px 0 8px; color: #111827; }
+.pgc-manifest { display: flex; flex-direction: column; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+.pgc-mrow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: start; padding: 9px 12px; border-bottom: 1px solid #eef0f3; font-size: 12.5px; }
+.pgc-mrow:last-child { border-bottom: none; }
+.pgc-mrow-jump { cursor: pointer; }
+.pgc-mrow-jump:hover { background: #f8fbff; }
+.pgc-mname { font-weight: 600; color: #111827; }
+.pgc-req { font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; font-weight: 700; padding: 1px 6px; border-radius: 99px; margin-left: 6px; }
+.pgc-req-req { color: #2f3d7c; background: #e6e8f3; }
+.pgc-req-cond { color: #b3742a; background: #f6ecdc; }
+.pgc-req-opt { color: #6b7280; background: #eef0f3; }
+.pgc-mnote { color: #9ca3af; font-size: 11px; line-height: 1.4; margin-top: 2px; }
+.pgc-mlim, .pgc-mwhere { color: #6b7280; white-space: nowrap; font-size: 11.5px; }
+.pgc-stat { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+.pgc-stat-ok { color: #047857; background: #ecfdf5; }
+.pgc-stat-mid { color: #b3742a; background: #f6ecdc; }
+.pgc-stat-miss { color: #b1402a; background: #f6e2dc; }
+.pgc-stat-neu { color: #6b7280; background: #eef0f3; }
+.pgc-prog { margin: 20px 0 10px; }
+.pgc-prog-count { font-size: 13px; }
+.pgc-prog-count .pgc-done { color: #2f3d7c; font-size: 15px; }
+.pgc-bar { height: 7px; background: #eef0f3; border-radius: 99px; overflow: hidden; margin-top: 5px; }
+.pgc-bar-fill { display: block; height: 100%; width: 0; background: #2f3d7c; border-radius: 99px; transition: width .3s; }
+.pgc-cat { margin: 16px 0; }
+.pgc-cat-head { display: flex; align-items: center; gap: 8px; }
+.pgc-cat-num { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: #e6e8f3; color: #2f3d7c; font-size: 11px; font-weight: 700; }
+.pgc-cat-title { font-size: 13.5px; font-weight: 700; color: #111827; }
+.pgc-cat-note { font-size: 11.5px; color: #9ca3af; margin: 2px 0 8px 28px; }
+.pgc-items { display: flex; flex-direction: column; gap: 5px; }
+.pgc-item { display: flex; align-items: flex-start; gap: 9px; background: #fff; border: 1px solid #e5e7eb; border-radius: 9px; padding: 8px 10px; }
+.pgc-item.pgc-checked { background: #ecfdf5; border-color: #a7f3d0; }
+.pgc-item.pgc-checked .pgc-item-label { color: #6b7280; text-decoration: line-through; }
+.pgc-cb { margin-top: 2px; flex: none; }
+.pgc-item-txt { flex: 1; min-width: 0; }
+.pgc-item-label { font-size: 12.5px; font-weight: 600; color: #1f2937; }
+.pgc-item-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
+.pgc-tag { font-size: 9.5px; padding: 1px 6px; border-radius: 99px; background: #eef0f3; color: #6b7280; }
+.pgc-hint-btn { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #cbd5e1; background: #fff; color: #6b7280; font-weight: 700; font-size: 12px; line-height: 1; cursor: pointer; }
+.pgc-hint-btn:hover { background: #2f3d7c; color: #fff; border-color: #2f3d7c; }
+.pgc-foot { margin-top: 16px; padding-top: 10px; border-top: 1px solid #eef0f3; font-size: 11px; color: #9ca3af; line-height: 1.5; }
+.pgc-pop { position: fixed; z-index: 5300; max-width: min(22rem, 90vw); background: #fff; color: #1f2937; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; box-shadow: 0 12px 40px rgba(0,0,0,.22); font-size: 12.5px; line-height: 1.5; }
+.pgc-pop-title { font-weight: 700; color: #2f3d7c; margin-bottom: 3px; }
+
+/* V3.467 — Grant Docs page (paper-grant-docs.js). */
+.pgd-page { max-width: 820px; margin: 0 auto; padding: 12px 16px 48px; }
+.pgd-title { font-size: 22px; margin: 4px 0 4px; }
+.pgd-section-head { font-size: 15px; margin: 22px 0 4px; color: #111827; }
+.pgd-lead { font-size: 13px; color: #6b7280; line-height: 1.5; margin: 0 0 14px; max-width: 640px; }
+.pgd-empty-card {
+  font-size: 13px; color: #6b7280; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 10px; padding: 16px;
+}
+.pgd-doc-list { display: flex; flex-direction: column; gap: 10px; }
+.pgd-doc-card {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px;
+}
+.pgd-doc-title { font-weight: 600; font-size: 14px; color: #111827; flex: 1 1 160px; min-width: 140px; }
+.pgd-doc-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.pgd-doc-btn {
+  font-size: 12px; padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 7px;
+  background: #fff; color: #334155; cursor: pointer; white-space: nowrap;
+}
+.pgd-doc-btn:hover { background: #f1f5f9; }
+.pgd-doc-btn:disabled { opacity: 0.5; cursor: default; }
+a.pgd-doc-link { text-decoration: none; color: #2f3d7c; border-color: #c7cded; display: inline-flex; align-items: center; }
+a.pgd-doc-link:hover { background: #eef0f9; }
+
+/* Picker modal */
+.pgd-overlay {
+  position: fixed; inset: 0; z-index: 4600; display: flex; align-items: center;
+  justify-content: center; background: rgba(15, 23, 42, 0.4); padding: 20px;
+}
+.pgd-card {
+  width: min(560px, 96vw); max-height: 82vh; display: flex; flex-direction: column;
+  background: #fff; border-radius: 12px; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28); overflow: hidden;
+}
+.pgd-card-head { font-size: 15px; font-weight: 600; padding: 14px 16px; border-bottom: 1px solid #eef0f3; }
+.pgd-card-body { overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.pgd-card-actions { padding: 10px 14px; border-top: 1px solid #eef0f3; display: flex; justify-content: flex-end; }
+.pgd-empty { color: #9ca3af; font-size: 13px; padding: 18px; text-align: center; }
+.pgd-pick-item {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%;
+  padding: 9px 11px; border: 1px solid #eef0f3; border-radius: 8px; background: #fff; cursor: pointer;
+}
+.pgd-pick-item:hover { border-color: #bfdbfe; background: #f8fbff; }
+.pgd-pick-name { font-weight: 600; font-size: 13px; color: #111827; }
+.pgd-pick-meta { font-size: 11px; color: #6b7280; }
+.pgd-pick-preview { font-size: 11.5px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Toast */
+.pgd-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(10px);
+  z-index: 5200; background: #111827; color: #fff; font-size: 13px; padding: 9px 16px;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); opacity: 0; transition: opacity .18s, transform .18s;
+}
+.pgd-toast-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* V3.466 — Grant Docs page placeholder (until R5/R6 fill it). */
+.pe-grant-docs-placeholder { max-width: 640px; margin: 24px auto; padding: 0 16px; color: #374151; }
+.pe-grant-docs-placeholder h2 { font-size: 20px; margin: 0 0 8px; }
+.pe-grant-docs-placeholder p { font-size: 14px; line-height: 1.5; margin: 0 0 10px; }
+.pe-grant-docs-placeholder .pe-grant-docs-hint {
+  font-size: 12.5px; color: #6b7280; background: #f8fafc;
+  border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
+}
+
+/* V3.465 — grant attached-document upload slot (section header). */
+.pe-upload-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #374151;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 6px 0 12px;
+}
+.pe-upload-label { font-weight: 600; color: #475569; }
+.pe-upload-empty { color: #9ca3af; }
+.pe-upload-file { color: #2563eb; text-decoration: none; border-bottom: 1px dotted #93c5fd; }
+.pe-upload-file:hover { border-bottom-style: solid; }
+.pe-upload-btn {
+  font-size: 11.5px;
+  padding: 3px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+.pe-upload-btn:hover { background: #f1f5f9; }
+.pe-upload-btn.pe-upload-busy { opacity: 0.6; cursor: default; }
+.pe-upload-remove {
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fff;
+  color: #b91c1c;
+  cursor: pointer;
+}
+.pe-upload-remove:hover { background: #fee2e2; }
+
+/* Hide every piece of editing chrome inside a completed section. */
+.pe-section-final .pe-block-toolbar,
+.pe-section-final .pe-skeleton-outline,
+.pe-section-final .pe-filter-note,
+.pe-section-final .pe-block-presence,
+.pe-section-final .pe-block-lock-badge {
+  display: none !important;
+}
+
+.pe-section-final .pe-block {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0 0 4px;
+}
+
+/* Manuscript typography. */
+.pe-section-final .pe-section-label {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+}
+.pe-section-final .pe-paragraph-body-wrap .pe-block-content {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  line-height: 1.75;
+  text-align: justify;
+  color: #111827;
+}
+.pe-section-final .pe-figure-caption,
+.pe-section-final .pe-table-caption {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #111827;
+}
+.pe-section-final .pe-figure-caption-label,
+.pe-section-final .pe-table-caption-label {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #111827;
+  text-transform: none;
+}
+.pe-section-final .pe-block-figure img {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Right-aligned (N) on numbered display equations — replaces the number
+ * badge that lived in the now-hidden toolbar. */
+.pe-section-final .pe-block-equation { position: relative; }
+.pe-final-eqnum {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  color: #111827;
+}
+
+/* V3.491 — import progress modal (list page). */
+.pi-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:9500;display:flex;align-items:center;justify-content:center;padding:24px}
+.pi-modal{background:#fff;border-radius:14px;box-shadow:0 16px 50px rgba(15,23,42,.3);width:100%;max-width:440px;padding:22px 24px}
+.pi-title{font-weight:600;font-size:16px;margin-bottom:12px;color:#111827}
+.pi-name{color:#2563eb}
+.pi-phase{font-size:13px;color:#374151;margin-bottom:8px;min-height:18px}
+.pi-phase.pi-err{color:#dc2626;font-weight:600}
+.pi-bar{height:8px;background:#eef2f7;border-radius:99px;overflow:hidden;border:1px solid #e5e7eb;margin-bottom:14px}
+.pi-bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2563eb,#22c55e);border-radius:99px;transition:width .3s ease}
+.pi-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.pi-steps li{display:flex;align-items:center;gap:9px;font-size:13px;color:#9ca3af;transition:color .2s}
+.pi-steps li .pi-dot{width:14px;height:14px;border-radius:50%;border:2px solid #d1d5db;flex:none;display:grid;place-items:center;transition:.2s}
+.pi-steps li.pi-active{color:#111827;font-weight:600}
+.pi-steps li.pi-active .pi-dot{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.pi-steps li.pi-done{color:#166534}
+.pi-steps li.pi-done .pi-dot{border-color:#22c55e;background:#22c55e}
+.pi-steps li.pi-done .pi-dot::after{content:"✓";color:#fff;font-size:9px;line-height:1;font-weight:700}
+.pi-note{font-size:11px;color:#9ca3af;margin-top:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:14px}
+.pi-close{margin-top:14px;border:1px solid #d1d5db;background:#fff;padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px}
+.pi-close:hover{background:#f3f4f6}
+.pi-modal-err .pi-bar>i{background:#dc2626}
+
+/* V3.493 — Grant Docs page: per-paper PDF attachments panel. */
+.pgd-pdf-panel{margin:0 0 24px}
+.pgd-pdf-host.pgd-busy{opacity:.5;pointer-events:none}
+.pgd-pdf-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.pgd-pdf-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
+.pgd-pdf-icon{flex:none;font-size:15px}
+.pgd-pdf-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pgd-pdf-label{font-weight:600;font-size:13px;color:#111827}
+.pgd-pdf-file{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pgd-pdf-file a{color:#2563eb;text-decoration:none}
+.pgd-pdf-file a:hover{text-decoration:underline}
+.pgd-pdf-actions{flex:none;display:flex;gap:6px}
+.pgd-doc-btn-danger{color:#dc2626;border-color:#fca5a5}
+.pgd-doc-btn-danger:hover:not(:disabled){background:#fee2e2}
+.pgd-pdf-add{display:flex;gap:8px;align-items:center;margin-top:4px}
+.pgd-pdf-kind{flex:1;max-width:280px;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff}
+
+/* V3.495 — submission checklist full parity: banner deadline, grouped
+ * manifest tables, callout cards, legend, sticky progress. */
+.pgc-deadline{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem;margin:10px 0 18px;padding:12px 14px;border-radius:10px;background:#fef6e7;border:1px solid #f0d9a8}
+.pgc-deadline label{font-size:12px;font-weight:600;color:#92600a}
+.pgc-deadline-input{margin-left:6px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px}
+.pgc-deadline-hint{font-size:12px;color:#92600a;flex-basis:100%}
+.pgc-countdown{margin-left:auto;font-weight:600;font-size:12px;padding:2px 10px;border-radius:99px;background:#fff;border:1px solid #f0d9a8;color:#92600a;white-space:nowrap}
+.pgc-countdown.pgc-urgent{background:#fee2e2;border-color:#fca5a5;color:#b91c1c}
+.pgc-grp-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#6b7280;margin:16px 0 6px}
+.pgc-prog{position:sticky;top:0;z-index:4;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);padding:10px 0;margin:18px 0;border-bottom:1px solid #e5e7eb}
+.pgc-callouts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.pgc-callout{border:1px solid #e5e7eb;border-radius:11px;padding:12px 14px;background:#fff}
+.pgc-callout-rwr{background:#fdecea;border-color:#f2b8ad}
+.pgc-callout-title{font-weight:700;font-size:13px;margin-bottom:6px}
+.pgc-callout-rwr .pgc-callout-title{color:#b1402a}
+.pgc-callout ul{margin:0;padding-left:16px;font-size:12px;color:#4b5563;line-height:1.5}
+.pgc-callout li{margin-bottom:3px}
+.pgc-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0 4px;font-size:11px;color:#6b7280}
+.pgc-legend span{display:inline-flex;align-items:center;gap:5px}
+.pgc-lg{width:9px;height:9px;border-radius:2px;display:inline-block}
+.pgc-lg-ok{background:#16a34a}.pgc-lg-mid{background:#d97706}.pgc-lg-miss{background:#dc2626}.pgc-lg-neu{background:#9ca3af}
+@media (max-width:640px){.pgc-callouts{grid-template-columns:1fr}}

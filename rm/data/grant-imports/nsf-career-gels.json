@@ -1,0 +1,1604 @@
+{
+ "id": "nsf-career-gels",
+ "title": "CAREER: Understanding Cell-Driven Remodeling and Self-Assembly of Granular Microgel Scaffolds",
+ "paper_type": "grant",
+ "grant_subtype": "nsf-career",
+ "target_journal": "NSF ENG/CBET (CAREER, NSF 22-586)",
+ "sectionNumbering": "off",
+ "source_note": "Imported from the GELS CAREER markdown source (latest working revision); figure captions from the submitted NSF_CAREER_ProjectDescription2.pdf. Attach figure images (GELS repo: Working docs/sections working/Figures/imageN.jpg) via each figure block. Citations are literal [N] text keyed to the References Cited section.",
+ "tree": {
+  "meta": {
+   "title": "CAREER: Understanding Cell-Driven Remodeling and Self-Assembly of Granular Microgel Scaffolds"
+  },
+  "sections": [
+   {
+    "kind": "custom",
+    "label": "Overview and Objectives",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Biological tissues are active, multiscale materials in which architecture and function both emerge from and govern collective cell behavior, driven by local biochemical gradients, mass transport, and mechanical interactions. Two strategies, 3D bioprinting and self-assembly, dominate tissue construction *in-vitro*, and each fails at a different limit. 3D bioprinting provides precision, but building complex tissue at scale is difficult because of throughput and maturation time. Self-assembly methods scale freely but yield nonphysiologic architectures because intrinsic cellular forces remodel the matrix toward energetically favorable compact geometries, most often spheroids. In vitro models built from granular microgel biomaterials have become popular because their interstitial space allows for perfusion that mimics small-capillary transport, largely solving the mass-transport part of this architectural gap. This concept has been successfully adapted to patient-derived-xenograft (PDX) tissue bioreactors, wound healing, and bioprinting, yet these model frameworks remain inadequate for the multiscale vascular and organ-specific architectures found in vivo. Tissue architecture is defined by its luminal spaces, vasculature, and stroma, and the spatial distribution of these features sets how biochemical gradients develop within the tissue. Although some model systems replicate this architecture faithfully, the added complexity often limits throughput for large scale assays due to build time. Allowing cells to remodel their local granular environment as active agents provides the architectural detail needed while preserving the throughput required to study organ systems at scale. There is an *urgent* need for high-throughput model systems that recapitulate organ-specific architectures at scale, enabling next-generation assays for drug-combination therapy while reducing reliance on expensive animal testing.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "My *long-term career goal* is to develop tissue-engineered in vitro tumor microenvironments and organ models that let researchers study patient-derived tissue in a physiologically faithful, perfusable setting and report drug efficacy, dosing, and safety for individual patients. My *overall research objective* for this CAREER award is to establish predictive, mechanism-based design rules for cell-driven remodeling and self-assembly in granular microgel matrices by integrating quantitative experiments, cell-force measurement, and discrete-element simulation. These rules describe the energy landscape of the system based on cell-granule interactions either overcoming energy barriers to remodel the tissue toward metastable, transport-capable, tissue-like architectures or fall short arresting it in a state the cells cannot remodel. *We hypothesize* that a volume of granular microgels encodes a tunable, multi-level energy landscape, set by microgel size, shape, stiffness, and the ratio of functional to inert granule phases, that cells navigate as active remodeling agents whenever the net traction stress they generate exceeds the yield stress of the jammed granular material. This hypothesis is *grounded in preliminary data* in which systematic changes in the system variables namely: granule size, material, and inert-to-functional ratio produce qualitatively distinct, perfusable 3D morphologies. My group is *well-prepared* for this work: we developed the Granular Enabled Living Scaffold (GELS) platform, established fabrication routes for collagen-functionalized and enzymatically degradable microgels, and maintain a working GELS-DEM simulation. We pursue the objective through three aims (Figure 1).",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "**Aim 1. Classify how GELS system variables set the initial energy landscape and resulting tissue architecture.** We will measure how the mechanical work applied by cells balances against the energy density of the jammed packing to drive self-assembly. By varying granule geometry, stiffness, and inert-to-functional ratio, we will quantify the emergent architectural feature descriptors by confocal measurement and particle image velocimetry (PIV) analysis, producing a library of active-material bio-inks.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "**Aim 2. Quantify the tractions cells exert to traverse and reshape the landscape.** We will adapt traction force microscopy (TFM) to the granular environment to measure, simultaneously, the surface tractions fibroblasts use to rearrange granules and the evolving displacement and compaction those forces produce. By treating cells as active agents, we will resolve how granule stiffness sets their migration and force output, how granule shape changes their contact area from a spherical point contact to a cuboidal face contact, and whether and how cells bridge non-contacting granules, supplying the cell-agent rules for Aim 3.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "**Aim 3. Synthesize the measurements into a validated, open-source predictive simulation.** We will couple the tissue-level descriptors from Aim 1 and the traction and cell-agent rules from Aim 2 into an open-source, validated discrete-element simulation (GELS-DEM) that predicts the emergent tissue construct from an initial spatial distribution of bio-inks and serves as a design tool for 3D bioprinting and granule-based tissue-engineering workflows.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "This program is *creative and original* because it is the first to treat a cell-laden granular material as a designable energy landscape that cells navigate as active agents and that can be programmed to develop multiscale perfusable channel architectures in a 3D *in-vitro* model.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The *expected outcomes* of this proposal are (**Task 1**) a library of active-material bio-inks mapped to tissue architectural descriptors across the full range of mechanical, geometrical, and compositional variations in initial conditions, (**Task 2**) the first traction-force description of cellular granule rearrangement in 3D with simultaneous measurement of compaction, and (**Task 3**) an open-source GELS-DEM design tool for granular tissue engineering. We expect a *positive impact* on tissue engineering, through scalable fabrication of perfusable organ constructs for animal-free testing, and on active-material science, by extending design rules developed by the robotic active-matter community, typically studied on 2D planar surfaces, into a 3D biologically actuated analogue.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "**Evaluation Plan.** We evaluate the central hypothesis quantitatively through a closed loop. Aim 1 independently measures the yield-stress barrier set by granule geometry and composition, and the terminal architecture that develops. Aim 2 independently measures the per-granule stress that cells impart. Parameterized by the Aim 1 barrier and the Aim 2 cell-force rules, the Aim 3 GELS-DEM simulation predicts that architecture, and the loop closes when the prediction matches the Aim 1 measurement. The hypothesis is confirmed if rearrangement occurs exactly where local cell stress exceeds the local yield barrier and if GELS-DEM locates the compaction-to-architecture transition in held-out constructs within quantified accuracy; it is refuted if the packing stays jammed where cell stress exceeds the barrier, or rearranges where it falls short, or if the predicted transition misses the measured one. We validate the new granular TFM by benchmarking its recovered deformation fields against the correlation- and particle-tracking methods the PI co-developed [64, 65], and we disseminate to the Society of Engineering Science, the U.S. National Congress on Theoretical and Applied Mechanics, and the American Physical Society for pre-publication feedback.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "**Education Plan.** I have been developing web-based modules that teach advanced engineering concepts through interactive simulations, pairing a lesson with a simulation students manipulate to build intuition, and I will extend this library to granular media by bridging non-Newtonian material physics to 3D bioprinting and active-matter research. **EO.1** **high-school outreach with undergraduate course enhancement:** I utilize these modules within my undergraduate biomechanics courses BME 214 and BME 466 and disseminate them through a statewide coalition of roughly 20 Arizona high-school teachers who teach the career-preparation course ENG 102, we utilize this coalition to refining them through a feedback loop in which teachers report where students struggle and my lab responds; students then use the modeling knowledge to design a 3D bio-print of a tissue construct and send it to my lab for fabrication. This workflow is extended to high-school engagement during a week-long summer program I host, BME 295C, and the Summer Engineering Academy hosted by the University of Arizona College of Engineering, which also supplies my lab the naive usability testers our open design workflow needs. **EO.2 graduate training**: Because the next generation of engineers will work alongside AI tools where the discipline follows a \"verify then trust\" framework, I teach a graduate course that trains students to build a model, simulate it, and validate it against experimental data, using the GELS framework and its rich data set as the system of study and an open-ended final project in which students solve, verify, and prove a small problem within it will enrich our scientific understanding of the GELS system via the diverse thought that comes with multiple graduate students hands on analysis.",
+      "attrs": {}
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 1. We match histological sections to GELS-derived constructs via feature descriptors that bound the GELS-DEM simulation, and quantify cellular forces on granules. EO aims feedback into Aims 2 and 3.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig1",
+       "alt": "Attach GELS Figures/image1.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Research Significance",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Granular and microgel matrices are being used to develop advanced tissue-engineered constructs for applications such as tissue repair, in vitro disease and tumor models, and vascularized organ-on-chip systems [1]. A jammed packing of these granules has a yield stress defined by the shape, size, and material factors of the granules [2, 3]. Reviews for these jammed granular packings now catalog design choices against biological outcomes [1, 4], but the causal chain from granule-scale properties to cell behavior remains open: no study has targeted control of individual-microgel viscoelasticity within a packing, and its cell-level impact is unknown [4], while the field openly asks whether structure-property-function rules established in one chemistry generalize across materials [5]. The gap is not hypothetical: a microporous annealed-particle scaffold drove regenerative, hair-bearing wound healing through an adaptive-immune mechanism that was unexpected and resolved only after the architectural success was reported [6], a granular success outrunning its own understanding. By supplying the missing link, a cell-force and energy-landscape mechanism connecting granule design to the architecture cells build, we can predict and design the endpoint of self-assembly from material parameters rather than discovering it after the fact.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Engineered vasculature reliably reproduces large vessels but skips the capillary scale, filling the space with dense extracellular matrix (ECM) and embedded cells, which keeps cells alive but omits the transport and mechanotransductive cues that make a tissue physiologic. Capillary function occupies a narrow window: wall shear stresses decline from 9.55 to 0.28 N/m² across the smallest vessels [7], and interstitial flows of only 0.05 to 1.0 dyn/cm² are nonetheless mechanotransductive, driving fibroblast motility and collagenase expression [8]. Because nutrients diffuse only 100 to 200 µm from a capillary [9], this window also sets the maximum spacing between transport-capable channels, the length scale a dense matrix fill cannot address. Cells in a bulk (nanoporous) hydrogel are confined within a 1 to 10 nm mesh that restricts migration to matrix degradation and allows only diffusion [4], whereas GELS cultures cells on the microgel surfaces and within interconnected microscale void spaces, a surface-adherent mode in which cells self-organize channels that carry convective flow rather than compacting into a diffusion-limited spheroid, restoring the mechanical and mass-transport cues that cell-embedded ECM scaffolds sacrifice.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The urgency to develop these advanced tissue architectures in vitro is set by policy as much as by biology. The FDA Modernization Act 2.0, which permits alternatives to animal testing for drug approval [10], has sharpened demand for physiologically faithful in vitro models, which requires materials that actively shape how cellular forces become organized structure rather than merely hosting cells. Design rules connecting granule properties to emergent, transport-capable architecture apply directly to tumor models for drug screening, organoid disease and cancer models, and regenerative and wound-repair scaffolds, and they extend 3D active-matter mechanics, where how active agents navigate and reshape a discrete, reconfigurable environment remains an open question. *The contribution outlined in this proposal is significant because it will fundamentally advance how we build in vitro model systems*, addressing multiple limitations of current models, including multiscale mass transport with architecturally defined biochemical gradients, while remaining experimentally simple and relatively inexpensive.",
+      "attrs": {}
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Background",
+    "children": [
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.1.1 Granular microgel systems as biomaterial platforms",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Granular microgel packings are now a versatile platform for 3D culture, tissue repair, and bioprinting, yet the field selects packing properties empirically rather than from a mechanics-based rule predicting the architecture cells build. Four groups laid the foundation and established the concepts this proposal joins. Angelini and Feinberg simultaneously developed the jammed liquid-like-solid (LLS) support bath for 3D bioprinting, in which jammed granules fluidize under a moving needle tip and resolidify to trap deposited material [11, 12, 13]; the LLS bath supports cells in 3D [14] and rearranges by glass-like, intermittent dynamics [15]. Sawyer and Nguyen conjugated type-I collagen to LLS microgel surfaces, making the bath cell-adhesive with a 7 to 10 micron capillary-mimetic interstitial network that supports glioblastoma invasion without matrix degradation [16]. Burdick codified the granular-hydrogel class [17], showed interstitial microporosity supports cell and vessel invasion even for non-degradable particles [18, 19], and that shape and aspect ratio raise void fraction, pore diameter, and invasion independent of size and stiffness [20, 21]. Segura built the microporous annealed-particle (MAP) scaffold [22] and the LOVAMAP void-analysis toolset [23]. Quantitative relationships reinforce these: jammed microgel size sets void and pore diameter and challenges cell spreading as voids become small [24]; granular hydrogels are brittle yield-stress fluids yielding by transient, heterogeneous rearrangement [25]; and the modulus of the material varies from 1.8 to 5.5 kPa as the diameter of the jammed granules grows from 25 to 100 microns [26]. Each group isolated one knob, size, shape, functionalization, or porosity, and none links them to the architecture cells build from the granular packing.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.1.2 Fixed versus reconfigurable architectures",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "MAP scaffolds fix the packing before cells arrive, annealing microgels through a secondary covalent crosslink at contact points (enzymatic FXIIIa [22], later tetrazine-norbornene click [27]) that locks a microporous scaffold whose void fraction is set at fabrication [27]. Cells then passively infiltrate the pre-existing void space, through which dextran diffuses, allowing cells time to settle [27]. MAP porosity is thus a fabrication-time cue set a priori, not an outcome of cell mechanical rearrangement [28]. The operative contrast is fixed (annealed) versus reconfigurable (jammed, cell-rearranged). Other groups have studied the reconfigurable axis; Caprio et al. blended stable and degradable microgels to tune mesenchymal-stromal-cell spheroid compaction to roughly 30 to 60 percent [29], confirming that granule properties select the endpoint.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.1.3 Cell-driven remodeling and force generation in granular media",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Fibroblasts are the cells responsible for tissue repair in vivo, and in our GELS model they are the main source of the force driving compaction, so their force budget sets the barrier a scaffold must resist. Individual dermal fibroblasts generate roughly 26 plus or minus 13 nN, with an upper bound near 450 nN measured by strut buckling in porous scaffolds [30]. Traction rises with substrate stiffness and saturates above about 13 kPa, so tuning single-microgel stiffness across 0.1 to 20 kPa programs how hard cells pull, most of the effect in the soft regime [31]. Collagen ligand density also sets an upper bound on the traction a cell can generate without rupture, passing through a sharp threshold near 160 molecules per micron squared, close to the integrin density, where each engaged bond bears about 100 pN near rupture [32], making the degree of functionalization a predictable per-granule adhesion lever. Traction force microscopy has measured filopodia that grip and retract in transient 10 pN burst events [33], the primitive by which a cell could reach across a void to form a bridge and drag a granule. In granular media, adherent cells assemble through a transition set by medium yield stress and cell-cell cohesion [34] and act as assembly engines that pull separate microgels together in cellular snowballing, whose endpoint is set by microgel size and cell-to-microgel ratio [35]. The single-fibroblast event of spanning a void to pull two non-contacting granules into contact has not been imaged or quantified in 3D, an Aim 2 target and candidate first-of-kind measurement.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.1.4 Quantitative feature descriptors for comparing GELS architecture to native tissue",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Comparing a GELS construct to native tissue requires a descriptor language that reduces both to matched geometric quantities, and the literature supplies three complementary tools, each describing one spatial phase. LOVAMAP segments the 3D void space of packed-granule scaffolds into discrete pores and reports global (void volume fraction, isotropy), per-pore (volume, largest-enclosed-sphere caliber, surrounding-granule count), and inter-pore (throat, connectivity path) descriptors [23, 36], which describe the GELS tissue before and after cells remodel it. TissUUmaps computes histology region descriptors, composition, and spatial statistics on whole-slide images and registers features into a common tissue coordinate frame [37]. Q-VAT skeletonizes a vessel mask into network morphometrics such as mean diameter, vascular density, branch and junction counts, tortuosity, and intervessel distance [38]. A common axis can therefore be formed by matching primitives from each descriptor: caliber (LOVAMAP enclosed-sphere against Q-VAT vessel diameter), spacing (inter-pore against intervessel distance), graph topology (pore connectivity against vessel skeleton), and phase fraction (void fraction against vascular density), all anchored to a shared Euclidean distance transform [39], with TissUUmaps registering the confocal and histology descriptors together. Related descriptors extend the vocabulary, including cleared-organ vascular morphometrics [40], persistent-homology topology that separates networks identical in scalar metrics but different in connectivity [41], and fractal dimension with lacunarity for pore texture [42]. To our knowledge no framework bridges granular void, histological region, and vascular descriptors into one like-for-like comparison for cell-remodeled granular constructs.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.1.5 Simulation of active granular materials",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The discrete element method resolves a granular assembly contact-by-contact and particle-by-particle [43], and cohesive contact laws extend it so contacts bear tension, dissipate energy, and rupture [44], the engine for collagen-functionalized microgels with cellular bridge bonds. Level-set discrete element method handles arbitrary 3D grain shapes from imaging [45], and a deformable-particle variant captures microgel compliance [46]. The stochastic motor-clutch model links contractile agents to compliant contacts and predicts load-and-fail traction on soft substrates versus frictional slip on stiff ones [47], and agent-based discrete fiber-network models apply repetitive cell traction to reproduce cell-driven remodeling [48]. The nearest validations of active-granular collectives are 2D robotic ensembles, BOBbots showing a dispersed-to-compact change [49] and planar smarticles [50], for which GELS is the 3D, biologically actuated instance, and DEM methods can be borrowed from these analogies to enhance the GELS-DEM model.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "These threads converge on one physical picture of how a jammed packing rearranges through an energy landscape. A jammed packing has a yield stress, and a cell rearranges granules only by doing enough mechanical work to exceed the local barrier, exactly as rearrangement in a dense confluent tissue is governed by exponentially distributed energy barriers whose heights depend on neighbor number and produce glassy, jamming-like dynamics [51]. The barrier field is not single-valued: a material side, where granule shape and viscoelastic properties set the yield stress, competes with a cellular side, where functionalization and the cell-force distribution set where and how hard cells push, while the inert phase adds a deformable boundary that channels reorganization and subtracts from the total force-displacement energy of the system. The premise that discrete attractive granules assemble into space-spanning structures rather than collapsing to one dense phase is established in colloidal physics, where short-range attractions gel granules into connected clusters via arrested spinodal decomposition [52], and the jamming-to-unjamming transition is tunable phase behavior that cell collectives deploy to switch between solid-like homeostatic and fluid-like morphogenic states [53], the transition the GELS platform programs in an injectable microporous scaffold [17].",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.2 Preliminary Studies",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.2.1 Composition and stiffness tune the remodeling endpoint",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Cell-driven remodeling of GELS forms a mappable phase space rather than a single fixed outcome. Across mixtures varying in size and inert-to-functional ratio, compaction changes systematically and continuously with increasing functional phase, consistent with composition selecting the endpoint over a graded range rather than switching between two states, and softer functional granules show increased compaction, consistent with the saturating traction-versus-stiffness behavior of fibroblasts [31]. Because these transitions are graded across the factors that define the energy landscape (granule shape, material properties, and inert-to-functional ratio), composition acts as a continuous design dial on architecture. These data de-risk the Aim 1 bio-ink library and motivate both the stiffness sweep across 0.1 to 20 kPa and the Aim 2 characterization of how granule stiffness changes cell migration and force output.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.2.2 Perfusion mapping by particle image velocimetry",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "A stable architecture is useful only if it perfuses. By perfusing high-molecular-weight fluorescent dextran through remodeled GELS constructs and imaging it by confocal timelapse, we mapped the interstitial flow field by particle image velocimetry (PIV) and resolved connected flow channels within the granular medium. These channels establish the vascular analogy at the core of the platform, showing that the void network the fibroblasts open behaves as a perfusable, transport-capable channel network rather than a diffusion-limited aggregate, and they de-risk the Aim 1 plan to track the evolving flow field and Darcy permeability across the bio-ink library.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 4 [Figure 4 placeholder: (left) timelapse strain field around a remodeling fibroblast with back-calculated granule stress overlaid against the measured jammed yield stress; (right) a DEM-simulated remodeled packing beside a confocal GELS construct, showing comparable microchannel-scale reorganization.]",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "3.2.3 Traction measurement and DEM simulation of reorganization",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "From timelapse imaging of fibroblasts rearranging granules we extract the developing strain fields and, assuming linear-elastic granules, back out the per-granule stress, which must exceed the packing yield stress to drive rearrangement; recovering the single-granule stiffness the inversion depends on is harder than the strain measurement and drives the Aim 2 method development. In parallel, our discrete element method (DEM) simulations already show rearrangement of jammed granular systems resembling the architectures observed experimentally. Together these early results de-risk the Aim 2 adaptation of traction force microscopy to discrete granular contacts and the Aim 3 plan to validate and extend the coupled cell-granular framework against the Aim 1 and Aim 2 datasets.",
+      "attrs": {}
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 2. A) Confocal montage of GELS constructs across inert-to-functional ratio (φ) and functional-granule size; B) compaction and microchannel diameter (δ) shift continuously with composition. SF/SI = small functional/inert, LF/LI = large functional/inert.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig2",
+       "alt": "Attach GELS Figures/image2.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 3. Tracer PIV maps flow through the granular bed. Streamlines (left) are converted into a vascular analogy (right), with sphere size proportional to local velocity.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig3",
+       "alt": "Attach GELS Figures/image3.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 4. A) Traction force measurements on individual granules capture cells forming active bridges and migrating on surfaces, grounding cells as active agents in the DEM simulation. B) Initial DEM runs show functional-phase compaction, inert-phase relaxation, and rising permeability.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig4",
+       "alt": "Attach GELS Figures/image4.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Relation to Other Work in Progress",
+    "children": [
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "4.1 Other work in progress by the PI",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "A microscope-enabled 3D bioprinter (MEBP) under development in the lab delivers precise initial arrangements of packed granules that auto-assemble into continuous, multiscale tissue, and it places patient-derived-xenograft (PDX) microtissues into the granular bed, extending the platform toward patient-specific tumor models. It supplies the programmable initial packing GELS remodels but is distinct from this CAREER effort, which develops the mechanics-based design rules and predictive simulation, not the deposition hardware. Parallel work encapsulating multiple cell types within granules complements GELS by densifying the scaffold with cells while leaving the energy-landscape and remodeling framework as this proposal’s unique contribution.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "4.2 Work in progress elsewhere",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Granular in vitro model systems are advancing rapidly along complementary routes: Angelini’s LLS support bath and its cell-supporting collective mechanics [12, 14, 15], Sawyer and Nguyen’s collagen-conjugated bath and patient-derived-xenograft bioreactor [16], Feinberg’s FRESH freeform printing into support baths [11, 13], Burdick’s advances in granular rheology, interstitial porosity, and shape-driven invasion [17, 18, 19, 21], and Segura’s microporous annealed-particle scaffolds and void-space analysis [22, 23]. Each takes a different route to using or fabricating granular architectures, and to our knowledge none provides a mechanics-based predictive framework for cell-driven granule rearrangement, the gap this proposal fills through coupled experiment, theory, and simulation.",
+      "attrs": {}
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Research Plan",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The three aims resolve one question in complementary registers: why cell-laden granular matrices reorganize as they do, and how to program that outcome. Aim 1 characterizes the energy landscape of the granular packing, Aim 2 quantifies how cells navigate and reshape that landscape as active agents, and Aim 3 couples the two into a predictive simulation that closes the loop from an initial granular composition to the emergent tissue architecture. Together they convert granular tissue design from systematic experimentation into transferable, mechanism-based design rules that generalize across microgel chemistries and cell types.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.1 Aim 1: Determine How GELS Variables Set Compaction and Permeability to Build a Bio-Ink Library",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.1.1 Overview",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Designing a granular composition for a target organ feature, rather than discovering a workable one by experiment, requires a quantitative map from granule properties to the architecture cells build, a map the field has called for but not yet built [5]. This aim builds it, quantifying how the primary GELS variables (microgel size, shape, single-granule stiffness, and the ratio of collagen-functionalized to enzymatically degradable inert granules) set the terminal compaction and transport architecture of a cell-laden packing. We hypothesize that the terminal architecture emerges from a competition among three factors: how hard cells pull, which rises with single-granule stiffness and saturates [31]; the inter-granule contact area, set by granule shape (point-like sphere-sphere to face-sharing contacts); and the energy density of the material's landscape, set by viscoelasticity [25, 26]. Because stiffness enters on both sides, raising cell traction while deepening the barriers that traction must overcome, and shape adds contact area independently, no single property fixes the outcome; where the balance among them falls selects spheroid compaction versus a stable, perfusable architecture. This is consistent with our observation that compaction changes systematically with functional-phase fraction and granule softness (Section 3.2.1). Success is a composition phase diagram annotated with organ-comparison architectural descriptors, time-resolved flow fields, and Darcy permeability, delivering the bio-inks and design targets that parameterize Aims 2 and 3.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.1.2 Task 1a. Fabricate the microgel library and define the inert and functional phases",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The bio-ink library requires independent control of each granule variable, which no single fabrication route delivers at both precision and throughput. We produce poly(ethylene glycol)- and gelatin-based microgels two ways: microfluidic droplet generation for precise, narrow-dispersity size and shape, and batch emulsification with size fractionation for throughput, spanning 20 to 200 microns, spherical and superellipsoidal geometries, and single-granule stiffness from 0.1 to 20 kPa set by crosslinker concentration and measured granule by granule by microindentation [17, 54]. We define the two phases of the active material, a collagen-functionalized functional phase presenting integrin ligands for fibroblast traction and an enzymatically degradable inert phase (agarose granules digestible by agarase, a cell-safe enzyme) that provides a rearrangeable energy barrier and a post-assembly route to enlarge channels, then assemble them into jammed packings at controlled packing fraction and inert-to-functional ratio. We characterize each batch by bulk oscillatory and creep rheology to record the yield stress and transient rearrangement that set the barrier cells must overcome [18, 25], since granular mechanics follow the two-body contact deformations our single-granule stiffness and size knobs tune [26]. Deliverable (Year 1): a characterized bio-ink library with per-batch size, shape, stiffness, packing fraction, and ratio metadata.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.1.3 Task 1b. Quantify compaction and emergent architecture",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Terminal compaction versus composition is the first axis of the phase diagram, measured on the reorganized construct rather than the initial packing. We seed contractile fibroblasts into each bio-ink at controlled density and acquire confocal timelapse on a [Nikon AX-R] confocal microscope, using Cy5-labeled microbeads embedded in the granules to resolve granule positions over [7 to 14] days and measure bulk compaction versus inert-to-functional ratio, stiffness, size, and shape. Segmenting the reorganized void space, we quantify its architecture with a panel of complementary descriptors: pore-network structure (LOVAMAP, per-pore and global [23, 36]); channel length, diameter, tortuosity, and connectivity (cleared-organ vascular morphometrics [40]); pore-texture heterogeneity (fractal dimension and lacunarity [42]); and intercapillary spacing (Euclidean distance transform [39]). We place these on a common feature axis with native histology by registering the GELS constructs and matched histological sections with TissUUmaps, which computes tissue region descriptors and supplies the co-registration and overlay layer [37], so a construct compares like-for-like to its target organ. Because pore shape in a randomly packed system is a predictable function of granule shape, stiffness, and size, these descriptors connect composition to architecture rather than size alone [55]. Output: the architecture side of the phase diagram, a descriptor vector per bio-ink that defines the Aim 3 validation targets.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.1.4 Task 1c. Measure permeability and microchannel formation over time",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 6 placeholder: (left) timelapse strain field around a remodeling fibroblast with back-calculated granule stress overlaid against the measured jammed yield stress; (right) a DEM-simulated remodeled packing beside a confocal GELS construct, showing comparable microchannel-scale reorganization.]",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "A stable architecture is useful only if it perfuses, so the second axis of the phase diagram is the time-resolved transport capacity of each construct. By perfusing high-molecular-weight fluorescent dextran and imaging its motion by confocal timelapse, we map the interstitial flow field by particle image velocimetry (PIV) at successive timepoints, resolving where and when connected microchannels open as the fibroblasts rearrange the functional phase. From the measured volumetric flow rate Q and applied pressure drop we extract the Darcy permeability of the packing,",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "| | $$k\\ = \\ - (\\mu LQ)/(A\\ dP)$$ | Eq. 5.1 | |-----|---------------------------------|---------|",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "where k is the permeability, μ the perfusate viscosity, L and A the length and cross-sectional area of the construct, and dP the applied pressure drop [56]. **Tracking k and the PIV flow field across the library links granularity and composition to the onset, size, and stability of perfusable microchannels**, converting the qualitative observation that void networks carry perfusion into a quantitative composition-to-permeability map. Output: time-resolved flow-field and Darcy-permeability curves per bio-ink, co-registered with the Task 1b descriptors so each phase-diagram point carries both its structure and its transport signature.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.1.5 Potential problems and alternative approaches",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "If microfluidic droplet generation cannot produce enough material to fill the composition space, we can shift bulk production to batch emulsification with size fractionation (serial sieving or differential centrifugation), accepting broader dispersity for throughput while reserving the microfluidic route for the shape-controlled subsets. If confocal penetration is insufficient in dense, scattering packings, we can image on the core-facility two-photon microscopes, pair them with deep-infrared fluorophores (excitation near 760 nm), or optically clear fixed endpoint constructs to recover the full architectural-descriptor set. If the perfused dextran signal is too sparse or saturating to resolve the flow field, we can tune its molecular weight and concentration to each bio-ink’s channel scale and cross-check the derived permeability against the bulk Darcy measurement (Eq. 5.1), which does not depend on microbead seeding density.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.2 Aim 2: Adapt Traction Force Microscopy to Granular Media and Extract the Agent-Based Rules Governing Cell-Driven Rearrangement",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.2.1 Overview",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Cell-generated forces drive the rearrangement that sets GELS architecture, and this aim measures the competition that decides it: local strain, the deformation of individual granules, against global strain, the rearrangement of the packing. Local strain is set by each granule's material and geometry, which govern how cells bridge and grip it, and global strain by the composition of the bed. Measuring the two means separating them, superimposed in the motion of every granule, in 3D and granule by granule. Conventional traction force microscopy assumes a single continuous linear-elastic substrate and cannot make that separation. We resolve this by distributing micron-scale fluorescent fiducial beads throughout every granule, turning each granule into its own strain sensor at two simultaneous scales: the jammed-system scale, where the bead constellation reports how each granule translates and rotates as neighbors rearrange, and the single-granule scale, where relative bead motion within one granule reports the local surface deformation a cell imparts, converted to a local cellular stress through the single-granule stiffness measured by microindentation in Aim 1. We hypothesize that a fibroblast rearranges a granule only when the local stress it imparts exceeds the local yield stress of the jammed packing, so the two scales together define the balance between packing yield stress and cellular stress that selects channel architecture versus compaction [25, 34]. Acquiring both scales at once, over many granules and cells, builds maps of that balance across the library while characterizing the cell as an active agent: how granule stiffness changes its migration and force output, and how shape changes its contact area and its capacity to bridge. Our preliminary recovery of granule strain fields and back-calculated stress (Section 3.2.3) anchors feasibility.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.2.2 Task 2a. Adapt two-scale TFM to a granular environment",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "In a granular bed, cell force transmits through discrete frictional contacts between independently moving granules, so the deformation field must be reconstructed granule by granule rather than read as one continuous field. We seed fibroblasts into the fluorescently labeled Aim 1 bio-inks, whose granules carry fiducial beads throughout their volume, and acquire confocal timelapse volumes over 24 to 96 hours on the [Nikon AX-R] confocal, tracking every bead in three dimensions as the cell pulls on the packing. For each granule, we split the tracked bead motion into two parts: rigid-body motion and residual deformation. The rigid-body part, how the granule translates and rotates, gives the global strain, the packing's rearrangement, quantified as mean-squared displacement, neighbor-exchange, and rotation rates. The residual part, how the granule deforms in place, gives the local strain, which we invert to the surface stress the cell imparts, using microparticle-based traction reconstruction for beads in a deformable body [57] and a discrete-contact three-dimensional inversion of the full displacement field [58], taking the granule as linear-elastic at its Aim 1 microindentation stiffness. We anchor the expected force scale to the single-fibroblast budget of 11 to 41 nN (up to about 450 nN at the buckling upper bound) [30], and compare the recovered cellular stress against the Aim 1 rheological yield stress, testing whether cells clear the local yield threshold where rearrangement is observed and fall short where the packing compacts. Deliverable (Year 2): the first simultaneous two-scale traction measurement, jammed-system rearrangement and per-granule surface stress, in a 3D granular bed.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.2.3 Task 2b. Resolve how cells bridge granules to build an active-agent model",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "How a single fibroblast draws two non-contacting granules into contact, not merely whether it does, is the central unresolved question of GELS remodeling, and the event has not been imaged. We co-image fibroblast morphology (labeled actin and membrane) with granule positions at high magnification and high frame rate to watch bridges form and to time how fast they do, distinguishing candidate mechanisms: a cell that migrates between granules and reinforces contacts already made; a cell whose two leading edges random-walk apart until the stretched body triggers a stretch-activated pull that reels the granules together; a cell that stretches to its elastic limit, storing tension that draws the granules inward; and cells that stack by crawling over one another to span a wider void [35]. We run this across granule geometry and single-granule stiffness, concentrating on the size range that compacts most in Aim 1 because granule size gates whether a cell mobilizes or merely anchors a granule (mobilizing near 14 to 20 µm, anchoring near 38 to 85 µm) [59], and assemble the observed behaviors into a model of the cell as an active agent: the rules by which it grips, spans, stretches, and pulls. Deliverable (Year 2): the first direct imaging of bridge formation, its dynamics across granule geometry and stiffness, and a behavioral model of the cell as an active agent.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.2.4 Task 2c. Tune functionalization to program compaction independently of stiffness",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Stiffness is a conflicted design knob: raising it increases the force cells generate but also deepens the barrier that force must overcome (Aim 1), so a gel held to a stiffness requirement has no free handle left to tune its compaction. This task establishes a second, independent handle, the degree of functionalization. Because collagen ligand density controls fibroblast traction non-monotonically, with a sharp threshold near 160 molecules per micron squared [32], tuning the ligand density on a granule sets the force a cell can generate on it without changing the granule's stiffness or the packing's barrier. Holding single-granule stiffness fixed and sweeping per-granule functionalization across the library, we use the Task 2a traction measurement to map functionalization to the cell-force response and the resulting compaction, isolating functionalization as a lever that acts on the driving force alone. The product is a design rule: hit a target compaction at a required stiffness by setting functionalization, the one knob orthogonal to the stiffness and geometry that fix the barrier. Deliverable (Year 3): a functionalization-force-compaction rule that programs compaction at a prescribed stiffness, parameterizing Aim 3.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.2.5 Potential problems and alternative approaches",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "If contractility varies too much to test the yield-stress threshold, we can impose a controlled force with optogenetics, blebbistatin, or magnetic tweezers on embedded beads. If the inversion is hard to trust, we validate it against the PI's 2D traction force microscopy on matched-stiffness polyacrylamide [64, 65]. If bridging events are too rare or ambiguous, we seed sparsely and micropattern granule pairs to stage them. If functionalization does not decouple from the barrier, we verify stiffness and yield stress hold constant across the sweep.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.3 Aim 3: Synthesize a Predictive, Open-Source GELS-DEM Framework",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.3.1 Overview",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "To develop a predictive model based on the data and rules from Aims 1 and 2, we need to further develop our GELS-DEM simulation to integrate our findings and validate the software against large combinatorial Aim 1 datasets. The ultimate goal for this workflow is a simulation predictive of the emergent architecture from the initial distribution of bio-ink in the library. This aim delivers that goal by first extending our preliminary GELS-DEM framework [60], then reinforcing the rules that govern the cells as active agents with the Aim 2 force and bridging rules. To date, active-granular simulations have been validated mostly on 2D robotic swarms, BOBbots [49] and smarticles [50]; we extend the class to a 3D, biologically actuated system, where the active agent is a contractile fibroblast and the packing is imaged directly by confocal microscopy. We hypothesize that a simulation cross-validated against Aims 1 and 2 yields generalizable, dimensionless design rules, predicting the emergent construct from an initial bio-ink distribution. Success is a framework that reproduces the measured tissue architectural features, locates the compaction-to-architecture transition, and predicts held-out constructs within quantified accuracy, released open-source.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.3.2 Task 3a. Build and validate the soft-granule packing model",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Before adding cells, we build and validate the passive granular packing, the substrate whose energy barriers the cells must overcome. GELS granules break the assumptions of standard discrete element method (DEM), being soft rather than rigid, superellipsoidal rather than spherical, and collagen-bonded rather than merely frictional, so we extend the base Cundall-Strack DEM [43] with a deformable-particle variant [46] for single-granule compliance, a level-set geometry [45] for the superellipsoidal shapes measured in Aim 1, and cohesive, tension-bearing, hysteretically dissipating, rupturing contacts [44] for the collagen bonds. We fix the contact stiffness, friction, and adhesion at a few reference compositions, then validate the software against the large combinatorial Aim 1 dataset, requiring the model to reproduce, without refitting, the measured packing yield stress and confocal rearrangement statistics (mean-squared displacement, neighbor-exchange rates, van Hove distributions) across the full 0.1 to 20 kPa stiffness, 20 to 200 µm size, shape, and functionalized-to-degradable ratio library [25, 26]. Deliverable (Year 3): a granular model that reproduces the Aim 1 yield stress and rearrangement statistics across the combinatorial library, with reported error bounds.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.3.3 Task 3b. Couple active contractile cell agents and validate against Aim 2",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "We then couple active contractile cell agents to the calibrated packing, reinforcing the rules that govern how each cell acts on the granular frame with the Aim 2 force and bridging measurements: each agent attaches to granule contacts, contracts, migrates along paths of least resistance, and either bridges non-contacting granules or reinforces existing contacts, generating traction through the stochastic motor-clutch mechanism of Chan and Odde [47], which gives oscillatory load-and-fail dynamics on stiff contacts and frictional slip on soft ones across the 0.1 to 20 kPa range, resolved onto the discrete rearranging network in the lineage of Reinhardt and Gooch [48]. With the rules fixed, we let architecture self-organize and validate against the combinatorial Aim 2 dataset without refitting, requiring the model to reproduce the per-granule force distribution (traction magnitudes and directions) and the remodeling outcomes (perfusable channel formation versus spheroid compaction), and to place the compaction-to-architecture transition in the measured coordinates rather than fitting a single condition. Deliverable (Year 4): a validated coupled GELS-DEM that predicts remodeling trajectories and endpoints across cell force, cell density, functionalized-to-degradable ratio, and packing fraction.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.3.4 Task 3c. Extract dimensionless design rules and predict architecture",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "With the coupled model validated, we extract dimensionless design rules and turn them into predictions of emergent architecture from an initial bio-ink distribution. Sweeping single-granule stiffness, size, shape, friction, packing fraction, functionalized-to-degradable ratio, and cell force and density, we collapse the emergent architecture onto dimensionless groups, chiefly the ratio of cell traction to granule yield or barrier height (whether cells overcome the jamming barrier), extending the groups already in our preliminary GELS-DEM [60]. We pair this force ratio with a shape and contact-area group (point contact between spheres versus the larger face contact of superellipsoidal and cuboidal grains) that sets the traction transmitted per granule, and treat a ratio of cell migration speed to landscape relaxation rate as a tentative third group, testing whether the two timescales are even comparable against the Aim 1 rearrangement statistics. We express the validated groups as design rules predicting the architectural features that matter, channel size, void fraction, and perfusability by the LOVAMAP void-network descriptors [23], and test their generality by predicting, without refitting, constructs for cell types, chemistries, and packing conditions held out of training [5]. Deliverable (Year 5): the open-source GELS-DEM design tool, with documentation and calibrated parameter sets, so a user specifies a target architecture and recovers the bio-ink recipe that produces it.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "5.3.5 Potential problems and alternative approaches",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "If resolved discrete element sweeps across tens of thousands of soft microgels plus cell agents are too costly to extract well-resolved dimensionless groups, we can coarse-grain the packing with mean-field contact approximations calibrated against fully resolved runs, and train machine-learning surrogate models on the resolved simulations, an approach that also anchors the model-building-and-validation pedagogy in the education plan. If wall-clock time remains the bottleneck, we can port the contact solver to GPU using the University of Arizona High Performance Computing core facility, where even partial coverage with quantified accuracy remains valuable. If the calibrated contact law cannot reproduce a specific observation, most plausibly the single-microgel pull-off and granule-granule rupture force, we can close the gap with a targeted Aim 1 micromechanics measurement rather than fitting an unconstrained parameter.",
+      "attrs": {}
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 5. A) Granules are fabricated by microfluidics and homogenization, then surface-functionalized with collagen via EDC-NHS coupling. B) Combining granules yields bio-inks with distinct energy barriers.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig5",
+       "alt": "Attach GELS Figures/image5.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 6. High-molecular-weight PE-dextran tracers enable time-series PIV of streamlines and velocity fields within GELS microchannels.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig6",
+       "alt": "Attach GELS Figures/image6.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 7. a) Inert and functional granules organize into b) dense packings with cellular bridges, yielding c) compaction (blue)/dilation (red) maps. d) Isolated granules with e) embedded microbeads are tracked for displacement, then f) converted to strain and cell stress.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig7",
+       "alt": "Attach GELS Figures/image7.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 8. Our GELS-DEM simulation needs better modeling of cell-granule tractions. A) The cell-bridge force follows a motor-clutch model B) dependent on hydrogel stiffness. C) A second challenge is simultaneous soft/stiff contacts, where D) contact area grows on softer granules, permitting more bridges — a combination difficult to model.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig8",
+       "alt": "Attach GELS Figures/image8.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Education Plan",
+    "children": [
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "6.1 Education Objectives",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Advanced engineering fundamentals such as granular mechanics, non-Newtonian flow, jamming, and cell-material interaction are taught as static equations, so students rarely build intuition for how changing a physical parameter reshapes a living material, or practice checking a computational result against data. I teach the fundamentals underlying the lab’s research through interactive learning modules on the lab website (www.mcgheelab.com), each pairing a reading that develops a concept with a simulation that challenges the student to apply it and build intuition. Existing modules span solid mechanics, heat transfer, optics, surface functionalization, and hydrogel synthesis, and I will add a granular-materials progression in three steps: non-Newtonian materials and their engineering applications, 3D bioprinting built on those materials, and the active-material concepts governing cell-driven remodeling in GELS. By building each module against real research data and iterating with user feedback, I produce a growing, openly accessible library of research-validated simulations rather than a one-time set of lessons.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "This pipeline is live now. I engage roughly 20 Arizona high-school teachers who teach ENG 102, an engineering career-preparation course, assigning modules and tracking student progress through our website, a first-trial-year workflow whose feedback will sharpen the modules. University of Arizona hosts a summer workshop for teachers to gather and share course content amongst each other, this program is 17 years old this year, and I have joined this coalition to provide access and teaching instruction for the use of these modules. Each module moves through a staged vetting path: undergraduates in my lab vet it first, then I use it them to introduce new concepts in my undergraduate biomechanics courses (BME 210, introductory, and BME 466/566, advanced), then local high-school students, and once teachers locally vet it we plan national exposure, all hosted free on the mcgheelab website. Because the same content carries multiple levels of physical information in a rich simulation, any module lands differently for students at various levels of knowledge, letting a single library reach every audience while lowering the barrier to research-grade science.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "6.2 Relationship between the proposed objectives and the PI’s career goals",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The proposed CAREER objectives align closely with my goals as a researcher and an educator. The research program builds a predictive, mechanism-based framework for cell-driven remodeling in granular microgel matrices, the foundation of my long-term goal of making the self-assembly of living materials a designable engineering discipline rather than an empirical craft. Its method, building a discrete-element model of GELS and validating it against traction, rearrangement, and transport data, is the same build-and-validate discipline at the center of my teaching, so the research directly supplies the content, code, and raw data of the education plan. The education objectives advance my parallel goal of training engineers who reason rigorously at the interface of computation, experiment, and biology, through the activities described below: an openly accessible library of research-validated simulation modules, a research-integrated undergraduate biomechanics course (EO 1), a graduate course and training program in the mechanics of living materials built on GELS-DEM (EO 2), and dissemination through a coalition of southern-Arizona teachers who already reach a wide range of learners.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "This commitment to openly accessible, simulation-first materials is personal. I entered engineering as a community-college transfer student and advanced to a tenure-track faculty position, and the resources that mattered most along that path were free, self-paced, and did not assume years of preparation. So I build the materials that would have helped me then, open to any interested student and distributed through teachers who already reach a wide range of learners across southern Arizona.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "6.3 Integration of Research and Teaching",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Engineering students in this generation will meet AI tools throughout their careers. Where the human standard is “trust but verify,” the AI standard, in my view, inverts to “verify then trust,” so the skill that defines the next generation is judging whether a model or an answer is correct. I bring these tools into the classroom early, so students engage with products poised to reshape the engineering toolkit and learn their edges firsthand: the tools are excellent on deterministic problems, those with a single defensible answer, but as I widen the decision space they lead students down a complexity rabbit hole, where the solution grows impractical and yields little insight. Guiding students to recognize that boundary, and to test an answer rather than accept it, is the skill I build. This mirrors the research program, which alternates between building a discrete-element model of cell-driven granular remodeling and testing it against traction, rearrangement, and transport data: a model earns trust only after it survives the data, never because it produced a result. As we assemble robust data libraries and mature the simulation engine, we will open both to students so they can observe, build a model, and test it themselves.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "6.3.1 EO 1. Enhance an undergraduate biomechanics course with research-integrated simulation modules",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "My undergraduate biomechanics courses introduce granular mechanics, jamming, and cell-material interaction through the study of blood flow, presented as simple first-order differential equations to keep the lessons tractable. Taught this way, students build mathematical intuition but not physical intuition: they never get to change a parameter, the packing fraction or the granule stiffness, and watch the living material reshape in response. I close that gap by integrating the lab's simulation modules into these courses (BME 210, introductory, and BME 466/566, advanced; enrollment roughly 60 each). In hands-on activities drawn from this research program, students set microgel size, shape, stiffness, and packing fraction and watch how compaction and channel formation respond. The videos are absorbing enough to have entranced me, and that pull draws students to dive deeper on their own. After each activity, students work back to the mathematics that explains what they saw: at the introductory level, setting up a statics problem for the forces on a single granule; at the advanced level, balancing cellular traction against the Herschel-Bulkley yield stress to reason about cell tractions in 3D. The loop runs both ways: research findings become course content, while student parameter exploration flags regimes worth studying experimentally. I will assess learning gains with pre- and post-activity concept rubrics and refine the modules each offering.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "6.3.2 EO 2. Develop a graduate course and training program in the mechanics of living materials",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Graduate training in living materials rarely asks students to build and validate the computational tools they use, leaving them able to run a simulation but unable to judge its assumptions or extend it. I developed a graduate course in the mechanics of living materials ([working title]; first offered S26 and well received) that moves through modeling, simulation, and experimentation in sequence: students build mean-field models, apply them in continuum numerical simulation, move to discrete simulation with the discrete element method (DEM), learn validation under uncertainty, and finally design experiments that test the models. I will rebuild the course around GELS-DEM [60] and open the lab’s raw experiment library to the class, so students run the full model-to-data workflow on this proposal’s results as if they had collected the data themselves. Early in the term, students explore that dataset, make observations, and pose a question of their own; by mid-term, they build a modeling and simulation framework to answer it, coding the granular contacts and cell-material interaction themselves and checking every output against analytical limits and the data. This serves both sides: students practice authentic build-and-validate research, and the lab gains fresh eyes on its data each semester, surfacing questions we may have missed. When a question proves compelling, the student is invited to pursue it fully, including designing experiments on our platform. The course’s outputs, open modules, code, and datasets released through the mcgheelab website and a public repository, become the teaching artifacts that reach the undergraduate and high-school audiences.",
+      "attrs": {}
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 9. Anatomy of an interactive lesson. A concept scaffold builds from fundamentals to advanced ideas; then 1) learn the math to set expectations and 2) build intuition via interactive simulations.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig9",
+       "alt": "Attach GELS Figures/image9.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Integration of Research, Teaching, Outreach, and Service",
+    "children": [
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "7.1 Integration overview and current commitments",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Research, teaching, and outreach run as a single reinforcing loop rather than three parallel efforts. The Aim 1 and 2 energy-landscape and remodeling results become the physical content of the simulation modules, so every parameter a student adjusts maps onto a measured GELS behavior, and the GELS-DEM engine that drives Aim 3 is the same engine, stripped of runtime cost, that powers the classroom and outreach modules (EO 3). Graduate students build and maintain the modules and analysis pipelines as thesis training, and both graduate and undergraduate researchers staff the summer programs and educator workshop (EO 4); the high-school students who design a bioprint in BME 295C or the Summer Engineering Academy are the community-college-transfer and first-generation applicants who later fabricate microgels and run the Aim 1 library, closing the loop from outreach to recruitment to research to new teaching content.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[Placeholder: PI current mentoring, outreach, and service with specific numbers and outcomes, including graduate and undergraduate students mentored, department and university service, professional-society activity, and existing K-12 and community-college outreach commitments.]",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[Figure placeholder: flow diagram of research aims, education outcomes, and outreach activities, with labeled arrows for the flow of content, data, materials, and personnel between activities.]",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "7.2 Integration of research and outreach activities",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "7.2.1 EO 3. Expose K-12 and undergraduate students to cutting-edge research (statewide simulation coalition plus remote bioprinting)",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Cutting-edge active-matter and granular-physics research rarely reaches high-school and early-undergraduate students, because the concepts sit behind graduate-level simulation tools and specialized wet-lab hardware, leaving southern-Arizona and first-generation students little exposure before they choose a major. My lab builds interactive, simulation-based lessons on granular materials, active matter, and cell-driven self-assembly and disseminates them through the statewide coalition of roughly 20 Arizona high-school teachers who teach the “Engineering 102” (ENG 102) career-preparation course, each lesson running on a lightweight GELS-DEM engine so students manipulate the same variables we study in Aims 1 through 3 and watch emergent architecture form in real time; teachers report where students get stuck and I iterate, treating the coalition as a distributed classroom-testing network. A dedicated 3D-bioprinting module carries this from simulation to physical tissue: students design a print with the lightweight GELS-DEM during BME 295C, a week-long summer program I host, and during the Summer Engineering Academy (SEA), and my lab realizes their designs remotely with our GELS bio-inks while students watch the print live by remote desktop or visit for an in-person session, connecting an abstract energy-landscape lesson to a tangible construct and a research career. Anticipated reach, stated as targets for confirmation, spans roughly 20 teachers across [8 to 12] southern-Arizona districts including [rural] schools, [30 to 50] students per BME 295C cohort, [20 to 40] SEA participants per year, and [4 to 6] modules by Year 5, all open to all students and framed only by geography and first-generation and community-college-transfer status, consistent with my own community-college-transfer path.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "7.2.2 EO 4. Organize and lead a community-building activity",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The coalition needs a recurring venue to learn new modules, practice the bioprinting workflow, and shape the tools they deploy, which a scattered email-and-download model cannot provide. I will organize and lead an annual summer educator workshop [name and cadence to confirm] that trains the coalition on the current modules and remote-bioprinting workflow, builds a durable community of practice, and gathers structured feedback (pre/post surveys and facilitated debriefs) directing the next year of revisions, doubling as a workforce-development pipeline and the primary data-collection point for the EO 3 assessment.",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "7.3 Global dissemination of research and education outcomes",
+      "attrs": {
+       "level": 2
+      }
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "7.3.1 EO 5. Maintain and disseminate open resources",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Granular-biomaterial research is fragmented across labs that each rebuild simulation and image-analysis tooling from scratch, slowing reproduction and reuse. We will release, under an open license, the GELS-DEM code, the confocal particle-tracking and particle image velocimetry (PIV) analysis pipelines from Aims 1 and 2, and the educational modules and datasets, on GitHub and the mcgheelab website with documentation and worked examples so other groups can apply the design rules to their own granular systems and adopt the modules. To sustain the resources beyond the award, we assign named graduate-student maintainers with documented handoff, renew that maintainer pool each year through the graduate course (EO 2), whose students build and extend the modules as training, and secure long-term hosting through [institutional GitHub organization and university-supported web hosting to confirm].",
+      "attrs": {}
+     },
+     {
+      "kind": "subheading",
+      "status": "draft",
+      "skeleton": "",
+      "body": "7.3.2 EO 6. Professional service and community leadership",
+      "attrs": {
+       "level": 3
+      }
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The granular-biomaterials and active-matter communities lack a dedicated venue that couples the physics, the measurement, and the tissue-engineering applications addressed here. I am positioned to build one: I serve as co-chair of the Society for Experimental Mechanics (SEM) Biological Systems and Materials track, and next year I begin a two-year term as its chair, where I will bring experts in granular mechanics to keynote and seed exactly this cross-disciplinary exchange. Beyond SEM, and consistent with the Section 1 dissemination plan, I will organize sessions and disseminate CAREER outcomes across the mechanics and physics communities, at the Society of Engineering Science (SES), the National Congress on Theoretical and Applied Mechanics (NCTAM), and the American Physical Society (APS), including [proposing and chairing a symposium on cell-driven granular remodeling, cadence to confirm]. Through these roles I share the results, seat the design rules before the groups most able to extend them, and mentor early-career researchers entering the field.",
+      "attrs": {}
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 10. Our education plan lowers barriers to advanced engineering concepts through interactive modules built with high-school ENG 102 (engineering-prep) teachers.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig10",
+       "alt": "Attach GELS Figures/image10.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Assessment and Evaluation",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "I will conduct an annual self-assessment of every education outcome against the Section 10 milestones, comparing measured metrics to the targets above, documenting shortfalls, and revising modules, recruitment, and workshop content before the next cycle. [Recommended: name an external evaluator to verify the instruments and report annually; confirm evaluator and cadence in the final draft.]",
+      "attrs": {}
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Broader Impacts",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Drug development still fails late and expensively because in vitro models cannot reproduce the perfusable, transport-capable architecture of living tissue, so patient response, dosing, and safety remain hard to predict before a compound reaches animals or people. This deficiency now carries regulatory as well as scientific weight, since the FDA Modernization Act 2.0 (Section 2) sharpens demand for faithful, transport-capable in vitro tissue while current organ-on-chip and organoid platforms cannot yet deliver physiologically faithful architecture at the throughput drug screening requires [61, 62, 63]. By reframing the cell-laden granular matrix as a designable energy landscape and delivering rules that map material parameters to emergent architecture, this project supplies the missing design layer, enabling rationally specified GELS constructs for high-throughput drug screening, patient-specific tumor microenvironment and organ models built with patient-derived tissue under correct perfusion and signaling gradients, and design of granular scaffolds for wound repair. These application pathways rest on four concrete deliverables released to the community: a library of active-material bio-inks mapped to quantitative tissue architectural descriptors across shape factor, functionalization, and phase ratio; the first 3D traction-force measurement of cell-driven granular rearrangement; generalizable, dimensionless design rules that let other groups select microgel properties for a target architecture without trial-and-error optimization; and an open-source GELS-DEM simulation framework that other labs can adapt as a design tool for 3D bioprinting and granular-ink classification.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The project develops an engineering workforce fluent across mechanics, materials, biology, and computation, training graduate and undergraduate students to build, characterize, and simulate active granular tissues rather than specialize in a single discipline. Broadening participation is anchored in my own community-college-transfer-to-tenure-track path and open to any interested student: a statewide coalition of roughly 20 “Engineering 102” high-school teachers assigns and tracks the interactive teach-through-simulation modules, now including the granular-materials and GELS-DEM lessons, and week-long summer bioprinting programs (BME 295C and the Summer Engineering Academy) bring first-generation and rural southern-Arizona students into hands-on design of GELS constructs realized remotely in my lab. By hosting all materials, datasets, code, and the GELS-DEM framework open-source and free on mcgheelab.com, we lower the barrier to entry for students and teachers across the state and beyond. These activities are assessed through the instruments and outcome tracking defined in Section 8.",
+      "attrs": {}
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Timetable",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "<table style=\"width:100%;\"> <colgroup> <col style=\"width: 14%\" /> <col style=\"width: 45%\" /> <col style=\"width: 8%\" /> <col style=\"width: 8%\" /> <col style=\"width: 0%\" /> <col style=\"width: 5%\" /> <col style=\"width: 1%\" /> <col style=\"width: 4%\" /> <col style=\"width: 3%\" /> <col style=\"width: 2%\" /> <col style=\"width: 5%\" /> </colgroup> <thead> <tr> <th>Category</th> <th>Activity</th> <th colspan=\"3\" style=\"text-align: center;\">Y1</th> <th style=\"text-align: center;\">Y2</th> <th colspan=\"2\" style=\"text-align: center;\">Y3</th> <th colspan=\"2\" style=\"text-align: center;\">Y4</th> <th style=\"text-align: center;\">Y5</th> </tr> </thead> <tbody> <tr> <td>Aim 1</td> <td>1a) Fabricate bio-ink library</td> <td style=\"text-align: center;\">X</td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\"></td> <td colspan=\"2\"></td> <td colspan=\"2\"></td> </tr> <tr> <td>Aim 1</td> <td>1b) Map compaction and architecture</td> <td style=\"text-align: center;\">X</td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\"></td> <td colspan=\"2\"></td> <td colspan=\"2\"></td> </tr> <tr> <td>Aim 1</td> <td>1c) Permeability and PIV flow fields</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\"></td> <td colspan=\"2\"></td> </tr> <tr> <td>Aim 2</td> <td>2a) Adapt TFM to granular media</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\"></td> <td colspan=\"2\"></td> </tr> <tr> <td>Aim 2</td> <td>2b) Remodeling trajectories, contact forces</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\"></td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\"></td> </tr> <tr> <td>Aim 2</td> <td>2c) Bridging mechanism, cell-force rules</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\"></td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\"></td> </tr> <tr> <td>Aim 3</td> <td>3a) DEM of the energy landscape</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\"></td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\"></td> </tr> <tr> <td>Aim 3</td> <td>3b) Coupled cell-granular simulation</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\"></td> <td colspan=\"3\"></td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> <tr> <td>Aim 3</td> <td>3c) Design-rule extraction</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\"></td> <td colspan=\"3\"></td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> <tr> <td>Education</td> <td>EO 1) Undergraduate biomechanics modules</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> <tr> <td>Education</td> <td>EO 2) GELS-DEM graduate course</td> <td style=\"text-align: center;\">X</td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> <tr> <td>Education</td> <td>EO 3) ENG-102 coalition, remote bioprinting</td> <td style=\"text-align: center;\">X</td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> <tr> <td>Education</td> <td>EO 4) Annual educator workshop</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> <tr> <td>Education</td> <td>EO 5) Open-source code and dataset release</td> <td style=\"text-align: center;\"></td> <td style=\"text-align: center;\"></td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> <tr> <td>Education</td> <td>EO 6) Professional service</td> <td style=\"text-align: center;\">X</td> <td style=\"text-align: center;\">X</td> <td colspan=\"3\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> <td colspan=\"2\" style=\"text-align: center;\">X</td> </tr> </tbody> </table>",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The bio-ink library (Task 1a) gates every downstream measurement, so fabrication and the compaction-to-architecture mapping front-load Years 1 to 2, with permeability (Task 1c) following once channels form. Aim 2 depends on those inks and the adapted traction force microscopy (Task 2a) before bridging and cell-force rules are resolved (Years 3 to 4). Simulation launches only once experiments constrain it: Task 3a in Year 3 against Aim 1, Task 3b in Year 4 once Aim 2 supplies the force rules, and design-rule extraction (Task 3c) in Years 4 to 5. Education runs continuously, with the graduate course (EO 2) and ENG-102 coalition (EO 3) from Year 1, the undergraduate modules (EO 1) and educator workshop (EO 4) from Year 2, and the open-source release (EO 5) from Year 3.",
+      "attrs": {}
+     },
+     {
+      "kind": "figure",
+      "status": "draft",
+      "skeleton": "",
+      "body": "Figure 11. Timetable for the completion of this project. Aim 1 is projected to be completed first as many design decisions develop from experimental data. Aim 2 and 3 begin concurrently. All EOs span the award.",
+      "attrs": {
+       "storage_path": "",
+       "download_url": "",
+       "hash": "",
+       "mime": "",
+       "width": "\\linewidth",
+       "placement": "H",
+       "centering": true,
+       "label": "fig11",
+       "alt": "Attach GELS Figures/image11.jpg",
+       "numbered": true,
+       "subfigures": [],
+       "anchor": "flow",
+       "span": "column",
+       "lock": false,
+       "size_key": "single"
+      }
+     }
+    ]
+   },
+   {
+    "kind": "custom",
+    "label": "Results from Prior NSF Support",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "The PI has not received prior NSF support.",
+      "attrs": {}
+     }
+    ]
+   },
+   {
+    "kind": "references",
+    "label": "References Cited",
+    "children": [
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[1] Vaziri MS, et al. Granular Hydrogels as Modular Biomaterials: From Structural Design to Biological Responses. *Advanced Healthcare Materials* 2025. https://doi.org/10.1002/adhm.202502462",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[2] Atkins DJ, Rosas JM, Månsson LK, Shahverdi N, Dey SS, Pitenis AA. Survival-associated cellular response maintained in pancreatic ductal adenocarcinoma (PDAC) switched between soft and stiff 3D microgel culture. *ACS Biomaterials Science & Engineering* 2024;10(4):2177-2187. https://doi.org/10.1021/acsbiomaterials.3c01079",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[3] Månsson LK, Warsaw AE, Wilbanks EG, Pitenis AA. Multiscale mechanics of granular biofilms. *Tribology Letters* 2025. https://doi.org/10.1007/s11249-025-02101-0",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[4] Feng S, Chen K, Wang S. Practical Guide to the Design of Granular Hydrogels for Customizing Complex Cellular Microenvironments. *Advanced Healthcare Materials* 2025. https://doi.org/10.1002/adhm.202501947",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[5] Tuftee C, Alsberg E, Ozbolat IT, Rizwan M. Emerging granular hydrogel bioinks to improve biological function in bioprinted constructs. *Trends in Biotechnology* 2024. https://doi.org/10.1016/j.tibtech.2023.09.007",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[6] Griffin DR, Archang MM, Kuan C-H, et al. (Scumpia PO, Di Carlo D, senior). Activating an adaptive immune response from a hydrogel scaffold imparts regenerative wound healing. *Nature Materials* 2020. https://doi.org/10.1038/s41563-020-00844-w",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[7] Koutsiaris AG, Tachmitzi SV, Batis N, et al. Volume flow and wall shear stress quantification in the human conjunctival capillaries and post-capillary venules in vivo. *Biorheology* 2007. PMID 18401076.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[8] Shi Z-D, Tarbell JM. Fluid Flow Mechanotransduction in Vascular Smooth Muscle Cells and Fibroblasts. *Annals of Biomedical Engineering* 2011. PMC3184546.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[9] Farris AL, Rindone AN, Grayson WL. Oxygen Delivering Biomaterials for Tissue Engineering. *Journal of Materials Chemistry B* 2016. https://doi.org/10.1039/C5TB02635K",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[10] FDA Modernization Act 2.0 (2022), enacted within the Consolidated Appropriations Act, 2023, Pub. L. No. 117-328. Federal legislation (no DOI). (Verify citation form.)",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[11] Hinton TJ, Jallerat Q, Palchesko RN, Park JH, Grodzicki MS, Shue HJ, et al. Three-dimensional printing of complex biological structures by freeform reversible embedding of suspended hydrogels. *Science Advances* 2015. https://doi.org/10.1126/sciadv.1500758",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[12] Bhattacharjee T, Zehnder SM, Rowe KG, Jain S, Nixon RM, Sawyer WG, et al. Writing in the granular gel medium. *Science Advances* 2015. https://doi.org/10.1126/sciadv.1500655",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[13] Lee A, Hudson AR, Shiwarski DJ, Tashman JW, Hinton TJ, Yerneni S, et al. 3D bioprinting of collagen to rebuild components of the human heart. *Science* 2019. https://doi.org/10.1126/science.aav9051",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[14] Bhattacharjee T, et al. Liquid-like solids support cells in 3D. *ACS Biomaterials Science & Engineering* 2016.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[15] Angelini TE, Hannezo E, Trepat X, Marquez M, Fredberg JJ, Weitz DA. Glass-like dynamics of collective cell migration. *Proceedings of the National Academy of Sciences* 2011. https://doi.org/10.1073/pnas.1010059108",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[16] Nguyen DT, Pedro DI, Pepe A, et al. (Sumerlin BS, Sawyer WG, senior). Bioconjugation of COL1 protein on liquid-like solid surfaces to study tumor invasion dynamics. *Biointerphases* 2023. https://doi.org/10.1116/6.0002083",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[17] Daly AC, Riley L, Segura T, Burdick JA. Hydrogel microparticles for biomedical applications. *Nature Reviews Materials* 2019. https://doi.org/10.1038/s41578-019-0148-6",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[18] Qazi TH, Muir VG, Burdick JA. Methods to Characterize Granular Hydrogel Rheological Properties, Porosity, and Cell Invasion. *ACS Biomaterials Science & Engineering* 2022. https://doi.org/10.1021/acsbiomaterials.1c01440",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[19] Qazi TH, Wu J, Muir VG, Weintraub S, Gullbrand SE, Lee D, et al. Anisotropic Rod‐Shaped Particles Influence Injectable Granular Hydrogel Properties and Cell Invasion. *Advanced Materials* 2022. https://doi.org/10.1002/adma.202109194",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[20] Stornello DE, Kim J, Chen Z, Heaton K, Qazi TH. Controlling Microparticle Aspect Ratio via Photolithography for Injectable Granular Hydrogel Formation and Cell Delivery. *ACS Biomaterials Science & Engineering* 2025. https://doi.org/10.1021/acsbiomaterials.4c02102",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[21] Rodriguez-Rivera GJ, Sharma S, Maduka CV, et al. (Segura T, Issadore D, Burdick JA, senior). Microgel Aspect Ratio Influences Injectable Granular Hydrogel Scaffold Pore Structure and Cellular Invasion for Tissue Repair. *Advanced Science* 2025. https://doi.org/10.1002/advs.202511513",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[22] Griffin DR, Weaver WM, Scumpia PO, Di Carlo D, Segura T. Accelerated wound healing by injectable microporous gel scaffolds assembled from annealed building blocks. *Nature Materials* 2015. https://doi.org/10.1038/nmat4294",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[23] Riley L, Cheng P, Segura T. Identification and analysis of 3D pores in packed particulate materials. *Nature Computational Science* 2023. https://doi.org/10.1038/s43588-023-00551-x",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[24] Brunel LG, Long CM, Christakopoulos F, et al. (Heilshorn SC, senior). Embedded 3D Bioprinting of Collagen Inks into Microgel Baths to Control Hydrogel Microstructure and Cell Spreading. *Advanced Healthcare Materials* 2024. https://doi.org/10.1002/adhm.202303325",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[25] Thompson GB, Lee J, Kamani KM, Flores-Velasco N, Rogers SA, Harley BAC. Granular Hydrogels as Brittle Yield Stress Fluids. *Advanced Materials* 2025. https://doi.org/10.1002/adma.202503635",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[26] Emiroglu DB, Bekcic A, Dranseike D, Zhang X, Zambelli T, deMello AJ, Tibbitt MW. Building block properties govern granular hydrogel mechanics through contact deformations. *Science Advances* 2022. https://doi.org/10.1126/sciadv.add8570",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[27] Darling NJ, Xi W, Sideris E, Anderson AR, Pong C, Carmichael ST, Segura T. Click by Click Microporous Annealed Particle (MAP) Scaffolds. *Advanced Healthcare Materials* 2020. https://doi.org/10.1002/adhm.201901391",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[28] Anderson AR, Segura T. Particle fraction is a bioactive cue in granular scaffolds. *Acta Biomaterialia* 2022. https://doi.org/10.1016/j.actbio.2022.07.032",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[29] Caprio et al. Programmed shape transformations in cell-laden granular composites. *Science Advances* 2025. https://doi.org/10.1126/sciadv.adq5011",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[30] Harley BA, Freyman TM, Wong MQ, Gibson LJ. A New Technique for Calculating Individual Dermal Fibroblast Contractile Forces Generated within Collagen-GAG Scaffolds. *Biophysical Journal* 2007. https://doi.org/10.1529/biophysj.106.095471",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[31] Marinkovic A, Mih JD, Park JA, Liu F, Tschumperlin DJ. Improved throughput traction microscopy reveals pivotal role for matrix stiffness in fibroblast contractility and TGF-β responsiveness. *American Journal of Physiology - Lung Cellular and Molecular Physiology* 2012. https://doi.org/10.1152/ajplung.00108.2012",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[32] Gaudet C, Marganski WA, Kim S, Brown CT, Gunderia V, Dembo M, Wong JY. Influence of Type I Collagen Surface Density on Fibroblast Spreading, Motility, and Contractility. *Biophysical Journal* 2003. https://doi.org/10.1016/S0006-3495(03)74752-3",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[33] Leijnse N, Oddershede LB, Bendix PM. Helical buckling of actin inside filopodia generates traction. *Proceedings of the National Academy of Sciences* 2015. https://doi.org/10.1073/pnas.1411761112",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[34] Morley CD, Tordoff J, O’Bryan CS, Weiss R, Angelini TE. 3D aggregation of cells in packed microgel media. *Soft Matter* 2020. https://doi.org/10.1039/d0sm00517g",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[35] Ataie Z, Kheirabadi S, Li C, Risbud A, Sebastian A, Albert I, Zhang S, Sheikhi A. Cellular Snowballing: Cell Adhesion and Migration Drive the Self-Assembly of Cell-Microgel Biohybrid Spheroids. *Advanced Science* 2026. https://doi.org/10.1002/advs.202511302",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[36] Riley L, et al. (Segura T). Void-space descriptor taxonomy for packed particulate materials (LOVAMAP descriptors). *Particle & Particle Systems Characterization*. https://doi.org/10.1002/ppsc.202500163",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[37] Pielawski N, Andersson A, Avenel C, Behanova A, Chelebian E, Klemm A, Nysjö F, Solorzano L, Wählby C. TissUUmaps 3: Improvements in interactive visualization, exploration, and quality assessment of large-scale spatial omics data. *Heliyon* 2023. https://doi.org/10.1016/j.heliyon.2023.e15306",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[38] Callewaert B, Gsell W, Himmelreich U, Jones EAV. Q-VAT: Quantitative Vascular Analysis Tool. *Frontiers in Cardiovascular Medicine* 2023. https://doi.org/10.3389/fcvm.2023.1147462",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[39] Liu K, Guo Y, You Q, Hormel T, Hwang TS, Jia Y. Normative intercapillary distance and vessel density data in the temporal retina assessed by wide-field spectral-domain OCT angiography. *Experimental Biology and Medicine* 2021. https://doi.org/10.1177/15353702211036704",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[40] Nicolas N, Dinet V, Roux E. 3D imaging and morphometric descriptors of vascular networks on optically cleared organs. *iScience* 2023. https://doi.org/10.1016/j.isci.2023.108007",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[41] Takahashi K, et al. An analysis modality for vascular structures combining tissue-clearing technology and topological data analysis. *Nature Communications* 2022. https://doi.org/10.1038/s41467-022-32848-2",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[42] Popovic N, Radunovic M, Badnjar J, Popovic T. Fractal dimension and lacunarity analysis of retinal microvascular morphology in hypertension and diabetes. *Microvascular Research* 2018. https://doi.org/10.1016/j.mvr.2018.02.006",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[43] Cundall PA, Strack ODL. A discrete numerical model for granular assemblies. *Géotechnique* 1979. https://doi.org/10.1680/geot.1979.29.1.47",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[44] Luding S. Cohesive, frictional powders: contact models for tension. *Granular Matter* 2008. https://doi.org/10.1007/s10035-008-0099-x",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[45] Kawamoto R, Andò E, Viggiani G, Andrade JE. Level set discrete element method for three-dimensional computations with triaxial case study. *Journal of the Mechanics and Physics of Solids* 2016. https://doi.org/10.1016/j.jmps.2016.02.021",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[46] Henzel, Karapiperis K. [Variational level-set DEM for deformable particles.] arXiv:2602.12895, 2026.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[47] Chan CE, Odde DJ. Traction dynamics of filopodia on compliant substrates. *Science* 2008. https://doi.org/10.1126/science.1163595.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[48] Reinhardt JW, Gooch KJ. An agent-based discrete collagen fiber network model of dynamic traction force-induced remodeling. *Journal of Biomechanical Engineering* 2018. https://doi.org/10.1115/1.4037947",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[49] Li S, Dutta B, Cannon S, Daymude JJ, Avinery R, Aydin E, Richa AW, Goldman DI, Randall D. Programming active cohesive granular matter with mechanically induced phase changes. *Science Advances* 2021. https://doi.org/10.1126/sciadv.abe8494",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[50] Savoie W, Berrueta TA, Jackson Z, Pervan A, Warkentin R, Li S, Murphey TD, Wiesenfeld K, Goldman DI. A robot made of robots: Emergent transport and control of a smarticle ensemble. *Science Robotics* 2019. https://doi.org/10.1126/scirobotics.aax4316",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[51] Bi D, Lopez JH, Schwarz JM, Manning ML. Energy barriers and cell migration in densely packed tissues. *Soft Matter* 2014;10(12):1885-1890. https://doi.org/10.1039/c3sm52893f",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[52] Lu PJ, Zaccarelli E, Ciulla F, Schofield AB, Sciortino F, Weitz DA. Gelation of particles with short-range attraction. *Nature* 2008;453:499-504. https://doi.org/10.1038/nature06931",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[53] Atia L, Fredberg JJ, Gov NS, Pegoraro AF. Are cell jamming and unjamming essential in tissue development? *Cells & Development* 2021;168:203727. https://doi.org/10.1016/j.cdev.2021.203727",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[54] Muir VG, Qazi TH, Shan J, Groll J, Burdick JA. Influence of Microgel Fabrication Technique on Granular Hydrogel Properties. *ACS Biomaterials Science & Engineering* 2021. https://doi.org/10.1021/acsbiomaterials.0c01612",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[55] Saxena Y, Riley L, Wu R, Kabir MS, Randles A, Segura T. 3D pore shape is predictable in randomly packed particle systems. *Matter* 2025. https://doi.org/10.1016/j.matt.2025.102493",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[56] Taheri S, Bao G, He Z, et al. (Mongeau L, senior). Injectable, Pore-Forming, Perfusable Double-Network Hydrogels Resilient to Extreme Biomechanical Stimulations. *Advanced Science* 2021. https://doi.org/10.1002/advs.202102627",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[57] Vorselen D, et al. Microparticle traction force microscopy reveals subcellular force exertion patterns in immune cell–target interactions. *Nature Communications* 2019. https://doi.org/10.1038/s41467-019-13804-z.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[58] Legant WR, Miller JS, Blakely BL, Cohen DM, Genin GM, Chen CS. Measurement of mechanical tractions exerted by cells in three-dimensional matrices. *Nature Methods* 2010. https://doi.org/10.1038/nmeth.1531",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[59] Cunha AF, Matias AFV, Dias CS, Oliveira MB, Araújo NAM, Mano JF. Cell Response in Free-Packed Granular Systems. *ACS Applied Materials & Interfaces* 2022. https://doi.org/10.1021/acsami.1c24095",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[60] McGhee AD. Cell-driven remodeling of granular hydrogel scaffolds: a discrete element model with free energy landscape analysis. *Manuscript* 2026. Code: https://github.com/McGheeLab/GELLS-DEM.",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[61] Ingber DE. Human organs-on-chips for disease modelling, drug development and personalized medicine. *Nature Reviews Genetics* 2022. https://doi.org/10.1038/s41576-022-00466-9",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[62] Bhatia SN, Ingber DE. Microfluidic organs-on-chips. *Nature Biotechnology* 2014. https://doi.org/10.1038/nbt.2989",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[63] Takebe T, Sekine K, Enomura M, Koike H, Kimura M, Ogaeri T, et al. Vascularized and functional human liver from an iPSC-derived organ bud transplant. *Nature* 2013. https://doi.org/10.1038/nature12271",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[64] McGhee A, Bennett A, Ifju P, Sawyer GW, Angelini TE. Full-Field Deformation Measurements in Liquid-like-Solid Granular Microgel Using Digital Image Correlation. *Experimental Mechanics* 2018. https://doi.org/10.1007/s11340-017-0337-4",
+      "attrs": {}
+     },
+     {
+      "kind": "paragraph",
+      "status": "draft",
+      "skeleton": "",
+      "body": "[65] Yang J, Yin Y, Landauer AK, Buyukozturk S, Zhang J, Summey L, McGhee A, Fu MK, Dabiri JO, Franck C. SerialTrack: ScalE and Rotation Invariant Augmented Lagrangian Particle Tracking. *SoftwareX* 2022;19:101204. https://doi.org/10.1016/j.softx.2022.101204",
+      "attrs": {}
+     }
+    ]
+   }
+  ]
+ }
+}

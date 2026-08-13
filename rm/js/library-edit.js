@@ -183,6 +183,65 @@
     });
   }
 
+  /** V3.328 — re-read the paper's OWN stored PDF: first-page DOI/arXiv
+   *  sniff + largest-font title guess (the V3.308 client-side extraction),
+   *  then look the result up and feed the existing diff table. This is
+   *  the repair path for "paper-<hash>" rows whose stored title matches
+   *  nothing — the PDF itself is the only usable evidence. */
+  async function _rescanPdf(item, root) {
+    const lib = (item.meta && item.meta.library) || {};
+    if (!lib.pdf || !lib.pdf.storage_path) return;
+    if (!window.LIBRARY_UPLOAD || !LIBRARY_UPLOAD.downloadUrl) {
+      _toast('error', 'library-upload.js is not loaded on this page.');
+      return;
+    }
+    if (!window.PDF_VIEWER || !PDF_VIEWER.extractTextItemsFromPdf) {
+      _toast('error', 'PDF text extraction is not available on this page (pdf-viewer.js missing).');
+      return;
+    }
+    const btn = root.querySelector('#le-rescan');
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Scanning…';
+    try {
+      const url = await LIBRARY_UPLOAD.downloadUrl(lib.pdf.storage_path);
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('PDF fetch HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const fp = await LIBRARY_METADATA.extractFirstPage(blob);
+      let meta = null;
+      if (fp.doi_guess) {
+        meta = await LIBRARY_METADATA.lookup({ doi: fp.doi_guess });
+      } else if (fp.arxiv_guess) {
+        meta = await LIBRARY_METADATA.lookup({ arxiv_id: fp.arxiv_guess });
+      } else {
+        const t = (fp.title_guess || '').trim()
+          || ((fp.text || '').split('\n').find(l => l.trim().length > 12) || '').trim();
+        if (t) meta = await LIBRARY_METADATA.lookup({ title: t.slice(0, 200) });
+      }
+      if (meta && !meta.error && meta.title) {
+        _renderDiff(root, meta);
+      } else if (fp.title_guess || fp.doi_guess || fp.arxiv_guess) {
+        // No authoritative database record, but the PDF itself yielded
+        // something — offer the raw sniff so the row can at least adopt
+        // the paper's real title / identifier.
+        _renderDiff(root, {
+          title: fp.title_guess || '',
+          doi: fp.doi_guess || '',
+          arxiv_id: fp.arxiv_guess || '',
+        });
+        _toast('info', 'No database match — offering what the PDF first page itself says.');
+      } else {
+        _toast('error', 'Nothing usable on the PDF first page — likely a scan with no text layer. Fill the fields manually.');
+      }
+    } catch (e) {
+      _toast('error', 'Re-scan failed: ' + (e.message || e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
+
   async function _fetchFromIdentifier(root) {
     const doi = _formValueFor(root, 'doi').trim();
     const pmid = _formValueFor(root, 'pmid').trim();
@@ -334,6 +393,7 @@
         ${_fieldRow('Abstract', 'le-abstract', extrasAbstract, { textarea: true, rows: 5, hint: 'stored in the details subdoc' })}
         <div style="display:flex;align-items:center;gap:8px;margin:2px 0 12px;">
           <button type="button" class="btn btn-sm" id="le-fetch" title="Look up the DOI / PMID / arXiv id above and diff the result against these fields">⇣ Fetch from identifier</button>
+          ${(lib.pdf && lib.pdf.storage_path) ? '<button type="button" class="btn btn-sm" id="le-rescan" title="Pull the stored PDF and re-read its first page — DOI/arXiv sniff + title guess — then diff the result (V3.328)">📄 Re-scan PDF</button>' : ''}
           <label style="font-size:12px;color:#374151;display:flex;align-items:center;gap:5px;margin-left:auto;">
             <input type="checkbox" id="le-regen-key">
             Regenerate citation key <code style="color:#9ca3af;">${_esc(lib.citation_key || '')}</code>
@@ -359,6 +419,8 @@
     root.querySelector('#le-close').addEventListener('click', close);
     root.querySelector('#le-cancel').addEventListener('click', close);
     root.querySelector('#le-fetch').addEventListener('click', () => _fetchFromIdentifier(root));
+    const rescanBtn = root.querySelector('#le-rescan');
+    if (rescanBtn) rescanBtn.addEventListener('click', () => _rescanPdf(item, root));
     root.querySelector('#le-save').addEventListener('click', async () => {
       const btn = root.querySelector('#le-save');
       btn.disabled = true;

@@ -25,6 +25,31 @@
   const BIBLIO_FIELDS = ['year', 'journal', 'journal_iso', 'issn', 'volume',
     'issue', 'pages', 'doi', 'pmid', 'arxiv_id', 'url'];
 
+  /* V3.496 — fill-only author-identity enrichment (ORCID / affiliation),
+   * matched by family + first initial; never overwrites a present value or a
+   * name. Used both to carry forward ids the stored authors already had and
+   * to absorb ids from the fresh lookup. */
+  function _matchFreshAuthor(fresh, a) {
+    const fam = String(a.family || '').trim().toLowerCase();
+    if (!fam) return null;
+    const gi = String(a.given || '').trim().charAt(0).toLowerCase();
+    return (fresh || []).find(f => {
+      if (String(f.family || '').trim().toLowerCase() !== fam) return false;
+      const fgi = String(f.given || '').trim().charAt(0).toLowerCase();
+      return !gi || !fgi || gi === fgi;
+    }) || null;
+  }
+  function _enrichAuthorIds(existing, fresh) {
+    let filled = false;
+    (existing || []).forEach(a => {
+      const m = _matchFreshAuthor(fresh, a);
+      if (!m) return;
+      if (m.orcid && !a.orcid) { a.orcid = m.orcid; filled = true; }
+      if (m.affiliation && !a.affiliation) { a.affiliation = m.affiliation; filled = true; }
+    });
+    return filled;
+  }
+
   function _toast(kind, msg) {
     if (window.TOAST && window.TOAST[kind]) window.TOAST[kind](msg);
     else console.log('[library-refresh]', msg);
@@ -81,6 +106,10 @@
         out.changedFields.push('title');
       }
       if (Array.isArray(meta.authors) && meta.authors.length) {
+        // V3.496 — carry forward any ORCID/affiliation the stored authors
+        // already had so a refresh from a sparse source never drops captured
+        // ids; the fresh CrossRef record supplies new ones.
+        _enrichAuthorIds(meta.authors, lib.authors);
         const before = JSON.stringify(lib.authors || []);
         if (before !== JSON.stringify(meta.authors)) {
           lib.authors = meta.authors;
@@ -125,9 +154,52 @@
 
     const lib = (item.meta && item.meta.library) || {};
 
-    // ---- 3. OA PDF attempt ---------------------------------------------
+    // ---- 3. OA PDF attempt (V3.498 server-side first) ------------------
     let pdfBlob = null;
-    if (!lib.pdf && lib.doi && window.LIBRARY_UPLOAD && LIBRARY_UPLOAD.unpaywallLookup) {
+    const _hasIdForPdf = !!(lib.doi || lib.pmid || lib.arxiv_id || lib.url);
+    // Server-side fetcher (no CORS; Unpaywall all-locations + arXiv + Europe
+    // PMC + Semantic Scholar + the publisher's citation_pdf_url). It uploads to
+    // Storage itself, so on success we only stamp meta.library.pdf.
+    let _serverTriedCleanly = false;   // server returned a definitive answer
+    if (!lib.pdf && _hasIdForPdf && window.LIBRARY_UPLOAD && LIBRARY_UPLOAD.serverFetchPdf) {
+      try {
+        const sfp = await LIBRARY_UPLOAD.serverFetchPdf(item);
+        _serverTriedCleanly = true;
+        if (sfp && sfp.ok && sfp.storage_path) {
+          const me = (firebase.auth && firebase.auth().currentUser) || null;
+          const updated = JSON.parse(JSON.stringify(item));
+          delete updated.updatedAt;
+          updated.meta.library.pdf = {
+            storage_path: sfp.storage_path,
+            hash: sfp.hash,
+            filename_safe: `${item.id}.pdf`,
+            size_bytes: sfp.size_bytes,
+            uploaded_at: new Date().toISOString().slice(0, 10),
+            uploaded_by: (me && me.email) || '',
+            source: sfp.source ? `oa_${sfp.source}` : 'oa_auto',
+          };
+          delete updated.meta.library.pdf_status;
+          delete updated.meta.library.pdf_candidate_url;
+          updated.updated_at = new Date().toISOString().slice(0, 10);
+          await firebase.firestore().collection('items').doc(item.id).set(
+            Object.assign({}, updated, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() }));
+          if (typeof api !== 'undefined' && api.invalidate) {
+            api.invalidate('items.json');
+            api.invalidate('library/papers.json');
+          }
+          out.item = updated;
+          item = updated;
+          out.pdfFetched = true;
+        }
+      } catch (e) {
+        console.warn('[library-refresh] serverFetchPdf failed; trying client Unpaywall:', e.message || e);
+      }
+    }
+    // Client Unpaywall fallback — ONLY when the server didn't give a clean
+    // answer (function unreachable / not loaded). A clean {ok:false} already
+    // tried every OA location server-side, so re-querying is redundant and
+    // would mis-attribute the failure reason.
+    if (!out.pdfFetched && !_serverTriedCleanly && !lib.pdf && lib.doi && window.LIBRARY_UPLOAD && LIBRARY_UPLOAD.unpaywallLookup) {
       try {
         const oa = await LIBRARY_UPLOAD.unpaywallLookup(lib.doi);
         if (oa && oa.bestPdfUrl) {

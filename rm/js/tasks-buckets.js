@@ -689,9 +689,22 @@
   /* ---------- rendering ---------- */
   const root = () => document.getElementById('dash-content');
 
+  // V3.534 — retirement flag: the add workspace grows a "compose in My
+  // Day" banner when labConfig/featureFlags.myday_retire_task_add flips.
+  let _mydayFlags = null;
+  function ensureMydayFlags() {
+    if (_mydayFlags !== null || !window.DAY_DISTRIBUTE) return;
+    _mydayFlags = {};
+    DAY_DISTRIBUTE.getFeatureFlags().then((f) => {
+      _mydayFlags = f || {};
+      if (_mydayFlags.myday_retire_task_add) render();
+    }).catch(() => {});
+  }
+
   function render() {
     const el = root();
     if (!el) return;
+    ensureMydayFlags();
     el.innerHTML = '';
     el.appendChild(renderLayout());
     // Drain a deferred remote update if no inline edit is open. Live-sync
@@ -710,6 +723,13 @@
   function renderLayout() {
     const wrap = document.createElement('div');
     wrap.className = 'buk-layout' + (state.selectedNode ? ' has-detail' : '');
+    if (window.__TASKS_TAB === 'add' && _mydayFlags && _mydayFlags.myday_retire_task_add) {
+      const banner = document.createElement('a');
+      banner.href = '/rm/pages/my-day.html?compose=1&type=task';
+      banner.style.cssText = 'display:block;flex-basis:100%;text-decoration:none;border:1px dashed #d1d5db;border-radius:10px;padding:.6rem 1rem;margin-bottom:8px;text-align:center;color:inherit';
+      banner.innerHTML = '☀️ New tasks are composed in <strong>My Day</strong> → <span style="opacity:.65">(this workspace stays for organizing what exists)</span>';
+      wrap.appendChild(banner);
+    }
     wrap.appendChild(renderTaskBuildersCol());
     wrap.appendChild(renderMain());
     if (state.selectedNode) wrap.appendChild(renderDetail());
@@ -1767,6 +1787,15 @@
       scheduleSave();
       inp.value = '';
       render();
+      // V3.530 — double-dip: offer to plan this subtask into the day
+      // (huddle / notebook / tracker). Subtasks live inside bucket docs,
+      // so there's no native doc path to govern — the hub item simply
+      // fans out.
+      if (window.DAY_DISTRIBUTE) DAY_DISTRIBUTE.renderChipsFloating({
+        source: 'tasks', type: 'work',
+        nativeDocPath: '',
+        draft: { title: node.text },
+      });
     });
     wrap.appendChild(inp);
     return wrap;
@@ -2174,8 +2203,8 @@
       // Wait for auth to resolve so user-scope reads hit Firestore (not the
       // legacy single-tenant JSON fallback). Without this, first paint reads
       // empty and the user sees a blank workspace until they refresh.
-      if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
-        await firebridge.whenAuthResolved();
+      if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+        await firebridge.requireSignIn('Sign in to view your tasks.');
       }
       // Lab roster powers the assignee picker + chips. Run in parallel
       // with loadDoc — non-fatal if it fails.

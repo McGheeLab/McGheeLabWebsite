@@ -32,6 +32,7 @@
     'materials', 'step', 'note', 'figure', 'safety', 'formula',
     'heading', 'callout', 'docHeader', 'table', 'kv', 'timeline',
     'calculator', 'builder', 'layoutMap',
+    'design', // FuturePlan 06 — node-graph dataflow definition
     // Reserved: renders as an "unsupported" placeholder, not a step.
     // Listed here so it doesn't trip the mislabeled unknown-kind warning.
     'python',
@@ -116,8 +117,12 @@
           } else if (b.kind === 'calculator') {
             var hasInputs = Array.isArray(a.inputs) && a.inputs.length;
             var hasOutputs = Array.isArray(a.outputs) && a.outputs.length;
-            if (!hasInputs && !hasOutputs) {
-              warnings.push('Calculator in ' + where + ' has no inputs and no outputs.');
+            // a table-only calculator (a computed table over a named
+            // dataset, no sliders/cards of its own) is legitimate
+            var hasTable = a.table && a.table.dataset &&
+              Array.isArray(a.table.columns) && a.table.columns.length;
+            if (!hasInputs && !hasOutputs && !hasTable) {
+              warnings.push('Calculator in ' + where + ' has no inputs, outputs, or table.');
             }
             (Array.isArray(a.outputs) ? a.outputs : []).forEach(function (o, oi) {
               if (!o || !o.name || !o.expr) {
@@ -131,6 +136,14 @@
             }
           } else if (b.kind === 'layoutMap') {
             if (!a.dataset) warnings.push('Layout map in ' + where + ' has no dataset name.');
+          } else if (b.kind === 'design') {
+            if (!Array.isArray(a.nodes)) errors.push('Design in ' + where + ' needs an array `attrs.nodes`.');
+            if (!Array.isArray(a.edges)) errors.push('Design in ' + where + ' needs an array `attrs.edges`.');
+            // V3.380 — transparency: code nodes run JavaScript when the
+            // protocol is viewed. Not an error (lab-authored trust model).
+            if (Array.isArray(a.nodes) && a.nodes.some(function (nd) { return nd && nd.type === 'code'; })) {
+              warnings.push('Design in ' + where + ' contains a script (code) node — its JavaScript runs when the protocol is viewed.');
+            }
           }
         });
       });
@@ -144,7 +157,7 @@
       figures: 0, formulas: 0, images: 0,
       // V3.325 — new kinds.
       headings: 0, callouts: 0, docHeaders: 0, tables: 0, kvs: 0,
-      timelines: 0, calculators: 0, builders: 0, layoutMaps: 0,
+      timelines: 0, calculators: 0, builders: 0, layoutMaps: 0, designs: 0,
     };
     if (!parsed || !parsed.protocol || !parsed.protocol.tree) return s;
     var sections = parsed.protocol.tree.sections || [];
@@ -170,6 +183,7 @@
           case 'calculator': s.calculators++; break;
           case 'builder':    s.builders++; break;
           case 'layoutMap':  s.layoutMaps++; break;
+          case 'design':     s.designs++; break;
         }
       });
     });
@@ -298,6 +312,11 @@
       tags: Array.isArray(src.tags) ? src.tags.slice() : [],
       tree: tree,
     });
+    // V3.386 — caller-supplied root fields (e.g. the demo loader stamps
+    // {is_demo, demo_of} so demo copies can be filtered + cleaned up).
+    if (opts.extraFields && typeof opts.extraFields === 'object') {
+      Object.keys(opts.extraFields).forEach(function (k) { doc[k] = opts.extraFields[k]; });
+    }
     await db.collection('protocols').doc(slug).set(doc);
 
     onProgress({ stage: 'snapshot-v1' });

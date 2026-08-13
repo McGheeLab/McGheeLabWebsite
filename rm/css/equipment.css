@@ -256,6 +256,26 @@ body {
   color: var(--accent);
   background: rgba(91,174,209,.12);
 }
+/* V3.340 — "Free until 2 PM" glance chip on equipment cards */
+.eq-ecard-glance {
+  font-size: .7rem;
+  font-weight: 600;
+  padding: .1rem .45rem;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.eq-ecard-glance--free {
+  color: var(--success);
+  background: rgba(76, 175, 80, .12);
+}
+.eq-ecard-glance--busy {
+  color: var(--warning);
+  background: rgba(255, 193, 7, .12);
+}
+.eq-ecard-glance--off {
+  color: var(--muted);
+  background: rgba(138, 148, 166, .15);
+}
 .eq-ecard-reqs {
   display: flex;
   flex-wrap: wrap;
@@ -502,6 +522,46 @@ textarea.eq-input {
   position: relative;
   user-select: none;
 }
+/* V3.339 — narrow-screen single-day mode: time gutter + one wide column */
+.eq-week-grid--day {
+  grid-template-columns: 48px 1fr;
+}
+.eq-day-pager {
+  display: flex;
+  gap: .25rem;
+  padding: .35rem .5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.eq-day-pager::-webkit-scrollbar { display: none; }
+.eq-day-chip {
+  flex: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .05rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: .7rem;
+  cursor: pointer;
+}
+.eq-day-chip-num {
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.eq-day-chip--today .eq-day-chip-num { color: var(--accent); }
+.eq-day-chip--active {
+  background: rgba(91, 174, 209, .15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 /* Sticky day header row — stays pinned while scrolling vertically */
 .eq-wk-sticky-head {
   position: sticky;
@@ -571,6 +631,86 @@ textarea.eq-input {
 }
 .eq-wk-cell--selected {
   background: rgba(91, 174, 209, .18) !important;
+}
+/* V3.336 — slots outside the selected device's posted availability window */
+.eq-wk-cell--closed {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255,255,255,.025),
+    rgba(255,255,255,.025) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+  cursor: not-allowed;
+}
+.eq-wk-cell--closed:hover {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255,255,255,.025),
+    rgba(255,255,255,.025) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+}
+
+/* ─── V3.597 — notify-me watch bands ───────────────────── */
+/* Sits ABOVE cells + booking blocks (z-index 1) but BELOW the sticky
+   headers (3). pointer-events off so drag-to-book still works straight
+   through the band; only the 🔔✕ pill takes clicks. */
+.eq-wk-watch {
+  z-index: 2;
+  pointer-events: none;
+  border: 1px dashed #f59e0b;
+  border-radius: 3px;
+  margin: 1px 2px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(245, 158, 11, .18),
+    rgba(245, 158, 11, .18) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.eq-wk-watch-x {
+  pointer-events: auto;
+  border: 0;
+  background: rgba(245, 158, 11, .85);
+  color: #1a1a1a;
+  border-radius: 0 3px 0 3px;
+  font-size: .6rem;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.eq-wk-watch-x:hover { background: #f59e0b; }
+
+.eq-watch-banner {
+  font-size: .78rem;
+  color: #b45309;
+  background: rgba(245, 158, 11, .12);
+  border: 1px solid rgba(245, 158, 11, .35);
+  border-radius: 6px;
+  padding: .35rem .6rem;
+  margin-top: .4rem;
+}
+.eq-watch-target { font-size: .9rem; line-height: 1.5; margin-bottom: .5rem; }
+.eq-watch-note {
+  font-size: .8rem;
+  color: var(--text-dim, #8a94a6);
+  line-height: 1.45;
+}
+.eq-watch-free {
+  font-size: .82rem;
+  background: rgba(22, 163, 74, .12);
+  border: 1px solid rgba(22, 163, 74, .4);
+  color: #15803d;
+  border-radius: 6px;
+  padding: .5rem .6rem;
+  line-height: 1.45;
 }
 
 /* ─── Booking blocks ───────────────────────────────────── */
@@ -695,6 +835,17 @@ textarea.eq-input {
 .eq-month-cell--out {
   opacity: .35;
 }
+/* V3.336 — days outside the selected device's available days */
+.eq-month-cell--closed {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255,255,255,.025),
+    rgba(255,255,255,.025) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+  opacity: .55;
+}
 .eq-month-num {
   font-size: .8rem;
   font-weight: 500;
@@ -746,6 +897,10 @@ textarea.eq-input {
 }
 .eq-modal--wide {
   max-width: 640px;
+}
+/* V3.597 — watch-confirm dialog: one short question, no form */
+.eq-modal--narrow {
+  max-width: 380px;
 }
 .eq-modal--detail {
   max-width: 400px;
@@ -831,6 +986,31 @@ textarea.eq-input {
   border-radius: 50%;
   display: inline-block;
 }
+/* V3.594 — explanatory note inside an admin settings panel */
+.eq-panel-note {
+  font-size: .8rem;
+  color: var(--text-dim, #8a94a6);
+  line-height: 1.45;
+  margin: .25rem 0 .75rem;
+  max-width: 60ch;
+}
+
+/* V3.588 — criticality hint text under the Soft/Firm/Hard select */
+.eq-priority-hint {
+  font-size: .75rem;
+  color: var(--text-dim, #8a94a6);
+  margin-top: .25rem;
+  line-height: 1.35;
+}
+.eq-detail-hint {
+  font-size: .75rem;
+  color: var(--text-dim, #8a94a6);
+}
+.eq-label-sub {
+  font-size: .7rem;
+  color: var(--text-dim, #8a94a6);
+  font-weight: 400;
+}
 .eq-cert-checks {
   display: flex;
   flex-direction: column;
@@ -903,6 +1083,51 @@ textarea.eq-input {
   padding: .4rem .6rem;
   font-size: .8rem;
   margin-bottom: .5rem;
+}
+/* V3.340 — duration quick-picks in the booking modal */
+.eq-dur-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin: -.25rem 0 .75rem;
+}
+.eq-dur-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  color: var(--muted);
+  font-size: .75rem;
+  padding: .3rem .7rem;
+  min-height: 32px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.eq-dur-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* V3.340 — rebook button in My Bookings */
+.eq-my-rebook {
+  flex-shrink: 0;
+  font-size: .75rem;
+  padding: .3rem .7rem;
+}
+
+/* V3.336 — device availability window line in the booking modal */
+.eq-avail-line {
+  color: var(--muted);
+  font-size: .78rem;
+  padding: .3rem .1rem .5rem;
+}
+.eq-avail-line--violation {
+  color: var(--warning);
+  font-weight: 600;
+}
+/* V3.336 — weekday checkboxes in the device admin modal */
+.eq-day-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem .8rem;
 }
 
 /* ─── Detail popup ─────────────────────────────────────── */
@@ -1163,7 +1388,10 @@ textarea.eq-input {
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
+/* V3.339 — moved from the non-canonical 768px to RM's canonical 640px
+   breakpoint (matches isNarrowScreen() in equipment.js, which switches
+   the week grid to the single-day view at the same width). */
+@media (max-width: 640px) {
   .eq-tabs {
     overflow-x: auto;
     scrollbar-width: none;
@@ -1173,31 +1401,56 @@ textarea.eq-input {
   .eq-tabs::-webkit-scrollbar { display: none; }
   .eq-tab {
     white-space: nowrap;
-    padding: .55rem .85rem;
+    padding: .65rem .85rem;
     font-size: .85rem;
   }
   .eq-toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: .4rem;
   }
   .eq-toolbar-left,
   .eq-toolbar-center,
   .eq-toolbar-right {
     justify-content: center;
   }
+  /* 44px minimum touch targets on the calendar chrome */
+  .eq-nav-btn,
+  .eq-view-btn,
+  .eq-zoom-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .eq-select,
+  .eq-nav-label {
+    min-height: 44px;
+  }
+  .eq-toolbar-right .app-btn {
+    min-height: 44px;
+    justify-content: center;
+  }
+  /* Single-day view supplies its own columns (.eq-week-grid--day);
+     the 7-column fallback stays for completeness */
   .eq-week-grid {
     grid-template-columns: 40px repeat(7, 1fr);
-    font-size: .7rem;
+    font-size: .75rem;
+  }
+  .eq-week-grid--day {
+    grid-template-columns: 48px 1fr;
   }
   .eq-wk-time {
-    font-size: .6rem;
+    font-size: .62rem;
     padding: 0 .2rem;
+  }
+  .eq-wk-block {
+    font-size: .78rem;
+    padding: 3px 6px;
   }
   .eq-cal-scroll-area {
     margin: 0 .25rem .25rem;
   }
   .eq-time-slider {
-    width: 22px;
+    width: 26px;
   }
   .eq-legend-row {
     padding: 0 .5rem .35rem;

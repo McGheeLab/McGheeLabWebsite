@@ -1,0 +1,622 @@
+/* protocol-graph-editor.css — vanilla node-canvas editor (FuturePlan 06). */
+
+.pre-block-design { border-left: 4px solid #5b6cb3; background: #fafbfe; }
+.pre-design-canvas-host { margin-top: 8px; }
+.pre-design-raw {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.pge-host { display: flex; flex-direction: column; gap: 6px; }
+
+.pge-palette { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pge-pal-btn {
+  font-size: 12px;
+  padding: 3px 9px;
+  border: 1px solid #c9d0da;
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+.pge-pal-btn:hover { background: #eef1f5; }
+.pge-pal-spacer { flex: 1; }
+.pge-expand-btn { font-weight: 600; }
+.pge-view-btn { padding: 3px 7px; color: #556; }
+
+/* live value badge in a node header (flex child, after the title) */
+.pge-node-val {
+  font-weight: 500;
+  font-size: 10.5px;
+  color: #22663c;
+  background: #eef7f0;
+  border-radius: 8px;
+  padding: 0 6px;
+  margin-left: 6px;
+  margin-right: 14px; /* clear the × delete button */
+  max-width: 90px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* starter-workflow button inside the (pointer-events:none) empty state */
+.pge-empty .pge-starter {
+  pointer-events: auto;
+  margin-top: 10px;
+  font-weight: 600;
+  background: #5b6cb3;
+  color: #fff;
+  border-color: #5b6cb3;
+}
+.pge-empty .pge-starter:hover { background: #4a5aa0; }
+
+/* unit legend */
+.pge-legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pge-legend-item { font-size: 10.5px; color: #667; display: inline-flex; align-items: center; gap: 3px; }
+.pge-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+.pge-viewport {
+  position: relative;
+  height: 460px;
+  overflow: hidden;
+  border: 1px solid #d7dce4;
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(0deg, #f4f6f9, #f4f6f9 1px, transparent 1px, transparent 22px),
+    repeating-linear-gradient(90deg, #f4f6f9, #f4f6f9 1px, transparent 1px, transparent 22px),
+    #fbfcfe;
+  cursor: grab;
+  touch-action: none;
+}
+.pge-viewport:active { cursor: grabbing; }
+.pge-world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.pge-wires { position: absolute; top: 0; left: 0; width: 4000px; height: 4000px; overflow: visible; pointer-events: none; }
+.pge-wire { fill: none; stroke: #7f8ba0; stroke-width: 2; pointer-events: stroke; cursor: pointer; }
+.pge-wire:hover { stroke: #c23b3b; }
+.pge-wire-temp { stroke: #5b6cb3; stroke-dasharray: 4 3; pointer-events: none; }
+
+.pge-empty {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #99a3b0;
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.pge-node {
+  position: absolute;
+  width: 224px;
+  background: #fff;
+  border: 1px solid #c9d0da;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(20, 30, 50, 0.1);
+  font-size: 12px;
+}
+.pge-node-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 11.5px;
+  padding: 5px 20px 5px 6px; /* right padding clears the × delete button */
+  border-bottom: 1px solid #eef1f5;
+  border-radius: 8px 8px 0 0;
+  cursor: move;
+  background: #f4f6f9;
+  user-select: none;
+}
+.pge-node-title {
+  flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  pointer-events: auto;
+}
+.pge-collapse {
+  border: none; background: none; cursor: pointer;
+  font-size: 10px; color: #667; padding: 0 2px; line-height: 1;
+  flex: 0 0 auto;
+}
+.pge-collapse:hover { color: #1c2430; }
+
+/* collapsed nodes: keep variable rows + dots so wiring still works;
+ * hide only the editable fields, config, and the "+" footer. */
+.pge-collapsed .pge-fields,
+.pge-collapsed .pge-node-plus,
+.pge-collapsed .pge-var-input,
+.pge-collapsed .pge-row-rm { display: none; }
+/* keep the dynamic open dot reachable when collapsed (a collapsed empty
+ * list/equation has no other input dot); just drop its hint text */
+.pge-collapsed .pge-var-open-hint { display: none; }
+.pge-node-body { padding: 6px 8px 4px; display: flex; flex-direction: column; gap: 4px; }
+.pge-node-del {
+  position: absolute; top: 3px; right: 4px;
+  border: none; background: none; color: #b7bfc9;
+  cursor: pointer; font-size: 13px; line-height: 1;
+}
+.pge-node-del:hover { color: #c23b3b; }
+
+/* node-type accents */
+.pge-node-input   .pge-node-head { border-top: 3px solid #2f6db3; }
+.pge-node-constant .pge-node-head { border-top: 3px solid #99a3b0; }
+.pge-node-choices .pge-node-head { border-top: 3px solid #8259b3; }
+.pge-node-ordered .pge-node-head { border-top: 3px solid #b3792f; }
+.pge-node-equation .pge-node-head { border-top: 3px solid #22663c; }
+.pge-node-list    .pge-node-head { border-top: 3px solid #8a1e2d; }
+
+/* scope shading (from live compile) */
+.pge-scope-item   { outline: 2px solid rgba(130, 89, 179, 0.5); }
+.pge-scope-scalar { outline: 2px solid rgba(47, 109, 179, 0.35); }
+.pge-scope-list   { outline: 2px solid rgba(138, 30, 45, 0.5); }
+
+/* Per-variable socket grid. Every row is a variable or a settable
+ * field: a LEFT dot (plug a value in) on the card's left edge, a RIGHT
+ * dot (pass the variable out) on the right edge. Dots exist before any
+ * wire, derived from producedVars()/inputSlots(). */
+.pge-var-rows { display: flex; flex-direction: column; gap: 3px; }
+.pge-var-row {
+  position: relative;
+  display: flex; align-items: center; gap: 5px;
+  min-height: 20px;
+}
+.pge-var-row .pge-socket-in {
+  position: absolute; left: -18px; top: 50%; transform: translateY(-50%);
+}
+.pge-var-row .pge-socket-out {
+  position: absolute; right: -18px; top: 50%; transform: translateY(-50%);
+}
+.pge-var-main { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
+.pge-var-swatch { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; }
+.pge-var-label {
+  font-size: 11px; color: #445; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.pge-var-setting .pge-var-label { color: #778; font-size: 10.5px; }
+.pge-var-input {
+  width: 66px; font-size: 11.5px; padding: 2px 5px; margin-left: auto;
+  border: 1px solid #d0d5dd; border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pge-var-open-hint { font-size: 10px; color: #a4adba; font-style: italic; }
+.pge-var-ghost .pge-var-label { color: #b06; font-style: italic; }
+.pge-field-driven .pge-var-input { background: #f4f2fb; font-style: italic; color: #6f4a9c; }
+.pge-field-driven .pge-var-label { color: #6f4a9c; }
+
+/* socket dots + states */
+.pge-socket {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #7f8ba0;
+  background: #7f8ba0;
+  cursor: crosshair;
+  pointer-events: auto;
+  flex: 0 0 auto;
+}
+/* invisible hit area so the ~13px dot is easy to grab. Kept at -4px so
+ * adjacent rows' hit circles (row pitch ~23px) don't overlap and steal
+ * each other's drops. */
+.pge-socket::before {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+}
+.pge-socket-out { cursor: grab; }
+/* V3.423 — pass-through re-export dot: a RING of the variable's color
+ * (white center) = "not produced here, passes through — chain onward" */
+.pge-socket-pass::after {
+  content: ''; position: absolute; inset: 3.5px; border-radius: 50%;
+  background: #fff; pointer-events: none;
+}
+.pge-socket:hover { box-shadow: 0 0 0 2px #1c2430; }
+.pge-slot-open {
+  background: #fff;
+  box-shadow: 0 0 0 1px #b7bfc9;
+  border-style: dashed;
+}
+.pge-slot-disabled {
+  background: #eceff3; box-shadow: 0 0 0 1px #d0d5dd;
+  cursor: not-allowed; opacity: 0.6;
+}
+.pge-slot-armed { animation: pge-pulse 1s ease-in-out infinite; box-shadow: 0 0 0 3px rgba(91, 108, 179, 0.5); }
+@keyframes pge-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(91,108,179,0.4); } 50% { box-shadow: 0 0 0 5px rgba(91,108,179,0.15); } }
+/* candidate dots while wiring */
+body.pge-wiring .pge-compatible { box-shadow: 0 0 0 3px rgba(34, 136, 76, 0.55); }
+body.pge-wiring { cursor: crosshair; }
+
+/* bound source chip inside a row */
+.pge-bind-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; padding: 1px 6px; border: 1px solid #d0d5dd;
+  border-radius: 10px; background: #fff; max-width: 110px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pge-bind-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.pge-bind-role-tag { font-size: 10px; color: #889; font-style: italic; }
+.pge-row-rm { margin-left: auto; }
+
+/* config fields (identity + type editors) */
+.pge-fields { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e3e7ed; }
+.pge-field { display: flex; flex-direction: column; gap: 1px; }
+.pge-field span { font-size: 10px; color: #778; }
+.pge-field input, .pge-field-select {
+  font-size: 12px; padding: 2px 5px;
+  border: 1px solid #d0d5dd; border-radius: 3px;
+}
+.pge-field-check { flex-direction: row; align-items: center; gap: 5px; font-size: 11px; color: #556; }
+
+/* ── V3.400 — typed unit pickers (Type → Unit dropdown pair) ────── */
+.pge-unit-pair { display: flex; gap: 4px; min-width: 0; }
+.pge-unit-pair .pge-unit-type { flex: 1 1 auto; min-width: 0; }
+.pge-unit-pair .pge-unit-unit { flex: 0 1 72px; min-width: 54px; }
+.pge-unit-pair .pge-unit-custom { flex: 0 1 72px; min-width: 54px; }
+.pge-unit-pair [hidden] { display: none; }
+.pge-subrow select.pge-unit-cell,
+.pge-subrow .pge-unit-cell {
+  flex: 1; min-width: 0; font-size: 11px; padding: 2px 2px;
+  border: 1px solid #d0d5dd; border-radius: 3px; background: #fff;
+}
+
+.pge-subgrid { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+.pge-sublabel { font-size: 10px; color: #889; }
+.pge-subrow { display: flex; gap: 3px; flex-wrap: wrap; }
+.pge-subrow input { flex: 1; min-width: 0; font-size: 11px; padding: 2px 4px; border: 1px solid #d0d5dd; border-radius: 3px; }
+.pge-subrow-ordered input { flex: 1 1 44px; }
+.pge-mini { font-size: 11px; padding: 1px 6px; border: 1px solid #c9d0da; border-radius: 3px; background: #fff; cursor: pointer; }
+
+/* "+" modifier footer + menu */
+.pge-node-plus { position: relative; padding: 4px 8px 6px; }
+.pge-plus-btn {
+  width: 100%; font-size: 11px; padding: 3px 8px;
+  border: 1px dashed #b7bfc9; border-radius: 5px;
+  background: #fbfcfe; color: #5b6cb3; cursor: pointer; font-weight: 600;
+}
+.pge-plus-btn:hover { background: #eef1f5; }
+.pge-plus-menu {
+  position: absolute; left: 8px; right: 8px; top: 100%; z-index: 5;
+  background: #fff; border: 1px solid #c9d0da; border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(20, 30, 50, 0.18);
+  overflow: hidden;
+}
+/* flipped up when it would spill past the viewport's clipped bottom */
+.pge-plus-menu.pge-plus-menu-up { top: auto; bottom: 100%; }
+.pge-plus-item {
+  display: block; width: 100%; text-align: left;
+  font-size: 11.5px; padding: 6px 10px; border: none; background: none;
+  cursor: pointer; color: #33404f; border-bottom: 1px solid #f0f2f6;
+}
+.pge-plus-item:last-child { border-bottom: none; }
+.pge-plus-item:hover { background: #eef1f5; }
+
+.pge-strip { font-size: 11.5px; padding: 4px 8px; border-radius: 5px; }
+.pge-strip-ok    { background: #eef7f0; color: #22663c; }
+.pge-strip-warn  { background: #fff7e8; color: #7a5b16; }
+.pge-strip-error { background: #fdf3f3; color: #a32e2e; }
+
+/* ── Nodes view (whole-protocol mode inside the editor) ─────────── */
+/* Full frame width in Nodes mode — the 820px column is for prose. */
+.pe-main-inner.pre-nodes-full { max-width: none; padding: 0 16px; }
+.pre-nodes-host { display: flex; flex-direction: column; }
+.pre-nodes-host .pge-host { flex: 1; }
+.pre-nodes-host .pge-viewport { height: calc(100vh - 300px); min-height: 460px; }
+
+/* View-mode segmented switcher in the editor topbar */
+.pre-viewseg {
+  display: inline-flex;
+  border: 1px solid #c9d0da;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-right: 6px;
+}
+.pre-viewseg .pre-viewseg-btn {
+  border: none;
+  background: #fff;
+  font-size: 12.5px;
+  padding: 5px 11px;
+  cursor: pointer;
+  color: #445;
+  text-decoration: none;
+  line-height: 1.2;
+  border-right: 1px solid #e3e7ed;
+  white-space: nowrap;
+}
+.pre-viewseg .pre-viewseg-btn:last-child { border-right: none; }
+.pre-viewseg .pre-viewseg-btn:hover { background: #eef1f5; }
+.pre-viewseg .pre-viewseg-btn.active {
+  background: #5b6cb3;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* design block stub in the Editor view (the canvas lives in Nodes) */
+.pre-design-stub {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border: 1px dashed #c9d0da; border-radius: 6px;
+  background: #fff;
+  font-size: 12.5px; color: #556;
+}
+.pre-design-open { font-size: 12px; }
+
+/* Popout modal — a large canvas on the same graph. */
+.pge-modal {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(20, 28, 44, 0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+.pge-modal-card {
+  width: 94vw; height: 90vh;
+  background: #fff; border-radius: 10px;
+  display: flex; flex-direction: column;
+  box-shadow: 0 12px 48px rgba(10, 18, 34, 0.4);
+  overflow: hidden;
+}
+.pge-modal-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-bottom: 1px solid #e3e7ed;
+  font-weight: 600; font-size: 13px;
+}
+.pge-modal-host { flex: 1; min-height: 0; padding: 10px 12px; display: flex; }
+.pge-modal-host .pge-host { flex: 1; }
+/* in the modal the viewport should fill available height */
+.pge-viewport-modal { height: 100%; flex: 1; }
+.pge-modal-host .pge-viewport { flex: 1; }
+
+/* ── V3.379 — wire cutting + interaction cheatsheet ─────────────── */
+.pge-cutline {
+  fill: none; stroke: #c23b3b; stroke-width: 1.5;
+  stroke-dasharray: 6 4; pointer-events: none;
+}
+/* placed after .pge-wire so the highlight wins the cascade */
+.pge-wire-cut-hit { stroke: #c23b3b; stroke-width: 3.5; opacity: 0.95; }
+body.pge-cutting .pge-viewport,
+body.pge-cutting .pge-wire { cursor: crosshair; }
+
+.pge-cheat {
+  position: absolute; top: 10px; right: 10px; z-index: 6;
+  max-width: 300px;
+  background: #fff;
+  border: 1px solid #d5dae2; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(20, 28, 44, 0.18);
+  padding: 10px 12px;
+  font-size: 12px; color: #2a3442;
+}
+.pge-cheat-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; font-weight: 600; margin-bottom: 6px;
+}
+.pge-cheat ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.pge-cheat li { line-height: 1.35; }
+
+/* ── V3.380 — code node ─────────────────────────────────────────── */
+.pge-node-code .pge-node-head { border-top: 3px solid #b3308f; }
+/* V3.434 — output gates */
+.pge-node-cards .pge-node-head { border-top: 3px solid #e0762e; }
+.pge-node-refs .pge-node-head { border-top: 3px solid #3f7fbf; }
+.pge-code-body {
+  width: 100%; box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px; line-height: 1.45;
+  border: 1px solid #c9d0da; border-radius: 6px;
+  padding: 6px 8px; background: #fbfcfe; color: #1e2733;
+  resize: vertical; min-height: 64px;
+}
+.pge-code-body:disabled { background: #f1f3f7; color: #6b7583; }
+
+/* ── V3.381 — recipes dropdown ──────────────────────────────────── */
+.pge-recipes { position: relative; display: inline-block; }
+.pge-recipes-menu {
+  position: absolute; top: 100%; left: 0; z-index: 7;
+  min-width: 300px; max-width: 360px;
+  background: #fff;
+  border: 1px solid #d5dae2; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(20, 28, 44, 0.2);
+  padding: 4px; margin-top: 4px;
+  display: grid;
+}
+.pge-recipes-menu[hidden] { display: none; }
+.pge-recipes-item {
+  display: grid; gap: 2px; text-align: left;
+  border: 0; background: none;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer;
+}
+.pge-recipes-item:hover { background: #eef2f8; }
+.pge-recipes-label { font-weight: 600; font-size: 12.5px; color: #1e2733; }
+.pge-recipes-hint { font-size: 11px; color: #66707e; }
+
+/* ── V3.382 — demo pointer on the empty node canvas ─────────────── */
+.pge-empty-demo { margin-top: 10px; font-size: 11.5px; color: #99a3b0; }
+
+/* ── V3.385 — guided tours (V3.396: body-level fixed, larger type) ─ */
+/* Both elements live on document.body so they survive canvas remounts,
+ * escape overflow clipping, and can highlight page chrome (view
+ * segment, topbar). z-index clears the popout modal (.pge-modal 9000). */
+.pgt-ring {
+  position: fixed; z-index: 9500;
+  border: 3px solid #2f6db3; border-radius: 10px;
+  pointer-events: none;
+  animation: pgt-pulse 1.4s ease-in-out infinite;
+}
+@keyframes pgt-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(47, 109, 179, 0.35); }
+  50%      { box-shadow: 0 0 0 12px rgba(47, 109, 179, 0.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pgt-ring { animation: none; box-shadow: 0 0 0 4px rgba(47, 109, 179, 0.25); }
+}
+.pgt-card {
+  position: fixed; top: 12px; right: 16px; z-index: 9500;
+  width: 380px; max-width: calc(100vw - 28px);
+  max-height: calc(100vh - 90px); overflow-y: auto;
+  background: #fff;
+  border: 1px solid #c9d5e6; border-left: 5px solid #2f6db3;
+  border-radius: 10px;
+  box-shadow: 0 12px 34px rgba(20, 28, 44, 0.26);
+  padding: 12px 14px;
+  font-size: 14px; color: #223042;
+}
+.pgt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pgt-title { font-weight: 700; font-size: 13px; color: #2f6db3; letter-spacing: 0.02em; }
+.pgt-x {
+  border: 0; background: none; cursor: pointer;
+  font-size: 18px; line-height: 1; color: #8a94a3; padding: 2px 5px;
+}
+.pgt-x:hover { color: #c23b3b; }
+.pgt-step-title { font-weight: 700; margin: 8px 0 5px; font-size: 15.5px; }
+.pgt-text { line-height: 1.5; }
+.pgt-text code { background: #eef2f8; border-radius: 4px; padding: 0 4px; font-size: 13px; }
+.pgt-why {
+  margin-top: 8px; padding: 7px 10px;
+  background: #f5f9ff; border-left: 3px solid #b9cfe8; border-radius: 0 6px 6px 0;
+  font-size: 13px; line-height: 1.5; color: #44536a;
+}
+.pgt-why code { background: #e7eef8; border-radius: 4px; padding: 0 4px; font-size: 12px; }
+.pgt-why-tag {
+  font-weight: 700; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #2f6db3; margin-right: 4px;
+}
+.pgt-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; gap: 8px;
+}
+.pgt-progress { font-size: 12px; color: #8a94a3; font-variant-numeric: tabular-nums; }
+.pgt-foot-btns { display: flex; align-items: center; gap: 10px; }
+.pgt-btn {
+  border: 1px solid #2f6db3; background: #2f6db3; color: #fff;
+  border-radius: 6px; padding: 6px 16px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600;
+}
+.pgt-btn:hover { background: #275c99; }
+.pgt-skip {
+  border: 0; background: none; cursor: pointer;
+  font-size: 12px; color: #8a94a3; text-decoration: underline; padding: 0;
+}
+.pgt-skip:hover { color: #556; }
+.pgt-waiting { margin-top: 8px; font-size: 12.5px; color: #b3792f; }
+.pgt-card.pgt-done { border-left-color: #22884c; }
+.pgt-card.pgt-done .pgt-waiting { color: #22884c; font-weight: 600; }
+
+.pge-tours-note {
+  padding: 7px 10px 5px; font-size: 10.5px; color: #8a94a3;
+  border-bottom: 1px solid #eef1f5; margin-bottom: 2px;
+}
+.pge-tours-group {
+  padding: 7px 10px 2px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: #99a3b0;
+}
+.pge-tours-menu { max-height: 420px; overflow-y: auto; }
+
+/* ── V3.390 — tour rebuild / explore affordances ────────────────── */
+.pgt-rebuild {
+  border: 1px solid #c9d5e6; background: #eef4fb; color: #2f6db3;
+  border-radius: 6px; padding: 5px 12px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600;
+}
+.pgt-rebuild:hover { background: #dfeaf7; }
+.pgt-close-link {
+  border: 0; background: none; cursor: pointer;
+  font-size: 12px; color: #8a94a3; text-decoration: underline; padding: 0;
+}
+.pgt-close-link:hover { color: #556; }
+
+/* ── V3.407 — click-built formula pad (no free-typed equations) ─── */
+.pge-fpad { display: flex; flex-direction: column; gap: 5px; }
+.pge-fpad-expr {
+  display: flex; flex-wrap: wrap; gap: 3px; align-items: center;
+  min-height: 26px; padding: 4px 6px;
+  border: 1px solid #d0d5dd; border-radius: 5px; background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.pge-fpad-empty { color: #a4adba; font-style: italic; font-size: 11px; font-family: inherit; }
+.pge-fpad-raw { color: #667; font-size: 11.5px; word-break: break-all; }
+.pge-fpad-tok {
+  display: inline-flex; align-items: center;
+  padding: 1px 5px; border-radius: 4px; line-height: 1.4;
+}
+.pge-fpad-tok-var { border: 1.5px solid #99a3b0; background: #f4f7fb; font-weight: 700; color: #223042; }
+.pge-fpad-tok-loose { border-style: dashed; font-weight: 500; }
+.pge-fpad-tok-num { background: #f0f3f7; color: #445; }
+.pge-fpad-tok-op { color: #8a94a3; font-weight: 700; padding: 1px 2px; }
+.pge-fpad-tok-open, .pge-fpad-tok-close, .pge-fpad-tok-func, .pge-fpad-tok-comma { color: #8a94a3; padding: 1px 1px; }
+.pge-fpad-vars { display: flex; flex-wrap: wrap; gap: 4px; align-items: stretch; }
+.pge-fpad-varbtn {
+  display: flex; flex-direction: column; align-items: flex-start;
+  border: 1.5px solid #c9d0da; border-radius: 6px; background: #fff;
+  padding: 3px 7px; cursor: pointer; min-width: 0; text-align: left;
+}
+.pge-fpad-varbtn:hover:not(:disabled) { background: #eef4fb; }
+.pge-fpad-varbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pge-fpad-alias { font-weight: 800; font-size: 12.5px; color: #223042; line-height: 1.1; }
+.pge-fpad-varname {
+  font-size: 9.5px; color: #66707e; max-width: 110px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pge-fpad-varunit { color: #99a3b0; }
+.pge-fpad-nohint { font-size: 10.5px; color: #a4adba; font-style: italic; align-self: center; }
+.pge-fpad-numwrap { display: inline-flex; gap: 2px; align-items: center; margin-left: auto; }
+.pge-fpad-num {
+  width: 62px; font-size: 11.5px; padding: 3px 5px;
+  border: 1px solid #d0d5dd; border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pge-fpad-ops { display: flex; flex-wrap: wrap; gap: 3px; }
+.pge-fpad-opbtn {
+  min-width: 30px; padding: 4px 7px;
+  border: 1px solid #c9d0da; border-radius: 6px; background: #f7f9fc;
+  font-size: 13px; font-weight: 700; color: #334; cursor: pointer;
+  line-height: 1;
+}
+.pge-fpad-opbtn:hover:not(:disabled) { background: #e8eef6; }
+.pge-fpad-opbtn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pge-fpad-numgo { font-size: 12px; }
+.pge-fpad-note { font-size: 10px; color: #b3792f; font-style: italic; }
+.pge-bind-alias { font-weight: 800; border-width: 1.5px; }
+
+/* ── V3.409 — swap a variable chip in place ─────────────────────── */
+.pge-fpad-tok-clickable { cursor: pointer; }
+.pge-fpad-tok-clickable:hover { background: #e8f0fa; box-shadow: 0 0 0 1px #b9cfe8; }
+.pge-fpad-swap {
+  position: fixed; z-index: 9600;
+  min-width: 170px; max-width: 240px;
+  background: #fff; border: 1px solid #c9d5e6; border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(20, 28, 44, 0.22);
+  padding: 4px;
+}
+.pge-fpad-swap-head {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #8a94a3; padding: 4px 8px 3px;
+}
+.pge-fpad-swap-item {
+  display: block; width: 100%; text-align: left;
+  border: 0; border-left: 3px solid #c9d0da; border-radius: 4px;
+  background: none; cursor: pointer;
+  padding: 5px 8px; font-size: 11.5px; color: #223042;
+}
+.pge-fpad-swap-item b { font-size: 12px; margin-right: 4px; }
+.pge-fpad-swap-item:hover:not(:disabled) { background: #eef4fb; }
+.pge-fpad-swap-item:disabled { opacity: 0.5; cursor: default; }
+.pge-fpad-swap-cur { background: #f4f7fb; }
+.pge-fpad-swap-unit { color: #99a3b0; font-size: 10.5px; }
+
+/* ── V3.416 — zoom-to-node header button ────────────────────────── */
+.pge-zoomto {
+  border: none; background: none; cursor: pointer;
+  font-size: 11px; color: #667; padding: 0 2px; line-height: 1;
+  flex: 0 0 auto;
+}
+.pge-zoomto:hover { color: #2f6db3; }
+
+/* ── V3.417 — multi-result equations + dimensional checks ───────── */
+.pge-eqres-head { display: flex; align-items: center; gap: 6px; margin-top: 7px; }
+.pge-eqres-tag {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #8a94a3;
+}
+.pge-eqres-add { margin-top: 6px; }
+.pge-eqres-row input { flex: 1; min-width: 0; }
+.pge-fpad-unitwarn {
+  font-size: 10px; color: #9a6420; background: #fdf6ec;
+  border-left: 3px solid #e2b877; padding: 3px 6px; border-radius: 0 4px 4px 0;
+}
+.pge-fpad-unitinfo { font-size: 10px; color: #667; font-style: italic; }

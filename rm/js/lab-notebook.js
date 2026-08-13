@@ -21,20 +21,28 @@
  * Body images are always Firebase Storage URLs, never base64 — the
  * Firestore 1 MB doc limit would break otherwise. See the invariant
  * comment in notebook-schemas.js.
+ *
+ * V3.359–V3.362 (FuturePlan 10) — phone-native layout (rail drawer +
+ * sticky action bar + keyboard handling + ＋Today), seamless input
+ * (inline observation form + voice, tag autocomplete, slash menu,
+ * surgical panel re-renders), experimental-design scaffolding (plan
+ * panel, templates, ↻ next iteration, DOE results), and cross-entry
+ * linking (entry picker, backlinks, excerpt search, rail phase chips).
  */
 
 (function () {
   'use strict';
 
-  // V3.148 build probe — if you do NOT see this in the console after a
+  // Build probe — if you do NOT see this in the console after a
   // hard reload, your browser is running cached (older) lab-notebook.js.
   // Hard-reload again or unregister the service worker.
-  console.log('[lab-notebook] V3.148 build loaded at', new Date().toISOString());
+  console.log('[lab-notebook] V3.362 build loaded at', new Date().toISOString());
 
   /* ─────────────────────────────────────────────────────────────
    * Constants & state
    * ───────────────────────────────────────────────────────────── */
   var INDEX_PATH = 'notebook/_index.json';
+  var TEMPLATES_PATH = 'notebook/_templates.json';
 
   function entryPathFor(id) { return 'notebook/' + id + '.json'; }
 
@@ -42,18 +50,68 @@
     user: null,
     isAdmin: false,
     indexDoc: null,            // { entries: [{summary row}, ...] }
+    templatesDoc: null,        // V3.361 — { templates: [{id,name,glyph,seed}] } (personal)
     currentId: null,
     doc: null,                 // full entry currently shown
     projects: [],              // [{id, label, type, member_uids}] from projects collection
     assignedProjectIds: null,  // Set<id> — projects where state.user.uid ∈ member_uids
     saveTimer: null,
+    drawers: null,             // V3.359 — MOBILE_DRAWERS api (phone rail drawer)
     // V3.117 — toolbar is search-only. The project/tag/date dropdowns
     // were removed because the toolbar's job is finding existing
     // entries; project (and any other field) is set INSIDE the entry,
     // not on the bar. Search matches title + tags + project label so it
     // covers everything the dropdowns used to filter.
-    filters: { q: '' },
+    // V3.362 — `phase` chips above the rail narrow by lifecycle stage.
+    filters: { q: '', phase: '' },
   };
+
+  /* V3.361 — built-in entry templates. Seeds are sanitizer-safe HTML
+   * (p/h2/ul only) + tag sets + plan-panel prompts. Personal templates
+   * saved from an entry live in the _templates doc (same shape) and are
+   * sharable as .notebook-template.json files. */
+  var NOTEBOOK_BUILTIN_TEMPLATES = [
+    {
+      id: 'tpl-cell-culture', name: 'Cell culture day', glyph: '🧫',
+      seed: {
+        tags: ['cell-culture', 'prep'],
+        plan: { hypothesis: '', independent_vars: [], dependent_vars: ['confluence', 'viability'], controls: '', success_criteria: '' },
+        body_html: '<h2>Cells</h2><p>Line / passage / vessel: </p><h2>Media &amp; feeds</h2><p></p><h2>Actions</h2><ul><li>Checked confluence: </li><li></li></ul>',
+      },
+    },
+    {
+      id: 'tpl-imaging', name: 'Imaging session', glyph: '🔬',
+      seed: {
+        tags: ['microscopy', 'imaging'],
+        plan: { hypothesis: '', independent_vars: [], dependent_vars: [], controls: '', success_criteria: 'Usable images of all conditions' },
+        body_html: '<h2>Scope &amp; settings</h2><p>Instrument / objective / channels / exposure: </p><h2>Samples</h2><ul><li></li></ul><h2>Notes during session</h2><p></p>',
+      },
+    },
+    {
+      id: 'tpl-synthesis', name: 'Synthesis / prep', glyph: '⚗️',
+      seed: {
+        tags: ['prep'],
+        plan: { hypothesis: '', independent_vars: ['concentration'], dependent_vars: ['yield'], controls: '', success_criteria: '' },
+        body_html: '<h2>Target</h2><p></p><h2>Reagents</h2><p>Insert inventory chips with 🧪 so hazards + locations attach.</p><h2>Procedure</h2><ul><li></li></ul>',
+      },
+    },
+    {
+      id: 'tpl-analysis', name: 'Analysis day', glyph: '📊',
+      seed: {
+        tags: ['analysis'],
+        plan: { hypothesis: '', independent_vars: [], dependent_vars: [], controls: '', success_criteria: '' },
+        body_html: '<h2>Dataset</h2><p>Source / date collected: </p><h2>Method</h2><p></p><h2>Results</h2><p></p><h2>Interpretation</h2><p></p>',
+      },
+    },
+    {
+      id: 'tpl-meeting', name: 'Meeting notes', glyph: '🗣',
+      seed: {
+        tags: ['meeting'],
+        phase: 'complete',
+        body_html: '<h2>Who / what</h2><p></p><h2>Decisions</h2><ul><li></li></ul><h2>Action items</h2><ul><li></li></ul>',
+      },
+    },
+  ];
 
   // Inventory picker — lazily loaded on first click of the toolbar button.
   // Mirrors the paper-editor.js pattern: load BOTH inventory/items.json
@@ -113,6 +171,55 @@
   function setSavingHint(text) {
     var el = document.getElementById('ln-saving');
     if (el) el.textContent = text || '';
+  }
+
+  /* V3.360 — TOAST when loaded, saving-hint fallback otherwise. Errors
+   * fall back to alert so failures are never silent. */
+  function lnNotify(kind, msg, detail) {
+    if (window.TOAST && typeof TOAST[kind] === 'function') {
+      TOAST[kind](msg, detail ? { detail: detail } : undefined);
+      return;
+    }
+    if (kind === 'error') alert(msg + (detail ? '\n\n' + detail : ''));
+    else setSavingHint(msg);
+  }
+
+  /* V3.360 — promise prompt: RM_DIALOG when loaded, window.prompt
+   * fallback. Resolves null on cancel (both paths). */
+  function lnPrompt(opts) {
+    if (window.RM_DIALOG && RM_DIALOG.prompt) return RM_DIALOG.prompt(opts);
+    var v = prompt((opts && opts.title) || 'Enter a value', (opts && opts.value) || '');
+    return Promise.resolve(v === null ? null : String(v).trim() || null);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * V3.361 — personal templates doc (userData/{uid}/notebook/_templates)
+   * ───────────────────────────────────────────────────────────── */
+  function ensureTemplatesRoute() {
+    if (api.getRoute && api.getRoute(TEMPLATES_PATH)) return;
+    api.registerRoute(TEMPLATES_PATH, { scope: 'user', subcollection: 'notebook', doc: '_templates' });
+  }
+
+  async function loadTemplatesDoc() {
+    try {
+      ensureTemplatesRoute();
+      var d = await api.load(TEMPLATES_PATH);
+      if (!d || !Array.isArray(d.templates)) d = { templates: [] };
+      state.templatesDoc = d;
+    } catch (err) {
+      console.warn('[lab-notebook] templates load failed:', err && err.message);
+      state.templatesDoc = { templates: [] };
+    }
+  }
+
+  async function saveTemplatesDoc() {
+    try {
+      ensureTemplatesRoute();
+      await api.save(TEMPLATES_PATH, state.templatesDoc || { templates: [] });
+    } catch (err) {
+      console.error('[lab-notebook] templates save failed:', err);
+      lnNotify('error', 'Could not save template', err && err.message);
+    }
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -304,9 +411,19 @@
   async function saveIndex() {
     try {
       await api.save(INDEX_PATH, state.indexDoc);
+      refreshPulse();
     } catch (err) {
       console.error('[lab-notebook] index save failed:', err);
     }
+  }
+
+  /* V3.362 — keep the toolbar pulse line fresh without re-rendering the
+   * toolbar (which would eat the search box's focus). */
+  function refreshPulse() {
+    var el = document.querySelector('.ln-toolbar .ln-pulse');
+    if (!el) return;
+    var pulse = weeklyPulse();
+    el.textContent = pulse.week + ' this week' + (pulse.streak > 1 ? ' · ' + pulse.streak + '-day streak' : '');
   }
 
   function upsertIndexRow(entry) {
@@ -440,7 +557,7 @@
         await writeFigureReviewToPmr(period.id, fr);
         setSavingHint('flagged for PMR: ' + (period.label || period.id));
       }
-      renderEditor();
+      renderAttachmentsPanel();
       scheduleSave();
     } catch (err) {
       console.error('[lab-notebook] togglePmrFlagOnFigure failed:', err);
@@ -622,22 +739,47 @@
   function filteredIndexRows() {
     var rows = (state.indexDoc && state.indexDoc.entries) || [];
     var q = (state.filters.q || '').toLowerCase().trim();
+    var phase = state.filters.phase || '';
     return rows
       .filter(function (r) {
+        // V3.362 — phase chip filter above the rail.
+        if (phase && (r.phase || 'complete') !== phase) return false;
         if (!q) return true;
-        // Match across title, tags, project label, status, and date.
-        // Single-input search replaces the V3.110 tag/project/date
-        // dropdowns — typing "microscopy" or "GELS" or "2026-05" all
-        // narrow the rail.
+        // Match across title, tags, project label, status, date, and
+        // (V3.362) the body excerpt — so searching content, not just
+        // metadata, narrows the rail.
         var hay = (r.title || '') + ' ' +
                   (Array.isArray(r.tags) ? r.tags.join(' ') : '') + ' ' +
                   projectLabel(r.project_id) + ' ' +
                   (r.status || '') + ' ' +
-                  (r.date || '');
+                  (r.date || '') + ' ' +
+                  (r.excerpt || '');
         return hay.toLowerCase().indexOf(q) >= 0;
       })
       .slice()
       .sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  }
+
+  /* V3.362 — weekly pulse: entries in the last 7 days + consecutive-day
+   * streak ending today or yesterday. Computed from index dates only. */
+  function weeklyPulse() {
+    var rows = (state.indexDoc && state.indexDoc.entries) || [];
+    var dates = {};
+    rows.forEach(function (r) { if (r.date) dates[r.date] = true; });
+    var now = new Date();
+    var week = 0;
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(now); d.setDate(now.getDate() - i);
+      if (dates[d.toISOString().slice(0, 10)]) week++;
+    }
+    var streak = 0;
+    var cursor = new Date(now);
+    if (!dates[cursor.toISOString().slice(0, 10)]) cursor.setDate(cursor.getDate() - 1); // streak may end yesterday
+    while (dates[cursor.toISOString().slice(0, 10)]) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return { week: week, streak: streak };
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -653,16 +795,265 @@
     // V3.126 — admin Members modal moved out: project membership
     // is now managed canonically on /rm/pages/projects.html so the
     // assignment propagates everywhere member_uids[] is read.
+    // V3.359 — ☰ Entries (phone drawer toggle) + ＋ Today one-tap entry.
+    // V3.361 — New is a split button: main click = blank entry, ▾ opens
+    // the template menu (built-ins, personal, clone, save, import).
+    // V3.362 — weekly pulse line.
+    var pulse = weeklyPulse();
+    var pulseHtml = (state.indexDoc && (state.indexDoc.entries || []).length)
+      ? '<span class="ln-pulse" title="Entries in the last 7 days · consecutive-day streak">' +
+          pulse.week + ' this week' + (pulse.streak > 1 ? ' · ' + pulse.streak + '-day streak' : '') +
+        '</span>'
+      : '';
     bar.innerHTML =
-      '<button id="ln-new" class="primary">+ New entry</button>' +
-      '<input id="ln-f-q" type="search" placeholder="Search title, tag, project, date…" value="' + escapeHtml(state.filters.q) + '" autocomplete="off">' +
+      '<button id="ln-drawer-toggle" class="ln-drawer-toggle" title="Show entries" aria-label="Show entries">☰</button>' +
+      '<span class="ln-new-split">' +
+        '<button id="ln-new" class="primary">+ New</button>' +
+        '<button id="ln-new-menu-btn" class="primary ln-new-caret" title="New from template, clone, import…" aria-label="New entry options">▾</button>' +
+      '</span>' +
+      '<button id="ln-today" title="Jump to (or create) today\'s entry">＋ Today</button>' +
+      '<input id="ln-f-q" type="search" placeholder="Search title, tag, project, content…" value="' + escapeHtml(state.filters.q) + '" autocomplete="off">' +
       '<span class="grow"></span>' +
+      pulseHtml +
       '<span id="ln-saving" class="saving-hint"></span>';
 
-    document.getElementById('ln-new').addEventListener('click', onNewEntry);
+    document.getElementById('ln-new').addEventListener('click', function () { onNewEntry(); });
+    document.getElementById('ln-new-menu-btn').addEventListener('click', function (e) {
+      openNewEntryMenu(e.currentTarget);
+    });
+    document.getElementById('ln-today').addEventListener('click', openTodayEntry);
     document.getElementById('ln-f-q').addEventListener('input', function (e) {
       state.filters.q = e.target.value; renderRail();
     });
+    var drawerBtn = document.getElementById('ln-drawer-toggle');
+    if (drawerBtn) drawerBtn.addEventListener('click', function () {
+      if (state.drawers) state.drawers.toggle('left');
+    });
+  }
+
+  /* V3.359 — one-tap today: open today's entry if it exists (most recent
+   * one dated today), else create a fresh entry dated today. */
+  async function openTodayEntry() {
+    var today = todayStr();
+    var rows = ((state.indexDoc && state.indexDoc.entries) || []).filter(function (r) { return r.date === today; });
+    if (rows.length) {
+      rows.sort(function (a, b) { return String(b.updated_at || '').localeCompare(String(a.updated_at || '')); });
+      await switchToEntry(rows[0].id);
+      if (state.drawers) state.drawers.close();
+      return;
+    }
+    await onNewEntry();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * V3.361 — New ▾ template menu + template machinery
+   * ─────────────────────────────────────────────────────────────
+   * Template shape: { id, name, glyph, seed }. A seed can carry
+   * title, tags[], phase, plan{}, body_html (sanitized on apply),
+   * project_id. Personal templates persist in the _templates doc;
+   * built-ins ship in NOTEBOOK_BUILTIN_TEMPLATES. Sharing = export /
+   * import of a .notebook-template.json file (protocol-importer UX).
+   */
+  var _newMenuEl = null;
+
+  function closeNewEntryMenu() {
+    if (_newMenuEl && _newMenuEl.parentNode) _newMenuEl.parentNode.removeChild(_newMenuEl);
+    _newMenuEl = null;
+  }
+
+  function openNewEntryMenu(anchorEl) {
+    closeNewEntryMenu();
+    var menu = document.createElement('div');
+    menu.className = 'ln-new-menu';
+    var html = '<button type="button" class="ln-new-item" data-act="blank">📄 Blank entry</button>';
+    html += '<div class="ln-new-sep">Templates</div>';
+    NOTEBOOK_BUILTIN_TEMPLATES.forEach(function (t) {
+      html += '<button type="button" class="ln-new-item" data-act="tpl" data-tpl="' + escapeHtml(t.id) + '">' +
+        escapeHtml(t.glyph + ' ' + t.name) + '</button>';
+    });
+    var mine = (state.templatesDoc && state.templatesDoc.templates) || [];
+    if (mine.length) {
+      html += '<div class="ln-new-sep">My templates</div>';
+      mine.forEach(function (t) {
+        html += '<div class="ln-new-item-row">' +
+          '<button type="button" class="ln-new-item" data-act="tpl" data-tpl="' + escapeHtml(t.id) + '">' +
+            escapeHtml((t.glyph || '📄') + ' ' + t.name) + '</button>' +
+          '<button type="button" class="ln-new-mini" data-act="export" data-tpl="' + escapeHtml(t.id) + '" title="Export as shareable file">⬇</button>' +
+          '<button type="button" class="ln-new-mini" data-act="del" data-tpl="' + escapeHtml(t.id) + '" title="Delete template">×</button>' +
+        '</div>';
+      });
+    }
+    html += '<div class="ln-new-sep"></div>';
+    html += '<button type="button" class="ln-new-item" data-act="clone">🧬 Clone last entry</button>';
+    if (state.doc) {
+      html += '<button type="button" class="ln-new-item" data-act="save-tpl">💾 Save current as template</button>';
+    }
+    html += '<button type="button" class="ln-new-item" data-act="import">📥 Import template…</button>';
+    menu.innerHTML = html;
+    document.body.appendChild(menu);
+    _newMenuEl = menu;
+    _positionPopoverNearAnchor(menu, anchorEl);
+
+    menu.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest && e.target.closest('[data-act]');
+      if (!btn) return;
+      var act = btn.getAttribute('data-act');
+      var tplId = btn.getAttribute('data-tpl');
+      if (act !== 'export' && act !== 'del') closeNewEntryMenu();
+      if (act === 'blank') onNewEntry();
+      else if (act === 'tpl') applyTemplateById(tplId);
+      else if (act === 'clone') cloneLastEntry();
+      else if (act === 'save-tpl') saveCurrentAsTemplate();
+      else if (act === 'import') importTemplateFile();
+      else if (act === 'export') { exportTemplate(tplId); closeNewEntryMenu(); }
+      else if (act === 'del') { deleteTemplate(tplId); closeNewEntryMenu(); }
+    });
+    setTimeout(function () {
+      document.addEventListener('mousedown', function onDoc(e) {
+        if (_newMenuEl && !_newMenuEl.contains(e.target)) closeNewEntryMenu();
+        if (!_newMenuEl) document.removeEventListener('mousedown', onDoc);
+      });
+    }, 0);
+  }
+
+  function findTemplate(id) {
+    var mine = (state.templatesDoc && state.templatesDoc.templates) || [];
+    return NOTEBOOK_BUILTIN_TEMPLATES.find(function (t) { return t.id === id; }) ||
+           mine.find(function (t) { return t.id === id; }) || null;
+  }
+
+  async function applyTemplateById(id) {
+    var t = findTemplate(id);
+    if (!t) { lnNotify('error', 'Template not found'); return; }
+    await onNewEntry({ seed: t.seed, slug: t.name });
+    setSavingHint('template applied: ' + t.name);
+  }
+
+  /* Overlay a template seed onto a freshly created entry. body_html
+   * runs through the sanitizer so an imported template can't smuggle
+   * markup past the allowlist. */
+  function applySeedToDoc(doc, seed) {
+    if (!seed || typeof seed !== 'object') return;
+    if (typeof seed.title === 'string' && seed.title) doc.title = seed.title;
+    if (Array.isArray(seed.tags)) doc.tags = seed.tags.filter(function (t) { return typeof t === 'string' && t; }).slice(0, 12);
+    if (typeof seed.phase === 'string' && NOTEBOOK_PHASES.indexOf(seed.phase) >= 0) doc.phase = seed.phase;
+    if (seed.plan && typeof seed.plan === 'object') doc.plan = notebookHydratePlan(JSON.parse(JSON.stringify(seed.plan)));
+    if (typeof seed.project_id === 'string' && seed.project_id) doc.project_id = seed.project_id;
+    if (typeof seed.body_html === 'string' && seed.body_html) doc.body_html = sanitizeHtml(seed.body_html);
+  }
+
+  /* V3.361 — clone the most recent entry (or the open one) as a fresh
+   * plan-phase entry: carries title, tags, project, body (chips ride
+   * along), plan, design factors+runs (results cleared), calc_runs.
+   * Observations / summary / run stamps / attachments / protocol_run
+   * do NOT carry — those are records of the old run. */
+  async function cloneLastEntry() {
+    var src = state.doc;
+    if (!src) {
+      var rows = filteredIndexRows();
+      if (!rows.length) { lnNotify('error', 'Nothing to clone yet'); return; }
+      src = await loadEntry(rows[0].id);
+      if (!src) { lnNotify('error', 'Could not load the last entry'); return; }
+    }
+    var seed = {
+      title: (src.title || '(untitled)') + ' (copy)',
+      tags: (src.tags || []).slice(),
+      project_id: src.project_id || null,
+      plan: JSON.parse(JSON.stringify(src.plan || {})),
+      body_html: src.body_html || '',
+      phase: 'plan',
+    };
+    await onNewEntry({ seed: seed, slug: src.title || 'copy' });
+    if (src.design) {
+      state.doc.design = JSON.parse(JSON.stringify(src.design));
+      state.doc.design.run_results = (state.doc.design.runs || []).map(function () { return { value: '', note: '' }; });
+    }
+    if (Array.isArray(src.calc_runs) && src.calc_runs.length) {
+      state.doc.calc_runs = JSON.parse(JSON.stringify(src.calc_runs));
+    }
+    collectInventoryRefs(); collectProtocolRefs();
+    renderEditor(); scheduleSave();
+    setSavingHint('cloned from: ' + (src.title || src.id));
+  }
+
+  async function saveCurrentAsTemplate() {
+    if (!state.doc) return;
+    var name = await lnPrompt({ title: 'Template name', placeholder: 'e.g. ELISA day', okText: 'Save template' });
+    if (!name) return;
+    if (!state.templatesDoc) state.templatesDoc = { templates: [] };
+    var tpl = {
+      id: 'utpl-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+      name: name,
+      glyph: '📄',
+      seed: {
+        tags: (state.doc.tags || []).slice(),
+        phase: 'plan',
+        plan: JSON.parse(JSON.stringify(state.doc.plan || {})),
+        body_html: state.doc.body_html || '',
+        project_id: state.doc.project_id || null,
+      },
+      created_at: isoNow(),
+    };
+    state.templatesDoc.templates.push(tpl);
+    await saveTemplatesDoc();
+    lnNotify('success', 'Template saved: ' + name);
+  }
+
+  async function deleteTemplate(id) {
+    if (!state.templatesDoc) return;
+    var t = (state.templatesDoc.templates || []).find(function (x) { return x.id === id; });
+    if (!t) return;
+    if (!confirm('Delete template "' + t.name + '"?')) return;
+    state.templatesDoc.templates = state.templatesDoc.templates.filter(function (x) { return x.id !== id; });
+    await saveTemplatesDoc();
+    setSavingHint('template deleted');
+  }
+
+  function exportTemplate(id) {
+    var t = findTemplate(id);
+    if (!t) return;
+    var payload = { kind: 'notebook-template', version: 1, template: { name: t.name, glyph: t.glyph || '📄', seed: t.seed } };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = slugify(t.name, 5) + '.notebook-template.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+  }
+
+  function importTemplateFile() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.addEventListener('change', async function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      try {
+        var text = await f.text();
+        var payload = JSON.parse(text);
+        var t = payload && payload.kind === 'notebook-template' && payload.template;
+        if (!t || typeof t.name !== 'string' || !t.seed || typeof t.seed !== 'object') {
+          throw new Error('Not a notebook-template file (expected {kind:"notebook-template", template:{name, seed}}).');
+        }
+        if (!state.templatesDoc) state.templatesDoc = { templates: [] };
+        state.templatesDoc.templates.push({
+          id: 'utpl-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+          name: String(t.name).slice(0, 80),
+          glyph: (typeof t.glyph === 'string' && t.glyph) ? t.glyph.slice(0, 4) : '📄',
+          // Seed body is sanitized at APPLY time (applySeedToDoc), so a
+          // hostile import can't inject markup even if it sits stored.
+          seed: t.seed,
+          created_at: isoNow(),
+        });
+        await saveTemplatesDoc();
+        lnNotify('success', 'Template imported: ' + t.name);
+      } catch (err) {
+        lnNotify('error', 'Template import failed', err && err.message);
+      }
+    });
+    input.click();
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -671,12 +1062,31 @@
   function renderRail() {
     var rail = document.getElementById('ln-rail');
     if (!rail) return;
+    // V3.360 — preserve scroll across re-renders (the rail refreshes on
+    // every title keystroke; losing scroll position made long rails
+    // unusable).
+    var keepScroll = rail.scrollTop;
     var rows = filteredIndexRows();
+    // V3.362 — phase filter chips. Rendered even when the filtered list
+    // is empty so an active chip can always be un-clicked.
+    var chips = '<div class="ln-rail-chips">' +
+      [{ v: '', label: 'All' }].concat(NOTEBOOK_PHASES.map(function (p) {
+        return { v: p, label: NOTEBOOK_PHASE_GLYPHS[p] + ' ' + NOTEBOOK_PHASE_LABELS[p] };
+      })).map(function (c) {
+        return '<button type="button" class="ln-rail-chip' + (state.filters.phase === c.v ? ' active' : '') +
+          '" data-phase="' + escapeHtml(c.v) + '">' + escapeHtml(c.label) + '</button>';
+      }).join('') +
+      '</div>';
     if (!rows.length) {
-      rail.innerHTML = '<div class="ln-empty">No entries yet. Click <strong>+ New entry</strong> to start.</div>';
+      rail.innerHTML = chips + '<div class="ln-empty">' +
+        (state.filters.q || state.filters.phase
+          ? 'No entries match the current filter.'
+          : 'No entries yet. Click <strong>+ New</strong> to start.') +
+        '</div>';
+      wireRailChips(rail);
       return;
     }
-    var html = '<h3>Entries</h3>';
+    var html = chips + '<h3>Entries</h3>';
     var lastDate = '';
     rows.forEach(function (r) {
       if (r.date !== lastDate) {
@@ -706,7 +1116,22 @@
     });
     rail.innerHTML = html;
     Array.prototype.forEach.call(rail.querySelectorAll('.ln-entry-row'), function (el) {
-      el.addEventListener('click', function () { switchToEntry(el.getAttribute('data-id')); });
+      el.addEventListener('click', function () {
+        switchToEntry(el.getAttribute('data-id'));
+        // V3.359 — picking an entry from the phone drawer closes it.
+        if (state.drawers) state.drawers.close();
+      });
+    });
+    wireRailChips(rail);
+    rail.scrollTop = keepScroll;
+  }
+
+  function wireRailChips(rail) {
+    Array.prototype.forEach.call(rail.querySelectorAll('.ln-rail-chip'), function (chip) {
+      chip.addEventListener('click', function () {
+        state.filters.phase = chip.getAttribute('data-phase') || '';
+        renderRail();
+      });
     });
   }
 
@@ -718,11 +1143,21 @@
     if (!pane) return;
     if (!state.doc) {
       pane.classList.remove('dragover');
+      // V3.359 — the phone empty state leads with one-tap capture:
+      // create today's entry and open the camera in a single gesture.
       pane.innerHTML =
         '<div class="ln-empty-pane">' +
           '<div class="big">📓</div>' +
-          'Select an entry from the rail, or click <strong>+ New entry</strong> to start.' +
+          'Select an entry from the rail, or click <strong>+ New</strong> to start.' +
+          '<button type="button" id="ln-empty-capture" class="ln-empty-capture">📷 Capture into today\'s entry</button>' +
         '</div>';
+      var cap = document.getElementById('ln-empty-capture');
+      if (cap) cap.addEventListener('click', async function () {
+        await openTodayEntry();
+        var input = document.getElementById('ln-camera-input');
+        if (input) { input.value = ''; input.click(); }
+      });
+      refreshActionBar();
       return;
     }
     var d = state.doc;
@@ -761,6 +1196,7 @@
         noProjectsHint +
       '</div>' +
       renderTagsHtml(d.tags) +
+      renderPlanHtml(d) +
       '<div class="ln-body-toolbar">' +
         '<button data-cmd="bold" title="Bold (Cmd/Ctrl+B)"><strong>B</strong></button>' +
         '<button data-cmd="italic" title="Italic (Cmd/Ctrl+I)"><em>I</em></button>' +
@@ -782,10 +1218,15 @@
       '</div>' +
       '<div class="ln-body" id="ln-body" contenteditable="true" data-placeholder="Type your entry. Drag, paste, or capture a photo to attach an image."></div>' +
       renderDesignHtml(d.design || null) +
+      // FuturePlan 06 — live protocol run panel (filled by
+      // mountProtocolRunPanel in wireEditor; rendered from
+      // state.doc.protocol_run, outside the sanitized body).
+      '<div id="ln-protocol-run" class="ln-protocol-run"></div>' +
       renderProtocolsHtml(d.protocol_refs || []) +
       renderMaterialsHtml(d.inventory_refs || []) +
       renderAttachmentsHtml(d.attachments || []) +
       renderRefsHtml(d.reference_links || []) +
+      renderBacklinksHtml(d) +
       '<div id="ln-ext-links"></div>' +
       renderObservationsHtml(d) +
       renderSummaryHtml(d) +
@@ -796,6 +1237,19 @@
     body.innerHTML = d.body_html || '';
     refreshBodyEmptyState();
     wireEditor();
+    refreshActionBar();
+  }
+
+  /* V3.360 — the "+ tag" prompt() is replaced by an inline chip input
+   * with datalist autocomplete seeded from NOTEBOOK_DEFAULT_TAGS plus
+   * every tag the user has already used (harvested from index rows). */
+  function knownTags() {
+    var seen = {};
+    NOTEBOOK_DEFAULT_TAGS.forEach(function (t) { seen[t] = true; });
+    (((state.indexDoc || {}).entries) || []).forEach(function (r) {
+      (r.tags || []).forEach(function (t) { if (t) seen[t] = true; });
+    });
+    return Object.keys(seen).sort();
   }
 
   function renderTagsHtml(tags) {
@@ -803,19 +1257,136 @@
       return '<span class="ln-tag-chip" data-tag="' + escapeHtml(t) + '">' +
         escapeHtml(t) + '<span class="x" data-tag="' + escapeHtml(t) + '">×</span></span>';
     }).join('');
+    var options = knownTags().map(function (t) {
+      return '<option value="' + escapeHtml(t) + '"></option>';
+    }).join('');
     return '<div class="ln-tags" id="ln-tags">' + chips +
-      '<button class="ln-tag-add" id="ln-tag-add">+ tag</button>' +
+      '<input class="ln-tag-input" id="ln-tag-input" type="text" list="ln-tag-suggestions"' +
+        ' placeholder="+ tag" autocomplete="off" enterkeyhint="done">' +
+      '<datalist id="ln-tag-suggestions">' + options + '</datalist>' +
       '</div>';
   }
 
+  /* ─────────────────────────────────────────────────────────────
+   * V3.361 — 🧭 Plan panel (hypothesis / variables / controls /
+   * success criteria). Expanded + emphasized in phase:plan, collapses
+   * to a summary chip once the run starts. Gentle — never a gate.
+   * ───────────────────────────────────────────────────────────── */
+  function renderPlanHtml(d) {
+    var p = d.plan || notebookHydratePlan(null);
+    var open = d.phase === 'plan';
+    var filled = notebookPlanHasContent(p);
+    var summaryBits = [];
+    if (p.hypothesis) summaryBits.push('hypothesis');
+    if (p.independent_vars.length) summaryBits.push(p.independent_vars.length + ' IV');
+    if (p.dependent_vars.length) summaryBits.push(p.dependent_vars.length + ' DV');
+    if (p.controls) summaryBits.push('controls');
+    if (p.success_criteria) summaryBits.push('success criteria');
+    return '<details class="ln-plan' + (d.phase === 'plan' ? ' ln-plan-active' : '') + '" id="ln-plan"' + (open ? ' open' : '') + '>' +
+      '<summary>🧭 Plan' +
+        '<span class="ln-plan-summary">' +
+          (filled ? escapeHtml(summaryBits.join(' · ')) : (d.phase === 'plan' ? 'sketch the experiment before you start' : 'not filled in')) +
+        '</span>' +
+      '</summary>' +
+      '<div class="ln-plan-grid">' +
+        '<label class="ln-plan-field ln-plan-wide">Hypothesis / question' +
+          '<textarea id="ln-plan-hypothesis" rows="2" placeholder="What do you expect to happen, and why?">' + escapeHtml(p.hypothesis) + '</textarea>' +
+        '</label>' +
+        '<label class="ln-plan-field">What I\'m varying (independent)' +
+          '<input id="ln-plan-iv" type="text" placeholder="comma-separated, e.g. stiffness, seeding density" value="' + escapeHtml(p.independent_vars.join(', ')) + '">' +
+        '</label>' +
+        '<label class="ln-plan-field">What I\'m measuring (dependent)' +
+          '<input id="ln-plan-dv" type="text" placeholder="comma-separated, e.g. traction force, viability" value="' + escapeHtml(p.dependent_vars.join(', ')) + '">' +
+        '</label>' +
+        '<label class="ln-plan-field">Controls' +
+          '<input id="ln-plan-controls" type="text" placeholder="positive / negative / vehicle…" value="' + escapeHtml(p.controls) + '">' +
+        '</label>' +
+        '<label class="ln-plan-field">Success criteria' +
+          '<input id="ln-plan-success" type="text" placeholder="what result would make this a win?" value="' + escapeHtml(p.success_criteria) + '">' +
+        '</label>' +
+      '</div>' +
+    '</details>';
+  }
+
+  function wirePlanPanel() {
+    var box = document.getElementById('ln-plan');
+    if (!box || !state.doc) return;
+    function csv(v) {
+      return String(v || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    }
+    var map = [
+      { id: 'ln-plan-hypothesis', set: function (v) { state.doc.plan.hypothesis = v; } },
+      { id: 'ln-plan-iv',         set: function (v) { state.doc.plan.independent_vars = csv(v); } },
+      { id: 'ln-plan-dv',         set: function (v) { state.doc.plan.dependent_vars = csv(v); } },
+      { id: 'ln-plan-controls',   set: function (v) { state.doc.plan.controls = v; } },
+      { id: 'ln-plan-success',    set: function (v) { state.doc.plan.success_criteria = v; } },
+    ];
+    map.forEach(function (m) {
+      var el = document.getElementById(m.id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        if (!state.doc.plan) state.doc.plan = notebookHydratePlan(null);
+        m.set(el.value);
+        scheduleSave();
+      });
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * V3.362 — 🔗 Linked from (backlinks). Computed from index rows'
+   * linked_entry_ids so it costs zero extra reads.
+   * ───────────────────────────────────────────────────────────── */
+  function renderBacklinksHtml(d) {
+    var rows = ((state.indexDoc && state.indexDoc.entries) || []).filter(function (r) {
+      return r.id !== d.id && Array.isArray(r.linked_entry_ids) && r.linked_entry_ids.indexOf(d.id) >= 0;
+    });
+    if (!rows.length) return '';
+    var items = rows.map(function (r) {
+      return '<button type="button" class="ln-backlink" data-id="' + escapeHtml(r.id) + '">' +
+        '↩ ' + escapeHtml(r.title || '(untitled)') + ' <span class="ln-backlink-date">' + escapeHtml(r.date || '') + '</span>' +
+        '</button>';
+    }).join('');
+    return '<div class="ln-backlinks" id="ln-backlinks">' +
+      '<h4>Linked from</h4>' +
+      '<div class="ln-backlink-list">' + items + '</div>' +
+      '</div>';
+  }
+
+  function wireBacklinks() {
+    var box = document.getElementById('ln-backlinks');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('.ln-backlink'), function (btn) {
+      btn.addEventListener('click', function () { switchToEntry(btn.getAttribute('data-id')); });
+    });
+  }
+
   function renderProtocolsHtml(refs) {
+    // V3.506 correction — a protocol mounted LIVE in-situ (the run panel
+    // right below the body) is not a link out to another page; it's this
+    // entry's own copy. Its row is a jump-to-it control (data-protocol-jump,
+    // handled by the pane's delegated click listener), not an <a href>.
+    // Only a protocol referenced WITHOUT a live mount (the "ref only" quick
+    // action) still opens the protocols page in a new tab — there's no
+    // in-situ instance to jump to.
+    var liveId = state.doc && state.doc.protocol_run && state.doc.protocol_run.protocol_id;
     var rows = (refs || []).map(function (r) {
-      var url = '/rm/pages/protocols.html?protocol=' + encodeURIComponent(r.id);
-      return '<div class="ln-protocol-list-row">' +
-          '<a class="ln-protocol-row" href="' + escapeHtml(url) + '" title="Open protocol">' +
+      var head;
+      if (liveId && r.id === liveId) {
+        head = '<button type="button" class="ln-protocol-row ln-protocol-row-live"' +
+            ' data-protocol-jump="' + escapeHtml(r.id) + '"' +
+            ' title="Jump to the live protocol document in this entry">' +
             '<span class="ln-protocol-icon">📋</span>' +
             '<span class="ln-protocol-name">' + escapeHtml(r.title || r.id) + '</span>' +
-          '</a>' +
+            '<span class="ln-protocol-live-badge">used in this entry ↓</span>' +
+          '</button>';
+      } else {
+        var url = '/rm/pages/protocols.html?protocol=' + encodeURIComponent(r.id);
+        head = '<a class="ln-protocol-row" href="' + escapeHtml(url) + '" target="_blank" rel="noopener" title="Open protocol">' +
+            '<span class="ln-protocol-icon">📋</span>' +
+            '<span class="ln-protocol-name">' + escapeHtml(r.title || r.id) + '</span>' +
+          '</a>';
+      }
+      return '<div class="ln-protocol-list-row">' + head +
           // V3.135 — per-row calculator button. Click → opens the
           // calc modal for this protocol. Pane-level click delegate
           // (search wireProtocolsCalcDelegate) reads data-protocol-id
@@ -827,7 +1398,7 @@
     }).join('');
     var emptyHint = (refs && refs.length)
       ? ''
-      : '<span class="ln-material-empty">— click <strong>📋 Protocol</strong> to reference a lab protocol you followed.</span>';
+      : '<span class="ln-material-empty">— click <strong>📋 Protocol</strong> to use a lab protocol in this entry.</span>';
     return '<div class="ln-protocols" id="ln-protocols">' +
       '<h4>Protocols followed</h4>' +
       '<div class="ln-protocol-list">' + rows + emptyHint + '</div>' +
@@ -960,11 +1531,214 @@
         '<span class="del" data-i="' + i + '">×</span>' +
         '</div>';
     }).join('');
-    return '<div class="ln-refs">' +
+    return '<div class="ln-refs" id="ln-refs">' +
       '<h4>References</h4>' +
       '<div id="ln-refs-rows">' + rows + '</div>' +
       '<button class="ln-add-btn" id="ln-add-ref">+ add reference</button>' +
+      // V3.362 — the Phase-2 entry picker finally lands: link a sibling
+      // notebook entry (writes reciprocal reference_links both ways).
+      '<button class="ln-add-btn" id="ln-link-entry">🔗 link another entry</button>' +
       '</div>';
+  }
+
+  /* V3.360 — surgical refresh for the refs section (replaces the old
+   * whole-editor re-render on every add/delete, which blew away focus). */
+  function renderRefsPanel() {
+    var box = document.getElementById('ln-refs');
+    if (!box || !state.doc) return;
+    box.outerHTML = renderRefsHtml(state.doc.reference_links || []);
+    wireRefs();
+  }
+
+  function wireRefs() {
+    Array.prototype.forEach.call(document.querySelectorAll('.ln-ref-row'), function (row) {
+      var i = +row.getAttribute('data-i');
+      row.querySelector('.ref-kind').addEventListener('change', function (e) {
+        state.doc.reference_links[i].kind = e.target.value; scheduleSave();
+      });
+      row.querySelector('.ref-label').addEventListener('input', function (e) {
+        state.doc.reference_links[i].label = e.target.value; scheduleSave();
+      });
+      row.querySelector('.ref-url').addEventListener('input', function (e) {
+        state.doc.reference_links[i].url = e.target.value; scheduleSave();
+      });
+      row.querySelector('.del').addEventListener('click', function () {
+        state.doc.reference_links.splice(i, 1);
+        renderRefsPanel(); scheduleSave();
+      });
+    });
+    var addBtn = document.getElementById('ln-add-ref');
+    if (addBtn) addBtn.addEventListener('click', function () {
+      if (!state.doc.reference_links) state.doc.reference_links = [];
+      state.doc.reference_links.push({ kind: 'notes', label: '', url: '' });
+      renderRefsPanel(); scheduleSave();
+      // Focus the fresh row's label input so add → type flows.
+      var rows = document.querySelectorAll('.ln-ref-row');
+      var last = rows[rows.length - 1];
+      var lbl = last && last.querySelector('.ref-label');
+      if (lbl) lbl.focus();
+    });
+    var linkBtn = document.getElementById('ln-link-entry');
+    if (linkBtn) linkBtn.addEventListener('click', function (ev) {
+      openEntryLinkPicker(ev.currentTarget);
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * V3.362 — entry link picker. Reuses the inventory popover chrome.
+   * Picking a sibling entry writes reference_links BOTH ways (this doc
+   * via normal save; the sibling via a direct entry save + index-row
+   * refresh) so backlinks light up immediately on either end.
+   * ───────────────────────────────────────────────────────────── */
+  var entryPickerState = { popover: null };
+
+  function entryLinkUrl(id) {
+    return '/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(id);
+  }
+
+  function _ensureEntryPickerPopover() {
+    if (entryPickerState.popover) return entryPickerState.popover;
+    var pop = document.createElement('div');
+    pop.className = 'ln-inv-popover ln-entry-popover';
+    pop.hidden = true;
+    pop.innerHTML =
+      '<div class="ln-inv-pop-title">Link another entry</div>' +
+      '<input type="text" class="ln-inv-pop-search" placeholder="Search entries by title, tag, date…" autocomplete="off">' +
+      '<div class="ln-inv-pop-list" role="listbox"></div>' +
+      '<div class="ln-inv-pop-hint"><kbd>↑</kbd>/<kbd>↓</kbd> navigate · <kbd>Enter</kbd> link · <kbd>Esc</kbd> close</div>';
+    document.body.appendChild(pop);
+    entryPickerState.popover = pop;
+
+    var input = pop.querySelector('.ln-inv-pop-search');
+    var listEl = pop.querySelector('.ln-inv-pop-list');
+    var activeIdx = 0;
+    var current = [];
+
+    pop._refresh = function () {
+      var q = input.value.trim().toLowerCase();
+      var src = ((state.indexDoc && state.indexDoc.entries) || []).filter(function (r) {
+        return r.id !== state.currentId;
+      }).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+      var matched = q
+        ? src.filter(function (r) {
+            var hay = ((r.title || '') + ' ' + (r.tags || []).join(' ') + ' ' + (r.date || '')).toLowerCase();
+            return hay.indexOf(q) >= 0;
+          })
+        : src;
+      current = matched.slice(0, 60);
+      activeIdx = current.length ? 0 : -1;
+      renderList();
+    };
+    function renderList() {
+      listEl.innerHTML = '';
+      if (!current.length) {
+        listEl.innerHTML = '<div class="ln-inv-pop-empty">No other entries to link.</div>';
+        return;
+      }
+      current.forEach(function (r, i) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'ln-inv-pop-row';
+        if (i === activeIdx) row.classList.add('active');
+        var glyph = NOTEBOOK_PHASE_GLYPHS[r.phase] || '📓';
+        row.innerHTML =
+          '<div class="ln-inv-pop-key">' +
+            '<span class="ln-inv-pop-name">' + escapeHtml(glyph + ' ' + (r.title || '(untitled)')) + '</span>' +
+          '</div>' +
+          '<div class="ln-inv-pop-meta">' + escapeHtml((r.date || '') + ((r.tags || []).length ? ' · ' + r.tags.slice(0, 3).join(' · ') : '')) + '</div>';
+        row.addEventListener('mouseenter', function () {
+          if (activeIdx === i) return;
+          activeIdx = i;
+          Array.prototype.forEach.call(listEl.querySelectorAll('.ln-inv-pop-row'), function (el, idx) {
+            el.classList.toggle('active', idx === i);
+          });
+        });
+        row.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        row.addEventListener('click', function () { pickIndex(i); });
+        listEl.appendChild(row);
+      });
+    }
+    function pickIndex(i) {
+      var row = current[i];
+      if (!row) return;
+      pop.hidden = true;
+      linkSiblingEntry(row).catch(function (err) {
+        lnNotify('error', 'Could not link entry', err && err.message);
+      });
+    }
+    input.addEventListener('input', pop._refresh);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { pop.hidden = true; e.preventDefault(); return; }
+      if (e.key === 'Enter')  { pickIndex(activeIdx); e.preventDefault(); return; }
+      if (e.key === 'ArrowDown') {
+        if (current.length) activeIdx = (activeIdx + 1) % current.length;
+        renderList(); e.preventDefault();
+      }
+      if (e.key === 'ArrowUp') {
+        if (current.length) activeIdx = (activeIdx - 1 + current.length) % current.length;
+        renderList(); e.preventDefault();
+      }
+    });
+    document.addEventListener('mousedown', function (e) {
+      if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true;
+    });
+    pop._focus = function () { input.value = ''; input.focus(); };
+    return pop;
+  }
+
+  function openEntryLinkPicker(anchorEl) {
+    if (!state.doc) return;
+    var pop = _ensureEntryPickerPopover();
+    _positionPopoverNearAnchor(pop, anchorEl);
+    pop._refresh();
+    pop.hidden = false;
+    pop._focus();
+  }
+
+  function _hasEntryLink(refs, id) {
+    return (refs || []).some(function (r) {
+      return r && r.kind === 'notebook' && String(r.url || '').indexOf('entry=' + id) >= 0;
+    });
+  }
+
+  async function linkSiblingEntry(row) {
+    if (!state.doc) return;
+    var d = state.doc;
+    if (!Array.isArray(d.reference_links)) d.reference_links = [];
+    if (!_hasEntryLink(d.reference_links, row.id)) {
+      d.reference_links.push({
+        kind: 'notebook',
+        label: (row.title || '(untitled)') + ' (' + (row.date || '') + ')',
+        url: entryLinkUrl(row.id),
+      });
+    }
+    renderRefsPanel();
+    scheduleSave();
+    upsertIndexRow(d);
+    // Reciprocal link on the sibling — best-effort; the link still
+    // works one-way if this write fails.
+    try {
+      var other = await loadEntry(row.id);
+      if (other) {
+        if (!Array.isArray(other.reference_links)) other.reference_links = [];
+        if (!_hasEntryLink(other.reference_links, d.id)) {
+          other.reference_links.push({
+            kind: 'notebook',
+            label: (d.title || '(untitled)') + ' (' + (d.date || '') + ')',
+            url: entryLinkUrl(d.id),
+          });
+          other.updated_at = isoNow();
+          ensureEntryRoute(other.id);
+          await api.save(entryPathFor(other.id), other);
+        }
+        upsertIndexRow(other);
+        await saveIndex();
+      }
+    } catch (err) {
+      console.warn('[lab-notebook] reciprocal link failed:', err && err.message);
+    }
+    renderRail();
+    setSavingHint('linked: ' + (row.title || row.id));
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -1000,9 +1774,14 @@
       var ended = d.run_ended_at ? d.run_ended_at.slice(0, 16).replace('T', ' ') : (d.run_started_at ? d.run_started_at.slice(0, 16).replace('T', ' ') : '');
       phaseInfo = '<span class="ln-phase-info">✅ run completed' + (ended ? ' ' + escapeHtml(ended) : '') + '</span>';
     }
+    // V3.361 — spawn the follow-up experiment from a finished entry.
+    var nextBtn = (d.phase === 'complete')
+      ? '<button id="ln-next-iteration" title="Start the next iteration — carries the plan, tags, project, and design factors forward and links both entries">↻ Next iteration</button>'
+      : '';
     return '<div class="ln-footer">' +
       phaseInfo +
       '<span class="grow"></span>' +
+      nextBtn +
       startBtn +
       endBtn +
       '<button class="danger" id="ln-delete">Delete entry</button>' +
@@ -1044,8 +1823,26 @@
           '</div>';
       }).join('');
     }
+    // V3.360 — the prompt() chain is replaced by an inline mini-form
+    // (text + optional metric/value/unit) with a 🎙 dictation mic.
+    var hasMic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     var addBtn = (d.phase === 'running')
-      ? '<button class="ln-add-obs" id="ln-add-obs" type="button">+ Observation</button>'
+      ? '<button class="ln-add-obs" id="ln-add-obs" type="button">+ Observation</button>' +
+        '<div class="ln-obs-form" id="ln-obs-form" hidden>' +
+          '<div class="ln-obs-form-text-row">' +
+            '<textarea id="ln-obs-text" rows="2" placeholder="What did you see?" enterkeyhint="done"></textarea>' +
+            (hasMic ? '<button type="button" id="ln-obs-mic" class="ln-mic-btn" title="Dictate">🎙</button>' : '') +
+          '</div>' +
+          '<div class="ln-obs-form-metric-row">' +
+            '<input id="ln-obs-metric" type="text" placeholder="metric (OD600, pH…)" autocomplete="off">' +
+            '<input id="ln-obs-value" type="text" inputmode="decimal" placeholder="value" autocomplete="off">' +
+            '<input id="ln-obs-unit" type="text" placeholder="unit" autocomplete="off">' +
+          '</div>' +
+          '<div class="ln-obs-form-actions">' +
+            '<button type="button" id="ln-obs-save" class="primary">Log observation</button>' +
+            '<button type="button" id="ln-obs-cancel">Cancel</button>' +
+          '</div>' +
+        '</div>'
       : '';
     return '<div class="ln-observations" id="ln-observations">' +
       '<h4>Observations <span class="ln-obs-count">' + obs.length + '</span></h4>' +
@@ -1073,11 +1870,80 @@
     if (startBtn) startBtn.addEventListener('click', onStartRun);
     var endBtn = document.getElementById('ln-end-run');
     if (endBtn) endBtn.addEventListener('click', onEndRun);
+    var nextBtn = document.getElementById('ln-next-iteration');
+    if (nextBtn) nextBtn.addEventListener('click', function () {
+      spawnNextIteration().catch(function (err) {
+        lnNotify('error', 'Could not spawn next iteration', err && err.message);
+      });
+    });
+  }
+
+  /* V3.361 — ↻ Next iteration. New plan-phase entry carrying forward
+   * the experiment's identity (project, tags, plan, design factors +
+   * runs with results cleared) and cross-linked with the source entry
+   * via reference_links kind:'notebook' both ways. */
+  async function spawnNextIteration() {
+    var src = state.doc;
+    if (!src || src.phase !== 'complete') return;
+    var srcId = src.id;
+    var srcTitle = src.title || '(untitled)';
+    // "Gel stiffness sweep — run 3" → base "Gel stiffness sweep", n=3.
+    var m = srcTitle.match(/^(.*?)(?:\s+—\s+run\s+(\d+))?$/i);
+    var base = (m && m[1] ? m[1] : srcTitle).trim() || '(untitled)';
+    var nextN = (m && m[2]) ? (parseInt(m[2], 10) + 1) : 2;
+    var seed = {
+      title: base + ' — run ' + nextN,
+      tags: (src.tags || []).slice(),
+      project_id: src.project_id || null,
+      plan: JSON.parse(JSON.stringify(src.plan || {})),
+      phase: 'plan',
+    };
+    var srcRefLink = {
+      kind: 'notebook',
+      label: srcTitle + ' (' + (src.date || '') + ')',
+      url: entryLinkUrl(srcId),
+    };
+    await onNewEntry({ seed: seed, slug: seed.title });
+    var next = state.doc;
+    if (src.design) {
+      next.design = JSON.parse(JSON.stringify(src.design));
+      next.design.run_results = (next.design.runs || []).map(function () { return { value: '', note: '' }; });
+      next.design.created_at = isoNow();
+    }
+    if (!Array.isArray(next.reference_links)) next.reference_links = [];
+    next.reference_links.push(srcRefLink);
+    // Forward link on the finished entry (direct save — it's no longer
+    // state.doc).
+    try {
+      var srcDoc = await loadEntry(srcId);
+      if (srcDoc) {
+        if (!Array.isArray(srcDoc.reference_links)) srcDoc.reference_links = [];
+        if (!_hasEntryLink(srcDoc.reference_links, next.id)) {
+          srcDoc.reference_links.push({
+            kind: 'notebook',
+            label: next.title + ' (' + (next.date || '') + ')',
+            url: entryLinkUrl(next.id),
+          });
+          srcDoc.updated_at = isoNow();
+          ensureEntryRoute(srcId);
+          await api.save(entryPathFor(srcId), srcDoc);
+          upsertIndexRow(srcDoc);
+        }
+      }
+    } catch (err) {
+      console.warn('[lab-notebook] next-iteration back-link failed:', err && err.message);
+    }
+    renderEditor();
+    scheduleSave();
+    upsertIndexRow(next);
+    await saveIndex();
+    renderRail();
+    setSavingHint('↻ next iteration created');
   }
 
   function wireObservationsPanel() {
     var addBtn = document.getElementById('ln-add-obs');
-    if (addBtn) addBtn.addEventListener('click', onAddObservation);
+    if (addBtn) addBtn.addEventListener('click', function () { openObservationForm(); });
     var box = document.getElementById('ln-observations');
     if (!box) return;
     Array.prototype.forEach.call(box.querySelectorAll('.ln-obs-del'), function (del) {
@@ -1092,6 +1958,127 @@
         upsertIndexRow(state.doc); renderRail();
       });
     });
+    wireObservationForm();
+  }
+
+  /* V3.360 — inline observation mini-form wiring. Save commits the
+   * observation; Enter in the metric row saves too; the 🎙 mic dictates
+   * into the free-text field (activity-tracker SpeechRecognition
+   * pattern — single-shot, cleans up on end/error). */
+  var _lnRecognition = null;
+
+  function wireVoiceMic(mic, target) {
+    if (!mic || !target) return;
+    var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) { mic.hidden = true; return; }
+    mic.addEventListener('click', function () {
+      if (_lnRecognition) {
+        try { _lnRecognition.stop(); } catch (_) {}
+        _lnRecognition = null;
+        mic.classList.remove('recording');
+        return;
+      }
+      var rec = new SpeechRec();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+      rec.onresult = function (ev) {
+        var text = (ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript) || '';
+        if (text) {
+          target.value = (target.value ? target.value + ' ' : '') + text;
+          try { target.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+        }
+        target.focus();
+      };
+      rec.onend = function () { _lnRecognition = null; mic.classList.remove('recording'); };
+      rec.onerror = function () { _lnRecognition = null; mic.classList.remove('recording'); };
+      try {
+        rec.start();
+        _lnRecognition = rec;
+        mic.classList.add('recording');
+      } catch (err) {
+        _lnRecognition = null;
+        lnNotify('error', 'Microphone unavailable', err && err.message);
+      }
+    });
+  }
+
+  function openObservationForm() {
+    if (!state.doc || state.doc.phase !== 'running') {
+      lnNotify('info', 'Observations log during a run — click ▶ Start run first');
+      return;
+    }
+    var form = document.getElementById('ln-obs-form');
+    var addBtn = document.getElementById('ln-add-obs');
+    if (!form) return;
+    form.hidden = false;
+    if (addBtn) addBtn.hidden = true;
+    form.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    var text = document.getElementById('ln-obs-text');
+    if (text) text.focus();
+  }
+
+  function closeObservationForm() {
+    var form = document.getElementById('ln-obs-form');
+    var addBtn = document.getElementById('ln-add-obs');
+    if (form) {
+      form.hidden = true;
+      ['ln-obs-text', 'ln-obs-metric', 'ln-obs-value', 'ln-obs-unit'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+    }
+    if (addBtn) addBtn.hidden = false;
+  }
+
+  function wireObservationForm() {
+    var form = document.getElementById('ln-obs-form');
+    if (!form) return;
+    var saveBtn = document.getElementById('ln-obs-save');
+    var cancelBtn = document.getElementById('ln-obs-cancel');
+    var textEl = document.getElementById('ln-obs-text');
+    wireVoiceMic(document.getElementById('ln-obs-mic'), textEl);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeObservationForm);
+    if (saveBtn) saveBtn.addEventListener('click', commitObservationForm);
+    // Enter in the single-line metric inputs commits; Shift+Enter in the
+    // textarea keeps newline behavior, plain Enter commits there too.
+    ['ln-obs-metric', 'ln-obs-value', 'ln-obs-unit'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); commitObservationForm(); }
+      });
+    });
+    if (textEl) textEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitObservationForm(); }
+    });
+  }
+
+  function commitObservationForm() {
+    if (!state.doc || state.doc.phase !== 'running') return;
+    var text   = (document.getElementById('ln-obs-text')   || {}).value || '';
+    var metric = (document.getElementById('ln-obs-metric') || {}).value || '';
+    var valueRaw = (document.getElementById('ln-obs-value') || {}).value || '';
+    var unit   = (document.getElementById('ln-obs-unit')   || {}).value || '';
+    text = text.trim(); metric = metric.trim(); valueRaw = valueRaw.trim(); unit = unit.trim();
+    if (!text && !metric) { closeObservationForm(); return; }
+    if (!Array.isArray(state.doc.observations)) state.doc.observations = [];
+    var n = parseFloat(valueRaw);
+    var value = (valueRaw !== '' && !isNaN(n) && isFinite(n)) ? n : valueRaw;
+    state.doc.observations.push({
+      id: 'obs-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+      at: isoNow(),
+      text: text,
+      metric: metric || null,
+      value: value === '' ? null : value,
+      unit: unit || null,
+      attachment_paths: [],
+    });
+    renderObservationsPanel();
+    // Re-open the form for rapid-fire logging at the bench.
+    openObservationForm();
+    scheduleSave();
+    upsertIndexRow(state.doc); renderRail();
+    setSavingHint('observation logged');
   }
 
   function wireSummaryTextarea() {
@@ -1133,6 +2120,11 @@
     if (!confirm('Start run? This freezes the planned section above ' +
         'and opens the bench-recording surfaces (Observations, post-run Summary). ' +
         'You can still edit the body, but the recording log starts now.')) return;
+    // V3.361 — gentle nudge, never a gate: an empty hypothesis gets one
+    // hint toast on the way into the run.
+    if (!(state.doc.plan && state.doc.plan.hypothesis)) {
+      lnNotify('info', 'Tip: jot a hypothesis in 🧭 Plan — future-you will thank you');
+    }
     state.doc.phase = 'running';
     state.doc.run_started_at = isoNow();
     if (!Array.isArray(state.doc.observations)) state.doc.observations = [];
@@ -1149,6 +2141,9 @@
         'You can still type in the Summary; observations stay editable for cleanup.')) return;
     state.doc.phase = 'complete';
     state.doc.run_ended_at = isoNow();
+    // FuturePlan 06 — freeze the live protocol run into an immutable
+    // snapshot so the notebook record can't drift after completion.
+    freezeProtocolRun();
     scheduleSave();
     upsertIndexRow(state.doc);
     renderEditor();
@@ -1156,50 +2151,10 @@
     setSavingHint('✅ run completed');
   }
 
-  /* Add a new observation. The minimal interaction is a quick
-   * prompt() flow — three lightweight inputs (text → metric → value).
-   * Phase-2 will replace this with an inline mini-form on a sticky
-   * `+ Observation` FAB and voice-memo support; for V3.138 the prompt
-   * keeps the UX one-click-then-type at the bench.
-   *
-   * The observation timestamp is stamped at submit time, and the
-   * observations[] array is sorted oldest-first so the log reads
-   * top-to-bottom in chronological order. */
-  function onAddObservation() {
-    if (!state.doc || state.doc.phase !== 'running') return;
-    var text = prompt('Observation note (free text — what did you see?):');
-    if (text === null) return;          // cancel
-    text = String(text).trim();
-    var metric = prompt('Optional metric name (e.g. OD600, pH, time-to-cure). Leave blank to skip:');
-    metric = metric === null ? '' : String(metric).trim();
-    var valueRaw = '';
-    var unit = '';
-    if (metric) {
-      valueRaw = prompt('Optional value for "' + metric + '" (number or text):');
-      valueRaw = valueRaw === null ? '' : String(valueRaw).trim();
-      if (valueRaw) {
-        unit = prompt('Optional unit for the value (mL, g, °C, …). Leave blank to skip:');
-        unit = unit === null ? '' : String(unit).trim();
-      }
-    }
-    if (!text && !metric) return;       // nothing to log
-    if (!Array.isArray(state.doc.observations)) state.doc.observations = [];
-    var n = parseFloat(valueRaw);
-    var value = (valueRaw !== '' && !isNaN(n) && isFinite(n)) ? n : valueRaw;
-    state.doc.observations.push({
-      id: 'obs-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
-      at: isoNow(),
-      text: text,
-      metric: metric || null,
-      value: value === '' ? null : value,
-      unit: unit || null,
-      attachment_paths: [],
-    });
-    renderObservationsPanel();
-    scheduleSave();
-    upsertIndexRow(state.doc); renderRail();
-    setSavingHint('observation logged');
-  }
+  /* V3.360 — the V3.138 prompt()-chain observation flow is gone; adding
+   * an observation goes through the inline mini-form above
+   * (openObservationForm / commitObservationForm), which also carries
+   * the 🎙 dictation mic. */
 
   /* ─────────────────────────────────────────────────────────────
    * Editor wiring
@@ -1225,6 +2180,10 @@
         readOnly: false,
       });
     }
+
+    // FuturePlan 06 — mount the live protocol-run panel (async; loads
+    // deps + protocol tree on demand).
+    mountProtocolRunPanel();
 
     titleEl.addEventListener('input', function () {
       state.doc.title = titleEl.value;
@@ -1282,6 +2241,19 @@
           return;
         }
       }
+      // V3.506 — clicking a live-mounted protocol's row on the
+      // Protocols-followed panel scrolls to its in-situ document below
+      // (no navigation — see renderProtocolsHtml's data-protocol-jump).
+      var jumpBtn = t && t.closest && t.closest('[data-protocol-jump]');
+      if (jumpBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        var runHost = document.getElementById('ln-protocol-run');
+        if (runHost && runHost.scrollIntoView) {
+          try { runHost.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (err) {}
+        }
+        return;
+      }
       // V3.135 — clicking the per-row "🧮 calc" button on the
       // Protocols-followed panel opens the calc modal for that
       // protocol. Caught BEFORE the .ln-calc check below so the
@@ -1332,7 +2304,7 @@
       e.preventDefault();
       files.forEach(function (f) {
         uploadAndAttach(f, /* insertInline */ true).catch(function (err) {
-          alert('Upload failed: ' + (err && err.message || err));
+          lnNotify('error', 'Upload failed', err && err.message || String(err));
         });
       });
     });
@@ -1353,10 +2325,10 @@
       });
     });
 
-    document.getElementById('ln-add-link').addEventListener('click', function () {
-      var url = prompt('Link URL:');
+    document.getElementById('ln-add-link').addEventListener('click', async function () {
+      var url = await lnPrompt({ title: 'Link URL', placeholder: 'https://…', okText: 'Insert link' });
       if (!url) return;
-      if (!isSafeUrl(url)) { alert('Unsafe URL.'); return; }
+      if (!isSafeUrl(url)) { lnNotify('error', 'Unsafe URL'); return; }
       bodyEl.focus();
       document.execCommand('createLink', false, url);
       state.doc.body_html = sanitizeHtml(bodyEl.innerHTML);
@@ -1385,31 +2357,106 @@
       input.value = '';
       input.click();
     });
-    // Generic file picker.
+    // Generic file picker. (The strip's ＋ button is wired in
+    // wireAttachments so the section stays self-contained.)
     document.getElementById('ln-add-file').addEventListener('click', function () {
       var input = document.getElementById('ln-file-input');
       input.value = '';
       input.click();
     });
-    document.getElementById('ln-att-add').addEventListener('click', function () {
-      document.getElementById('ln-file-input').click();
-    });
 
-    // Tag chip remove + add.
-    document.getElementById('ln-tag-add').addEventListener('click', function () {
-      var t = (prompt('Tag (lowercase, no spaces):') || '').trim().toLowerCase().replace(/\s+/g, '-');
-      if (!t) return;
-      if (!state.doc.tags) state.doc.tags = [];
-      if (state.doc.tags.indexOf(t) < 0) state.doc.tags.push(t);
-      var tagsBox = document.getElementById('ln-tags');
-      tagsBox.outerHTML = renderTagsHtml(state.doc.tags);
-      wireTagChips();
-      scheduleSave();
-      upsertIndexRow(state.doc); renderRail(); renderToolbar();
-    });
+    // Tag chips — V3.360 inline autocomplete input replaces prompt().
     wireTagChips();
 
-    // Attachments — delete, lightbox, and PMR-flag toggle.
+    // Attachments — delete, lightbox, PMR-flag (extracted so uploads
+    // and flag toggles can refresh just this section).
+    wireAttachments();
+
+    // Reference rows + entry-link picker (extracted for the same reason).
+    wireRefs();
+
+    // V3.361 — plan panel; V3.362 — backlinks.
+    wirePlanPanel();
+    wireBacklinks();
+
+    // V3.360 — "/" slash-command insert menu in the body.
+    wireSlashMenu(bodyEl);
+
+    document.getElementById('ln-delete').addEventListener('click', onDeleteEntry);
+
+    // V3.123 — wire Design panel actions (Edit / Download CSV / Clear).
+    wireDesignPanel();
+
+    // V3.138 — wire bench-workflow lifecycle controls.
+    wireRunFooter();
+    wireObservationsPanel();
+    wireSummaryTextarea();
+  }
+
+  function commitTagInput(input) {
+    var t = (input.value || '').trim().toLowerCase().replace(/\s+/g, '-');
+    input.value = '';
+    if (!t) return;
+    if (!state.doc.tags) state.doc.tags = [];
+    if (state.doc.tags.indexOf(t) < 0) state.doc.tags.push(t);
+    renderTagsPanel(/* focusInput */ true);
+    scheduleSave();
+    upsertIndexRow(state.doc); renderRail();
+  }
+
+  function renderTagsPanel(focusInput) {
+    var tagsBox = document.getElementById('ln-tags');
+    if (!tagsBox || !state.doc) return;
+    tagsBox.outerHTML = renderTagsHtml(state.doc.tags);
+    wireTagChips();
+    if (focusInput) {
+      var input = document.getElementById('ln-tag-input');
+      if (input) input.focus();
+    }
+  }
+
+  function wireTagChips() {
+    Array.prototype.forEach.call(document.querySelectorAll('.ln-tag-chip .x'), function (x) {
+      x.addEventListener('click', function () {
+        var t = x.getAttribute('data-tag');
+        state.doc.tags = (state.doc.tags || []).filter(function (z) { return z !== t; });
+        renderTagsPanel(false);
+        scheduleSave();
+        upsertIndexRow(state.doc); renderRail();
+      });
+    });
+    var input = document.getElementById('ln-tag-input');
+    if (input) {
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          commitTagInput(input);
+        } else if (e.key === 'Backspace' && !input.value && (state.doc.tags || []).length) {
+          // Backspace on empty input removes the last chip — standard
+          // chip-input affordance.
+          state.doc.tags.pop();
+          renderTagsPanel(true);
+          scheduleSave();
+          upsertIndexRow(state.doc); renderRail();
+        }
+      });
+      // Datalist pick (mouse/tap) fires change without a keydown.
+      input.addEventListener('change', function () { commitTagInput(input); });
+      input.addEventListener('blur', function () { if (input.value.trim()) commitTagInput(input); });
+    }
+  }
+
+  /* V3.360 — attachments section: surgical refresh + wiring extracted
+   * from wireEditor so uploads / deletes / flag toggles no longer blow
+   * away the whole editor (and the user's caret with it). */
+  function renderAttachmentsPanel() {
+    var box = document.querySelector('.ln-attachments');
+    if (!box || !state.doc) return;
+    box.outerHTML = renderAttachmentsHtml(state.doc.attachments || []);
+    wireAttachments();
+  }
+
+  function wireAttachments() {
     Array.prototype.forEach.call(document.querySelectorAll('.ln-att-thumb'), function (el) {
       el.addEventListener('click', function (e) {
         if (e.target && e.target.classList.contains('del')) {
@@ -1420,7 +2467,7 @@
             removePmrFlagForFigure(goneAtt.storage_path);
           }
           state.doc.attachments.splice(i, 1);
-          renderEditor();
+          renderAttachmentsPanel();
           scheduleSave();
           upsertIndexRow(state.doc); renderRail();
           return;
@@ -1445,52 +2492,9 @@
         }
       }
     });
-
-    // Reference rows.
-    Array.prototype.forEach.call(document.querySelectorAll('.ln-ref-row'), function (row) {
-      var i = +row.getAttribute('data-i');
-      row.querySelector('.ref-kind').addEventListener('change', function (e) {
-        state.doc.reference_links[i].kind = e.target.value; scheduleSave();
-      });
-      row.querySelector('.ref-label').addEventListener('input', function (e) {
-        state.doc.reference_links[i].label = e.target.value; scheduleSave();
-      });
-      row.querySelector('.ref-url').addEventListener('input', function (e) {
-        state.doc.reference_links[i].url = e.target.value; scheduleSave();
-      });
-      row.querySelector('.del').addEventListener('click', function () {
-        state.doc.reference_links.splice(i, 1);
-        renderEditor(); scheduleSave();
-      });
-    });
-    document.getElementById('ln-add-ref').addEventListener('click', function () {
-      if (!state.doc.reference_links) state.doc.reference_links = [];
-      state.doc.reference_links.push({ kind: 'notes', label: '', url: '' });
-      renderEditor(); scheduleSave();
-    });
-
-    document.getElementById('ln-delete').addEventListener('click', onDeleteEntry);
-
-    // V3.123 — wire Design panel actions (Edit / Download CSV / Clear).
-    wireDesignPanel();
-
-    // V3.138 — wire bench-workflow lifecycle controls.
-    wireRunFooter();
-    wireObservationsPanel();
-    wireSummaryTextarea();
-  }
-
-  function wireTagChips() {
-    Array.prototype.forEach.call(document.querySelectorAll('.ln-tag-chip .x'), function (x) {
-      x.addEventListener('click', function () {
-        var t = x.getAttribute('data-tag');
-        state.doc.tags = (state.doc.tags || []).filter(function (z) { return z !== t; });
-        var tagsBox = document.getElementById('ln-tags');
-        tagsBox.outerHTML = renderTagsHtml(state.doc.tags);
-        wireTagChips();
-        scheduleSave();
-        upsertIndexRow(state.doc); renderRail(); renderToolbar();
-      });
+    var addBtn = document.getElementById('ln-att-add');
+    if (addBtn) addBtn.addEventListener('click', function () {
+      document.getElementById('ln-file-input').click();
     });
   }
 
@@ -1499,6 +2503,225 @@
     if (!bodyEl) return;
     var empty = !bodyEl.innerHTML || bodyEl.innerHTML === '<br>' || bodyEl.textContent.trim() === '' && !bodyEl.querySelector('img');
     bodyEl.setAttribute('data-empty', empty ? 'true' : 'false');
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * V3.360 — "/" slash-command insert menu.
+   * ─────────────────────────────────────────────────────────────
+   * Typing "/" at the start of a line (or after whitespace) pops a
+   * small anchored menu of insert actions. Further letters filter it;
+   * Enter/click runs the action after deleting the typed "/query"
+   * from the body; Escape / clicking away dismisses. Every action
+   * delegates to an existing toolbar handler — the menu is just a
+   * faster path to them.
+   */
+  var SLASH_ITEMS = [
+    { key: 'observation', label: '📌 Observation',   run: function () { openObservationForm(); } },
+    { key: 'inventory',   label: '🧪 Inventory chip', run: function () { var b = document.getElementById('ln-add-inventory'); if (b) b.click(); } },
+    { key: 'protocol',    label: '📋 Protocol',       run: function () { var b = document.getElementById('ln-add-protocol'); if (b) b.click(); } },
+    { key: 'photo',       label: '📷 Photo / camera', run: function () { var i = document.getElementById('ln-camera-input'); if (i) { i.value = ''; i.click(); } } },
+    { key: 'attach',      label: '📎 Attach file',    run: function () { var i = document.getElementById('ln-file-input'); if (i) { i.value = ''; i.click(); } } },
+    { key: 'doe',         label: '🧮 DOE matrix',     run: function () { openDoeModal(); } },
+    { key: 'heading',     label: 'H2 Heading',        run: function () { document.execCommand('formatBlock', false, 'H2'); } },
+    { key: 'quote',       label: '❝ Quote',           run: function () { document.execCommand('formatBlock', false, 'BLOCKQUOTE'); } },
+    { key: 'code',        label: '{ } Code block',    run: function () { document.execCommand('formatBlock', false, 'PRE'); } },
+  ];
+
+  var _slash = { open: false, query: '', menuEl: null, activeIdx: 0 };
+
+  function _slashMatches() {
+    var q = _slash.query.toLowerCase();
+    return SLASH_ITEMS.filter(function (it) {
+      return !q || it.key.indexOf(q) === 0 || it.label.toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  function _slashCaretRect(bodyEl) {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      var r = sel.getRangeAt(0).cloneRange();
+      r.collapse(true);
+      var rect = r.getBoundingClientRect();
+      if (rect && (rect.top || rect.left)) return rect;
+    }
+    return bodyEl.getBoundingClientRect();
+  }
+
+  function closeSlashMenu() {
+    _slash.open = false;
+    _slash.query = '';
+    _slash.activeIdx = 0;
+    if (_slash.menuEl && _slash.menuEl.parentNode) _slash.menuEl.parentNode.removeChild(_slash.menuEl);
+    _slash.menuEl = null;
+  }
+
+  function renderSlashMenu(bodyEl) {
+    var matches = _slashMatches();
+    if (!matches.length) { closeSlashMenu(); return; }
+    if (_slash.activeIdx >= matches.length) _slash.activeIdx = matches.length - 1;
+    if (!_slash.menuEl) {
+      _slash.menuEl = document.createElement('div');
+      _slash.menuEl.className = 'ln-slash-menu';
+      document.body.appendChild(_slash.menuEl);
+      var rect = _slashCaretRect(bodyEl);
+      _slash.menuEl.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
+      _slash.menuEl.style.top = (rect.bottom + 4) + 'px';
+    }
+    _slash.menuEl.innerHTML = matches.map(function (it, i) {
+      return '<button type="button" class="ln-slash-item' + (i === _slash.activeIdx ? ' active' : '') +
+        '" data-key="' + escapeHtml(it.key) + '">' + it.label + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(_slash.menuEl.querySelectorAll('.ln-slash-item'), function (btn) {
+      btn.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+      btn.addEventListener('click', function () {
+        var it = SLASH_ITEMS.find(function (x) { return x.key === btn.getAttribute('data-key'); });
+        _slashRun(bodyEl, it);
+      });
+    });
+  }
+
+  /* Delete the typed "/query" text immediately before the caret, then
+   * run the picked action. */
+  function _slashRun(bodyEl, item) {
+    if (!item) { closeSlashMenu(); return; }
+    var chars = _slash.query.length + 1; // "/", then the filter chars
+    try {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        var range = sel.getRangeAt(0);
+        var node = range.startContainer;
+        if (node && node.nodeType === 3) {
+          var end = range.startOffset;
+          var start = Math.max(0, end - chars);
+          node.deleteData(start, end - start);
+        }
+      }
+    } catch (_) { /* text-node shape changed — leave the query text */ }
+    closeSlashMenu();
+    state.doc.body_html = sanitizeHtml(bodyEl.innerHTML);
+    refreshBodyEmptyState();
+    scheduleSave();
+    item.run();
+  }
+
+  function wireSlashMenu(bodyEl) {
+    if (!bodyEl) return;
+    bodyEl.addEventListener('keydown', function (e) {
+      if (_slash.open) {
+        var matches = _slashMatches();
+        if (e.key === 'Escape') { e.preventDefault(); closeSlashMenu(); return; }
+        if (e.key === 'Enter') { e.preventDefault(); _slashRun(bodyEl, matches[_slash.activeIdx]); return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); _slash.activeIdx = (_slash.activeIdx + 1) % matches.length; renderSlashMenu(bodyEl); return; }
+        if (e.key === 'ArrowUp')   { e.preventDefault(); _slash.activeIdx = (_slash.activeIdx - 1 + matches.length) % matches.length; renderSlashMenu(bodyEl); return; }
+        if (e.key === 'Backspace') {
+          if (!_slash.query) { closeSlashMenu(); return; } // deleting the "/" itself
+          _slash.query = _slash.query.slice(0, -1);
+          setTimeout(function () { renderSlashMenu(bodyEl); }, 0);
+          return;
+        }
+        if (e.key.length === 1 && /[a-z0-9]/i.test(e.key)) {
+          _slash.query += e.key.toLowerCase();
+          setTimeout(function () { renderSlashMenu(bodyEl); }, 0);
+          return;
+        }
+        // Any other key (space, arrows out, punctuation) dismisses.
+        closeSlashMenu();
+        return;
+      }
+      if (e.key !== '/') return;
+      // Only trigger at line start or after whitespace so typing URLs
+      // and fractions doesn't pop the menu.
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      var range = sel.getRangeAt(0);
+      if (!range.collapsed) return;
+      var node = range.startContainer;
+      var before = '';
+      if (node.nodeType === 3) before = node.textContent.slice(0, range.startOffset);
+      if (before && !/\s$/.test(before)) return;
+      _slash.open = true;
+      _slash.query = '';
+      _slash.activeIdx = 0;
+      setTimeout(function () { renderSlashMenu(bodyEl); }, 0);
+    });
+    bodyEl.addEventListener('blur', function () {
+      // Delay so a menu click (mousedown-prevented) still lands.
+      setTimeout(function () { if (_slash.open) closeSlashMenu(); }, 150);
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * V3.359 — phone action bar + keyboard handling.
+   * ─────────────────────────────────────────────────────────────
+   * A fixed bottom bar (📷 · 🎙 · ➕ obs · 🏷 tag), visible only at
+   * ≤640px via CSS. Lives OUTSIDE #ln-content so editor re-renders
+   * never touch it; refreshActionBar() re-checks enablement per phase.
+   * The visualViewport listener keeps the bar above the iOS/Android
+   * keyboard by tracking the visual-viewport bottom gap.
+   */
+  function ensureActionBar() {
+    if (document.getElementById('ln-action-bar')) return;
+    var bar = document.createElement('div');
+    bar.id = 'ln-action-bar';
+    bar.className = 'ln-action-bar';
+    bar.innerHTML =
+      '<button type="button" id="ln-ab-camera" title="Capture photo">📷<span>Capture</span></button>' +
+      '<button type="button" id="ln-ab-voice" title="Dictate an observation">🎙<span>Voice</span></button>' +
+      '<button type="button" id="ln-ab-obs" title="Log an observation">➕<span>Observe</span></button>' +
+      '<button type="button" id="ln-ab-tag" title="Add a tag">🏷<span>Tag</span></button>';
+    document.body.appendChild(bar);
+
+    async function ensureEntryThen(fn) {
+      if (!state.doc) await openTodayEntry();
+      if (state.doc) fn();
+    }
+    document.getElementById('ln-ab-camera').addEventListener('click', function () {
+      ensureEntryThen(function () {
+        var input = document.getElementById('ln-camera-input');
+        if (input) { input.value = ''; input.click(); }
+      });
+    });
+    document.getElementById('ln-ab-obs').addEventListener('click', function () {
+      ensureEntryThen(function () { openObservationForm(); });
+    });
+    document.getElementById('ln-ab-voice').addEventListener('click', function () {
+      ensureEntryThen(function () {
+        openObservationForm();
+        var mic = document.getElementById('ln-obs-mic');
+        if (mic) mic.click();
+        else lnNotify('info', 'Voice dictation needs a running entry and a supported browser');
+      });
+    });
+    document.getElementById('ln-ab-tag').addEventListener('click', function () {
+      ensureEntryThen(function () {
+        var input = document.getElementById('ln-tag-input');
+        if (input) { input.scrollIntoView({ block: 'center' }); input.focus(); }
+      });
+    });
+
+    // Keyboard-aware positioning (visualViewport is the only reliable
+    // cross-mobile signal for the keyboard height).
+    if (window.visualViewport) {
+      var vv = window.visualViewport;
+      var onVv = function () {
+        var gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        bar.style.transform = gap > 0 ? 'translateY(-' + gap + 'px)' : '';
+      };
+      vv.addEventListener('resize', onVv);
+      vv.addEventListener('scroll', onVv);
+    }
+  }
+
+  /* Enable/disable per state: observation buttons need a running entry;
+   * camera/tag need any entry (they self-create today's entry). */
+  function refreshActionBar() {
+    var bar = document.getElementById('ln-action-bar');
+    if (!bar) return;
+    var running = !!(state.doc && state.doc.phase === 'running');
+    var obsBtn = document.getElementById('ln-ab-obs');
+    var voiceBtn = document.getElementById('ln-ab-voice');
+    if (obsBtn) obsBtn.classList.toggle('ln-ab-dim', !running);
+    if (voiceBtn) voiceBtn.classList.toggle('ln-ab-dim', !running);
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -1536,7 +2759,7 @@
       try {
         await uploadAndAttach(imageBlobs[j], /* insertInline */ true);
       } catch (err) {
-        alert('Upload failed: ' + (err && err.message || err));
+        lnNotify('error', 'Upload failed', err && err.message || String(err));
       }
     }
   }
@@ -1571,9 +2794,13 @@
         '" data-hash="' + escapeHtml(meta.hash) + '" alt=""></p>';
       _insertHtmlAtCaret(bodyEl, html);
       state.doc.body_html = sanitizeHtml(bodyEl.innerHTML);
+      refreshBodyEmptyState();
     }
 
-    renderEditor();
+    // V3.360 — refresh only the attachments strip. The old full
+    // renderEditor() here blew away the caret mid-paste, so pasting a
+    // screenshot while typing dumped you out of the body.
+    renderAttachmentsPanel();
     scheduleSave();
     upsertIndexRow(state.doc); renderRail();
     setSavingHint(meta.already_existed ? 'attached (deduped)' : 'attached');
@@ -2479,23 +3706,34 @@
     setSavingHint('referenced: ' + (p.title || p.id));
   }
 
-  /* Walk the body for protocol-chip anchors and rebuild
-   * state.doc.protocol_refs[]. First-occurrence order, dedup by id. */
+  /* Rebuild state.doc.protocol_refs[] (the "Protocols followed" list).
+   * Two sources, merged + deduped by id, first-occurrence order:
+   *   1. The protocol mounted LIVE in-situ (state.doc.protocol_run) — always
+   *      counted, with no body chip required. This is the primary path
+   *      since V3.506 dropped the link-chip insert for the "full" action.
+   *   2. Legacy `ref only` chips still in the body (a.ln-protocol-chip) —
+   *      the lightweight quick-action that intentionally stays a link. */
   function collectProtocolRefs() {
     if (!state.doc) return;
-    var bodyEl = document.getElementById('ln-body');
-    if (!bodyEl) return;
     var seen = {};
     var refs = [];
-    Array.prototype.forEach.call(bodyEl.querySelectorAll('a.ln-protocol-chip'), function (chip) {
-      var id = chip.getAttribute('data-protocol-id');
-      if (!id || seen[id]) return;
-      seen[id] = true;
-      refs.push({
-        id: id,
-        title: chip.getAttribute('data-protocol-title') || '',
+    var run = state.doc.protocol_run;
+    if (run && run.protocol_id && !seen[run.protocol_id]) {
+      seen[run.protocol_id] = true;
+      refs.push({ id: run.protocol_id, title: run.protocol_title || run.protocol_id });
+    }
+    var bodyEl = document.getElementById('ln-body');
+    if (bodyEl) {
+      Array.prototype.forEach.call(bodyEl.querySelectorAll('a.ln-protocol-chip'), function (chip) {
+        var id = chip.getAttribute('data-protocol-id');
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        refs.push({
+          id: id,
+          title: chip.getAttribute('data-protocol-title') || '',
+        });
       });
-    });
+    }
     state.doc.protocol_refs = refs;
   }
 
@@ -2648,52 +3886,11 @@
     return _dehydrateTree(yDoc);
   }
 
-  /* Render a dehydrated protocol tree as HTML for insertion into the
-   * notebook body. The materials block produces a "see chips below"
-   * placeholder paragraph; actual inventory chips are appended after
-   * the protocol body via insertInventoryChip in insertFullProtocol. */
-  function _renderProtocolBlockHtml(block) {
-    var bodyText = block.body || '';
-    var bodyHtml = escapeHtml(bodyText).replace(/\n/g, '<br>');
-    switch (block.kind) {
-      case 'step':
-        return '<p>' + bodyHtml + '</p>';
-      case 'note':
-        return '<blockquote>📝 <strong>Note.</strong> ' + bodyHtml + '</blockquote>';
-      case 'safety':
-        return '<blockquote>⚠ <strong>Safety.</strong> ' + bodyHtml + '</blockquote>';
-      case 'figure': {
-        var lbl = (block.attrs && (block.attrs.label || block.attrs.alt)) || 'Figure';
-        return '<p><em>[' + escapeHtml(lbl) + ']</em>' + (bodyHtml ? ' — ' + bodyHtml : '') + '</p>';
-      }
-      case 'formula': {
-        var expr = (block.attrs && block.attrs.expression) || bodyText;
-        return '<p><code>' + escapeHtml(expr) + '</code></p>';
-      }
-      case 'materials': {
-        var rows = (block.attrs && block.attrs.rows) || [];
-        if (!rows.length) return '<p><em>(no materials listed)</em></p>';
-        var items = rows.map(function (r) {
-          var qty = (r.qty != null ? String(r.qty) : '') + (r.unit ? ' ' + r.unit : '');
-          var name = r.free_text || r.item_ref || '(material)';
-          var line = (qty ? qty + ' · ' : '') + name;
-          return '<li>' + escapeHtml(line.trim()) + '</li>';
-        }).join('');
-        return '<p><strong>Materials:</strong></p><ul>' + items + '</ul>';
-      }
-      default:
-        return '<p>' + bodyHtml + '</p>';
-    }
-  }
-
-  function _renderProtocolTreeHtml(tree, protocolEntry) {
-    var html = '<p><strong>📋 ' + escapeHtml(tree.meta.title || protocolEntry.title || 'Protocol') + '</strong></p>';
-    tree.sections.forEach(function (sec) {
-      if (sec.label) html += '<h4>' + escapeHtml(sec.label) + '</h4>';
-      (sec.children || []).forEach(function (b) { html += _renderProtocolBlockHtml(b); });
-    });
-    return html;
-  }
+  /* V3.506 — the static `_renderProtocolBlockHtml` / `_renderProtocolTreeHtml`
+   * "bunch of text" renderers were removed. The picker's "full" action now
+   * mounts the protocol LIVE as its real output document via the shared
+   * ProtocolDocRender path (see insertFullProtocol → loadProtocolIntoRun →
+   * mountProtocolRunWidgets → _renderProtocolDocInto). */
 
   function _collectMaterialItemRefs(tree) {
     var ids = [];
@@ -2712,42 +3909,45 @@
     return ids;
   }
 
-  /* Toolbar / picker entry point. Loads the protocol's Yjs state,
-   * renders its tree as HTML into the body, drops a protocol-reference
-   * chip at the end, then for every materials-block row with an
-   * item_ref looks up the inventory record and inserts an inventory
-   * chip — so the lab notebook's Materials Used panel auto-populates.
-   * Items not present in inventoryState.list are skipped silently
-   * (e.g. materials referenced by id but with no matching inventory
-   * doc). Reagents/equipment listed only by free-text name are
-   * included in the inserted body but cannot become structured chips. */
+  /* Toolbar / picker entry point. Loads the protocol's Yjs state and
+   * mounts it LIVE in-situ in the run panel (loadProtocolIntoRun) — no
+   * link/chip goes into the body. Then for every materials-block row with
+   * an item_ref, looks up the inventory record and inserts an inventory
+   * chip so the lab notebook's Materials Used panel auto-populates. Items
+   * not present in inventoryState.list are skipped silently (e.g.
+   * materials referenced by id but with no matching inventory doc).
+   * Reagents/equipment listed only by free-text name are shown in the
+   * live document but can't become structured chips. */
   async function insertFullProtocol(protocolEntry) {
     if (!state.doc) return;
-    var bodyEl = document.getElementById('ln-body');
-    if (!bodyEl) return;
 
+    // V3.506 — "full" no longer dumps static text into the body, and (per
+    // user correction) does NOT drop a link/chip into the body either. The
+    // protocol is mounted LIVE, in-situ, directly on the notebook page (the
+    // run panel right under the body) as its real output document — the
+    // same ProtocolDocRender the ?view=doc page uses. That live instance IS
+    // the record; there's nothing to link to. Protocols-followed reflects
+    // it automatically (collectProtocolRefs reads state.doc.protocol_run,
+    // no body chip required — see loadProtocolIntoRun).
     setSavingHint('loading protocol…');
     var tree;
     try {
-      tree = await _loadProtocolTree(protocolEntry.id);
+      await _ensureProtocolRunDeps();
+      tree = await _runGetTree(protocolEntry.id);
     } catch (err) {
       setSavingHint('protocol load failed');
-      alert('Could not load full protocol: ' + (err && err.message || err) +
-        '\n\nThe protocol may not have any saved Yjs state yet (newly created and never edited / never compacted). Insert the reference chip instead by clicking the row.');
+      alert('Could not load protocol: ' + (err && err.message || err) +
+        '\n\nThe protocol may not have any saved Yjs state yet (newly created and never edited / never compacted). Insert the reference chip instead with "ref only".');
       return;
     }
 
-    // V3.143 — direct append; see comment in insertInventoryChip.
-    var html = _renderProtocolTreeHtml(tree, protocolEntry);
-    var ok = _appendHtmlToBody(bodyEl, html);
-    if (!ok) {
-      setSavingHint('insert failed');
+    var title = protocolEntry.title || tree.meta.title || protocolEntry.id;
+    await loadProtocolIntoRun(protocolEntry.id, title);
+    // User may have declined the "replace loaded protocol?" confirm.
+    if (!state.doc.protocol_run || state.doc.protocol_run.protocol_id !== protocolEntry.id) {
+      setSavingHint('');
       return;
     }
-    state.doc.body_html = sanitizeHtml(bodyEl.innerHTML);
-
-    // Append a protocol-reference chip so Protocols-followed shows the source.
-    insertProtocolChip(protocolEntry);
 
     // Append an inventory chip for every materials row carrying an item_ref.
     var itemIds = _collectMaterialItemRefs(tree);
@@ -2771,8 +3971,13 @@
     scheduleSave();
     upsertIndexRow(state.doc);
     renderRail();
-    setSavingHint('inserted protocol "' + (tree.meta.title || protocolEntry.title || protocolEntry.id) +
-      '" · ' + (tree.sections || []).length + ' sections · ' + inserted + ' material chip' +
+
+    // Bring the freshly-mounted document into view.
+    var host = document.getElementById('ln-protocol-run');
+    if (host && host.scrollIntoView) {
+      try { host.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+    }
+    setSavingHint('loaded "' + title + '" as a live document · ' + inserted + ' material chip' +
       (inserted === 1 ? '' : 's'));
   }
 
@@ -2813,6 +4018,706 @@
       document.head.appendChild(s);
     });
     return _protocolFormulasPromise;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+   * FuturePlan 06 — live protocol RUN panel.
+   *
+   * A protocol definition, loaded into this entry, comes alive: its
+   * inputs render as live controls, computed item lists recompute, the
+   * user assigns items into grids, and prep totals aggregate from the
+   * assignment. All state lives on state.doc.protocol_run (persisted via
+   * the normal debounced save); the definition is never mutated. On
+   * `⏹ End run` the state freezes into an immutable snapshot.
+   *
+   * Reuses the shared compute kernel (ProtocolFormulas) + widget module
+   * (ProtocolWidgets), lazy-loaded on demand. The panel is rendered
+   * OUTSIDE the sanitized body, so live widgets survive.
+   * ══════════════════════════════════════════════════════════════ */
+
+  var _runDepsPromise = null;
+  function _loadScriptOnce(src, globalName) {
+    if (window[globalName]) return Promise.resolve(window[globalName]);
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = function () { window[globalName] ? res(window[globalName]) : rej(new Error(src + ' loaded but ' + globalName + ' missing')); };
+      s.onerror = function () { rej(new Error('Failed to load ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function _ensureProtocolDocCss(id, href) {
+    if (document.getElementById(id)) return;
+    var l = document.createElement('link');
+    l.rel = 'stylesheet'; l.id = id; l.href = href;
+    document.head.appendChild(l);
+  }
+  function _ensureProtocolRunDeps() {
+    if (_runDepsPromise) return _runDepsPromise;
+    _runDepsPromise = _ensureProtocolFormulas().then(function () {
+      // protocol-doc.css first (the .prd-doc base), then protocol-cheat.css
+      // (its .prc-doc rules must win — loaded after) so both the document
+      // and cheat-sheet views style correctly inside the run panel.
+      _ensureProtocolDocCss('ln-protocol-doc-css', '/rm/css/protocol-doc.css');
+      _ensureProtocolDocCss('ln-protocol-cheat-css', '/rm/css/protocol-cheat.css');
+      return _loadScriptOnce('/rm/js/protocol-graph.js', 'ProtocolGraph');
+    }).then(function () {
+      return _loadScriptOnce('/rm/js/protocol-widgets.js', 'ProtocolWidgets');
+    }).then(function () {
+      // V3.506 — the shared read-only block renderer (single source of
+      // truth with the output-document view) so the notebook run mounts
+      // the protocol as its real document. protocol-inventory lets the
+      // materials table resolve inventory labels (optional; renderers
+      // guard on window.PROTOCOL_INVENTORY).
+      return _loadScriptOnce('/rm/js/protocol-doc-render.js', 'ProtocolDocRender');
+    }).then(function () {
+      // V3.506 — shared cheat-sheet renderers (same module the ?view=cheat
+      // page uses) so the notebook's 📋 Cheat sheet view matches it exactly.
+      return _loadScriptOnce('/rm/js/protocol-cheat-render.js', 'ProtocolCheatRender');
+    }).then(function () {
+      return _loadScriptOnce('/rm/js/protocol-inventory.js', 'PROTOCOL_INVENTORY')
+        .then(function (inv) {
+          if (inv && inv.ensureList) { try { inv.ensureList(); } catch (e) {} }
+        })
+        .catch(function () { /* inventory labels are best-effort */ });
+    });
+    return _runDepsPromise;
+  }
+
+  function _runKeyOf(keyFields) {
+    return function (row) {
+      var k = {};
+      (keyFields || []).forEach(function (f) { k[f] = row[f]; });
+      return JSON.stringify(k, Object.keys(k).sort());
+    };
+  }
+
+  /* Discover the item-list datasets a definition produces, with the
+   * dim fields that key each. Scans builder blocks + compiles design
+   * blocks. The first is the primary (drives assignment + totals). */
+  function _runDatasetsFromTree(tree) {
+    var out = [];
+    ((tree && tree.sections) || []).forEach(function (sec) {
+      (sec.children || []).forEach(function (b) {
+        if (!b) return;
+        if (b.kind === 'builder') {
+          var dims = Array.isArray(b.attrs && b.attrs.dims) ? b.attrs.dims : [];
+          out.push({ name: (b.attrs && b.attrs.dataset) || 'items', keyFields: dims.map(function (d) { return d.field; }) });
+        } else if (b.kind === 'design' && window.ProtocolGraph) {
+          try {
+            var res = window.ProtocolGraph.compile(b.attrs || {});
+            (res.datasets || []).forEach(function (d) {
+              out.push({ name: d.name, keyFields: (d.spec.dims || []).map(function (x) { return x.field; }) });
+            });
+          } catch (e) {}
+        }
+      });
+    });
+    return out;
+  }
+
+  function _runGetTree(id) {
+    if (state._runTreeCache && state._runTreeCache.id === id) {
+      return Promise.resolve(state._runTreeCache.tree);
+    }
+    return _loadProtocolTree(id).then(function (tree) {
+      state._runTreeCache = { id: id, tree: tree };
+      return tree;
+    });
+  }
+
+  function renderRunLoadAffordance() {
+    var refs = (state.doc && state.doc.protocol_refs) || [];
+    if (!refs.length) {
+      return '<h4>Protocol run</h4>' +
+        '<div class="ln-material-empty">Reference a protocol above (📋 Protocol), then load it here to run it live — inputs, computed item lists, grid assignment, and prep totals.</div>';
+    }
+    var btns = refs.map(function (r) {
+      return '<button type="button" class="ln-run-load-btn" data-run-load="' + escapeHtml(r.id) +
+        '" data-run-title="' + escapeHtml(r.title || r.id) + '">▶ Run “' + escapeHtml(r.title || r.id) + '”</button>';
+    }).join('');
+    return '<h4>Protocol run</h4>' +
+      '<div>Load a referenced protocol to run it live in this entry:</div>' +
+      '<div style="margin-top:8px">' + btns + '</div>';
+  }
+
+  function wireRunLoadButtons(host) {
+    Array.prototype.forEach.call(host.querySelectorAll('[data-run-load]'), function (btn) {
+      btn.addEventListener('click', function () {
+        loadProtocolIntoRun(btn.getAttribute('data-run-load'), btn.getAttribute('data-run-title'));
+      });
+    });
+  }
+
+  async function loadProtocolIntoRun(id, title) {
+    // V3.506 — if a different protocol is already loaded, confirm before
+    // replacing it (one run slot per entry). Same protocol → no-op remount.
+    var existing = state.doc && state.doc.protocol_run;
+    if (existing && existing.protocol_id && existing.protocol_id !== id) {
+      if (!confirm('This entry already has "' + (existing.protocol_title || existing.protocol_id) +
+          '" loaded. Replace it with "' + (title || id) + '"? (its run state will be discarded)')) {
+        return;
+      }
+    }
+    try {
+      await _ensureProtocolRunDeps();
+      state.doc.protocol_run = {
+        protocol_id: id, protocol_title: title || id, protocol_version: null,
+        loaded_at: isoNow(), view: 'doc', inputs: {}, graph_state: {}, grids: [],
+        assignment: {}, factor: 1, computed: null,
+        frozen: false, frozen_at: null, snapshot: null,
+      };
+      // The live in-situ instance itself is what "Protocols followed" now
+      // tracks — no body chip needed (see collectProtocolRefs).
+      collectProtocolRefs(); renderProtocolsPanel();
+      scheduleSave(); upsertIndexRow(state.doc); renderRail();
+      await mountProtocolRunPanel();
+    } catch (err) {
+      alert('Could not load protocol into run: ' + (err && err.message || err));
+    }
+  }
+
+  async function mountProtocolRunPanel() {
+    var host = document.getElementById('ln-protocol-run');
+    if (!host || !state.doc) return;
+    // tear down any previous run context's event listener
+    if (state._runUnlisten) { try { state._runUnlisten(); } catch (e) {} state._runUnlisten = null; }
+    state._runCtx = null; state._runPrimaryDataset = null;
+
+    var run = state.doc.protocol_run;
+    if (!run) { host.innerHTML = renderRunLoadAffordance(); wireRunLoadButtons(host); return; }
+
+    host.innerHTML = '<h4>Protocol run · ' + escapeHtml(run.protocol_title || run.protocol_id) +
+      (run.frozen ? '<span class="ln-run-frozen-badge">🔒 frozen record</span>' : '') +
+      '</h4><div class="ln-material-empty">Loading…</div>';
+    try {
+      await _ensureProtocolRunDeps();
+      if (run.frozen) { await renderFrozenRun(host, run); return; }
+      var tree = await _runGetTree(run.protocol_id);
+      var math = await window.ProtocolFormulas.ensureMathjs();
+      mountProtocolRunWidgets(host, tree, run, math);
+    } catch (err) {
+      host.innerHTML = '<h4>Protocol run</h4><div class="ln-material-empty">Could not load: ' +
+        escapeHtml((err && err.message) || String(err)) + '</div>';
+    }
+  }
+
+  /* V3.506 — the notebook's bespoke `_runMountDesign` was removed; design
+   * blocks now render through window.ProtocolDocRender.renderBlock (its
+   * renderDesign, with a recompute-fingerprint guard), the same path the
+   * output-document view uses. */
+
+  /* ── V3.506 — render the loaded protocol as its real output document ──
+   * Shared by the live mount and the frozen (finalized) render. Uses the
+   * SAME window.ProtocolDocRender the ?view=doc page uses, so a notebook
+   * run looks and behaves like the published protocol document — masthead,
+   * numbered stage headers, callout cards, materials tables, figures, and
+   * (in a live ctx) working calculators / builders / plate maps.
+   *
+   * The Cheat-sheet view (run.view === 'cheat') collapses each `step` to
+   * its one-line V3.503 `attrs.cheat` summary (falling back to the step
+   * body's first line); every other block kind still renders in full so
+   * the calculators + materials stay usable on the condensed sheet. */
+
+  function _protocolHasCheat(tree) {
+    return ((tree && tree.sections) || []).some(function (sec) {
+      return (sec.children || []).some(function (b) {
+        return b && b.kind === 'step' && ((b.attrs && b.attrs.cheat) || '').trim();
+      });
+    });
+  }
+
+  // V3.515 — the cheat view is now meaningful for ANY protocol with steps
+  // (auto first-line fallback + user selection), not just ones with authored
+  // cheat lines — so the Document/Cheat toggle is gated on this instead.
+  function _protocolHasSteps(tree) {
+    return ((tree && tree.sections) || []).some(function (sec) {
+      return (sec.children || []).some(function (b) { return b && b.kind === 'step'; });
+    });
+  }
+
+  // V3.515 — cheat-sheet selection (per user+protocol), loaded lazily on first
+  // cheat render. NOT persisted on the run doc (it's per-protocol, not per-run);
+  // see protocol-cheat-render.js loadPrefs/savePrefs.
+  var _cheatState = { protocolId: null, prefs: null, customizing: false };
+
+  function _renderProtocolMasthead(tree, run) {
+    var el = document.createElement('header');
+    el.className = 'prd-masthead ln-run-masthead';
+    var brand = document.createElement('div');
+    brand.className = 'prd-brand';
+    var bn = document.createElement('span');
+    bn.className = 'prd-brand-name';
+    bn.textContent = 'McGhee Lab';
+    brand.appendChild(bn);
+    var tag = document.createElement('span');
+    tag.className = 'prd-brand-tag';
+    tag.textContent = run.view === 'cheat' ? 'PROTOCOL · CHEAT SHEET' : 'PROTOCOL';
+    brand.appendChild(tag);
+    el.appendChild(brand);
+    var h1 = document.createElement('h1');
+    h1.className = 'prd-title';
+    h1.textContent = (tree.meta && tree.meta.title) || run.protocol_title || run.protocol_id;
+    el.appendChild(h1);
+    var row = document.createElement('div');
+    row.className = 'prd-chips';
+    function chip(txt) {
+      var c = document.createElement('span');
+      c.className = 'prd-chip prd-chip-meta';
+      c.textContent = txt;
+      row.appendChild(c);
+    }
+    if (run.frozen && run.frozen_at) chip('🔒 finalized ' + String(run.frozen_at).slice(0, 10));
+    else chip('live — values editable');
+    if (run.loaded_at) chip('loaded ' + String(run.loaded_at).slice(0, 10));
+    el.appendChild(row);
+    return el;
+  }
+
+  function _renderProtocolDocInto(card, tree, ctx, run) {
+    // Cheat-sheet view — delegate to the shared ProtocolCheatRender module
+    // (the SAME renderer the ?view=cheat page uses). The card carries the
+    // dual `prd-doc prc-doc` class so protocol-cheat.css wins, exactly like
+    // the cheat page's <article>.
+    if (run.view === 'cheat' && window.ProtocolCheatRender) {
+      var PCR = window.ProtocolCheatRender;
+      card.classList.add('prc-doc');
+      // Compact header, matching the ?view=cheat page's .prc-header (the
+      // dark masthead is dropped on the cheat sheet).
+      var head = document.createElement('header');
+      head.className = 'prc-header';
+      var h1 = document.createElement('h1');
+      h1.className = 'prc-title';
+      h1.textContent = (tree.meta && tree.meta.title) || run.protocol_title || run.protocol_id;
+      head.appendChild(h1);
+      var meta = document.createElement('div');
+      meta.className = 'prc-meta';
+      meta.textContent = (run.frozen && run.frozen_at
+        ? '🔒 finalized ' + String(run.frozen_at).slice(0, 10)
+        : 'live · values editable') + ' · cheat sheet';
+      head.appendChild(meta);
+      card.appendChild(head);
+
+      // V3.515 — contents are user-selected at point of use, persisted per
+      // (user, protocol). Load once into _cheatState (async); re-render when
+      // ready. The selection lives in its own doc, never on the run.
+      if (_cheatState.protocolId !== run.protocol_id) {
+        _cheatState = { protocolId: run.protocol_id, prefs: null, customizing: false };
+        PCR.loadPrefs(run.protocol_id).then(function (p) {
+          if (_cheatState.protocolId !== run.protocol_id) return;   // stale
+          _cheatState.prefs = p;
+          mountProtocolRunPanel();
+        });
+      }
+      if (!_cheatState.prefs) {
+        var loading = document.createElement('div');
+        loading.className = 'prc-configbar-loading';
+        loading.textContent = 'Loading cheat-sheet options…';
+        card.appendChild(loading);
+        return;
+      }
+      var prefs = _cheatState.prefs;
+      var pid = run.protocol_id;
+      var handlers = {
+        customizing: _cheatState.customizing,
+        onToggleCategory: function (c, next) {
+          prefs.categories[c] = next; PCR.savePrefs(pid, prefs); mountProtocolRunPanel();
+        },
+        onToggleBlock: function (id, stateVal) {
+          prefs.overrides[id] = stateVal; PCR.savePrefs(pid, prefs); mountProtocolRunPanel();
+        },
+        onToggleCustomize: function (next) { _cheatState.customizing = next; mountProtocolRunPanel(); },
+        onReset: function () {
+          var d = PCR.defaultPrefs();
+          prefs.categories = d.categories; prefs.overrides = d.overrides;
+          PCR.savePrefs(pid, prefs); mountProtocolRunPanel();
+        },
+      };
+      card.appendChild(PCR.buildConfigBar(prefs, handlers));
+      if (_cheatState.customizing) PCR.renderChecklistInto(card, tree, prefs, handlers);
+      else PCR.renderSectionsInto(card, tree, ctx, { prefs: prefs });
+      return;
+    }
+    card.classList.remove('prc-doc');
+
+    // Document view — masthead + every block through ProtocolDocRender.
+    card.appendChild(_renderProtocolMasthead(tree, run));
+    var stepCounter = 0;
+    ((tree && tree.sections) || []).forEach(function (sec, i) {
+      var secEl = document.createElement('section');
+      secEl.className = 'prd-section';
+      var code = String(i + 1);
+      if (code.length < 2) code = '0' + code;
+      var stage = document.createElement('div');
+      stage.className = 'prd-stage';
+      var h = document.createElement('h2');
+      h.className = 'prd-stage-title';
+      h.innerHTML = '<span class="prd-stage-code">' + code + '</span>' +
+        escapeHtml(sec.label || 'Untitled section');
+      stage.appendChild(h);
+      secEl.appendChild(stage);
+
+      (sec.children || []).forEach(function (b) {
+        if (!b || b.kind === 'docHeader') return;
+        if (b.kind === 'step') stepCounter++;
+        var el = window.ProtocolDocRender.renderBlock(b, ctx, { stepNumber: stepCounter });
+        if (el) secEl.appendChild(el);
+      });
+      card.appendChild(secEl);
+    });
+  }
+
+  /* Toolbar shared by the live + frozen renders: view toggle (only when
+   * the protocol carries cheat lines), Finalize / Reopen, and Unload. */
+  function _buildRunToolbar(run, hasCheat) {
+    var bar = document.createElement('div');
+    bar.className = 'ln-run-toolbar';
+    var title = document.createElement('div');
+    title.className = 'ln-run-toolbar-title';
+    title.textContent = '📋 ' + (run.protocol_title || run.protocol_id) +
+      (run.frozen ? ' · finalized' : ' · live');
+    bar.appendChild(title);
+    var actions = document.createElement('div');
+    actions.className = 'ln-run-toolbar-actions';
+
+    if (hasCheat) {
+      var toggle = document.createElement('div');
+      toggle.className = 'ln-run-view-toggle';
+      [['doc', '📄 Document'], ['cheat', '📋 Cheat sheet']].forEach(function (p) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ln-run-view-btn' + ((run.view || 'doc') === p[0] ? ' active' : '');
+        b.textContent = p[1];
+        b.addEventListener('click', function () {
+          if ((run.view || 'doc') === p[0]) return;
+          run.view = p[0];
+          scheduleSave();
+          mountProtocolRunPanel();
+        });
+        toggle.appendChild(b);
+      });
+      actions.appendChild(toggle);
+    }
+
+    if (!run.frozen) {
+      var fin = document.createElement('button');
+      fin.type = 'button';
+      fin.className = 'ln-run-finalize-btn';
+      fin.textContent = '✅ Finalize';
+      fin.title = 'Lock the input values you used into this entry as an immutable record';
+      fin.addEventListener('click', function () {
+        if (!confirm('Finalize this protocol? The values you used will be locked into this entry ' +
+            'as an immutable record. You can Reopen later if you need to change them.')) return;
+        freezeProtocolRun();
+        scheduleSave(); upsertIndexRow(state.doc); renderRail();
+        mountProtocolRunPanel();
+        setSavingHint('🔒 protocol finalized');
+      });
+      actions.appendChild(fin);
+    } else {
+      var reopen = document.createElement('button');
+      reopen.type = 'button';
+      reopen.className = 'ln-run-reopen-btn';
+      reopen.textContent = '✎ Reopen';
+      reopen.title = 'Unlock this protocol to edit the values again';
+      reopen.addEventListener('click', function () {
+        if (!confirm('Reopen this finalized protocol for editing? It becomes live again — the ' +
+            'locked values are preserved as the starting point.')) return;
+        run.frozen = false; run.frozen_at = null;
+        scheduleSave(); upsertIndexRow(state.doc); renderRail();
+        mountProtocolRunPanel();
+      });
+      actions.appendChild(reopen);
+    }
+
+    var unload = document.createElement('button');
+    unload.type = 'button';
+    unload.className = 'ln-run-load-btn ln-run-unload-btn';
+    unload.textContent = '✕ Unload';
+    unload.title = 'Remove this protocol and its run state from the entry';
+    unload.addEventListener('click', function () {
+      if (!confirm('Remove the loaded protocol and its run state from this entry?')) return;
+      state.doc.protocol_run = null;
+      collectProtocolRefs(); renderProtocolsPanel();
+      scheduleSave(); upsertIndexRow(state.doc); renderRail();
+      mountProtocolRunPanel();
+    });
+    actions.appendChild(unload);
+
+    bar.appendChild(actions);
+    return bar;
+  }
+
+  function mountProtocolRunWidgets(host, tree, run, math) {
+    var PF = window.ProtocolFormulas, PW = window.ProtocolWidgets;
+    host.innerHTML = '';
+    if (!run.view) run.view = 'doc';
+    host.appendChild(_buildRunToolbar(run, _protocolHasSteps(tree)));
+
+    var formulas = PF.collectFormulasFromPlainTree(tree);
+    var ctx = PW.createContext({
+      container: host, math: math, formulas: formulas,
+      overrides: run.inputs, builderState: run.graph_state,
+      onChange: function () { _syncRunComputed(); scheduleSave(); },
+    });
+    ctx.table = math ? PF.buildSymbolTable(formulas, math, run.inputs) : {};
+    state._runCtx = ctx;
+
+    // The protocol as its real output document — every block, live widgets
+    // inline (single source of truth with ProtocolDocRender).
+    var card = document.createElement('div');
+    card.className = 'prd-doc ln-run-doc';
+    host.appendChild(card);
+    _renderProtocolDocInto(card, tree, ctx, run);
+
+    // Run-only prep aids: assign computed items → grids → totals. Only when
+    // a primary dataset exists AND there's no in-document plate planner
+    // (assign-enabled layoutMap) — that block IS the assignment surface and
+    // was rendered inline above.
+    var datasets = _runDatasetsFromTree(tree);
+    var primary = datasets.length ? datasets[0] : null;
+    state._runPrimaryDataset = primary;
+    state._runPlanner = primary ? _runPlannerBlock(tree, primary.name) : null;
+
+    if (primary && !state._runPlanner) {
+      var prep = document.createElement('div');
+      prep.className = 'ln-run-prep';
+      var prepHead = document.createElement('div');
+      prepHead.className = 'ln-run-section-label ln-run-prep-head';
+      prepHead.textContent = '🧮 Run: assign items & prep totals';
+      prep.appendChild(prepHead);
+
+      // factor multiplier
+      var factorWrap = document.createElement('label');
+      factorWrap.className = 'ln-run-factor';
+      factorWrap.innerHTML = '<span>Prep excess / multiplier ×</span>';
+      var fInp = document.createElement('input');
+      fInp.type = 'number'; fInp.step = '0.05'; fInp.min = '0';
+      fInp.value = String(run.factor || 1);
+      fInp.addEventListener('input', function () {
+        var n = parseFloat(fInp.value);
+        run.factor = (isFinite(n) && n > 0) ? n : 1;
+        PW.recompute(ctx); _syncRunComputed(); scheduleSave();
+      });
+      factorWrap.appendChild(fInp);
+      prep.appendChild(factorWrap);
+
+      var asnLabel = document.createElement('div');
+      asnLabel.className = 'ln-run-section-label';
+      asnLabel.textContent = 'Assign items to grids';
+      prep.appendChild(asnLabel);
+      prep.appendChild(PW.renderGridAssignment(ctx, {
+        datasetName: primary.name,
+        grids: run.grids,
+        assignment: run.assignment,
+        keyFields: primary.keyFields,
+        colorField: primary.keyFields[0] || '',
+        defaultRows: 4, defaultCols: 6,
+        onAssignChange: function () { PW.recompute(ctx); _syncRunComputed(); scheduleSave(); },
+      }));
+
+      var totLabel = document.createElement('div');
+      totLabel.className = 'ln-run-section-label';
+      totLabel.textContent = 'Totals to prepare';
+      prep.appendChild(totLabel);
+      prep.appendChild(PW.renderPrepTotals(ctx, {
+        datasetName: primary.name,
+        grids: run.grids,
+        assignment: run.assignment,
+        keyFields: primary.keyFields,
+        poolBy: primary.keyFields,
+        factor: run.factor,
+      }));
+      host.appendChild(prep);
+    }
+
+    state._runUnlisten = PW.mountRefresherBus(ctx);
+    PW.recompute(ctx);        // populate + register datasets, run all refreshers
+    _syncRunComputed();
+  }
+
+  /* Cache the live computed items + totals onto protocol_run (non-
+   * authoritative; feeds the rail index + the freeze snapshot). */
+  function _syncRunComputed() {
+    var run = state.doc && state.doc.protocol_run;
+    if (!run || !window.ProtocolFormulas) return;
+    var ds = state._runPrimaryDataset;
+    var items = ds ? (window.ProtocolFormulas.getDataset(ds.name) || []) : [];
+    run.computed = { items: items.slice(), totals: _computeRunTotals(run, ds, items) };
+    upsertIndexRow(state.doc);
+  }
+  /* Find an assign-enabled layoutMap ("Plate planner") whose dataset is
+   * the primary one, so run totals + freeze read ITS state (persisted in
+   * run.graph_state[blockId]) rather than the legacy run.grids. */
+  function _runPlannerBlock(tree, primaryName) {
+    var found = null;
+    ((tree && tree.sections) || []).forEach(function (sec) {
+      (sec.children || []).forEach(function (b) {
+        if (found || !b || b.kind !== 'layoutMap') return;
+        var a = b.attrs || {};
+        if (a.assign && a.dataset === primaryName) found = { blockId: b.id, attrs: a };
+      });
+    });
+    return found;
+  }
+
+  function _computeRunTotals(run, ds, items) {
+    if (!ds || !window.ProtocolWidgets || !window.ProtocolFormulas) return null;
+    var pl = state._runPlanner;
+    var grids, assignment, keyFields, poolBy, quantityFields, factor;
+    if (pl) {
+      var gs = (run.graph_state && run.graph_state[pl.blockId]) || {};
+      grids = gs.grids || []; assignment = gs.assignment || {};
+      keyFields = pl.attrs.keyFields || ds.keyFields;
+      poolBy = pl.attrs.poolBy || ds.keyFields;
+      quantityFields = pl.attrs.quantityFields;
+      var fv = pl.attrs.factorVar;
+      var sym = fv && state._runCtx && state._runCtx.table && state._runCtx.table[fv];
+      factor = (sym && !sym.error && typeof sym.value === 'number') ? sym.value : (run.factor || 1);
+      run.factor = factor;   // keep the frozen snapshot's factor label honest
+    } else {
+      grids = run.grids; assignment = run.assignment;
+      keyFields = ds.keyFields; poolBy = ds.keyFields; quantityFields = undefined; factor = run.factor;
+    }
+    var counts = window.ProtocolWidgets.slotCounts(grids, assignment);
+    var keyOf = _runKeyOf(keyFields);
+    return window.ProtocolFormulas.aggregatePrep(items, {
+      countOf: function (row) { return counts[keyOf(row)] || 0; },
+      poolBy: poolBy,
+      quantityFields: quantityFields,
+      factor: factor,
+    });
+  }
+
+  function freezeProtocolRun() {
+    var run = state.doc && state.doc.protocol_run;
+    if (!run || run.frozen) return;
+    _syncRunComputed();
+    try {
+      run.snapshot = JSON.parse(JSON.stringify({
+        inputs: run.inputs, graph_state: run.graph_state, grids: run.grids,
+        assignment: run.assignment, factor: run.factor, computed: run.computed,
+        protocol_id: run.protocol_id, protocol_title: run.protocol_title,
+      }));
+    } catch (e) { run.snapshot = null; }
+    run.frozen = true;
+    run.frozen_at = isoNow();
+    if (state._runUnlisten) { try { state._runUnlisten(); } catch (e) {} state._runUnlisten = null; }
+  }
+
+  /* V3.506 — render a finalized (frozen) run as its locked output document:
+   * the same ProtocolDocRender path, but a READ-ONLY ctx whose overrides are
+   * the snapshot's inputs, so the document reads with the values-used baked
+   * in and every widget disabled. The explicit recorded-values tables
+   * (inputs / item list / totals) follow, in a collapsed <details>, as the
+   * immutable numeric record. Falls back to just the record tables if the
+   * tree can no longer be loaded. Async — awaited by mountProtocolRunPanel. */
+  async function renderFrozenRun(host, run) {
+    var PF = window.ProtocolFormulas, PW = window.ProtocolWidgets;
+    var snap = run.snapshot || {};
+    host.innerHTML = '';
+    host.appendChild(_buildRunToolbar(run, false));
+
+    try {
+      var tree = await _runGetTree(run.protocol_id);
+      var formulas = PF.collectFormulasFromPlainTree(tree);
+      var needsMath = formulas.length > 0 || ((tree && tree.sections) || []).some(function (sec) {
+        return (sec.children || []).some(function (b) {
+          return b && (b.kind === 'builder' || b.kind === 'layoutMap' || b.kind === 'design');
+        });
+      });
+      var math = null;
+      if (needsMath) { try { math = await PF.ensureMathjs(); } catch (e) {} }
+
+      // Re-add the view toggle now that the tree is loaded (the fall-through
+      // toolbar above was built without it). V3.515 — gated on having steps,
+      // so the cheat view is offered even without authored cheat lines.
+      if (_protocolHasSteps(tree)) {
+        host.innerHTML = '';
+        host.appendChild(_buildRunToolbar(run, true));
+      }
+
+      var ctx = PW.createContext({
+        container: host, math: math, formulas: formulas,
+        overrides: snap.inputs || run.inputs || {},
+        builderState: snap.graph_state || run.graph_state || {},
+        readOnly: true,
+      });
+      ctx.table = math ? PF.buildSymbolTable(formulas, math, ctx.overrides) : {};
+      state._runCtx = ctx;
+
+      var card = document.createElement('div');
+      card.className = 'prd-doc ln-run-doc ln-run-doc-frozen';
+      host.appendChild(card);
+      _renderProtocolDocInto(card, tree, ctx, run);
+      PW.recompute(ctx);   // populate datasets/lists once (no live bus)
+    } catch (err) {
+      var note = document.createElement('div');
+      note.className = 'ln-material-empty';
+      note.textContent = 'Finalized record (the protocol document could not be re-rendered: ' +
+        ((err && err.message) || String(err)) + ').';
+      host.appendChild(note);
+    }
+
+    host.appendChild(_renderFrozenRecordTables(run));
+  }
+
+  /* The immutable numeric record — inputs used, computed item list, prep
+   * totals — from the freeze snapshot, wrapped in a collapsed <details>. */
+  function _renderFrozenRecordTables(run) {
+    var snap = run.snapshot || {};
+    var wrap = document.createElement('details');
+    wrap.className = 'ln-run-record';
+    var sum = document.createElement('summary');
+    sum.textContent = '🔒 Recorded values (finalized ' + String(run.frozen_at || '').slice(0, 10) + ')';
+    wrap.appendChild(sum);
+    var box = document.createElement('div');
+    box.className = 'ln-run-record-body';
+    var html = '';
+
+    // inputs
+    var inputs = snap.inputs || {};
+    var inKeys = Object.keys(inputs);
+    if (inKeys.length) {
+      html += '<div class="ln-run-section-label">Inputs used</div><table class="prd-table"><tbody>';
+      inKeys.forEach(function (k) {
+        html += '<tr><td>' + escapeHtml(k) + '</td><td class="prd-mono">' + escapeHtml(String(inputs[k])) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+
+    // item list
+    var items = (snap.computed && snap.computed.items) || [];
+    if (items.length) {
+      var cols = Object.keys(items[0]).filter(function (k) { return k.indexOf('_value') < 0; });
+      html += '<div class="ln-run-section-label">Item list</div><table class="prd-table"><thead><tr><th>#</th>' +
+        cols.map(function (c) { return '<th>' + escapeHtml(c.replace(/_label$/, '')) + '</th>'; }).join('') + '</tr></thead><tbody>';
+      items.forEach(function (row, i) {
+        html += '<tr><td class="prd-mono">' + (i + 1) + '</td>' +
+          cols.map(function (c) {
+            var v = row[c];
+            return '<td>' + escapeHtml(v === null || v === undefined ? '' : String(v)) + '</td>';
+          }).join('') + '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+
+    // totals
+    var totals = snap.computed && snap.computed.totals;
+    if (totals && totals.quantityFields && totals.quantityFields.length) {
+      html += '<div class="ln-run-section-label">Totals prepared (× ' + escapeHtml(String(snap.factor || 1)) + ')</div>' +
+        '<table class="prd-table"><thead><tr><th>Pool</th>' +
+        totals.quantityFields.map(function (q) { return '<th>' + escapeHtml(q) + '</th>'; }).join('') + '</tr></thead><tbody>';
+      (totals.pools || []).forEach(function (p) {
+        html += '<tr><td>' + escapeHtml(p.label) + '</td>' +
+          totals.quantityFields.map(function (q) { return '<td class="prd-mono">' + escapeHtml(String(Math.round((p.totals[q] || 0) * 1000) / 1000)) + '</td>'; }).join('') + '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+
+    box.innerHTML = html || '<div class="ln-material-empty">No numeric values were captured for this run.</div>';
+    wrap.appendChild(box);
+    return wrap;
   }
 
   /* Walk the V3.134-dehydrated plain protocol tree and return formula
@@ -3267,8 +5172,8 @@
 
   /* Steps format — walk the protocol body and substitute [!var:name]
    * tokens with computed values via ProtocolFormulas.renderTextWithTokens.
-   * We walk the same dehydrated tree V3.134's _renderProtocolTreeHtml
-   * uses, but route every body string through the substitution pass. */
+   * We walk the same V3.134-dehydrated protocol tree, but route every
+   * body string through the substitution pass. */
   function _renderCalcStepsHtml(plainTree, symbolTable) {
     var PF = window.ProtocolFormulas;
     function sub(text) {
@@ -3666,6 +5571,8 @@
           return { name: f.name, low: +f.low, high: +f.high, levels: Math.max(2, Math.floor(+f.levels || 2)) };
         }),
         runs: preview.runs.slice(),
+        // V3.361 — fresh matrix → fresh (empty) per-run results.
+        run_results: preview.runs.map(function () { return { value: '', note: '' }; }),
         config: preview.config,
         created_at: isoNow(),
       };
@@ -3725,19 +5632,57 @@
       if (design.config && design.config.n0)    configBits.push('n₀=' + design.config.n0);
       if (design.config && design.config.alpha) configBits.push('α=' + design.config.alpha);
     }
+    // V3.361 — completed-runs progress chip closes the plan→result loop.
+    var results = Array.isArray(design.run_results) ? design.run_results : [];
+    var done = results.filter(function (r) { return r && (r.value || r.note); }).length;
+    var resultChip = (design.runs || []).length
+      ? '<span class="ln-design-results-chip' + (done === design.runs.length && done ? ' all-done' : '') + '">' +
+          done + '/' + design.runs.length + ' results</span>'
+      : '';
     return '<div class="ln-design" id="ln-design">' +
       '<h4>' +
         'Design of experiments · <span class="ln-design-type">' + escapeHtml(typeLabel) + '</span>' +
         ' · ' + (design.runs || []).length + ' run' + ((design.runs || []).length === 1 ? '' : 's') +
         (configBits.length ? ' · ' + escapeHtml(configBits.join(' · ')) : '') +
+        resultChip +
       '</h4>' +
       '<div class="ln-design-actions">' +
         '<button class="ln-design-edit" type="button">✏️ Edit / Regenerate</button>' +
         '<button class="ln-design-csv" type="button">⬇ Download CSV</button>' +
         '<button class="ln-design-clear danger" type="button">Clear</button>' +
       '</div>' +
-      renderDoeTableHtml(factorNames, design.runs || [], true) +
+      renderDesignRunsTable(design) +
     '</div>';
+  }
+
+  /* V3.361 — the in-entry design table gains editable Result + note
+   * columns bound to design.run_results[i] (a parallel array — factor
+   * name collisions with "result" are impossible). The modal preview
+   * keeps using the plain renderDoeTableHtml. */
+  function renderDesignRunsTable(design) {
+    var runs = design.runs || [];
+    if (!runs.length) return '<div class="ln-doe-preview-empty">(empty)</div>';
+    var cols = (design.factors || []).map(function (f) { return f.name; });
+    var results = Array.isArray(design.run_results) ? design.run_results : [];
+    var head = '<tr><th class="ln-doe-th-num">#</th>' +
+      cols.map(function (c) { return '<th>' + escapeHtml(c) + '</th>'; }).join('') +
+      '<th class="ln-doe-th-result">result</th><th class="ln-doe-th-result">note</th></tr>';
+    var body = runs.map(function (r, i) {
+      var res = results[i] || { value: '', note: '' };
+      return '<tr>' +
+        '<td class="ln-doe-td-num">' + (i + 1) + '</td>' +
+        cols.map(function (c) {
+          var v = r[c];
+          return '<td>' + escapeHtml(v == null ? '' : String(v)) + '</td>';
+        }).join('') +
+        '<td class="ln-doe-td-result"><input type="text" class="ln-doe-result" data-i="' + i + '" data-k="value" placeholder="—" value="' + escapeHtml(res.value || '') + '"></td>' +
+        '<td class="ln-doe-td-result"><input type="text" class="ln-doe-result" data-i="' + i + '" data-k="note" placeholder="" value="' + escapeHtml(res.note || '') + '"></td>' +
+        '</tr>';
+    }).join('');
+    return '<div class="ln-doe-table-scroll"><table class="ln-doe-table ln-doe-table-results">' +
+      '<thead>' + head + '</thead>' +
+      '<tbody>' + body + '</tbody>' +
+      '</table></div>';
   }
 
   function renderDesignPanel() {
@@ -3756,6 +5701,32 @@
     if (editBtn) editBtn.addEventListener('click', openDoeModal);
     if (csvBtn) csvBtn.addEventListener('click', downloadDesignCsv);
     if (clearBtn) clearBtn.addEventListener('click', clearDesign);
+    // V3.361 — per-run result / note inputs. Typing saves via the normal
+    // debounce; the header progress chip refreshes on blur so the row
+    // being typed in never re-renders under the caret.
+    Array.prototype.forEach.call(box.querySelectorAll('.ln-doe-result'), function (input) {
+      input.addEventListener('input', function () {
+        var d = state.doc && state.doc.design;
+        if (!d) return;
+        if (!Array.isArray(d.run_results)) d.run_results = [];
+        var i = +input.getAttribute('data-i');
+        var k = input.getAttribute('data-k') === 'note' ? 'note' : 'value';
+        while (d.run_results.length <= i) d.run_results.push({ value: '', note: '' });
+        d.run_results[i][k] = input.value;
+        scheduleSave();
+        refreshDesignResultsChip();
+      });
+    });
+  }
+
+  function refreshDesignResultsChip() {
+    var chip = document.querySelector('#ln-design .ln-design-results-chip');
+    var d = state.doc && state.doc.design;
+    if (!chip || !d) return;
+    var results = Array.isArray(d.run_results) ? d.run_results : [];
+    var done = results.filter(function (r) { return r && (r.value || r.note); }).length;
+    chip.textContent = done + '/' + (d.runs || []).length + ' results';
+    chip.classList.toggle('all-done', !!done && done === (d.runs || []).length);
   }
 
   function clearDesign() {
@@ -3772,18 +5743,20 @@
     var d = state.doc && state.doc.design;
     if (!d || !Array.isArray(d.runs) || !d.runs.length) return;
     var cols = (d.factors || []).map(function (f) { return f.name; });
+    var results = Array.isArray(d.run_results) ? d.run_results : [];
     var rows = d.runs.map(function (r, i) {
+      var res = results[i] || { value: '', note: '' };
       return [i + 1].concat(cols.map(function (c) {
         var v = r[c];
         return v == null ? '' : String(v);
-      }));
+      })).concat([res.value || '', res.note || '']);
     });
     function csvEscape(s) {
       s = String(s);
       if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
       return s;
     }
-    var lines = [['#'].concat(cols).map(csvEscape).join(',')];
+    var lines = [['#'].concat(cols).concat(['result', 'note']).map(csvEscape).join(',')];
     rows.forEach(function (r) { lines.push(r.map(csvEscape).join(',')); });
     var blob = new Blob([lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
     var url = URL.createObjectURL(blob);
@@ -3813,24 +5786,44 @@
   /* ─────────────────────────────────────────────────────────────
    * Entry lifecycle
    * ───────────────────────────────────────────────────────────── */
-  async function onNewEntry() {
+  /* V3.361 — opts.seed (template/clone/iteration payload, applied via
+   * applySeedToDoc) and opts.slug (id slug source) are optional; a bare
+   * onNewEntry() is the classic blank entry. */
+  async function onNewEntry(opts) {
+    opts = opts || {};
     var entry = notebookEmptyEntry();
     entry.title = '';
     entry.date = todayStr();
     entry.ownerUid = state.user.uid;
-    entry.id = newEntryId(entry.date, 'entry');
+    if (opts.seed) applySeedToDoc(entry, opts.seed);
+    entry.id = newEntryId(entry.date, opts.slug || entry.title || 'entry');
     state.doc = entry;
     state.currentId = entry.id;
     upsertIndexRow(entry);
     detachLiveSync();
     renderEditor();
     renderRail();
+    if (state.drawers) state.drawers.close();
     // Focus title for immediate typing.
     var t = document.getElementById('ln-title'); if (t) t.focus();
     // Persist a stub so the entry exists in Firestore even if the user
     // navigates away before typing anything.
     try { await saveEntry(); } catch (_) {}
     attachLiveSync();
+    // V3.530 — double-dip: offer to fan the new entry out (huddle plan,
+    // tracker event, …). draft is a FUNCTION so the title the user is
+    // typing right now is captured at tap time, not at creation time.
+    if (window.DAY_DISTRIBUTE) DAY_DISTRIBUTE.renderChipsFloating({
+      source: 'notebook',
+      nativeDocPath: 'userData/' + state.user.uid + '/notebook/' + entry.id,
+      draft: function () {
+        var d = state.doc || entry;
+        return {
+          title: d.title || 'Notebook entry', date: d.date || entry.date,
+          details: { projectId: d.project_id, protocolId: d.protocol_id },
+        };
+      },
+    });
   }
 
   async function switchToEntry(id) {
@@ -3880,12 +5873,12 @@
    * ───────────────────────────────────────────────────────────── */
   async function boot() {
     try {
-      if (typeof firebridge === 'undefined' || !firebridge.gateSignedIn) {
+      if (typeof firebridge === 'undefined' || !firebridge.requireSignIn) {
         var c = document.getElementById('ln-content');
         if (c) c.innerHTML = '<div class="ln-loading">firebridge missing — load order issue.</div>';
         return;
       }
-      var gate = await firebridge.gateSignedIn(
+      var gate = await firebridge.requireSignIn(
         'The lab notebook is for lab members. Sign in with your @arizona.edu (or admin Google) account.'
       );
       if (!gate.allowed) return;
@@ -3900,13 +5893,25 @@
       state.isAdmin = !!(firebridge.isAdmin && firebridge.isAdmin());
 
       // Reveal layout (the page shell hides ln-content until boot succeeds).
+      // V3.359 — the layout is a mobile-drawer host: at ≤640px the rail
+      // becomes a left slide-in drawer (shared .rm-mobile-drawer-* CSS),
+      // toggled by the toolbar ☰ button.
+      // Drawer classes only go on when the helper actually loaded — a
+      // missing mobile-drawers.js must degrade to the stacked layout,
+      // never a rail stranded off-screen.
+      var drawerable = !!window.MOBILE_DRAWERS;
       var content = document.getElementById('ln-content');
       content.innerHTML =
         '<div class="ln-toolbar" id="ln-toolbar"></div>' +
-        '<div class="ln-layout" id="ln-layout">' +
-          '<div class="ln-rail" id="ln-rail"></div>' +
+        '<div class="ln-layout' + (drawerable ? ' rm-mobile-drawer-host' : '') + '" id="ln-layout">' +
+          '<div class="ln-rail' + (drawerable ? ' rm-mobile-drawer-left' : '') + '" id="ln-rail"></div>' +
           '<div class="ln-editor" id="ln-editor"></div>' +
         '</div>';
+      if (drawerable) {
+        state.drawers = MOBILE_DRAWERS.init(document.getElementById('ln-layout'), {});
+      }
+      // V3.359 — phone quick-capture bar (fixed, outside re-render churn).
+      ensureActionBar();
 
       // Wire camera + file inputs (hidden in the page shell).
       var cameraInput = document.getElementById('ln-camera-input');
@@ -3914,26 +5919,32 @@
       if (cameraInput) cameraInput.addEventListener('change', function () {
         Array.from(cameraInput.files || []).forEach(function (f) {
           uploadAndAttach(f, /* insertInline */ true).catch(function (err) {
-            alert('Upload failed: ' + (err && err.message || err));
+            lnNotify('error', 'Upload failed', err && err.message || String(err));
           });
         });
       });
       if (fileInput) fileInput.addEventListener('change', function () {
         Array.from(fileInput.files || []).forEach(function (f) {
           uploadAndAttach(f, /^image\//.test(f.type)).catch(function (err) {
-            alert('Upload failed: ' + (err && err.message || err));
+            lnNotify('error', 'Upload failed', err && err.message || String(err));
           });
         });
       });
 
-      await Promise.all([loadIndex(), loadProjects()]);
+      await Promise.all([loadIndex(), loadProjects(), loadTemplatesDoc()]);
 
       renderToolbar();
       renderRail();
-      // Open the most-recent entry, if any.
+      // V3.361 — ?entry=<id> deep link (used by cross-entry reference
+      // links and ↻ next-iteration back-links). Falls through to the
+      // most-recent entry when the id is unknown.
+      var params = new URLSearchParams(location.search);
+      var wanted = params.get('entry');
       var rows = filteredIndexRows();
-      if (rows.length) {
-        await switchToEntry(rows[0].id);
+      var target = wanted && rows.find(function (r) { return r.id === wanted; }) ? wanted
+                 : (rows.length ? rows[0].id : null);
+      if (target) {
+        await switchToEntry(target);
       } else {
         renderEditor();
       }

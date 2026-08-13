@@ -974,7 +974,7 @@ function _receiptsAttachLiveSync() {
 }
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view receipts.');
   _receiptsWrapSaves();
   await loadAndRender();
   // No live-sync attach: receipts is admin-edit, single-tab in practice.

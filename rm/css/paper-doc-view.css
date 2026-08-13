@@ -1,0 +1,1039 @@
+/* paper-doc-view.css — V3.387
+ * Document view: journal-styled page sheets rendered in-browser
+ * (js/paper-doc-view.js). Everything is scoped under .pdv-overlay /
+ * .pdv-sheet / .pdv-probe. Sheet-on-gray-desk look follows the
+ * grant-doc.css precedent; sheet dimensions/margins/font-size are set
+ * inline per template (DOC_HINTS), so this file carries structure and
+ * typography only. */
+
+/* ── Overlay shell ── */
+
+.pdv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4200;                 /* above the 4000 modal plane + 3500 panel */
+  display: flex;
+  flex-direction: column;
+  background: #38393c;
+}
+
+.pdv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #1f2937;
+  color: #e5e7eb;
+  flex-wrap: wrap;
+}
+.pdv-toolbar-title { font-weight: 700; font-size: 13px; }
+.pdv-toolbar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+.pdv-toolbar-field select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #f3f4f6;
+  max-width: 260px;
+}
+.pdv-pages-label { font-size: 12px; color: #93c5fd; }
+.pdv-status { font-size: 11px; color: #fbbf24; }
+/* V3.486 — body line-density readout beside the Lines control. */
+.pdv-density-readout { font-size: 10.5px; color: #93c5fd; margin-left: 6px; white-space: nowrap; }
+.pdv-toolbar-spacer { flex: 1; }
+.pdv-toolbar .btn { background: #374151; color: #f3f4f6; border-color: #4b5563; }
+.pdv-toolbar a.btn { text-decoration: none; }
+
+/* ── Desk + sheets ── */
+
+.pdv-desk {
+  flex: 1;
+  overflow: auto;
+  background: #525659;           /* PDF-viewer gray */
+  padding: 28px 24px 60px;
+}
+.pdv-scale-outer { margin: 0 auto; }
+.pdv-scale { transform-origin: top left; }
+
+.pdv-sheet {
+  position: relative;
+  box-sizing: border-box;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.45);
+  margin: 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* V3.397 — the body is a flex column so float bands stack around the
+ * text region and the bottom band anchors to the page bottom. */
+.pdv-sheet-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* flex-BASIS auto + NO shrink: an overflow page must overflow + clip at
+ * the sheet edge (the pre-R2 block behavior), not squeeze the text. */
+.pdv-textregion { flex: 0 0 auto; }
+
+/* ── Float bands (Layout Mode R2) ── */
+.pdv-float-band { flex: 0 0 auto; }
+.pdv-float-band-bottom { margin-top: auto; }
+.pdv-float-row { display: flex; align-items: flex-start; }
+.pdv-float-slot { flex: 0 0 auto; box-sizing: border-box; min-width: 0; }
+.pdv-float-slot > .pdv-figure,
+.pdv-float-slot > .pdv-table-wrap { margin-top: 4px; }
+
+/* ── Per-column flow (Layout Mode, V3.421) ──
+ * A colgrid strip is two INDEPENDENT columns side by side (replacing the
+ * old CSS column-count, which balanced both to a single height and so
+ * forced a full-width band for every float). Each column is a flex
+ * column: its flow nodes stack from the top and a [b] float bottom-
+ * anchors (margin-top:auto), so one column's text can run right up to a
+ * figure at its foot while the other column flows its full height past
+ * it. Columns stretch to the tallest of the pair. */
+.pdv-cols-strip { display: flex; align-items: stretch; }
+.pdv-col { box-sizing: border-box; display: flex; flex-direction: column; min-width: 0; }
+.pdv-col-flow { flex: 0 0 auto; min-width: 0; widows: 2; orphans: 2; }
+.pdv-col-float { flex: 0 0 auto; box-sizing: border-box; min-width: 0; }
+.pdv-col-float-bottom { margin-top: auto; }
+
+/* ── Layout region overlay (Layout Mode R3, V3.399) ──
+ * Per-sheet absolutely-positioned layer drawn from page.rects.
+ * Hidden until .pdv-regions-on is set on .pdv-scale; pointer-events
+ * none so it never intercepts clicks. Color key: margins dashed gray,
+ * columns dashed blue, text neutral, figures blue, tables purple,
+ * footnotes amber. */
+.pdv-regions {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+  z-index: 5;
+}
+.pdv-regions-on .pdv-regions { display: block; }
+.pdv-region { position: absolute; box-sizing: border-box; border-radius: 2px; }
+.pdv-region-margin {
+  border: 1.5px dashed rgba(107, 114, 128, 0.55);
+  border-radius: 0;
+  background: none;
+}
+.pdv-region-col {
+  border: 1px dashed rgba(37, 99, 235, 0.3);
+  background: none;
+}
+.pdv-region-text { background: rgba(15, 23, 42, 0.035); }
+.pdv-region-foot { background: rgba(245, 158, 11, 0.12); border-top: 1px solid rgba(245, 158, 11, 0.4); border-radius: 0; }
+.pdv-region-float { border: 1.5px solid; }
+.pdv-region-fig {
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.55);
+}
+.pdv-region-tab {
+  background: rgba(147, 51, 234, 0.14);
+  border-color: rgba(147, 51, 234, 0.55);
+}
+.pdv-region-selected {
+  box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.85), 0 0 14px rgba(37, 99, 235, 0.35);
+}
+.pdv-region-tab.pdv-region-selected {
+  box-shadow: 0 0 0 2.5px rgba(147, 51, 234, 0.85), 0 0 14px rgba(147, 51, 234, 0.35);
+}
+
+/* ── V3.406: washed content + per-TYPE tints (Layout Mode II R2) ──
+ * With ⬒ Layout on, page content washes out (muted ink + grayscale
+ * images — never element opacity, which would fade the tints and
+ * handles too) while every block carries a tint for what it IS,
+ * applied DIRECTLY to the element: pixel-aligned for free, and in
+ * 2-col layouts a tint covers only its own column (elements live
+ * inside the CSS multicol — an equation never paints a false
+ * full-width band). Backgrounds/inset shadows only: they never
+ * intercept pointer events. The .pdv-regions overlay keeps
+ * margins/columns/footnotes. */
+.pdv-regions-on .pdv-sheet { color: #64748b; }
+.pdv-regions-on .pdv-sheet img { filter: grayscale(0.55) opacity(0.8); }
+.pdv-regions-on .pdv-figure {
+  background: rgba(37, 99, 235, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.30);
+}
+.pdv-regions-on .pdv-table-wrap {
+  background: rgba(147, 51, 234, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(147, 51, 234, 0.30);
+}
+.pdv-regions-on .pdv-eq {
+  background: rgba(20, 184, 166, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.30);
+}
+.pdv-regions-on .pdv-para,
+.pdv-regions-on .pdv-bodypara,
+.pdv-regions-on .pdv-list-block { background: rgba(100, 116, 139, 0.06); }
+.pdv-regions-on .pdv-heading,
+.pdv-regions-on .pdv-subheading { background: rgba(245, 158, 11, 0.12); }
+.pdv-regions-on .pdv-abstract,
+.pdv-regions-on .pdv-keywords,
+.pdv-regions-on .pdv-significance,
+.pdv-regions-on .pdv-titleblock { background: rgba(244, 63, 94, 0.08); }
+
+/* V3.415 — boxed special section (PNAS Significance look) */
+.pdv-significance {
+  margin: 8px 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #93b3d8;
+  background: #eef4fb;
+  border-radius: 3px;
+  break-inside: avoid;
+  font-size: 0.92em;
+}
+.pdv-significance-head {
+  font-weight: 700;
+  font-size: 0.95em;
+  margin-bottom: 4px;
+  color: #1e4e79;
+}
+.pdv-overlay .pdv-significance[data-section-id]:hover { outline: 2px dashed #93c5fd; outline-offset: 2px; }
+
+/* Color-key legend (overlay child: unscaled, unwashed) */
+.pdv-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 4300;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+  font-size: 11px;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.pdv-legend[hidden] { display: none; }
+.pdv-legend-chip { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.pdv-legend-chip i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+/* ── V3.416: section-style Insert menu + heading popover ── */
+.pdv-ins-menu {
+  position: fixed;
+  z-index: 4600;
+  min-width: 280px;
+  max-width: 360px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid #4b5563;
+  border-radius: 10px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  padding: 6px;
+}
+.pdv-ins-head {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #93c5fd;
+  padding: 7px 8px 3px;
+}
+.pdv-ins-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #f3f4f6;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pdv-ins-item:hover:not(:disabled) { background: #374151; }
+.pdv-ins-item:disabled { opacity: 0.45; cursor: default; }
+.pdv-ins-note { font-size: 10.5px; color: #9ca3af; padding: 2px 8px 6px; }
+.pdv-ins-item .pdv-ins-note { padding: 0 0 0 6px; }
+.pdv-ins-hint { display: block; font-size: 10.5px; color: #9ca3af; margin-top: 1px; }
+.pdv-sec-actions button { white-space: nowrap; }
+.pdv-overlay .pdv-heading[data-section-id]:hover {
+  outline: 2px dashed #fbbf24;
+  outline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Toolbar toggle active state */
+#pdv-layout.pdv-layout-on {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+/* ── Layout session: drag & drop (Layout Mode R4, V3.401) ── */
+
+/* Draggable affordance + touch support while the session is on. */
+.pdv-session .pdv-figure[data-block-id],
+.pdv-session .pdv-table-wrap[data-block-id] {
+  cursor: grab;
+  touch-action: none;
+}
+.pdv-session .pdv-figure[data-block-id]:active,
+.pdv-session .pdv-table-wrap[data-block-id]:active { cursor: grabbing; }
+
+/* The dragged source dims in place; the ghost follows the pointer. */
+.pdv-drag-source { opacity: 0.35; }
+.pdv-drag-ghost {
+  position: fixed;
+  z-index: 5000;
+  opacity: 0.78;
+  pointer-events: none;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+  transform: scale(0.5);
+  transform-origin: top left;
+}
+.pdv-drag-chip {
+  position: fixed;
+  z-index: 5001;
+  pointer-events: none;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  background: #1f2937;
+  color: #93c5fd;
+  border: 1px solid #3b82f6;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* Drop-zone strips: visible only while dragging; hit-testing is
+ * geometric, these are pure affordance. */
+.pdv-dropzones { display: none; }
+.pdv-drag-active .pdv-dropzones { display: block; }
+.pdv-dropzone {
+  position: absolute;
+  height: 46px;
+  border: 2px dashed rgba(37, 99, 235, 0.45);
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.06);
+  box-sizing: border-box;
+}
+.pdv-dropzone.pdv-drop-hot {
+  border-color: rgba(37, 99, 235, 0.95);
+  background: rgba(37, 99, 235, 0.18);
+}
+
+/* In-flow insertion feedback: an accent line above the target block. */
+.pdv-drop-before {
+  box-shadow: 0 -3px 0 0 #2563eb, 0 -8px 12px -6px rgba(37, 99, 235, 0.5);
+}
+/* V3.412 — band-slot reorder: accent BELOW when dropping after. */
+.pdv-drop-after {
+  box-shadow: 0 3px 0 0 #2563eb, 0 8px 12px -6px rgba(37, 99, 235, 0.5);
+}
+
+/* ── Resize handles + replace image (Layout Mode R5, V3.402) ── */
+
+.pdv-fig-imgwrap { position: relative; }
+.pdv-resize-h {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 34px;
+  margin-top: -17px;
+  border-radius: 6px;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 6;
+}
+.pdv-resize-e { right: -7px; }
+.pdv-resize-w { left: -7px; }
+.pdv-resize-h:hover { background: #1d4ed8; }
+/* V3.420 — the AREA BOUNDARY frame: you resize this, and the figure
+ * auto-fits to match. Sheet-level overlay around the figure's
+ * allocation; only the handles take pointer events. */
+.pdv-area-frame {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  border: 2px dashed rgba(37, 99, 235, 0.75);
+  border-radius: 3px;
+  background: rgba(37, 99, 235, 0.04);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+.pdv-area-frame .pdv-resize-h,
+.pdv-area-frame .pdv-resize-s,
+.pdv-area-frame .pdv-resize-se { pointer-events: auto; }
+
+/* V3.424 — a selected SECTION's boundary frame: amber (matches the
+ * heading region tint), no resize handles — a reflowing text section has
+ * no honest size lever, so the region is a MOVE handle. The region
+ * element itself carries the grab cursor + starts the drag. */
+.pdv-area-frame-move {
+  border-color: rgba(245, 158, 11, 0.9);
+  background: rgba(245, 158, 11, 0.06);
+}
+.pdv-session .pdv-heading[data-section-id],
+.pdv-session .pdv-significance[data-section-id] { cursor: grab; }
+.pdv-session .pdv-heading[data-section-id]:active,
+.pdv-session .pdv-significance[data-section-id]:active { cursor: grabbing; }
+
+/* V3.405 — box-model handles: S caps the image height (auto-fit around
+ * the caption), SE sizes both axes. */
+.pdv-resize-s {
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 34px;
+  height: 12px;
+  margin-left: -17px;
+  border-radius: 6px;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 6;
+}
+.pdv-resize-s:hover { background: #1d4ed8; }
+.pdv-resize-se {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 7;
+}
+.pdv-resize-se:hover { background: #1d4ed8; }
+.pdv-resizing { outline: 2px solid rgba(37, 99, 235, 0.7); outline-offset: 3px; }
+
+/* V3.410 — spacing / nudge stepper (figures + tables) */
+.pdv-fig-pop-spacing { display: flex; align-items: center; gap: 8px; }
+.pdv-fig-pop-step { display: inline-flex; align-items: center; gap: 6px; }
+.pdv-fig-pop-step button {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  font-size: 13px;
+  line-height: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+.pdv-fig-pop-step button:hover { background: #e2e8f0; }
+.pdv-fig-pop-step b { min-width: 52px; text-align: center; font-size: 11.5px; }
+.pdv-fig-pop-step [data-pdv-sp-reset] {
+  font-size: 10.5px;
+  color: #64748b;
+  border: none;
+  background: none;
+  text-decoration: underline;
+}
+
+.pdv-fig-pop-actions { display: flex; gap: 6px; margin-top: 6px; }
+.pdv-fig-pop-actions button {
+  flex: 1;
+  font-size: 11px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  cursor: pointer;
+}
+.pdv-fig-pop-actions button:hover { background: #eff6ff; border-color: #93c5fd; }
+.pdv-fig-pop-actions button:disabled { opacity: 0.6; cursor: default; }
+.pdv-fig-pop-lib {
+  margin-top: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px;
+}
+.pdv-fig-pop-libitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 11px;
+}
+.pdv-fig-pop-libitem:hover { background: #eff6ff; }
+.pdv-fig-pop-libitem img {
+  width: 44px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f3f4f6;
+  flex: none;
+}
+.pdv-fig-pop-libitem span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdv-fig-pop-libempty { font-size: 11px; color: #9ca3af; padding: 8px; font-style: italic; }
+
+/* Remote-edit banner (collaborator changed the paper mid-session). */
+.pdv-remote-banner {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4300;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  padding: 6px 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Manuscript typography (sheet + measurement probe share it) ── */
+
+.pdv-sheet, .pdv-probe {
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.32;
+  color: #111;
+}
+.pdv-probe {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+/* V3.454 — the toolbar Spacing preset sets --pdv-gapscale (0.7 / 1 /
+ * 1.6) on the overlay AND the measurement probe; every flow-rhythm
+ * margin below multiplies by it, so Tight/Loose visibly re-densify the
+ * page and pagination follows (measureBatch reads computed margins). */
+.pdv-para {
+  margin: 0 0 calc(10px * var(--pdv-gapscale, 1));
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+/* Body paragraphs read like a typeset journal: first line indented, no
+ * blank-line gap between paragraphs. The first paragraph after a heading is
+ * flush-left (LaTeX convention). Declared after .pdv-para so margin:0 wins;
+ * the sibling rule works in the sheet AND the offscreen probe (same DOM
+ * order in both) so measured heights match what mounts. */
+.pdv-bodypara { margin: 0; text-indent: 1.6em; }
+.pdv-heading + .pdv-bodypara { text-indent: 0; }
+/* V3.486 — body-text line density (grant lines-per-inch). When the
+ * toolbar sets a density, --pdv-body-font / --pdv-body-lh (px) are set on
+ * the overlay + probe and this gate class turns on; only body paragraphs
+ * + lists opt in (.pdv-density-body), so headings, title, abstract and
+ * captions keep their sizes. Off = class absent = untouched defaults. */
+.pdv-density-on .pdv-density-body {
+  font-size: var(--pdv-body-font);
+  line-height: var(--pdv-body-lh);
+}
+.pdv-draft { color: #b45309; font-style: italic; font-size: 0.85em; }
+.pdv-keywords { margin: 0 0 calc(10px * var(--pdv-gapscale, 1)); font-size: 0.92em; }
+
+.pdv-heading {
+  font-weight: 700;
+  font-size: 1.12em;
+  margin: calc(6px * var(--pdv-gapscale, 1)) 0 calc(10px * var(--pdv-gapscale, 1));
+  break-inside: avoid;
+  break-after: avoid;
+}
+
+/* Subheadings (\subsection / \subsubsection) — heading blocks in the
+ * flow. Smaller than a section heading; L3 smaller still + italic. */
+.pdv-subheading {
+  font-weight: 700;
+  margin: calc(5px * var(--pdv-gapscale, 1)) 0 calc(6px * var(--pdv-gapscale, 1));
+  break-inside: avoid;
+  break-after: avoid;
+}
+.pdv-subheading-l2 { font-size: 1.02em; }
+.pdv-subheading-l3 { font-size: 0.95em; font-style: italic; }
+.pdv-heading-num { margin-right: 0.4em; }
+
+/* Table notes (threeparttable look) */
+.pdv-tabnotes {
+  font-size: 0.78em;
+  color: #333;
+  margin: 2px 0 8px;
+  line-height: 1.35;
+}
+
+/* Lists (itemize / enumerate) */
+.pdv-list-block { margin: calc(4px * var(--pdv-gapscale, 1)) 0 calc(8px * var(--pdv-gapscale, 1)); }
+.pdv-list { margin: 0; padding-left: 1.5em; }
+ul.pdv-list { list-style: disc; }
+ol.pdv-list { list-style: decimal; }
+.pdv-list .pdv-list { margin: 1px 0 1px; }
+.pdv-list li { margin: 1px 0; }
+
+/* Title block */
+.pdv-titleblock { text-align: center; margin: 0 0 calc(18px * var(--pdv-gapscale, 1)); }
+.pdv-title { font-size: 1.65em; font-weight: 700; line-height: 1.25; margin-bottom: 10px; }
+.pdv-authors { font-size: 1.02em; margin-bottom: 6px; }
+.pdv-affils { font-size: 0.85em; color: #333; line-height: 1.45; }
+.pdv-corr { font-size: 0.85em; color: #333; margin-top: 4px; }
+.pdv-authors-hint { font-size: 0.8em; color: #9ca3af; font-style: italic; }
+
+/* Abstract */
+.pdv-abstract { margin: 0 0 calc(12px * var(--pdv-gapscale, 1)); break-inside: avoid; }
+.pdv-abstract-head { font-weight: 700; margin-bottom: 4px; }
+.pdv-abstract .pdv-para { font-size: 0.95em; }
+.pdv-abstract-runin .pdv-para { font-size: 0.95em; }
+
+/* Two-column segment (column-count/height set inline) */
+.pdv-cols { widows: 2; orphans: 2; }
+
+/* ── Figures ── */
+
+.pdv-figure {
+  margin: calc(4px * var(--pdv-gapscale, 1)) 0 calc(12px * var(--pdv-gapscale, 1));
+  break-inside: avoid;
+  border-radius: 2px;
+}
+.pdv-overlay .pdv-figure { cursor: default; }
+.pdv-overlay .pdv-figure[data-block-id] { cursor: pointer; }
+.pdv-overlay .pdv-figure[data-block-id]:hover { outline: 2px dashed #93c5fd; outline-offset: 3px; }
+/* V3.485 — corner/side wrap (single-column). The .pdv-wrap-group is a
+ * flow-root so it fully contains the floated figure (the group's height
+ * = max of the text column and the figure — no overlap with later
+ * blocks); the figure floats to its side and running text flows around
+ * it. The figure carries its own pct% width (set inline); the box fills
+ * it. Margins leave a gutter on the text-facing side + below. */
+.pdv-wrap-group { display: flow-root; }
+.pdv-figure[data-anchor="wrap"] { break-inside: auto; }
+.pdv-figure[data-anchor="wrap"][data-wrap-side="right"] {
+  float: right;
+  margin: 2px 0 8px 18px;
+}
+.pdv-figure[data-anchor="wrap"][data-wrap-side="left"] {
+  float: left;
+  margin: 2px 18px 8px 0;
+}
+/* V3.405 — the figure BOX: image + caption sub-blocks in one sized
+ * container. Carries the resize handles (position anchor). */
+.pdv-fig-box { position: relative; }
+.pdv-fig-imgwrap img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #f3f4f6;
+}
+.pdv-fig-missing {
+  width: 100%;
+  min-height: 120px;
+  background: #f3f4f6;
+  border: 1px dashed #d1d5db;
+  color: #9ca3af;
+  font-size: 0.85em;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  text-align: center;
+}
+.pdv-figcap {
+  font-size: 0.88em;
+  line-height: 1.4;
+  margin-top: 6px;
+}
+/* V3.419 — the continuation half of a page-split paragraph: it resumes
+ * a sentence, so no first-line indent and no widow gap above. */
+.pdv-para-cont { text-indent: 0 !important; margin-top: 0 !important; }
+.pdv-figcap .pdv-para { display: inline; }
+
+/* ── Tables (booktabs: horizontal rules only) ── */
+
+.pdv-table-wrap { margin: calc(4px * var(--pdv-gapscale, 1)) 0 calc(12px * var(--pdv-gapscale, 1)); break-inside: avoid; }
+.pdv-table {
+  border-collapse: collapse;
+  margin: 0 auto;
+  font-size: 0.88em;
+}
+.pdv-table td { padding: 3px 10px; }
+.pdv-booktabs { border-top: 1.5px solid #111; border-bottom: 1.5px solid #111; }
+.pdv-booktabs tr.pdv-thead td { border-bottom: 1px solid #111; font-weight: 600; }
+.pdv-grid td { border: 1px solid #6b7280; }
+.pdv-tabcap { font-size: 0.88em; line-height: 1.4; margin-top: 6px; text-align: left; }
+.pdv-tabcap .pdv-para { display: inline; }
+
+/* ── Display equations ── */
+
+.pdv-eq {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: calc(4px * var(--pdv-gapscale, 1)) 0 calc(12px * var(--pdv-gapscale, 1));
+  break-inside: avoid;
+}
+.pdv-eq-math { flex: 1; text-align: center; overflow-x: auto; }
+.pdv-eq-num { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+
+/* ── Footnotes strip + page number ── */
+
+.pdv-footnotes {
+  border-top: 1px solid #9ca3af;
+  margin-top: 8px;
+  padding-top: 4px;
+  font-size: 0.8em;
+  line-height: 1.4;
+}
+.pdv-fn-line { margin-bottom: 2px; }
+.pdv-fn-mark { color: inherit; }
+
+.pdv-pageno {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  color: #9ca3af;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.pdv-overflow-flag {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 2px 8px;
+  max-width: 220px;
+}
+
+.pdv-truncated {
+  color: #fbbf24;
+  font-size: 12px;
+  text-align: center;
+  padding: 10px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Bibliography ── */
+
+.pdv-bib { font-size: 0.88em; line-height: 1.45; }
+.pdv-bib-entry {
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+  margin-bottom: 4px;
+}
+.pdv-bib-missing { color: #b45309; font-style: italic; }
+
+/* ── Editor-chip flattening: inside sheets, citation / cross-ref /
+ * footnote chips must read as plain typeset text. ── */
+
+.pdv-sheet .pe-cite-group,
+.pdv-sheet .pe-cite-chip,
+.pdv-sheet .pe-eqi-chip,
+.pdv-sheet .pe-eqref-chip,
+.pdv-sheet .pe-figref-chip,
+.pdv-sheet .pe-tabref-chip,
+.pdv-sheet .pe-secref-chip,
+.pdv-sheet .pe-footnote-chip,
+.pdv-probe .pe-cite-group,
+.pdv-probe .pe-cite-chip,
+.pdv-probe .pe-eqi-chip,
+.pdv-probe .pe-eqref-chip,
+.pdv-probe .pe-figref-chip,
+.pdv-probe .pe-tabref-chip,
+.pdv-probe .pe-secref-chip,
+.pdv-probe .pe-footnote-chip {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  font: inherit !important;
+  color: inherit !important;
+  cursor: text !important;
+  white-space: normal !important;
+}
+
+/* Superscript citation families (Nature / SLAS-mebp / ACS) must stay a
+ * SMALL RAISED number — the `font: inherit` reset above wipes the
+ * `font-size: 0.72em` that makes it a superscript, leaving a full-size
+ * raised number. Re-assert it (matching importance + higher specificity)
+ * so it renders as a proper superscript, identically in the sheet and the
+ * offscreen measurement probe. */
+.pdv-sheet .pe-cite-group.pe-cite-family-superscript,
+.pdv-probe .pe-cite-group.pe-cite-family-superscript {
+  font-size: 0.72em !important;
+  vertical-align: super !important;
+  line-height: 1 !important;
+}
+
+/* V3.393 — numeric citation groups are UNBREAKABLE, like the compiled
+ * output (\textsuperscript{22–28} / [1–3,9] never splits across lines
+ * or columns). Must beat the flatten block's `white-space: normal
+ * !important`, and must apply in the PROBE too so measurement matches
+ * the mounted sheet. */
+.pdv-sheet .pe-cite-group.pe-cite-family-superscript,
+.pdv-sheet .pe-cite-group.pe-cite-family-numeric-bracket,
+.pdv-sheet .pe-cite-group.pe-cite-family-numeric-paren,
+.pdv-probe .pe-cite-group.pe-cite-family-superscript,
+.pdv-probe .pe-cite-group.pe-cite-family-numeric-bracket,
+.pdv-probe .pe-cite-group.pe-cite-family-numeric-paren {
+  white-space: nowrap !important;
+}
+
+/* V3.453 — kill the remaining justification stretch inside citation
+ * clusters. The editor's `.pe-cite-sep { padding: 0 2px }` survived the
+ * flatten block (the sep isn't in its selector list), widening every
+ * comma; and chips kept `display: inline-block`, so clusters sat as
+ * rigid boxes in justified lines. In sheets (and the measurement probe,
+ * identically): chips and separators flow as plain inline text, numeric
+ * separators are fully packed ("[1,2]" like the compiled PDF), and the
+ * author-year "; " gap is a MARGIN — margins are not justification
+ * opportunities, so it can never stretch. */
+.pdv-sheet .pe-cite-chip, .pdv-probe .pe-cite-chip,
+.pdv-sheet .pe-cite-sep,  .pdv-probe .pe-cite-sep {
+  display: inline !important;
+}
+.pdv-sheet .pe-cite-sep, .pdv-probe .pe-cite-sep {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.pdv-sheet .pe-cite-group:not(.pe-cite-family-superscript):not(.pe-cite-family-numeric-bracket):not(.pe-cite-family-numeric-paren) .pe-cite-sep,
+.pdv-probe .pe-cite-group:not(.pe-cite-family-superscript):not(.pe-cite-family-numeric-bracket):not(.pe-cite-family-numeric-paren) .pe-cite-sep {
+  margin-right: 0.3em !important;
+}
+
+/* V3.453 — fixed-width joiner that the post-mount pass substitutes for
+ * the bare whitespace between ADJACENT citation groups ("[@a] [@b]" in
+ * the source). A space there was a justification opportunity — in narrow
+ * two-column paragraphs it stretched into the "too much space between
+ * numbers" gaps. An empty inline-block has no stretchable space, and
+ * lines may still break around it (inline-blocks are soft-wrap points). */
+.pdv-cite-join { display: inline-block; width: 0.28em; }
+
+/* V3.393 — inline citations are clickable (details + evidence panel).
+ * Overrides the flatten block's `cursor: text` / `background: none`. */
+.pdv-sheet .pe-cite-group[data-cite-keys],
+.pdv-sheet .pe-cite-group[data-cite-keys] .pe-cite-chip {
+  cursor: pointer !important;
+}
+.pdv-sheet .pe-cite-group[data-cite-keys]:hover {
+  background: rgba(37, 99, 235, 0.14) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14) !important;
+  border-radius: 2px !important;
+}
+
+/* ── Citation details panel (V3.393) ── */
+
+/* V3.419 — the panel DISPLACES the paper instead of overlaying it:
+ * the desk slides right by the panel width while it is open. */
+.pdv-desk { transition: margin-left 0.16s ease-out; }
+.pdv-cite-open .pdv-desk { margin-left: 400px; }
+@media (max-width: 900px) { .pdv-cite-open .pdv-desk { margin-left: 0; } }
+.pdv-cite-preview-tag {
+  font-size: 10px;
+  font-weight: 400;
+  color: #93c5fd;
+  margin-left: 6px;
+}
+
+.pdv-cite-panel {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 90vw;
+  background: #fff;
+  color: #1c2733;
+  border-right: 1px solid rgba(15, 23, 42, 0.15);
+  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+  animation: pdv-cite-panel-in 0.16s ease-out;
+}
+@keyframes pdv-cite-panel-in {
+  from { transform: translateX(-24px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.pdv-cite-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.pdv-cite-panel-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: inherit;
+}
+.pdv-cite-panel-close:hover { background: rgba(15, 23, 42, 0.08); }
+.pdv-cite-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px 20px;
+  font-size: 0.9rem;
+}
+.pdv-cite-entry { padding: 10px 0 14px; border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
+.pdv-cite-entry:last-child { border-bottom: none; }
+.pdv-cite-entry-head { display: flex; gap: 8px; align-items: baseline; }
+.pdv-cite-entry-num { flex: none; font-weight: 700; color: #2563eb; font-size: 0.85em; }
+.pdv-cite-entry-title { font-weight: 600; line-height: 1.35; }
+.pdv-cite-entry-authors { margin-top: 4px; font-size: 0.87em; color: #3d4c5e; }
+.pdv-cite-entry-src { margin-top: 2px; font-size: 0.87em; color: #3d4c5e; }
+.pdv-cite-entry-doi { margin-top: 2px; font-size: 0.83em; }
+.pdv-cite-entry-doi a { color: #2563eb; text-decoration: none; }
+.pdv-cite-entry-doi a:hover { text-decoration: underline; }
+.pdv-cite-entry-key { margin-top: 2px; font-size: 0.78em; font-family: ui-monospace, monospace; color: #8091a5; }
+.pdv-cite-missing { color: #8a94a3; font-style: italic; }
+.pdv-cite-evhead {
+  margin-top: 12px;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #5b6b7d;
+}
+.pdv-cite-ev-loading, .pdv-muted { color: #8a94a3; font-size: 0.88em; margin-top: 4px; line-height: 1.4; }
+.pdv-cite-claim {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.pdv-cite-claim-head { display: flex; gap: 8px; align-items: center; }
+.pdv-cite-claim-badge {
+  font-size: 0.68em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #2563eb;
+}
+.pdv-cite-claim-status {
+  font-size: 0.72em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2350b8;
+}
+.pdv-cite-claim-statement { margin-top: 4px; font-size: 0.92em; line-height: 1.4; }
+.pdv-cite-ev { margin-top: 8px; padding-left: 10px; border-left: 3px solid #16a34a; }
+.pdv-cite-ev-against { border-left-color: #dc2626; }
+.pdv-cite-ev-stance {
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #15803d;
+}
+.pdv-cite-ev-against .pdv-cite-ev-stance { color: #b91c1c; }
+.pdv-cite-ev blockquote {
+  margin: 4px 0 0;
+  font-size: 0.87em;
+  font-style: italic;
+  color: #334155;
+  line-height: 1.45;
+}
+.pdv-cite-ev-comment { margin-top: 3px; font-size: 0.83em; color: #475569; }
+
+/* ── Figure layout popover ── */
+
+.pdv-fig-pop {
+  position: fixed;
+  z-index: 4300;
+  width: 232px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  padding: 10px 12px 12px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  color: #111827;
+}
+.pdv-fig-pop-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 700;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+.pdv-fig-pop label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.pdv-fig-pop select {
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  padding: 2px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  max-width: 140px;
+}
+.pdv-fig-pop-check { justify-content: flex-start !important; }
+.pdv-fig-pop-hint { font-size: 10px; color: #9ca3af; line-height: 1.4; margin-top: 4px; }
+.pdv-fig-pop-sub { font-size: 10px; color: #9ca3af; }
+.pdv-fig-pop-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 12px;
+}
+.pdv-fig-pop-close:hover { color: #111827; }

@@ -405,6 +405,19 @@ const DB = {
       order, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   },
+  /* V3.553 — published Research Foci snapshots (publicFoci: public read,
+   * admin write). Authored + published from RM's research page; renders on
+   * #/projects. Whole-collection get — the map is tens of docs; sorted
+   * client-side by level (specialty → concept → output) then order. */
+  async getPublicFoci() {
+    const snap = await McgheeLab.db.collection('publicFoci').get();
+    const levelRank = { specialty: 0, concept: 1, output: 2 };
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) =>
+        (levelRank[a.level] ?? 9) - (levelRank[b.level] ?? 9) ||
+        (a.order || 0) - (b.order || 0) ||
+        String(a.title || '').localeCompare(String(b.title || '')));
+  },
   async getStoriesByProject(projectId) {
     const snap = await McgheeLab.db.collection('stories')
       .where('projectId', '==', projectId)
@@ -695,6 +708,41 @@ const DB = {
 /* ================================================================
    AUTHENTICATION
    ================================================================ */
+
+// V3.332 — map Firebase auth error codes to human-readable copy.
+// user-not-found / wrong-password / invalid-credential share one message
+// so the form can't be used to probe which emails have accounts.
+const AUTH_ERROR_MESSAGES = {
+  'auth/invalid-email':             'That email address doesn’t look right. Please check it and try again.',
+  'auth/user-disabled':             'This account has been disabled. Contact the lab administrator.',
+  'auth/user-not-found':            'Incorrect email or password.',
+  'auth/wrong-password':            'Incorrect email or password.',
+  'auth/invalid-credential':        'Incorrect email or password.',
+  'auth/invalid-login-credentials': 'Incorrect email or password.',
+  'auth/too-many-requests':         'Too many attempts. Wait a few minutes and try again, or reset your password.',
+  'auth/network-request-failed':    'Network error. Check your connection and try again.',
+  'auth/popup-blocked':             'Your browser blocked the sign-in window. Allow popups for this site and try again.',
+  'auth/cancelled-popup-request':   'Another sign-in attempt is already in progress.',
+  'auth/email-already-in-use':      'An account with this email already exists. Try signing in instead.',
+  'auth/weak-password':             'Password is too weak — use at least 8 characters.',
+  'auth/missing-email':             'Please enter your email address.'
+};
+
+function friendlyAuthError(err) {
+  if (err?.code && AUTH_ERROR_MESSAGES[err.code]) return AUTH_ERROR_MESSAGES[err.code];
+  if (typeof err?.code === 'string' && err.code.startsWith('auth/')) return 'Sign-in failed. Please try again.';
+  // Non-auth errors (e.g. Auth.register's invitation checks) already carry
+  // human-written messages — pass them through.
+  return err?.message || 'Something went wrong. Please try again.';
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
+  ]);
+}
+
 const Auth = {
   currentUser: null,
   currentProfile: null,
@@ -703,23 +751,99 @@ const Auth = {
 
   init() {
     if (!McgheeLab.auth) return;
+
+    // V3.332 — return leg of the popup-blocked → signInWithRedirect fallback.
+    if (sessionStorage.getItem('mcghee_google_redirect_pending')) {
+      sessionStorage.removeItem('mcghee_google_redirect_pending');
+      McgheeLab.auth.getRedirectResult()
+        .then(async (cred) => {
+          if (cred?.user) {
+            await Auth._ensureGuestDoc(cred.user);
+            Auth.currentProfile = await DB.getUser(cred.user.uid).catch(() => Auth.currentProfile);
+            Auth.updateNavigation();
+          }
+        })
+        .catch((err) => {
+          sessionStorage.setItem('mcghee_google_redirect_error', friendlyAuthError(err));
+        });
+    }
+
     McgheeLab.auth.onAuthStateChanged(async (user) => {
       Auth.currentUser = user;
       Auth._authStateResolved = true;
       if (user) {
-        try { Auth.currentProfile = await DB.getUser(user.uid); } catch (e) {
+        try {
+          Auth.currentProfile = await DB.getUser(user.uid);
+          Auth._removeProfileNotice();
+        } catch (e) {
           console.warn('Failed to load profile:', e);
+          // Keep the user signed in with a null profile (never drop auth) —
+          // retry in the background so the first render isn't held up.
           Auth.currentProfile = null;
+          Auth._retryProfileLoad(user.uid);
         }
         document.body.classList.add('logged-in');
         document.body.classList.toggle('is-admin', Auth.currentProfile?.role === 'admin');
       } else {
         Auth.currentProfile = null;
         document.body.classList.remove('logged-in', 'is-admin');
+        Auth._removeProfileNotice();
       }
       Auth.updateNavigation();
       Auth._listeners.forEach(fn => fn(user, Auth.currentProfile));
     });
+  },
+
+  // V3.332 — background retry when the initial profile read fails.
+  _profileRetryActive: false,
+  _retryProfileLoad(uid) {
+    if (Auth._profileRetryActive) return;
+    Auth._profileRetryActive = true;
+    (async () => {
+      let delay = 1500;
+      for (let i = 0; i < 3 && Auth.currentUser?.uid === uid; i++) {
+        await new Promise(r => setTimeout(r, delay));
+        delay *= 2;
+        if (Auth.currentUser?.uid !== uid) break;
+        try {
+          Auth.currentProfile = await DB.getUser(uid);
+          document.body.classList.toggle('is-admin', Auth.currentProfile?.role === 'admin');
+          Auth.updateNavigation();
+          Auth._removeProfileNotice();
+          Auth._profileRetryActive = false;
+          Auth._listeners.forEach(fn => fn(Auth.currentUser, Auth.currentProfile));
+          // app.js dedupes auth re-renders by uid, so force one router pass
+          // to upgrade whatever gated page is open.
+          const page = (window.location.hash || '').slice(2).split('/')[0];
+          if (['dashboard', 'admin', 'cv'].includes(page)) {
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
+          }
+          return;
+        } catch (e) { /* keep retrying */ }
+      }
+      Auth._profileRetryActive = false;
+      if (Auth.currentUser?.uid === uid) Auth._showProfileNotice(uid);
+    })();
+  },
+
+  _showProfileNotice(uid) {
+    Auth._removeProfileNotice();
+    const div = document.createElement('div');
+    div.className = 'profile-load-notice';
+    div.innerHTML = `
+      <span>Couldn’t load your profile — some features may be limited.</span>
+      <button type="button" class="profile-notice-retry">Retry</button>
+      <button type="button" class="profile-notice-close" aria-label="Dismiss">✕</button>`;
+    div.querySelector('.profile-notice-retry').addEventListener('click', () => {
+      Auth._removeProfileNotice();
+      Auth._retryProfileLoad(uid);
+    });
+    div.querySelector('.profile-notice-close').addEventListener('click', () => Auth._removeProfileNotice());
+    document.body.appendChild(div);
+  },
+
+  _removeProfileNotice() {
+    document.querySelector('.profile-load-notice')?.remove();
   },
 
   onChange(fn) { Auth._listeners.push(fn); },
@@ -839,11 +963,8 @@ const Auth = {
     return cred.user;
   },
 
-  async googleLogin() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const cred = await McgheeLab.auth.signInWithPopup(provider);
-    const user = cred.user;
-    // Check if user doc exists; if not, create a guest profile
+  // Check if user doc exists; if not, create a guest profile
+  async _ensureGuestDoc(user) {
     const existing = await DB.getUser(user.uid).catch(() => null);
     if (!existing) {
       await DB.updateUser(user.uid, {
@@ -856,7 +977,34 @@ const Auth = {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
-    return user;
+  },
+
+  async googleLogin() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      const cred = await McgheeLab.auth.signInWithPopup(provider);
+      await Auth._ensureGuestDoc(cred.user);
+      return cred.user;
+    } catch (err) {
+      // V3.332 — popup blocked: fall back to a full-page redirect. The
+      // intended destination is preserved in mcghee_login_redirect and
+      // consumed by renderLogin on the return leg.
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+        if (!sessionStorage.getItem('mcghee_login_redirect')) {
+          sessionStorage.setItem('mcghee_login_redirect', '#/research');
+        }
+        sessionStorage.setItem('mcghee_google_redirect_pending', '1');
+        await McgheeLab.auth.signInWithRedirect(provider);
+        return null; // navigation takes over
+      }
+      throw err;
+    }
+  },
+
+  async sendPasswordReset(email) {
+    await McgheeLab.auth.sendPasswordResetEmail(email, {
+      url: window.location.origin + '/#/login'
+    });
   },
 
   async logout() {
@@ -873,15 +1021,24 @@ const Auth = {
 /* ================================================================
    RENDER: LOGIN / REGISTER PAGE
    ================================================================ */
+
+// V3.332 — shared loading/redirect placeholder (spinner + label)
+function authLoadingHTML(label = 'Loading…') {
+  return `<div class="auth-loading"><div class="auth-spinner" aria-hidden="true"></div><p class="loading-text">${escapeHTML(label)}</p></div>`;
+}
+
 function renderLogin() {
   if (!McgheeLab.auth) {
     return '<div class="auth-card"><p>User system is not configured. See firebase-config.js.</p></div>';
   }
 
-  // If already authenticated, skip login and go to dashboard
+  // If already authenticated, skip login and return to where the user was
+  // headed (comment link, redirect-fallback return leg) or the dashboard.
   if (Auth.currentUser) {
-    window.location.hash = '#/dashboard';
-    return '<p>Redirecting&hellip;</p>';
+    const prev = sessionStorage.getItem('mcghee_login_redirect');
+    sessionStorage.removeItem('mcghee_login_redirect');
+    window.location.hash = prev || '#/dashboard';
+    return authLoadingHTML('Redirecting…');
   }
 
   const qs = new URLSearchParams((window.location.hash.split('?')[1]) || '');
@@ -929,7 +1086,9 @@ function renderLogin() {
                 autocomplete="current-password">
             </div>
             <div id="auth-error" class="auth-error" hidden></div>
+            <div id="auth-notice" class="auth-notice" hidden></div>
             <button type="submit" class="btn btn-primary">Sign In</button>
+            <button type="button" class="auth-link-btn" id="forgot-password-btn">Forgot password?</button>
           </form>
         </div>
         <div class="auth-card auth-card-guest">
@@ -952,6 +1111,14 @@ function renderLogin() {
 }
 
 function wireLogin() {
+  // V3.332 \u2014 surface an error stashed by the signInWithRedirect return leg
+  const redirectErr = sessionStorage.getItem('mcghee_google_redirect_error');
+  if (redirectErr && !Auth.currentUser) {
+    sessionStorage.removeItem('mcghee_google_redirect_error');
+    const gErr = document.getElementById('google-error');
+    if (gErr) { gErr.textContent = redirectErr; gErr.hidden = false; }
+  }
+
   // Lab member email/password form
   const form = document.getElementById('auth-form');
   if (form) {
@@ -963,31 +1130,70 @@ function wireLogin() {
       btn.disabled = true;
       btn.textContent = 'Please wait\u2026';
 
+      const fd = new FormData(form);
+      const token = fd.get('token');
       try {
-        const fd = new FormData(form);
-        const token = fd.get('token');
         let user;
         if (token) {
           user = await Auth.register(fd.get('email'), fd.get('password'), fd.get('name'), token);
         } else {
           user = await Auth.login(fd.get('email'), fd.get('password'));
         }
-        // Ensure profile is loaded before redirecting so dashboard renders correctly
+        // Ensure profile is loaded before redirecting so dashboard renders
+        // correctly \u2014 but don't hang forever; onAuthStateChanged fills it later.
         if (!Auth.currentProfile && user) {
           try {
-            Auth.currentProfile = await DB.getUser(user.uid);
+            Auth.currentProfile = await withTimeout(DB.getUser(user.uid), 8000);
             document.body.classList.add('logged-in');
             document.body.classList.toggle('is-admin', Auth.currentProfile?.role === 'admin');
             Auth.updateNavigation();
           } catch (e) { /* onAuthStateChanged will retry */ }
         }
-        window.location.hash = '#/dashboard';
+        const prev = sessionStorage.getItem('mcghee_login_redirect');
+        sessionStorage.removeItem('mcghee_login_redirect');
+        window.location.hash = prev || '#/dashboard';
       } catch (err) {
-        errEl.textContent = err.message;
+        errEl.textContent = friendlyAuthError(err);
         errEl.hidden = false;
         btn.disabled = false;
-        btn.textContent = fd.get('token') ? 'Create Account' : 'Sign In';
+        btn.textContent = token ? 'Create Account' : 'Sign In';
       }
+    });
+  }
+
+  // Forgot password (V3.332)
+  const forgotBtn = document.getElementById('forgot-password-btn');
+  if (forgotBtn) {
+    forgotBtn.addEventListener('click', async () => {
+      const errEl = document.getElementById('auth-error');
+      const noteEl = document.getElementById('auth-notice');
+      errEl.hidden = true;
+      noteEl.hidden = true;
+      const email = (document.getElementById('auth-email')?.value || '').trim();
+      if (!email) {
+        errEl.textContent = 'Enter your email above first, then click \u201cForgot password?\u201d';
+        errEl.hidden = false;
+        return;
+      }
+      forgotBtn.disabled = true;
+      forgotBtn.textContent = 'Sending\u2026';
+      // Same message whether or not the account exists \u2014 no enumeration.
+      const sentMsg = `If an account exists for ${email}, a password-reset link has been sent. Check your inbox (and spam folder).`;
+      try {
+        await Auth.sendPasswordReset(email);
+        noteEl.textContent = sentMsg;
+        noteEl.hidden = false;
+      } catch (err) {
+        if (err.code === 'auth/user-not-found') {
+          noteEl.textContent = sentMsg;
+          noteEl.hidden = false;
+        } else {
+          errEl.textContent = friendlyAuthError(err);
+          errEl.hidden = false;
+        }
+      }
+      forgotBtn.textContent = 'Forgot password?';
+      setTimeout(() => { forgotBtn.disabled = false; }, 30000); // resend cooldown
     });
   }
 
@@ -1002,9 +1208,12 @@ function wireLogin() {
 
       try {
         const user = await Auth.googleLogin();
-        if (!Auth.currentProfile && user) {
+        // null \u2192 popup was blocked and a full-page redirect is in flight;
+        // leave the button in its "Signing in\u2026" state while we navigate.
+        if (!user) return;
+        if (!Auth.currentProfile) {
           try {
-            Auth.currentProfile = await DB.getUser(user.uid);
+            Auth.currentProfile = await withTimeout(DB.getUser(user.uid), 8000);
             document.body.classList.add('logged-in');
             Auth.updateNavigation();
           } catch (e) { /* onAuthStateChanged will retry */ }
@@ -1015,7 +1224,7 @@ function wireLogin() {
         window.location.hash = prev || '#/research';
       } catch (err) {
         if (err.code !== 'auth/popup-closed-by-user') {
-          errEl.textContent = err.message;
+          errEl.textContent = friendlyAuthError(err);
           errEl.hidden = false;
         }
         googleBtn.disabled = false;
@@ -1187,7 +1396,7 @@ function wireGuestDashboard() {
    RENDER: DASHBOARD
    ================================================================ */
 function renderDashboard() {
-  if (!Auth.currentUser) { window.location.hash = '#/login'; return '<p>Redirecting\u2026</p>'; }
+  if (!Auth.currentUser) { window.location.hash = '#/login'; return authLoadingHTML('Redirecting\u2026'); }
   const p = Auth.currentProfile || {};
 
   /* ── Guest-role dashboards ──────────────────────────────────
@@ -2166,7 +2375,7 @@ async function refreshSchedulerList() {
    RENDER: PROJECT PACKAGE EDITOR
    ================================================================ */
 function renderProjectEditor(projectId) {
-  if (!Auth.currentUser) { window.location.hash = '#/login'; return '<p>Redirecting\u2026</p>'; }
+  if (!Auth.currentUser) { window.location.hash = '#/login'; return authLoadingHTML('Redirecting\u2026'); }
   if (!Auth.isAdmin()) { window.location.hash = '#/dashboard'; return '<p>Access denied.</p>'; }
   const isNew = projectId === 'new';
 
@@ -3212,7 +3421,7 @@ let _sectionCounter = 0;
 let _refCounter = 0;
 
 function renderStoryEditor(storyId) {
-  if (!Auth.currentUser) { window.location.hash = '#/login'; return '<p>Redirecting\u2026</p>'; }
+  if (!Auth.currentUser) { window.location.hash = '#/login'; return authLoadingHTML('Redirecting\u2026'); }
   const isNew = storyId === 'new';
 
   return `
@@ -3706,7 +3915,7 @@ const NEWS_CATEGORIES = [
 
 /* V3.302 dedup — news sections now use the shared sectionBlockHTML. */
 function renderNewsEditor(postId) {
-  if (!Auth.currentUser) { window.location.hash = '#/login'; return '<p>Redirecting\u2026</p>'; }
+  if (!Auth.currentUser) { window.location.hash = '#/login'; return authLoadingHTML('Redirecting\u2026'); }
   const isNew = postId === 'new';
 
   return `
@@ -4037,7 +4246,7 @@ async function refreshNewsList() {
    RENDER: SCHEDULER EDITOR (dashboard — owner/admin view)
    ================================================================ */
 function renderSchedulerEditor(scheduleId) {
-  if (!Auth.currentUser) { window.location.hash = '#/login'; return '<p>Redirecting\u2026</p>'; }
+  if (!Auth.currentUser) { window.location.hash = '#/login'; return authLoadingHTML('Redirecting\u2026'); }
   return `
     <div class="class-page max-w" data-schedule-id="${escapeHTML(scheduleId)}">
       <div class="section card reveal">
@@ -4178,6 +4387,31 @@ async function wireSchedulePage(scheduleId) {
     return;
   }
 
+  // V3.348: signed-in lab members can auto-fill the picker from their
+  // RM availability (painted weekly schedule + week overrides + custom
+  // events). Direct Firestore reads — the collections allow any-auth
+  // read, and ScheduleService's week-scoped subscription can't cover a
+  // multi-week scheduler. Calendar busy times aren't available on the
+  // public page (no CalendarService/OAuth here); the painted schedule
+  // already reflects them for members who maintain it in RM.
+  async function fetchMyAvailabilityData(dates) {
+    const uid = Auth.currentUser?.uid;
+    if (!uid) return { templateBlocks: [], overrides: [], customEvents: [], calendarBusy: [] };
+    const db = McgheeLab.db || firebase.firestore();
+    const dateSet = new Set(dates);
+    const [tmplDoc, ovSnap, ceSnap] = await Promise.all([
+      db.collection('huddleScheduleTemplates').doc(uid).get(),
+      db.collection('huddleScheduleOverrides').where('ownerUid', '==', uid).get(),
+      db.collection('scheduleCustomEvents').where('ownerUid', '==', uid).get(),
+    ]);
+    return {
+      templateBlocks: tmplDoc.exists ? (tmplDoc.data().blocks || []) : [],
+      overrides: ovSnap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(o => dateSet.has(o.date)),
+      customEvents: ceSnap.docs.map(d => Object.assign({ id: d.id }, d.data())),
+      calendarBusy: [],
+    };
+  }
+
   function buildConfig() {
     return {
       scheduleId,
@@ -4188,6 +4422,9 @@ async function wireSchedulePage(scheduleId) {
       useKeyAuth: true,
       adminViewMode: 'guest',
       previewSpeakerIdx: 0,
+      // Only offer auto-fill to signed-in users (external guests have no
+      // RM availability to read).
+      getAvailabilityData: Auth.currentUser ? fetchMyAvailabilityData : null,
       buildInviteURL: (sid, key) => `${location.origin}${location.pathname}#/schedule/${sid}?key=${key}`,
       onSaveSpeaker: async (id, data) => { await SDB.updateSpeakerByKey(id, data); },
       onSaveSchedule: async () => {},
@@ -4206,6 +4443,20 @@ async function wireSchedulePage(scheduleId) {
 
   container.innerHTML = Sched.render(buildConfig());
   Sched.wire('schedule-page-content', buildConfig());
+
+  // Auth often restores a beat after the first render — re-render once
+  // when the user appears so the auto-fill button shows up (V3.348).
+  if (!Auth.currentUser && Auth.onChange) {
+    const onAuthReady = (user) => {
+      Auth.offChange(onAuthReady);
+      if (!user) return;
+      // Bail if the user navigated away from this schedule page.
+      if (!document.getElementById('schedule-page-content')) return;
+      container.innerHTML = Sched.render(buildConfig());
+      Sched.wire('schedule-page-content', buildConfig());
+    };
+    Auth.onChange(onAuthReady);
+  }
 }
 
 /* ================================================================
@@ -5282,6 +5533,8 @@ async function loadCourseListings() {
    ================================================================ */
 McgheeLab.Auth             = Auth;
 McgheeLab.DB               = DB;
+McgheeLab.authLoadingHTML  = authLoadingHTML;    // V3.332 — router auth-gate spinner
+McgheeLab.friendlyAuthError = friendlyAuthError; // V3.332 — shared auth error copy
 McgheeLab.ROLES            = ROLES;
 McgheeLab.BADGE_DEFS       = BADGE_DEFS;
 McgheeLab.processImage     = processImage;

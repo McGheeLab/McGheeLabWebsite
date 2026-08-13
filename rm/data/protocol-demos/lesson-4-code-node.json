@@ -1,0 +1,89 @@
+{
+  "format": "protocol-import-v1",
+  "protocol": {
+    "id": "lesson-4-code-node",
+    "title": "Node lesson 4 — The Code node",
+    "summary": "A guided build: construct a scripted cell-count — two inputs feed a Code node whose returned keys become named outputs that flow live.",
+    "tags": [
+      "demo",
+      "tutorial",
+      "nodes"
+    ],
+    "tree": {
+      "sections": [
+        {
+          "label": "Scripting a node",
+          "order": 0,
+          "children": [
+            {
+              "kind": "docHeader",
+              "body": "",
+              "attrs": {
+                "brand": "RM Node lessons",
+                "tag": "Lesson 4 of 4 · advanced · guided build",
+                "title": "The Code node",
+                "chips": [
+                  {
+                    "text": "you build it — nothing is pre-made",
+                    "var": ""
+                  },
+                  {
+                    "text": "~9 min",
+                    "var": ""
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "critical"
+              },
+              "body": "A Code node runs <b>JavaScript</b> when the protocol is viewed. Only import protocols from people you trust — the same rule as opening any lab macro. RM warns you on import when a protocol contains a script node."
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "note"
+              },
+              "body": "<b>How this lesson works.</b> The guided tour is running in the <b>⬡ Nodes</b> view on an empty canvas. Some math is awkward as one formula — a lookup, a piecewise rule, a rounding convention. The <b>Code</b> node takes a short JavaScript snippet instead, and you'll build one."
+            },
+            {
+              "kind": "step",
+              "body": "Two rules make it work. <b>(1) Inputs are arguments:</b> every variable you wire in arrives as a function argument of the same name. You'll wire <code>cells_per_mL</code> and <code>volume_mL</code>, so the script receives them by those names. <b>(2) Outputs are the returned keys:</b> the script returns an object, and each declared output takes the value of the matching key."
+            },
+            {
+              "kind": "step",
+              "body": "The script you'll write:<br><code>var total = cells_per_mL * volume_mL;<br>return { total_cells: total, millions: total / 1e6 };</code><br>Two declared outputs — <code>total_cells</code> and <code>millions</code> — pick up the two returned keys. Both become live variables the document reads: total is <b>[!var:total_cells]</b> cells (<b>[!var:millions]</b> million)."
+            },
+            {
+              "kind": "step",
+              "body": "After the build, edit it live: change the script or add an output row (name it, then return that key). Move the input sliders and the outputs recompute. If a script has an error — a typo, a missing return key — that output shows the error instead of a number, and the rest of the protocol keeps working."
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "note"
+              },
+              "body": "<b>When to reach for it.</b> Prefer an Equation node for ordinary arithmetic — it's simpler and safer to share. Use a Code node when the logic genuinely needs branching, arrays, or a table lookup. If you return a single number and declare a single output, you can skip the object and just <code>return value;</code>."
+            },
+            {
+              "kind": "step",
+              "body": "That's the full node toolkit: inputs, constants, choices, ordered sets, equations, lists, plate planners, and code. Combine them — and lean on <b>✨ Recipes</b> for common patterns, or <b>🎓 Tours</b> to revisit any node — to make any lab protocol calculate itself."
+            },
+            {
+              "kind": "design",
+              "body": "",
+              "attrs": {
+                "label": "Build it here — the guided tour walks you through it",
+                "formula": "",
+                "nodes": [],
+                "edges": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

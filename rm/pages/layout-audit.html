@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Layout audit — RM</title>
+  <script src="/rm/js/runtime-mode.js"></script>
+  <link rel="stylesheet" href="/rm/css/style.css">
+</head>
+<body>
+  <main style="max-width:1000px;margin:0 auto;padding:18px;">
+    <h2 style="margin:0 0 4px;">Page-layout segmentation audit</h2>
+    <p style="color:#6b7280;font-size:13px;margin:0 0 12px;">
+      Runs the segmentation engine over the synthetic fixture suite
+      (<code>scripts/gen_layout_fixtures.py</code> → <code>rm/test-fixtures/layout/</code>)
+      and scores it against ground truth. <b>Bridge rate</b> is the fraction
+      of random in-block drags that leak into another block — the direct
+      measure of the "highlight bridges sections" symptom. Fully offline; no
+      sign-in needed for the fixture run.
+    </p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+      <button class="btn" id="la-run">▶ Run fixtures</button>
+      <button class="btn" id="la-export" title="Download this run as JSON">⬇ Export JSON</button>
+      <label class="btn" style="cursor:pointer;" title="Load a previous export for a Δ comparison">
+        Load baseline<input type="file" id="la-baseline" accept="application/json" hidden>
+      </label>
+      <span id="la-status" style="font-size:12px;color:#6b7280;"></span>
+    </div>
+    <div id="la-totals" style="font-size:13px;margin-bottom:8px;"></div>
+    <div id="la-table" style="border:1px solid #e5e7eb;border-radius:8px;overflow:auto;"></div>
+  </main>
+
+  <!-- page-layout.js (R2+) loads first when present so the harness uses the
+       real engine; absent, the harness records the naive baseline. -->
+  <script src="/rm/js/page-layout.js" onerror="/* R1: not built yet */"></script>
+  <script type="module" src="/rm/js/pdf-viewer.js"></script>
+  <script src="/rm/js/layout-audit.js"></script>
+</body>
+</html>

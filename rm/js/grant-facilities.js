@@ -502,6 +502,7 @@
   }
 
   async function init() {
+    if (firebridge.requireSignIn) firebridge.requireSignIn('Sign in to edit facilities documents.');
     firebridge.onAuth(async function (user, profile) {
       if (!user) {
         $('gd-paper').innerHTML = '<div class="grantdoc-empty-state"><h2>Sign in to use facilities docs</h2></div>';

@@ -7,33 +7,22 @@
  *                          the item first; only fetches when missing).
  *   - any future callers (refresh-metadata buttons, admin migration).
  *
- * Endpoint:
- *   GET https://api.semanticscholar.org/graph/v1/paper/{ID}
- *       ?fields=title,authors,year,venue,abstract,externalIds,tldr,
- *               references.title,references.authors,references.year,
- *               references.venue,references.externalIds,
- *               references.paperId,
- *               citations.title,citations.authors,citations.year,
- *               citations.venue,citations.externalIds,
- *               citations.paperId
- *   where {ID} is `DOI:10.x/y`, `ARXIV:1234.5678`, or `PMID:12345`.
- *
- * Free tier: no API key for low traffic; rate limit ~1 req/sec.
- * 429s are retried once with a small backoff before giving up.
+ * Transport (V3.583): everything goes through the `semanticScholarLookup`
+ * Cloud Function. api.semanticscholar.org sends no
+ * Access-Control-Allow-Origin, so direct browser calls from
+ * https://mcgheelab.com were ALWAYS blocked by CORS — import-time
+ * enrichment never actually ran on the deploy, it just logged
+ * "SS fetch failed" and moved on. The function owns the URL and the
+ * field list (see functions/semantic-scholar.js), retries 429s, and
+ * caches results for 7 days in metadataCache; this module now only picks
+ * the lookup id and normalizes the response.
  */
 
 (function () {
   'use strict';
 
-  const API_BASE = 'https://api.semanticscholar.org/graph/v1/paper';
-  const FIELDS_FULL = [
-    'title', 'authors', 'year', 'venue', 'abstract', 'externalIds', 'tldr',
-    'references.paperId', 'references.title', 'references.authors',
-    'references.year', 'references.venue', 'references.externalIds',
-    'citations.paperId', 'citations.title', 'citations.authors',
-    'citations.year', 'citations.venue', 'citations.externalIds',
-  ].join(',');
-  const FIELDS_CITATIONS_ONLY = 'title,authors,year,venue,externalIds';
+  const S2_FN_URL =
+    'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/semanticScholarLookup';
 
   // ---- ID picking ---------------------------------------------------------
 
@@ -50,28 +39,37 @@
 
   // ---- HTTP ---------------------------------------------------------------
 
-  async function _fetchJson(url) {
-    let attempt = 0;
-    while (true) {
-      attempt++;
-      const r = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (r.ok) return r.json();
-      // One retry on rate-limit; otherwise surface the error.
-      if (r.status === 429 && attempt === 1) {
-        await new Promise(res => setTimeout(res, 1500));
-        continue;
-      }
-      const body = await r.text().catch(() => '');
-      throw new Error(`Semantic Scholar ${r.status}: ${body.slice(0, 200)}`);
+  // POST to the proxy with the caller's Firebase ID token. The function
+  // returns the raw Semantic Scholar JSON, so the normalizers below are
+  // unchanged from the direct-fetch era.
+  async function _callProxy(body) {
+    const user = (typeof firebase !== 'undefined' && firebase.auth
+      && firebase.auth().currentUser) || null;
+    if (!user) throw new Error('Sign in to fetch Semantic Scholar data.');
+    const idToken = await user.getIdToken();
+    const r = await fetch(S2_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+    let data = null;
+    try { data = await r.json(); } catch (e) { /* leave null */ }
+    if (!r.ok) {
+      const err = new Error((data && data.error) || `Semantic Scholar proxy ${r.status}`);
+      err.status = r.status;
+      throw err;
     }
+    return data;
   }
 
   // Fetch the full paper enrichment payload (paper metadata + references
   // + citations) for the given lookup id. Throws on network or 4xx/5xx.
   async function fetchPaperEnrichment(idSpec) {
     if (!idSpec || !idSpec.url) throw new Error('fetchPaperEnrichment: idSpec required');
-    const url = `${API_BASE}/${idSpec.url}?fields=${encodeURIComponent(FIELDS_FULL)}`;
-    return _fetchJson(url);
+    return _callProxy({ id: idSpec.url, kind: 'paper' });
   }
 
   // Fetch citations only. Used by paper-cited-by.js when the item has
@@ -80,9 +78,8 @@
   async function fetchCitations(idSpec, limit) {
     if (!idSpec || !idSpec.url) throw new Error('fetchCitations: idSpec required');
     const lim = Math.max(1, Math.min(1000, limit || 100));
-    const url = `${API_BASE}/${idSpec.url}/citations?fields=${encodeURIComponent(FIELDS_CITATIONS_ONLY)}&limit=${lim}`;
-    const j = await _fetchJson(url);
-    return Array.isArray(j.data) ? j.data : [];
+    const j = await _callProxy({ id: idSpec.url, kind: 'citations', limit: lim });
+    return Array.isArray(j && j.data) ? j.data : [];
   }
 
   // ---- Normalizers --------------------------------------------------------

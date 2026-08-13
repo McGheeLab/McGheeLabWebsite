@@ -96,7 +96,7 @@
     if (!trimmed) throw new Error('Group name required');
     const id = _slugify(trimmed);
     const user = firebase.auth().currentUser;
-    const profile = (window.firebridge && firebridge.getProfile()) || null;
+    const profile = (typeof firebridge !== 'undefined' && firebridge.getProfile) ? firebridge.getProfile() : null;
     const stamp = firebase.firestore.FieldValue.serverTimestamp();
 
     // Skip if already present (avoid array duplicates).

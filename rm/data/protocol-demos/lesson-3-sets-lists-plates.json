@@ -1,0 +1,113 @@
+{
+  "format": "protocol-import-v1",
+  "protocol": {
+    "id": "lesson-3-sets-lists-plates",
+    "title": "Node lesson 3 — Sets, lists & plates",
+    "summary": "A guided build: construct two option sets, combine them into an experiment list, and light up the plate planner — with totals that scale with replicates and prep excess.",
+    "tags": [
+      "demo",
+      "tutorial",
+      "nodes"
+    ],
+    "tree": {
+      "sections": [
+        {
+          "label": "From sets to a plate plan",
+          "order": 0,
+          "children": [
+            {
+              "kind": "docHeader",
+              "body": "",
+              "attrs": {
+                "brand": "RM Node lessons",
+                "tag": "Lesson 3 of 4 · intermediate · guided build",
+                "title": "Sets, lists & plates",
+                "chips": [
+                  {
+                    "text": "you build it — nothing is pre-made",
+                    "var": ""
+                  },
+                  {
+                    "text": "~10 min",
+                    "var": ""
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "note"
+              },
+              "body": "<b>How this lesson works.</b> The guided tour is running in the <b>⬡ Nodes</b> view. Most bench work is “every combination of a few choices” — you'll build two <b>generator</b> nodes (a Choices set and an Ordered set), feed them into a <b>List</b>, and the plate planner below lights up with your experiments."
+            },
+            {
+              "kind": "step",
+              "body": "The build: <code>treatment</code> is a Choices set (Control, Drug) and <code>dose</code> is an Ordered set (low → mid → high). Both wire into a List named <code>conditions</code> with a <b>structural</b> feed. Two treatments × three doses = <b>six</b> experiments. The tour asks for these exact names because the plate planner below is wired to them."
+            },
+            {
+              "kind": "step",
+              "body": "You'll also add two Inputs the planner reads: <code>reps</code> (wells per experiment) and <code>excess</code> (prep factor, e.g. 1.2 for +20%). These aren't wired into the graph — the planner looks them up <b>by name</b>, which is why the tour has you name them precisely."
+            },
+            {
+              "kind": "step",
+              "body": "A structural feed is made like any wire: drag a generator's right dot onto the List's open “feed…” dot. After the build, add a third option to <code>treatment</code> and the list jumps to nine rows — the plate plan rebuilds instantly."
+            },
+            {
+              "kind": "step",
+              "body": "Scroll to the <b>Plate planner</b> below (it fills once your <code>conditions</code> list exists). Pick experiments, add plates from the <b>＋ Add plate</b> menu (96 / 384 / 24-well presets), then <b>drag</b> experiment chips onto wells — or press <b>⚙ Arrange</b> to lay them out by fill direction, factor→axis, spread, or randomized, then hand-tweak by dragging. Drag a well off the plate to remove it."
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "assume"
+              },
+              "body": "The <b>totals</b> table multiplies each experiment's per-well quantity by how many wells you assigned (<code>reps</code>) and by the prep <b>excess</b> factor, then pools by treatment. Change <code>reps</code> or <code>excess</code> in the Nodes view and the master-batch totals move — this is where “prep 20% extra” actually does something."
+            },
+            {
+              "kind": "step",
+              "body": "You've now built the core of a real protocol: sets → list → plate layout → prep totals. <b>Lesson 4</b> adds the Code node, for the one calculation that's easier to write as a line of JavaScript than a formula."
+            },
+            {
+              "kind": "design",
+              "body": "",
+              "attrs": {
+                "label": "Build it here — the guided tour walks you through it",
+                "formula": "",
+                "nodes": [],
+                "edges": []
+              }
+            },
+            {
+              "kind": "layoutMap",
+              "body": "",
+              "attrs": {
+                "label": "Plate planner — pick experiments, plates & prep",
+                "dataset": "conditions",
+                "rows": 4,
+                "cols": 6,
+                "colorField": "treatment",
+                "cellLabel": "treatment",
+                "cellSub": "dose",
+                "spareLabel": "spare",
+                "assign": true,
+                "keyFields": [
+                  "treatment",
+                  "dose"
+                ],
+                "replicateVar": "reps",
+                "factorVar": "excess",
+                "poolBy": [
+                  "treatment"
+                ],
+                "quantityFields": [
+                  "dose_value"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

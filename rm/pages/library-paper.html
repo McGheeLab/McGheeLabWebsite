@@ -6,7 +6,23 @@
   <title>Paper — McGhee Lab Library</title>
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/library-associations.css">
+  <link rel="stylesheet" href="/rm/css/library-themes.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.613 — inside the Ourlab native app the reader is the dedicated
+     * mobile page; redirect (preserving ?id= and the #ann- deep link) so
+     * push links land on the touch reader. No effect in any browser. */
+    (function () {
+      try {
+        var C = window.Capacitor;
+        if (C && C.isNativePlatform && C.isNativePlatform()) {
+          location.replace('/rm/pages/library-mobile-paper.html'
+            + location.search + location.hash);
+        }
+      } catch (e) { /* never block the desktop page */ }
+    })();
+  </script>
   <link rel="stylesheet" href="/rm/vendor/pdfjs/pdf_viewer.css">
 </head>
 <body>
@@ -68,6 +84,10 @@
             <span id="lp-zoom-label" class="lp-zoom-label">100%</span>
             <button class="btn btn-sm" id="lp-zoom-in" title="Zoom in (+)">+</button>
             <button class="btn btn-sm" id="lp-fit" title="Fit to width">Fit</button>
+            <!-- V3.610 — marquee snip mode: drag a box over any region
+                 (figures have no text items, so text-selection can't grab
+                 them). Alt-drag works without toggling. -->
+            <button class="btn btn-sm" id="lp-marquee" title="Snip mode — drag a box over a figure to capture it (or hold Alt while dragging)">⬚ Snip</button>
           </div>
           <div class="lp-toolbar-row lp-toolbar-row-overlays">
             <div id="lp-overlays-anchor" class="lp-overlays-anchor"></div>
@@ -94,6 +114,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
@@ -106,6 +127,9 @@
   <script src="/rm/js/library-tags.js"></script>
   <script src="/rm/js/library-share.js"></script>
   <script src="/rm/js/task-assign.js"></script>
+  <!-- V3.371 — shared page-layout segmentation engine; must load before
+       pdf-viewer so extractTextItemsFromPdf + the viewer both use it. -->
+  <script src="/rm/js/page-layout.js"></script>
   <script type="module" src="/rm/js/pdf-viewer.js"></script>
   <script src="/rm/js/annotation-anchor.js"></script>
   <script src="/rm/js/annotation-overlay.js"></script>
@@ -119,8 +143,25 @@
   <script src="/rm/js/library-extras.js"></script>
   <script src="/rm/js/paper-citations.js"></script>
   <script src="/rm/js/paper-cited-by.js"></script>
+  <!-- V3.352 — atomic linked_drafts writer shared across surfaces. -->
+  <script src="/rm/js/library-links.js"></script>
+  <script src="/rm/js/library-associations.js"></script>
+  <script src="/rm/js/library-themes.js"></script>
+  <!-- V3.601 — research-roadmap attachment ("this paper informs that
+       analysis, and here is why"). Standalone pair, no research stack. -->
+  <script src="/rm/js/roadmap-data.js"></script>
+  <script src="/rm/js/roadmap-attach.js"></script>
   <script src="/rm/js/paper-overlays.js"></script>
   <script src="/rm/js/paper-overlay-types.js"></script>
+  <!-- E3 — equation capture: MathLive lazy loader (vendored) + the
+       snip/transcribe modal. Before library-paper.js. -->
+  <script src="/rm/js/mathlive-loader.js"></script>
+  <script src="/rm/js/equation-capture.js"></script>
+  <!-- V3.610 — 🖼 figure capture: snip a region → Storage upload
+       (PAPER_FIGURES, same module the builder uses) + kind:'figure'
+       annotation. Before library-paper.js. -->
+  <script src="/rm/js/paper-figures.js"></script>
+  <script src="/rm/js/figure-capture.js"></script>
   <script src="/rm/js/paper-overlay-import.js"></script>
   <script src="/rm/js/paper-search.js"></script>
   <script src="/rm/js/mobile-drawers.js"></script>

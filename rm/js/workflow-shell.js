@@ -193,7 +193,8 @@
   /* ─── Boot ────────────────────────────────────────────── */
   async function boot() {
     if (typeof firebridge === 'undefined') return;
-    await firebridge.whenAuthResolved();
+    if (firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to use workflows.');
+    else await firebridge.whenAuthResolved();
     if (!firebridge.getUser()) {
       const main = document.getElementById('shell-main');
       if (main) main.innerHTML = '<div class="empty-state">Sign in to use workflows.</div>';

@@ -82,6 +82,20 @@ service cloud.firestore {
          coll in get(/databases/$(database)/documents/userPermissions/$(request.auth.uid)).data.get('allowedCollections', []));
     }
 
+    // V3.605 — per-user capability grant. Admins write `caps: string[]`
+    // ('<pageSlug>:<capId>', e.g. 'library-paper:annotate') onto
+    // userPermissions/{uid} from the permissions page. Always OR'd with the
+    // existing role/allowlist gates — never replaces them — so it can lift a
+    // guest, a collaborator, or a member who isn't on an email allowlist
+    // into one specific action. Cost: exists()+get() on one doc (deduped);
+    // place hasCap() LAST in OR chains so members short-circuit without the
+    // read.
+    function hasCap(cap) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/userPermissions/$(request.auth.uid)) &&
+        cap in get(/databases/$(database)/documents/userPermissions/$(request.auth.uid)).data.get('caps', []);
+    }
+
     // V3.243 — mentor relationship gate. Admin assigns mentors via the
     // permissions page; the mentee's profile carries `mentor_uids: string[]`.
     // Mentors get the same cross-user PMR access an admin has (read +
@@ -92,6 +106,28 @@ service cloud.firestore {
       return request.auth != null &&
         exists(/databases/$(database)/documents/users/$(menteeUid)) &&
         get(/databases/$(database)/documents/users/$(menteeUid)).data.get('mentor_uids', []).hasAny([request.auth.uid]);
+    }
+
+    // V3.593 — voice-call membership gate. A voiceCalls doc id IS a
+    // chatChannels doc id, so "may I be in this call" == "am I in this
+    // conversation": DMs use members[], channels use subscriberUids[] (the
+    // same split functions/chat.js's getCandidateUids uses for push).
+    // One get() of the channel doc per evaluation. Called only from the
+    // voiceCalls blocks. Guests are already excluded by isLabMember();
+    // collaborators are NOT specifically excluded here — being in the
+    // channel is the boundary, matching how chat itself treats them.
+    // DMs populate members[] and never subscriberUids[]; channels the
+    // reverse — so testing BOTH is equivalent to branching on type, and far
+    // easier to read. Repeated get()s of the same path are deduped within a
+    // single rule evaluation, so this is still one read.
+    function inCallChannel(channelId) {
+      return isLabMember() &&
+        exists(/databases/$(database)/documents/chatChannels/$(channelId)) && (
+          get(/databases/$(database)/documents/chatChannels/$(channelId)).data
+            .get('members', []).hasAny([request.auth.uid]) ||
+          get(/databases/$(database)/documents/chatChannels/$(channelId)).data
+            .get('subscriberUids', []).hasAny([request.auth.uid])
+        );
     }
 
     // Helper: check if the requesting user can write annotations/claims
@@ -124,6 +160,37 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/items/$(itemId)) &&
         get(/databases/$(database)/documents/items/$(itemId)).data.first_author_uids != null &&
         request.auth.uid in get(/databases/$(database)/documents/items/$(itemId)).data.first_author_uids;
+    }
+
+    // V3.473 — per-paper coauthor gate for the paper-builder Yjs
+    // subcollections. authorUids[] on papers/{paperId} is materialized by
+    // the projects→papers Cloud Function (functions/paper-author-sync.js)
+    // from lead_author_uid + co_first_author_uid + coauthor_uids. The
+    // exists() short-circuits the get() so a paper whose parent doc (or
+    // authorUids field) is absent simply denies rather than throwing; the
+    // .data.get('authorUids', []) form yields [] for a missing field.
+    // Cost: 1 exists + 1 get (+ isAdmin()'s users/{uid} get) — well within
+    // the 10-call single-doc / 20-call query limits.
+    function isPaperAuthor(paperId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/papers/$(paperId)) &&
+        get(/databases/$(database)/documents/papers/$(paperId))
+          .data.get('authorUids', []).hasAny([request.auth.uid]);
+    }
+
+    // V3.611 — mentor gate for the same doc: mentorUids[] is the deduped
+    // union of every author's users/{uid}.mentor_uids, materialized by the
+    // same Cloud Function (rules can't chain gets over an array). Reads the
+    // SAME papers/{paperId} doc as isPaperAuthor, so Firestore dedupes the
+    // get() within one evaluation — `isPaperAuthor(x) || isPaperMentor(x)`
+    // still costs a single document read. Mentors get paper READ (open the
+    // editor read-only) + Figure board write + comment posting; manuscript
+    // writes stay author/admin-only.
+    function isPaperMentor(paperId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/papers/$(paperId)) &&
+        get(/databases/$(database)/documents/papers/$(paperId))
+          .data.get('mentorUids', []).hasAny([request.auth.uid]);
     }
 
     // V3.302 — publish gate for public-site content (stories, newsPosts,
@@ -558,6 +625,13 @@ service cloud.firestore {
                          && request.auth.uid == userId;
     }
 
+    // Huddle seen state — per-user "last visit" timestamps for new-item
+    // dots + the nav badge (V3.511). Own read/write only.
+    match /huddleSeen/{userId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+
     // Huddle protocols — shared protocol library
     match /huddleProtocols/{protocolId} {
       allow read: if request.auth != null;
@@ -582,6 +656,85 @@ service cloud.firestore {
     match /huddleConfig/{docId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
+    }
+
+    // Voice call config (V3.587) — TURN relay credentials at
+    // voiceCallConfig/turn: { iceServers: [{urls, username, credential}] }.
+    // Every lab member's browser must read it to build a peer connection;
+    // only admins may change it. Credentials are necessarily client-visible
+    // (WebRTC sends them from the browser), so use short-lived / per-service
+    // credentials rather than an account password.
+    match /voiceCallConfig/{docId} {
+      allow read: if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    // Voice calls (V3.525, hardened V3.593) — Slack-style huddle: one live
+    // call per chat channel (doc id == chatChannels doc id). All docs are
+    // EPHEMERAL: participants delete themselves on hang-up, signals (WebRTC
+    // SDP/ICE) are deleted as soon as the addressee consumes them, and the
+    // last leaver deletes the call doc.
+    //
+    // V3.593 SECURITY: every write is gated on membership of the underlying
+    // chat channel. Without that gate any lab member could (a) join a DM
+    // call they were not part of, and (b) plant an unsolicited `offer`,
+    // which made the victim's client auto-answer WITH ITS MICROPHONE
+    // ATTACHED — a silent audio tap with no UI trace. `inCallChannel()`
+    // costs one get() of the channel doc per write; that is the price of
+    // the boundary and is worth it.
+    //
+    // NOTE on read: `list` (the client's active-call watcher query) is
+    // scoped by the denormalized `memberUids` on the call doc, because
+    // Firestore requires list rules to be satisfiable from the query alone
+    // (a get() of another document would reject the whole query). `get` is
+    // left at lab-member: it reveals only that a call exists in a channel
+    // whose id you already know, never audio or signaling.
+    match /voiceCalls/{channelId} {
+      allow get: if isLabMember();
+      allow list: if isLabMember()
+                  && request.auth.uid in resource.data.memberUids;
+      allow create: if inCallChannel(channelId)
+                    && request.resource.data.startedBy == request.auth.uid
+                    && request.resource.data.startedByName is string
+                    && request.auth.uid in request.resource.data.memberUids;
+      allow update: if inCallChannel(channelId);
+      allow delete: if inCallChannel(channelId); // last-one-out cleanup
+
+      // In-call presence. Create/update is own-doc AND channel-member —
+      // this is the gate that stops an outsider joining the mesh. Delete is
+      // self or admin only (the client already filters stale peers by
+      // lastSeen, so any-member delete bought nothing and allowed a kick).
+      match /participants/{uid} {
+        allow read: if isLabMember();
+        allow create, update: if inCallChannel(channelId)
+                              && request.auth.uid == uid
+                              && request.resource.data.uid == uid;
+        // Self, admin, or a peer whose heartbeat died >60s ago. The age
+        // clause is what makes ghost-call cleanup possible WITHOUT letting
+        // anyone kick a live participant (the old any-member delete allowed
+        // a 1Hz delete loop that kept everyone renegotiating).
+        allow delete: if isLabMember() && (
+                        request.auth.uid == uid || isAdmin() ||
+                        resource.data.lastSeen < request.time - duration.value(60, 's')
+                      );
+      }
+
+      // Addressed signaling docs — sender-stamped, channel-member create;
+      // only the two endpoints of a signal can read or delete it.
+      match /signals/{signalId} {
+        allow read: if isLabMember()
+                    && (resource.data.to == request.auth.uid
+                        || resource.data.from == request.auth.uid);
+        allow create: if inCallChannel(channelId)
+                      && request.resource.data.from == request.auth.uid;
+        // Endpoints, or anyone clearing debris: a signal older than 2
+        // minutes is garbage no live negotiation can still be using.
+        allow delete: if isLabMember() && (
+                        resource.data.to == request.auth.uid ||
+                        resource.data.from == request.auth.uid ||
+                        resource.data.createdAt < request.time - duration.value(120, 's')
+                      );
+      }
     }
 
     // Schedule custom events — user-created personal calendar events
@@ -647,34 +800,162 @@ service cloud.firestore {
                    && request.auth.uid == userId;
     }
 
-    // Equipment catalog — authenticated read, admin write
+    // Equipment catalog — lab-member read, admin write (V3.336 hardening)
     match /equipment/{equipmentId} {
-      allow read: if request.auth != null;
+      allow read: if isLabMember() && collabMay('equipment');
       allow create, update, delete: if isAdmin();
     }
 
-    // Equipment bookings — authenticated read/create, authenticated update (for
-    // owner edits, manager approvals, displacement marking), admin delete
+    // Equipment bookings — V3.336 hardened. Each update clause maps to one
+    // client mutation in rm/js/equipment.js (line refs in comments). The
+    // displacement model is intentional lab policy: any lab member may flip
+    // another member's active booking to needs-rebooking (after the client's
+    // "I have permission" confirmation), but may change NOTHING else and must
+    // sign the displacement with their own uid. EDB.updateBooking always
+    // stamps updatedAt, so every hasOnly() list includes it.
     match /equipmentBookings/{bookingId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      function bkChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+      function isBookingOwner() {
+        return resource.data.uid == request.auth.uid;
+      }
+      function isEquipMgr() {
+        return exists(/databases/$(database)/documents/equipment/$(resource.data.equipmentId)) &&
+          get(/databases/$(database)/documents/equipment/$(resource.data.equipmentId))
+            .data.get('managers', []).hasAny([request.auth.uid]);
+      }
+
+      allow read: if isLabMember() && collabMay('equipmentBookings');
+
+      // New booking (equipment.js openBookingModal submit): must be for
+      // self, sane shape, status whitelist; maintenance priority admin-only.
+      allow create: if isLabMember() && collabMay('equipmentBookings')
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status in ['confirmed', 'pending-approval']
+        && request.resource.data.equipmentId is string
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.endDate is string
+        && request.resource.data.endDate >= request.resource.data.date
+        && request.resource.data.startTime is string
+        && request.resource.data.endTime is string
+        && request.resource.data.durationMin is number
+        && request.resource.data.durationMin > 0
+        && (request.resource.data.priority in ['normal', 'high', 'urgent']
+            || (request.resource.data.priority == 'maintenance' && isAdmin()))
+        // V3.527 — optional source_ref map {kind:'dayplan', id} lets a
+        // booking created by My Day's distribution engine carry its hub
+        // backref (equipment.html renders a "via My Day" chip from it).
+        && (!('source_ref' in request.resource.data.keys())
+            || request.resource.data.source_ref is map)
+        && request.resource.data.keys().hasOnly(
+             ['equipmentId', 'equipmentName', 'uid', 'userName', 'userCategory',
+              'coOperatorUid', 'coOperatorName', 'date', 'endDate', 'startTime',
+              'endTime', 'durationMin', 'priority', 'status', 'notes',
+              'gcalEventId', 'source_ref', 'createdAt', 'updatedAt']);
+
+      allow update: if isLabMember() && (
+        // Admin — full edit (edit-other-user path, syncAll gcal stamps, fixes)
+        isAdmin()
+
+        // Owner reschedule/edit — status untouched (source_ref: V3.527
+        // My Day cascade may re-stamp its backref on date/time edits)
+        || (isBookingOwner()
+            && bkChanged().hasOnly(
+                 ['equipmentId', 'equipmentName', 'date', 'endDate', 'startTime',
+                  'endTime', 'durationMin', 'priority', 'notes',
+                  'coOperatorUid', 'coOperatorName', 'source_ref', 'updatedAt']))
+
+        // Owner cancels own booking
+        || (isBookingOwner()
+            && request.resource.data.status == 'cancelled'
+            && bkChanged().hasOnly(['status', 'updatedAt']))
+
+        // Owner re-confirms after being displaced (clears displacedBy)
+        || (isBookingOwner()
+            && resource.data.get('status', '') == 'needs-rebooking'
+            && request.resource.data.status == 'confirmed'
+            && request.resource.data.displacedBy == null
+            && bkChanged().hasOnly(['status', 'displacedBy', 'displacedByName', 'updatedAt']))
+
+        // DISPLACEMENT — any lab member may flip another user's active
+        // booking to needs-rebooking, signed with their own uid
+        || (resource.data.get('status', 'confirmed') in ['confirmed', 'needs-rebooking']
+            && request.resource.data.status == 'needs-rebooking'
+            && request.resource.data.displacedBy == request.auth.uid
+            && bkChanged().hasOnly(['status', 'displacedBy', 'displacedByName', 'updatedAt']))
+
+        // Equipment manager approves/denies a pending booking
+        || (isEquipMgr()
+            && resource.data.get('status', '') == 'pending-approval'
+            && request.resource.data.status in ['confirmed', 'cancelled']
+            && bkChanged().hasOnly(['status', 'updatedAt']))
+
+        // GCal event-id stamp: owner after own create-sync, manager after
+        // approving someone else's booking (admin syncAll covered above)
+        || ((isBookingOwner() || isEquipMgr())
+            && bkChanged().hasOnly(['gcalEventId', 'updatedAt']))
+      );
+
       allow delete: if isAdmin();
     }
 
-    // Equipment training records — authenticated read, admin write
+    // Equipment training records — lab-member read, admin write
     match /equipmentTraining/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isLabMember() && collabMay('equipmentTraining');
       allow write: if isAdmin();
     }
 
-    // Equipment settings — authenticated read, admin write
+    // Equipment settings — lab-member read, admin write
     match /equipmentSettings/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isLabMember() && collabMay('equipmentSettings');
       allow write: if isAdmin();
+    }
+
+    // V3.597 — "notify me if it frees up" watch windows. A student drags
+    // a window across the equipment calendar; when a booking is cancelled
+    // or moved out of it, a Cloud Function pings them.
+    //
+    // Read is OWN-ONLY (plus admin). A watch reveals intent — who wants
+    // which instrument when — and there is no reason for the lab to see
+    // each other's. This is deliberately narrower than equipmentBookings,
+    // which is lab-readable because the calendar is shared.
+    //
+    // No client UPDATE at all: `lastNotifiedAt` (the re-notify throttle)
+    // and `status: 'fulfilled'` are written by the Admin SDK only. If the
+    // client could touch them, a student could clear their own throttle
+    // and turn a watch into a notification loop. Changing a window =
+    // delete + create, which is what the UI does.
+    match /equipmentWatches/{watchId} {
+      allow read: if isLabMember() && collabMay('equipmentWatches')
+                  && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isLabMember() && collabMay('equipmentWatches')
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.equipmentId is string
+                    && request.resource.data.equipmentId.size() > 0
+                    && request.resource.data.date is string
+                    && request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+                    && request.resource.data.startTime is string
+                    && request.resource.data.startTime.matches('^\\d{2}:\\d{2}$')
+                    && request.resource.data.endTime is string
+                    && request.resource.data.endTime.matches('^\\d{2}:\\d{2}$')
+                    && request.resource.data.startTime < request.resource.data.endTime
+                    && request.resource.data.keys().hasOnly([
+                         'uid', 'userName', 'equipmentId', 'equipmentName',
+                         'date', 'startTime', 'endTime', 'status', 'createdAt'
+                       ]);
+      allow update: if false;
+      allow delete: if isLabMember()
+                    && (resource.data.uid == request.auth.uid || isAdmin());
     }
 
     // ── Lab Chat ──────────────────────────────────────────────
+    // V3.5xx chat program R4 — rules lockdown. Deploy ONLY after the
+    // V3.507 client (fanout:'v2') has saturated: stale clients' cross-
+    // user mention writes throw AFTER the message doc is created (the
+    // message still sends; badges arrive via the Cloud Function).
 
     // Helper: check if user is a chat admin (site admin OR in chatAdmins list)
     function isChatAdmin() {
@@ -683,41 +964,149 @@ service cloud.firestore {
          request.auth.uid in get(/databases/$(database)/documents/chatConfig/settings).data.chatAdmins);
     }
 
+    // Per-user chat role from chatConfig.userRoles ('editor' default,
+    // 'readonly' blocked from posting). Reads the same doc isChatAdmin()
+    // gets, so the read is cached within a single rules evaluation.
+    function chatRole() {
+      return get(/databases/$(database)/documents/chatConfig/settings)
+               .data.get('userRoles', {}).get(request.auth.uid, 'editor');
+    }
+
     // Chat config — chat admin manages, authenticated read
     match /chatConfig/{docId} {
       allow read: if request.auth != null;
       allow write: if isChatAdmin();
     }
 
-    // Chat channels — authenticated read/create, chat admin deletes
+    // Chat channels — self-service subscription; counters via Cloud
+    // Function (transition carve-out for stale clients until R7)
     match /chatChannels/{channelId} {
+      function chChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+      // Only YOUR OWN uid may enter/leave subscriberUids
+      function onlySelfSubToggle() {
+        return request.resource.data.get('subscriberUids', []).toSet()
+                 .difference(resource.data.get('subscriberUids', []).toSet())
+                 .hasOnly([request.auth.uid])
+            && resource.data.get('subscriberUids', []).toSet()
+                 .difference(request.resource.data.get('subscriberUids', []).toSet())
+                 .hasOnly([request.auth.uid]);
+      }
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.createdBy == request.auth.uid
+                    && (request.resource.data.get('type', 'channel') == 'dm'
+                        || (chatRole() != 'readonly'
+                            && (request.resource.data.get('isAnnouncement', false) != true
+                                || isChatAdmin())));
+      allow update: if request.auth != null && (
+           isChatAdmin()
+           // subscribe/unsubscribe: subscriberUids (self only) + memberCount
+        || (chChanged().hasOnly(['subscriberUids', 'memberCount']) && onlySelfSubToggle())
+           // TRANSITION carve-out: pre-V3.507 clients bump these after
+           // send; the Cloud Function owns them for fanout:'v2'
+           // messages. R7 (V3.5xx) shipped the client side — DELETE
+           // this clause a few days after the FTP, once stale tabs have
+           // refreshed, and redeploy rules.
+        || chChanged().hasOnly(['lastMessage', 'lastActivityAt', 'messageCount'])
+      );
       allow delete: if isChatAdmin();
     }
 
-    // Chat messages — authenticated read/create, author edits own, author or site admin deletes
-    // Read-only users blocked at UI layer (Firestore can't distinguish chat roles without extra reads)
+    // Chat messages — author-pinned create with role + announcement
+    // enforcement (previously UI-only); field-scoped cross-user updates
+    // (reactions/receipts/pins), which the old author-only update rule
+    // technically FORBADE for non-authors.
     match /chatMessages/{messageId} {
+      function msgChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
       allow read: if request.auth != null;
       allow create: if request.auth != null
-                    && request.resource.data.authorUid == request.auth.uid;
-      allow update: if request.auth != null
-                    && (resource.data.authorUid == request.auth.uid || isAdmin());
+                    && request.resource.data.authorUid == request.auth.uid
+                    && chatRole() != 'readonly'
+                    && (get(/databases/$(database)/documents/chatChannels/$(request.resource.data.channelId))
+                          .data.get('isAnnouncement', false) != true
+                        || isChatAdmin());
+      allow update: if request.auth != null && (
+           // Author edits own message — identity fields frozen
+           (resource.data.authorUid == request.auth.uid
+            && request.resource.data.authorUid == resource.data.authorUid
+            && request.resource.data.channelId == resource.data.channelId
+            && request.resource.data.createdAt == resource.data.createdAt)
+           // Any member: reactions, pins. 'readBy' is a TRANSITION
+           // carve-out — R7 derives receipts from chatReadState
+           // .lastReadAt and the new client never writes readBy; DELETE
+           // 'readBy' from this list a few days after the FTP, once
+           // stale tabs have refreshed, and redeploy rules.
+        || msgChanged().hasOnly(['reactions', 'readBy', 'pinned', 'pinnedBy', 'pinnedAt'])
+           // TRANSITION carve-out (pre-V3.507 clients bump thread
+           // counters after a reply) — DELETE together with the readBy
+           // cleanup above.
+        || msgChanged().hasOnly(['threadReplyCount', 'threadLastReplyAt'])
+        || isChatAdmin()
+      );
       allow delete: if request.auth != null
                     && (resource.data.authorUid == request.auth.uid || isAdmin());
     }
 
-    // Chat read state — authenticated read/write (doc id is uid_channelId)
+    // Chat read state — OWNER-ONLY writes (doc id is {uid}_{channelId}).
+    // Was `write: if request.auth != null` — anyone could zero anyone's
+    // mention counts; the client mention fan-out depended on that hole
+    // until V3.507 moved fan-out into the Cloud Function (Admin SDK,
+    // rules-exempt). Reads stay open to signed-in users: cross-user
+    // lastReadAt becomes the read-receipt source in R7.
     match /chatReadState/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && docId == request.auth.uid + '_' + request.resource.data.channelId;
+      allow update: if request.auth != null
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    // Slack-history import batches (V3.582) — metadata docs powering the
+    // "previously imported" list + Remove button in the chat import modal.
+    // Written ONLY by the chatImportSlackHistory Cloud Function (Admin
+    // SDK, rules-exempt); clients read to list a channel's imports.
+    match /chatImports/{batchId} {
+      allow read: if request.auth != null;
     }
 
     // Chat user meta — own data only
     match /chatUserMeta/{uid} {
       allow read, write: if request.auth != null
                          && request.auth.uid == uid;
+    }
+
+    // Chat presence + typing (R5) — one doc per user:
+    // { uid, lastActiveAt, typingChannelId|null, typingAt|null }.
+    // Deliberately its own collection: chatUserMeta is owner-only-read
+    // (widening it would leak sidebar layout/contacts/prefs), and
+    // users/{uid} is world-readable + subscribed by several RM pages
+    // (heartbeats there would fan out far beyond chat).
+    match /chatPresence/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // V3.597 — "what surface am I looking at right now", written by
+    // rm/js/presence.js on every RM page:
+    // { surfaces: { <deviceId>: { paths[], contextIds[], visible,
+    //                             lastActiveAt, client } } }
+    // Read by functions/helpers/presence.js (Admin SDK, bypasses rules) to
+    // skip pushing a notification to someone already looking at its target.
+    // Deliberately NOT folded into chatPresence: that doc is chat's
+    // 2-minute dot/typing heartbeat, this one beats every 60s on every
+    // page — merging them would fan chat's collection listener out across
+    // the whole app. Owner-write only; lab-member read is for debugging.
+    match /userPresence/{uid} {
+      allow read: if isLabMember();
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
 
     // ── ResearchManagement Integration ──
@@ -800,16 +1189,21 @@ service cloud.firestore {
     }
 
     // Top-level paper doc (parent of yjs_snapshot / yjs_updates / annotations /
-    // blocks / snapshots / comments). Holds optional metadata such as
-    // `authorUids[]` so non-admin coauthors can read drafts they're on (e.g.
-    // PMR's paper-writing block queries `where('authorUids','array-contains',
-    // uid)`). Writes stay admin-only until the metadata sync from
-    // data/projects/papers.json lands.
+    // blocks / snapshots / comments). Holds `authorUids[]` so non-admin
+    // coauthors can read drafts they're on (e.g. PMR's paper-writing block
+    // queries `where('authorUids','array-contains', uid)`). As of V3.473 the
+    // field is materialized by functions/paper-author-sync.js from the paper's
+    // projects-doc author fields. Writes stay admin-only — authorUids is only
+    // ever set by the Cloud Function (Admin SDK) or an admin backfill, so a
+    // non-admin can't add themselves. Read uses resource.data directly (the
+    // doc being read) rather than isPaperAuthor() to avoid a redundant get().
     match /papers/{paperId} {
+      // V3.611 — mentors of the paper's authors read too (mentorUids is
+      // materialized beside authorUids by paper-author-sync.js).
       allow read: if isAdmin()
                   || (request.auth != null
-                      && resource.data.authorUids is list
-                      && request.auth.uid in resource.data.authorUids);
+                      && (resource.data.get('authorUids', []).hasAny([request.auth.uid])
+                          || resource.data.get('mentorUids', []).hasAny([request.auth.uid])));
       allow write: if isAdmin();
     }
 
@@ -825,20 +1219,27 @@ service cloud.firestore {
                   && (resource.data.visibility == 'lab'
                       || resource.data.creator.uid == request.auth.uid
                       || isAdmin());
-      // Annotation create requires the user be on the lab-contributor
-      // allowlist (admin / extension member / guest editor). Read-only
-      // guests see annotations but can't add their own.
-      allow create: if isLabContributor()
+      // V3.474 — annotating a library paper is a basic lab-member action, so
+      // create is gated on isLabMember() (any non-guest member), not the
+      // stricter isLabContributor() email allowlist (which stays for extension
+      // capture and EXTERNAL guest editors who aren't lab members).
+      // V3.605 — guests/collaborators can be granted the same power per-user
+      // via the 'library-paper:annotate' capability (permissions page).
+      allow create: if (isLabMember() || hasCap('library-paper:annotate'))
                     && request.resource.data.creator.uid == request.auth.uid
                     && request.resource.data.visibility in ['lab', 'private'];
       // Owner / admin can update or delete any field. Non-owners can update
-      // ONLY the evidence-link fields — needed so a non-creator can tag
-      // someone else's lab-visible highlight as evidence for their own draft.
+      // ONLY the evidence-link + draft-filing fields — needed so a non-creator
+      // can tag someone else's lab-visible highlight as evidence for their own
+      // draft, or file it into a draft they're writing (cite_in_drafts —
+      // V3.619, the panel has offered this to everyone since V3.103 but the
+      // rule rejected it).
       allow update: if request.auth != null
                     && (resource.data.creator.uid == request.auth.uid
                         || isAdmin()
                         || request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(['evidence_for_claim_ids', 'evidence_stance', 'modified']));
+                             .hasOnly(['evidence_for_claim_ids', 'evidence_stance',
+                                       'cite_in_drafts', 'modified']));
       allow delete: if request.auth != null
                     && (resource.data.creator.uid == request.auth.uid || isAdmin());
     }
@@ -852,35 +1253,48 @@ service cloud.firestore {
     //   papers/{paperId}/presence/{uid}        — 10s heartbeat per editor
     //   papers/{paperId}/blocks/{blockId}      — Phase D block index
     //
-    // v1 ACL: admin-only. Per-paper coauthor permissions (so non-admin
-    // students can edit specific papers) require syncing each paper's
-    // metadata (lead_author_uid, coauthor_uids[]) to a `papers/{paperId}`
-    // doc that rules can read — that sync isn't built yet, so coauthor
-    // tightening is a Phase B follow-up.
+    // V3.473 ACL: admin OR paper author (uid in papers/{paperId}.authorUids,
+    // materialized by functions/paper-author-sync.js from the projects-doc
+    // author fields). This is what lets a non-admin coauthor open and edit a
+    // specific paper. Self-constraints on creates (authorUid / author_uid /
+    // takenBy == request.auth.uid) are preserved. The rolling snapshot and the
+    // update-log rewrites (yjs_snapshot write, yjs_updates update/delete) stay
+    // admin-only: normal editing only READS the snapshot and CREATES update
+    // docs; compaction (functions/yjs-compactor.js) and restore run as admin.
     //
     // These blocks SIT ALONGSIDE the existing
     // `papers/{paperId}/annotations/...` rule above; both can match. The
     // longer-prefix rule wins per Firestore semantics.
+    // V3.611 — mentors (isPaperMentor) get READ on the editor's data +
+    // presence heartbeats, so a mentor opening a mentee's paper gets the
+    // existing read-only editor (firebridge.canEditPaper stays false for
+    // them) with zero permission errors. Manuscript WRITES (yjs_updates
+    // create, blocks write) remain author/admin-only.
     match /papers/{paperId}/yjs_snapshot/{docId} {
-      allow read, write: if isAdmin();
+      allow read:  if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      allow write: if isAdmin();   // rolling snapshot: compactor / admin restore only
     }
     match /papers/{paperId}/yjs_updates/{seq} {
-      allow read: if isAdmin();
-      allow create: if isAdmin()
+      allow read:   if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      allow create: if (isAdmin() || isPaperAuthor(paperId))
                     && request.resource.data.authorUid == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow update, delete: if isAdmin();   // append-only for authors; compaction via admin
     }
     match /papers/{paperId}/presence/{uid} {
-      allow read: if isAdmin();
+      allow read:           if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
       // Each user writes only their own presence doc.
-      allow create, update: if isAdmin() && request.auth.uid == uid;
-      allow delete: if isAdmin();
+      allow create, update: if (isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId))
+                            && request.auth.uid == uid;
+      allow delete:         if isAdmin()
+                            || ((isPaperAuthor(paperId) || isPaperMentor(paperId))
+                                && request.auth.uid == uid);
     }
     match /papers/{paperId}/blocks/{blockId} {
-      allow read, write: if isAdmin();
+      allow read:  if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      allow write: if isAdmin() || isPaperAuthor(paperId);
       match /comments/{commentId} {
-        allow read: if isAdmin();
-        allow create: if isAdmin()
+        allow read:   if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+        allow create: if (isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId))
                       && request.resource.data.author_uid == request.auth.uid;
         allow update, delete: if request.auth != null
                               && (resource.data.author_uid == request.auth.uid
@@ -889,10 +1303,12 @@ service cloud.firestore {
     }
     // Named version snapshots — captured Y.Doc state at a point in time.
     // Save adds a doc; Restore replaces the rolling yjs_snapshot/state and
-    // wipes yjs_updates (handled client-side).
+    // wipes yjs_updates (handled client-side). Authors can view + save
+    // versions (the Versions dialog reads this subcollection); delete stays
+    // admin-only for cleanup.
     match /papers/{paperId}/snapshots/{snapshotId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin()
+      allow read:   if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      allow create: if (isAdmin() || isPaperAuthor(paperId))
                     && request.resource.data.takenBy == request.auth.uid;
       // Snapshots are immutable once written (except admin delete for cleanup).
       allow update: if false;
@@ -902,8 +1318,36 @@ service cloud.firestore {
     // paper level (not under blocks/ since we read across blocks for the
     // unified review panel).
     match /papers/{paperId}/comments/{commentId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin()
+      // V3.611 — mentors can read + post review comments (author-pinned).
+      allow read:   if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      allow create: if (isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId))
+                    && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && (resource.data.authorUid == request.auth.uid
+                                || isAdmin());
+    }
+
+    // V3.609 — Figure board planning canvas (🧭 pill in the paper editor).
+    // Freeform cards (planned figures, experiments, reference snips, notes)
+    // + connection arrows, one doc per canvas item. Authors read/write;
+    // creates pin created_by to the caller so attribution can't be spoofed.
+    // V3.611 — mentors get FULL board write (the board is the advisor's
+    // review surface: they add notes/arrows and rearrange flow), following
+    // the focusAreas convention of mentor read+write on planning data.
+    match /papers/{paperId}/boardItems/{itemId} {
+      allow read:   if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      allow create: if (isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId))
+                    && request.resource.data.created_by == request.auth.uid;
+      allow update, delete: if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+    }
+
+    // V3.611 — per-card threads on the Figure board (SECTION_COMMENTS
+    // writing {item_id, body, authorUid, authorName, parentId, createdAt,
+    // modifiedAt, resolved}). Mirrors the PMR comments convention:
+    // author-pinned creates, owner-or-admin edits.
+    match /papers/{paperId}/boardComments/{commentId} {
+      allow read:   if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      allow create: if (isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId))
                     && request.resource.data.authorUid == request.auth.uid;
       allow update, delete: if request.auth != null
                             && (resource.data.authorUid == request.auth.uid
@@ -942,11 +1386,24 @@ service cloud.firestore {
     // place for forward compatibility but currently advisory.
     match /drafts/{draftId}/claims/{claimId} {
       allow read: if request.auth != null;
-      // Same allowlist gate as annotations — claims are a write surface.
-      allow create: if isLabContributor()
+      // V3.474 — same broadening as annotations: any non-guest lab member can
+      // create a claim (isLabMember()), not just the isLabContributor()
+      // allowlist.
+      // V3.619 — cross-author evidence carve-out (the plan A2 note): a lab
+      // member tagging a highlight as evidence updates the claim's evidence
+      // arrays inside CLAIMS.addEvidence's transaction; without this the whole
+      // transaction rolled back for non-creators of the claim.
+      allow create: if isLabMember()
                     && request.resource.data.creator.uid == request.auth.uid;
-      allow update, delete: if request.auth != null
-                            && (resource.data.creator.uid == request.auth.uid || isAdmin());
+      allow update: if request.auth != null
+                    && (resource.data.creator.uid == request.auth.uid
+                        || isAdmin()
+                        || (isLabMember()
+                            && request.resource.data.diff(resource.data).affectedKeys()
+                                 .hasOnly(['supporting_evidence_ids',
+                                           'counter_evidence_ids', 'modified'])));
+      allow delete: if request.auth != null
+                    && (resource.data.creator.uid == request.auth.uid || isAdmin());
     }
     match /draftAuthors/{draftId} {
       allow read: if request.auth != null;
@@ -963,11 +1420,13 @@ service cloud.firestore {
     // - `create` requires `captured_by_uid` to match the writer (no spoofing).
     // - `update/delete` are lab-wide so the sync can flip status → 'merged'
     //   or clean up captures regardless of who originally captured them.
+    // V3.605 — the 'library-paper:capture' capability grants the same
+    // access per-user without joining the extensionMembers email allowlist.
     match /pending_captures/{paperId} {
-      allow read: if isExtensionMember();
-      allow create: if isExtensionMember()
+      allow read: if isExtensionMember() || hasCap('library-paper:capture');
+      allow create: if (isExtensionMember() || hasCap('library-paper:capture'))
                     && request.resource.data.captured_by_uid == request.auth.uid;
-      allow update, delete: if isExtensionMember();
+      allow update, delete: if isExtensionMember() || hasCap('library-paper:capture');
     }
 
     // ResearchManagement extension: paper-index dedupe lookup (Phase 6d).
@@ -977,7 +1436,7 @@ service cloud.firestore {
     // reads it on every paper-detection event to flip the toolbar badge
     // to ✓ when a paper is already in the library.
     match /paper_index/{hash} {
-      allow read, write: if isExtensionMember();
+      allow read, write: if isExtensionMember() || hasCap('library-paper:capture');
     }
 
     // metadataCache — 30-day CrossRef/PubMed/arXiv lookup cache written by
@@ -985,6 +1444,21 @@ service cloud.firestore {
     // rules, so clients get no access at all.
     match /metadataCache/{cacheKey} {
       allow read, write: if false;
+    }
+
+    // V3.500 — bookmarklet upload tokens. A lab member mints a random
+    // per-device token (the doc ID IS the secret; the doc maps token → uid)
+    // so the "Grab PDF for RM" bookmarklet can authenticate to the
+    // uploadPaperPdf function from a publisher page that has no Firebase
+    // session. The function resolves token → uid via the Admin SDK (bypassing
+    // these rules). Clients touch ONLY their own tokens (generator UI +
+    // rotate/revoke); tokens are never listable/readable across users.
+    match /uploadTokens/{token} {
+      allow create: if isLabMember()
+                    && request.resource.data.uid == request.auth.uid;
+      allow read, delete: if request.auth != null
+                          && resource.data.uid == request.auth.uid;
+      allow update: if false;
     }
 
     // labConfig/extensionMembers — the email allowlist itself. Anyone
@@ -1023,9 +1497,11 @@ service cloud.firestore {
     //
     // This rule overrides the broader labConfig/{docId} write=admin rule
     // — Firestore picks the most specific match for writes.
+    // V3.605 — the 'library-paper:groups' capability lets a specific user
+    // (member or granted guest) create groups without an email allowlist.
     match /labConfig/annotation_groups {
       allow read: if request.auth != null;
-      allow write: if isLabContributor();
+      allow write: if isLabContributor() || hasCap('library-paper:groups');
     }
 
     // ── ResearchManagement multi-tenant collections (Phase 0+) ──
@@ -1038,7 +1514,17 @@ service cloud.firestore {
 
     match /projects/{projectId} {
       allow read:  if isLabMember();
-      allow write: if isAdmin();
+      // V3.47x — paper import/export: a lab member may create/modify/delete
+      // their OWN paper row (import creates a self-owned paper). Scoped to
+      // the `type=='paper'` discriminator so courses/infrastructure/tools
+      // stay admin-only; other project kinds keep the admin-only write.
+      allow create: if isAdmin()
+                    || (isLabMember()
+                        && request.resource.data.type == 'paper'
+                        && request.resource.data.lead_author_uid == request.auth.uid);
+      allow update, delete: if isAdmin()
+                    || (resource.data.type == 'paper'
+                        && resource.data.lead_author_uid == request.auth.uid);
     }
 
     match /funding/{fundingId} {
@@ -1049,6 +1535,146 @@ service cloud.firestore {
     match /compliance/{complianceId} {
       allow read:  if isLabMember();
       allow write: if isAdmin();
+    }
+
+    // V3.363 — lab-shared library groups (the library page's groups
+    // shelf, route library/shared_groups.json). Admins publish; every
+    // lab member reads. Per-user pins/groups live in
+    // userSettings/{uid}.library and are covered by that rule instead.
+    match /librarySharedGroups/{groupId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+    }
+
+    // V3.367 — Lab Themes: literature-review clusters around high-level
+    // lab concepts (library "Lab Themes" tab + reader theme chips).
+    // Paper membership lives on items/{id}.meta.library.themes and rides
+    // the items update rule below. Any lab member may create a theme
+    // (created_by pinned to their uid); theme-meta edits are
+    // creator-or-admin. Subcollections (shipped together, consumed by
+    // V3.367-368):
+    //   notes/{noteId}   — co-written synthesis blocks: any lab member
+    //                      reads/creates/edits (block-level last-write-
+    //                      wins by design); delete creator-or-admin.
+    //   votes/{uid}      — one "helped me" doc per user, keyed by uid
+    //                      (the reactions/presence per-user pattern).
+    //   comments/{id}    — SECTION_COMMENTS thread (PMR pattern).
+    match /labThemes/{themeId} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.created_by == request.auth.uid;
+      allow update, delete: if isAdmin()
+                    || (isLabMember() && resource.data.created_by == request.auth.uid);
+
+      match /notes/{noteId} {
+        allow read, create, update: if isLabMember();
+        allow delete: if isAdmin()
+                      || (isLabMember() && resource.data.created_by == request.auth.uid);
+      }
+      match /votes/{uid} {
+        allow read:  if isLabMember();
+        allow write: if isLabMember() && request.auth.uid == uid;
+      }
+      match /comments/{commentId} {
+        allow read, create: if isLabMember();
+        allow update, delete: if isAdmin()
+                      || (isLabMember() && resource.data.authorUid == request.auth.uid);
+      }
+      // V3.496 — per-theme research-group curation (canonical PI name /
+      // institution / merge / note / star) and manually-ranked related
+      // themes. Same collaborative model as notes: any member curates,
+      // creator-or-admin deletes. Whole-subcollection get + client sort,
+      // so no composite index.
+      match /groups/{groupKey} {
+        allow read, create, update: if isLabMember();
+        allow delete: if isAdmin()
+                      || (isLabMember() && resource.data.created_by == request.auth.uid);
+      }
+      match /related/{relId} {
+        allow read, create, update: if isLabMember();
+        allow delete: if isAdmin()
+                      || (isLabMember() && resource.data.added_by == request.auth.uid);
+      }
+    }
+
+    // V3.544 — Research Foci hub (rm/pages/research.html). The lab's
+    // three-level research map: specialty / concept / output cards with
+    // descriptions, media, links (drafts, patents, themes, trainings),
+    // attached students, grant ideas, and the designed public overview
+    // blocks. Lab-wide read (every member sees the lab's research map);
+    // admin-only write (the PI authors all cards — students are attached
+    // via member_uids by the admin, never self-attach). Whole-collection
+    // get + client sort — no composite index.
+    match /researchFoci/{fociId} {
+      allow read:  if isLabMember();
+      allow write: if isAdmin();
+
+      // V3.600 — roadmap reference papers. The card doc itself is
+      // admin-write (the PI authors the experiment → analysis → figure
+      // structure inside roadmap), but ANY lab member may attach a
+      // library paper to a roadmap item along with the note saying why
+      // it's appropriate — that note is the collaborative part. Same
+      // model as labThemes/{id}/groups: any member curates, creator-or-
+      // admin deletes. Whole-subcollection get + client sort, so no
+      // composite index. Rules do NOT cascade into subcollections, so
+      // this block is required for the read as well as the write.
+      match /refs/{refId} {
+        allow read, create, update: if isLabMember();
+        allow delete: if isAdmin()
+                      || (isLabMember() && resource.data.added_by == request.auth.uid);
+      }
+    }
+
+    // V3.600 — "who is on which analysis, this week". A denormalized
+    // mirror of userData/{uid}/focusAreas/{id}.focus_ref.analysis_id,
+    // never the source of truth. It exists because the focusAreas rule is
+    // owner-or-mentor-or-admin, so a student cannot read a peer's focus —
+    // yet the research hub's student band has to show the whole lab who
+    // has picked up what. Flat top-level collection keyed
+    // {uid}__{analysisId}: one whole-collection get, no collectionGroup,
+    // no composite index. Self-write only (the uid in the payload must be
+    // the caller), so nobody can claim work on someone else's behalf.
+    match /roadmapClaims/{claimId} {
+      allow read: if isLabMember();
+      allow create, update: if isLabMember()
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin()
+                    || (isLabMember() && resource.data.uid == request.auth.uid);
+    }
+
+    // V3.553 — published Research Foci snapshots for the public site's
+    // #/projects page. "Publish" copies a snapshot of the overview blocks
+    // here so lab-internal edits never leak until an explicit re-publish
+    // (stories-style publish gate, PI-only so no review flow). Public
+    // read — unauthenticated visitors render these.
+    match /publicFoci/{fociId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // V3.604 — "What's New" release history (rm/pages/whats-new.html).
+    // Docs are written SERVER-SIDE ONLY by the releaseAnnounce Cloud
+    // Function (Admin SDK bypasses rules) — that's the same call that
+    // broadcasts the release notification, so the history and the push
+    // can never disagree. Admin may delete a botched announcement.
+    match /releases/{releaseId} {
+      allow read:   if isLabMember();
+      allow delete: if isAdmin();
+      allow create, update: if false;
+    }
+
+    // V3.555 — shared icon pool (ICON_PICKER custom uploads). One doc per
+    // custom icon: {name, url, storage_path, created_by, created_at}. Any
+    // lab member may add to the pool and read it (used across many
+    // surfaces); creator-or-admin may delete. PUBLIC read so custom icons
+    // on published research foci render for site visitors.
+    match /labIcons/{iconId} {
+      allow read:   if true;
+      allow create: if isLabMember()
+                    && request.resource.data.created_by == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin()
+                    || (isLabMember() && resource.data.created_by == request.auth.uid);
     }
 
     match /inventory/{itemId} {
@@ -1062,10 +1688,20 @@ service cloud.firestore {
       // item ONLY when meta.library.public == true — used by the public
       // share viewer at /pages/library-public.html (production deploy at
       // /rm/pages/library-public.html).
+      // V3.605 — a user granted the 'library-paper:view' capability may read
+      // LIBRARY ENTRIES only (is_library_entry == true). Scoped on purpose:
+      // grant drafts and other project items share this collection and must
+      // stay invisible to cap-granted guests. List queries from cap holders
+      // must filter where('meta.library.is_library_entry','==',true) to be
+      // provable (library-paper.js's guest fallback does).
       allow read: if isLabMember()
         || (resource.data.meta != null
             && resource.data.meta.library != null
-            && resource.data.meta.library.public == true);
+            && resource.data.meta.library.public == true)
+        || (hasCap('library-paper:view')
+            && resource.data.meta != null
+            && resource.data.meta.library != null
+            && resource.data.meta.library.is_library_entry == true);
 
       // V3.135 — split write into create / update / delete to enforce
       // paper-specific first-author rights:
@@ -1108,9 +1744,18 @@ service cloud.firestore {
       // parent can also enrich the extras (import-time SS fetch, ref
       // parse, etc.). Delete cascades happen in the deletePaper Cloud
       // Function, so this rule allows admin delete only.
+      // V3.605 — 'library-paper:view' cap holders get the same read/write
+      // on extras, but ONLY under library entries (gated on the parent
+      // item's is_library_entry — one extra deduped get() per evaluation).
+      // Write is included because the reader opportunistically enriches
+      // extras on load (idempotent metadata cache).
       match /details/{detailId} {
-        allow read: if isLabMember();
-        allow write: if isLabMember();
+        allow read: if isLabMember()
+          || (hasCap('library-paper:view')
+              && get(/databases/$(database)/documents/items/$(itemId)).data.meta.library.is_library_entry == true);
+        allow write: if isLabMember()
+          || (hasCap('library-paper:view')
+              && get(/databases/$(database)/documents/items/$(itemId)).data.meta.library.is_library_entry == true);
         allow delete: if isAdmin();
       }
     }
@@ -1139,13 +1784,23 @@ service cloud.firestore {
     // This is intentionally MORE permissive than papers/{paperId}/yjs_*
     // because protocols are a shared lab resource (papers are personal).
     match /protocols/{protocolId} {
+      // V3.386 — the protocol OWNER (not just admin) may delete their own
+      // protocol, and may clean up its subcollections while doing so
+      // (versions, yjs docs, stale presence). Client deletes subdocs
+      // first, then the parent, so the ownership get() still resolves.
+      function isProtocolOwner() {
+        return request.auth != null && isLabMember()
+          && request.auth.uid == get(/databases/$(database)/documents/protocols/$(protocolId)).data.ownerUid;
+      }
       allow read: if (resource.data.status == 'published')
                   || (request.auth != null && isLabMember());
       allow create: if request.auth != null && isLabMember()
                     && request.resource.data.ownerUid == request.auth.uid;
       allow update: if request.auth != null && isLabMember()
                     && (request.auth.uid == resource.data.ownerUid || isAdmin());
-      allow delete: if isAdmin();
+      allow delete: if isAdmin()
+                    || (request.auth != null && isLabMember()
+                        && request.auth.uid == resource.data.ownerUid);
 
       match /yjs_snapshot/{docId} {
         allow read: if isLabMember();
@@ -1155,20 +1810,23 @@ service cloud.firestore {
         allow read: if isLabMember();
         allow create: if isLabMember()
                       && request.resource.data.authorUid == request.auth.uid;
-        allow update, delete: if isAdmin();
+        allow update: if isAdmin();
+        allow delete: if isAdmin() || isProtocolOwner();
       }
       match /presence/{uid} {
         allow read: if isLabMember();
         allow create, update: if isLabMember() && request.auth.uid == uid;
-        allow delete: if isLabMember() && request.auth.uid == uid;
+        allow delete: if (isLabMember() && request.auth.uid == uid)
+                      || isAdmin() || isProtocolOwner();
       }
 
       // V3.119 — version snapshots. Lab members read; only the protocol
       // owner or admin can create a snapshot, and the writer's uid must
       // match the snapshot_by_uid. Once written, snapshots are immutable
       // (no edits, no merges) — they're the source of truth for
-      // historical-version views and fork-from-version reads. Admin may
-      // delete for cleanup.
+      // historical-version views and fork-from-version reads. Admin or
+      // the protocol owner may delete (V3.386: owner cleanup cascades
+      // through versions when deleting the protocol).
       match /versions/{vId} {
         allow read: if (request.auth != null && isLabMember())
                     || (get(/databases/$(database)/documents/protocols/$(protocolId)).data.status == 'published');
@@ -1178,7 +1836,7 @@ service cloud.firestore {
                       && (request.auth.uid == get(/databases/$(database)/documents/protocols/$(protocolId)).data.ownerUid
                           || isAdmin());
         allow update: if false;
-        allow delete: if isAdmin();
+        allow delete: if isAdmin() || isProtocolOwner();
       }
     }
 
@@ -1203,12 +1861,52 @@ service cloud.firestore {
     //   emailArchive, emailMessages, calendarArchive, calendarEvents, stats,
     //   customWorkflows, cvData, notebook (Lab Notebook / ELN — V3.110; both
     //   per-entry docs and the `_index` summary doc live in this
-    //   subcollection, owner-only by default, sharing reserved for Phase 3).
+    //   subcollection, owner-only by default, sharing reserved for Phase 3),
+    //   notifications (V3.594 in-app notification feed — the catch-up
+    //   surface for pushes the user missed; written by Cloud Functions via
+    //   the Admin SDK, read + marked-read + dismissed by the owner).
     // pmr / tasks have explicit overrides below for cross-user collaboration.
+    //
+    // NOTE on `notifications`: this wildcard grants the owner write, so a
+    // user can technically forge items in their OWN feed. That is
+    // deliberate — no explicit block is added, because in Firestore any
+    // matching rule that allows an operation wins, so a narrower block
+    // below could not take the permission away. The boundary that matters
+    // (nobody can write into ANOTHER user's feed) is enforced here by
+    // isOwner, and self-forged junk is harmless.
 
     match /userData/{userId}/{document=**} {
       allow read:  if isOwner(userId) || isShared(resource.data);
       allow write: if isOwner(userId);
+    }
+
+    // V3.517 — Lab notebook cross-user READ for PMR reviewers. Notebook
+    // entries are surfaced (read-only) under the PMR weekly-entries section,
+    // so the PI (admin) and assigned mentors need read access to the
+    // student's entries + the `_index` summary doc. Write stays strictly
+    // owner-only (the blanket rule above already covers owner read+write).
+    // This intentionally relaxes the previously owner-only notebook privacy,
+    // but only for the same reviewer set that can already read the PMR
+    // itself (see the pmr blocks below). `{entryId}` is a single segment, so
+    // it matches the entry docs, `_index`, and `_templates` alike — the
+    // notebook is a flat subcollection. Reviewer reads are single-doc gets
+    // (index once, entries on expand), so no composite index is required.
+    match /userData/{userId}/notebook/{entryId} {
+      allow read:  if isOwner(userId) || isShared(resource.data)
+                   || isMentorOf(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    // V3.536 — Weekly focus areas (the mentor↔mentee focus loop). A focus
+    // area is the week's mentor-agreed outcome area; it contains a small
+    // task checklist. Both sides of the relationship co-author the doc —
+    // mentor drafts + signs off, mentee edits descriptions + reports —
+    // so mentors/admins get full read+write alongside the owner (the
+    // wildcard rule above already grants the owner). Status-transition
+    // discipline (only mentors confirm) is client-enforced, matching the
+    // PMR block's admin-trusted convention.
+    match /userData/{userId}/focusAreas/{focusId} {
+      allow read, write: if isOwner(userId) || isMentorOf(userId) || isAdmin();
     }
 
     // Project Management Reports — per-student, per-period docs the PI
@@ -1384,6 +2082,24 @@ service cloud.firestore {
       allow update: if isLabMember();
       allow delete: if isAdmin()
                     || resource.data.createdBy == request.auth.uid;
+    }
+
+    // V3.467 — grant-writing unification: reusable boilerplate templates
+    // (biosketch / facilities / DMP / mentoring-plan … prose) saved from
+    // a grant paper's attached-document sections and pulled back into new
+    // grants. Mirrors facilitiesDocs. owner_uid == null ⇒ lab-shared
+    // (any lab member may edit); a non-null owner_uid restricts edits to
+    // that owner (or an admin). created_by is the immutable author.
+    match /grantDocTemplates/{docId} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.created_by == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isLabMember()
+                        && (resource.data.owner_uid == null
+                            || resource.data.owner_uid == request.auth.uid));
+      allow delete: if isAdmin()
+                    || resource.data.created_by == request.auth.uid;
     }
 
     // V3.179 — Grant Writer (single-author, non-Yjs in V1).

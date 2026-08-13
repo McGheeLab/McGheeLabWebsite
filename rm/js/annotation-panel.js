@@ -22,7 +22,14 @@
   let _getDrafts = null;          // () → [{id, title}, ...]
   let _getGroups = null;          // () → [{id, name}, ...]
   let _onCreateGroup = null;      // (name) → Promise<groupId>
+  // V3.605 — whether the current user may create annotation groups
+  // (isLabContributor allowlist OR 'library-paper:groups' capability;
+  // computed by the host page). When false the "+ New group…" option is
+  // omitted entirely — previously every member saw it and non-allowlisted
+  // ones got a rules alert at write time.
+  let _allowNewGroup = true;
   let _onCiteToggle = null;       // (annId, draftId, on:boolean) → ...
+  let _onEnsureDraftLinked = null; // (draftId) → Promise — auto-link on evidence tag (V3.475)
   let _getBuckets = null;         // () → [{id, title}, ...] linked-to-this-paper
   let _onBucketToggle = null;     // (annId, bucketId, on:boolean) → ...
   let _getBucketColor = null;     // (bucketId) → '#rrggbb'
@@ -252,7 +259,7 @@
         <select class="ann-row-group" data-id="${_esc(ann.id)}">
           ${groups.map(g => `<option value="${_esc(g.id)}"${g.id === groupCur ? ' selected' : ''}>${_esc(g.name || g.id)}</option>`).join('')}
           ${hasCur ? '' : `<option value="${_esc(groupCur)}" selected>${_esc(groupCur)} (legacy)</option>`}
-          <option value="__new__">+ New group…</option>
+          ${_allowNewGroup ? '<option value="__new__">+ New group…</option>' : ''}
         </select>
       </div>`;
 
@@ -295,6 +302,18 @@
             ${stanceBadge}
           </span>
         </div>
+        ${ann.kind === 'equation' ? `
+          <div class="ann-eq-block">
+            ${ann.name ? `<div class="ann-eq-name">${_esc(ann.name)}</div>` : ''}
+            <div class="ann-eq-math" data-eq-id="${_esc(ann.id)}"></div>
+            ${ann.snip_data_uri ? `<img class="ann-eq-snip" src="${_esc(ann.snip_data_uri)}" alt="Snip from the paper" title="Snipped from the page — reference for the transcription">` : ''}
+            ${isMine ? `<button class="ann-eq-edit" data-id="${_esc(ann.id)}">✎ Transcription</button>` : ''}
+          </div>` : ''}
+        ${ann.kind === 'figure' ? `
+          <div class="ann-eq-block">
+            ${ann.name ? `<div class="ann-eq-name">🖼 ${_esc(ann.name)}</div>` : ''}
+            ${(ann.image && ann.image.download_url) || ann.snip_data_uri ? `<img class="ann-eq-snip" src="${_esc((ann.image && ann.image.download_url) || ann.snip_data_uri)}" alt="Figure snipped from the paper" title="Captured figure — available in the paper builder's Figure board" loading="lazy">` : ''}
+          </div>` : ''}
         ${quote ? `<blockquote class="ann-quote">${_esc(quote.slice(0, 600))}${quote.length > 600 ? '…' : ''}</blockquote>` : ''}
         ${ann.comment && section !== 'comment' ? `<div class="ann-comment">${_esc(ann.comment)}</div>` : ''}
         ${sectionPanel}
@@ -311,6 +330,21 @@
   }
 
   // ---- Inline section panels --------------------------------------------
+
+  // V3.475 — build <option>s for a draft picker, grouping "Linked to this
+  // paper" above "Other drafts" when the list carries `linked` flags (set by
+  // library-paper.js _draftShortlist). Falls back to a flat list otherwise.
+  function _draftSelectOptions(drafts, selectedId) {
+    const opt = d => `<option value="${_esc(d.id)}"${d.id === selectedId ? ' selected' : ''}>${_esc((d.title || d.id).slice(0, 60))}</option>`;
+    const hasFlags = drafts.some(d => Object.prototype.hasOwnProperty.call(d, 'linked'));
+    if (!hasFlags) return drafts.map(opt).join('');
+    const linked = drafts.filter(d => d.linked);
+    const other = drafts.filter(d => !d.linked);
+    let html = '';
+    if (linked.length) html += `<optgroup label="Linked to this paper">${linked.map(opt).join('')}</optgroup>`;
+    if (other.length) html += `<optgroup label="Other drafts">${other.map(opt).join('')}</optgroup>`;
+    return html;
+  }
 
   function _renderSectionPanel(ann, section, drafts, groups, groupCur) {
     if (section === 'comment') return _renderCommentPanel(ann);
@@ -336,9 +370,7 @@
     if (!state.draftId && drafts.length) state.draftId = drafts[0].id;
     _evidenceForm.set(ann.id, state);
 
-    const draftOpts = drafts.map(d =>
-      `<option value="${_esc(d.id)}"${d.id === state.draftId ? ' selected' : ''}>${_esc((d.title || d.id).slice(0, 60))}</option>`
-    ).join('');
+    const draftOpts = _draftSelectOptions(drafts, state.draftId);
 
     let claimsList;
     if (!state.draftId) {
@@ -420,7 +452,7 @@
           <select class="ann-row-group" data-id="${_esc(ann.id)}">
             ${groups.map(g => `<option value="${_esc(g.id)}"${g.id === groupCur ? ' selected' : ''}>${_esc(g.name || g.id)}</option>`).join('')}
             ${groups.some(g => g.id === groupCur) ? '' : `<option value="${_esc(groupCur)}" selected>${_esc(groupCur)} (legacy)</option>`}
-            <option value="__new__">+ New group…</option>
+            ${_allowNewGroup ? '<option value="__new__">+ New group…</option>' : ''}
           </select>
         </div>
         <div class="ann-section-actions">
@@ -598,6 +630,10 @@
           const ann = _annotations.find(a => a.id === annId);
           const prevGroup = (ann && ann.group) || 'general';
           sel.value = prevGroup;
+          // V3.605 — belt-and-suspenders: the option is hidden when not
+          // allowed, but guard the handler too (firestore.rules is the
+          // real gate either way).
+          if (!_allowNewGroup) return;
           const name = window.prompt('New group name (e.g. "method", "open question"):');
           if (!name || !name.trim()) return;
           if (!_onCreateGroup) {
@@ -638,6 +674,23 @@
       btn.addEventListener('click', () => {
         _cardSection.delete(btn.dataset.id);
         _render();
+      });
+    });
+
+    // E3 — captured equations: render the LaTeX as static math + wire
+    // the transcription editor.
+    _root.querySelectorAll('.ann-eq-math[data-eq-id]').forEach(el => {
+      const ann = _annotations.find(a => a.id === el.dataset.eqId);
+      if (ann && ann.latex && window.EQUATION_CAPTURE) {
+        window.EQUATION_CAPTURE.renderStatic(ann.latex, el);
+      } else if (ann && ann.latex) {
+        el.textContent = ann.latex;
+      }
+    });
+    _root.querySelectorAll('.ann-eq-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ann = _annotations.find(a => a.id === btn.dataset.id);
+        if (ann && window.EQUATION_CAPTURE) window.EQUATION_CAPTURE.openForAnnotation(ann);
       });
     });
 
@@ -728,6 +781,12 @@
         _render();
         try {
           await window.CLAIMS.addEvidence(state.draftId, state.claimId, ann.paperId, ann.id, state.stance);
+          // V3.475 — auto-link the chosen draft to this journal paper so the
+          // "Used in paper drafts" association reflects the new evidence tie.
+          // Non-fatal: the evidence already persisted regardless.
+          if (_onEnsureDraftLinked) {
+            try { await _onEnsureDraftLinked(state.draftId); } catch (_) { /* ignore */ }
+          }
           _cardSection.delete(id);
           _evidenceForm.delete(id);
         } catch (e) {
@@ -782,6 +841,20 @@
 
   function getDefaultVisibility() { return _defaultVisibility; }
 
+  /* V3.613 — scroll the panel to an annotation's card and flash it. The
+   * mobile reader calls this when the user taps a highlight on the page,
+   * so the drawer opens already centered on the right card. */
+  function focusCard(annId) {
+    if (!_root || !annId) return;
+    let card = null;
+    try { card = _root.querySelector(`.ann-card[data-id="${CSS.escape(String(annId))}"]`); }
+    catch (_) { /* CSS.escape unavailable — skip */ }
+    if (!card) return;
+    try { card.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) { card.scrollIntoView(); }
+    card.classList.add('ann-card-flash');
+    setTimeout(() => { try { card.classList.remove('ann-card-flash'); } catch (_) {} }, 1600);
+  }
+
   function init(opts) {
     // V3.294 — reset accumulating per-paper state so re-init on a tab switch
     // doesn't stack duplicate filter callbacks (each would fire on every
@@ -800,7 +873,9 @@
     _getDrafts = opts.getDrafts || null;
     _getGroups = opts.getGroups || null;
     _onCreateGroup = opts.onCreateGroup || null;
+    _allowNewGroup = (opts.allowNewGroup !== undefined) ? !!opts.allowNewGroup : true;
     _onCiteToggle = opts.onCiteToggle || null;
+    _onEnsureDraftLinked = opts.onEnsureDraftLinked || null;
     _onDelete = opts.onDelete || null;
     _onReply = opts.onReply || null;
     _onVisibilityDefaultChange = opts.onVisibilityDefaultChange || null;
@@ -828,5 +903,6 @@
     getFilterFn,
     onFilterChange,
     getDefaultVisibility,
+    focusCard,
   };
 })();

@@ -1,0 +1,86 @@
+{
+  "format": "protocol-import-v1",
+  "protocol": {
+    "id": "lesson-2-bindings-and-modifiers",
+    "title": "Node lesson 2 — Bindings & modifiers",
+    "summary": "A guided build: wire a constant into an input's max (a binding), then gate the dose onto the document through a 📊 Cards node — settings wires and display wires in one lesson.",
+    "tags": [
+      "demo",
+      "tutorial",
+      "nodes"
+    ],
+    "tree": {
+      "sections": [
+        {
+          "label": "Bindings",
+          "order": 0,
+          "children": [
+            {
+              "kind": "docHeader",
+              "body": "",
+              "attrs": {
+                "brand": "RM Node lessons",
+                "tag": "Lesson 2 of 4 · beginner · guided build",
+                "title": "Bindings & modifiers",
+                "chips": [
+                  {
+                    "text": "you build it — nothing is pre-made",
+                    "var": ""
+                  },
+                  {
+                    "text": "~8 min",
+                    "var": ""
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "note"
+              },
+              "body": "<b>How this lesson works.</b> The guided tour is running in the <b>⬡ Nodes</b> view. Lesson 1 wired variables into an equation; here a wire does something different — it drives a node's <b>setting</b>. That kind of wire is called a <b>binding</b>, and you'll build two."
+            },
+            {
+              "kind": "step",
+              "body": "Build 1: a <b>Constant</b> named <code>upper_cap</code> (value 100) wired into the <b>max</b> setting of a <code>dose</code> slider. Once built, drag <code>upper_cap</code>'s value up or down — the dose slider's maximum moves with it. A binding keeps two settings in lock-step."
+            },
+            {
+              "kind": "step",
+              "body": "How you'll make it: on a node, click <b>“+ add modifier”</b> at the bottom. That menu lists everything a node can accept — for an Input it offers “Drive min / max / step / default from a variable…”. Choosing one <b>arms</b> that setting's left dot (it pulses); then you click the variable's right dot to complete the wire. Every binding is discoverable through this menu."
+            },
+            {
+              "kind": "step",
+              "body": "Build 2: a <b>display gate</b>. A 📊 <b>Cards</b> node decides what the document shows — wire <code>dose</code> into it and the chosen dose renders as a live result card, read-only. Nothing displays by itself: ungated variables still compute, they just aren't offered to the page. (Card variables are automatically available to the editor's 🔗 reference picker too; a separate 🔗 <b>References</b> node offers values inline <i>without</i> a card.)"
+            },
+            {
+              "kind": "callout",
+              "attrs": {
+                "type": "assume"
+              },
+              "body": "The binding roles, in plain terms. <b>math</b> — the variable is usable by name inside an Equation (or a Code node) formula. <b>param</b> — the variable's live value overrides one numeric setting on the target node (min, max, step, default, decimals). <b>structural</b> — a set feeds a List, changing what items exist rather than any single number. <b>display</b> — the variable is offered to the document: as a result card (📊 Cards) or as an inline reference (🔗 References). <b>none</b> — legacy wires with no effect; delete them."
+            },
+            {
+              "kind": "step",
+              "body": "Live check (after the build): the dose input currently reads <b>[!var:dose]</b>, and the same value sits on the document as a gated card. Raise <code>upper_cap</code>, then push <code>dose</code> past its old ceiling to prove the binding really moved the max — typed values above the cap snap back, and lowering the cap pulls a saved dose down with it."
+            },
+            {
+              "kind": "step",
+              "body": "You now know three wire kinds: feeding a formula (math), driving a setting (param), and gating a value onto the document (display). <b>Lesson 3</b> builds the fourth — structural feeds — turning sets of options into an experiment list laid out on plates."
+            },
+            {
+              "kind": "design",
+              "body": "",
+              "attrs": {
+                "label": "Build it here — the guided tour walks you through it",
+                "formula": "",
+                "nodes": [],
+                "edges": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

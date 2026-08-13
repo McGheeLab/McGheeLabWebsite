@@ -200,6 +200,36 @@ async function _runDashboard() {
     console.warn('[dashboard] protocols card skipped:', err.message);
   }
 
+  // 4d. Scheduler (V3.342) — pending guest responses on schedulers you
+  // own + slots assigned to you. Direct reads (schedules/participants
+  // are public-read); wrapped in try/catch like the other optional cards.
+  try {
+    if (typeof firebridge !== 'undefined' && firebridge.db && firebridge.getUser && firebridge.getUser()) {
+      const _uid = firebridge.getUser().uid;
+      const db = firebridge.db();
+      const [ownedSnap, mineSnap] = await Promise.all([
+        db.collection('schedules').where('ownerUid', '==', _uid).get(),
+        db.collection('participants').where('speakerUid', '==', _uid).get(),
+      ]);
+      const owned = ownedSnap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      let pending = 0, guests = 0;
+      await Promise.all(owned.map(async (s) => {
+        const ps = await db.collection('participants').where('scheduleId', '==', s.id).get();
+        guests += ps.size;
+        ps.forEach(p => { if (!((p.data().availability || []).length)) pending++; });
+      }));
+      const myAssigned = mineSnap.docs.filter(d => d.data().assignedSlot).length;
+      const bits = [];
+      if (owned.length) bits.push(pending ? `${pending} of ${guests} guest${guests === 1 ? '' : 's'} not responded` : 'All guests responded');
+      if (myAssigned) bits.push(`${myAssigned} slot${myAssigned === 1 ? '' : 's'} assigned to you`);
+      grid.appendChild(card('Scheduler', owned.length,
+        bits.join(' · ') || 'Create a scheduling link or paint your availability',
+        '/rm/pages/scheduler.html'));
+    }
+  } catch (err) {
+    console.warn('[dashboard] scheduler card skipped:', err.message);
+  }
+
   // 5. Courses
   grid.appendChild(card('Courses', courses.courses.length,
     courses.courses.slice(0, 2).map(c => c.title).join(', ') || 'No courses yet',
@@ -328,9 +358,9 @@ async function _runDashboard() {
     var db = firebridge.db();
 
     try {
-      // V3.321 — My Activity: personal streak + this-week event count
-      // (hours are dead; FuturePlan 04 B3). One read of the signed-in
-      // user's last ~60 days of tracker events.
+      // V3.327 — My Activity: logged HOURS this week (from manual-entry
+      // durations, consistent with the tracker + PMR) plus the presence
+      // streak. One read of the signed-in user's last ~60 days.
       var me = firebridge.getUser && firebridge.getUser();
       if (me && me.uid) {
         var back60 = new Date();
@@ -340,7 +370,7 @@ async function _runDashboard() {
           .where('date', '>=', back60.toISOString().slice(0, 10))
           .get();
         var dayHas = {};
-        var weekCount = 0;
+        var weekMins = 0;
         var weekAgoStr = (function () {
           var d = new Date(); d.setDate(d.getDate() - 6);
           return d.toISOString().slice(0, 10);
@@ -350,16 +380,17 @@ async function _runDashboard() {
           if (e.status === 'dismissed') return;
           if (e.kind === 'schedule' || (!e.kind && e.scheduled_for && e.status === 'pending')) return;
           if (e.date) dayHas[e.date] = true;
-          if (e.date && e.date >= weekAgoStr) weekCount++;
+          var mins = (e.duration != null && isFinite(e.duration) && e.status !== 'pending') ? Number(e.duration) : 0;
+          if (e.date && e.date >= weekAgoStr && mins > 0) weekMins += mins;
         });
         var streak = 0;
         var cursor = new Date();
         function ds(d) { return d.toISOString().slice(0, 10); }
         if (!dayHas[ds(cursor)]) cursor.setDate(cursor.getDate() - 1); // empty today doesn't break it
         while (dayHas[ds(cursor)]) { streak++; cursor.setDate(cursor.getDate() - 1); }
-        grid.appendChild(card('My Activity',
-          streak + (streak === 1 ? ' day' : ' days'),
-          'streak · ' + weekCount + ' events this week',
+        grid.appendChild(card('My Activity (7d)',
+          (weekMins / 60).toFixed(1) + 'h',
+          streak + (streak === 1 ? ' day' : ' days') + ' streak',
           '/rm/pages/activity-overview.html?tab=tracker'));
       }
     } catch (e) {
@@ -388,18 +419,44 @@ async function _runDashboard() {
     }
 
     try {
-      // Huddle — this week's plans
+      // Huddle — this week's plans + open help.
+      // weekId math mirrors rm/js/huddle.js getMonday/getWeekId exactly
+      // (including the Sunday→next-Monday quirk) so counts always agree.
+      var hudMon = new Date();
+      hudMon.setDate(hudMon.getDate() - hudMon.getDay() + 1);
+      var hudTmp = new Date(hudMon.getTime());
+      hudTmp.setDate(hudTmp.getDate() + 3 - ((hudTmp.getDay() + 6) % 7));
+      var hudJan4 = new Date(hudTmp.getFullYear(), 0, 4);
+      var hudWeekNum = 1 + Math.round(((hudTmp - hudJan4) / 86400000 - 3 + ((hudJan4.getDay() + 6) % 7)) / 7);
+      var hudWeekId = hudTmp.getFullYear() + '-W' + String(hudWeekNum).padStart(2, '0');
+
       var huddleSnap = await db.collection('huddlePlans')
-        .orderBy('createdAt', 'desc').limit(10).get();
+        .where('weekId', '==', hudWeekId).get();
       var plans = huddleSnap.docs.map(function (d) { return d.data(); });
       var activePlans = plans.filter(function (p) {
-        return p.status === 'active' || p.status === 'published';
+        return p.status === 'planned' || p.status === 'delayed';
       });
+      var hudEsc = function (s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      };
       var planStr = activePlans.slice(0, 2).map(function (p) {
-        return (p.userName || 'Member') + ': ' + (p.title || p.protocol || 'Plan');
-      }).join(', ') || 'No active plans';
+        return hudEsc((p.ownerName || 'Member') + ': ' + (p.text || 'Plan'));
+      }).join(', ') || 'No plans yet this week';
+
+      var openHelpCount = 0;
+      try {
+        var helpSnap = await db.collection('huddleHelpRequests')
+          .where('status', '==', 'open').get();
+        openHelpCount = helpSnap.size;
+      } catch (helpErr) {
+        console.warn('[dashboard] Huddle help read failed:', helpErr.message);
+      }
+      if (openHelpCount) planStr += ' · ' + openHelpCount + ' open help request' + (openHelpCount !== 1 ? 's' : '');
+
       grid.appendChild(card('The Huddle', activePlans.length + ' plans',
-        planStr, '#'));
+        planStr, '/rm/pages/huddle.html'));
     } catch (e) {
       console.warn('[dashboard] Huddle read failed:', e.message);
     }
@@ -519,7 +576,7 @@ async function _runDashboard() {
 }
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view the lab overview.');
   await _runDashboard();
   // No LIVE_SYNC.attach: the dashboard is a glance-and-go rollup, not an
   // editing surface. Subscribing to 27 paths opened 27 onSnapshot listeners

@@ -41,7 +41,7 @@ const onHuddlePlanUpdate = onDocumentUpdated('huddlePlans/{planId}', async (even
     await sendToUsers(db, messaging, [afterData.ownerUid], {
       title: 'Huddle Joined',
       body: `${name} joined your huddle: ${planLabel}`,
-      url: '/rm/pages/huddle.html',
+      url: `/rm/pages/huddle.html?kind=plan&item=${planId}`,
       tag: `huddle-join-${planId}`,
     }, APP_KEY);
   }
@@ -57,9 +57,37 @@ const onHuddlePlanUpdate = onDocumentUpdated('huddlePlans/{planId}', async (even
     await sendToUsers(db, messaging, [afterData.ownerUid], {
       title: 'Huddle Watcher',
       body: `${name} is watching your huddle: ${planLabel}`,
-      url: '/rm/pages/huddle.html',
+      url: `/rm/pages/huddle.html?kind=plan&item=${planId}`,
       tag: `huddle-watch-${planId}`,
     }, APP_KEY);
+  }
+
+  // Check for new join requests (untimed "anytime" plans, V3.509) → notify owner
+  const beforeReqs = beforeData.joinRequests || [];
+  const afterReqs = afterData.joinRequests || [];
+  const beforeReqUids = beforeReqs.map((j) => j.uid);
+  const newRequests = afterReqs.filter((j) => j.status === 'pending' && !beforeReqUids.includes(j.uid));
+
+  for (const req of newRequests) {
+    await sendToUsers(db, messaging, [afterData.ownerUid], {
+      title: 'Join Request',
+      body: `${req.name || 'Someone'} wants to join: ${planLabel}`,
+      url: `/rm/pages/huddle.html?kind=plan&item=${planId}`,
+      tag: `huddle-joinreq-${planId}`,
+    }, APP_KEY);
+  }
+
+  // Join request answered (pending → accepted/declined) → notify the requester
+  for (const req of afterReqs) {
+    const prev = beforeReqs.find((j) => j.uid === req.uid);
+    if (prev && prev.status === 'pending' && (req.status === 'accepted' || req.status === 'declined')) {
+      await sendToUsers(db, messaging, [req.uid], {
+        title: req.status === 'accepted' ? 'Request Accepted' : 'Request Declined',
+        body: `${afterData.ownerName || 'The owner'} ${req.status} your request to join: ${planLabel}`,
+        url: `/rm/pages/huddle.html?kind=plan&item=${planId}`,
+        tag: `huddle-joinreq-${planId}`,
+      }, APP_KEY);
+    }
   }
 
   // Check for status change
@@ -77,7 +105,7 @@ const onHuddlePlanUpdate = onDocumentUpdated('huddlePlans/{planId}', async (even
       await sendToUsers(db, messaging, notifyUids, {
         title: 'Huddle Updated',
         body: `${afterData.ownerName}'s huddle was ${statusLabel}: ${planLabel}`,
-        url: '/rm/pages/huddle.html',
+        url: `/rm/pages/huddle.html?kind=plan&item=${planId}`,
         tag: `huddle-status-${planId}`,
       }, APP_KEY);
     }
@@ -101,7 +129,7 @@ const onHelpRequestCreate = onDocumentCreated('huddleHelpRequests/{requestId}', 
   await sendToAllMembers(db, messaging, {
     title: 'Help Request',
     body: `${req.ownerName} needs help: ${title}`,
-    url: '/rm/pages/huddle.html',
+    url: `/rm/pages/huddle.html?kind=help&item=${event.params.requestId}`,
     tag: `help-${event.params.requestId}`,
   }, APP_KEY, [req.ownerUid]);
 });
@@ -133,7 +161,7 @@ const onHelpRequestUpdate = onDocumentUpdated('huddleHelpRequests/{requestId}', 
   await sendToUsers(db, messaging, [afterData.ownerUid], {
     title: 'Help Response',
     body: `${responderName} responded to: ${title}`,
-    url: '/rm/pages/huddle.html',
+    url: `/rm/pages/huddle.html?kind=help&item=${event.params.requestId}`,
     tag: `help-${event.params.requestId}`,
   }, APP_KEY);
 });

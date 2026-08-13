@@ -44,6 +44,9 @@ node_modules/
 # Slack export — secrets and resume state
 scripts/.env
 scripts/.slack_export_checkpoint.json
+# Pasted Slack chat backups awaiting import (V3.582) — private DM
+# content (incl. passwords); never commit, never FTP.
+slack backup*.md
 
 # Firebase service account JSON used by one-off migration scripts (V3.212+)
 scripts/service-account.json
@@ -54,3 +57,7 @@ gcloud auth login/
 Data/protocols/GELS Lab Notebook.md
 # Private student documents (LORs, personal statements, CVs) — never publish
 Data/LOR requests/
+
+# App Store Connect API keys — never commit
+AuthKey_*.p8
+*.p8

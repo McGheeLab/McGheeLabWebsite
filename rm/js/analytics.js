@@ -573,7 +573,7 @@ document.getElementById('period-filter').onchange = function () { renderTab(); }
 /* ---- Init ---- */
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view lab analytics.');
   await loadAndRender();
   // No LIVE_SYNC.attach: analytics is a read-only rollup. Cached api.load
   // (TTLs in api-routes.js) gives the same data without onSnapshot listener

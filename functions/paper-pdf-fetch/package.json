@@ -1,0 +1,16 @@
+{
+  "name": "paper-pdf-fetch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloud Run service that loads a DOI page in headless Chrome and captures the article PDF (V3.501, Phase 3).",
+  "main": "server.js",
+  "engines": { "node": "20" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "firebase-admin": "^12.5.0",
+    "puppeteer": "23.11.1"
+  }
+}

@@ -13,7 +13,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadProfileState();
   render();
   // Keep the Google section in sync with firebridge's async auth resolution.
-  if (window.firebridge) {
+  // `firebridge` is a lexical const in firebase-bridge.js, never on window,
+  // so the old `window.firebridge` check was permanently false and this
+  // listener never registered — the Google card was stuck on its initial
+  // (pre-auth) "Not signed in" state forever.
+  if (typeof firebridge !== 'undefined' && firebridge.onAuth) {
     firebridge.onAuth(() => renderGoogleCard());
   }
 });
@@ -53,9 +57,9 @@ function googleCard() {
   card.dataset.card = 'google';
   card.innerHTML = `<h2>Google sign-in</h2>`;
 
-  const user = window.firebridge?.getUser?.();
+  const user = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
   if (user) {
-    const profile = window.firebridge?.getProfile?.();
+    const profile = (typeof firebridge !== 'undefined' && firebridge.getProfile) ? firebridge.getProfile() : null;
     const role = profile?.role || 'viewer';
     const row = document.createElement('div');
     row.className = 'profile-row';

@@ -57,7 +57,7 @@
     }
     if (opts.retry) {
       var r = document.createElement('button');
-      r.textContent = 'Retry';
+      r.textContent = opts.actionLabel || 'Retry';
       r.style.cssText =
         'margin-top:6px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);' +
         'padding:3px 10px;border-radius:5px;font-size:12px;cursor:pointer;';

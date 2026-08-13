@@ -21,6 +21,63 @@
   }
   function todayStr() { return new Date().toISOString().slice(0, 10); }
 
+  /* ── ☀️ My Day (V3.531) ────────────────────────────────────── */
+  async function tileMyDay() {
+    var u = firebridge.getUser();
+    var today = todayStr();
+    var weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    var snap = await firebridge.db().collection('userData').doc(u.uid)
+      .collection('dayPlans')
+      .where('date', '>=', weekAgo).where('date', '<=', today).get();
+    var todayCount = 0, unconfirmed = 0;
+    snap.docs.forEach(function (d) {
+      if (d.id === '_prefs') return;
+      var it = d.data();
+      if (it.date === today && it.status === 'planned') todayCount++;
+      else if (it.date < today && it.status === 'planned') unconfirmed++;
+    });
+    if (!todayCount && !unconfirmed) return null;
+    var bits = [];
+    if (todayCount) bits.push(todayCount + ' planned today');
+    if (unconfirmed) bits.push(unconfirmed + ' awaiting confirmation');
+    return {
+      href: '/rm/pages/my-day.html',
+      icon: '☀️',
+      label: 'My Day: ' + bits.join(', '),
+      detail: unconfirmed ? 'Did yesterday’s plans happen? Tap to confirm' : 'Your plan for today',
+      urgent: unconfirmed > 0
+    };
+  }
+
+  /* ── 🔔 unread notifications (V3.598) ──────────────────────── */
+  async function tileNotifications() {
+    var u = firebridge.getUser();
+    var snap = await firebridge.db().collection('userData').doc(u.uid)
+      .collection('notifications')
+      .where('readAt', '==', null).limit(20).get();
+    if (snap.empty) return null;
+    var n = snap.size;
+    // Lead with the newest one's title — "3 unread" tells you nothing
+    // about whether you need to be off the scope in 10 minutes.
+    var newest = null;
+    snap.docs.forEach(function (d) {
+      var v = d.data();
+      var ms = v.createdAt && v.createdAt.toMillis ? v.createdAt.toMillis() : 0;
+      if (!newest || ms > newest.ms) newest = { ms: ms, title: v.title || '' };
+    });
+    // Titles carry other people's display names, so they must be escaped
+    // here — boot() injects label/detail into innerHTML raw, leaving each
+    // tile responsible for its own content (same as tileTasks/tileMeeting).
+    var title = esc(newest.title || '');
+    return {
+      href: '/rm/pages/my-day.html',
+      icon: '🔔',
+      label: n === 1 ? (title || '1 new notification') : n + ' new notifications',
+      detail: n === 1 ? 'Tap to read' : (title || 'Tap to read'),
+      urgent: true
+    };
+  }
+
   /* ── ✅ tasks due soon ─────────────────────────────────────── */
   async function tileTasks() {
     var soon = [];
@@ -148,7 +205,7 @@
       root.parentNode.insertBefore(strip, root);
     }
 
-    var tiles = await Promise.all([tileTasks, tileMentions, tileMeeting, tileContent]
+    var tiles = await Promise.all([tileNotifications, tileMyDay, tileTasks, tileMentions, tileMeeting, tileContent]
       .map(function (fn) {
         return fn().catch(function (e) {
           console.warn('[home-feed] tile skipped:', e && e.message);

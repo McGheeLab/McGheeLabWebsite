@@ -7,26 +7,51 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/activity-signals.css">
+  <!-- V3.480 — Task Market board styles (market tab, folded from task-market.html). -->
+  <link rel="stylesheet" href="/rm/css/task-market.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <script>
-    /* V3.58 — unified Tasks shell. Single page hosts four tabs
-     * (dashboard / inbox / archive / add) selected via ?tab=<name>;
-     * default is `dashboard`. Replaces the V3.40-era four-page setup
-     * (tasks.html, tasks-inbox.html, tasks-archive.html,
-     * tasks-add.html) which each shipped its own near-identical shell
-     * and a manual cross-link tab bar. The other three pages now
-     * `<meta refresh>` to `tasks.html?tab=<name>` so bookmarks
-     * survive. */
+    /* V3.58 — unified Tasks shell. Single page hosts the tabs selected via
+     * ?tab=<name>; default is `dashboard`. Replaces the V3.40-era four-page
+     * setup (tasks.html, tasks-inbox.html, tasks-archive.html,
+     * tasks-add.html) which each shipped its own near-identical shell and a
+     * manual cross-link tab bar. The other pages now `<meta refresh>` to
+     * `tasks.html?tab=<name>` so bookmarks survive.
+     *
+     * V3.480 — Task Market folded in as a fifth tab (`market`). Its board
+     * is driven by task-market.js, which is already loaded on this page
+     * (V3.317 embedded/composer mode); rendering the board's mount points
+     * for the market tab is all that's needed to boot the full board. */
+    // V3.567 — inside the Ourlab app the Tasks hub is trimmed to just
+    // Dashboard / Completed / Task Market (no Add Task / Task List tabs).
+    window.__isOurlabApp = function () {
+      try {
+        if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
+        if (/[?&]mobileShell=1/.test(location.search)) return true;
+        if (sessionStorage.getItem('ourlab-shell-preview') === '1') return true;
+        // Hosted as a tab inside the Ourlab app shell (app-shell.html). window
+        // .Capacitor is NOT injected into iframes, so detect the same-origin
+        // shell parent instead — otherwise the Tasks hub shows all 5 tabs.
+        if (window.parent && window.parent !== window && window.parent.document
+            && window.parent.document.body
+            && window.parent.document.body.getAttribute('data-app-shell') === '1') return true;
+        return false;
+      } catch (e) { return false; }
+    };
+    window.__OURLAB_TASK_TABS = ['dashboard', 'archive', 'market'];
     (function() {
-      var validTabs = ['dashboard','inbox','archive','add'];
+      var validTabs = ['dashboard','inbox','archive','add','market'];
       var tab = new URLSearchParams(location.search).get('tab') || 'dashboard';
       if (validTabs.indexOf(tab) === -1) tab = 'dashboard';
+      // App: fold Add Task / Task List back to the Dashboard.
+      if (window.__isOurlabApp() && window.__OURLAB_TASK_TABS.indexOf(tab) === -1) tab = 'dashboard';
       window.__TASKS_TAB = tab;
       var TITLES = {
         dashboard: 'Task Dashboard',
         inbox:     'Task List',
         archive:   'Completed Tasks',
-        add:       'Add Task'
+        add:       'Add Task',
+        market:    'Task Market'
       };
       document.title = TITLES[tab] + ' — McGhee Lab';
     })();
@@ -37,12 +62,17 @@
     <div class="tab-bar" id="task-hub-tabs"></div>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        const HUB = [
+        let HUB = [
           { tab: 'dashboard', label: 'Dashboard' },
           { tab: 'add',       label: 'Add Task' },
           { tab: 'inbox',     label: 'Task List' },
           { tab: 'archive',   label: 'Completed' },
+          { tab: 'market',    label: 'Task Market' },
         ];
+        // App: show only the trimmed tab set.
+        if (window.__isOurlabApp && window.__isOurlabApp()) {
+          HUB = HUB.filter(t => window.__OURLAB_TASK_TABS.indexOf(t.tab) !== -1);
+        }
         const bar = document.getElementById('task-hub-tabs');
         const current = window.__TASKS_TAB;
         HUB.forEach(t => {
@@ -113,11 +143,15 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
   <script src="/rm/js/toast.js"></script>
   <script src="/rm/js/rm-dialog.js"></script>
+  <!-- V3.571 — standard app fold-up bottom sheet (Add Task / Send to Teammate
+       / Task Market composer render through APP_SHEET in the phone app). -->
+  <script src="/rm/js/app-sheet.js"></script>
   <script src="/rm/js/local-cache.js"></script>
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
@@ -132,6 +166,9 @@
   <!-- V3.194 — bridge to PMR (Add to PMR button + completion sync). -->
   <script src="/rm/js/task-pmr-sync.js"></script>
   <script src="/rm/js/activity-signals.js"></script>
+  <!-- V3.530 — My Day double-dip chips on subtask adds -->
+  <script src="/rm/js/notebook-schemas.js"></script>
+  <script src="/rm/js/day-distribute.js"></script>
   <!-- V3.234 — external links (Synology share URLs etc) on project buckets. -->
   <script src="/rm/js/external-links.js"></script>
 
@@ -153,14 +190,32 @@
         add:      '<h1 class="page-title">Add Task</h1>'
                  + '<div>'
                  + '  <a href="/rm/pages/tasks.html?tab=dashboard" class="btn" style="text-decoration:none">&larr; Dashboard</a>'
+                 + '</div>',
+        // V3.480 — Task Market. The button ids (tm-need-work / tm-new) are
+        // the exact ids task-market.js binds; no per-tab script is loaded
+        // for this tab because task-market.js is already on the page.
+        market:   '<h1 class="page-title">Task Market</h1>'
+                 + '<div>'
+                 + '  <button type="button" class="btn" id="tm-need-work">🙋 I need work</button>'
+                 + '  <button type="button" class="btn btn-primary" id="tm-new" style="margin-left:6px;">＋ New post</button>'
                  + '</div>'
       };
       var CONTAINERS = {
         dashboard: '<div id="dash-content">Loading…</div>',
         inbox:     '<div id="content">Loading…</div>',
         archive:   '<div id="content">Loading…</div>',
-        add:       '<div id="dash-content">Loading…</div>'
+        add:       '<div id="dash-content">Loading…</div>',
+        market:    '<div class="tm-hint">Offer tasks to the lab, ask for work, or hand a task to a teammate — everything cross-user lives here.</div>'
+                 + '<div class="tm-tabs" id="tm-tabs">'
+                 + '  <button data-view="board" class="active">Board</button>'
+                 + '  <button data-view="assignments">Assignments</button>'
+                 + '</div>'
+                 + '<div id="tm-board"><div class="tm-empty" style="grid-column:1/-1">Loading…</div></div>'
+                 + '<div id="tm-assignments" hidden></div>'
       };
+      // Per-tab renderer. `market` has no entry: task-market.js is already
+      // loaded above and boots itself once #tm-board is in the DOM (this
+      // container HTML is written synchronously, before DOMContentLoaded).
       var SCRIPTS = {
         dashboard: '/rm/js/tasks-dashboard-buckets.js',
         inbox:     '/rm/js/tasks-inbox-buckets.js',
@@ -169,7 +224,7 @@
       };
       document.getElementById('task-page-header').innerHTML = HEADERS[tab];
       document.getElementById('task-tab-mount').innerHTML = CONTAINERS[tab];
-      document.write('<scr' + 'ipt src="' + SCRIPTS[tab] + '"><\/scr' + 'ipt>');
+      if (SCRIPTS[tab]) document.write('<scr' + 'ipt src="' + SCRIPTS[tab] + '"><\/scr' + 'ipt>');
     })();
   </script>
   <script>
@@ -188,5 +243,7 @@
       });
     }
   </script>
+  <!-- V3.535 -- which-surface-for-what orientation banner -->
+  <script src="/rm/js/surface-guide.js" defer></script>
 </body>
 </html>

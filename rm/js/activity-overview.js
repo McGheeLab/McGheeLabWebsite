@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // signed-in lab member with their own data. The local Import / Process
   // buttons stay hidden on the deploy via .local-only CSS (server.py-only).
   if (typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
-    const gate = await firebridge.gateSignedIn(
+    const gate = await firebridge.requireSignIn(
       'Sign in to view your activity. Connect Gmail + Calendar in Settings to populate this page.'
     );
     if (!gate.allowed) return;

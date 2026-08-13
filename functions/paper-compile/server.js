@@ -69,13 +69,19 @@ async function verifyToken(req, res, next) {
 /* ── Compile route ── */
 
 app.post('/', verifyToken, async (req, res) => {
-  const { paperId, files, templateId, addons } = req.body || {};
+  const { paperId, files, templateId, addons, flatSource, mode, baseCompileId } = req.body || {};
   if (!paperId || !Array.isArray(files) || files.length === 0) {
     return res.status(400).json({ error: 'paperId and non-empty files[] required.' });
   }
   if (!/^[\w-]{1,128}$/.test(paperId)) {
     return res.status(400).json({ error: 'Invalid paperId.' });
   }
+  /* docKind discriminates main / diff / submission-doc compiles in the
+   * shared compiles subcollection (clients cannot write these docs —
+   * rules are admin-only — so the field MUST pass through here). */
+  const DOC_KINDS = ['main', 'diff', 'cover_letter', 'rebuttal'];
+  const docKind = mode === 'diff' ? 'diff'
+    : (DOC_KINDS.indexOf(req.body.docKind) >= 0 ? req.body.docKind : 'main');
 
   const compileId = crypto.randomBytes(8).toString('hex');
   const work = await fsp.mkdtemp(path.join(os.tmpdir(), 'paper-compile-' + compileId + '-'));
@@ -107,14 +113,91 @@ app.post('/', verifyToken, async (req, res) => {
       await fsp.writeFile(dst, f.content, 'utf8');
     }
 
-    /* TODO Phase 1.1 — fetch figures from Firebase Storage based on
-     * \includegraphics{figures/<basename>} patterns. For Phase 1 the
-     * compile may produce a PDF with missing-figure boxes; that's an
-     * acceptable failure mode for the first deploy. */
+    /* V3.347 — fetch figure assets from Firebase Storage into the
+     * workdir so \includegraphics{figures/<basename>} resolves. The
+     * client (rm/js/paper-export-tex.js buildBundle) sends
+     * figureAssets: [{relpath: 'figures/<basename>', storagePath}].
+     * Guards: count cap, figures/-only relpaths, the same traversal
+     * check as bundle files, per-file size cap. A missing blob is a
+     * warning (missing-figure box in the PDF), never a hard failure. */
+    const warnings = [];
+    const figureAssets = Array.isArray(req.body.figureAssets)
+      ? req.body.figureAssets.slice(0, 60)
+      : [];
+    if (Array.isArray(req.body.figureAssets) && req.body.figureAssets.length > 60) {
+      warnings.push('Figure asset list truncated to 60 entries.');
+    }
+    if (figureAssets.length) {
+      const figBucket = admin.storage().bucket();
+      const MAX_FIG_BYTES = 30 * 1024 * 1024;
+      for (const fa of figureAssets) {
+        if (!fa || typeof fa.relpath !== 'string' || typeof fa.storagePath !== 'string') continue;
+        if (!/^figures\/[^/]+$/.test(fa.relpath)) {
+          warnings.push('Skipped figure with invalid relpath: ' + fa.relpath);
+          continue;
+        }
+        if (fa.storagePath.includes('..')) {
+          warnings.push('Skipped figure with invalid storagePath: ' + fa.storagePath);
+          continue;
+        }
+        const dst = path.resolve(work, fa.relpath);
+        if (!dst.startsWith(work + path.sep)) {
+          warnings.push('Skipped figure (traversal): ' + fa.relpath);
+          continue;
+        }
+        try {
+          const file = figBucket.file(fa.storagePath);
+          const [meta] = await file.getMetadata();
+          const size = parseInt(meta.size, 10) || 0;
+          if (size > MAX_FIG_BYTES) {
+            warnings.push('Skipped oversized figure (' + Math.round(size / 1048576) + ' MB): ' + fa.relpath);
+            continue;
+          }
+          await fsp.mkdir(path.dirname(dst), { recursive: true });
+          await file.download({ destination: dst });
+        } catch (e) {
+          warnings.push('Figure fetch failed for ' + fa.relpath + ': ' + e.message);
+        }
+      }
+    }
 
-    const mainFile = files.find(f => /(^|\/)main\.tex$/.test(f.relpath))
+    let mainFile = files.find(f => /(^|\/)main\.tex$/.test(f.relpath))
       ? 'main.tex'
       : files[0].relpath;
+
+    /* Marked-up revision diff (mode:'diff'): latexdiff the base compile's
+     * stored flat source against the CURRENT flatSource, then compile
+     * diff.tex inside this workdir (figures/refs.bib/extra_files are
+     * already materialized above). */
+    if (mode === 'diff') {
+      if (!/^[a-f0-9]{16}$/.test(String(baseCompileId || ''))) {
+        return res.status(400).json({ error: 'diff mode needs a valid baseCompileId.' });
+      }
+      if (typeof flatSource !== 'string' || !flatSource.trim()) {
+        return res.status(400).json({ error: 'diff mode needs flatSource (the current flattened .tex).' });
+      }
+      const baseObj = admin.storage().bucket()
+        .file(`paperExports/${paperId}/compiles/${baseCompileId}.tex`);
+      const [baseExists] = await baseObj.exists();
+      if (!baseExists) {
+        return res.status(400).json({
+          error: 'No stored source for the base compile — sources are stored from compiles made after the latexdiff update; recompile once to enable diffs against it.',
+          compileId,
+        });
+      }
+      await baseObj.download({ destination: path.join(work, 'base.tex') });
+      await fsp.writeFile(path.join(work, 'new.tex'), flatSource, 'utf8');
+      const dr = await runLatexdiff(work, 'base.tex', 'new.tex');
+      if (dr.code !== 0 || !dr.diffTex || !dr.diffTex.trim()) {
+        return res.status(500).json({
+          error: 'latexdiff failed (exit ' + dr.code + ').',
+          log: (dr.stderr || '').slice(-4000),
+          compileId,
+        });
+      }
+      await fsp.writeFile(path.join(work, 'diff.tex'), dr.diffTex, 'utf8');
+      mainFile = 'diff.tex';
+    }
 
     const { code, stdout, stderr } = await runTectonic(work, mainFile);
     const log = (stdout || '') + (stderr ? '\n--- stderr ---\n' + stderr : '');
@@ -140,6 +223,23 @@ app.post('/', verifyToken, async (req, res) => {
       expires: Date.now() + 60 * 60 * 1000,    // 1 hour
     });
 
+    /* Store the FLATTENED source beside the PDF (non-diff compiles) so
+     * future latexdiff requests have a base. Capped; best-effort. */
+    let flatStoragePath = null;
+    if (mode !== 'diff' && typeof flatSource === 'string' && flatSource.trim() &&
+        flatSource.length <= 5 * 1024 * 1024) {
+      try {
+        flatStoragePath = `paperExports/${paperId}/compiles/${compileId}.tex`;
+        await bucket.file(flatStoragePath).save(flatSource, {
+          contentType: 'text/x-tex',
+          metadata: { metadata: { paperId, compileId } },
+        });
+      } catch (e) {
+        flatStoragePath = null;
+        warnings.push('Flat source not stored (' + e.message + ') — diffs against this compile will be unavailable.');
+      }
+    }
+
     /* Record the compile in Firestore — admin-write only per rules. */
     await admin.firestore()
       .collection('paperExports').doc(paperId)
@@ -155,9 +255,12 @@ app.post('/', verifyToken, async (req, res) => {
         bundleHash,                    // V3.232 — for client-side staleness detection
         logTail: log.slice(-4000),     // keep doc small; full log lives in the response
         ok: true,
+        docKind,                                        // main | diff | cover_letter | rebuttal
+        ...(flatStoragePath ? { flatStoragePath } : {}),
+        ...(mode === 'diff' ? { baseCompileId } : {}),
       });
 
-    res.json({ pdfUrl: url, log, compileId, warnings: [] });
+    res.json({ pdfUrl: url, log, compileId, warnings });
   } catch (err) {
     console.error('[compile] failed:', err);
     res.status(500).json({ error: err.message, compileId });
@@ -187,5 +290,32 @@ function runTectonic(cwd, mainFile) {
     proc.stderr.on('data', (d) => { err += d.toString(); });
     proc.on('error', (e) => resolve({ code: -1, stdout: out, stderr: err + '\n' + e.message }));
     proc.on('close', (code) => resolve({ code, stdout: out, stderr: err }));
+  });
+}
+
+/* ── latexdiff runner ──
+ * Flags: --math-markup=whole treats each equation atomically (fine-
+ * grained math markup is the classic latexdiff breakage on real papers);
+ * --graphics-markup=none avoids overlaying figure diffs;
+ * --disable-citation-markup avoids natbib/\cite corruption;
+ * UNDERLINE = added-underline / deleted-strikeout, the standard revision
+ * style. Output arrives on stdout. */
+function runLatexdiff(cwd, baseFile, newFile) {
+  return new Promise((resolve) => {
+    const args = [
+      '--type=UNDERLINE',
+      '--math-markup=whole',
+      '--graphics-markup=none',
+      '--disable-citation-markup',
+      baseFile,
+      newFile,
+    ];
+    const proc = spawn('latexdiff', args, { cwd });
+    let out = '';
+    let err = '';
+    proc.stdout.on('data', (d) => { out += d.toString(); });
+    proc.stderr.on('data', (d) => { err += d.toString(); });
+    proc.on('error', (e) => resolve({ code: -1, diffTex: '', stderr: err + '\n' + e.message }));
+    proc.on('close', (code) => resolve({ code, diffTex: out, stderr: err }));
   });
 }

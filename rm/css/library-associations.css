@@ -1,0 +1,144 @@
+/* library-associations.css — V3.365
+ * Association pills ("used in paper drafts") rendered by
+ * js/library-associations.js on the reader sidebar and the library-list
+ * popover. Color language: indigo = paper draft (matches .ann-draft-chip),
+ * teal = grant, grey = inactive (draft published / grant resolved).
+ * The add-picker modal reuses the reader's .lp-oim-* / .lp-linkpick-*
+ * classes from style.css — nothing to restyle here. */
+
+.la-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.la-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  background: #4338ca;
+  color: #fff;
+  border-radius: 11px;
+  padding: 2px 6px 2px 9px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.la-pill-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.la-pill-grant {
+  background: #0f766e;
+}
+
+.la-pill-inactive {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.la-pill-status {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  opacity: .8;
+}
+
+.la-pill-x {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: .7;
+}
+.la-pill-x:hover { opacity: 1; }
+
+/* Uncited indicator — hollow dot on an active pill whose paper hasn't
+ * been cited in that draft yet (meta.library.cited_in_drafts, V3.366). */
+.la-uncited-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid #fbbf24;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.la-add-btn {
+  border: 1px dashed #a5b4fc;
+  background: #eef2ff;
+  color: #4338ca;
+  border-radius: 11px;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.la-add-btn:hover { background: #e0e7ff; }
+
+.la-inactive-toggle {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.la-inactive-toggle:hover { color: #4b5563; text-decoration: underline; }
+
+.la-empty,
+.la-loading {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Library-list quick-manage popover (anchored to the row badge). */
+.la-popover {
+  position: fixed;
+  z-index: 1200;
+  width: 330px;
+  max-height: 60vh;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  padding: 10px 12px;
+}
+
+.la-pop-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+/* Library row badge — the passive V3.352 span became a button (V3.365).
+ * Base look inherited from .lib-links-badge in style.css; the ghost
+ * variant is the subtle quick-add on rows with no associations yet. */
+button.lib-links-badge {
+  border: none;
+  cursor: pointer;
+}
+button.lib-links-badge:hover { background: #e0e7ff; }
+
+.lib-links-badge-ghost {
+  background: transparent !important;
+  border: 1px dashed #c7d2fe !important;
+  color: #a5b4fc !important;
+}
+.lib-links-badge-ghost:hover {
+  color: #4338ca !important;
+  background: #eef2ff !important;
+}

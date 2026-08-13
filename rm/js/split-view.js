@@ -99,9 +99,37 @@
    * iframe suppresses its top nav / workflow strip. V3.75: only embed
    * when a workflow is active; outside a workflow the parent shows no
    * strip, so the iframe's regular nav is the user's only way to
-   * navigate. Captured at IIFE time before nav.js's _wfAdoptFromUrl
-   * strips ?workflow= via history.replaceState. */
-  const _HAS_WORKFLOW = !!new URLSearchParams(location.search).get('workflow');
+   * navigate.
+   *
+   * V3.618 — workflow context comes from sessionStorage (the same
+   * source nav.js's strip reads), not the URL param alone. writeState()
+   * below rewrites the URL without ?workflow= on the very first tick,
+   * so any reload / back-forward return to the split URL used to load
+   * with _HAS_WORKFLOW=false while the parent strip (sessionStorage)
+   * still rendered — each pane then adopted the workflow itself and
+   * drew a second strip inside the iframe. For the same reason the
+   * ?workflow= param must be adopted into sessionStorage HERE: this
+   * IIFE runs before nav.js's DOMContentLoaded _wfAdoptFromUrl, and by
+   * the time that runs writeState() has already stripped the param. */
+  const _WF_STORAGE_KEY = 'mcgheelab.activeWorkflow';   // keep in sync with nav.js / workflow-state.js
+  const _HAS_WORKFLOW = (function () {
+    try {
+      let existing = null;
+      try { existing = JSON.parse(sessionStorage.getItem(_WF_STORAGE_KEY) || 'null'); } catch (e) {}
+      const wfId = new URLSearchParams(location.search).get('workflow');
+      if (wfId) {
+        if (!existing || existing.id !== wfId) {
+          // Mirror nav.js's _wfAdoptFromUrl fresh-state shape.
+          sessionStorage.setItem(_WF_STORAGE_KEY, JSON.stringify({
+            id: wfId, kind: 'default', addedPageIds: [], removedPageIds: [],
+            orderOverride: null, pageState: {},
+          }));
+        }
+        return true;
+      }
+      return !!(existing && existing.id);
+    } catch (e) { return false; }
+  })();
 
   function _embedHref(href) {
     if (typeof href !== 'string') return href;

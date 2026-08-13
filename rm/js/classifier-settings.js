@@ -316,7 +316,7 @@
       try { await firebridge.whenAuthResolved(); } catch (_) {}
     }
     if (typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
-      var gate = await firebridge.gateSignedIn('Sign in to tune your email classifier.');
+      var gate = await firebridge.requireSignIn('Sign in to tune your email classifier.');
       if (!gate.allowed) return;
     }
     if (!window.EMAIL_CLASSIFIER) { setStatus('classifier engine failed to load'); return; }

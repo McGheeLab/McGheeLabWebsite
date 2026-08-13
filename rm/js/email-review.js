@@ -2879,7 +2879,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     try { await firebridge.whenAuthResolved(); } catch (_) {}
   }
   if (typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
-    var gate = await firebridge.gateSignedIn(
+    var gate = await firebridge.requireSignIn(
       'Sign in to triage your inbox. Connect Gmail in Settings to populate this view.'
     );
     if (!gate.allowed) return;

@@ -693,6 +693,58 @@ body {
 .fb-panel-details .form-group { margin-bottom: 10px; }
 .fb-panel-details input { width: 100%; }
 
+/* ---- Sign-in gate card (V3.338) ---- */
+#fb-gate-card {
+  padding: 48px 16px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+#fb-gate-card .fb-gate-inner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+#fb-gate-card .fb-panel-actions { max-width: 320px; }
+#fb-gate-card .fb-panel-details { max-width: 320px; }
+#fb-gate-card .fb-signin-error { display: none; }
+@media (max-width: 600px) {
+  #fb-gate-card { padding: 24px 12px; }
+}
+
+/* ---- Access-issue banner (V3.338) ---- */
+#fb-access-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998; /* below the pending-access overlay (99999) */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: min(92vw, 640px);
+  background: var(--amber-bg, #fef3c7);
+  color: var(--amber, #b45309);
+  border: 1px solid var(--amber, #d97706);
+  border-radius: var(--radius, 8px);
+  padding: 10px 14px;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+}
+#fb-access-banner button {
+  background: none;
+  border: 1px solid currentColor;
+  color: inherit;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+#fb-access-banner button:hover { background: rgba(0,0,0,0.06); }
+#fb-access-banner .fb-access-close { border: none; padding: 3px 6px; }
+
 /* ---- GHS Pictograms (chemical safety) ---- */
 .ghs-pictogram {
   display: inline-flex;
@@ -2307,6 +2359,46 @@ a.lp-cb-action[href*="library-paper"]:hover{background:#bfdbfe;color:#1e3a8a}
 .ann-swatch:hover{transform:scale(1.12)}
 .ann-toolbar-cancel{background:transparent;color:#9ca3af;border:none;cursor:pointer;font-size:14px;padding:0 6px}
 .ann-toolbar-cancel:hover{color:#f9fafb}
+/* E3 — "ƒ" capture-equation action on the create toolbar */
+.ann-toolbar-eq{width:22px;height:20px;border-radius:4px;border:1px solid rgba(255,255,255,0.35);background:#0d9488;color:#fff;font-style:italic;font-weight:700;font-size:13px;line-height:1;cursor:pointer;padding:0}
+.ann-toolbar-eq:hover{background:#0f766e}
+
+/* E3 — equation-capture modal + panel row */
+/* V3.616 — click-to-snip figure hotspots (figure-capture.refreshHotspots).
+ * The layer itself is inert; each hotspot is clickable but lets drag
+ * gestures (marquee / Alt-select) bubble through to geom-selection. */
+.fc-hotspot-layer{position:absolute;inset:0;pointer-events:none;z-index:4}
+.fc-hotspot{position:absolute;pointer-events:auto;cursor:pointer;border-radius:6px}
+.fc-hotspot-badge{position:absolute;top:6px;right:6px;font-size:13px;line-height:1;background:rgba(255,255,255,0.92);border:1px solid #e2e5ec;border-radius:6px;padding:3px 6px;opacity:0.55;transition:opacity .15s;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,0.12)}
+.fc-hotspot:hover{outline:2px dashed #ec4899;outline-offset:2px;background:rgba(236,72,153,0.05)}
+.fc-hotspot:hover .fc-hotspot-badge{opacity:1}
+.fc-hotspot:hover .fc-hotspot-badge::after{content:" Snip figure";font-size:11px;font-weight:600;color:#be185d}
+
+.eqcap-overlay{position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,0.5);display:flex;align-items:center;justify-content:center}
+.eqcap-card{background:#fff;border-radius:10px;box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:14px 16px;width:min(560px,94vw);max-height:90vh;overflow-y:auto}
+.eqcap-head{font-weight:700;font-size:13px;margin-bottom:8px}
+.eqcap-snip{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;padding:6px;text-align:center;margin-bottom:8px}
+.eqcap-snip img{max-width:100%;max-height:140px}
+.eqcap-name{width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;margin-bottom:6px}
+.eqcap-tabs{display:flex;align-items:center;gap:2px;margin-bottom:4px}
+.eqcap-tabs button{font-size:10.5px;padding:1px 8px;border:1px solid #d1d5db;border-radius:10px;background:#f9fafb;color:#6b7280;cursor:pointer}
+.eqcap-tabs button.active{background:#ccfbf1;border-color:#5eead4;color:#0f766e;font-weight:600}
+/* V3.461 — ✨ Auto-read (snip → LaTeX via the equationOcr function). */
+.eqcap-tabs .eqcap-ocr-btn{margin-left:auto;background:#f0fdfa;border-color:#5eead4;color:#0f766e}
+.eqcap-tabs .eqcap-ocr-btn:hover{background:#ccfbf1}
+.eqcap-tabs .eqcap-ocr-btn:disabled{opacity:.55;cursor:default}
+.eqcap-ocr-note{font-size:11px;color:#6b7280;margin:0 0 4px}
+.eqcap-ocr-note.eqcap-ocr-ok{color:#047857}
+.eqcap-ocr-note.eqcap-ocr-err{color:#b45309}
+.eqcap-edhost math-field{display:block;width:100%;box-sizing:border-box;font-size:19px;padding:8px;border:1px solid #5eead4;border-radius:4px}
+.eqcap-latex{width:100%;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px}
+.eqcap-note{width:100%;box-sizing:border-box;font-size:12.5px;padding:6px 8px;border:1px solid #e5e7eb;border-radius:4px;margin-top:6px}
+.eqcap-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.ann-eq-block{background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;padding:7px 9px;margin:6px 0}
+.ann-eq-name{font-size:11.5px;font-weight:700;color:#0f766e;margin-bottom:2px}
+.ann-eq-math{overflow-x:auto;padding:2px 0}
+.ann-eq-snip{display:block;max-width:100%;max-height:70px;margin-top:4px;border:1px dashed #cbd5e1;border-radius:4px;background:#fff}
+.ann-eq-edit{margin-top:4px;font-size:10.5px;padding:1px 8px;border:1px solid #5eead4;border-radius:10px;background:#ccfbf1;color:#0f766e;cursor:pointer}
 
 /* Side panel header (filters) */
 .ann-panel-header{padding:10px 12px;background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:2}
@@ -2780,4 +2872,144 @@ body[data-runtime="deploy"] .admin-local-only { display: none !important; }
 .rm-desktop-only-btn-secondary:hover {
   background: var(--bg, #f5f6fa);
   color: var(--text, #1f2937);
+}
+
+/* V3.352 — library row linkage badge (drafts using this paper). */
+.lib-links-badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:8px;background:#eef2ff;color:#4338ca;margin-top:2px;white-space:nowrap;cursor:default}
+
+/* V3.483 — reference-import shared dialog (library bulk import + editor
+ * import-and-attach). Neutral modal; reuses no page-specific classes. */
+.ri-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.ri-modal{background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(15,23,42,.25);width:100%;max-width:720px;display:flex;flex-direction:column;overflow:hidden}
+.ri-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb}
+.ri-title{font-weight:600;font-size:15px}
+.ri-x{border:none;background:transparent;font-size:16px;cursor:pointer;color:#6b7280;padding:4px 8px;border-radius:6px}
+.ri-x:hover{background:#f3f4f6;color:#111827}
+.ri-tabs{display:flex;gap:4px;padding:10px 18px 0}
+.ri-tab{border:1px solid #e5e7eb;border-bottom:none;background:#f9fafb;padding:6px 14px;border-radius:8px 8px 0 0;cursor:pointer;font-size:13px;color:#6b7280}
+.ri-tab-active{background:#fff;color:#111827;font-weight:600}
+.ri-body{padding:14px 18px;border-top:1px solid #e5e7eb;margin-top:-1px}
+.ri-pane.ri-hidden{display:none}
+.ri-hint{font-size:12px;color:#6b7280;margin:0 0 8px}
+.ri-ta{width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;border:1px solid #d1d5db;border-radius:8px;padding:8px;box-sizing:border-box;resize:vertical}
+.ri-file{display:block;margin-bottom:8px;font-size:12px}
+.ri-actions{display:flex;align-items:center;gap:10px;padding:10px 18px;border-top:1px solid #e5e7eb}
+.ri-status{flex:1;font-size:12px;color:#6b7280}
+.ri-parse,.ri-commit{border:1px solid #d1d5db;background:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+.ri-commit{background:#2563eb;color:#fff;border-color:#2563eb}
+.ri-commit:disabled{opacity:.5;cursor:not-allowed}
+.ri-parse:hover{background:#f3f4f6}
+.ri-preview{max-height:340px;overflow:auto;padding:0 18px 14px}
+.ri-preview:empty{display:none}
+.ri-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.ri-tbl th{text-align:left;color:#6b7280;font-weight:600;padding:6px 8px;border-bottom:1px solid #e5e7eb;position:sticky;top:0;background:#fff}
+.ri-tbl td{padding:6px 8px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+.ri-num{color:#9ca3af;font-variant-numeric:tabular-nums}
+.ri-t{font-weight:500;color:#111827}
+.ri-a{color:#6b7280;margin-top:1px}
+.ri-k{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#4338ca}
+.ri-badge{font-size:10px;padding:1px 7px;border-radius:8px;white-space:nowrap}
+.ri-new{background:#dcfce7;color:#166534}
+.ri-dup{background:#f3f4f6;color:#6b7280}
+.ri-err{background:#fee2e2;color:#dc2626}
+.ri-sum{font-size:12px;color:#6b7280;margin-top:8px;font-weight:600}
+
+/* ── Huddle nav badge (V3.511) — injected by rm/js/huddle-badge.js ── */
+.huddle-nav-badge {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  margin-left: .3rem;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border-radius: 999px;
+  font-size: .6rem;
+  font-weight: 700;
+  padding: .05rem .3rem;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+/* ── V3.601 — research-roadmap attachment (roadmap-attach.js) ───────
+   Shared by library.html, library-paper.html, and research.html, so
+   these live here rather than in research.css. The modal frame itself
+   is the reader's existing .lp-oim-* / .lp-linkpick-* shell; only the
+   roadmap-specific rows and the "why" fields are new. */
+
+.rmap-at-list { padding: 0 4px; }
+.rmap-at-group { margin-bottom: 10px; }
+.rmap-at-row { padding: 2px 0; }
+.rmap-at-check { display: flex; align-items: baseline; gap: 6px; cursor: pointer; font-size: 12px; padding: 3px 6px; border-radius: 6px; }
+.rmap-at-check:hover { background: #f3f4f6; }
+.rmap-at-label { flex: 1; }
+.rmap-at-have { font-size: 10px; font-weight: 700; color: #166534; background: #dcfce7; border-radius: 999px; padding: 0 7px; }
+/* Depth mirrors the roadmap tree: whole roadmap → experiment → analysis. */
+.rmap-at-d0 { margin-left: 0; }
+.rmap-at-d1 { margin-left: 14px; }
+.rmap-at-d2 { margin-left: 30px; }
+.rmap-at-d2 .rmap-at-label { color: #374151; }
+
+/* The "why" fields — revealed by ticking a target, because a note with
+   no attachment is meaningless and an attachment with no note is the
+   thing this feature exists to prevent. */
+.rmap-at-why { display: flex; gap: 6px; align-items: center; margin: 4px 0 6px 26px; }
+.rmap-at-why-fixed { margin: 10px 16px; }
+.rmap-at-why[hidden] { display: none; }
+.rmap-at-rel { font-size: 11px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+.rmap-at-note { flex: 1; font-size: 11px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+.rmap-at-note:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 2px rgba(124, 58, 237, .15); }
+.rmap-at-err { color: #b91c1c; font-size: 11px; margin-right: auto; }
+.rmap-at-prow input[type=radio] { margin-right: 2px; }
+.rmap-at-more { font-size: 10px; color: #9ca3af; padding: 6px 8px; font-style: italic; }
+
+/* "On these roadmaps" chips — reader sidebar. */
+.rmap-chips { display: flex; flex-direction: column; gap: 3px; }
+.rmap-chip {
+  display: flex; flex-direction: column; gap: 1px; text-decoration: none;
+  font-size: 11px; padding: 3px 8px; border: 1px solid #e5e7eb;
+  border-radius: 7px; background: #fff; color: #374151;
+}
+.rmap-chip:hover { border-color: #7c3aed; color: #5b21b6; }
+.rmap-chip-card { font-weight: 600; }
+.rmap-chip-where { color: #6b7280; font-size: 10px; }
+.rmap-chip-empty { font-size: 11px; color: #9ca3af; font-style: italic; }
+
+/* ---- V3.613 — touch reader shared bits (used by geom-selection /
+ * pdf-viewer / annotation-panel on any page with a touch pointer; the
+ * dedicated mobile pages add their own chrome in library-mobile.css). ---- */
+
+/* Pinch-transform wrapper (pdf-viewer contentWrapper opt). Mirrors the
+ * .lp-viewer column layout; MUST stay position:static so wrap.offsetTop
+ * keeps resolving against the scroll container. V3.614 — auto side
+ * margins (not parent align-items:center): they center the wrapper when
+ * it's narrower than the viewport and collapse to 0 when zoomed wider,
+ * so the page's left edge stays scroll-reachable. */
+.pv-content {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  margin-left: auto; margin-right: auto;
+}
+
+/* Virtualization-freed page: canvas backing store is 0×0 but the styled
+ * size holds the layout; a soft ground marks it as "will re-render". */
+.pv-page-wrap.pv-canvas-empty { background: #f9fafb; }
+
+/* Long-press affordance: the first snapped word pulses so the user sees
+ * selection mode engage under their finger. */
+@keyframes pv-sel-pulse {
+  0% { background-color: rgba(99, 102, 241, 0.6); }
+  100% { background-color: rgba(99, 102, 241, 0.32); }
+}
+.pv-sel-rect.pv-sel-pulse { animation: pv-sel-pulse 0.45s ease 2; }
+
+/* Tap-a-highlight → panel card flash (ANNOTATION_PANEL.focusCard). */
+.ann-card.ann-card-flash { outline: 2px solid #6366f1; outline-offset: 2px; }
+
+@media (pointer: coarse) {
+  /* One-finger scroll stays native; two-finger gestures are ours
+   * (viewer-touch pinch). No effect on mouse/desktop. */
+  .lp-viewer, .lp-viewer-pane { touch-action: pan-x pan-y; }
+  /* 🖍 armed mode: nothing scrolls — every one-finger drag selects. */
+  body.lp-hl-armed .lp-viewer, body.lp-hl-armed .lp-viewer-pane { touch-action: none; }
+  /* No iOS long-press callout over PDF pages (selection is geometric). */
+  .pv-page-wrap { -webkit-touch-callout: none; }
 }

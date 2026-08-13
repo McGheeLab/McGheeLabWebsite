@@ -10,14 +10,28 @@
  */
 
 (function () {
+  /* V3.346 — auto-label a float the moment numbering turns on, so the
+   * ref pickers never dead-end on "this figure has no label yet". Slug
+   * from the caption's first words when available, else the block id. */
+  function autoLabelOnNumber(attrs, yBlock, prefix, captionText) {
+    if ((attrs.get('label') || '').trim()) return;
+    var base = String(captionText || '').trim().toLowerCase()
+      .replace(/[^a-z0-9\s_-]+/g, '')
+      .trim().split(/\s+/).slice(0, 4).join('-');
+    if (!base) base = String(yBlock.get('id') || '').replace(/^p-/, '');
+    if (!base) return;
+    attrs.set('label', prefix + base.slice(0, 40));
+  }
+
   function renderYBlock(yBlock, ctx) {
     var kind = yBlock.get('kind');
     switch (kind) {
       case 'paragraph': return renderParagraph(yBlock, ctx);
+      case 'subheading': return renderSubheading(yBlock, ctx);
+      case 'list':      return renderList(yBlock, ctx);
       case 'equation':  return renderEquation(yBlock, ctx);
       case 'figure':    return renderFigure(yBlock, ctx);
       case 'table':     return renderTable(yBlock, ctx);
-      case 'list':      return renderUnsupported(yBlock, ctx, 'List');
       default:          return renderUnsupported(yBlock, ctx, kind || 'unknown');
     }
   }
@@ -903,6 +917,7 @@
         // Auto-flip to display when the user enables numbering — inline
         // equations can't be numbered.
         if (numCb.checked) attrs.set('display', true);
+        if (numCb.checked) autoLabelOnNumber(attrs, yBlock, 'eq:', '');   // V3.346
       }, 'eq-numbered-toggle');
     });
     var numLbl = document.createElement('span');
@@ -910,6 +925,24 @@
     numWrap.appendChild(numCb);
     numWrap.appendChild(numLbl);
     bar.appendChild(numWrap);
+
+    /* E2 — visual equation editing. The body contenteditable is bound
+     * via bindYTextToContentEditable (chip-mode focus handler REPLACES
+     * innerHTML; the serializer walks the DOM) — an inline <math-field>
+     * would be destroyed on focus and misread on input. So visual
+     * editing happens in an OVERLAY: seed from body.toString(), Apply =
+     * one transact clobber; the binding's observer repaints KaTeX. */
+    if (ctx.editable && window.ensureMathlive) {
+      var vizBtn = document.createElement('button');
+      vizBtn.type = 'button';
+      vizBtn.className = 'pe-eq-visual-btn';
+      vizBtn.textContent = '⧉ Visual';
+      vizBtn.title = 'Edit this equation in the visual editor';
+      vizBtn.addEventListener('click', function () {
+        _openEqVisualOverlay(yBlock);
+      });
+      bar.appendChild(vizBtn);
+    }
 
     var labelInput = document.createElement('input');
     labelInput.type = 'text';
@@ -1106,6 +1139,10 @@
     numCb.addEventListener('change', function () {
       yBlock.doc.transact(function () {
         attrs.set('numbered', !!numCb.checked);
+        if (numCb.checked) {                                             // V3.346
+          var capY = yBlock.get('body');
+          autoLabelOnNumber(attrs, yBlock, 'fig:', capY && capY.toString ? capY.toString() : '');
+        }
       }, 'fig-numbered-toggle');
     });
     var numLbl = document.createElement('span');
@@ -1144,15 +1181,15 @@
       var editPanelBtn = document.createElement('button');
       editPanelBtn.type = 'button';
       editPanelBtn.className = 'pe-edit-in-panel-btn';
-      editPanelBtn.textContent = 'Edit in panel ↗';
-      editPanelBtn.title = 'Open the Figures tab in the side panel and scroll to this figure';
+      editPanelBtn.textContent = 'Edit on Figures page ↗';
+      editPanelBtn.title = 'Open the Figure editor page scrolled to this figure';
       editPanelBtn.addEventListener('click', function (e) {
         e.preventDefault();
         if (!window.PaperEquations) return;
-        window.PaperEquations.showPanel && window.PaperEquations.showPanel();
-        window.PaperEquations.setActiveTab && window.PaperEquations.setActiveTab('figures');
-        if (window.PaperEquations.scrollToFigureRow) {
-          setTimeout(function () { window.PaperEquations.scrollToFigureRow(blockId); }, 50);
+        if (window.PaperEquations.gotoPage) {
+          window.PaperEquations.gotoPage('figures', { focus: blockId });
+        } else if (window.PaperEquations.scrollToFigureRow) {
+          window.PaperEquations.scrollToFigureRow(blockId);
         }
       });
       bar.appendChild(editPanelBtn);
@@ -1346,7 +1383,16 @@
     });
     placeSel.value = attrs.get('placement') || 'H';
     placeSel.addEventListener('change', function () {
-      yBlock.doc.transact(function () { attrs.set('placement', placeSel.value); }, 'fig-placement');
+      yBlock.doc.transact(function () {
+        attrs.set('placement', placeSel.value);
+        /* V3.395 — keep the layout intent (anchor/lock) in sync so the
+         * Document view + export derive the same float. */
+        if (window.PaperLayout && window.PaperLayout.placementToAnchor) {
+          var la = window.PaperLayout.placementToAnchor(placeSel.value);
+          attrs.set('anchor', la.anchor);
+          attrs.set('lock', la.lock);
+        }
+      }, 'fig-placement');
     });
 
     /* centering checkbox */
@@ -1557,6 +1603,10 @@
     numCb.addEventListener('change', function () {
       yBlock.doc.transact(function () {
         attrs.set('numbered', !!numCb.checked);
+        if (numCb.checked) {                                             // V3.346
+          var tcapY = attrs.get('caption');
+          autoLabelOnNumber(attrs, yBlock, 'tab:', tcapY && tcapY.toString ? tcapY.toString() : '');
+        }
       }, 'tab-numbered-toggle');
     });
     var numLbl = document.createElement('span');
@@ -1614,15 +1664,15 @@
       var tabEditPanelBtn = document.createElement('button');
       tabEditPanelBtn.type = 'button';
       tabEditPanelBtn.className = 'pe-edit-in-panel-btn';
-      tabEditPanelBtn.textContent = 'Edit in panel ↗';
-      tabEditPanelBtn.title = 'Open the Tables tab in the side panel and scroll to this table';
+      tabEditPanelBtn.textContent = 'Edit on Tables page ↗';
+      tabEditPanelBtn.title = 'Open the Tables page scrolled to this table';
       tabEditPanelBtn.addEventListener('click', function (e) {
         e.preventDefault();
         if (!window.PaperEquations) return;
-        window.PaperEquations.showPanel && window.PaperEquations.showPanel();
-        window.PaperEquations.setActiveTab && window.PaperEquations.setActiveTab('tables');
-        if (window.PaperEquations.scrollToTableRow) {
-          setTimeout(function () { window.PaperEquations.scrollToTableRow(blockId); }, 50);
+        if (window.PaperEquations.gotoPage) {
+          window.PaperEquations.gotoPage('tables', { focus: blockId });
+        } else if (window.PaperEquations.scrollToTableRow) {
+          window.PaperEquations.scrollToTableRow(blockId);
         }
       });
       bar.appendChild(tabEditPanelBtn);
@@ -1782,11 +1832,33 @@
       var cells = attrs.get('cells');
       var table = document.createElement('table');
       table.className = 'pe-grid-table';
+      /* Tables II — mirror merges + column widths (read-only preview). */
+      var PLm = window.PaperLayout || {};
+      var mMerges = PLm.parseTableMerges ? PLm.parseTableMerges(attrs.get('merges_json')) : {};
+      var mCover = PLm.tableCoverMap ? PLm.tableCoverMap(mMerges, rows, cols) : { anchors: {}, skip: {}, cont: {} };
+      var mWidths = PLm.parseTableWidths ? PLm.parseTableWidths(attrs.get('widths_json'), cols) : null;
+      if (mWidths && mWidths.some(function (w) { return w.mode !== 'auto'; })) {
+        var cg = document.createElement('colgroup');
+        mWidths.forEach(function (w) {
+          var colEl = document.createElement('col');
+          if (w.mode === 'frac') colEl.style.width = (w.v * 100).toFixed(1) + '%';
+          else if (w.mode === 'mm') colEl.style.width = (w.v * 96 / 25.4).toFixed(0) + 'px';
+          cg.appendChild(colEl);
+        });
+        table.appendChild(cg);
+      }
       for (var r = 0; r < rows; r++) {
         var tr = document.createElement('tr');
         for (var c = 0; c < cols; c++) {
-          var td = document.createElement('td');
           var key = r + '-' + c;
+          if (mCover.skip[key] || mCover.cont[key] != null) continue;   // merged away
+          var td = document.createElement('td');
+          var anch = mCover.anchors[key];
+          if (anch) {
+            if (anch.cs > 1) td.colSpan = anch.cs;
+            if (anch.rs > 1) td.rowSpan = anch.rs;
+            td.classList.add('pe-cell-merged');
+          }
           var cellY = cells.get(key);
           if (!(cellY instanceof Y.Text)) {
             // Defensive: create on demand if missing.
@@ -1796,7 +1868,7 @@
           var cellEl = document.createElement('div');
           cellEl.className = 'pe-grid-cell';
           /* V3.127 — table cells are read-only on the doc-side block;
-           * editing happens in the panel's Tables tab. */
+           * editing happens on the Tables page. */
           var unbind = window.PaperEditor.bindYTextToContentEditable(cellY, cellEl, {
             readOnly: true,
             renderHtml: window.PaperEditor.renderParagraphHtml,
@@ -1988,6 +2060,343 @@
    * the body contenteditable. */
 
   /* Placeholder for kinds reserved for later phases. */
+  /* Subheading block — a single-line heading in the section flow
+   * (\subsection / \subsubsection). Toolbar carries a level toggle
+   * (H2/H3); the body Y.Text is the heading text, rendered bold. */
+  function renderSubheading(yBlock, ctx) {
+    var Y = ctx.Y;
+    var blockId = yBlock.get('id');
+
+    var attrs = yBlock.get('attrs');
+    if (!attrs) {
+      yBlock.doc.transact(function () { yBlock.set('attrs', new Y.Map()); }, 'init-sub-attrs');
+      attrs = yBlock.get('attrs');
+    }
+    function level() { return attrs.get('level') === 3 ? 3 : 2; }
+
+    var wrap = document.createElement('div');
+    wrap.className = 'pe-block pe-block-subheading';
+    wrap.dataset.blockId = blockId;
+    wrap.dataset.kind = 'subheading';
+    wrap.dataset.level = String(level());
+
+    var bar = document.createElement('div');
+    bar.className = 'pe-block-toolbar';
+
+    var handle = document.createElement('span');
+    handle.className = 'pe-block-handle';
+    handle.title = 'Drag to reorder';
+    handle.textContent = '⋮⋮';
+    bar.appendChild(handle);
+    bar.appendChild(buildReorderControls(yBlock, ctx));
+    wireDragHandle(handle, wrap, yBlock, ctx);
+
+    var kindTag = document.createElement('span');
+    kindTag.className = 'pe-section-kind';
+    kindTag.textContent = 'Subheading';
+    bar.appendChild(kindTag);
+
+    /* Level toggle: H2 (subsection) / H3 (subsubsection). */
+    var lvlWrap = document.createElement('div');
+    lvlWrap.className = 'pe-mode-toggle';
+    var l2 = document.createElement('button');
+    l2.type = 'button'; l2.textContent = 'H2'; l2.title = 'Subsection';
+    var l3 = document.createElement('button');
+    l3.type = 'button'; l3.textContent = 'H3'; l3.title = 'Sub-subsection';
+    function reflectLevel() {
+      var lv = level();
+      l2.classList.toggle('active', lv === 2);
+      l3.classList.toggle('active', lv === 3);
+      wrap.dataset.level = String(lv);
+    }
+    l2.addEventListener('click', function () {
+      if (!ctx.editable) return;
+      yBlock.doc.transact(function () { attrs.set('level', 2); }, 'sub-level');
+    });
+    l3.addEventListener('click', function () {
+      if (!ctx.editable) return;
+      yBlock.doc.transact(function () { attrs.set('level', 3); }, 'sub-level');
+    });
+    lvlWrap.appendChild(l2);
+    lvlWrap.appendChild(l3);
+    bar.appendChild(lvlWrap);
+
+    /* Cross-reference label — anchor for [!sec:label]. Stored in attrs;
+     * set on blur. */
+    if (ctx.editable) {
+      var refInput = document.createElement('input');
+      refInput.type = 'text';
+      refInput.className = 'pe-subheading-reflabel';
+      refInput.placeholder = '🔖 sub:label';
+      refInput.title = 'Cross-reference label — reference this subheading with [!sec:label]';
+      refInput.value = attrs.get('ref_label') || '';
+      refInput.addEventListener('change', function () {
+        var v = refInput.value.trim();
+        yBlock.doc.transact(function () {
+          if (v) attrs.set('ref_label', v); else attrs.delete('ref_label');
+        }, 'sub-ref-label');
+      });
+      bar.appendChild(refInput);
+    }
+
+    var actions = document.createElement('div');
+    actions.className = 'pe-block-actions';
+    var delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.title = 'Delete subheading';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', function () {
+      if (!ctx.editable) return;
+      ctx.onDelete(blockId);
+    });
+    if (!ctx.editable) delBtn.disabled = true;
+    actions.appendChild(delBtn);
+    bar.appendChild(actions);
+    wrap.appendChild(bar);
+
+    /* Heading text — single-line contenteditable bound to body. Inline
+     * math / formatting render via the paragraph contract so `\(x\)`,
+     * **bold** etc. work in a heading too. */
+    var headEl = document.createElement('div');
+    headEl.className = 'pe-block-content pe-subheading-text';
+    headEl.dataset.placeholder = 'Subheading title…';
+    var unbind = window.PaperEditor.bindYTextToContentEditable(yBlock.get('body'), headEl, {
+      readOnly: !ctx.editable,
+      renderHtml: function (text) { return window.PaperEditor.renderParagraphHtml(text); },
+      onLocalChange: function () { ctx.onFocusBlock && ctx.onFocusBlock(blockId); },
+    });
+    headEl.addEventListener('focus', function () {
+      if (ctx.onFocusBlock) ctx.onFocusBlock(blockId);
+    });
+    wrap.appendChild(headEl);
+
+    var attrsObserver = function () { reflectLevel(); };
+    attrs.observe(attrsObserver);
+    if (ctx.registerSubscription) {
+      ctx.registerSubscription(yBlock, function () {
+        try { unbind(); } catch (e) {}
+        try { attrs.unobserve(attrsObserver); } catch (e) {}
+      });
+    }
+    reflectLevel();
+    return wrap;
+  }
+
+  /* E2 — visual-equation overlay: one <math-field> seeded from the
+   * block's body Y.Text; Apply = a single transact clobber (the
+   * bindYTextToContentEditable observer repaints KaTeX). Fidelity
+   * guard: an untouched open/close (dirty=false) writes nothing. */
+  function _openEqVisualOverlay(yBlock) {
+    var existing = document.getElementById('pe-eqviz-overlay');
+    if (existing) existing.remove();
+    var original = yBlock.get('body').toString();
+    var overlay = document.createElement('div');
+    overlay.className = 'pe-eqviz-overlay';
+    overlay.id = 'pe-eqviz-overlay';
+    var card = document.createElement('div');
+    card.className = 'pe-eqviz-card';
+    var head = document.createElement('div');
+    head.className = 'pe-eqviz-head';
+    head.textContent = 'Edit equation';
+    card.appendChild(head);
+    var host = document.createElement('div');
+    host.className = 'pe-eqviz-host';
+    host.textContent = 'Loading the visual editor…';
+    card.appendChild(host);
+    var row = document.createElement('div');
+    row.className = 'pe-eqviz-actions';
+    var cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.className = 'btn btn-sm'; cancel.textContent = 'Cancel';
+    var apply = document.createElement('button');
+    apply.type = 'button'; apply.className = 'btn btn-sm btn-primary'; apply.textContent = 'Apply';
+    apply.disabled = true;
+    row.appendChild(cancel);
+    row.appendChild(apply);
+    card.appendChild(row);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    var mf = null, dirty = false;
+    function close() {
+      document.removeEventListener('keydown', onKey, true);
+      overlay.remove();
+    }
+    function onKey(ev) {
+      if (ev.key === 'Escape') { ev.stopPropagation(); close(); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    cancel.addEventListener('click', close);
+    overlay.addEventListener('mousedown', function (ev) {
+      if (ev.target === overlay) close();
+    });
+    apply.addEventListener('click', function () {
+      if (mf && dirty) {
+        var v = mf.getValue ? mf.getValue('latex') : mf.value;
+        if (typeof v === 'string' && v !== original) {
+          var body = yBlock.get('body');
+          yBlock.doc.transact(function () {
+            body.delete(0, body.length);
+            body.insert(0, v);
+          }, 'eq-visual');
+        }
+      }
+      close();
+    });
+    window.ensureMathlive().then(function () {
+      host.textContent = '';
+      mf = document.createElement('math-field');
+      mf.className = 'pe-mathfield';
+      mf.value = original;
+      mf.addEventListener('input', function () { dirty = true; apply.disabled = false; });
+      /* V3.458 — snippet bar (accents / matrix / operators). Inserts
+       * dispatch 'input', so Apply enables like any hand edit. */
+      if (window.mathliveSnippetBar) host.appendChild(window.mathliveSnippetBar(mf));
+      host.appendChild(mf);
+      try { mf.focus(); } catch (e) {}
+    }).catch(function (e) {
+      host.textContent = 'Visual editor failed to load: ' + (e.message || e);
+    });
+  }
+
+  /* Parse a list body (one item per line; leading spaces, 2 per level,
+   * nest) into [{depth, text}], dropping blank lines. Shared shape with
+   * the doc-view + exporter parsers. */
+  function parseListItems(body) {
+    var out = [];
+    String(body || '').split('\n').forEach(function (line) {
+      var m = line.match(/^(\s*)(.*)$/);
+      var lead = m[1].replace(/\t/g, '  ');
+      var text = m[2].replace(/\s+$/, '');
+      if (!text) return;
+      out.push({ depth: Math.min(3, Math.floor(lead.length / 2)), text: text });
+    });
+    return out;
+  }
+  /* Render list items → nested <ul>/<ol> HTML (each item's text through
+   * the paragraph contract for inline cites/math/formatting). */
+  function listItemsToHtml(items, listType) {
+    var tag = listType === 'number' ? 'ol' : 'ul';
+    var html = '<' + tag + ' class="pdv-list">';
+    var depth = 0;
+    items.forEach(function (it) {
+      while (depth < it.depth) { html += '<' + tag + ' class="pdv-list">'; depth++; }
+      while (depth > it.depth) { html += '</' + tag + '>'; depth--; }
+      html += '<li>' + window.PaperEditor.renderParagraphHtml(it.text) + '</li>';
+    });
+    while (depth-- > 0) html += '</' + tag + '>';
+    html += '</' + tag + '>';
+    return html;
+  }
+
+  /* List block — itemize / enumerate. Body Y.Text = one item per line;
+   * leading spaces nest. Toolbar carries a Bullet/Numbered toggle. The
+   * bound contenteditable shows raw lines while focused (edit) and the
+   * rendered list on blur (via the renderHtml callback). */
+  function renderList(yBlock, ctx) {
+    var Y = ctx.Y;
+    var blockId = yBlock.get('id');
+
+    var attrs = yBlock.get('attrs');
+    if (!attrs) {
+      yBlock.doc.transact(function () { yBlock.set('attrs', new Y.Map()); }, 'init-list-attrs');
+      attrs = yBlock.get('attrs');
+    }
+    function listType() { return attrs.get('list_type') === 'number' ? 'number' : 'bullet'; }
+
+    var wrap = document.createElement('div');
+    wrap.className = 'pe-block pe-block-list';
+    wrap.dataset.blockId = blockId;
+    wrap.dataset.kind = 'list';
+
+    var bar = document.createElement('div');
+    bar.className = 'pe-block-toolbar';
+
+    var handle = document.createElement('span');
+    handle.className = 'pe-block-handle';
+    handle.title = 'Drag to reorder';
+    handle.textContent = '⋮⋮';
+    bar.appendChild(handle);
+    bar.appendChild(buildReorderControls(yBlock, ctx));
+    wireDragHandle(handle, wrap, yBlock, ctx);
+
+    var kindTag = document.createElement('span');
+    kindTag.className = 'pe-section-kind';
+    kindTag.textContent = 'List';
+    bar.appendChild(kindTag);
+
+    var typeWrap = document.createElement('div');
+    typeWrap.className = 'pe-mode-toggle';
+    var bulletBtn = document.createElement('button');
+    bulletBtn.type = 'button'; bulletBtn.textContent = '• Bulleted'; bulletBtn.title = 'itemize';
+    var numBtn = document.createElement('button');
+    numBtn.type = 'button'; numBtn.textContent = '1. Numbered'; numBtn.title = 'enumerate';
+    function reflectType() {
+      var t = listType();
+      bulletBtn.classList.toggle('active', t === 'bullet');
+      numBtn.classList.toggle('active', t === 'number');
+      wrap.dataset.listType = t;
+      if (document.activeElement !== bodyEl) rerenderBody();
+    }
+    bulletBtn.addEventListener('click', function () {
+      if (!ctx.editable) return;
+      yBlock.doc.transact(function () { attrs.set('list_type', 'bullet'); }, 'list-type');
+    });
+    numBtn.addEventListener('click', function () {
+      if (!ctx.editable) return;
+      yBlock.doc.transact(function () { attrs.set('list_type', 'number'); }, 'list-type');
+    });
+    typeWrap.appendChild(bulletBtn);
+    typeWrap.appendChild(numBtn);
+    bar.appendChild(typeWrap);
+
+    var actions = document.createElement('div');
+    actions.className = 'pe-block-actions';
+    var delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.title = 'Delete list';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', function () {
+      if (!ctx.editable) return;
+      ctx.onDelete(blockId);
+    });
+    if (!ctx.editable) delBtn.disabled = true;
+    actions.appendChild(delBtn);
+    bar.appendChild(actions);
+    wrap.appendChild(bar);
+
+    var bodyEl = document.createElement('div');
+    bodyEl.className = 'pe-block-content pe-list-body';
+    bodyEl.dataset.placeholder = 'One item per line. Indent two spaces to nest.';
+    function rerenderBody() {
+      if (document.activeElement === bodyEl) return;
+      var v = yBlock.get('body').toString();
+      bodyEl.innerHTML = v ? listItemsToHtml(parseListItems(v), listType()) : '';
+      bodyEl.dataset.empty = v ? 'false' : 'true';
+    }
+    var unbind = window.PaperEditor.bindYTextToContentEditable(yBlock.get('body'), bodyEl, {
+      readOnly: !ctx.editable,
+      renderHtml: function (text) {
+        return text ? listItemsToHtml(parseListItems(text), listType()) : '';
+      },
+      onLocalChange: function () { ctx.onFocusBlock && ctx.onFocusBlock(blockId); },
+    });
+    bodyEl.addEventListener('focus', function () {
+      if (ctx.onFocusBlock) ctx.onFocusBlock(blockId);
+    });
+    wrap.appendChild(bodyEl);
+
+    var attrsObserver = function () { reflectType(); };
+    attrs.observe(attrsObserver);
+    if (ctx.registerSubscription) {
+      ctx.registerSubscription(yBlock, function () {
+        try { unbind(); } catch (e) {}
+        try { attrs.unobserve(attrsObserver); } catch (e) {}
+      });
+    }
+    reflectType();
+    return wrap;
+  }
+
   function renderUnsupported(yBlock, ctx, kindLabel) {
     var blockId = yBlock.get('id');
     var wrap = document.createElement('div');

@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="216pt" height="360pt" viewBox="0 0 216 360" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e3a5f"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <radialGradient id="atom" cx="0.35" cy="0.35" r="0.9">
+      <stop offset="0" stop-color="#dbeafe"/>
+      <stop offset="1" stop-color="#60a5fa"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ================= HEADER ================= -->
+  <rect x="4" y="4" width="186" height="26" rx="4" fill="url(#hdr)"/>
+  <text x="8" y="15" font-size="7.5" font-weight="bold" fill="#ffffff">Atoms as Springs — Why Materials Stretch</text>
+  <text x="8" y="25" font-size="7" fill="#ffffff" opacity="0.85">Solid Mechanics · Lesson 1 of 5 · browser-based</text>
+
+  <!-- ================= TAB BAR ================= -->
+  <rect x="4" y="34" width="34" height="12" rx="4" fill="#2563eb"/>
+  <text x="21" y="42.5" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">1 · Bond</text>
+  <rect x="41" y="34" width="34" height="12" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="58" y="42.5" font-size="7" fill="#1e3a5f" text-anchor="middle">2 · Hooke</text>
+  <rect x="78" y="34" width="34" height="12" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="95" y="42.5" font-size="7" fill="#1e3a5f" text-anchor="middle">3 · Lattice</text>
+  <rect x="115" y="34" width="34" height="12" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="132" y="42.5" font-size="7" fill="#1e3a5f" text-anchor="middle">4 · L-J</text>
+  <text x="153" y="39.5" font-size="7" font-style="italic" fill="#64748b">concept</text>
+  <text x="153" y="45.5" font-size="7" font-style="italic" fill="#64748b">sequence</text>
+
+  <path d="M93 47.8 L101 47.8 L97 50.6 Z" fill="#94a3b8"/>
+
+  <!-- ================= PANEL 1 : LEARN ================= -->
+  <rect x="4" y="52" width="186" height="104" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="0.8"/>
+  <rect x="4" y="52" width="2.5" height="104" rx="1.25" fill="#1e3a5f"/>
+  <circle cx="14" cy="59.5" r="4.5" fill="#1e3a5f"/>
+  <text x="14" y="62" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="21" y="62" font-size="7" font-weight="bold" fill="#1e3a5f">LEARN — guided math in plain language</text>
+
+  <!-- equation box -->
+  <rect x="10" y="68" width="88" height="28" rx="2" fill="#eff6ff"/>
+  <rect x="10" y="68" width="2" height="28" fill="#2563eb"/>
+  <text x="55" y="80" font-size="8" font-style="italic" font-family="Times New Roman, Times, serif" fill="#1e293b" text-anchor="middle">F = −k x,   x = r − r₀</text>
+  <text x="55" y="91" font-size="7" font-style="italic" font-family="Times New Roman, Times, serif" fill="#1e293b" text-anchor="middle">U(r) = 4ε[(σ/r)<tspan dy="-2.5" font-size="5">12</tspan><tspan dy="2.5" font-size="7"> − (σ/r)</tspan><tspan dy="-2.5" font-size="5">6</tspan><tspan dy="2.5" font-size="7">]</tspan></text>
+
+  <!-- prose bars -->
+  <rect x="10" y="101" width="88" height="2.5" rx="1.25" fill="#cbd5e1"/>
+  <rect x="10" y="106" width="80" height="2.5" rx="1.25" fill="#cbd5e1"/>
+  <rect x="10" y="111" width="56" height="2.5" rx="1.25" fill="#cbd5e1"/>
+
+  <!-- worked example strip -->
+  <rect x="10" y="116" width="88" height="11" rx="1.5" fill="#fefce8"/>
+  <rect x="10" y="116" width="2" height="11" fill="#d97706"/>
+  <text x="16" y="123.5" font-size="7" font-style="italic" fill="#b45309">worked example (copper)</text>
+
+  <!-- key takeaways strip -->
+  <rect x="10" y="130" width="88" height="11" rx="1.5" fill="#f0fdf4"/>
+  <rect x="10" y="130" width="2" height="11" fill="#16a34a"/>
+  <text x="16" y="137.5" font-size="7" font-style="italic" fill="#15803d">key takeaways</text>
+
+  <!-- mini force-curve sketch (exact Lennard-Jones) -->
+  <line x1="106" y1="68" x2="106" y2="132" stroke="#64748b" stroke-width="1"/>
+  <line x1="102" y1="100" x2="186" y2="100" stroke="#64748b" stroke-width="1"/>
+  <text x="100" y="72" font-size="7" font-style="italic" font-family="Times New Roman, Times, serif" fill="#64748b">F</text>
+  <text x="187" y="97" font-size="7" font-style="italic" font-family="Times New Roman, Times, serif" fill="#64748b" text-anchor="middle">r</text>
+  <line x1="120.2" y1="100" x2="120.2" y2="132" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2 1.5"/>
+  <text x="120.2" y="139" font-size="7" font-style="italic" font-family="Times New Roman, Times, serif" fill="#64748b" text-anchor="middle">r₀</text>
+  <line x1="115.0" y1="70.0" x2="124.8" y2="126.0" stroke="#d97706" stroke-width="1" stroke-dasharray="2.5 2"/>
+  <path d="M116.6 70.5 L117.0 74.7 L117.4 78.7 L117.8 82.4 L118.2 85.8 L118.6 89.0 L119.0 92.0 L119.4 94.8 L119.8 97.3 L120.2 99.7 L120.6 102.0 L121.0 104.0 L121.4 105.9 L121.8 107.7 L122.2 109.3 L123.0 112.2 L123.8 114.7 L124.6 116.7 L125.4 118.4 L126.6 120.5 L128.2 122.3 L130.2 123.6 L132.2 124.0 L134.2 123.8 L136.2 123.2 L137.8 122.5 L139.8 121.5 L141.8 120.4 L143.8 119.2 L145.8 118.0 L147.8 116.8 L149.8 115.7 L151.8 114.6 L153.8 113.6 L155.8 112.6 L157.8 111.7 L159.8 110.8 L161.8 110.0 L163.8 109.3 L165.8 108.6 L167.8 107.9 L169.8 107.3 L171.8 106.8 L173.8 106.3 L175.8 105.8 L177.8 105.4 L179.8 105.0 L181.8 104.6 L183.8 104.3 L185.4 104.1" fill="none" stroke="#2563eb" stroke-width="1.5"/>
+  <circle cx="120.2" cy="100" r="2.2" fill="#2563eb" stroke="#ffffff" stroke-width="0.8"/>
+  <!-- legend -->
+  <line x1="104" y1="144.5" x2="114" y2="144.5" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="117" y="147" font-size="7" fill="#334155">true bond force F(r)</text>
+  <line x1="104" y1="152" x2="114" y2="152" stroke="#d97706" stroke-width="1" stroke-dasharray="2.5 2"/>
+  <text x="117" y="154.5" font-size="7" fill="#334155">Hooke line F = −kx</text>
+
+  <path d="M93 156.8 L101 156.8 L97 159.6 Z" fill="#94a3b8"/>
+
+  <!-- ================= PANEL 2 : TRY THIS ================= -->
+  <rect x="4" y="160" width="186" height="36" rx="4" fill="#fff7ed" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="3 2"/>
+  <circle cx="14" cy="167.5" r="4.5" fill="#d97706"/>
+  <text x="14" y="170" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="21" y="170" font-size="7" font-weight="bold" fill="#b45309">TRY THIS — prediction tasks</text>
+
+  <circle cx="16" cy="178" r="4" fill="#ffffff" stroke="#d97706" stroke-width="0.8"/>
+  <text x="16" y="180.5" font-size="7" fill="#b45309" text-anchor="middle">1</text>
+  <text x="24" y="180.5" font-size="7" font-style="italic" fill="#57534e">drag Separation — where does force cross zero?</text>
+
+  <circle cx="16" cy="188" r="4" fill="#ffffff" stroke="#d97706" stroke-width="0.8"/>
+  <text x="16" y="190.5" font-size="7" fill="#b45309" text-anchor="middle">2</text>
+  <text x="24" y="190.5" font-size="7" font-style="italic" fill="#57534e">stretch past r₀ — does pull-back keep rising?</text>
+
+  <path d="M93 196.8 L101 196.8 L97 199.6 Z" fill="#94a3b8"/>
+
+  <!-- ================= PANEL 3 : EXPLORE ================= -->
+  <rect x="4" y="200" width="186" height="110" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="0.8"/>
+  <rect x="4" y="200" width="2.5" height="110" rx="1.25" fill="#2563eb"/>
+  <circle cx="14" cy="207.5" r="4.5" fill="#2563eb"/>
+  <text x="14" y="210" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="21" y="210" font-size="7" font-weight="bold" fill="#2563eb">EXPLORE — sliders drive the physics live</text>
+
+  <!-- controls card -->
+  <rect x="10" y="215" width="60" height="76" rx="3" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.8"/>
+  <text x="14" y="223" font-size="7" font-weight="bold" fill="#1e3a5f">Controls</text>
+
+  <text x="14" y="232" font-size="7" fill="#334155">Separation</text>
+  <text x="66" y="232" font-size="7" fill="#2563eb" text-anchor="end">1.35</text>
+  <line x1="14" y1="237" x2="66" y2="237" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="14" y1="237" x2="47" y2="237" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="47" cy="237" r="3" fill="#2563eb" stroke="#ffffff" stroke-width="1.2"/>
+
+  <text x="14" y="247" font-size="7" fill="#334155">Strength ε</text>
+  <text x="66" y="247" font-size="7" fill="#2563eb" text-anchor="end">1.0</text>
+  <line x1="14" y1="252" x2="66" y2="252" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="14" y1="252" x2="33" y2="252" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="33" cy="252" r="3" fill="#2563eb" stroke="#ffffff" stroke-width="1.2"/>
+
+  <line x1="14" y1="259" x2="66" y2="259" stroke="#e2e8f0" stroke-width="0.8"/>
+  <text x="14" y="267" font-size="7" fill="#64748b">force F</text>
+  <text x="66" y="267" font-size="7" fill="#1e293b" text-anchor="end">−1.1 ε/σ</text>
+  <text x="14" y="275" font-size="7" fill="#64748b">stiff. k</text>
+  <text x="66" y="275" font-size="7" fill="#1e293b" text-anchor="end">57 ε/σ²</text>
+  <text x="14" y="283" font-size="7" fill="#64748b">energy</text>
+  <text x="66" y="283" font-size="7" fill="#1e293b" text-anchor="end">−0.30 ε</text>
+
+  <!-- arrows: sliders -> simulation -->
+  <line x1="72" y1="237" x2="79" y2="237" stroke="#2563eb" stroke-width="1.3"/>
+  <path d="M79 235 L83 237 L79 239 Z" fill="#2563eb"/>
+  <line x1="72" y1="252" x2="79" y2="252" stroke="#2563eb" stroke-width="1.3"/>
+  <path d="M79 250 L83 252 L79 254 Z" fill="#2563eb"/>
+
+  <!-- canvas 1: atoms + spring -->
+  <rect x="84" y="215" width="102" height="36" rx="3" fill="#ffffff" stroke="#e2e8f0" stroke-width="0.8"/>
+  <circle cx="148" cy="234" r="6.5" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2 1.5"/>
+  <polyline points="117,234 121,234 124.2,230 127.4,238 130.6,230 133.8,238 137,230 140.2,238 143.4,230 146.6,238 149.5,234 153.5,234" fill="none" stroke="#1e3a5f" stroke-width="1.3" stroke-linejoin="round"/>
+  <circle cx="110" cy="234" r="6.5" fill="url(#atom)" stroke="#1e3a5f" stroke-width="0.6" opacity="0.95"/>
+  <circle cx="160" cy="234" r="6.5" fill="url(#atom)" stroke="#1e3a5f" stroke-width="0.6" opacity="0.95"/>
+  <line x1="98" y1="223" x2="108" y2="223" stroke="#16a34a" stroke-width="1.3"/>
+  <path d="M108 221 L112 223 L108 225 Z" fill="#16a34a"/>
+  <line x1="172" y1="223" x2="162" y2="223" stroke="#16a34a" stroke-width="1.3"/>
+  <path d="M162 221 L158 223 L162 225 Z" fill="#16a34a"/>
+  <text x="88" y="246.5" font-size="7" font-style="italic" fill="#94a3b8">atoms pull back toward r₀</text>
+
+  <!-- canvas 2: live force plot (exact Lennard-Jones) -->
+  <rect x="84" y="256" width="102" height="48" rx="3" fill="#ffffff" stroke="#e2e8f0" stroke-width="0.8"/>
+  <line x1="90" y1="259" x2="90" y2="300" stroke="#64748b" stroke-width="0.8"/>
+  <line x1="90" y1="278" x2="183" y2="278" stroke="#64748b" stroke-width="0.8"/>
+  <line x1="105.9" y1="278" x2="105.9" y2="298" stroke="#94a3b8" stroke-width="0.7" stroke-dasharray="1.5 1.5"/>
+  <path d="M102.8 262.8 L103.1 265.2 L103.5 267.4 L103.9 269.5 L104.3 271.4 L104.7 273.2 L105.1 274.9 L105.9 277.8 L106.7 280.4 L107.5 282.6 L108.2 284.5 L109.4 286.8 L110.6 288.6 L112.1 290.3 L114.1 291.6 L116.1 292.2 L118.0 292.4 L120.0 292.2 L121.9 291.8 L123.9 291.3 L125.8 290.6 L127.8 289.9 L129.8 289.2 L131.7 288.5 L133.7 287.8 L135.6 287.2 L137.6 286.5 L139.5 285.9 L141.5 285.3 L143.4 284.8 L145.4 284.3 L147.4 283.8 L149.3 283.4 L151.3 283.0 L153.2 282.6 L155.2 282.3 L157.1 282.0 L159.1 281.7 L161.0 281.4 L163.0 281.1 L165.0 280.9 L166.9 280.7 L168.9 280.5 L170.8 280.3 L172.8 280.2 L174.7 280.0 L176.7 279.9 L178.7 279.7 L180.6 279.6 L181.8 279.6" fill="none" stroke="#2563eb" stroke-width="1.4"/>
+  <text x="105.9" y="297" font-size="7" font-style="italic" font-family="Times New Roman, Times, serif" fill="#64748b" text-anchor="end">r₀</text>
+  <line x1="144.4" y1="287.5" x2="144.4" y2="298" stroke="#2563eb" stroke-width="0.7" stroke-dasharray="1.5 1.5"/>
+  <circle cx="144.4" cy="284.6" r="2.8" fill="#2563eb" stroke="#ffffff" stroke-width="1"/>
+  <text x="182" y="266" font-size="7" font-style="italic" fill="#94a3b8" text-anchor="end">dot tracks the sliders</text>
+
+  <path d="M93 310.8 L101 310.8 L97 313.6 Z" fill="#94a3b8"/>
+
+  <!-- ================= PANEL 4 : FEEDBACK ================= -->
+  <rect x="4" y="314" width="186" height="24" rx="4" fill="#f0fdf4" stroke="#86efac" stroke-width="0.8"/>
+  <rect x="4" y="314" width="2.5" height="24" rx="1.25" fill="#16a34a"/>
+  <circle cx="14" cy="321" r="4.5" fill="#16a34a"/>
+  <text x="14" y="323.5" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+  <text x="21" y="323.5" font-size="7" font-weight="bold" fill="#15803d">FEEDBACK — automatic validation</text>
+  <text x="21" y="332.5" font-size="7" font-style="italic" fill="#475569">“pull-back weakening — the bond is near fracture”</text>
+
+  <!-- ================= ITERATE LOOP (right rail) ================= -->
+  <path d="M190 326 C205 326 205 100 192 100" fill="none" stroke="#94a3b8" stroke-width="1"/>
+  <path d="M197 97.5 L192 100 L197 102.5 Z" fill="#94a3b8"/>
+  <text x="205" y="213" font-size="7" font-style="italic" fill="#64748b" text-anchor="middle" transform="rotate(-90 205 213)">iterate — revise intuition, test again</text>
+
+  <!-- footer note -->
+  <text x="97" y="350" font-size="7" fill="#94a3b8" text-anchor="middle">self-contained HTML — no install, runs on any device</text>
+</svg>

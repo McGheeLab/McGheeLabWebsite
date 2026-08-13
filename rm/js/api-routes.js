@@ -192,6 +192,16 @@
     shadowJson: true, cache: LONG,
   });
 
+  // V3.363 — lab-shared library groups (the library page's groups shelf).
+  // Admin-published, every lab member reads. New collection with no
+  // legacy JSON, so no shadowJson. Rules: librarySharedGroups → read
+  // isLabMember, write isAdmin. Per-user groups don't come through here —
+  // they live in userSettings/{uid}.library (LIBRARY_PREFS).
+  api.registerRoute('library/shared_groups.json', {
+    scope: 'lab', collection: 'librarySharedGroups', wrapKey: 'groups',
+    cache: MEDIUM,
+  });
+
   // Lab roster — full users collection cached MEDIUM (30 min). Pre-Phase B
   // ~9 pages each called firebridge.getAll('users') independently → ~9
   // redundant collection reads per session. Now: one cached fetch shared by
@@ -390,6 +400,16 @@
   // IDs always start with `nb-` so they can never collide with `_index`.
   api.registerRoute('notebook/_index.json', {
     scope: 'user', subcollection: 'notebook', doc: '_index',
+    cache: SHORT,
+  });
+
+  // My Day (V3.526) — per-user day plans + distribution prefs. Item docs
+  // live at userData/{uid}/dayPlans/{itemId} and are read/written directly
+  // by js/day-distribute.js (task-pmr-sync pattern — direct firebridge.db()
+  // refs, so host pages don't need this route table). Only the prefs doc is
+  // registered here, for admin-migrate visibility + consistency.
+  api.registerRoute('my_day/prefs.json', {
+    scope: 'user', subcollection: 'dayPlans', doc: '_prefs',
     cache: SHORT,
   });
 

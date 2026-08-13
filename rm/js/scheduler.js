@@ -54,6 +54,38 @@
   let _schedMode = 'recurring';      // 'recurring' | 'special' | 'blackout'
   let _schedZoomIdx = 5;             // index into ScheduleUtils.ZOOM_LEVELS
 
+  /* V3.342: narrow screens show a 3-day window into the week */
+  let _dayWindowStart = 0;           // 0..4 — first visible day index
+  const _narrowMQ = window.matchMedia('(max-width: 700px)');
+  if (_narrowMQ.addEventListener) {
+    _narrowMQ.addEventListener('change', () => {
+      _dayWindowStart = 0;
+      if (_currentTab === 'myschedule') renderMyScheduleContent();
+    });
+  }
+  function msIsNarrow() { return _narrowMQ.matches; }
+  function msVisibleDays() {
+    const su = SU();
+    const all = su ? su.getWeekDays(_weekOffset) : [];
+    if (!msIsNarrow()) return all;
+    const start = Math.max(0, Math.min(4, _dayWindowStart));
+    return all.slice(start, start + 3);
+  }
+  /* Shift the 3-day window; rolls into adjacent weeks at the edges. */
+  function msShiftDays(delta) {
+    const s = SS();
+    let start = Math.max(0, Math.min(4, _dayWindowStart)) + delta;
+    if (start < 0) {
+      _weekOffset--; if (s) s.setWeekOffset(_weekOffset);
+      start = 4;
+    } else if (start > 4) {
+      _weekOffset++; if (s) s.setWeekOffset(_weekOffset);
+      start = 0;
+    }
+    _dayWindowStart = start;
+    renderMyScheduleContent();
+  }
+
   /* Service aliases — null when shared services aren't loaded
    * (graceful degradation, same pattern as the lab app). */
   function SS() { return (typeof McgheeLab !== 'undefined' && McgheeLab.ScheduleService) || null; }
@@ -81,8 +113,7 @@
       root.innerHTML = '<div class="empty-state">Scheduler engine not loaded — check that <code>/scheduler.js</code> is reachable.</div>';
       return;
     }
-    firebridge.gateSignedIn();
-    if (firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+    if (firebridge.requireSignIn) await firebridge.requireSignIn();
 
     _user = firebridge.getUser ? firebridge.getUser() : null;
     _profile = firebridge.getProfile ? firebridge.getProfile() : null;
@@ -97,7 +128,10 @@
     if (SS()) {
       try { await SS().init(_user, _profile); } catch (e) { console.warn('[scheduler] ScheduleService init:', e); }
       if (SS().onChange) {
-        SS().onChange(() => { if (_currentTab === 'myschedule') renderMyScheduleContent(); });
+        SS().onChange(() => {
+          if (_currentTab === 'myschedule') renderMyScheduleContent();
+          else if (_currentTab === 'team') renderTeamContent();
+        });
       }
     }
     if (CS() && CS().onChange) {
@@ -206,6 +240,9 @@
     d.textContent = String(s);
     return d.innerHTML;
   }
+  // The V3.55 code lifted from /apps/scheduler/app.js calls its escaper
+  // `esc` — alias it so those call sites resolve (V3.342 bug fix).
+  const esc = escHTML;
 
   function toast(msg, kind) {
     if (typeof window !== 'undefined' && typeof window.toast === 'function' && window.toast !== toast) {
@@ -231,13 +268,21 @@
     }
   }
 
-  /* ─── Render dispatcher (V3.55 added the tab bar) ────────── */
+  /* ─── Render dispatcher (V3.55 tab bar; V3.342 relabel + Team) ── */
+  const TAB_SUBTITLES = {
+    myschedule: 'When are you free? Paint your weekly schedule.',
+    schedulers: 'Create a link, collect availability from guests, assign slots.',
+    team: 'See when lab members are free at the same time.',
+  };
+
   function render() {
     root.innerHTML =
       '<div class="sched-tab-bar">' +
-        '<button class="sched-tab' + (_currentTab === 'myschedule' ? ' active' : '') + '" data-tab="myschedule">My Schedule</button>' +
-        '<button class="sched-tab' + (_currentTab === 'schedulers' ? ' active' : '') + '" data-tab="schedulers">My Schedulers</button>' +
+        '<button class="sched-tab' + (_currentTab === 'myschedule' ? ' active' : '') + '" data-tab="myschedule">My Availability</button>' +
+        '<button class="sched-tab' + (_currentTab === 'schedulers' ? ' active' : '') + '" data-tab="schedulers">Scheduling Links</button>' +
+        '<button class="sched-tab' + (_currentTab === 'team' ? ' active' : '') + '" data-tab="team">Team</button>' +
       '</div>' +
+      '<p class="sched-tab-subtitle">' + escHTML(TAB_SUBTITLES[_currentTab] || '') + '</p>' +
       '<div id="sched-tab-content"></div>';
 
     root.querySelectorAll('.sched-tab').forEach(btn => {
@@ -254,6 +299,8 @@
     const content = document.getElementById('sched-tab-content');
     if (_currentTab === 'myschedule') {
       renderMyScheduleTab(content);
+    } else if (_currentTab === 'team') {
+      renderTeamTab(content);
     } else {
       renderSchedulersTab(content);
     }
@@ -263,7 +310,7 @@
   function renderSchedulersTab(container) {
     container.innerHTML =
       '<div class="sched-home-header">' +
-        '<h2 class="sched-h2">My Schedulers</h2>' +
+        '<h2 class="sched-h2">Scheduling Links</h2>' +
         '<button class="btn btn-primary" id="new-sched-btn">+ New Scheduler</button>' +
       '</div>' +
       '<div id="sched-create-area" hidden></div>' +
@@ -305,7 +352,15 @@
     });
 
     if (!visible.length) {
-      el.innerHTML = '<p class="empty-state">No schedulers yet. Click <strong>+ New Scheduler</strong> to get started.</p>';
+      el.innerHTML =
+        '<div class="empty-state sched-howto">' +
+          '<p><strong>No schedulers yet.</strong> How it works:</p>' +
+          '<ol>' +
+            '<li>Click <strong>+ New Scheduler</strong> and pick a mode (fixed sessions or freeform).</li>' +
+            '<li>Add guests in the editor — each guest gets a personal invite link.</li>' +
+            '<li>Guests paint their availability; you assign slots from the responses.</li>' +
+          '</ol>' +
+        '</div>';
       return;
     }
 
@@ -317,21 +372,78 @@
         ? ' <span class="hint">(owner: ' + escHTML(s.ownerUid.slice(0, 6)) + ')</span>'
         : '';
       return (
-        '<div class="sched-item">' +
+        '<div class="sched-item" data-sched-id="' + escHTML(s.id) + '">' +
           '<div class="sched-item-info">' +
             '<strong>' + escHTML(s.title || 'Untitled') + '</strong>' + ownerHint +
             '<span class="hint">' + escHTML(s.mode || 'sessions') + sessionHint + '</span>' +
+            '<span class="sched-resp-badge hint" data-resp="' + escHTML(s.id) + '">&hellip;</span>' +
           '</div>' +
           '<div class="sched-item-actions">' +
+            '<button class="btn" data-links="' + escHTML(s.id) + '">&#128279; Links</button>' +
             '<button class="btn btn-primary" data-manage="' + escHTML(s.id) + '">Manage</button>' +
             '<button class="btn sched-btn-danger" data-delete="' + escHTML(s.id) + '">Delete</button>' +
           '</div>' +
+          '<div class="sched-links-row" data-links-row="' + escHTML(s.id) + '" hidden></div>' +
         '</div>'
       );
     }).join('') + '</div>';
 
     el.querySelectorAll('[data-manage]').forEach(btn => {
       btn.addEventListener('click', () => navigate('editor', btn.dataset.manage));
+    });
+
+    // V3.342: guest-response badges + per-guest invite links, filled in
+    // asynchronously (one small participants query per visible scheduler).
+    const partCache = {};
+    visible.forEach(async (s) => {
+      let parts = [];
+      try { parts = await SDB.getSpeakers(s.id); } catch (e) {}
+      partCache[s.id] = parts;
+      const badge = el.querySelector('[data-resp="' + CSS.escape(s.id) + '"]');
+      if (!badge) return;
+      if (!parts.length) { badge.innerHTML = 'No guests yet'; return; }
+      const responded = parts.filter(p => (p.availability || []).length > 0).length;
+      const assigned = parts.filter(p => p.assignedSlot).length;
+      badge.innerHTML = responded + ' / ' + parts.length + ' responded' +
+        (assigned ? ' &middot; ' + assigned + ' assigned' : '');
+    });
+
+    function inviteURL(sid, key) {
+      return location.origin + '/#/schedule/' + sid + '?key=' + key;
+    }
+
+    el.querySelectorAll('[data-links]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sid = btn.dataset.links;
+        const row = el.querySelector('[data-links-row="' + CSS.escape(sid) + '"]');
+        if (!row) return;
+        if (!row.hidden) { row.hidden = true; return; }
+        if (!partCache[sid]) {
+          row.innerHTML = '<p class="hint" style="margin:.25rem 0;">Loading guests&hellip; try again in a moment.</p>';
+          row.hidden = false;
+          return;
+        }
+        const parts = partCache[sid];
+        row.innerHTML = parts.length
+          ? parts.map(p =>
+              '<div class="sched-link-line">' +
+                '<span>' + escHTML(p.speakerName || p.speakerEmail || 'Guest') + '</span>' +
+                '<button class="btn" data-copy-key="' + escHTML(p.key || p.id) + '" data-copy-sid="' + escHTML(sid) + '">Copy link</button>' +
+              '</div>').join('')
+          : '<p class="hint" style="margin:.25rem 0;">No guests yet — open Manage to add guests; each gets a personal invite link.</p>';
+        row.hidden = false;
+        row.querySelectorAll('[data-copy-key]').forEach(cb => {
+          cb.addEventListener('click', async () => {
+            const url = inviteURL(cb.dataset.copySid, cb.dataset.copyKey);
+            try {
+              await navigator.clipboard.writeText(url);
+              toast('Invite link copied');
+            } catch (e) {
+              prompt('Copy this invite link:', url);
+            }
+          });
+        });
+      });
     });
 
     el.querySelectorAll('[data-delete]').forEach(btn => {
@@ -519,6 +631,159 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
+     TEAM TAB (V3.342) — read-only overlap of lab members' free
+     time. Reuses ScheduleService's collection-wide template +
+     override subscriptions (the same data Huddle reads); no new
+     Firestore paths.
+     ═══════════════════════════════════════════════════════════ */
+  let _teamSelected = null; // Set of uids; null until first render
+
+  function renderTeamTab(container) {
+    const s = SS();
+    const su = SU();
+    if (!s || !su) {
+      container.innerHTML = '<p class="empty-state">Schedule service not loaded.</p>';
+      return;
+    }
+    container.innerHTML = renderTeamHTML();
+    wireTeamTab(container);
+  }
+
+  function renderTeamContent() {
+    const content = document.getElementById('sched-tab-content');
+    if (!content || _currentTab !== 'team') return;
+    content.innerHTML = renderTeamHTML();
+    wireTeamTab(content);
+  }
+
+  /* Minute-interval helpers for N-way overlap */
+  function _toMin(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+  function _fromMin(n) {
+    return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+  }
+  function _mergeIvs(ivs) {
+    const sorted = ivs.slice().sort((a, b) => a[0] - b[0]);
+    const out = [];
+    for (const iv of sorted) {
+      if (out.length && iv[0] <= out[out.length - 1][1]) {
+        out[out.length - 1][1] = Math.max(out[out.length - 1][1], iv[1]);
+      } else out.push([iv[0], iv[1]]);
+    }
+    return out;
+  }
+  function _intersectIvs(a, b) {
+    const out = [];
+    for (const [as, ae] of a) for (const [bs, be] of b) {
+      const s0 = Math.max(as, bs), e0 = Math.min(ae, be);
+      if (s0 < e0) out.push([s0, e0]);
+    }
+    return _mergeIvs(out);
+  }
+
+  /* A user's free minutes on a date: available blocks minus every
+     unavailable block (template, override, calendar, custom). */
+  function _freeIvsFor(uid, dateStr) {
+    const s = SS();
+    const sched = s.resolveScheduleForUser(uid, dateStr);
+    let free = _mergeIvs(sched.filter(b => b.type === 'available')
+      .map(b => [_toMin(b.startTime), _toMin(b.endTime)]));
+    for (const b of sched) {
+      if (b.type !== 'unavailable') continue;
+      const bs = _toMin(b.startTime), be = _toMin(b.endTime);
+      free = free.flatMap(([a, z]) => {
+        if (be <= a || bs >= z) return [[a, z]];
+        const out = [];
+        if (bs > a) out.push([a, bs]);
+        if (be < z) out.push([be, z]);
+        return out;
+      });
+    }
+    return free;
+  }
+
+  function renderTeamHTML() {
+    const s = SS();
+    const su = SU();
+    const templates = s.getAllTemplates()
+      .filter(t => t.blocks && t.blocks.length)
+      .sort((a, b) => (a.ownerName || '').localeCompare(b.ownerName || ''));
+
+    if (_teamSelected === null) {
+      _teamSelected = new Set();
+      if (_user && templates.some(t => t.id === _user.uid)) _teamSelected.add(_user.uid);
+    }
+
+    if (!templates.length) {
+      return '<p class="empty-state">No lab members have set availability yet. Paint yours in the <strong>My Availability</strong> tab first.</p>';
+    }
+
+    const chips = templates.map(t => {
+      const sel = _teamSelected.has(t.id);
+      const isMe = _user && t.id === _user.uid;
+      return `<button class="ms-mode-btn team-chip${sel ? ' active' : ''}" data-team-uid="${escHTML(t.id)}" style="--mode-color:${su.getUserColor(t.id)}">
+        <span class="ms-mode-dot" style="background:${su.getUserColor(t.id)}"></span>${escHTML(t.ownerName || 'Member')}${isMe ? ' (you)' : ''}
+      </button>`;
+    }).join('');
+
+    const uids = [...(_teamSelected || [])];
+    let daysHTML = '';
+    if (uids.length < 2) {
+      daysHTML = '<p class="empty-state">Pick two or more people to see when everyone is free.</p>';
+    } else {
+      const days = su.getWeekDays(_weekOffset);
+      const today = su.todayStr();
+      daysHTML = '<div class="team-days">' + days.map(d => {
+        let acc = null;
+        for (const uid of uids) {
+          const ivs = _freeIvsFor(uid, d.date);
+          acc = acc === null ? ivs : _intersectIvs(acc, ivs);
+          if (!acc.length) break;
+        }
+        const windows = (acc || []).filter(([a, z]) => z - a >= 30); // ≥30 min
+        const chipsHTML = windows.length
+          ? windows.map(([a, z]) => `<span class="team-window">${su.fmtTime(_fromMin(a))} – ${su.fmtTime(_fromMin(z))}</span>`).join('')
+          : '<span class="team-none">No common time</span>';
+        return `<div class="team-day${d.date === today ? ' team-day--today' : ''}">
+          <div class="team-day-label">${d.dayShort} <span class="hint">${d.monthDay}</span></div>
+          <div class="team-day-windows">${chipsHTML}</div>
+        </div>`;
+      }).join('') + '</div>';
+    }
+
+    return `<div class="team-layout">
+      <div class="ms-week-nav">
+        <button class="ms-nav-btn" id="team-week-prev">&lsaquo;</button>
+        <span class="ms-week-label">${su.getWeekLabel(_weekOffset)}</span>
+        <button class="ms-nav-btn" id="team-week-next">&rsaquo;</button>
+        ${_weekOffset !== 0 ? '<button class="ms-nav-today" id="team-week-today">Today</button>' : ''}
+      </div>
+      <div class="team-chips">${chips}</div>
+      ${daysHTML}
+    </div>`;
+  }
+
+  function wireTeamTab(container) {
+    const s = SS();
+    container.querySelectorAll('[data-team-uid]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const uid = chip.dataset.teamUid;
+        if (_teamSelected.has(uid)) _teamSelected.delete(uid);
+        else _teamSelected.add(uid);
+        renderTeamContent();
+      });
+    });
+    document.getElementById('team-week-prev')?.addEventListener('click', () => {
+      _weekOffset--; s.setWeekOffset(_weekOffset); renderTeamContent();
+    });
+    document.getElementById('team-week-next')?.addEventListener('click', () => {
+      _weekOffset++; s.setWeekOffset(_weekOffset); renderTeamContent();
+    });
+    document.getElementById('team-week-today')?.addEventListener('click', () => {
+      _weekOffset = 0; s.setWeekOffset(0); renderTeamContent();
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════
      MY SCHEDULE TAB (V3.55 — lifted from /apps/scheduler/app.js
      lines 191-908 via git history; `appEl` references swapped
      to `root`; service aliases SS/SU/CS already defined above)
@@ -546,7 +811,7 @@
     const su = SU();
     if (!s || !su) return '';
 
-    const days = su.getWeekDays(_weekOffset);
+    const days = msVisibleDays();
     const bounds = { startHour: 0, endHour: 24 };
     const slots = su.timeLabels(bounds.startHour, bounds.endHour);
     const slotH = su.ZOOM_LEVELS[_schedZoomIdx];
@@ -554,8 +819,15 @@
     const today = su.todayStr();
     const layerCfg = s.getLayerConfig();
 
-    // Week label
-    const weekLabel = su.getWeekLabel(_weekOffset);
+    // First-run hint — disappears once the user has any block anywhere
+    const _tmpl = s.getMyTemplate();
+    const msFirstRun = !(_tmpl && _tmpl.blocks && _tmpl.blocks.length) &&
+      !s.getAllOverrides().some(o => o.ownerUid === (_user && _user.uid));
+
+    // Week label — on narrow screens show the visible 3-day span instead
+    const weekLabel = msIsNarrow() && days.length
+      ? days[0].monthDay + ' – ' + days[days.length - 1].monthDay
+      : su.getWeekLabel(_weekOffset);
 
     // Day headers
     const dayHeaders = days.map((d, i) => {
@@ -575,7 +847,7 @@
     let cellsHTML = '';
     for (let di = 0; di < days.length; di++) {
       for (let si = 0; si < totalRows; si++) {
-        cellsHTML += `<div class="ms-cell" data-day="${di}" data-slot="${si}" data-date="${days[di].date}" style="grid-column:${di + 2}; grid-row:${si + 2};"></div>`;
+        cellsHTML += `<div class="ms-cell${si % 2 === 0 ? ' ms-cell--hour' : ''}${days[di].date === today ? ' ms-cell--today' : ''}" data-day="${di}" data-slot="${si}" data-date="${days[di].date}" style="grid-column:${di + 2}; grid-row:${si + 2};"></div>`;
       }
     }
 
@@ -624,7 +896,7 @@
         const modeTag = !isCal && !isCustom ? (s.MODE_LABELS[block.mode] || '') : '';
         const rawEventId = block.id.replace('cal_', '');
 
-        blocksHTML += `<div class="ms-block${rigidClass}${flexClass}${calClass}${customClass}${busyAvailClass}" data-block-id="${block.id}" data-date="${dateStr}" data-source="${block.source || ''}" data-cal-status="${block.calStatus || ''}" style="grid-column:${di + 2}; grid-row:${startSlot + 2}/span ${span}; border-left-color:${color}; background:${color}${isBusyAvail ? '33' : '22'}; color:${color};">
+        blocksHTML += `<div class="ms-block${rigidClass}${flexClass}${calClass}${customClass}${busyAvailClass}" data-block-id="${block.id}" data-date="${dateStr}" data-day="${di}" data-source="${block.source || ''}" data-mode="${block.mode || ''}" data-cal-status="${block.calStatus || ''}" style="grid-column:${di + 2}; grid-row:${startSlot + 2}/span ${span}; border-left-color:${color}; background:${color}${isBusyAvail ? '33' : '22'}; color:${color};">
           <span class="ms-block-label">${isCal ? calIcon() + ' ' : ''}${isUnavail && block.rigidity === 'rigid' && !isCal ? lockIcon() + ' ' : ''}${esc(label)}</span>
           ${modeTag ? `<span class="ms-block-mode">${modeTag}</span>` : ''}
           ${isCal ? `<span class="ms-block-mode">${calStatusLabel}</span>` : ''}
@@ -745,17 +1017,19 @@
         </div>
         ${modeSelector}
         <div class="ms-toolbar">
+          <button class="app-btn app-btn--secondary" id="ms-add-block" style="font-size:.72rem;padding:.2rem .5rem;">+ Block</button>
           <button class="app-btn app-btn--secondary" id="ms-copy-mon" style="font-size:.72rem;padding:.2rem .5rem;">Copy Mon &rarr; Weekdays</button>
           <button class="app-btn app-btn--secondary" id="ms-add-custom" style="font-size:.72rem;padding:.2rem .5rem;">+ Custom Event</button>
           ${zoomHTML}
         </div>
         ${layerPanel}
-        <p style="color:var(--muted);font-size:.75rem;margin:.25rem 0 0;">Select a mode, then drag to create blocks. Click blocks to edit.</p>
+        ${msFirstRun ? `<div class="ms-firstrun">Paint your weekly availability: pick a mode above, then tap or drag on the grid below.</div>` : ''}
+        <p style="color:var(--muted);font-size:.75rem;margin:.25rem 0 0;">Tap or drag to paint in the selected mode. Tap a block to edit it${msIsNarrow() ? '' : '; drag across a block to erase'}.</p>
       </div>
       <div class="ms-body">
         <div class="ms-scroll-area">
           <div class="ms-grid-wrap" id="ms-grid-wrap" data-slot-h="${slotH}">
-            <div class="ms-grid" data-mode="${_schedMode}" style="grid-template-columns:60px repeat(${days.length}, 1fr); grid-template-rows:auto repeat(${totalRows}, ${slotH}px);">
+            <div class="ms-grid" data-mode="${_schedMode}" style="grid-template-columns:${msIsNarrow() ? 48 : 60}px repeat(${days.length}, 1fr); grid-template-rows:auto repeat(${totalRows}, ${slotH}px);">
               ${cornerCell}${dayHeaders}${timeSlots}${cellsHTML}${blocksHTML}
             </div>
           </div>
@@ -769,22 +1043,23 @@
     const su = SU();
     if (!s || !su) return;
 
-    const days = su.getWeekDays(_weekOffset);
-    const bounds = { startHour: 0, endHour: 24 };
-
-    // Week navigation
+    // Week navigation — on narrow screens the arrows shift the 3-day
+    // window (rolling into adjacent weeks); on desktop they change weeks.
     document.getElementById('ms-week-prev')?.addEventListener('click', () => {
+      if (msIsNarrow()) { msShiftDays(-3); return; }
       _weekOffset--;
       s.setWeekOffset(_weekOffset);
       renderMyScheduleContent();
     });
     document.getElementById('ms-week-next')?.addEventListener('click', () => {
+      if (msIsNarrow()) { msShiftDays(3); return; }
       _weekOffset++;
       s.setWeekOffset(_weekOffset);
       renderMyScheduleContent();
     });
     document.getElementById('ms-week-today')?.addEventListener('click', () => {
       _weekOffset = 0;
+      _dayWindowStart = 0;
       s.setWeekOffset(0);
       renderMyScheduleContent();
     });
@@ -853,9 +1128,16 @@
       showCustomEventModal(su.todayStr(), '09:00', '10:00');
     });
 
+    // Precision entry — the old modal path, for exact times / recurring
+    // unavailability (paint always creates the mode's default block type)
+    document.getElementById('ms-add-block')?.addEventListener('click', () => {
+      showNewScheduleBlockModal(su.todayStr(), '09:00', '10:00', _schedMode);
+    });
+
     // Click block to edit or dismiss
     root.querySelectorAll('.ms-block').forEach(block => {
       block.addEventListener('click', (e) => {
+        if (_paintDidDrag) return; // a paint/erase drag ended here — not a tap
         if (e.target.classList.contains('ms-block-dismiss')) return; // handled below
         e.stopPropagation();
         const source = block.dataset.source;
@@ -871,7 +1153,6 @@
       });
     });
 
-    // Dismiss calendar events
     // Dismiss calendar events
     root.querySelectorAll('.ms-block-dismiss').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -900,26 +1181,264 @@
       });
     });
 
-    // Drag to create on empty cells
-    let dragStart = null;
-    root.querySelectorAll('.ms-cell').forEach(cell => {
-      cell.addEventListener('pointerdown', (e) => {
-        dragStart = { day: +cell.dataset.day, slot: +cell.dataset.slot, date: cell.dataset.date };
-        cell.setPointerCapture(e.pointerId);
-      });
-      cell.addEventListener('pointerup', () => {
-        if (!dragStart) return;
-        const endDay = +cell.dataset.day;
-        const endSlot = +cell.dataset.slot;
-        if (endDay !== dragStart.day) { dragStart = null; return; }
-        const startSlot = Math.min(dragStart.slot, endSlot);
-        const endSlotFinal = Math.max(dragStart.slot, endSlot) + 1;
-        const startTime = su.slotToTime(startSlot, bounds.startHour);
-        const endTime = su.slotToTime(endSlotFinal, bounds.startHour);
-        dragStart = null;
-        showNewScheduleBlockModal(cell.dataset.date, startTime, endTime, _schedMode);
-      });
+    // V3.342: paint-to-create / drag-to-erase on the grid
+    wirePaintGrid();
+  }
+
+  /* ─── Paint interaction (V3.342) ─────────────────────────────
+     Mouse: drag on empty cells paints a block in the current mode;
+     drag starting on a template/override block erases across it.
+     Touch: a tap on an empty cell adds one 30-min block (merging
+     with adjacent same-type blocks, so repeated taps grow a block);
+     vertical swipes scroll (touch-action: pan-y in scheduler.css);
+     a horizontal swipe shifts the 3-day window on narrow screens.
+     Committed blocks persist via ScheduleService; the Firestore
+     snapshot listener re-renders the grid. */
+  let _paintDidDrag = false;
+
+  function wirePaintGrid() {
+    const s = SS();
+    const su = SU();
+    const grid = root.querySelector('.ms-grid');
+    if (!s || !su || !grid) return;
+
+    const slotCount = su.timeLabels(0, 24).length;
+    let sess = null; // active pointer session
+
+    function geom() {
+      const c0 = grid.querySelector('.ms-cell[data-day="0"][data-slot="0"]');
+      if (!c0) return null;
+      const r = c0.getBoundingClientRect();
+      return { x0: r.left, y0: r.top, w: r.width, h: r.height };
+    }
+    const clampSlot = (n) => Math.max(0, Math.min(slotCount - 1, n));
+    const slotAt = (g, y) => clampSlot(Math.floor((y - g.y0) / g.h));
+
+    function setPreview(dayIdx, a, b, cls) {
+      grid.querySelectorAll('.ms-cell--paint, .ms-cell--erase').forEach(c =>
+        c.classList.remove('ms-cell--paint', 'ms-cell--erase'));
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      for (let si = lo; si <= hi; si++) {
+        grid.querySelector(`.ms-cell[data-day="${dayIdx}"][data-slot="${si}"]`)?.classList.add(cls);
+      }
+    }
+    function clearPreview() {
+      grid.querySelectorAll('.ms-cell--paint, .ms-cell--erase').forEach(c =>
+        c.classList.remove('ms-cell--paint', 'ms-cell--erase'));
+    }
+
+    grid.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      const g = geom();
+      if (!g) return;
+
+      const blockEl = e.target.closest('.ms-block');
+      const cellEl = e.target.closest('.ms-cell');
+      let op = null, mode = _schedMode, dayIdx, date;
+
+      if (blockEl) {
+        // Calendar/custom blocks keep their tap behaviors; template and
+        // override blocks arm an erase drag (a plain tap still edits).
+        if (e.target.closest('.ms-block-dismiss') || e.target.closest('.ms-block-status-toggle')) return;
+        const src = blockEl.dataset.source;
+        if (src !== 'template' && src !== 'override') return;
+        op = 'erase';
+        mode = blockEl.dataset.mode || (src === 'template' ? 'recurring' : 'blackout');
+        dayIdx = +blockEl.dataset.day;
+        date = blockEl.dataset.date;
+      } else if (cellEl) {
+        op = 'add';
+        dayIdx = +cellEl.dataset.day;
+        date = cellEl.dataset.date;
+      } else {
+        return;
+      }
+
+      const anchor = slotAt(g, e.clientY);
+      sess = {
+        id: e.pointerId, type: e.pointerType || 'mouse',
+        op, mode, dayIdx, date,
+        anchor, last: anchor,
+        startX: e.clientX, startY: e.clientY,
+        armed: op === 'add' && (e.pointerType || 'mouse') === 'mouse',
+        fromBlock: !!blockEl,
+        blockId: blockEl ? blockEl.dataset.blockId : null,
+      };
+      _paintDidDrag = false;
+      try { grid.setPointerCapture(e.pointerId); } catch (err) {}
+      if (sess.armed) setPreview(dayIdx, anchor, anchor, 'ms-cell--paint');
     });
+
+    grid.addEventListener('pointermove', (e) => {
+      if (!sess || e.pointerId !== sess.id) return;
+      const g = geom();
+      if (!g) return;
+      const slot = slotAt(g, e.clientY);
+      const moved = Math.abs(e.clientX - sess.startX) > 6 || Math.abs(e.clientY - sess.startY) > 6;
+
+      // Mouse: any movement into another slot arms erase drags too.
+      if (sess.type === 'mouse') {
+        if (sess.fromBlock && !sess.armed && slot !== sess.anchor) sess.armed = true;
+        if (sess.armed && slot !== sess.last) {
+          sess.last = slot;
+          _paintDidDrag = true;
+          setPreview(sess.dayIdx, sess.anchor, slot, sess.op === 'add' ? 'ms-cell--paint' : 'ms-cell--erase');
+        }
+      } else if (moved) {
+        // Touch: movement means scroll or swipe — this is not a tap.
+        sess.moved = true;
+      }
+    });
+
+    async function finish(e, cancelled) {
+      if (!sess || e.pointerId !== sess.id) return;
+      const done = sess;
+      sess = null;
+      clearPreview();
+
+      // Pointer capture retargets the ensuing click to the grid, so a
+      // plain tap on a captured block must open its editor from here.
+      const tapBlock = () => {
+        if (done.fromBlock && done.blockId) {
+          _paintDidDrag = true; // suppress a duplicate click on the block itself
+          showScheduleBlockEditor(done.blockId, done.date);
+        }
+      };
+
+      if (done.type === 'mouse') {
+        if (done.armed && (done.op === 'add' || _paintDidDrag)) {
+          const lo = Math.min(done.anchor, done.last);
+          const hi = Math.max(done.anchor, done.last) + 1;
+          await commitPaint(done.date, done.mode, done.op, lo, hi);
+        } else if (done.fromBlock && !_paintDidDrag) {
+          tapBlock();
+        }
+        return;
+      }
+
+      // Touch / pen
+      if (cancelled) return; // browser took the gesture (scroll)
+      const dx = e.clientX - done.startX;
+      const dy = e.clientY - done.startY;
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (msIsNarrow()) msShiftDays(dx < 0 ? 1 : -1);
+        return;
+      }
+      if (done.moved) return;
+      if (done.op === 'add') {
+        _paintDidDrag = true; // suppress any synthetic click on re-render
+        await commitPaint(done.date, done.mode, 'add', done.anchor, done.anchor + 1);
+      } else {
+        tapBlock();
+      }
+    }
+
+    grid.addEventListener('pointerup', (e) => { finish(e, false); });
+    grid.addEventListener('pointercancel', (e) => { finish(e, true); });
+    // Reset the click-suppression flag after the click phase has passed.
+    grid.addEventListener('click', () => { setTimeout(() => { _paintDidDrag = false; }, 0); }, true);
+  }
+
+  /* Interval helpers — slots are half-hour indices, ranges half-open */
+  function _slotRange(su, b) {
+    return [su.timeToSlot(b.startTime, 0), su.timeToSlot(b.endTime, 0)];
+  }
+  function _subtractIv(ivs, bs, be) {
+    return ivs.flatMap(([a, z]) => {
+      if (be <= a || bs >= z) return [[a, z]];
+      const out = [];
+      if (bs > a) out.push([a, bs]);
+      if (be < z) out.push([be, z]);
+      return out;
+    });
+  }
+
+  /* Persist a painted range. op 'add' unions with same-type blocks in
+     the same layer (and clips against opposite-type ones); op 'erase'
+     deletes / trims / splits the layer's blocks under the range. */
+  async function commitPaint(dateStr, mode, op, s0, s1) {
+    const s = SS();
+    const su = SU();
+    if (!s || !su || s1 <= s0) return;
+    const dow = new Date(dateStr + 'T00:00:00').getDay();
+
+    try {
+      if (mode === 'recurring') {
+        const tmpl = s.getMyTemplate();
+        const blocks = tmpl && tmpl.blocks ? [...tmpl.blocks] : [];
+        const out = [];
+        if (op === 'add') {
+          let ns = s0, ne = s1;
+          const others = [];
+          for (const b of blocks) {
+            if (b.dayOfWeek !== dow) { out.push(b); continue; }
+            const [bs, be] = _slotRange(su, b);
+            if ((b.type || 'available') === 'available' && be >= ns && bs <= ne) {
+              ns = Math.min(ns, bs); ne = Math.max(ne, be); // absorb into union
+            } else {
+              others.push(b); out.push(b);
+            }
+          }
+          let ivs = [[ns, ne]];
+          for (const b of others) {
+            if ((b.type || 'available') !== 'unavailable') continue;
+            const [bs, be] = _slotRange(su, b);
+            ivs = _subtractIv(ivs, bs, be);
+          }
+          for (const [a, z] of ivs) {
+            if (z <= a) continue;
+            out.push({
+              id: s.genBlockId(), dayOfWeek: dow,
+              startTime: su.slotToTime(a, 0), endTime: su.slotToTime(z, 0),
+              type: 'available', reason: null, rigidity: 'flexible', mode: 'recurring',
+            });
+          }
+        } else {
+          for (const b of blocks) {
+            if (b.dayOfWeek !== dow) { out.push(b); continue; }
+            const [bs, be] = _slotRange(su, b);
+            if (be <= s0 || bs >= s1) { out.push(b); continue; }
+            if (bs < s0) out.push({ ...b, endTime: su.slotToTime(s0, 0) });
+            if (be > s1) out.push({ ...b, id: bs < s0 ? s.genBlockId() : b.id, startTime: su.slotToTime(s1, 0) });
+          }
+        }
+        await s.saveScheduleTemplate(out);
+      } else {
+        const type = mode === 'special' ? 'available' : 'unavailable';
+        const mine = s.getAllOverrides().filter(o =>
+          o.ownerUid === _user.uid && o.date === dateStr && o.action === 'add' && o.block &&
+          (o.block.mode || (o.block.type === 'available' ? 'special' : 'blackout')) === mode);
+
+        if (op === 'add') {
+          let ns = s0, ne = s1;
+          const absorbed = [];
+          for (const o of mine) {
+            const [bs, be] = _slotRange(su, o.block);
+            if (be >= ns && bs <= ne) { ns = Math.min(ns, bs); ne = Math.max(ne, be); absorbed.push(o.id); }
+          }
+          for (const id of absorbed) await s.deleteScheduleOverride(id);
+          await s.addScheduleOverride({
+            date: dateStr, action: 'add', blockId: null,
+            block: {
+              startTime: su.slotToTime(ns, 0), endTime: su.slotToTime(ne, 0),
+              type, reason: type === 'unavailable' ? 'Other' : null,
+              rigidity: type === 'unavailable' ? 'rigid' : 'flexible', mode,
+            },
+          });
+        } else {
+          for (const o of mine) {
+            const [bs, be] = _slotRange(su, o.block);
+            if (be <= s0 || bs >= s1) continue;
+            await s.deleteScheduleOverride(o.id);
+            if (bs < s0) await s.addScheduleOverride({ date: dateStr, action: 'add', blockId: null, block: { ...o.block, endTime: su.slotToTime(s0, 0) } });
+            if (be > s1) await s.addScheduleOverride({ date: dateStr, action: 'add', blockId: null, block: { ...o.block, startTime: su.slotToTime(s1, 0) } });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[scheduler] paint commit failed:', err);
+      toast('Error saving — try again', 'error');
+    }
   }
 
   /* ─── New Block Modal ────────────────────────────────────── */

@@ -1,0 +1,229 @@
+/* protocol-cheat.css — condensed "cheat sheet" protocol view (V3.503).
+ *
+ * The dense, bench-side / print-first counterpart to protocol-doc.css.
+ * The cheat article carries BOTH `prd-doc` and `prc-doc` classes, so the
+ * reused read-only block renderers (figures, plate maps, timelines, timing
+ * pills) inherit their normal doc styling from protocol-doc.css and the
+ * shared --prd-* tokens; the rules below tighten everything for a one-page
+ * printout and add the cheat-only structure (compact header, numbered
+ * one-line steps, small-caps stage dividers). Always a light "paper" look,
+ * like the doc view. @media print is the export path.
+ */
+
+.prc-shell {
+  min-height: 100vh;
+  background: #eef1f5;
+  padding: 0 0 56px;
+}
+
+.prc-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 16px 0;
+}
+
+.prc-status {
+  max-width: 720px;
+  margin: 24px auto;
+  padding: 0 16px;
+  color: #667;
+  font-size: 14px;
+}
+
+/* Narrower + denser than the doc view. `.prc-doc` wins over the inherited
+ * `.prd-doc` base because this sheet loads after protocol-doc.css. */
+.prc-doc.prc-doc {
+  max-width: 720px;
+  margin: 14px auto 0;
+  background: #fff;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(20, 30, 50, 0.06);
+  padding: 22px 26px 30px;
+  color: var(--prd-ink, #17324D);
+  line-height: 1.4;
+  font-size: 13.5px;
+  overflow: hidden;
+}
+
+/* ── Compact header (replaces the branded masthead) ──────────────── */
+.prc-header {
+  border-bottom: 2px solid var(--prd-ink, #17324D);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.prc-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  line-height: 1.15;
+  margin: 0;
+  color: var(--prd-ink, #17324D);
+}
+.prc-meta {
+  margin-top: 4px;
+  font-family: var(--prd-mono, ui-monospace, Menlo, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #7688a0;
+}
+
+/* ── Section / stage divider ─────────────────────────────────────── */
+.prc-section { margin: 0 0 12px; }
+.prc-section:last-of-type { margin-bottom: 0; }
+.prc-stage {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--prd-blue, #3F63A8);
+  margin: 12px 0 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--prd-line, #DCE1E8);
+}
+
+/* ── Condensed numbered steps ────────────────────────────────────── */
+.prc-step {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 2.5px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.prc-step-num {
+  flex: 0 0 auto;
+  min-width: 1.35em;
+  text-align: right;
+  font-family: var(--prd-mono, ui-monospace, Menlo, monospace);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--prd-blue, #3F63A8);
+}
+.prc-step-num::after { content: "."; }
+.prc-step-line { flex: 1 1 auto; }
+
+/* ── V3.515 — config bar: category pills + Customize / Reset ─────── */
+.prc-configbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 8px 10px;
+  background: #f4f6f9;
+  border: 1px solid var(--prd-line, #DCE1E8);
+  border-radius: 8px;
+}
+.prc-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 auto; }
+.prc-pills-lead {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: #7688a0; margin-right: 2px;
+}
+.prc-pill {
+  font: inherit; font-size: 12px; line-height: 1;
+  padding: 6px 11px; border-radius: 999px;
+  border: 1px solid var(--prd-line, #DCE1E8);
+  background: #fff; color: #56657a; cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.prc-pill:hover { border-color: #b9c6da; }
+.prc-pill.on {
+  background: var(--prd-blue, #3F63A8);
+  border-color: var(--prd-blue, #3F63A8);
+  color: #fff;
+}
+.prc-configbar-actions { display: flex; align-items: center; gap: 6px; }
+.prc-customize-btn, .prc-reset {
+  font: inherit; font-size: 12px; line-height: 1;
+  padding: 6px 11px; border-radius: 6px;
+  border: 1px solid var(--prd-line, #DCE1E8);
+  background: #fff; color: #43536a; cursor: pointer;
+}
+.prc-customize-btn:hover, .prc-reset:hover { border-color: #b9c6da; }
+.prc-customize-btn.on { background: #2E7D4F; border-color: #2E7D4F; color: #fff; }
+.prc-configbar-loading { color: #7688a0; font-size: 13px; padding: 8px 2px; }
+
+/* ── V3.515 — Customize checklist (one row per block, tri-state box) ─ */
+.prc-check-row {
+  display: flex; align-items: baseline; gap: 9px;
+  padding: 4px 6px; border-radius: 5px; cursor: pointer;
+}
+.prc-check-row:hover { background: #f4f6f9; }
+.prc-check-row.is-excluded { opacity: 0.5; }
+.prc-line-check { flex: 0 0 auto; margin: 0; transform: translateY(1px); cursor: pointer; }
+.prc-check-tag {
+  flex: 0 0 auto;
+  font-family: var(--prd-mono, ui-monospace, Menlo, monospace);
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 2px 6px; border-radius: 4px;
+  background: #eef1f5; color: #56657a;
+  min-width: 4.8em; text-align: center;
+}
+.prc-check-tag.prc-cat-steps     { background: #e7edf8; color: #33507f; }
+.prc-check-tag.prc-cat-materials { background: #fbf0e2; color: #8a5a17; }
+.prc-check-tag.prc-cat-safety    { background: #fbecea; color: #9b3227; }
+.prc-check-tag.prc-cat-figures   { background: #ece9fb; color: #5b46a0; }
+.prc-check-tag.prc-cat-timing    { background: #e8f3ed; color: #2e7d4f; }
+.prc-check-preview { flex: 1 1 auto; color: #43536a; }
+.prc-check-row.is-excluded .prc-check-preview { color: #8b98a8; }
+
+/* ── Tighten the reused doc blocks inside the cheat sheet ─────────── */
+.prc-doc .prd-figure { margin: 7px 0; text-align: center; }
+.prc-doc .prd-figure img { max-width: 55%; border-radius: 4px; }
+.prc-doc .prd-figure figcaption { font-size: 11px; color: #667; margin-top: 3px; }
+.prc-doc .prd-timing { margin: 4px 0; }
+.prc-doc .prd-timeline { margin: 8px 0; }
+.prc-doc .prd-stage { margin: 10px 0 5px; }   /* heading BLOCKs (not section labels) */
+.prc-doc .prd-layoutmap,
+.prc-doc .prd-layoutmap-wrap { margin: 8px 0; }
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.prc-footer {
+  margin-top: 16px;
+  padding-top: 7px;
+  border-top: 1px solid var(--prd-line, #DCE1E8);
+  font-family: var(--prd-mono, ui-monospace, Menlo, monospace);
+  font-size: 9.5px;
+  color: #90a0b5;
+}
+
+/* ── Print — the export path ─────────────────────────────────────── */
+@media print {
+  /* Hide the RM shell + the cheat toolbar/status + the config UI. */
+  nav, header.rm-nav, .rm-nav, #rm-nav, .prc-toolbar, .prc-status,
+  .sync-status, .toast, #toast,
+  .prc-configbar, .prc-line-check, .prc-check-tag { display: none !important; }
+  /* Excluded lines never print, even if shown dimmed in Customize mode. */
+  .prc-check-row.is-excluded { display: none !important; }
+
+  body, .prc-shell { background: #fff !important; padding: 0 !important; }
+
+  .prc-doc.prc-doc {
+    max-width: none;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    font-size: 10.5pt;
+    line-height: 1.35;
+  }
+  .prc-step { padding: 1.5px 0; }
+  /* Keep plate-map / timing colors + don't split blocks across pages. */
+  .prc-doc .prd-layoutmap-wrap, .prc-doc .prd-timing, .prc-doc .prd-table th {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .prc-stage { break-after: avoid; }
+  .prc-step, .prc-doc .prd-figure, .prc-doc .prd-timeline,
+  .prc-doc .prd-layoutmap { break-inside: avoid; }
+  .prc-doc .prd-figure img { max-width: 45%; }
+  a { color: inherit; text-decoration: none; }
+
+  @page { size: letter; margin: 0.4in; }
+}

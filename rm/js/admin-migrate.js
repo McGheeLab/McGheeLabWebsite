@@ -264,6 +264,7 @@
     document.getElementById('mig-refresh-all').click();
   }
 
+  if (firebridge.requireSignIn) firebridge.requireSignIn('Sign in to run migrations.');
   firebridge.onAuth(function (user, profile) {
     if (!user) {
       gateMessage('<p class="mig-err">Not signed in. <a href="/rm/index.html">Go home</a> and sign in first.</p>');

@@ -619,6 +619,7 @@
   }
 
   async function init() {
+    if (firebridge.requireSignIn) firebridge.requireSignIn('Sign in to edit biosketches.');
     firebridge.onAuth(async function (user, profile) {
       if (!user) {
         $('gd-paper').innerHTML = '<div class="grantdoc-empty-state"><h2>Sign in to use biosketches</h2></div>';

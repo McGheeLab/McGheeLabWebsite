@@ -25,10 +25,29 @@
   }
 
   async function _loadDrafts() {
-    const data = await api.load('items.json');
-    // Any paper item is a valid evidence target — both lab drafts and
-    // library entries can host claims.
-    return (data.items || []).filter(it => it.type === 'paper');
+    // V3.475 — union the two draft sources so this dialog lists the same
+    // papers as the inline annotation-panel picker (library-paper.js
+    // _allDrafts): paper drafts live in projects/papers.json (the
+    // paper-builder owns that file), while grant drafts + any paper-type
+    // library items live in items.json. Deduped by id (projects wins).
+    // NOTE: this dialog is currently orphaned (nothing calls .open()); the
+    // live evidence flow is the inline panel in annotation-panel.js. Kept
+    // consistent here in case it's re-wired.
+    const [itemsData, papersData] = await Promise.all([
+      api.load('items.json'),
+      api.load('projects/papers.json').catch(() => ({ papers: [] })),
+    ]);
+    const seen = {};
+    const out = [];
+    ((papersData && papersData.papers) || []).forEach(p => {
+      if (p && p.id && !seen[p.id]) { seen[p.id] = true; out.push({ id: p.id, title: p.title || p.id }); }
+    });
+    (itemsData.items || []).forEach(it => {
+      if (it && it.type === 'paper' && it.id && !seen[it.id]) {
+        seen[it.id] = true; out.push({ id: it.id, title: it.title || it.id });
+      }
+    });
+    return out;
   }
 
   async function _loadClaimsOnce(draftId) {

@@ -179,6 +179,38 @@
     }];
   }
 
+  /* FuturePlan 06 — walk a PLAIN protocol tree and return the ordered
+   * formula-entry array buildSymbolTable consumes. Consolidates the two
+   * previously-divergent plain-tree walkers (the doc view's
+   * collectPlainFormulas and the notebook's formula-only walker — the
+   * latter silently missed calculator/builder inputs). Handles formula,
+   * calculator, builder, and design (node-graph, compiled via
+   * window.ProtocolGraph when loaded). */
+  function collectFormulasFromPlainTree(tree) {
+    var out = [];
+    ((tree && tree.sections) || []).forEach(function (sec) {
+      (sec.children || []).forEach(function (b) {
+        if (!b) return;
+        if (b.kind === 'formula') {
+          var a = b.attrs || {};
+          out.push({
+            blockId: b.id || '', label: a.label || '', description: a.description || '',
+            expression: a.expression || '',
+            variables: Array.isArray(a.variables) ? a.variables : [],
+            output: a.output || null,
+          });
+        } else if (b.kind === 'calculator') {
+          out.push.apply(out, calculatorToFormulaEntries(b));
+        } else if (b.kind === 'builder') {
+          out.push.apply(out, builderToFormulaEntries(b));
+        } else if (b.kind === 'design' && window.ProtocolGraph) {
+          out.push.apply(out, window.ProtocolGraph.compile(b.attrs || {}).entries || []);
+        }
+      });
+    });
+    return out;
+  }
+
   /* ── V3.318 — named datasets + per-row expression evaluation ──
    * Datasets are session-scoped row arrays registered by builder blocks
    * (Release 4) and consumed by calculator computed tables. */
@@ -195,6 +227,67 @@
   }
 
   function listDatasets() { return Object.keys(_datasets); }
+
+  /* FuturePlan 06 — extensive aggregation over assigned items. Pure.
+   * `items` are the item-list rows; opts:
+   *   countOf(item,i)  → how many slots this item occupies (default 1)
+   *   poolBy           [fieldNames] to group by (empty = single grand pool)
+   *   quantityFields   [fieldNames] numeric per-item quantities to sum
+   *                    (default: every numeric field on the first item)
+   *   factor           multiplier applied to every total (default 1)
+   *   unitOf(field)    → unit string (optional)
+   * Returns { pools:[{key,label,totals:{field:number}}], grand:{field:number},
+   *           quantityFields, units:{field:unit} }. */
+  function aggregatePrep(items, opts) {
+    opts = opts || {};
+    items = Array.isArray(items) ? items : [];
+    var factor = (typeof opts.factor === 'number' && isFinite(opts.factor)) ? opts.factor : 1;
+    var countOf = (typeof opts.countOf === 'function') ? opts.countOf : function () { return 1; };
+    var poolBy = Array.isArray(opts.poolBy) ? opts.poolBy : [];
+    var qFields = Array.isArray(opts.quantityFields) && opts.quantityFields.length
+      ? opts.quantityFields
+      : (items.length ? Object.keys(items[0]).filter(function (k) {
+          return typeof items[0][k] === 'number' && k.indexOf('_value') < 0;
+        }) : []);
+    var unitOf = (typeof opts.unitOf === 'function') ? opts.unitOf : function () { return ''; };
+
+    var poolMap = {};
+    var poolOrder = [];
+    var grand = {};
+    qFields.forEach(function (q) { grand[q] = 0; });
+
+    items.forEach(function (item, i) {
+      var count = countOf(item, i) || 0;
+      if (!count) return;
+      var keyParts = poolBy.map(function (f) {
+        var v = item[f + '_label'] !== undefined ? item[f + '_label'] : item[f];
+        return (v === undefined || v === null) ? '' : String(v);
+      });
+      var key = poolBy.length ? keyParts.join(' · ') : 'Total';
+      if (!poolMap[key]) {
+        poolMap[key] = { key: key, label: key, totals: {} };
+        qFields.forEach(function (q) { poolMap[key].totals[q] = 0; });
+        poolOrder.push(key);
+      }
+      qFields.forEach(function (q) {
+        var v = item[q];
+        if (typeof v === 'number' && isFinite(v)) {
+          var add = v * count * factor;
+          poolMap[key].totals[q] += add;
+          grand[q] += add;
+        }
+      });
+    });
+
+    var units = {};
+    qFields.forEach(function (q) { units[q] = unitOf(q) || ''; });
+    return {
+      pools: poolOrder.map(function (k) { return poolMap[k]; }),
+      grand: grand,
+      quantityFields: qFields,
+      units: units,
+    };
+  }
 
   /* Evaluate a mathjs expression under the numeric symbol-table scope
    * with an optional extra scope merged on top (per-row fields shadow
@@ -224,6 +317,27 @@
     }
   }
 
+  /* V3.380 — compiled-function memo for `code` entries so a slider
+   * recompute reuses the compiled script instead of re-invoking the
+   * Function constructor per tick. Syntax errors are cached too (as
+   * {err}), so a broken script doesn't re-parse on every rebuild. */
+  var _codeFnCache = {};
+  var _codeFnCacheSize = 0;
+  function _codeFn(argNames, body) {
+    var key = argNames.join(',') + ' ' + body;
+    if (Object.prototype.hasOwnProperty.call(_codeFnCache, key)) return _codeFnCache[key];
+    if (_codeFnCacheSize > 100) { _codeFnCache = {}; _codeFnCacheSize = 0; }
+    var out;
+    try {
+      out = { fn: Function.apply(null, argNames.concat('"use strict";\n' + body)), err: null };
+    } catch (err) {
+      out = { fn: null, err: (err && err.message) || String(err) };
+    }
+    _codeFnCache[key] = out;
+    _codeFnCacheSize++;
+    return out;
+  }
+
   /* Build symbol table. Two passes: inputs first (so an output formula
    * sees them), then outputs in document order. Last-write wins — we
    * surface a console warning so duplicate-name bugs are visible.
@@ -243,6 +357,64 @@
       }
       seenNames[name] = true;
       table[name] = sym;
+    }
+
+    /* V3.380 — evaluate a `code` entry (from a design graph's code
+     * node): the script's named arguments are the bound variables
+     * (entry.argNames), and its returned object's keys are matched to
+     * the declared outputs (entry.outputs). Runs ONCE per rebuild;
+     * every failure mode (syntax error, throw, wrong return shape,
+     * missing key, non-finite value) lands as a per-output `error` row
+     * — nothing escapes the table build. Protocols are lab-authored
+     * trusted content (same model as the interactive-HTML gold
+     * standard); a CSP that forbids eval surfaces here as an error row,
+     * not a crash. */
+    function _evalCodeEntry(f) {
+      var outs = (f.outputs || []).filter(function (o) { return o && o.name; });
+      if (!outs.length) return;
+      function fail(msg) {
+        outs.forEach(function (o) {
+          _setSym(o.name, { value: null, unit: o.unit || '', label: o.label || o.name, computed: true, error: msg });
+        });
+      }
+      var argNames = Array.isArray(f.argNames) ? f.argNames : [];
+      var scope = {};
+      Object.keys(table).forEach(function (k) {
+        var v = table[k].value;
+        if (typeof v === 'number') scope[k] = v;
+      });
+      var compiled = _codeFn(argNames, String(f.code));
+      if (compiled.err) { fail(compiled.err); return; }
+      var result;
+      try {
+        result = compiled.fn.apply(null, argNames.map(function (nm) { return scope[nm]; }));
+      } catch (err) {
+        fail((err && err.message) || String(err));
+        return;
+      }
+      if (typeof result === 'number' && outs.length === 1) {
+        var one = {};
+        one[outs[0].name] = result;
+        result = one;
+      }
+      if (!result || typeof result !== 'object') {
+        fail('script must return { ' + outs.map(function (o) { return o.name; }).join(', ') + ' }');
+        return;
+      }
+      outs.forEach(function (o) {
+        var v = result[o.name];
+        if (typeof v === 'number' && isFinite(v)) {
+          var dec = (typeof o.decimals === 'number') ? o.decimals : 3;
+          _setSym(o.name, { value: parseFloat(v.toFixed(dec)), unit: o.unit || '', label: o.label || o.name, computed: true });
+        } else if (typeof v === 'number') {
+          _setSym(o.name, { value: null, unit: o.unit || '', label: o.label || o.name, computed: true, error: 'non-finite result' });
+        } else if (v === undefined) {
+          _setSym(o.name, { value: null, unit: o.unit || '', label: o.label || o.name, computed: true, error: 'script returned no value for "' + o.name + '"' });
+        } else {
+          // strings/booleans pass through, mirroring the mathjs non-number branch
+          _setSym(o.name, { value: v, unit: o.unit || '', label: o.label || o.name, computed: true });
+        }
+      });
     }
 
     formulas.forEach(function (f) {
@@ -269,6 +441,7 @@
     });
 
     formulas.forEach(function (f) {
+      if (f.code != null && Array.isArray(f.outputs) && f.outputs.length) { _evalCodeEntry(f); return; }
       if (!f.output || !f.output.name || !f.expression) return;
       var scope = {};
       Object.keys(table).forEach(function (k) {
@@ -390,8 +563,24 @@
    * Inline markup applies only to plain segments, never inside tokens. */
   var PILL_RE = /\[!pill:([a-zA-Z][a-zA-Z0-9_-]*):([^\]]+)\]/g;
 
-  function _renderInlineMarkup(escaped) {
+  /* V3.383 — after HTML-escaping a plain segment, un-escape a fixed
+   * allowlist of ATTRIBUTE-LESS inline formatting tags so authors can
+   * bold/italic/code/sub/sup a word directly in a body (the GELS gold
+   * standard + the node lessons are authored this way). Safe by
+   * construction: only the exact `<tag>` / `</tag>` forms are restored —
+   * any attribute (e.g. `&lt;b onclick=…&gt;`) has text between the tag
+   * name and `&gt;`, so it never matches and stays escaped. No
+   * href/src/script/style/event-handler can survive. */
+  var _INLINE_TAGS = 'b|strong|i|em|u|s|code|sub|sup|mark|small';
+  var _INLINE_TAG_RE = new RegExp('&lt;(\\/?(?:' + _INLINE_TAGS + '))&gt;', 'gi');
+  function _allowInlineHtml(escaped) {
     return escaped
+      .replace(_INLINE_TAG_RE, '<$1>')
+      .replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+  }
+
+  function _renderInlineMarkup(escaped) {
+    return _allowInlineHtml(escaped)
       .replace(/`([^`]+)`/g, '<code class="proto-code">$1</code>')
       .replace(/~([^~]+)~/g, '<sub>$1</sub>')
       .replace(/\^([^^]+)\^/g, '<sup>$1</sup>');
@@ -404,6 +593,9 @@
         && window.PROTOCOL_INVENTORY.textHasTokens(text)) return true;
     PILL_RE.lastIndex = 0;
     if (PILL_RE.test(text)) return true;
+    // V3.383 — allowlisted inline HTML also counts as prose, so the
+    // editor renders it (not textContent) on blur / in read-only views.
+    if (/<\/?(?:b|strong|i|em|u|s|code|sub|sup|mark|small)>|<br\s*\/?>/i.test(text)) return true;
     return /`[^`]+`|~[^~]+~|\^[^^]+\^/.test(text);
   }
 
@@ -523,9 +715,11 @@
     clearOverrides: clearOverrides,
     calculatorToFormulaEntries: calculatorToFormulaEntries,
     builderToFormulaEntries: builderToFormulaEntries,
+    collectFormulasFromPlainTree: collectFormulasFromPlainTree,
     registerDataset: registerDataset,
     getDataset: getDataset,
     listDatasets: listDatasets,
+    aggregatePrep: aggregatePrep,
     evalExpression: evalExpression,
     rebuild: rebuild,
     getSymbolTable: getSymbolTable,

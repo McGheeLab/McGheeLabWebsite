@@ -68,7 +68,7 @@
   async function create(draftId, payload) {
     _ensureFirebase();
     const u = _user();
-    const profile = (window.firebridge && firebridge.getProfile()) || null;
+    const profile = (typeof firebridge !== 'undefined' && firebridge.getProfile) ? firebridge.getProfile() : null;
     const stamp = firebase.firestore.FieldValue.serverTimestamp();
     const doc = Object.assign({
       draftPaperId: draftId,
@@ -126,13 +126,21 @@
       const ann = annSnap.data();
       const claim = claimSnap.data();
 
-      // Annotation side
+      // Annotation side. V3.619 — evidence for a claim on draft X implies
+      // the highlight cites into X, so union the draft into cite_in_drafts
+      // in the same write (this is what makes the highlight findable by the
+      // builder's Evidence Inbox and by delete-time cascades). All three
+      // fields are inside the non-owner rules carve-out.
       const annClaimIds = Array.isArray(ann.evidence_for_claim_ids)
         ? ann.evidence_for_claim_ids.slice() : [];
       if (!annClaimIds.includes(claimId)) annClaimIds.push(claimId);
+      const annDrafts = Array.isArray(ann.cite_in_drafts)
+        ? ann.cite_in_drafts.slice() : [];
+      if (!annDrafts.includes(draftId)) annDrafts.push(draftId);
       tx.update(annRef, {
         evidence_for_claim_ids: annClaimIds,
         evidence_stance: stance,
+        cite_in_drafts: annDrafts,
         modified: stamp,
       });
 

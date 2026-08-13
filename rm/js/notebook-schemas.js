@@ -74,6 +74,50 @@ var NOTEBOOK_DOE_TYPE_LABELS = {
 
 var NOTEBOOK_SCHEMA_VERSION = 1;
 
+/* V3.361 — experimental-design plan scaffold. Lives on the entry as a
+ * always-present object (legacy docs get the empty shape backfilled by
+ * notebookHydrate). The panel renders above the body and is emphasized
+ * while phase === 'plan'. */
+function notebookEmptyPlan() {
+  return {
+    hypothesis: '',
+    independent_vars: [],
+    dependent_vars: [],
+    controls: '',
+    success_criteria: '',
+  };
+}
+
+function notebookHydratePlan(p) {
+  if (!p || typeof p !== 'object') return notebookEmptyPlan();
+  if (typeof p.hypothesis !== 'string') p.hypothesis = '';
+  p.independent_vars = Array.isArray(p.independent_vars) ? p.independent_vars.filter(function (v) { return typeof v === 'string' && v; }) : [];
+  p.dependent_vars   = Array.isArray(p.dependent_vars)   ? p.dependent_vars.filter(function (v) { return typeof v === 'string' && v; }) : [];
+  if (typeof p.controls !== 'string') p.controls = '';
+  if (typeof p.success_criteria !== 'string') p.success_criteria = '';
+  return p;
+}
+
+function notebookPlanHasContent(p) {
+  return !!(p && (p.hypothesis || p.controls || p.success_criteria ||
+    (p.independent_vars && p.independent_vars.length) ||
+    (p.dependent_vars && p.dependent_vars.length)));
+}
+
+/* V3.362 — pull sibling-entry ids out of reference_links so the rail
+ * index can answer "which entries link to X" without loading full docs.
+ * Matches both absolute and relative lab-notebook URLs. */
+function notebookLinkedEntryIds(referenceLinks) {
+  var out = [];
+  var seen = {};
+  (Array.isArray(referenceLinks) ? referenceLinks : []).forEach(function (r) {
+    if (!r || r.kind !== 'notebook' || !r.url) return;
+    var m = String(r.url).match(/[?&]entry=([A-Za-z0-9_-]+)/);
+    if (m && m[1] && !seen[m[1]]) { seen[m[1]] = true; out.push(m[1]); }
+  });
+  return out;
+}
+
 /* Build a fresh empty entry. Caller fills id + ownerUid + uploaded_by. */
 function notebookEmptyEntry() {
   var now = new Date().toISOString();
@@ -101,12 +145,27 @@ function notebookEmptyEntry() {
     // userData/{uid}/pmr/{periodId} doc. storage_path is the stable join
     // key (attachment array index changes when attachments are removed).
     pmr_review_figures: [],
+    // FuturePlan 06 — live protocol run instance. Null until the user
+    // loads a definition into this run. Shape:
+    //   { protocol_id, protocol_title, protocol_version|null, loaded_at,
+    //     inputs:{name→number},              // === widget ctx.overrides
+    //     graph_state:{[blockId]:{pickSets,picks,options,dataset}},
+    //     grids:[{id,label,rows,cols}],
+    //     assignment:{[gridId]:{[slotKey]:itemKey}},
+    //     factor:number,                      // aggregation multiplier
+    //     computed:{items[],totals}|null,     // non-authoritative cache
+    //     frozen:bool, frozen_at:null, snapshot:null }
+    // Kept separate from calc_runs[] (the frozen-snippet-in-body feature).
+    protocol_run: null,
     // V3.138 — bench-workflow lifecycle
     phase: 'plan',
     run_started_at: null,
     run_ended_at: null,
     summary: '',
     observations: [],
+    // V3.361 — experimental-design scaffold (hypothesis / variables /
+    // controls / success criteria). Always an object; see notebookEmptyPlan.
+    plan: notebookEmptyPlan(),
     comments: [],
     witnessed_by: null,
     reference_count: 0,
@@ -155,8 +214,42 @@ function notebookHydrate(d) {
     if (!Array.isArray(d.design.factors)) d.design.factors = [];
     if (!Array.isArray(d.design.runs))    d.design.runs    = [];
     if (typeof d.design.type !== 'string') d.design.type = 'lhs';
+    // V3.361 — per-run results, parallel array keyed by run index (kept
+    // out of the run rows themselves so a factor named "result" can't
+    // collide). Each slot is {value:'', note:''}.
+    if (!Array.isArray(d.design.run_results)) d.design.run_results = [];
+    while (d.design.run_results.length < d.design.runs.length) {
+      d.design.run_results.push({ value: '', note: '' });
+    }
+    d.design.run_results.length = d.design.runs.length;
+    d.design.run_results = d.design.run_results.map(function (r) {
+      if (!r || typeof r !== 'object') return { value: '', note: '' };
+      if (typeof r.value !== 'string') r.value = (r.value === null || r.value === undefined) ? '' : String(r.value);
+      if (typeof r.note  !== 'string') r.note  = (r.note  === null || r.note  === undefined) ? '' : String(r.note);
+      return r;
+    });
   } else {
     d.design = null;
+  }
+  // V3.361 — plan scaffold backfill.
+  d.plan = notebookHydratePlan(d.plan);
+  // FuturePlan 06 — protocol_run. Null until a definition is loaded;
+  // partial rows get back-filled so legacy + in-progress docs load clean.
+  if (d.protocol_run && typeof d.protocol_run === 'object') {
+    var r = d.protocol_run;
+    if (typeof r.protocol_id !== 'string') r.protocol_id = '';
+    if (typeof r.protocol_title !== 'string') r.protocol_title = '';
+    if (!r.inputs || typeof r.inputs !== 'object') r.inputs = {};
+    if (!r.graph_state || typeof r.graph_state !== 'object') r.graph_state = {};
+    if (!Array.isArray(r.grids)) r.grids = [];
+    if (!r.assignment || typeof r.assignment !== 'object') r.assignment = {};
+    if (typeof r.factor !== 'number') r.factor = 1;
+    if (!r.computed || typeof r.computed !== 'object') r.computed = null;
+    r.frozen = !!r.frozen;
+    if (typeof r.frozen_at !== 'string' && r.frozen_at !== null) r.frozen_at = null;
+    if (r.snapshot !== null && typeof r.snapshot !== 'object') r.snapshot = null;
+  } else {
+    d.protocol_run = null;
   }
   d.comments         = Array.isArray(d.comments) ? d.comments : [];
   d.mentions         = Array.isArray(d.mentions) ? d.mentions : [];
@@ -186,6 +279,16 @@ function notebookIndexRow(entry) {
     obs_count:        Array.isArray(entry.observations) ? entry.observations.length : 0,
     phase:            (NOTEBOOK_PHASES.indexOf(entry.phase) >= 0) ? entry.phase : 'complete',
     design_runs:      (entry.design && Array.isArray(entry.design.runs)) ? entry.design.runs.length : 0,
+    // FuturePlan 06 — protocol-run summary for the rail.
+    has_protocol_run: !!entry.protocol_run,
+    run_items:        (entry.protocol_run && entry.protocol_run.computed && Array.isArray(entry.protocol_run.computed.items)) ? entry.protocol_run.computed.items.length : 0,
+    run_frozen:       !!(entry.protocol_run && entry.protocol_run.frozen),
+    // V3.361 — plan scaffold flag for the rail.
+    has_plan: notebookPlanHasContent(entry.plan),
+    // V3.362 — body excerpt so rail search covers entry content, and
+    // sibling-entry links so backlinks compute from the index alone.
+    excerpt: String(entry.body_text || '').slice(0, 300),
+    linked_entry_ids: notebookLinkedEntryIds(entry.reference_links),
     status: entry.status || 'open',
     updated_at: entry.updated_at,
   };

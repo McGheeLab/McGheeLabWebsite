@@ -65,9 +65,15 @@
       onChange(merged);
     }
 
+    // V3.619 — serverTimestamps:'estimate' gives a just-created annotation a
+    // stable local sort position (latency-compensated docs otherwise carry a
+    // null `created` and jump from the top of the list to the bottom on
+    // server ack).
+    const DATA_OPTS = { serverTimestamps: 'estimate' };
+
     const unsubLab = labCol.onSnapshot({
       next: snap => {
-        state.lab = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+        state.lab = snap.docs.map(d => Object.assign({ id: d.id }, d.data(DATA_OPTS)));
         state.ready.lab = true;
         _emit();
       },
@@ -79,7 +85,7 @@
 
     const unsubMine = myCol.onSnapshot({
       next: snap => {
-        state.mine = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+        state.mine = snap.docs.map(d => Object.assign({ id: d.id }, d.data(DATA_OPTS)));
         state.ready.mine = true;
         _emit();
       },
@@ -98,23 +104,27 @@
   async function create(paperId, payload) {
     _ensureFirebase();
     const u = _user();
-    const profile = (window.firebridge && firebridge.getProfile()) || null;
+    const profile = (typeof firebridge !== 'undefined' && firebridge.getProfile) ? firebridge.getProfile() : null;
     const stamp = firebase.firestore.FieldValue.serverTimestamp();
+    // V3.619 — legacy defaults dropped: `group` was write-only (nothing ever
+    // read it), `bucket_ids` was the retired predecessor of cite_in_drafts,
+    // and `parent_id` threading never shipped. Old docs keep their fields;
+    // the migration sweep (admin-migrate) folds bucket_ids into
+    // cite_in_drafts. annotation_type default makes every new doc visible
+    // to the type-pill filter.
     const doc = Object.assign({
       paperId,
       type: 'Annotation',
       motivation: 'highlighting',
       visibility: 'lab',
       color_id: 'yellow',
-      group: 'general',                     // organizational bucket (Phase 6 lit-review)
-      bucket_ids: [],                       // project-bucket overlays this highlight belongs to
+      annotation_type: 'note',
       comment: '',
       target: { pages: [] },
       marked_for_investigation: false,
       evidence_for_claim_ids: [],
       evidence_stance: null,
       cite_in_drafts: [],
-      parent_id: null,
     }, payload, {
       creator: {
         uid: u.uid,

@@ -17,6 +17,12 @@
   // stays as an alias for back-compat with code that scans the pool for
   // dedup (LIBRARY_UPLOAD.findDuplicate, _onTableClick, _syncedThisSession).
   let _items = [];                  // alias of _libraryPapers
+  /* V3.352 — draft id → title for the linkage badge tooltip. */
+  let _draftTitleById = {};
+  /* V3.367 — theme id → name for the theme: search token. Loaded
+   * fire-and-forget in _load(); empty map on failure (token then
+   * matches raw ids only). */
+  let _themeNameById = {};
   let _libraryPapers = [];          // filter: type=paper, meta.library.is_library_entry
   let _filterText = '';
   let _busy = false;
@@ -84,6 +90,38 @@
       } catch (e) {
         console.warn('[library] library/papers.json load failed:', e.message || e);
       }
+      /* V3.352 — draft titles for the "→ N drafts" linkage badge
+       * tooltip. Grant titles would need full items.json; the tooltip
+       * falls back to the raw id for those (future work). */
+      try {
+        const drafts = await api.load('projects/papers.json');
+        _draftTitleById = {};
+        ((drafts && drafts.papers) || []).forEach((d) => {
+          if (d && d.id) _draftTitleById[d.id] = d.title || d.id;
+        });
+      } catch (e) { _draftTitleById = {}; }
+      /* V3.365 — full association resolver (titles + kind + derived
+       * active/inactive, grants included). Fire-and-forget: badges fall
+       * back to _draftTitleById/raw counts until it lands, then the
+       * .then re-render upgrades them. */
+      if (window.LIBRARY_ASSOC) {
+        LIBRARY_ASSOC.loadDraftInfo()
+          .then(() => _render())
+          .catch(() => { /* badges keep their fallback rendering */ });
+      }
+      /* V3.367 — theme names for the theme: search token. Direct
+       * firestore get (labThemes is not an api route by design). */
+      try {
+        if (typeof firebridge !== 'undefined' && firebridge.db &&
+            firebridge.isLabMember && firebridge.isLabMember()) {
+          firebridge.db().collection('labThemes').get().then((snap) => {
+            _themeNameById = {};
+            snap.docs.forEach((d) => {
+              _themeNameById[d.id] = (d.data() || {}).name || d.id;
+            });
+          }).catch(() => { _themeNameById = {}; });
+        }
+      } catch (e) { _themeNameById = {}; }
       if (!papers.length) {
         try {
           const fallback = await api.load('items.json');
@@ -110,6 +148,13 @@
     }
   }
 
+  // WHOLE-COLLECTION replace. Reserve this for genuinely multi-row writes
+  // (the capture-sync merge). Every other caller should use _saveOne():
+  // this rewrites all ~158 paper docs in one batch AND deletes any server
+  // doc missing from `_libraryPapers`, so a tab holding a pre-import
+  // snapshot silently deletes rows someone else just added (V3.583 — the
+  // same reasoning that moved the paper-import flow to a direct set in
+  // V3.485).
   async function _saveItems() {
     // V3.206 — write to the type='paper' route. The Firestore adapter
     // scopes the collection-replace batch to docs matching the route's
@@ -124,14 +169,17 @@
 
   function _parseQuery(q) {
     // Supported: free text + field:value tokens (title:, author:, year:,
-    // journal:, tag:). Quotes optional. Negation via leading "-".
+    // journal:, tag:, draft:). Quotes optional. Negation via leading "-".
     // tag: takes a colon-delimited prefix, e.g. tag:research:papers:2026
     // — the tokenizer captures everything from the colon to the next
     // whitespace as one value, including embedded colons.
-    const fields = { title: [], author: [], year: [], journal: [], tag: [] };
+    // draft: (V3.365) matches against linked_drafts ids AND their
+    // resolved draft/grant titles, e.g. draft:gels or draft:prostate.
+    // theme: (V3.367) matches meta.library.themes ids AND theme names.
+    const fields = { title: [], author: [], year: [], journal: [], tag: [], draft: [], theme: [] };
     const free = [];
     const negFree = [];
-    const re = /(-?)(?:(title|author|year|journal|tag):)?(?:"([^"]+)"|(\S+))/g;
+    const re = /(-?)(?:(title|author|year|journal|tag|draft|theme):)?(?:"([^"]+)"|(\S+))/g;
     let m;
     while ((m = re.exec(q || '')) !== null) {
       const neg = m[1] === '-';
@@ -171,6 +219,28 @@
     for (const t of parsed.fields.tag) {
       // Each tag: token is a prefix that any of the paper's tags must match.
       if (!window.LIBRARY_TAGS || !LIBRARY_TAGS.matchPrefix(tags, t)) return false;
+    }
+    if (parsed.fields.draft.length) {
+      // V3.365 — draft: token matches linked draft ids and resolved titles.
+      const linked = Array.isArray(lib.linked_drafts) ? lib.linked_drafts : [];
+      const info = window.LIBRARY_ASSOC ? LIBRARY_ASSOC.getDraftInfoSync() : null;
+      const draftHay = linked.map((id) => {
+        const resolved = (info && info.get(id)) ? info.get(id).title : (_draftTitleById[id] || '');
+        return `${id} ${resolved}`.toLowerCase();
+      }).join(' ');
+      for (const t of parsed.fields.draft) {
+        if (!draftHay.includes(t)) return false;
+      }
+    }
+    if (parsed.fields.theme.length) {
+      // V3.367 — theme: token matches theme ids and resolved names.
+      const themes = Array.isArray(lib.themes) ? lib.themes : [];
+      const themeHay = themes.map((id) =>
+        `${id} ${_themeNameById[id] || ''}`.toLowerCase()
+      ).join(' ');
+      for (const t of parsed.fields.theme) {
+        if (!themeHay.includes(t)) return false;
+      }
     }
     const all = `${title} ${journal} ${year} ${authorBlob} ${tags.join(' ')}`;
     for (const t of parsed.free) {
@@ -213,6 +283,18 @@
       `Best metadata match:\n${meta.title || '(untitled)'}\n` +
       `${[authors, meta.year, meta.journal].filter(Boolean).join(' · ')}\n\n` +
       `Use this metadata?`
+    );
+  }
+
+  // V3.497 — a title-based library match is fuzzy, so confirm before attaching
+  // the incoming PDF to that existing entry (Cancel adds it as a new paper).
+  function _confirmAttach(match, filename) {
+    const lib = (match.meta && match.meta.library) || {};
+    return window.confirm(
+      `"${filename}" looks like it's already in your library (matched by title):\n\n` +
+      `${match.title || '(untitled)'}\n` +
+      `${[_authorLine(lib.authors), lib.year, lib.journal].filter(Boolean).join(' · ')}\n\n` +
+      `Attach this PDF to that existing entry?\n(Cancel adds it as a new paper.)`
     );
   }
 
@@ -280,6 +362,67 @@
       };
     }
 
+    // 3b. V3.497 — dedupe against an EXISTING library entry before creating a
+    // new one. The step-1 hash dedupe only sees rows that already have a PDF,
+    // so a metadata-only entry is invisible to it. Match by identifier
+    // (DOI/PMID/arXiv → auto) or title+year (→ confirm). A PDF-less match gets
+    // THIS pdf attached instead of a duplicate row; a match that already has a
+    // PDF is skipped (no dup, no clobber).
+    const hit = LIBRARY_UPLOAD.findExistingEntry
+      ? LIBRARY_UPLOAD.findExistingEntry(meta, _items)
+      : null;
+    if (hit) {
+      const match = hit.item;
+      match.meta = match.meta || {};
+      match.meta.library = match.meta.library || {};
+      const mlib = match.meta.library;
+      const isTitleMatch = hit.matchedBy === 'title';
+      // Decide up front — never prompt for a match we're going to skip, and
+      // never drop the file on a fuzzy match to an already-complete entry.
+      if (mlib.pdf) {
+        if (!isTitleMatch) {
+          // Confident (identifier) match that already has a PDF → same paper,
+          // nothing to do.
+          _setBusy('');
+          _toast(`"${match.title}" is already in the library with a PDF — skipped.`, 'info');
+          return;
+        }
+        // Fuzzy title match to an entry that already has a PDF → probably a
+        // different paper (or a re-scan). Fall through and add as a new entry
+        // rather than silently discarding the upload.
+      } else if (!isTitleMatch || _confirmAttach(match, file.name)) {
+        // Existing entry has NO PDF and this is a confident match (or the user
+        // confirmed the fuzzy one) → attach THIS pdf to it.
+        _setBusy(`Attaching PDF to "${match.title}"…`);
+        const attachInfo = await LIBRARY_UPLOAD.uploadPdf(match.id, file);
+        mlib.pdf = {
+          storage_path: attachInfo.storage_path,
+          hash: attachInfo.hash,
+          filename_safe: `${match.id}.pdf`,
+          size_bytes: attachInfo.size_bytes,
+          uploaded_at: attachInfo.uploaded_at,
+          uploaded_by: attachInfo.uploaded_by,
+          source: 'manual_attach',
+        };
+        delete mlib.pdf_status;   // clear an old "unobtainable" flag now that it's here
+        _setBusy('Saving library…');
+        await _saveOne(match);   // V3.583 — one doc, not the whole collection
+        _setBusy('');
+        _toast(`Attached PDF to existing entry "${match.title}".`, 'ok');
+        if (LIBRARY_UPLOAD.parseAndCacheRefs) {
+          LIBRARY_UPLOAD.parseAndCacheRefs(match.id, file).catch(e =>
+            console.warn('[library] attach ref parse failed:', e));
+        }
+        if (LIBRARY_UPLOAD.enrichItemFromSemanticScholar) {
+          LIBRARY_UPLOAD.enrichItemFromSemanticScholar(match.id).catch(e =>
+            console.warn('[library] attach SS enrichment failed:', e));
+        }
+        return;
+      }
+      // Identifier match can't reach here; a title match either had a PDF
+      // already or was declined → fall through and create a new entry.
+    }
+
     // 4. Build a paper item to know the ID before uploading
     const provisional = LIBRARY_METADATA.buildPaperItem(meta, null, null);
     let paperId = provisional.id;
@@ -298,7 +441,7 @@
     _libraryPapers.push(item);
     _items = _libraryPapers;
     _setBusy(`Saving library…`);
-    await _saveItems();
+    await _saveOne(item);   // V3.583 — one doc, not the whole collection
     _setBusy('');
     _toast(`Added "${item.title}".`, 'ok');
     // V3.93 — fire-and-forget background ref parse so the citation
@@ -384,6 +527,12 @@
     delete payload.updatedAt;
     payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     await firebase.firestore().collection('items').doc(it.id).set(payload);
+    // Direct write bypasses api.save — bust the list route caches so a reload
+    // (or the reader) doesn't serve the stale pre-write copy (V3.498).
+    if (typeof api !== 'undefined' && api.invalidate) {
+      api.invalidate('items.json');
+      api.invalidate('library/papers.json');
+    }
   }
 
   function _missingActionsHtml(it) {
@@ -393,7 +542,7 @@
         <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Clear the unobtainable flag (back into the missing-PDF queue)">↩</button>`;
     }
     return `<span class="muted"${lib.pdf_retry && lib.pdf_retry.last_error ? ` title="${_escape(lib.pdf_retry.last_error)}"` : ''}>no PDF</span>
-      ${lib.doi ? `<button class="btn btn-sm" data-act="pdf-retry" data-id="${_escape(it.id)}" title="Retry the Unpaywall open-access fetch${lib.pdf_retry ? ` (attempt ${(lib.pdf_retry.attempts || 0) + 1})` : ''}">↻</button>` : ''}
+      ${(lib.doi || lib.pmid || lib.arxiv_id || lib.url) ? `<button class="btn btn-sm" data-act="pdf-retry" data-id="${_escape(it.id)}" title="Auto-fetch the open-access PDF — server-side, tries Unpaywall + arXiv + PMC + Semantic Scholar + the publisher's PDF link${lib.pdf_retry ? ` (attempt ${(lib.pdf_retry.attempts || 0) + 1})` : ''}">↻</button>` : ''}
       <button class="btn btn-sm" data-act="pdf-upload" data-id="${_escape(it.id)}" title="Upload the PDF manually — attaches to THIS entry">⬆</button>
       <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Mark unobtainable (drops out of the missing-PDF queue; reversible)">🚫</button>`;
   }
@@ -453,40 +602,81 @@
     }
   }
 
+  // V3.498 — the "auto-fetch PDF" row action. Tries the server-side
+  // fetchPaperPdf engine first (no CORS; Unpaywall all-locations + arXiv +
+  // Europe PMC + Semantic Scholar + the publisher's citation_pdf_url), then
+  // falls back to the client Unpaywall path only if the function is unreachable.
   async function _retryPdf(it) {
     const lib = it.meta.library;
-    if (!lib.doi) {
-      _toast('No DOI on this entry — add one via ✎ first, then retry.', 'error');
+    if (!lib.doi && !lib.pmid && !lib.arxiv_id && !lib.url && !lib.pdf_candidate_url) {
+      _toast('No DOI/PMID/arXiv id on this entry — add one via ✎ first, then retry.', 'error');
       return;
     }
-    _setBusy('Checking Unpaywall…');
+    _setBusy('Auto-fetching PDF…');
     const retry = Object.assign({ attempts: 0 }, lib.pdf_retry || {});
     retry.attempts = (retry.attempts || 0) + 1;
     retry.last_at = new Date().toISOString();
     retry.last_error = '';
+
+    // 1. Server-side fetch. The function uploads to Storage itself, so on
+    // success we only stamp meta.library.pdf + save.
     try {
-      const oa = await LIBRARY_UPLOAD.unpaywallLookup(lib.doi);
-      if (!oa || !oa.bestPdfUrl) {
-        retry.last_error = 'No open-access copy found on Unpaywall.';
-      } else {
-        const blob = await LIBRARY_UPLOAD.fetchPdfBlob(oa.bestPdfUrl);
-        if (blob) {
-          lib.pdf_retry = retry;
-          await _attachPdf(it, blob);       // saves + re-renders + clears busy
-          return;
+      const out = await LIBRARY_UPLOAD.serverFetchPdf(it);
+      if (out && out.ok && out.storage_path) {
+        const me = (firebase.auth && firebase.auth().currentUser) || null;
+        lib.pdf = {
+          storage_path: out.storage_path,
+          hash: out.hash,
+          filename_safe: `${it.id}.pdf`,
+          size_bytes: out.size_bytes,
+          uploaded_at: new Date().toISOString().slice(0, 10),
+          uploaded_by: (me && me.email) || '',
+          source: out.source ? `oa_${out.source}` : 'oa_auto',
+        };
+        delete lib.pdf_status;
+        delete lib.pdf_candidate_url;
+        lib.pdf_retry = retry;
+        await _saveOne(it);
+        _setBusy('');
+        _render();
+        _toast(`Fetched PDF for "${it.title}" (via ${out.source || 'OA'}).`, 'ok');
+        // The blob lives server-side, so skip the local ref-parse; SS
+        // enrichment still fills references / cited-by.
+        if (LIBRARY_UPLOAD.enrichItemFromSemanticScholar) {
+          LIBRARY_UPLOAD.enrichItemFromSemanticScholar(it.id).catch(e =>
+            console.warn('[library] fetch SS enrichment failed:', e));
         }
-        retry.last_error = 'OA PDF found but CORS-blocked — open the candidate URL manually, then ⬆ upload.';
-        lib.pdf_candidate_url = oa.bestPdfUrl;
-        lib.pdf_candidate_source = oa.source || '';
+        return;
       }
+      retry.last_error = (out && out.error) || 'No open-access PDF found.';
     } catch (e) {
-      retry.last_error = e.message || String(e);
+      // 2. Transport/auth error → client Unpaywall fallback (the rare
+      // CORS-permitted OA host still works without the function).
+      console.warn('[library] serverFetchPdf failed; trying client Unpaywall:', e.message || e);
+      if (lib.doi && LIBRARY_UPLOAD.unpaywallLookup) {
+        try {
+          const oa = await LIBRARY_UPLOAD.unpaywallLookup(lib.doi);
+          if (oa && oa.bestPdfUrl) {
+            const blob = await LIBRARY_UPLOAD.fetchPdfBlob(oa.bestPdfUrl);
+            if (blob) { lib.pdf_retry = retry; await _attachPdf(it, blob); return; }
+            lib.pdf_candidate_url = oa.bestPdfUrl;
+            lib.pdf_candidate_source = oa.source || '';
+            retry.last_error = 'OA PDF found but auto-fetch was blocked — open the candidate URL, then ⬆ upload.';
+          } else {
+            retry.last_error = e.message || 'Auto-fetch failed.';
+          }
+        } catch (e2) {
+          retry.last_error = e2.message || String(e2);
+        }
+      } else {
+        retry.last_error = e.message || String(e);
+      }
     }
     lib.pdf_retry = retry;
     try { await _saveOne(it); } catch (e) { console.warn('[library] retry stamp failed:', e); }
     _setBusy('');
     _render();
-    _toast(retry.last_error || 'Retry finished.', retry.last_error ? 'error' : 'ok');
+    _toast(retry.last_error || 'Fetch finished.', retry.last_error ? 'error' : 'ok');
   }
 
   function _renderRow(it) {
@@ -497,6 +687,43 @@
     const star = lib.starred ? '★' : '☆';
     const src = _sourceUrl(lib);
     const canDel = _canDelete(it);
+    // V3.363 — per-user pin + group membership row actions (groups shelf).
+    // Gated on the shelf widget toggles so hiding a section also drops its
+    // row affordance. LIBRARY_PREFS.get() is a cached sync read.
+    const wg = (window.LIBRARY_PREFS && LIBRARY_PREFS.get().widgets_enabled) || {};
+    const isPinned = !!(window.LIBRARY_GROUPS && LIBRARY_GROUPS.isPinned(it.id));
+    const pinBtn = (window.LIBRARY_GROUPS && wg.shelf_pinned !== false)
+      ? `<button class="btn btn-sm lib-pin-btn${isPinned ? ' on' : ''}" data-act="pin-toggle" data-id="${_escape(it.id)}" title="${isPinned ? 'Unpin — remove from your pinned papers' : 'Pin to your pinned papers (per-user, only you see it)'}">📌</button>`
+      : '';
+    const grpBtn = (window.LIBRARY_GROUPS && wg.shelf_groups !== false)
+      ? `<button class="btn btn-sm" data-act="add-to-group" data-id="${_escape(it.id)}" title="Add / remove this paper in your groups">📁</button>`
+      : '';
+    /* V3.601 — attach to a research roadmap (an experiment or analysis on
+     * an output card) with a note saying why. Count comes off the reverse
+     * index the ref writer maintains, so no extra read per row. */
+    const nRoadmaps = Array.isArray(lib.roadmaps) ? lib.roadmaps.length : 0;
+    const roadBtn = (window.ROADMAP_ATTACH && wg.roadmap !== false)
+      ? `<button class="btn btn-sm${nRoadmaps ? ' on' : ''}" data-act="add-to-roadmap" data-id="${_escape(it.id)}" title="${nRoadmaps ? `On ${nRoadmaps} roadmap${nRoadmaps === 1 ? '' : 's'} — click to manage` : 'Attach this paper to an experiment or analysis on a research roadmap'}">🗺${nRoadmaps ? ` ${nRoadmaps}` : ''}</button>`
+      : '';
+    /* V3.365 — interactive associations badge. Active/inactive derives
+     * from draft status via LIBRARY_ASSOC (falls back to raw counts +
+     * _draftTitleById while the resolver cache is cold). Zero-assoc rows
+     * get a subtle "+ draft" quick-add ghost. */
+    const linkedDrafts = Array.isArray(lib.linked_drafts) ? lib.linked_drafts : [];
+    let assocBtn;
+    if (!linkedDrafts.length) {
+      assocBtn = `<button class="lib-links-badge lib-links-badge-ghost" data-act="assoc-pop" data-id="${_escape(it.id)}" title="Associate this paper with a draft we're writing">+ draft</button>`;
+    } else if (window.LIBRARY_ASSOC && LIBRARY_ASSOC.getDraftInfoSync()) {
+      const infos = linkedDrafts.map((d) => LIBRARY_ASSOC.resolve(d));
+      const nActive = infos.filter((i) => i.active).length;
+      const nInactive = infos.length - nActive;
+      const tip = infos
+        .map((i) => i.title + (i.active ? '' : ` (${i.status || 'inactive'})`))
+        .join('\n') + '\nClick to manage associations';
+      assocBtn = `<button class="lib-links-badge" data-act="assoc-pop" data-id="${_escape(it.id)}" title="${_escape(tip)}">→ ${nActive} active${nInactive ? ` · ${nInactive} inactive` : ''}</button>`;
+    } else {
+      assocBtn = `<button class="lib-links-badge" data-act="assoc-pop" data-id="${_escape(it.id)}" title="${_escape(linkedDrafts.map((d) => _draftTitleById[d] || d).join('\n'))}">→ ${linkedDrafts.length} draft${linkedDrafts.length === 1 ? '' : 's'}</button>`;
+    }
     tr.innerHTML = `
       <td class="lib-col-star" title="Toggle star">
         <button class="lib-star-btn" data-id="${_escape(it.id)}">${star}</button>
@@ -506,6 +733,7 @@
           <a href="/rm/pages/library-paper.html?id=${encodeURIComponent(it.id)}" class="lib-title-link">${_escape(it.title || 'Untitled')}</a>
         </div>
         <div class="lib-authors">${_escape(_authorLine(lib.authors))}</div>
+        ${assocBtn}
         ${_needsMetadataFix(lib) ? `<button class="btn btn-sm" data-act="edit-meta" data-id="${_escape(it.id)}" style="margin-top:3px;background:#fef3c7;border-color:#fde68a;color:#92400e;" title="Lookup failed at ingest — edit the metadata or pull it from a DOI">⚠ Fix metadata</button>` : ''}
       </td>
       <td class="lib-col-journal">${_escape(journalYear)}</td>
@@ -515,6 +743,7 @@
         ${lib.pdf ? `<button class="btn btn-sm" data-act="open-pdf-tab" data-id="${_escape(it.id)}" title="Open raw PDF in new tab">↗</button>` : ''}
         ${src ? `<a class="btn btn-sm" href="${_escape(src.url)}" target="_blank" rel="noopener" title="Open at ${_escape(src.host)}">Go to source</a>` : ''}
         <button class="btn btn-sm" data-act="edit-meta" data-id="${_escape(it.id)}" title="Edit metadata / fetch from DOI">✎</button>
+        ${pinBtn}${grpBtn}${roadBtn}
         <button class="btn btn-sm" data-act="assign-paper" data-id="${_escape(it.id)}" title="Send this paper to a teammate">Send</button>
         ${canDel ? `<button class="btn btn-sm lib-delete-btn" data-act="delete-paper" data-id="${_escape(it.id)}" title="Delete this paper, its PDF, and all annotations">🗑</button>` : ''}
       </td>
@@ -572,6 +801,25 @@
         return (a.title || '').localeCompare(b.title || '');
       };
     }
+    if (mode === 'associations') {
+      // V3.365 — most active draft associations first (derived from
+      // draft status via LIBRARY_ASSOC; raw count fallback while cold).
+      const info = window.LIBRARY_ASSOC ? LIBRARY_ASSOC.getDraftInfoSync() : null;
+      const nActive = (p) => {
+        const linked = p.meta.library.linked_drafts;
+        if (!Array.isArray(linked) || !linked.length) return 0;
+        if (!info) return linked.length;
+        return linked.filter((id) => {
+          const i = info.get(id);
+          return !!(i && i.active);
+        }).length;
+      };
+      return (a, b) => {
+        const ca = nActive(a), cb = nActive(b);
+        if (ca !== cb) return cb - ca;
+        return (a.title || '').localeCompare(b.title || '');
+      };
+    }
     // year-desc default
     return (a, b) => {
       const ya = parseInt(a.meta.library.year || 0, 10);
@@ -626,6 +874,17 @@
 
     _renderTagStrip();
     _applyWidgetVisibility();
+
+    // V3.363 — groups shelf. Hidden while any filter is active so search
+    // results stay the focus; the 💾 Save-as-group button appears only
+    // when there's a query/tag filter worth saving.
+    if (window.LIBRARY_GROUPS) {
+      LIBRARY_GROUPS.render({
+        filterActive: !!(_filterText.trim() || _tagFilter || _missingOnly),
+      });
+    }
+    const sgBtn = document.getElementById('library-save-group');
+    if (sgBtn) sgBtn.style.display = (_filterText.trim() || _tagFilter) ? '' : 'none';
 
     if (!filtered.length) {
       const tr = document.createElement('tr');
@@ -747,6 +1006,51 @@
 
   // ---- Row actions -------------------------------------------------------
 
+  /* V3.365 — association quick-manage popover anchored to the row badge.
+   * Hosts LIBRARY_ASSOC.renderPills; add/remove writes are atomic via
+   * LIBRARY_LINKS, then the row repaints through _render(). One popover
+   * at a time; closes on outside mousedown, Escape, or scroll. */
+  let _assocPopEl = null;
+  function _closeAssocPopover() {
+    if (!_assocPopEl) return;
+    _assocPopEl.remove();
+    _assocPopEl = null;
+    document.removeEventListener('mousedown', _assocPopOutside, true);
+    document.removeEventListener('keydown', _assocPopEsc, true);
+    window.removeEventListener('scroll', _closeAssocPopover, true);
+  }
+  function _assocPopOutside(ev) {
+    if (_assocPopEl && !_assocPopEl.contains(ev.target)) _closeAssocPopover();
+  }
+  function _assocPopEsc(ev) {
+    if (ev.key === 'Escape') _closeAssocPopover();
+  }
+  function _openAssocPopover(it, anchor) {
+    if (!window.LIBRARY_ASSOC || !window.LIBRARY_LINKS) {
+      _toast('Associations are unavailable on this page.', 'error');
+      return;
+    }
+    _closeAssocPopover();
+    const pop = document.createElement('div');
+    pop.className = 'la-popover';
+    const r = anchor.getBoundingClientRect();
+    pop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 346))}px`;
+    pop.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 120)}px`;
+    pop.innerHTML = `
+      <div class="la-pop-title">Draft associations — ${_escape(it.title || it.id)}</div>
+      <div class="la-pop-body"></div>
+    `;
+    document.body.appendChild(pop);
+    _assocPopEl = pop;
+    document.addEventListener('mousedown', _assocPopOutside, true);
+    document.addEventListener('keydown', _assocPopEsc, true);
+    window.addEventListener('scroll', _closeAssocPopover, true);
+    LIBRARY_ASSOC.renderPills(pop.querySelector('.la-pop-body'), it, {
+      showCited: true,
+      onChanged: () => _render(),   // repaint badges; `it` already patched
+    });
+  }
+
   async function _onTableClick(ev) {
     const btn = ev.target.closest('button, a');
     if (!btn) return;
@@ -789,6 +1093,32 @@
       } catch (e) {
         _toast(`Save failed: ${e.message || e}`, 'error');
       }
+      return;
+    }
+
+    // V3.363 — groups shelf row actions. Both delegate to library-groups.js,
+    // which persists via LIBRARY_PREFS and calls back into _render().
+    if (btn.dataset.act === 'pin-toggle') {
+      if (window.LIBRARY_GROUPS) LIBRARY_GROUPS.togglePin(it.id);
+      return;
+    }
+
+    if (btn.dataset.act === 'add-to-group') {
+      if (window.LIBRARY_GROUPS) LIBRARY_GROUPS.openGroupPicker(it.id);
+      return;
+    }
+
+    // V3.601 — attach to a research roadmap item, with the "why" note.
+    // The modal writes meta.library.roadmaps back onto `it`, so a plain
+    // re-render refreshes the row's count.
+    if (btn.dataset.act === 'add-to-roadmap') {
+      if (window.ROADMAP_ATTACH) ROADMAP_ATTACH.open({ item: it, onDone: () => _render() });
+      return;
+    }
+
+    // V3.365 — association pills popover (interactive linkage badge).
+    if (btn.dataset.act === 'assoc-pop') {
+      _openAssocPopover(it, btn);
       return;
     }
 
@@ -848,8 +1178,13 @@
         if (!r.ok || !j.ok) {
           throw new Error(j.error || ('HTTP ' + r.status));
         }
-        // Drop the row from the in-memory caches and re-render. The next
-        // page load will re-fetch from Firestore as a sanity check.
+        // V3.487 — the delete runs in a Cloud Function (Admin SDK), outside
+        // api.save, so the adapter's items cache isn't cleared; its
+        // stale-while-revalidate cheap check ignores deletes (max updatedAt
+        // unchanged), so a plain refresh would resurrect the deleted paper.
+        // Bust the cache so the next load fetches fresh.
+        try { if (window.api && api.invalidate) await api.invalidate('items.json'); } catch (e) { /* non-fatal */ }
+        // Drop the row from the in-memory caches and re-render.
         _libraryPapers = _libraryPapers.filter(x => x.id !== it.id);
         _items = _libraryPapers;
         _render();
@@ -864,9 +1199,8 @@
 
     if (btn.classList.contains('lib-star-btn')) {
       lib.starred = !lib.starred;
-      it.updated_at = new Date().toISOString().slice(0, 10);
       try {
-        await _saveItems();
+        await _saveOne(it);   // V3.583 — row action, one doc
         _render();
       } catch (e) {
         _toast(`Save failed: ${e.message}`, 'error');
@@ -936,14 +1270,31 @@
             !_confirmTitleMatch(`"${trimmed}" isn't a DOI/PMID/arXiv id — searched CrossRef by title instead.`, meta)) {
           return;
         }
+        // V3.497 — robust dedupe: match an existing entry by identifier
+        // (auto) or title+year (confirm), not just an id-slug collision, so a
+        // legacy row with a different slug can't spawn a duplicate.
+        const dupHit = LIBRARY_UPLOAD.findExistingEntry
+          ? LIBRARY_UPLOAD.findExistingEntry(meta, _libraryPapers)
+          : null;
+        if (dupHit) {
+          const blockIt = dupHit.matchedBy !== 'title'
+            || window.confirm(
+              `"${dupHit.item.title}" looks like it's already in your library. ` +
+              `Skip adding a duplicate?\n(Cancel adds it anyway.)`);
+          if (blockIt) {
+            _toast(`"${dupHit.item.title}" is already in the library.`, 'info');
+            return;
+          }
+        }
         const item = LIBRARY_METADATA.buildPaperItem(meta, null, null);
+        // Slug-collision backstop for a genuinely distinct paper whose
+        // generated id happens to match an existing one.
         if (_libraryPapers.some(x => x.id === item.id)) {
-          _toast(`"${item.title}" is already in the library.`, 'info');
-          return;
+          item.id = `${item.id}-${Date.now().toString(36).slice(-4)}`;
         }
         _libraryPapers.push(item);
         _items = _libraryPapers;
-        await _saveItems();
+        await _saveOne(item);   // V3.583 — one doc, not the whole collection
         await _load();
         _render();
         _toast(`Added "${item.title}" (no PDF yet).`, 'ok');
@@ -952,6 +1303,94 @@
       } finally {
         _setBusy('');
       }
+    });
+  }
+
+  // V3.483 — bulk references importer (BibTeX / DOI list → citation-only
+  // library entries). Reuses REFERENCE_IMPORT's shared dialog; commit writes
+  // each new item as a single doc, then we mirror them into the in-memory
+  // list + reload so a later whole-array save can't clobber them.
+  function _wireImportRefs() {
+    const btn = document.getElementById('library-import-refs');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (!window.REFERENCE_IMPORT) {
+        _toast('Reference importer not loaded on this page.', 'error');
+        return;
+      }
+      REFERENCE_IMPORT.open({
+        mode: 'library',
+        existingItems: _libraryPapers,
+        onCommit: async ({ builtItems, close }) => {
+          try {
+            builtItems.forEach(it => _libraryPapers.push(it));
+            _items = _libraryPapers;
+            await _load();
+            _render();
+            _toast(`Added ${builtItems.length} reference${builtItems.length === 1 ? '' : 's'} to the library.`, 'ok');
+          } catch (e) {
+            _toast(`Import save issue: ${e.message || e}`, 'error');
+          } finally {
+            if (close) close();
+          }
+        },
+      });
+    });
+  }
+
+  // V3.326 — bulk metadata re-check. onItemSaved swaps rows in place so
+  // the table reflects each save without a reload; one render at the end
+  // of interaction is enough (the modal itself shows live progress).
+  function _wireRecheck() {
+    const btn = document.getElementById('library-recheck');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (!window.LIBRARY_RECHECK) {
+        _toast('Re-check module not loaded on this page.', 'error');
+        return;
+      }
+      LIBRARY_RECHECK.open(_libraryPapers, {
+        onItemSaved(updated) {
+          const idx = _libraryPapers.findIndex(x => x.id === updated.id);
+          if (idx >= 0) _libraryPapers[idx] = updated;
+          _items = _libraryPapers;
+          _render();
+        },
+      });
+    });
+  }
+
+  // V3.498 — bulk server-side OA PDF fetch. Same onItemSaved-swaps-rows
+  // pattern as the re-check sweep; the modal shows live per-paper progress.
+  function _wireFetchPdfs() {
+    const btn = document.getElementById('library-fetch-pdfs');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (!window.LIBRARY_FETCH_PDFS) {
+        _toast('PDF-fetch module not loaded on this page.', 'error');
+        return;
+      }
+      LIBRARY_FETCH_PDFS.open(_libraryPapers, {
+        onItemSaved(updated) {
+          const idx = _libraryPapers.findIndex(x => x.id === updated.id);
+          if (idx >= 0) _libraryPapers[idx] = updated;
+          _items = _libraryPapers;
+          _render();
+        },
+      });
+    });
+  }
+
+  // V3.500 — "Grab PDF for RM" bookmarklet generator (paywalled papers).
+  function _wireBookmarklet() {
+    const btn = document.getElementById('library-bookmarklet');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (!window.LIBRARY_BOOKMARKLET) {
+        _toast('Bookmarklet module not loaded on this page.', 'error');
+        return;
+      }
+      LIBRARY_BOOKMARKLET.open();
     });
   }
 
@@ -966,10 +1405,34 @@
     });
   }
 
+  // V3.363 — "💾 Save as group": snapshot the active search + tag filter
+  // as a smart group (auto-updates as matching papers arrive). The tag
+  // chip folds into the query string as a tag: token — one string is the
+  // whole group definition, replayed through _parseQuery/_matches.
+  function _wireSaveGroupBtn() {
+    const btn = document.getElementById('library-save-group');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      if (!window.LIBRARY_GROUPS) return;
+      const q = [_filterText.trim(), _tagFilter ? 'tag:' + _tagFilter : '']
+        .filter(Boolean).join(' ');
+      if (!q) return;
+      const name = window.RM_DIALOG
+        ? await RM_DIALOG.prompt({ title: `Save filter as smart group — "${q}"`, placeholder: 'Group name', okText: 'Save' })
+        : window.prompt(`Name for the smart group (filter: ${q}):`);
+      if (!name || !name.trim()) return;
+      LIBRARY_GROUPS.createSmartGroup(name.trim(), q);
+      _toast(`Saved smart group "${name.trim()}" — clear the filter to see it on the shelf.`, 'ok');
+    });
+  }
+
   // ---- Extension capture sync (phase 6c) ---------------------------------
 
   let _syncedThisSession = false;
   let _lastSyncMs = 0;
+  // V3.583 — set once LIBRARY_SYNC reports the user isn't on the capture
+  // allowlist, so the refocus handler stops re-asking.
+  let _captureSyncUnavailable = false;
 
   // Track whether we've gotten a definitive answer from Firebase about
   // auth state. The banner stays hidden until then — otherwise it flashes
@@ -1076,16 +1539,26 @@
         _ownProfileInFlight = false;
         _renderAccountDiagnostic();
         _updateExtensionMemberStatus();
+        // V3.363 — admin-only shelf controls (＋ Lab group, shared-group
+        // edit tools) depend on _isAdminAny(), which may flip only once
+        // this profile fetch lands. render() with no args reuses the
+        // shelf's last state.
+        if (window.LIBRARY_GROUPS) LIBRARY_GROUPS.render();
       });
   }
 
   // Truthy iff the signed-in user is admin per any source we can reach:
-  // local mirror, firebridge profile, or firebridge's _ready boolean.
+  // the local own-profile mirror or firebridge's cached profile.
   function _isAdminAny() {
     if (_ownProfileCache && _ownProfileCache.role === 'admin') return true;
-    const fbProfile = window.firebridge && firebridge.getProfile && firebridge.getProfile();
-    if (fbProfile && fbProfile.role === 'admin') return true;
-    if (window.firebridge && firebridge.isReady && firebridge.isReady()) return true;
+    // `firebridge` is a lexical const (firebase-bridge.js), never assigned
+    // to window — so the old `window.firebridge && …` checks here were
+    // permanently dead. isAdmin() reads _profile.role === 'admin'.
+    // The old code ALSO had `if (firebridge.isReady()) return true`, but
+    // isReady() only means "auth resolved," NOT "is admin" — activating
+    // that line as written would have granted admin to every signed-in
+    // user, so it is dropped here, not swapped to the bare binding.
+    if (typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin()) return true;
     return false;
   }
 
@@ -1156,8 +1629,8 @@
               : '<em>none — no users/{uid} doc has role:"admin" yet</em>'));
 
     const user = firebase.auth().currentUser;
-    const fbReady = !!(window.firebridge && firebridge.isReady && firebridge.isReady());
-    const fbProfile = window.firebridge && firebridge.getProfile && firebridge.getProfile();
+    const fbReady = !!(typeof firebridge !== 'undefined' && firebridge.isReady && firebridge.isReady());
+    const fbProfile = (typeof firebridge !== 'undefined' && firebridge.getProfile) ? firebridge.getProfile() : null;
     const tsNow = new Date().toLocaleTimeString();
     const isAdmin = _isAdminAny();
     const ownProfStr = _ownProfileCache
@@ -1321,6 +1794,9 @@
     // One sync per page load is enough by default — extra captures only
     // happen via the extension while the user is on a different tab anyway.
     if (_syncedThisSession && !force) return;
+    // V3.583 — the queue is allowlist-gated; once we know this user isn't on
+    // it, stop re-running on every refocus.
+    if (_captureSyncUnavailable) return;
     if (!window.LIBRARY_SYNC) {
       if (force) _toast('library-sync.js not loaded — reload the page.', 'error');
       return;
@@ -1337,6 +1813,16 @@
     console.log('[library] running capture sync (force=' + force + ')');
     try {
       const result = await LIBRARY_SYNC.syncPendingCaptures(_items);
+      // V3.583 — not on the capture allowlist: nothing was read and there's
+      // nothing to report. Say so once (only when the user explicitly asked)
+      // and don't sync again this session.
+      if (result.notMember) {
+        _captureSyncUnavailable = true;
+        if (force && !silent) {
+          _toast('Extension capture isn\'t enabled for your account — ask an admin to add you to the capture allowlist in Settings.', 'info');
+        }
+        return;
+      }
       console.log('[library] sync result:', result);
       const merged = result.merged || [];
       if (merged.length) {
@@ -1389,7 +1875,26 @@
     _wireUploadZone();
     _wireSearch();
     _wireDoiAdd();
+    _wireImportRefs();
     _wireMissingChip();
+    _wireRecheck();
+    _wireFetchPdfs();
+    _wireBookmarklet();
+    _wireSaveGroupBtn();
+    // V3.363 — groups shelf. library.js owns the paper pool + search
+    // grammar; the shelf module gets them as callbacks and calls
+    // onChanged() → _render() after any pin/group mutation.
+    if (window.LIBRARY_GROUPS) {
+      LIBRARY_GROUPS.init({
+        getPapers: () => _applyVisibilityFilter(_libraryPapers),
+        parseQuery: _parseQuery,
+        matches: _matches,
+        isAdmin: _isAdminAny,
+        getDraftTitles: () => _draftTitleById,
+        onChanged: () => _render(),
+        toast: _toast,
+      });
+    }
     document.getElementById('library-tbody')
       ?.addEventListener('click', _onTableClick);
     await _load();
@@ -1472,13 +1977,16 @@
     // Sync extension captures + load per-user prefs once auth resolves.
     // firebridge.onAuth fires immediately if signed in, and re-fires on
     // auth state changes — so signing in mid-session triggers both.
-    if (window.firebridge && typeof firebridge.onAuth === 'function') {
+    if (typeof firebridge !== 'undefined' && typeof firebridge.onAuth === 'function') {
+      if (firebridge.requireSignIn) firebridge.requireSignIn('Sign in to view the lab library.');
       firebridge.onAuth(async (user) => {
         _updateAuthHint();
         _updateExtensionMemberStatus();
         _renderAccountDiagnostic();
         if (user && window.LIBRARY_PREFS) {
           await LIBRARY_PREFS.load();
+          // V3.363 — lab-shared groups need isLabMember, so load after auth.
+          if (window.LIBRARY_GROUPS) await LIBRARY_GROUPS.loadShared();
           _render();
         }
         if (user) _runCaptureSync();
@@ -1574,6 +2082,10 @@
       search: 'Search box',
       stars:  'Star column',
       tags:   'Tag chip strip',
+      shelf_reader: 'Shelf: open in reader',
+      shelf_pinned: 'Shelf: pinned papers',
+      shelf_groups: 'Shelf: paper groups',
+      roadmap: 'Row button: add to a research roadmap',
     };
     widgetsHost.innerHTML = widgetKeys.map(k => `
       <label style="display:flex;align-items:center;gap:6px;">

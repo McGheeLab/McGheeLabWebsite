@@ -38,9 +38,11 @@
   // pending edits: { type: 'user'|'workflow', key: <uid|workflowId>,
   //                  pageId: <id>, checked: bool }
   var pendingEdits = new Map();          // key = `${type}:${key}:${pageId}`
-  var initialState = { user: new Map(), workflow: new Map(), tracking: new Map(), mentor: new Map() };
+  var initialState = { user: new Map(), workflow: new Map(), tracking: new Map(), mentor: new Map(), caps: new Map() };
   // user → Set<pageId>; workflow → Set<pageId>; tracking → Map<slug, mode>;
-  // mentor → Map<menteeUid, Set<mentorUid>>
+  // mentor → Map<menteeUid, Set<mentorUid>>;
+  // caps → Map<uid, Set<capId>> (V3.605 — userPermissions/{uid}.caps,
+  // catalog in capability-registry.js)
   // V3.79 — bulk-action state for the Users × Pages tab.
   var selectedUsers = new Set();         // uids ticked via row-select checkboxes
   var bulkPages = new Set();             // pageIds ticked in the bulk-action bar
@@ -53,6 +55,36 @@
   // Slugs whose row will be hard-skipped from rendering (page-time-tracker
   // also hard-skips these regardless of stored mode).
   var TRACKING_HARD_SKIP = { 'activity-overview': true };
+  // V3.476 — Users × Pages redesign: role-grouped collapsible rows + density.
+  // collapsedRoles persists which role sections the admin has collapsed;
+  // densityPref toggles row padding. Both survive reloads via localStorage.
+  var COLLAPSE_KEY = 'rm.permUsers.collapsedRoles';
+  var DENSITY_KEY = 'rm.permUsers.density';
+  var collapsedRoles = new Set();
+  var densityPref = 'compact';
+  function _loadUiPrefs() {
+    try {
+      var raw = localStorage.getItem(COLLAPSE_KEY);
+      if (raw) { var arr = JSON.parse(raw); if (Array.isArray(arr)) collapsedRoles = new Set(arr); }
+    } catch (_) { /* ignore */ }
+    try {
+      var d = localStorage.getItem(DENSITY_KEY);
+      if (d === 'compact' || d === 'comfortable') densityPref = d;
+    } catch (_) { /* ignore */ }
+  }
+  function _persistCollapsed() {
+    try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(Array.from(collapsedRoles))); } catch (_) { /* ignore */ }
+  }
+  function _currentSearch() {
+    return (document.getElementById('perm-search') || {}).value || '';
+  }
+  // V3.477 — Per-user tab state. selectedPanelUid = the user shown in the
+  // right panel; allPapers = lazy-loaded projects(type=paper) cache; palette
+  // copied from pmr.js ASSIGNEE_COLORS (which is private to that module).
+  var selectedPanelUid = null;
+  var allPapers = null;
+  var USER_RAIL_COLORS = ['#1e40af', '#16a34a', '#b45309', '#7c3aed', '#0e7490', '#be185d', '#15803d', '#92400e', '#1f2937'];
+  var PAPER_ROLE_OPTS = [['none', 'Not on paper'], ['coauthor', 'Coauthor'], ['first', 'First author'], ['cofirst', 'Co-first author']];
 
   function setStatus(msg, kind) {
     var el = document.getElementById('perm-status');
@@ -64,6 +96,7 @@
   async function boot() {
     var gateRes = await firebridge.gateAdmin('manage workflow permissions');
     if (!gateRes || !gateRes.allowed) return;
+    _loadUiPrefs();   // V3.476 — restore collapsed-role + density prefs
     document.getElementById('perm-gate').style.display = 'none';
     document.getElementById('perm-content').style.display = '';
 
@@ -83,6 +116,7 @@
     renderWorkflowGrid();
     renderTrackingList();
     renderMentorList();
+    renderUserRail();   // V3.477 — per-user tab rail (panel loads on select)
     wireActions();
     setStatus('');
   }
@@ -103,6 +137,10 @@
         name: data.displayName || data.name || data.email || d.id.slice(0, 8),
         email: data.email || '',
         role: data.role || 'guest',
+        // V3.476 — the implicit-baseline gate keys on `category === 'collaborator'`
+        // (firebase-bridge canAccessPage), NOT role, so the tri-state cell
+        // state can only be exact if we carry category through.
+        category: data.category || '',
       });
       // V3.243 — seed initial mentor state from the users/* read so the
       // Mentors tab doesn't need an extra fetch.
@@ -112,23 +150,20 @@
     sortUsers();
   }
 
-  /* V3.79 — sort the users list per the current sort dropdown. Default
-   * is 'role' which clusters by lab-role (admin > member > guest etc.)
-   * with name as secondary key, so admins see related users adjacent. */
+  /* V3.79 / V3.476 — sort the users list. Role is ALWAYS the primary key now
+   * (role grouping is the permanent structure in the redesigned matrix), so
+   * the dropdown only picks the WITHIN-role secondary key (name | email). */
   function sortUsers() {
     var ROLE_ORDER = ['admin', 'pi', 'postdoc', 'phd', 'masters', 'undergrad', 'staff', 'collaborator', 'member', 'guest'];
     var rank = function (role) {
       var idx = ROLE_ORDER.indexOf((role || '').toLowerCase());
       return idx >= 0 ? idx : ROLE_ORDER.length;
     };
-    var mode = (document.getElementById('perm-user-sort') || {}).value || 'role';
+    var mode = (document.getElementById('perm-user-sort') || {}).value || 'name';
     users.sort(function (a, b) {
-      if (mode === 'role') {
-        var rA = rank(a.role), rB = rank(b.role);
-        if (rA !== rB) return rA - rB;
-      } else if (mode === 'email') {
-        return (a.email || '').localeCompare(b.email || '');
-      }
+      var rA = rank(a.role), rB = rank(b.role);
+      if (rA !== rB) return rA - rB;
+      if (mode === 'email') return (a.email || '').localeCompare(b.email || '');
       return (a.name || '').localeCompare(b.name || '');
     });
   }
@@ -162,6 +197,9 @@
         var data = d.data() || {};
         var ids = Array.isArray(data.allowedPageIds) ? data.allowedPageIds : [];
         initialState.user.set(d.id, new Set(ids));
+        // V3.605 — per-user elevated capabilities live on the same doc.
+        var caps = Array.isArray(data.caps) ? data.caps : [];
+        if (caps.length) initialState.caps.set(d.id, new Set(caps));
       });
     } catch (err) {
       console.warn('[admin-permissions] userPermissions read failed:', err.message);
@@ -217,13 +255,21 @@
       td.textContent = 'No non-admin users found in users/* collection.';
       return;
     }
+    // V3.476 — tally role counts for the collapsible group headers.
+    var roleCounts = {};
+    users.forEach(function (u) { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
+    var lastRole = null;
     users.forEach(function (u) {
+      // V3.476 — role-group header before the first user of each role.
+      if (u.role !== lastRole) {
+        buildGroupHeaderRow(tbody, u.role, roleCounts[u.role] || 0);
+        lastRole = u.role;
+      }
       var tr = tbody.insertRow();
       tr.dataset.uid = u.uid;
+      tr.dataset.role = u.role;   // V3.476 — group membership for collapse/filter
       var th = document.createElement('th');
       th.scope = 'row';
-      // V3.79 — row-select checkbox + role tag for visual grouping after
-      // the "Sort by Role" default.
       var roleTag = u.role ? '<span class="perm-role-tag perm-role-' + escHtml(u.role) + '">' + escHtml(u.role) + '</span>' : '';
       th.innerHTML =
         '<label class="perm-user-label">' +
@@ -236,16 +282,6 @@
         '</label>';
       th.querySelector('.perm-user-select').addEventListener('change', onUserSelectToggle);
       tr.appendChild(th);
-      // Build the user's effective page set: initial state + any pending
-      // edits since load. Always copy into a fresh Set so we don't mutate
-      // initialState during a re-render (which can happen on sort change
-      // OR after a bulk-grant/revoke that flipped many cells).
-      var allowed = new Set(initialState.user.get(u.uid) || []);
-      pendingEdits.forEach(function (edit) {
-        if (edit.type !== 'user' || edit.key !== u.uid) return;
-        if (edit.checked) allowed.add(edit.pageId);
-        else allowed.delete(edit.pageId);
-      });
       var lastGroup = null;
       pageColumns().forEach(function (p) {
         var td = document.createElement('td');
@@ -254,15 +290,97 @@
         lastGroup = p.group;
         var cb = document.createElement('input');
         cb.type = 'checkbox';
-        cb.checked = allowed.has(p.id);
         cb.dataset.uid = u.uid;
         cb.dataset.pageId = p.id;
         cb.addEventListener('change', onUserCellChange);
         td.appendChild(cb);
         tr.appendChild(td);
       });
+      // V3.476 — set grant/baseline/none state (also sets cb.checked).
+      refreshRowStates(tr);
     });
+    applyDensity();
     refreshBulkBar();
+    // V3.476 — apply collapse state + any active filter in one pass.
+    applySearchFilter(_currentSearch());
+  }
+
+  /* V3.476 — a collapsible role-section header row spanning the whole grid. */
+  function buildGroupHeaderRow(tbody, role, count) {
+    var tr = tbody.insertRow();
+    tr.className = 'perm-group-row';
+    tr.dataset.role = role;
+    if (collapsedRoles.has(role)) tr.classList.add('is-collapsed');
+    var th = document.createElement('th');
+    th.className = 'perm-group-head';
+    th.colSpan = 1 + pages.length;
+    var roleTag = '<span class="perm-role-tag perm-role-' + escHtml(role) + '">' + escHtml(role || 'unranked') + '</span>';
+    th.innerHTML =
+      '<span class="perm-group-head-inner">' +
+      '<span class="perm-group-toggle" aria-hidden="true">▾</span>' +
+      roleTag +
+      '<span class="perm-group-count">' + count + ' user' + (count === 1 ? '' : 's') + '</span>' +
+      '</span>';
+    th.addEventListener('click', function () { toggleGroup(role); });
+    tr.appendChild(th);
+  }
+
+  /* V3.476 — recompute a row's tri-state cells from initialState + pending.
+   * Whole-row because one toggle can flip the row between whitelist mode
+   * (has an explicit grant → non-granted pages read as "none") and baseline
+   * mode (no grant → default-workflow pages read as "baseline"). Mirrors
+   * firebridge.canAccessPage: explicit grant wins; else implicit baseline
+   * unless the user is a collaborator (category), who gets no baseline. */
+  function refreshRowStates(tr) {
+    var uid = tr.dataset.uid;
+    if (!uid) return;
+    var u = null;
+    for (var i = 0; i < users.length; i++) { if (users[i].uid === uid) { u = users[i]; break; } }
+    var effective = new Set(initialState.user.get(uid) || []);
+    pendingEdits.forEach(function (edit) {
+      if (edit.type !== 'user' || edit.key !== uid) return;
+      if (edit.checked) effective.add(edit.pageId);
+      else effective.delete(edit.pageId);
+    });
+    var hasGrant = effective.size > 0;
+    var isCollab = !!(u && u.category === 'collaborator');
+    var baseline = (REG && REG.defaultPageIdSet) ? REG.defaultPageIdSet : null;
+    tr.querySelectorAll('td.perm-cell input[type="checkbox"]').forEach(function (cb) {
+      var pid = cb.dataset.pageId;
+      var state;
+      if (effective.has(pid)) state = 'grant';
+      else if (!hasGrant && !isCollab && baseline && baseline.has(pid)) state = 'baseline';
+      else state = 'none';
+      cb.parentElement.dataset.state = state;
+      cb.checked = (state === 'grant');
+      cb.indeterminate = (state === 'baseline');
+    });
+  }
+
+  /* V3.476 — collapse/expand a role section; persists + re-applies filter. */
+  function toggleGroup(role) {
+    if (collapsedRoles.has(role)) collapsedRoles.delete(role);
+    else collapsedRoles.add(role);
+    _persistCollapsed();
+    var hdr = document.querySelector('#perm-grid-users .perm-group-row[data-role="' + cssEscape(role) + '"]');
+    if (hdr) hdr.classList.toggle('is-collapsed', collapsedRoles.has(role));
+    applySearchFilter(_currentSearch());
+  }
+
+  /* V3.476 — row-density toggle (persisted). */
+  function applyDensity() {
+    var grid = document.getElementById('perm-grid-users');
+    if (grid) {
+      grid.classList.remove('is-compact', 'is-comfortable');
+      grid.classList.add(densityPref === 'comfortable' ? 'is-comfortable' : 'is-compact');
+    }
+    var sel = document.getElementById('perm-user-density');
+    if (sel && sel.value !== densityPref) sel.value = densityPref;
+  }
+  function onDensityToggle(e) {
+    densityPref = (e.target.value === 'comfortable') ? 'comfortable' : 'compact';
+    try { localStorage.setItem(DENSITY_KEY, densityPref); } catch (_) { /* ignore */ }
+    applyDensity();
   }
 
   /* V3.79 — Users × Pages bulk-action bar. Visible whenever ≥1 user is
@@ -318,8 +436,15 @@
     refreshBulkBar();
   }
   function onBulkSelectAll() {
-    users.forEach(function (u) { selectedUsers.add(u.uid); });
-    document.querySelectorAll('.perm-user-select').forEach(function (cb) { cb.checked = true; });
+    // V3.476 — "Select all" respects collapse + filter: only currently
+    // visible rows are added (individual selections persist across collapse).
+    document.querySelectorAll('#perm-grid-users tbody tr').forEach(function (tr) {
+      if (tr.classList.contains('perm-group-row')) return;
+      if (!tr.dataset.uid || tr.style.display === 'none') return;
+      selectedUsers.add(tr.dataset.uid);
+      var cb = tr.querySelector('.perm-user-select');
+      if (cb) cb.checked = true;
+    });
     refreshBulkBar();
   }
   function onBulkClearSelection() {
@@ -761,6 +886,10 @@
       e.target.parentElement.classList.add('perm-cell-changed');
     }
     updatePendingStatus();
+    // V3.476 — recompute the whole row: toggling one cell can flip the row
+    // between whitelist and baseline mode, changing other cells' state.
+    var tr = e.target.closest('tr');
+    if (tr && tr.dataset.uid) refreshRowStates(tr);
   }
 
   function onWorkflowCellChange(e) {
@@ -912,6 +1041,7 @@
     // Group user edits by uid → final set; workflow edits applied to local
     // defaultWorkflows then a single doc write.
     var userEdits = new Map();          // uid → Set<pageId> (final state)
+    var capEdits = new Map();           // uid → Set<capId> (final state, V3.605)
     var anyWorkflowEdit = false;
 
     var anyTrackingEdit = false;
@@ -925,6 +1055,14 @@
         }
         if (edit.checked) s.add(edit.pageId);
         else s.delete(edit.pageId);
+      } else if (edit.type === 'cap') {
+        var cs = capEdits.get(edit.key);
+        if (!cs) {
+          cs = new Set(initialState.caps.get(edit.key) || []);
+          capEdits.set(edit.key, cs);
+        }
+        if (edit.checked) cs.add(edit.capId);
+        else cs.delete(edit.capId);
       } else if (edit.type === 'workflow') {
         anyWorkflowEdit = true;
         var wf = defaultWorkflows.find(function (w) { return w.id === edit.key; });
@@ -948,22 +1086,33 @@
       // collaborator data access at the wire. Both fields are written
       // atomically in the same .set({...}, {merge:true}) call so they
       // can never drift.
+      // V3.605 — caps live on the same doc, so pages + caps save through
+      // one write per touched uid, always carrying all three arrays. The
+      // doc is deleted ONLY when pages AND caps are both empty (previously
+      // clearing the last page checkbox deleted the doc — that would have
+      // silently destroyed a caps grant).
+      var permUids = new Set();
+      userEdits.forEach(function (_v, uid) { permUids.add(uid); });
+      capEdits.forEach(function (_v, uid) { permUids.add(uid); });
       var userOps = [];
-      userEdits.forEach(function (set, uid) {
+      permUids.forEach(function (uid) {
+        var pageSet = userEdits.has(uid) ? userEdits.get(uid) : new Set(initialState.user.get(uid) || []);
+        var capSet = capEdits.has(uid) ? capEdits.get(uid) : new Set(initialState.caps.get(uid) || []);
         var ref = db().collection('userPermissions').doc(uid);
-        if (set.size) {
-          var pageIds = Array.from(set);
-          var allowedCollections = (window.PAGE_COLLECTIONS && window.PAGE_COLLECTIONS.collectionsFor)
-            ? window.PAGE_COLLECTIONS.collectionsFor(pageIds)
-            : [];
-          userOps.push(ref.set({
-            allowedPageIds: pageIds,
-            allowedCollections: allowedCollections,
-            updatedAt: new Date(),
-          }, { merge: true }));
-        } else {
+        if (!pageSet.size && !capSet.size) {
           userOps.push(ref.delete().catch(function () { /* ignore not-found */ }));
+          return;
         }
+        var pageIds = Array.from(pageSet);
+        var allowedCollections = (window.PAGE_COLLECTIONS && window.PAGE_COLLECTIONS.collectionsFor)
+          ? window.PAGE_COLLECTIONS.collectionsFor(pageIds)
+          : [];
+        userOps.push(ref.set({
+          allowedPageIds: pageIds,
+          allowedCollections: allowedCollections,
+          caps: Array.from(capSet),
+          updatedAt: new Date(),
+        }, { merge: true }));
       });
       await Promise.all(userOps);
 
@@ -1025,10 +1174,36 @@
         }, { merge: false });
       }
 
+      // 5. V3.477 — per-user paper coauthor role edits (Per-user tab).
+      // Mirrors _onCoauthorRoleChange (paper-editor.js): mutate the projects
+      // paper row's author fields, rebuild members[], then save the whole
+      // collection via the SAME api path the coauthor dialog uses. The
+      // onPaperAuthorSync Cloud Function fires on this write and re-derives
+      // papers/{id}.authorUids — do NOT stamp authorUids here (avoids drift).
+      var paperRoleEdits = [];
+      pendingEdits.forEach(function (edit) { if (edit.type === 'paper-role') paperRoleEdits.push(edit); });
+      if (paperRoleEdits.length) {
+        var pdata = await api.load('projects/papers.json');
+        var prows = (pdata && pdata.papers) || [];
+        paperRoleEdits.forEach(function (edit) {
+          var row = prows.find(function (p) { return p.id === edit.paperId; });
+          if (!row) return;
+          applyPaperRole(row, { id: edit.uid, email: edit.email }, edit.role);
+        });
+        await api.save('projects/papers.json', { papers: prows });
+        // Refresh the panel cache so role selects + derived actions repaint
+        // from the just-saved state.
+        allPapers = prows.map(function (p) { return Object.assign({}, p); });
+      }
+
       // Refresh initial state to match what we just saved.
       userEdits.forEach(function (set, uid) {
         if (set.size) initialState.user.set(uid, set);
         else initialState.user.delete(uid);
+      });
+      capEdits.forEach(function (set, uid) {
+        if (set.size) initialState.caps.set(uid, set);
+        else initialState.caps.delete(uid);
       });
       defaultWorkflows.forEach(function (wf) {
         initialState.workflow.set(wf.id, new Set(wf.pageIds || []));
@@ -1049,6 +1224,8 @@
       }
 
       pendingEdits.clear();
+      // V3.477 — repaint the per-user panel from the freshly-saved state.
+      if (selectedPanelUid) renderUserPanel(selectedPanelUid);
       document.querySelectorAll('.perm-cell-changed')
         .forEach(function (el) { el.classList.remove('perm-cell-changed'); });
       setStatus('Saved.', 'ok');
@@ -1076,6 +1253,8 @@
     renderWorkflowGrid();
     renderTrackingList();
     renderMentorList();
+    // V3.477 — snap the per-user panel back to saved state.
+    if (selectedPanelUid) renderUserPanel(selectedPanelUid);
     setStatus('Reverted.', 'ok');
   }
 
@@ -1163,9 +1342,493 @@
     }
   }
 
+  /* V3.473 — one-time backfill of papers/{id}.authorUids from each paper's
+   * projects-doc author fields. Existing papers have NO parent papers/{id}
+   * doc (only Yjs subcollections), so this both CREATES the doc and stamps
+   * authorUids — which is what firestore.rules' isPaperAuthor() gate and PMR's
+   * `authorUids array-contains uid` query read. After this runs once, the
+   * onPaperAuthorSync Cloud Function keeps authorUids in sync on every paper
+   * save. Idempotent: papers whose stored authorUids already match are skipped
+   * (no write). Mirror of the authorUids union in functions/paper-author-sync.js
+   * and syncPaperMembers() in paper-editor.js. */
+  function _authorUidsOfPaper(p) {
+    var raw = [p.lead_author_uid, p.co_first_author_uid]
+      .concat(Array.isArray(p.coauthor_uids) ? p.coauthor_uids : []);
+    var seen = {}, out = [];
+    for (var i = 0; i < raw.length; i++) {
+      var u = (raw[i] || '').trim();
+      if (u && !seen[u]) { seen[u] = true; out.push(u); }
+    }
+    return out;
+  }
+
+  async function recomputePaperAuthorGrants() {
+    var btn = document.getElementById('perm-recompute-authors');
+    if (!btn) return;
+    if (!confirm(
+      'Walk every paper (projects where type==paper) and materialize '
+      + 'papers/{id}.authorUids from its lead/co-first/coauthor fields. This '
+      + 'lets non-admin coauthors open & edit their papers. Run once after the '
+      + 'V3.473 rules + paper-author-sync function are deployed. Continue?'
+    )) return;
+    btn.disabled = true;
+    setStatus('Recomputing paper author grants…');
+    try {
+      var snap = await db().collection('projects').where('type', '==', 'paper').get();
+      var ops = [];
+      var touched = 0;
+      // Merge-write papers/{id}.authorUids for every paper. Idempotent at the
+      // data level (same union → same doc); we don't pre-read to skip no-ops
+      // since this is a rare one-time backfill over a small collection.
+      snap.forEach(function (d) {
+        var p = d.data() || {};
+        ops.push(
+          firebridge.setDoc('papers', d.id, {
+            authorUids: _authorUidsOfPaper(p),
+            title: p.title || '',
+            status: p.status || 'drafting',
+            is_library_entry: false,
+          }, true)
+        );
+        touched++;
+      });
+      await Promise.all(ops);
+      setStatus('Paper author grants materialized. papers=' + touched, 'ok');
+    } catch (err) {
+      console.error('[admin-permissions] paper author recompute failed:', err);
+      setStatus('Paper author recompute failed: ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     V3.477 — Per-user access drill-in (?tab=user)
+     Left rail of lab members; right panel shows one user's page grants
+     (editable, reusing the shared pendingEdits + saveAll pipeline), their
+     paper coauthor roles + status (editable → projects/papers.json; the
+     onPaperAuthorSync Cloud Function grants real access), and a read-only
+     list of derived action capabilities.
+     ════════════════════════════════════════════════════════════════════ */
+
+  function _userById(uid) {
+    for (var i = 0; i < users.length; i++) { if (users[i].uid === uid) return users[i]; }
+    return null;
+  }
+  function _paperById(id) {
+    var arr = allPapers || [];
+    for (var i = 0; i < arr.length; i++) { if (arr[i].id === id) return arr[i]; }
+    return null;
+  }
+  function _roleLabel(role) {
+    for (var i = 0; i < PAPER_ROLE_OPTS.length; i++) { if (PAPER_ROLE_OPTS[i][0] === role) return PAPER_ROLE_OPTS[i][1]; }
+    return role;
+  }
+  // Effective page set for a uid: saved grant + pending user edits.
+  function _effectivePages(uid) {
+    var s = new Set(initialState.user.get(uid) || []);
+    pendingEdits.forEach(function (edit) {
+      if (edit.type !== 'user' || edit.key !== uid) return;
+      if (edit.checked) s.add(edit.pageId); else s.delete(edit.pageId);
+    });
+    return s;
+  }
+  // V3.605 — effective capability set for a uid: saved grant + pending
+  // 'cap' edits. Mirrors _effectivePages.
+  function _effectiveCaps(uid) {
+    var s = new Set(initialState.caps.get(uid) || []);
+    pendingEdits.forEach(function (edit) {
+      if (edit.type !== 'cap' || edit.key !== uid) return;
+      if (edit.checked) s.add(edit.capId); else s.delete(edit.capId);
+    });
+    return s;
+  }
+  // Stash/clear one cap pending edit using the same delete-when-back-to-
+  // initial bookkeeping as onUserCellChange.
+  function _setCapEdit(uid, capId, checked) {
+    var key = 'cap:' + uid + ':' + capId;
+    var initial = (initialState.caps.get(uid) || new Set()).has(capId);
+    if (checked === initial) pendingEdits.delete(key);
+    else pendingEdits.set(key, { type: 'cap', key: uid, capId: capId, checked: checked });
+  }
+  // Saved coauthor role of uid on a paper row (no pending applied).
+  function _paperRoleOf(p, uid) {
+    if (!p) return 'none';
+    if (p.lead_author_uid === uid) return 'first';
+    if (p.co_first_author_uid === uid) return 'cofirst';
+    if (Array.isArray(p.coauthor_uids) && p.coauthor_uids.indexOf(uid) >= 0) return 'coauthor';
+    return 'none';
+  }
+  // Effective role including any pending paper-role edit.
+  function _effectivePaperRole(paperId, uid) {
+    var key = 'paper:' + paperId + ':' + uid;
+    if (pendingEdits.has(key)) return pendingEdits.get(key).role;
+    return _paperRoleOf(_paperById(paperId), uid);
+  }
+
+  async function loadAllPapers() {
+    try {
+      var snap = await db().collection('projects').where('type', '==', 'paper').get();
+      allPapers = [];
+      snap.forEach(function (d) { allPapers.push(Object.assign({ id: d.id }, d.data())); });
+    } catch (e) {
+      console.warn('[admin-permissions] paper load failed:', e.message);
+      allPapers = [];
+    }
+  }
+
+  function renderUserRail() {
+    var list = document.getElementById('perm-user-rail-list');
+    if (!list) return;
+    if (!users.length) { list.innerHTML = '<div class="perm-empty">No non-admin users.</div>'; return; }
+    list.innerHTML = users.map(function (u, i) {
+      var color = USER_RAIL_COLORS[i % USER_RAIL_COLORS.length];
+      var roleTag = u.role ? '<span class="perm-role-tag perm-role-' + escHtml(u.role) + '">' + escHtml(u.role) + '</span>' : '';
+      return '<div class="perm-user-person' + (u.uid === selectedPanelUid ? ' active' : '') + '" data-uid="' + escHtml(u.uid) + '">' +
+        '<span class="perm-user-avatar" style="background:' + color + ';">' + escHtml(initials(u.name || u.email)) + '</span>' +
+        '<span class="perm-user-person-main">' +
+        '<div class="perm-user-person-name">' + escHtml(u.name) + ' ' + roleTag + '</div>' +
+        '<div class="perm-user-person-sub">' + escHtml(u.email || '') + '</div>' +
+        '</span></div>';
+    }).join('');
+    list.querySelectorAll('.perm-user-person').forEach(function (el) {
+      el.addEventListener('click', function () { selectUser(el.dataset.uid); });
+    });
+  }
+
+  function filterUserRail(q) {
+    q = (q || '').trim().toLowerCase();
+    document.querySelectorAll('#perm-user-rail-list .perm-user-person').forEach(function (el) {
+      el.style.display = (!q || el.textContent.toLowerCase().indexOf(q) >= 0) ? '' : 'none';
+    });
+  }
+
+  async function selectUser(uid) {
+    selectedPanelUid = uid;
+    document.querySelectorAll('#perm-user-rail-list .perm-user-person').forEach(function (el) {
+      el.classList.toggle('active', el.dataset.uid === uid);
+    });
+    if (!allPapers) await loadAllPapers();
+    renderUserPanel(uid);
+  }
+
+  function renderUserPanel(uid) {
+    var host = document.getElementById('perm-user-panel');
+    if (!host) return;
+    if (!_userById(uid)) { host.innerHTML = '<div class="perm-empty">User not found.</div>'; return; }
+    host.innerHTML =
+      '<div class="perm-user-section" id="perm-user-sec-pages"></div>' +
+      '<div class="perm-user-section" id="perm-user-sec-caps"></div>' +
+      '<div class="perm-user-section" id="perm-user-sec-papers"></div>' +
+      '<div class="perm-user-section" id="perm-user-sec-actions"></div>';
+    renderUserPagesInto(document.getElementById('perm-user-sec-pages'), uid);
+    renderUserCapsInto(document.getElementById('perm-user-sec-caps'), uid);
+    renderUserPapersInto(document.getElementById('perm-user-sec-papers'), uid);
+    renderDerivedInto(document.getElementById('perm-user-sec-actions'), uid);
+  }
+
+  /* V3.605 — per-page elevated capabilities (userPermissions/{uid}.caps).
+   * Rendered generically from window.CAPABILITY_REGISTRY — one card per
+   * page, one checkbox row per capability. Enforced server-side by
+   * firestore.rules hasCap(); this UI just writes the grant array. */
+  function renderUserCapsInto(el, uid) {
+    if (!el) return;
+    var CAPS = window.CAPABILITY_REGISTRY;
+    if (!CAPS || !CAPS.pages || !CAPS.pages.length) { el.innerHTML = ''; return; }
+    var effective = _effectiveCaps(uid);
+    var effectivePages = _effectivePages(uid);
+    var body = CAPS.pages.map(function (pg) {
+      var rows = pg.capabilities.map(function (c) {
+        var checked = effective.has(c.id);
+        var changed = pendingEdits.has('cap:' + uid + ':' + c.id) ? ' perm-cell-changed' : '';
+        return '<label class="perm-user-cap-row' + changed + '" title="' + escHtml(c.id) + '">' +
+          '<input type="checkbox" data-uid="' + escHtml(uid) + '" data-cap-id="' + escHtml(c.id) + '"' + (checked ? ' checked' : '') + '>' +
+          '<span class="perm-user-cap-row-main">' +
+            '<span class="perm-user-cap-row-label">' + escHtml(c.label) + (c.base ? ' <em>(base)</em>' : '') + '</span>' +
+            '<span class="perm-user-cap-row-desc">' + escHtml(c.description) + '</span>' +
+          '</span></label>';
+      }).join('');
+      // Companion-page nudge: caps grant the page itself, but the user may
+      // still need a browsing surface (e.g. Library list → open a paper).
+      var hint = '';
+      var missing = (pg.companionPageIds || []).filter(function (pid) { return !effectivePages.has(pid); });
+      if (missing.length && Array.from(effective).some(function (c) { return c.indexOf(pg.page + ':') === 0; })) {
+        hint = '<div class="perm-user-cap-hint">Tip: also grant the <strong>' + missing.map(escHtml).join(', ') +
+          '</strong> page' + (missing.length === 1 ? '' : 's') + ' so this user can browse to papers. ' +
+          missing.map(function (pid) {
+            return '<button type="button" class="perm-cap-grant-page" data-uid="' + escHtml(uid) + '" data-page-id="' + escHtml(pid) + '">Grant ' + escHtml(pid) + '</button>';
+          }).join(' ') + '</div>';
+      }
+      return '<div class="perm-user-cap-card">' +
+        '<div class="perm-user-cap-card-head">' + escHtml(pg.label) +
+          ' <span class="perm-user-section-hint">' + escHtml(pg.href || '') + '</span></div>' +
+        rows + hint + '</div>';
+    }).join('');
+    el.innerHTML = '<h2>Capabilities <span class="perm-user-section-hint">— elevated per-page powers; works for guests and collaborators too</span></h2>' + body;
+    el.querySelectorAll('.perm-user-cap-row input[type="checkbox"]').forEach(function (cb) {
+      cb.addEventListener('change', onCapToggle);
+    });
+    el.querySelectorAll('.perm-cap-grant-page').forEach(function (btn) {
+      btn.addEventListener('click', onCapCompanionGrant);
+    });
+  }
+
+  function onCapToggle(e) {
+    var uid = e.target.dataset.uid;
+    var capId = e.target.dataset.capId;
+    var CAPS = window.CAPABILITY_REGISTRY;
+    var cap = CAPS && CAPS.byCapId.get(capId);
+    var checked = e.target.checked;
+    _setCapEdit(uid, capId, checked);
+    if (cap) {
+      if (checked && Array.isArray(cap.requires)) {
+        // Granting a cap implies its base 'view' cap.
+        cap.requires.forEach(function (reqId) { _setCapEdit(uid, reqId, true); });
+      }
+      if (!checked && cap.base) {
+        // Revoking the base cap revokes the page's other caps too.
+        (CAPS.byPage.get(cap.page) || { capabilities: [] }).capabilities.forEach(function (c) {
+          if (c.id !== capId) _setCapEdit(uid, c.id, false);
+        });
+      }
+    }
+    updatePendingStatus();
+    if (!selectedPanelUid) return;
+    renderUserCapsInto(document.getElementById('perm-user-sec-caps'), selectedPanelUid);
+    renderDerivedInto(document.getElementById('perm-user-sec-actions'), selectedPanelUid);
+  }
+
+  // Companion "Grant <page>" button — routes through the same pendingEdits
+  // bookkeeping as a page checkbox so save/revert treat it identically.
+  function onCapCompanionGrant(e) {
+    var uid = e.target.dataset.uid;
+    var pageId = e.target.dataset.pageId;
+    var key = 'user:' + uid + ':' + pageId;
+    var initial = (initialState.user.get(uid) || new Set()).has(pageId);
+    if (initial) pendingEdits.delete(key);
+    else pendingEdits.set(key, { type: 'user', key: uid, pageId: pageId, checked: true });
+    updatePendingStatus();
+    if (!selectedPanelUid) return;
+    renderUserPagesInto(document.getElementById('perm-user-sec-pages'), selectedPanelUid);
+    renderUserCapsInto(document.getElementById('perm-user-sec-caps'), selectedPanelUid);
+    renderDerivedInto(document.getElementById('perm-user-sec-actions'), selectedPanelUid);
+  }
+
+  function renderUserPagesInto(el, uid) {
+    if (!el) return;
+    var u = _userById(uid);
+    var effective = _effectivePages(uid);
+    var hasGrant = effective.size > 0;
+    var isCollab = !!(u && u.category === 'collaborator');
+    var baseline = (REG && REG.defaultPageIdSet) ? REG.defaultPageIdSet : null;
+    var body = '';
+    var lastGroup = null;
+    pageColumns().forEach(function (p) {
+      if (p.group !== lastGroup) {
+        if (lastGroup !== null) body += '</div>';
+        body += '<div class="perm-user-pagegroup"><div class="perm-user-pagegroup-head">' + escHtml(p.group) + '</div>';
+        lastGroup = p.group;
+      }
+      var state = effective.has(p.id) ? 'grant'
+        : ((!hasGrant && !isCollab && baseline && baseline.has(p.id)) ? 'baseline' : 'none');
+      var changed = pendingEdits.has('user:' + uid + ':' + p.id) ? ' perm-cell-changed' : '';
+      body += '<label class="perm-user-page' + changed + '" data-state="' + state + '" title="' + escHtml(p.id) + '">' +
+        '<input type="checkbox" data-uid="' + escHtml(uid) + '" data-page-id="' + escHtml(p.id) + '"' + (state === 'grant' ? ' checked' : '') + '>' +
+        '<span>' + escHtml(p.label) + '</span></label>';
+    });
+    if (lastGroup !== null) body += '</div>';
+    el.innerHTML = '<h2>Pages <span class="perm-user-section-hint">— checked = explicit grant; tinted = default-workflow baseline</span></h2>' + body;
+    el.querySelectorAll('.perm-user-page input[type="checkbox"]').forEach(function (cb) {
+      if (cb.parentElement.dataset.state === 'baseline') cb.indeterminate = true;
+      cb.addEventListener('change', onPanelPageToggle);
+    });
+  }
+
+  // Reuse the exact pendingEdits bookkeeping of the matrix (onUserCellChange),
+  // then repaint the panel's page tri-state + derived actions.
+  function onPanelPageToggle(e) {
+    onUserCellChange(e);   // sets user:<uid>:<pageId> pending edit; refreshRowStates no-ops (no <tr>)
+    if (!selectedPanelUid) return;
+    renderUserPagesInto(document.getElementById('perm-user-sec-pages'), selectedPanelUid);
+    // V3.605 — the caps section's companion-page hint depends on pages.
+    renderUserCapsInto(document.getElementById('perm-user-sec-caps'), selectedPanelUid);
+    renderDerivedInto(document.getElementById('perm-user-sec-actions'), selectedPanelUid);
+  }
+
+  function _paperRoleSelect(paperId, uid, role) {
+    return '<select class="perm-user-paper-role" data-paper-id="' + escHtml(paperId) + '" data-uid="' + escHtml(uid) + '">' +
+      PAPER_ROLE_OPTS.map(function (o) {
+        return '<option value="' + o[0] + '"' + (o[0] === role ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function renderUserPapersInto(el, uid) {
+    if (!el) return;
+    var papers = (allPapers || []);
+    var onPapers = papers.filter(function (p) { return _effectivePaperRole(p.id, uid) !== 'none'; });
+    var offPapers = papers.filter(function (p) { return _effectivePaperRole(p.id, uid) === 'none'; });
+    var rows = onPapers.map(function (p) {
+      var role = _effectivePaperRole(p.id, uid);
+      var st = p.status || 'drafting';
+      var changed = pendingEdits.has('paper:' + p.id + ':' + uid) ? ' perm-cell-changed' : '';
+      return '<div class="perm-user-paper-row' + changed + '">' +
+        '<span class="perm-user-paper-title">' + escHtml(p.title || p.id) + '</span>' +
+        '<span class="perm-user-status st-' + escHtml(st) + '">' + escHtml(st) + '</span>' +
+        _paperRoleSelect(p.id, uid, role) + '</div>';
+    }).join('') || '<div class="perm-empty" style="padding:10px;">Not a coauthor on any paper.</div>';
+    var addOpts = '<option value="">+ Add to a paper…</option>' +
+      offPapers.map(function (p) { return '<option value="' + escHtml(p.id) + '">' + escHtml(p.title || p.id) + '</option>'; }).join('');
+    el.innerHTML = '<h2>Papers <span class="perm-user-section-hint">— role writes projects/papers.json; the sync function grants real edit access</span></h2>' +
+      rows +
+      '<div style="margin-top:10px;"><select class="perm-user-add-paper" data-uid="' + escHtml(uid) + '">' + addOpts + '</select></div>';
+    el.querySelectorAll('.perm-user-paper-role').forEach(function (sel) { sel.addEventListener('change', onPaperRoleChange); });
+    var addSel = el.querySelector('.perm-user-add-paper');
+    if (addSel) addSel.addEventListener('change', onAddPaper);
+  }
+
+  function _setPaperRoleEdit(paperId, uid, role) {
+    var key = 'paper:' + paperId + ':' + uid;
+    var saved = _paperRoleOf(_paperById(paperId), uid);
+    if (role === saved) {
+      pendingEdits.delete(key);
+    } else {
+      var u = _userById(uid);
+      pendingEdits.set(key, { type: 'paper-role', paperId: paperId, uid: uid, role: role, email: (u && u.email) || '' });
+    }
+    updatePendingStatus();
+  }
+  function _rerenderPaperSections() {
+    if (!selectedPanelUid) return;
+    renderUserPapersInto(document.getElementById('perm-user-sec-papers'), selectedPanelUid);
+    renderDerivedInto(document.getElementById('perm-user-sec-actions'), selectedPanelUid);
+  }
+  function onPaperRoleChange(e) {
+    _setPaperRoleEdit(e.target.dataset.paperId, e.target.dataset.uid, e.target.value);
+    _rerenderPaperSections();
+  }
+  function onAddPaper(e) {
+    var paperId = e.target.value;
+    if (!paperId) return;
+    _setPaperRoleEdit(paperId, e.target.dataset.uid, 'coauthor');
+    _rerenderPaperSections();
+  }
+
+  /* Derived capabilities — READ-ONLY, computed from SAVED state (initialState
+   * + allPapers), mirroring the real gates in firebase-bridge / firestore.rules.
+   * Pending edits are shown above; this reflects "effective now". */
+  function computeDerivedActions(uid) {
+    var u = _userById(uid);
+    var role = (u && u.role) || 'guest';
+    var out = [];
+    var savedCaps = initialState.caps.get(uid) || new Set();
+    if (role === 'guest') {
+      if (savedCaps.size || (initialState.user.get(uid) || new Set()).size) {
+        out.push({ source: 'role', text: 'Guest — limited to explicitly granted pages & capabilities' });
+      } else {
+        out.push({ source: 'role', text: 'No RM access — guest, pending promotion' });
+      }
+    }
+    else out.push({ source: 'role', text: 'Can use RM (lab member · role: ' + role + ')' });
+    var saved = initialState.user.get(uid) || new Set();
+    if (saved.size) out.push({ source: 'grant', text: 'Can open ' + saved.size + ' explicitly-granted page' + (saved.size === 1 ? '' : 's') });
+    else if (u && u.category === 'collaborator') out.push({ source: 'collaborator', text: 'No implicit baseline — only explicitly granted pages/collections' });
+    else {
+      var baseCount = (REG && REG.defaultPageIdSet) ? REG.defaultPageIdSet.size : 0;
+      out.push({ source: 'baseline', text: 'Can open baseline pages (' + baseCount + ' via default workflows)' });
+    }
+    if (role !== 'guest') out.push({ source: 'role', text: 'Can highlight & annotate library papers and create claims' });
+    // V3.605 — capability grants (registry labels; reflects saved state).
+    var CAPS = window.CAPABILITY_REGISTRY;
+    if (CAPS && savedCaps.size) {
+      savedCaps.forEach(function (capId) {
+        var c = CAPS.byCapId.get(capId);
+        var pg = c && CAPS.byPage.get(c.page);
+        var text = c
+          ? (pg ? pg.label + ': ' : '') + c.label + ' (granted capability)'
+          : capId + ' (granted capability — not in registry)';
+        out.push({ source: 'capability', text: text });
+      });
+    }
+    (allPapers || []).forEach(function (p) {
+      var r = _paperRoleOf(p, uid);
+      if (r === 'none') return;
+      var src = (r === 'first' || r === 'cofirst') ? 'ownership' : 'coauthor';
+      out.push({ source: src, text: 'Can edit paper "' + (p.title || p.id) + '" (' + _roleLabel(r) + ')' });
+    });
+    initialState.mentor.forEach(function (set, menteeUid) {
+      if (set && set.has(uid)) {
+        var m = _userById(menteeUid);
+        out.push({ source: 'mentor', text: "Can view / comment on " + ((m && m.name) || menteeUid) + "'s PMR (read-only)" });
+      }
+    });
+    return out;
+  }
+  function renderDerivedInto(el, uid) {
+    if (!el) return;
+    var caps = computeDerivedActions(uid);
+    el.innerHTML = '<h2>Derived actions <span class="perm-user-section-hint">— what this user can effectively do (reflects saved state; save pending edits to update)</span></h2>' +
+      caps.map(function (c) {
+        return '<div class="perm-user-cap"><span class="perm-user-cap-source">' + escHtml(c.source) + '</span><span>' + escHtml(c.text) + '</span></div>';
+      }).join('');
+  }
+
+  /* Mirror of paper-editor.js _onCoauthorRoleChange field mutation
+   * (paper-editor.js:4118-4154) — keep in lockstep if that changes. */
+  function applyPaperRole(row, user, role) {
+    var uid = user.id;
+    row.coauthor_uids = row.coauthor_uids || [];
+    row.coauthor_emails = row.coauthor_emails || [];
+    if (row.lead_author_uid === uid) row.lead_author_uid = '';
+    if (row.co_first_author_uid === uid) row.co_first_author_uid = '';
+    row.coauthor_uids = row.coauthor_uids.filter(function (x) { return x !== uid; });
+    if (user.email) {
+      row.coauthor_emails = row.coauthor_emails.filter(function (e) {
+        return e.toLowerCase() !== String(user.email).toLowerCase();
+      });
+    }
+    function demote(existingUid) {
+      if (!existingUid || existingUid === uid) return;
+      if (row.coauthor_uids.indexOf(existingUid) < 0) row.coauthor_uids.push(existingUid);
+    }
+    if (role === 'first') {
+      demote(row.lead_author_uid);
+      row.lead_author_uid = uid;
+    } else if (role === 'cofirst') {
+      demote(row.co_first_author_uid);
+      row.co_first_author_uid = uid;
+      if (row.coauthor_uids.indexOf(uid) < 0) row.coauthor_uids.push(uid);
+      if (user.email && row.coauthor_emails.indexOf(user.email) < 0) row.coauthor_emails.push(user.email);
+    } else if (role === 'coauthor') {
+      if (row.coauthor_uids.indexOf(uid) < 0) row.coauthor_uids.push(uid);
+      if (user.email && row.coauthor_emails.indexOf(user.email) < 0) row.coauthor_emails.push(user.email);
+    }
+    // role === 'none' → already removed above.
+    syncPaperMembersLocal(row);
+  }
+  /* Mirror of paper-editor.js syncPaperMembers (paper-editor.js:2398-2422). */
+  function syncPaperMembersLocal(row) {
+    if (!row || typeof row !== 'object') return;
+    var existing = {};
+    (row.members || []).forEach(function (m) { if (m && m.uid) existing[m.uid] = m; });
+    var today = new Date().toISOString().slice(0, 10);
+    var members = [];
+    var seen = {};
+    var lead = (row.lead_author_uid || '').trim();
+    if (lead) { members.push(existing[lead] || { uid: lead, role: 'lead', start_date: today, end_date: null, effort_pct: null }); seen[lead] = true; }
+    (row.coauthor_uids || []).forEach(function (u) {
+      u = (u || '').trim();
+      if (!u || seen[u]) return;
+      members.push(existing[u] || { uid: u, role: 'co-author', start_date: today, end_date: null, effort_pct: null });
+      seen[u] = true;
+    });
+    row.members = members;
+    row.member_uids = members.map(function (mm) { return mm.uid; });
+  }
+
   function applySearchFilter(q) {
     q = (q || '').trim().toLowerCase();
     var tab = window.__PERM_TAB;
+    if (tab === 'user') { filterUserRail(q); return; }
     if (tab === 'mentors') {
       var rows = document.querySelectorAll('#perm-mentor-list .perm-mentor-row');
       rows.forEach(function (row) {
@@ -1174,8 +1837,26 @@
       });
       return;
     }
-    var which = tab === 'workflows' ? 'perm-grid-workflows' : 'perm-grid-users';
-    var rowsGrid = document.querySelectorAll('#' + which + ' tbody tr');
+    // V3.476 — Users × Pages: group-aware. Data rows hide when they don't
+    // match the query OR their role section is collapsed; a group header
+    // hides when its whole section has no matching rows.
+    if (tab === 'users') {
+      var uRows = document.querySelectorAll('#perm-grid-users tbody tr');
+      var roleHasMatch = {};
+      uRows.forEach(function (tr) {
+        if (tr.classList.contains('perm-group-row') || !tr.dataset.uid) return;
+        var role = tr.dataset.role;
+        var matches = (!q || tr.textContent.toLowerCase().indexOf(q) >= 0);
+        if (matches) roleHasMatch[role] = true;
+        tr.style.display = (matches && !collapsedRoles.has(role)) ? '' : 'none';
+      });
+      uRows.forEach(function (tr) {
+        if (!tr.classList.contains('perm-group-row')) return;
+        tr.style.display = roleHasMatch[tr.dataset.role] ? '' : 'none';
+      });
+      return;
+    }
+    var rowsGrid = document.querySelectorAll('#perm-grid-workflows tbody tr');
     rowsGrid.forEach(function (tr) {
       var text = tr.textContent.toLowerCase();
       tr.style.display = (!q || text.indexOf(q) >= 0) ? '' : 'none';
@@ -1189,12 +1870,20 @@
     if (seedBtn) seedBtn.addEventListener('click', seedDefaults);
     var recompBtn = document.getElementById('perm-recompute-collections');
     if (recompBtn) recompBtn.addEventListener('click', recomputeAllCollaboratorGrants);
+    var recompAuthBtn = document.getElementById('perm-recompute-authors');
+    if (recompAuthBtn) recompAuthBtn.addEventListener('click', recomputePaperAuthorGrants);
     document.getElementById('perm-search').addEventListener('input', function (e) {
       applySearchFilter(e.target.value);
     });
     // V3.79 — sort dropdown re-renders the user grid in the new order.
     var sortEl = document.getElementById('perm-user-sort');
     if (sortEl) sortEl.addEventListener('change', renderUserGrid);
+    // V3.476 — density toggle.
+    var densEl = document.getElementById('perm-user-density');
+    if (densEl) densEl.addEventListener('change', onDensityToggle);
+    // V3.477 — per-user tab rail search.
+    var railSearch = document.getElementById('perm-user-rail-search');
+    if (railSearch) railSearch.addEventListener('input', function (e) { filterUserRail(e.target.value); });
     // V3.79 — bulk-action bar buttons.
     var bar = document.getElementById('perm-bulk-bar');
     if (bar) {

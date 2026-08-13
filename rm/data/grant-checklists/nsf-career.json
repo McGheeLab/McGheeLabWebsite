@@ -1,0 +1,707 @@
+{
+  "id": "nsf-career",
+  "agency": "NSF",
+  "mechanism": "CAREER",
+  "solicitation": "NSF 22-586",
+  "deadlineHint": "Fourth Wednesday in July, 5:00 p.m. submitting organization's local time",
+  "note": "Ported from NSF 22-586. Always re-verify against the live solicitation and the PAPPG in effect for your deadline — NSF revises formats, page limits, and required documents between cycles. Your Sponsored Programs Office is the authority on internal deadlines and is the only party that can submit.",
+  "manifest": [
+    {
+      "key": "cover_sheet",
+      "label": "Cover Sheet",
+      "req": "req",
+      "limit": "—",
+      "channel": "Research.gov form",
+      "sectionKind": null,
+      "note": "Title must begin “CAREER:”. No co-PIs. Select one NSF unit of consideration.",
+      "group": "package"
+    },
+    {
+      "key": "project_summary",
+      "label": "Project Summary",
+      "req": "req",
+      "limit": "1 page",
+      "channel": "RG boxes / PDF",
+      "sectionKind": "project_summary",
+      "note": "Three labeled parts: Overview, Intellectual Merit, Broader Impacts. Plain text only.",
+      "group": "package"
+    },
+    {
+      "key": "project_description",
+      "label": "Project Description",
+      "req": "req",
+      "limit": "≤ 15 pages",
+      "channel": "Upload PDF",
+      "sectionKind": "__narrative__",
+      "note": "Research + education integrated, broader impacts throughout, and results of prior NSF support if any.",
+      "group": "package"
+    },
+    {
+      "key": "references_cited",
+      "label": "References Cited",
+      "req": "req",
+      "limit": "no limit",
+      "channel": "Upload PDF",
+      "sectionKind": "references",
+      "note": "Must support both the research and the education plan.",
+      "group": "package"
+    },
+    {
+      "key": "biosketch",
+      "label": "Biographical Sketch",
+      "req": "req",
+      "limit": "no page limit",
+      "channel": "SciENcv",
+      "sectionKind": "biosketch",
+      "note": "Include research AND education activities. SciENcv/NSF format only — a self-made PDF is rejected. The old 3-page limit was removed by the 2026 supplements.",
+      "group": "package"
+    },
+    {
+      "key": "current_pending",
+      "label": "Current & Pending (Other) Support",
+      "req": "req",
+      "limit": "—",
+      "channel": "SciENcv",
+      "sectionKind": "current_pending",
+      "note": "All current + requested support incl. this proposal (pending); overlap statement.",
+      "group": "package"
+    },
+    {
+      "key": "coa",
+      "label": "Collaborators & Other Affiliations (COA)",
+      "req": "req",
+      "limit": "—",
+      "channel": "NSF .xlsx template",
+      "sectionKind": "collaborators_coa",
+      "note": "Single-copy .xlsx. Fill Tables 1–5 with your own data (co-authors ≤48 mo, advisors, advisees, editorial boards) and delete the example rows.",
+      "group": "package"
+    },
+    {
+      "key": "synergistic_activities",
+      "label": "Synergistic Activities",
+      "req": "req",
+      "limit": "1 page",
+      "channel": "Your PDF (upload)",
+      "sectionKind": "synergistic_activities",
+      "note": "Up to five distinct examples of broader-impact activity. Prepared by you as a PDF, NOT via SciENcv.",
+      "group": "package"
+    },
+    {
+      "key": "budget",
+      "label": "Budget (5-year)",
+      "req": "req",
+      "limit": "≥ $500K",
+      "channel": "Research.gov form",
+      "sectionKind": "budget",
+      "note": "ENG minimum is $500,000 total incl. indirect costs over 5 years.",
+      "group": "package"
+    },
+    {
+      "key": "budget_justification",
+      "label": "Budget Justification",
+      "req": "req",
+      "limit": "≤ 5 pages",
+      "channel": "Upload PDF",
+      "sectionKind": "budget_justification",
+      "note": "Narrative for every line; numbers must match the budget.",
+      "group": "package"
+    },
+    {
+      "key": "facilities",
+      "label": "Facilities, Equipment & Other Resources",
+      "req": "req",
+      "limit": "—",
+      "channel": "Upload PDF",
+      "sectionKind": "facilities",
+      "note": "Lab, confocal, cell culture, fabrication, cores, HPC — no dollar amounts.",
+      "group": "package"
+    },
+    {
+      "key": "dmsp",
+      "label": "Data Management & Sharing Plan",
+      "req": "req",
+      "limit": "≤ 2 pages",
+      "channel": "Upload PDF",
+      "sectionKind": "data_management_plan",
+      "note": "NSF-specific: what data the project produces and how you store, document, and share it.",
+      "group": "package"
+    },
+    {
+      "key": "mentoring_plan",
+      "label": "Mentoring Plan (grad students/postdocs)",
+      "req": "req",
+      "limit": "≤ 1 page",
+      "channel": "Upload PDF",
+      "sectionKind": "mentoring_plan",
+      "note": "Required when the budget funds a graduate research assistant or postdoc (PAPPG; America COMPETES §7008(a)).",
+      "group": "package"
+    },
+    {
+      "key": "departmental_letter",
+      "label": "Departmental Letter",
+      "req": "req",
+      "limit": "≤ 2 pages",
+      "channel": "Supplementary Docs",
+      "sectionKind": "letters_of_support",
+      "note": "MANDATORY, signed by the chair. Must (1) confirm eligibility, (2) show departmental support for research AND education, (3) describe mentoring. Wrong section or missing ⇒ returned without review.",
+      "group": "career"
+    },
+    {
+      "key": "letters_of_collaboration",
+      "label": "Letters of Collaboration",
+      "req": "cond",
+      "limit": "1 sentence each",
+      "channel": "Supplementary Docs",
+      "sectionKind": null,
+      "note": "Only for significant collaborations. Exact single-sentence NSF format required; any endorsement or departure can get the proposal returned without review.",
+      "group": "career"
+    },
+    {
+      "key": "pecase",
+      "label": "PECASE Eligibility Statement",
+      "req": "opt",
+      "limit": "1 statement",
+      "channel": "Single Copy Doc",
+      "sectionKind": "pecase_statement",
+      "note": "Optional: “I wish to be considered for the PECASE honorary award.” US citizen, national, or permanent resident only.",
+      "group": "career"
+    },
+    {
+      "key": "cover_letter",
+      "label": "Cover Letter",
+      "req": "opt",
+      "limit": "~1 page",
+      "channel": "Single Copy Doc",
+      "sectionKind": "cover_letter",
+      "note": "Optional. The right place to request routing to a specific program/panel.",
+      "group": "career"
+    }
+  ],
+  "process": [
+    {
+      "num": "1",
+      "title": "Accounts & registrations",
+      "note": "Do these first — SAM.gov and SciENcv verification can take days to weeks. Most are handled with your grants office.",
+      "items": [
+        {
+          "key": "sam",
+          "label": "SAM.gov registration active for the institution",
+          "tags": [
+            "Org",
+            "Required"
+          ],
+          "hint": {
+            "t": "SAM.gov",
+            "b": "The federal registration that lets your university receive federal money. Your Sponsored Programs Office maintains it — confirm it's active and not expiring. New/renewing registrations can take ~5 weeks."
+          }
+        },
+        {
+          "key": "researchgov",
+          "label": "Research.gov account with PI role",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "Research.gov",
+            "b": "NSF's submission portal. Make sure you're linked to your institution with the PI role. New PIs should resolve NSF account issues at least 3 weeks out."
+          }
+        },
+        {
+          "key": "orcid",
+          "label": "ORCID iD created and linked to SciENcv",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "ORCID iD",
+            "b": "A free, permanent researcher identifier. NSF's biosketch/current-support tools pull from it. Create one at orcid.org and connect it inside SciENcv."
+          }
+        },
+        {
+          "key": "sciencv",
+          "label": "SciENcv set up for Biosketch, Current & Pending, and Synergistic Activities",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "SciENcv",
+            "b": "NSF requires the Biosketch and Current & Pending (Other) Support be generated and certified in SciENcv, then exported. A freeform PDF for those is rejected. (Synergistic Activities is your own PDF.)"
+          }
+        }
+      ]
+    },
+    {
+      "num": "2",
+      "title": "Eligibility & program fit",
+      "note": "Confirm before investing more time — CAREER eligibility is strict, allows no exemptions, and each PI gets only three tries.",
+      "items": [
+        {
+          "key": "eligibility",
+          "label": "PI meets all eligibility criteria as of the deadline",
+          "tags": [
+            "Eligibility"
+          ],
+          "hint": {
+            "t": "CAREER eligibility",
+            "b": "You must hold a doctoral degree in an NSF-supported field; hold at least a 50% tenure-track (or equivalent) assistant professor appointment; be untenured; and never have received a CAREER award. No exemptions are granted."
+          }
+        },
+        {
+          "key": "three_comp",
+          "label": "Within the 3-competition limit (this is attempt 1, 2, or 3)",
+          "tags": [
+            "Eligibility"
+          ],
+          "hint": {
+            "t": "Three-competition limit",
+            "b": "A PI may participate in at most three CAREER competitions, and submit only one CAREER proposal per year. Withdrawn or returned-without-review proposals don't count."
+          }
+        },
+        {
+          "key": "no_copi",
+          "label": "No co-PI listed anywhere on the Cover Sheet",
+          "tags": [
+            "Critical",
+            "CAREER-only"
+          ],
+          "hint": {
+            "t": "No co-PIs",
+            "b": "CAREER fosters an individual's career, so co-PIs are not permitted. A co-PI on the cover page is an automatic return without review. Collaborators may appear as senior personnel, consultants, or subawards in the budget."
+          }
+        },
+        {
+          "key": "program_officer",
+          "label": "Confirmed home directorate/program with the Program Officer",
+          "tags": [
+            "Recommended"
+          ],
+          "hint": {
+            "t": "Program Officer contact",
+            "b": "Email a one-paragraph fit query to the cognizant PO before drafting; some programs don't accept CAREER proposals. Only one annual deadline applies across all directorates."
+          }
+        },
+        {
+          "key": "title_prefix",
+          "label": "Proposal title begins with “CAREER:”",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "Title format",
+            "b": "The project title must literally begin with “CAREER:” followed by an informative title, so it routes correctly."
+          }
+        }
+      ]
+    },
+    {
+      "num": "3",
+      "title": "Core proposal documents",
+      "note": "The scientific package reviewers actually read. Watch the page limits and formatting rules closely.",
+      "items": [
+        {
+          "key": "summary_parts",
+          "label": "Project Summary (1 page, three labeled parts)",
+          "tags": [
+            "Required",
+            "1 page"
+          ],
+          "hint": {
+            "t": "Project Summary",
+            "b": "A one-page overview with three labeled parts: Overview, Intellectual Merit, and Broader Impacts. Plain text — no URLs, special characters, or figures. A missing heading gets the proposal returned."
+          }
+        },
+        {
+          "key": "project_desc",
+          "label": "Project Description (≤15 pages, research + education integrated)",
+          "tags": [
+            "Required",
+            "15 pages"
+          ],
+          "hint": {
+            "t": "Project Description",
+            "b": "Hard-capped at 15 pages. Must include the research plan with preliminary data; education activities and their impact; how research and education are integrated; other broader impacts; and results of prior NSF support."
+          }
+        },
+        {
+          "key": "prior_support",
+          "label": "Results from Prior NSF Support included (if applicable)",
+          "tags": [
+            "Conditional"
+          ],
+          "hint": {
+            "t": "Prior NSF support",
+            "b": "If you've had an NSF award (as PI or co-PI) in roughly the last 5 years, summarize its outcomes under Intellectual Merit and Broader Impacts, within the 15 pages. It buys no extra pages."
+          }
+        },
+        {
+          "key": "references",
+          "label": "References Cited (research + education)",
+          "tags": [
+            "Required",
+            "No limit"
+          ],
+          "hint": {
+            "t": "References Cited",
+            "b": "Provide references supporting both the research and the education aspects. No page limit, but list only works actually cited."
+          }
+        },
+        {
+          "key": "biosketch_scv",
+          "label": "Biographical Sketch via SciENcv (research + education)",
+          "tags": [
+            "Required",
+            "No page limit"
+          ],
+          "hint": {
+            "t": "Biosketch",
+            "b": "Your NSF-format CV generated and certified in SciENcv, covering research and education. A custom PDF is rejected. The old 3-page limit was removed by the 2026 supplements."
+          }
+        },
+        {
+          "key": "current_pending_scv",
+          "label": "Current & Pending (Other) Support via SciENcv",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "Current & Pending Support",
+            "b": "Every source of current or requested support (this proposal included, as pending), with time commitments, so NSF can check overlap. Produced and certified in SciENcv."
+          }
+        },
+        {
+          "key": "synergistic",
+          "label": "Synergistic Activities — your own PDF, 1 page (NOT SciENcv)",
+          "tags": [
+            "Required",
+            "1 page"
+          ],
+          "hint": {
+            "t": "Synergistic Activities",
+            "b": "A single page of up to five distinct examples of your broader-impact activities. You prepare it yourself and upload it as a PDF — it is not generated in SciENcv."
+          }
+        },
+        {
+          "key": "facilities_doc",
+          "label": "Facilities, Equipment & Other Resources",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "Facilities",
+            "b": "Describes the physical and institutional resources for the work — lab, instruments, shared cores, HPC. Describe resources, not dollars; costs go in the budget."
+          }
+        },
+        {
+          "key": "dmsp_doc",
+          "label": "Data Management & Sharing Plan (≤2 pages)",
+          "tags": [
+            "Required",
+            "2 pages"
+          ],
+          "hint": {
+            "t": "Data Management Plan",
+            "b": "A supplementary document (≤2 pages) describing what data the project produces and how you'll store, document, and share it — including any open-source software you plan to release."
+          }
+        },
+        {
+          "key": "mentoring",
+          "label": "Mentoring Plan (≤1 page) — required (budget funds a graduate student)",
+          "tags": [
+            "Required",
+            "1 page"
+          ],
+          "hint": {
+            "t": "Mentoring Plan",
+            "b": "Under PAPPG (America COMPETES §7008(a)), a one-page Mentoring Plan is required whenever the budget supports graduate students or postdoctoral researchers."
+          }
+        }
+      ]
+    },
+    {
+      "num": "4",
+      "title": "CAREER supplementary documents",
+      "note": "Uploaded in the Supplementary Documents section. The departmental letter is the requirement CAREER first-timers most often miss.",
+      "items": [
+        {
+          "key": "dept_letter",
+          "label": "Departmental Letter from the Chair/Head obtained (≤2 pages)",
+          "tags": [
+            "Required",
+            "CAREER-only"
+          ],
+          "hint": {
+            "t": "Departmental letter",
+            "b": "Mandatory — a proposal without it is returned without review. One letter from your department head, ≤2 pages, uploaded under Supplementary Documents (NOT Single Copy Documents). Give your chair weeks of lead time."
+          }
+        },
+        {
+          "key": "dept_letter_content",
+          "label": "Letter confirms eligibility + supports research AND education + describes mentoring",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "Letter content",
+            "b": "NSF requires three elements: (1) a statement that the PI is CAREER-eligible; (2) that the research and education activities are supported by the department; and (3) the relationship between the project, the PI's career goals, and the department mission, plus how the head ensures mentoring. Not a general letter of support."
+          }
+        },
+        {
+          "key": "collab_letters",
+          "label": "Letters of Collaboration gathered (if collaborations of significance)",
+          "tags": [
+            "Conditional",
+            "1 sentence"
+          ],
+          "hint": {
+            "t": "Letters of Collaboration",
+            "b": "Only if the project involves significant collaboration. Each must use the exact NSF single sentence. Any endorsement or evaluation, or departure from the format, can get the proposal returned without review. Request these well ahead of the deadline."
+          }
+        }
+      ]
+    },
+    {
+      "num": "5",
+      "title": "Budget",
+      "note": "ENG CAREER has a hard minimum. Build it with your grants office — indirect costs are institution-specific. No voluntary cost sharing.",
+      "items": [
+        {
+          "key": "budget_floor",
+          "label": "5-year budget totals ≥ $500,000 (incl. indirect costs)",
+          "tags": [
+            "Required",
+            "$500K min"
+          ],
+          "hint": {
+            "t": "Budget floor",
+            "b": "CAREER awards run 5 years. The ENG, BIO, and OPP directorates set a $500,000 minimum total including indirect costs; other directorates use $400K."
+          }
+        },
+        {
+          "key": "budget_just",
+          "label": "Budget Justification written (≤5 pages)",
+          "tags": [
+            "Required",
+            "5 pages"
+          ],
+          "hint": {
+            "t": "Budget Justification",
+            "b": "A narrative (max 5 pages) explaining every budget line — personnel, fringe, equipment, materials, travel, participant costs. Numbers must match the budget."
+          }
+        },
+        {
+          "key": "no_cost_share",
+          "label": "No voluntary committed cost sharing included",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "Cost sharing",
+            "b": "The solicitation prohibits including voluntary committed cost sharing. Don't add institutional match lines that aren't required."
+          }
+        },
+        {
+          "key": "indirect_rate",
+          "label": "Indirect cost rate + fringe confirmed with Sponsored Programs",
+          "tags": [
+            "Recommended"
+          ],
+          "hint": {
+            "t": "Indirect / F&A rate",
+            "b": "Facilities & Administrative costs are charged at your institution's federally negotiated rate on top of direct costs — it materially changes whether you clear the $500K floor."
+          }
+        }
+      ]
+    },
+    {
+      "num": "6",
+      "title": "Single-copy & compliance documents",
+      "note": "Reviewers don't see these, but NSF requires them for conflict-of-interest and administrative screening.",
+      "items": [
+        {
+          "key": "coa_doc",
+          "label": "Collaborators & Other Affiliations (COA) for all senior personnel",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "COA",
+            "b": "A single-copy document listing co-authors, co-editors, advisors, and advisees from the recent window. Use the current official NSF COA spreadsheet template exactly — a wrong format is a common return-without-review."
+          }
+        },
+        {
+          "key": "pecase_stmt",
+          "label": "PECASE eligibility statement uploaded (optional single-copy doc)",
+          "tags": [
+            "Optional"
+          ],
+          "hint": {
+            "t": "PECASE statement",
+            "b": "Optional single-copy statement confirming PECASE eligibility (US citizen, national, or permanent resident). You can't apply directly — NSF nominates from recent CAREER awardees."
+          }
+        },
+        {
+          "key": "suggested_reviewers",
+          "label": "List of Suggested / Non-preferred Reviewers (optional)",
+          "tags": [
+            "Optional"
+          ],
+          "hint": {
+            "t": "Suggested reviewers",
+            "b": "Optionally name reviewers you'd prefer, or ask NSF to exclude specific people. Purely optional and confidential; NSF is not bound by it."
+          }
+        },
+        {
+          "key": "safe_inclusive",
+          "label": "Safe & Inclusive Working Environments plan (only if off-campus/off-site work)",
+          "tags": [
+            "Conditional"
+          ],
+          "hint": {
+            "t": "Safe & Inclusive plan",
+            "b": "Required only if the project involves off-campus or off-site fieldwork with other people. A benchtop + simulation project usually does not trigger it — confirm, then omit if inapplicable."
+          }
+        }
+      ]
+    },
+    {
+      "num": "7",
+      "title": "Formatting & final review",
+      "note": "Research.gov auto-checks some of this and will block non-compliant uploads. Do a full pass before the internal deadline.",
+      "items": [
+        {
+          "key": "fonts_margins",
+          "label": "Fonts/margins compliant (11pt+ serif or Arial, 1\" margins, ≤6 lines/inch)",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "PAPPG formatting",
+            "b": "Type must be 11-point or larger (Arial, Courier, Palatino Linotype, or similar), with ≥1-inch margins on all sides and no more than 6 lines of text per inch. Non-compliant proposals can be returned without review."
+          }
+        },
+        {
+          "key": "no_appendices",
+          "label": "No appendices included",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "No appendices",
+            "b": "The solicitation states plainly: no appendices are permitted. Anything essential must live in the Project Description or an allowed supplementary document."
+          }
+        },
+        {
+          "key": "page_limits",
+          "label": "Every document within its page limit",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "Page limits",
+            "b": "Summary 1 p · Project Description 15 p · Data Management 2 p · Mentoring 1 p · Synergistic Activities 1 p · Budget Justification 5 p · Departmental Letter 2 p. Research.gov enforces several automatically."
+          }
+        },
+        {
+          "key": "placeholders",
+          "label": "All “[...]” placeholders resolved (figures, prelim data, PI details)",
+          "tags": [
+            "Do before submit"
+          ],
+          "hint": {
+            "t": "Placeholders",
+            "b": "Search the sections for any bracketed placeholder and resolve every one — a submitted [...] looks unfinished to reviewers."
+          }
+        },
+        {
+          "key": "figures_grayscale",
+          "label": "Figures legible in grayscale and within the 15 pages",
+          "tags": [
+            "Recommended"
+          ],
+          "hint": {
+            "t": "Figures",
+            "b": "All figures count against the 15-page Project Description limit. Labels must be readable at print size and survive grayscale."
+          }
+        },
+        {
+          "key": "spo_review",
+          "label": "Full proposal reviewed by Sponsored Programs Office",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "SPO review",
+            "b": "Your institution's grants office must review and approve the proposal before it goes to NSF. They almost always set an internal deadline days before the NSF deadline."
+          }
+        }
+      ]
+    },
+    {
+      "num": "8",
+      "title": "Submission",
+      "note": "Only the Authorized Organizational Representative can submit to NSF. You cannot do this last step yourself.",
+      "items": [
+        {
+          "key": "internal_deadline",
+          "label": "Internal institutional deadline identified (before the NSF deadline)",
+          "tags": [
+            "Critical"
+          ],
+          "hint": {
+            "t": "Internal deadline",
+            "b": "The real deadline for you is your institution's, not NSF's. Many require the finished proposal 3–7 business days early to review and route it."
+          }
+        },
+        {
+          "key": "aor_submit",
+          "label": "Proposal routed to and submitted by the AOR",
+          "tags": [
+            "Required"
+          ],
+          "hint": {
+            "t": "AOR / SPO submits",
+            "b": "The Authorized Organizational Representative (in Sponsored Programs) is the only person who can submit to NSF. You prepare and hand off; they submit."
+          }
+        },
+        {
+          "key": "confirmed",
+          "label": "Submission confirmed before 5:00 p.m. local time on the deadline",
+          "tags": [
+            "Critical"
+          ],
+          "hint": {
+            "t": "Deadline time",
+            "b": "The cutoff is 5:00 p.m. the submitting organization's local time. Late proposals are not accepted for the cycle. Print and review the submitted version for format problems."
+          }
+        }
+      ]
+    }
+  ],
+  "groups": {
+    "package": "The proposal package — uploaded in Research.gov",
+    "career": "CAREER supplementary & single-copy documents — solicitation §V.A"
+  },
+  "callouts": [
+    {
+      "kind": "rwr",
+      "title": "Returned without review if…",
+      "items": [
+        "A co-PI is listed on the Cover Sheet — CAREER allows one PI, no co-PIs.",
+        "The Departmental Letter is missing, or is placed in Single Copy Documents instead of Supplementary Documents.",
+        "A Letter of Collaboration departs from the exact single-sentence NSF format.",
+        "The proposal arrives after 5:00 p.m. local time on the deadline.",
+        "It duplicates another proposal under NSF review, or is a declined proposal resubmitted without addressing prior comments."
+      ]
+    },
+    {
+      "kind": "exclude",
+      "title": "Do not include",
+      "items": [
+        "No appendices — none are permitted.",
+        "No co-PIs — single PI only; collaborators go in budget/subaward lines.",
+        "No letters of support or recommendation for the PI — only single-sentence letters of collaboration.",
+        "No voluntary committed cost sharing."
+      ]
+    }
+  ]
+}

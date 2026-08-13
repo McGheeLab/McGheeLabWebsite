@@ -369,65 +369,6 @@ body {
 }
 
 /* ── Filters ──────────────────────────────────────────── */
-
-.hud-filters {
-  margin-bottom: 1rem;
-}
-
-.hud-filter-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-  font-size: .8rem;
-  color: var(--muted);
-  cursor: pointer;
-  padding: .3rem .6rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  transition: color .15s, border-color .15s;
-}
-
-.hud-filter-toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.hud-filter-count {
-  background: var(--accent);
-  color: #fff;
-  font-size: .65rem;
-  font-weight: 700;
-  padding: .05rem .35rem;
-  border-radius: 8px;
-  min-width: 16px;
-  text-align: center;
-}
-
-.hud-filter-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: .75rem;
-  margin-top: .5rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.hud-filter-group {
-  min-width: 120px;
-}
-
-.hud-filter-label {
-  font-size: .7rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  margin-bottom: .35rem;
-}
-
 .hud-filter-check {
   display: flex;
   align-items: center;
@@ -440,19 +381,6 @@ body {
 
 .hud-filter-check input[type="checkbox"] {
   accent-color: var(--accent);
-}
-
-.hud-filter-clear {
-  background: none;
-  border: none;
-  color: var(--accent);
-  font-size: .75rem;
-  cursor: pointer;
-  align-self: flex-end;
-}
-
-.hud-filter-clear:hover {
-  text-decoration: underline;
 }
 
 /* ── Help strip on Plan Feed ──────────────────────────── */
@@ -608,7 +536,11 @@ body {
   background: rgba(91, 174, 209, .03);
 }
 
-/* Plan blocks — matches equipment scheduler booking blocks */
+/* Plan blocks — matches equipment scheduler booking blocks.
+   V3.516: multiple owners in the same slot now sit in side-by-side lanes
+   (width/margin-left set inline per computeDayLanes) instead of stacking
+   on top of each other — min-width:0 lets the flex children actually
+   ellipsis down to a narrow lane instead of forcing overflow. */
 .hud-grid-block {
   border-left: 3px solid var(--accent);
   border-radius: 3px;
@@ -620,13 +552,16 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  gap: 1px;
+  min-width: 0;
   z-index: 1;
-  transition: filter .1s;
+  transition: filter .1s, box-shadow .1s;
 }
 
 .hud-grid-block:hover {
   filter: brightness(1.2);
-  z-index: 5;
+  z-index: 6 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
 }
 
 .hud-grid-block[draggable="true"] {
@@ -637,11 +572,42 @@ body {
   cursor: grabbing;
 }
 
+.hud-block-head {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  min-width: 0;
+}
+
+.hud-block-avatar {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .48rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.hud-block-avatar--inline {
+  width: 12px;
+  height: 12px;
+  font-size: .45rem;
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-right: .25rem;
+}
+
 .hud-block-text {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .hud-block-owner {
@@ -650,11 +616,16 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
 }
 
 .hud-block-time {
   color: var(--muted);
   font-size: .6rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* All-day blocks */
@@ -1211,6 +1182,201 @@ body {
   font-size: .85rem;
 }
 
+.hud-empty .app-btn {
+  margin-top: .85rem;
+}
+
+/* ── V3.508: chips, inline composers, anytime section, help strip ── */
+
+.hud-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin: 0 0 .75rem;
+}
+
+.hud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  border: 1px solid var(--border, rgba(148, 163, 184, .35));
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: .22rem .7rem;
+  font-size: .75rem;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.hud-chip:hover { color: var(--text); }
+
+/* Color legend dot — matches getUserColor() so a chip and its owner's
+   grid blocks are identifiable at a glance (V3.516). */
+.hud-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hud-chip.active .hud-chip-dot {
+  box-shadow: 0 0 0 1px rgba(255,255,255,.6);
+}
+
+.hud-chip.active {
+  background: var(--accent, #5baed1);
+  border-color: var(--accent, #5baed1);
+  color: #fff;
+}
+
+.hud-composer--collapsed {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px dashed var(--border, rgba(148, 163, 184, .45));
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  padding: .65rem .85rem;
+  font-size: .85rem;
+  cursor: text;
+  margin: 0 0 .85rem;
+  transition: border-color .15s, color .15s;
+}
+
+.hud-composer--collapsed:hover {
+  border-color: var(--accent, #5baed1);
+  color: var(--text);
+}
+
+.hud-composer--open {
+  border: 1px solid var(--border, rgba(148, 163, 184, .35));
+  border-radius: 8px;
+  padding: .85rem 1rem;
+  margin: 0 0 .85rem;
+}
+
+.hud-composer--open h2 {
+  font-size: .92rem;
+  margin: 0 0 .65rem;
+}
+
+.hud-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  font-size: .9rem;
+  color: var(--text);
+  margin: 1.4rem 0 .6rem;
+}
+
+.hud-anytime-empty {
+  color: var(--muted);
+  font-size: .8rem;
+  margin: .25rem 0 0;
+}
+
+.hud-avatar-sm {
+  width: 20px;
+  height: 20px;
+  font-size: .58rem;
+}
+
+.hud-link-btn {
+  border: none;
+  background: transparent;
+  color: var(--accent, #5baed1);
+  font-size: .78rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.hud-link-btn:hover { text-decoration: underline; }
+
+.hud-help-strip-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border, rgba(148, 163, 184, .25));
+  background: transparent;
+  color: var(--text);
+  border-radius: 6px;
+  padding: .45rem .6rem;
+  margin-bottom: .35rem;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+
+.hud-help-strip-row:hover { border-color: var(--accent, #5baed1); }
+
+.hud-help-strip-title {
+  flex: 1;
+  font-size: .82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-help-strip-meta {
+  color: var(--muted);
+  font-size: .72rem;
+  flex-shrink: 0;
+}
+
+.hud-week-tag {
+  font-size: .65rem;
+  color: var(--muted);
+  border: 1px solid var(--border, rgba(148, 163, 184, .35));
+  border-radius: 999px;
+  padding: .08rem .45rem;
+  white-space: nowrap;
+}
+
+/* ── V3.511: seen state — "new since last visit" markers ── */
+
+.hud-new-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #5baed1);
+  flex-shrink: 0;
+}
+
+.hud-new-badge {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  background: var(--accent, #5baed1);
+  color: #fff;
+  border-radius: 999px;
+  font-size: .62rem;
+  font-weight: 700;
+  padding: .05rem .3rem;
+  line-height: 1.4;
+}
+
+.hud-block-new {
+  box-shadow: 0 0 0 2px var(--accent, #5baed1);
+}
+
+/* ── Deep-link flash (notification tap lands on the item) ── */
+
+@keyframes hud-flash-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(91, 174, 209, .75); }
+  60%  { box-shadow: 0 0 0 10px rgba(91, 174, 209, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(91, 174, 209, 0); }
+}
+
+.hud-flash {
+  animation: hud-flash-pulse 1.2s ease-out 2;
+  border-radius: 6px;
+}
+
 /* ═══════════════════════════════════════════════════════════
    DAY PICKER (recurrence + settings)
    ═══════════════════════════════════════════════════════════ */
@@ -1326,10 +1492,6 @@ body {
     gap: .3rem;
   }
 
-  .hud-filter-panel {
-    flex-direction: column;
-  }
-
   .hud-help-respond {
     flex-direction: column;
   }
@@ -1379,6 +1541,11 @@ body {
   .hud-block-time {
     font-size: .5rem;
   }
+  .hud-block-avatar {
+    width: 10px;
+    height: 10px;
+    font-size: .4rem;
+  }
   .hud-allday-block {
     font-size: .55rem;
     padding: .1rem .2rem;
@@ -1398,14 +1565,6 @@ body {
 /* ═══════════════════════════════════════════════════════════
    RUNDOWN — Task Feed & Cards
    ═══════════════════════════════════════════════════════════ */
-
-.hud-rundown-filters {
-  display: flex;
-  gap: .5rem;
-  align-items: center;
-  padding: .5rem 0;
-}
-
 .hud-rundown-list {
   display: flex;
   flex-direction: column;
@@ -1485,10 +1644,6 @@ body {
   align-items: center;
 }
 
-.hud-rd-join-btn {
-  white-space: nowrap;
-}
-
 .hud-rd-join-status {
   font-size: .72rem;
   color: var(--accent);
@@ -1498,11 +1653,6 @@ body {
 /* ═══════════════════════════════════════════════════════════
    MY TASKS — Join Requests
    ═══════════════════════════════════════════════════════════ */
-
-.hud-mytask-card .hud-rundown-card-top {
-  gap: .35rem;
-}
-
 .hud-icon-btn {
   background: none;
   border: none;

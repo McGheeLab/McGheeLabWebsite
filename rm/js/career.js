@@ -118,7 +118,7 @@ document.getElementById('add-item').onclick = () => {
 };
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view your career plan.');
   await loadAndRender();
   // No LIVE_SYNC.attach — tenure dossier is a single-author edit surface;
   // a second tab is unusual, and reload covers it.

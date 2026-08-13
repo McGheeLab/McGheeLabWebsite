@@ -220,7 +220,14 @@
     }
   }
 
-  newBtn.addEventListener('click', openModal);
+  /* V3.470 — new grants are authored in the unified Paper editor now.
+   * Hand off to its creation modal with the grant type preselected;
+   * old grantDrafts still open in this page's editor mode. (The legacy
+   * openModal/createGrant flow below is left intact but unwired as a
+   * fallback.) */
+  newBtn.addEventListener('click', function () {
+    window.location.href = '/rm/pages/paper-builder.html?new=1&type=grant';
+  });
   modalClose.addEventListener('click', closeModal);
   modalCancel.addEventListener('click', closeModal);
   modalCreate.addEventListener('click', createGrant);
@@ -230,18 +237,22 @@
     if (e.key === 'Escape' && !modalEl.hidden) closeModal();
   });
 
+  if (firebridge.requireSignIn) firebridge.requireSignIn('Sign in to manage grant drafts.');
   firebridge.onAuth(function (user) {
     if (!user) {
       listEl.innerHTML = '<div class="empty-state">Sign in to see grant drafts.</div>';
       return;
     }
     load().then(function () {
-      // V3.229 — deep-link from the research view ("+ Add Item" type=grant)
-      // opens this page with ?new=1 and expects the create modal to appear
-      // immediately rather than forcing a second click.
+      // V3.229 — deep-link with ?new=1 (e.g. research view "+ Add Item"
+      // type=grant) expected the create modal immediately.
+      // V3.470 — new grants are authored in the unified Paper editor now,
+      // so hand the deep-link off there with the grant type preselected.
       try {
         var params = new URLSearchParams(window.location.search);
-        if (params.get('new') === '1') openModal();
+        if (params.get('new') === '1') {
+          window.location.href = '/rm/pages/paper-builder.html?new=1&type=grant';
+        }
       } catch {}
     });
   });

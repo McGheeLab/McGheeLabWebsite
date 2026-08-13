@@ -403,7 +403,7 @@ document.getElementById('add-contact').onclick = () => {
 };
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view contacts.');
   await loadAndRender();
   // No LIVE_SYNC.attach: rarely-edited contact lists; cached api.load handles
   // cross-tab updates on reload.

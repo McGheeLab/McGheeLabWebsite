@@ -169,8 +169,8 @@
   document.addEventListener('DOMContentLoaded', async function () {
     var reload = document.getElementById('btn-clf-reload');
     if (reload) reload.addEventListener('click', load);
-    if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
-      try { await firebridge.whenAuthResolved(); } catch (_) { /* proceed; api.load will no-op if unauth */ }
+    if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+      try { await firebridge.requireSignIn('Sign in to review classifier output.'); } catch (_) { /* proceed; api.load will no-op if unauth */ }
     }
     load();
   });

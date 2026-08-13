@@ -289,3 +289,29 @@
   background: var(--red-bg);
   border-color: var(--red);
 }
+
+/* ─── V3.575: consolidated Connections tab ─────────────────────────
+   Profile · Notifications · Connections. The Connections tab stacks the
+   OAuth account connectors (#integrations-host), a collapsed <details>
+   with the CalendarService providers, then the manual registry. */
+.settings-conn-more {
+  margin: 18px 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 0 14px;
+  background: var(--card, #fff);
+}
+.settings-conn-more > summary {
+  cursor: pointer;
+  padding: 13px 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+  list-style: none;
+}
+.settings-conn-more > summary::-webkit-details-marker { display: none; }
+.settings-conn-more > summary::before { content: '▸ '; color: var(--text-muted, #64748b); }
+.settings-conn-more[open] > summary::before { content: '▾ '; }
+.settings-conn-more > div { padding-bottom: 10px; }
+.settings-conn-registry { margin-top: 26px; }
+.settings-conn-h { font-size: 16px; margin: 0 0 12px; }

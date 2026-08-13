@@ -12,8 +12,11 @@
 #     --region us-central1 \
 #     --allow-unauthenticated=false \
 #     --memory 1Gi \
-#     --timeout 90 \
+#     --timeout 120 \
 #     --max-instances 3
+#
+# (timeout raised 90 → 120 with the latexdiff update: a diff request runs
+#  latexdiff + a SECOND tectonic pass on diff.tex.)
 #
 # Once deployed, copy the service URL into rm/js/paper-export.js
 # (PAPER_COMPILE_URL constant) and redeploy the website.
@@ -24,9 +27,14 @@ FROM node:20-bookworm-slim
 # biber is needed for natbib-style bibliographies (Tectonic falls back
 # to bibtex automatically; biber is the modern default for many journal
 # styles).
+# latexdiff (a Perl script; perl-base is already in the slim image) powers
+# the marked-up revision PDFs — --no-install-recommends is CRITICAL here,
+# it stops latexdiff's Recommends from dragging in a full TeX Live
+# (Tectonic stays the only engine; image cost ≈ 5-10 MB).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl xz-utils biber chktex \
-    && rm -rf /var/lib/apt/lists/*
+      ca-certificates curl xz-utils biber chktex latexdiff \
+    && rm -rf /var/lib/apt/lists/* \
+    && latexdiff --version
 
 # Pin Tectonic. Using the official static-glibc binary keeps the image
 # small (no need for the full Rust toolchain at build time).

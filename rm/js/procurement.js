@@ -75,8 +75,7 @@
       console.warn('[procurement] firebridge not available');
       return;
     }
-    firebridge.gateSignedIn();
-    if (firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+    if (firebridge.requireSignIn) await firebridge.requireSignIn();
 
     _user = firebridge.getUser ? firebridge.getUser() : null;
     _profile = firebridge.getProfile ? firebridge.getProfile() : null;

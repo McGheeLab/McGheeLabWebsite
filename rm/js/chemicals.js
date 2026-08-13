@@ -760,7 +760,7 @@ document.getElementById('search-input').oninput = function () { render(); };
 /* ---- Init ---- */
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view the chemical inventory.');
   await loadAndRender();
   // No LIVE_SYNC.attach: chemicals is admin-edit, rarely two-tab. Cached
   // api.load + reload picks up edits. _chemLive stays null; surgical-save

@@ -661,10 +661,454 @@
     }
   }
 
+  /* ── Viewing modes: Nodes / Editor / Document ─────────────────────
+   * `Document` is the existing read-only ?view=doc page; Nodes and
+   * Editor swap what renders inside #pre-content. The node workflow is
+   * backed by the protocol's design block (auto-created on first entry
+   * to Nodes), so compile / doc-view / notebook-run paths are unchanged. */
+  var VIEW_LS_KEY = 'pre-view:' + protocolId;
+  function currentView() { return state.view === 'nodes' ? 'nodes' : 'editor'; }
+  function setView(v) {
+    state.view = v;
+    try { localStorage.setItem(VIEW_LS_KEY, v); } catch (e) {}
+    updateViewSeg();
+    render();
+  }
+  function docViewHref() {
+    return '/rm/pages/protocols.html?protocol=' + encodeURIComponent(protocolId) + '&view=doc';
+  }
+  function cheatViewHref() {
+    return '/rm/pages/protocols.html?protocol=' + encodeURIComponent(protocolId) + '&view=cheat';
+  }
+  function buildViewSeg() {
+    var actions = document.querySelector('.pre-topbar-actions');
+    if (!actions || document.getElementById('pre-viewseg')) return;
+    var seg = document.createElement('div');
+    seg.className = 'pre-viewseg';
+    seg.id = 'pre-viewseg';
+    [['nodes', '⬡ Nodes', 'Whole-protocol node design workflow'],
+     ['editor', '✎ Editor', 'Block editor']].forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pre-viewseg-btn';
+      b.dataset.view = m[0];
+      b.textContent = m[1];
+      b.title = m[2];
+      b.addEventListener('click', function () { setView(m[0]); });
+      seg.appendChild(b);
+    });
+    var docA = document.createElement('a');
+    docA.className = 'pre-viewseg-btn';
+    docA.textContent = '📄 Document';
+    docA.title = 'Read-only document view — print / export to PDF from there';
+    docA.href = docViewHref();
+    seg.appendChild(docA);
+    var cheatA = document.createElement('a');
+    cheatA.className = 'pre-viewseg-btn';
+    cheatA.textContent = '📋 Cheat sheet';
+    cheatA.title = 'Condensed, print-first cheat sheet — bare-minimum steps for someone who knows the protocol';
+    cheatA.href = cheatViewHref();
+    seg.appendChild(cheatA);
+    actions.insertBefore(seg, actions.firstChild);
+    if (docViewBtn) docViewBtn.hidden = true; // superseded by the segment
+    updateViewSeg();
+  }
+  function updateViewSeg() {
+    var seg = document.getElementById('pre-viewseg');
+    if (!seg) return;
+    Array.prototype.forEach.call(seg.querySelectorAll('button'), function (b) {
+      b.classList.toggle('active', b.dataset.view === currentView());
+    });
+    // V3.403 — 🔗 Reference inserts into prose blocks: editor view only
+    var rb = document.getElementById('pre-refvar-btn');
+    if (rb) rb.hidden = currentView() !== 'editor';
+  }
+  function findDesignYBlock() {
+    var ySections = state.yTree.get('sections');
+    if (!ySections) return null;
+    var arr = ySections.toArray();
+    for (var i = 0; i < arr.length; i++) {
+      var kids = arr[i].get('children');
+      if (!kids) continue;
+      var karr = kids.toArray();
+      for (var j = 0; j < karr.length; j++) {
+        if (karr[j].get('kind') === 'design') return karr[j];
+      }
+    }
+    return null;
+  }
+  /* V3.434 — plain graphs of EVERY design block (the 🔗 picker gates
+   * its list on their 📊 Cards / 🔗 References nodes). */
+  function _allDesignGraphs() {
+    var out = [];
+    try {
+      var ySections = state.yTree.get('sections');
+      if (!ySections) return out;
+      ySections.toArray().forEach(function (sec) {
+        var kids = sec.get('children');
+        if (!kids) return;
+        kids.toArray().forEach(function (kb) {
+          if (kb.get('kind') !== 'design') return;
+          var a = kb.get('attrs');
+          var j = (a && a.toJSON) ? a.toJSON() : {};
+          out.push({ nodes: j.nodes || [], edges: j.edges || [] });
+        });
+      });
+    } catch (e) {}
+    return out;
+  }
+  /* ── V3.403 — page-level tour host ─────────────────────────────
+   * Tours used to be owned by the graph-editor mount, so switching
+   * Nodes → Editor destroyed them. This host attaches ONCE to stable
+   * page elements (body + #pre-content), reads the graph straight from
+   * the design block's attrs, and therefore survives view switches AND
+   * canvas remounts — lessons can walk from the node canvas into the
+   * page editor (lesson 1's 🔗 Reference finale). The graph editor's
+   * 🎓 menu routes here too via mount opts.startTour. */
+  var _pageTours = null;
+  function pageTours() {
+    if (_pageTours || !window.ProtocolGraphTours || !contentEl) return _pageTours;
+    _pageTours = window.ProtocolGraphTours.attach({
+      hostEl: document.body,
+      viewport: contentEl,
+      getGraph: function () {
+        var yb = null;
+        try { yb = findDesignYBlock(); } catch (e) {}
+        var a = yb && yb.get('attrs');
+        var j = (a && a.toJSON) ? a.toJSON() : {};
+        return { nodes: j.nodes || [], edges: j.edges || [] };
+      },
+      resetGraph: function () {
+        if (!state.canEdit || state.isHistoricalView) return;
+        var yb = null;
+        try { yb = findDesignYBlock(); } catch (e) {}
+        var a = yb && yb.get('attrs');
+        if (!a || !a.doc) return;
+        try {
+          a.doc.transact(function () { a.set('nodes', []); a.set('edges', []); });
+          markDirty();
+        } catch (e) {}
+        // an attrs change doesn't remount the canvas — force it so the
+        // rebuild visibly starts from a blank graph
+        if (currentView() === 'nodes') render();
+      },
+      onEnd: function (reason, info) {
+        if (reason === 'user') {
+          state._activeTour = null;
+          state._activeTourStep = 0;
+        } else if (info) {
+          state._activeTour = info.id;
+          state._activeTourStep = info.stepIdx;
+        }
+      },
+    });
+    return _pageTours;
+  }
+  function startPageTour(id, o) {
+    var pt = pageTours();
+    if (!pt) return false;
+    var ok = false;
+    try { ok = !!pt.start(id, o); } catch (e) {}
+    if (ok) { state._pendingTour = null; state._activeTour = id; }
+    return ok;
+  }
+
+  /* ── V3.403 — 🔗 Reference: the variable picker ─────────────────
+   * A topbar button (editor view only) opens a paper-builder-style
+   * popover (reusing the .pe-cite-popover shell — paper-editor.css is
+   * loaded on this page) listing every variable with its LIVE value.
+   * Picking one inserts `[!var:name]` into the last-focused text block
+   * at the remembered caret, so nobody types — or memorizes — the raw
+   * token syntax. */
+  var _refTarget = null;   // {el, yText, offset} — last-focused prose block
+  var _varPop = null;
+  function _caretOffsetIn(el) {
+    try {
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      var r = sel.getRangeAt(0);
+      if (!el.contains(r.startContainer)) return null;
+      var probe = r.cloneRange();
+      probe.selectNodeContents(el);
+      probe.setEnd(r.startContainer, r.startOffset);
+      return probe.toString().length;
+    } catch (e) { return null; }
+  }
+  function _trackRefTarget(e) {
+    var el = e.target;
+    while (el && el !== contentEl && !el._preVarsYText) el = el.parentNode;
+    if (!el || !el._preVarsYText) return;
+    _refTarget = { el: el, yText: el._preVarsYText, offset: _caretOffsetIn(el) };
+    var btn = document.getElementById('pre-refvar-btn');
+    if (btn) btn.disabled = false;
+  }
+  function _ensureVarPopover() {
+    if (_varPop) return _varPop;
+    var pop = document.createElement('div');
+    pop.className = 'pe-cite-popover pre-var-popover';
+    pop.hidden = true;
+    pop.innerHTML =
+      '<div class="pe-cite-pop-title">Insert variable reference</div>' +
+      '<input type="text" class="pe-cite-pop-search" placeholder="Search variables…" autocomplete="off">' +
+      '<div class="pe-cite-pop-list" role="listbox"></div>' +
+      '<div class="pe-cite-pop-hint">Pick a variable — its live value lands in your sentence and keeps updating.</div>';
+    document.body.appendChild(pop);
+    var input = pop.querySelector('.pe-cite-pop-search');
+    var listEl = pop.querySelector('.pe-cite-pop-list');
+    function refresh() {
+      var table = (window.ProtocolFormulas && window.ProtocolFormulas.getSymbolTable()) || {};
+      var q = input.value.trim().toLowerCase();
+      listEl.innerHTML = '';
+      // V3.434 — GATED: only variables wired into 📊 Cards / 🔗
+      // References nodes are offered (card variables are automatically
+      // referencable), grouped by gate node for findability. Prose
+      // tokens already in the document keep resolving regardless.
+      var groups = [];
+      var PGk = window.ProtocolGraph;
+      if (PGk && PGk.displayGroups) {
+        _allDesignGraphs().forEach(function (g) {
+          PGk.displayGroups(g).forEach(function (grp) {
+            if (grp.vars && grp.vars.length) groups.push(grp);
+          });
+        });
+      }
+      if (!groups.length) {
+        listEl.innerHTML = '<div class="pre-var-pop-note">No references yet — in the ⬡ Nodes view, add a 🔗 References (or 📊 Cards) node and wire variables into it.</div>';
+        return;
+      }
+      var shown = 0;
+      groups.forEach(function (grp) {
+        var rows = [];
+        grp.vars.forEach(function (v) {
+          var name = v.name;
+          var sym = table[name] || {};
+          var hay = (name + ' ' + (v.label || sym.label || '') + ' ' + (v.unit || sym.unit || '')).toLowerCase();
+          if (q && hay.indexOf(q) < 0) return;
+          var row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'pe-cite-pop-row pre-var-row';
+          var val = window.ProtocolFormulas.formatSymbolValue(sym);
+          var label = (sym.label && sym.label !== name) ? sym.label : (v.label !== name ? v.label : '');
+          row.innerHTML =
+            '<span class="pre-var-row-name">' + escapeHtml(name) + '</span>' +
+            (label ? '<span class="pre-var-row-label">' + escapeHtml(label) + '</span>' : '') +
+            '<span class="pre-var-row-val' + (sym.error ? ' pre-var-row-err' : '') + '">' + escapeHtml(val) + '</span>' +
+            '<span class="pre-var-row-badge">' + (sym.computed ? 'computed' : 'input') + '</span>';
+          row.addEventListener('click', function () { _insertVarToken(name); });
+          rows.push(row);
+        });
+        if (!rows.length) return;
+        shown += rows.length;
+        var head = document.createElement('div');
+        head.className = 'pre-var-group';
+        head.textContent = (grp.type === 'cards' ? '📊 ' : '🔗 ') + grp.label;
+        listEl.appendChild(head);
+        rows.forEach(function (r) { listEl.appendChild(r); });
+      });
+      if (!shown) listEl.innerHTML = '<div class="pre-var-pop-note">No match.</div>';
+    }
+    input.addEventListener('input', refresh);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeVarPopover(); });
+    pop._refresh = refresh;
+    _varPop = pop;
+    return pop;
+  }
+  function _varPopOutside(e) {
+    if (!_varPop || _varPop.hidden) return;
+    var btn = document.getElementById('pre-refvar-btn');
+    if (_varPop.contains(e.target) || (btn && btn.contains(e.target))) return;
+    closeVarPopover();
+  }
+  function closeVarPopover() {
+    if (_varPop) _varPop.hidden = true;
+    document.removeEventListener('pointerdown', _varPopOutside, true);
+  }
+  function openVarPopover(anchorEl) {
+    var pop = _ensureVarPopover();
+    if (!pop.hidden) { closeVarPopover(); return; }
+    var r = anchorEl.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - 396, r.left - 200)) + 'px';
+    pop.style.top = (r.bottom + 4) + 'px';
+    var input = pop.querySelector('.pe-cite-pop-search');
+    input.value = '';
+    pop._refresh();
+    pop.hidden = false;
+    document.addEventListener('pointerdown', _varPopOutside, true);
+    input.focus();
+  }
+  function _insertVarToken(name) {
+    closeVarPopover();
+    var t = _refTarget;
+    if (!t || !t.yText) return;
+    // the block must be blurred so its Y-observe repaints the chip (a
+    // focused block ignores remote/Y updates to protect the caret)
+    if (document.activeElement === t.el) { try { t.el.blur(); } catch (e) {} }
+    var yText = t.yText;
+    var raw = yText.toString();
+    var off = (typeof t.offset === 'number') ? Math.min(t.offset, raw.length) : raw.length;
+    var before = raw.slice(0, off), after = raw.slice(off);
+    var ins = ((before && !/\s$/.test(before)) ? ' ' : '') +
+      '[!var:' + name + ']' +
+      ((after && !/^\s/.test(after)) ? ' ' : '');
+    try {
+      yText.doc.transact(function () { yText.insert(off, ins); });
+      markDirty();
+    } catch (e) {}
+  }
+  function buildRefVarButton() {
+    var actions = document.querySelector('.pre-topbar-actions');
+    if (!actions || document.getElementById('pre-refvar-btn')) return;
+    if (!state.canEdit || state.isHistoricalView) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn pre-action-btn';
+    b.id = 'pre-refvar-btn';
+    b.textContent = '🔗 Reference';
+    b.title = 'Insert a live variable reference — click into a text block first, then pick the variable';
+    b.disabled = true; // until a text block has been focused
+    b.addEventListener('click', function () { openVarPopover(b); });
+    var seg = document.getElementById('pre-viewseg');
+    if (seg && seg.nextSibling) actions.insertBefore(b, seg.nextSibling);
+    else actions.insertBefore(b, actions.firstChild);
+    b.hidden = currentView() !== 'editor';
+    ['focusin', 'keyup', 'mouseup'].forEach(function (evt) {
+      contentEl.addEventListener(evt, _trackRefTarget);
+    });
+  }
+
+  function renderNodesView() {
+    var hint = document.createElement('li');
+    hint.className = 'pre-outline-hint';
+    hint.textContent = 'Node design workflow — the variables, equations and item lists behind this protocol.';
+    outlineEl.appendChild(hint);
+
+    var yBlock = findDesignYBlock();
+    if (!yBlock) {
+      if (!state.canEdit || state.isHistoricalView) {
+        contentEl.innerHTML = '<div class="empty-state">This protocol has no node workflow yet.</div>';
+        return;
+      }
+      var ySections = state.yTree.get('sections');
+      if (!ySections) return; // tree not seeded yet — seed observer re-renders
+      if (!ySections.length) {
+        ySections.push([window.ProtocolBlocks.hydrateSectionToYjs(
+          window.ProtocolSchemas.newSection('Design', 0), state.Y)]);
+        markDirty();
+        return; // structural observer re-enters render(); next pass adds the block
+      }
+      addBlockToSection(ySections.get(0), 'design');
+      return; // structural observer re-enters render() and mounts
+    }
+    if (!window.ProtocolGraphEditor) {
+      contentEl.innerHTML = '<div class="empty-state">Node editor module not loaded.</div>';
+      return;
+    }
+    var attrs = yBlock.get('attrs');
+    // V3.391 — demo "Start from scratch": empty this design block BEFORE
+    // mounting so the canvas comes up blank and the build tour (fired by
+    // the debounced startTour below) walks from an empty graph. One-shot;
+    // an attrs-map change, so it doesn't trigger a structural re-render.
+    if (state._resetTourGraph && attrs && attrs.doc && state.canEdit && !state.isHistoricalView) {
+      state._resetTourGraph = false;
+      try {
+        attrs.doc.transact(function () { attrs.set('nodes', []); attrs.set('edges', []); });
+        markDirty();
+      } catch (e) {}
+    }
+    var host = document.createElement('div');
+    host.className = 'pre-nodes-host';
+    contentEl.appendChild(host);
+    var handle = window.ProtocolGraphEditor.mount(host, {
+      canEdit: state.canEdit && !state.isHistoricalView,
+      expandable: true,
+      viewKey: protocolId + ':nodes',
+      getGraph: function () {
+        var a = (attrs && attrs.toJSON) ? attrs.toJSON() : {};
+        return { nodes: a.nodes || [], edges: a.edges || [] };
+      },
+      setGraph: function (g) {
+        attrs.doc.transact(function () {
+          attrs.set('nodes', JSON.parse(JSON.stringify(g.nodes || [])));
+          attrs.set('edges', JSON.parse(JSON.stringify(g.edges || [])));
+        });
+        markDirty();
+      },
+      // V3.403 — tours run on the PAGE-LEVEL host (survives view
+      // switches + canvas remounts); the mount's 🎓 menu routes here.
+      startTour: startPageTour,
+      // V3.394 — kept for the mount-owned fallback attach (contexts
+      // without a page host, e.g. notebook design blocks).
+      onTourEnd: function (reason, info) {
+        if (reason === 'user') {
+          state._activeTour = null;
+          state._activeTourStep = 0;
+        } else if (info) {
+          state._activeTour = info.id;
+          state._activeTourStep = info.stepIdx;
+        }
+      },
+    });
+    if (handle && handle.destroy) {
+      state.cleanups.push(function () { try { handle.destroy(); } catch (e) {} });
+    }
+    // V3.389/V3.390 — demo lessons open with ?tour=<id>: auto-start that
+    // guided build once the canvas is mounted, DEBOUNCED so boot
+    // hydration's re-renders settle first.
+    // V3.394 — a running tour must SURVIVE remounts: onEnd records any
+    // tour torn down as 'detached' into state._activeTour/_activeTourStep
+    // and this block re-arms it, resuming at the recorded step.
+    // V3.403 — the tour now lives on the page-level host (stable
+    // viewport), so remounts don't even detach it; this block mainly
+    // fires the initial ?tour= start and any belt-and-suspenders resume.
+    if (state._pendingTour || state._activeTour) {
+      if (state._tourStartTimer) clearTimeout(state._tourStartTimer);
+      state._tourStartTimer = setTimeout(function () {
+        state._tourStartTimer = null;
+        var tid = state._pendingTour || state._activeTour;
+        if (!tid) return;
+        var pt = pageTours();
+        if (pt && pt.active()) return; // already running on the page host
+        var resume = !state._pendingTour
+          ? { resumeAt: state._activeTourStep || 0 } : null;
+        startPageTour(tid, resume);
+      }, 250);
+    }
+  }
+
+  /* A read-only ProtocolWidgets context over the WHOLE protocol, used to
+   * render "completed" sections in their final form (the same renderers
+   * the doc view uses). Built lazily per render pass; math is ensured on
+   * boot into state._math. */
+  function buildPreviewCtx() {
+    var plainTree = window.ProtocolBlocks.dehydrateTree(state.yDoc);
+    var formulas = window.ProtocolFormulas.collectFormulasFromPlainTree(plainTree);
+    var math = state._math || null;
+    var ctx = window.ProtocolWidgets.createContext({
+      math: math, formulas: formulas, overrides: {}, readOnly: true,
+    });
+    ctx.table = math ? window.ProtocolFormulas.buildSymbolTable(formulas, math, {}) : {};
+    // Wire the refresher bus so the preview repaints on
+    // protocol-inventory-loaded (materials item labels) and
+    // protocol-vars-changed (a later section registering a dataset an
+    // earlier one consumes). Torn down each render via clearCleanups.
+    var unlisten = window.ProtocolWidgets.mountRefresherBus(ctx);
+    state.cleanups.push(unlisten);
+    return ctx;
+  }
+
   function render() {
     clearCleanups();
     contentEl.innerHTML = '';
     outlineEl.innerHTML = '';
+    var previewCtx = null;
+    function getPreviewCtx() { return (previewCtx = previewCtx || buildPreviewCtx()); }
+
+    // Nodes mode: the canvas takes the full frame width (the 820px
+    // document column only makes sense for prose); sidebar stays.
+    var mainInner = document.getElementById('pre-main-inner');
+    if (mainInner) mainInner.classList.toggle('pre-nodes-full', currentView() === 'nodes');
+
+    if (currentView() === 'nodes') { renderNodesView(); return; }
 
     var ySections = state.yTree.get('sections');
     if (!ySections || !ySections.length) {
@@ -703,14 +1147,39 @@
         ySec.set('label', labelInput.value);
         markDirty();
       });
-      ySec.observe(function (event) {
-        if (event.keysChanged && event.keysChanged.has('label')) {
-          if (document.activeElement !== labelInput) {
-            labelInput.value = ySec.get('label') || '';
-          }
+      var secObs = function (event) {
+        if (!event.keysChanged) return;
+        if (event.keysChanged.has('label') && document.activeElement !== labelInput) {
+          labelInput.value = ySec.get('label') || '';
         }
-      });
+        // a remote collaborator marking this section complete/incomplete
+        // must flip its rendering (edit ⇄ final-form preview).
+        if (event.keysChanged.has('completed')) render();
+      };
+      ySec.observe(secObs);
+      state.cleanups.push(function () { ySec.unobserve(secObs); });
       headerRow.appendChild(labelInput);
+
+      var completed = !!ySec.get('completed');
+      if (completed) { secEl.classList.add('pre-section-complete'); labelInput.disabled = true; }
+
+      // Complete / Edit toggle — flips the section between the editable
+      // blocks and the read-only "final form" preview.
+      if (state.canEdit) {
+        var doneBtn = document.createElement('button');
+        doneBtn.type = 'button';
+        doneBtn.className = 'pre-block-btn pre-section-donebtn' + (completed ? ' is-complete' : '');
+        doneBtn.textContent = completed ? '✎ Edit section' : '✓ Mark complete';
+        doneBtn.title = completed
+          ? 'Return this section to editing'
+          : 'Mark complete — show every block in its final rendered form';
+        doneBtn.addEventListener('click', function () {
+          ySec.set('completed', !completed);
+          markDirty();
+          render();
+        });
+        headerRow.appendChild(doneBtn);
+      }
 
       if (state.canEdit) {
         var delSec = document.createElement('button');
@@ -723,37 +1192,58 @@
       }
       secEl.appendChild(headerRow);
 
-      // Blocks
       var yChildren = ySec.get('children');
-      if (yChildren) {
-        yChildren.toArray().forEach(function (yBlock) {
-          var ctx = buildCtx({});
-          if (yBlock.get('kind') === 'step') {
-            stepCounter++;
-            ctx.stepNumber = stepCounter;
-          }
-          secEl.appendChild(window.ProtocolBlocks.renderBlock(yBlock, ctx));
-        });
-      }
 
-      // + Add block menu
-      if (state.canEdit) {
-        var addRow = document.createElement('div');
-        addRow.className = 'pre-add-block-row';
-        // V3.315 — `callout` replaces note/safety; heading + docHeader added.
-        // V3.316 — table, kv, timeline.
-        // V3.318 — calculator. V3.324 — builder + layoutMap.
-        ['step', 'materials', 'callout', 'heading', 'figure', 'formula',
-         'calculator', 'builder', 'layoutMap', 'table', 'kv', 'timeline',
-         'docHeader'].forEach(function (kind) {
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'btn pre-add-block-btn';
-          b.textContent = '+ ' + kind;
-          b.addEventListener('click', function () { addBlockToSection(ySec, kind); });
-          addRow.appendChild(b);
-        });
-        secEl.appendChild(addRow);
+      if (completed) {
+        // Read-only preview: dehydrate each block and render its final
+        // form via the shared doc renderer (same output as the doc view).
+        // The .prd-doc wrapper scopes the inline-vocabulary styles; the
+        // CSS resets the document-page chrome for inline use.
+        var prev = document.createElement('div');
+        prev.className = 'prd-doc pre-section-preview';
+        var pctx = getPreviewCtx();
+        if (yChildren) {
+          yChildren.toArray().forEach(function (yBlock) {
+            if (yBlock.get('kind') === 'step') stepCounter++;
+            var plain = window.ProtocolBlocks.dehydrateBlock(yBlock);
+            var pel = window.ProtocolDocRender.renderBlock(plain, pctx, { stepNumber: stepCounter });
+            if (pel) prev.appendChild(pel);
+          });
+        }
+        secEl.appendChild(prev);
+      } else {
+        // Editable blocks.
+        if (yChildren) {
+          yChildren.toArray().forEach(function (yBlock) {
+            var ctx = buildCtx({});
+            if (yBlock.get('kind') === 'step') {
+              stepCounter++;
+              ctx.stepNumber = stepCounter;
+            }
+            secEl.appendChild(window.ProtocolBlocks.renderBlock(yBlock, ctx));
+          });
+        }
+
+        // + Add block menu
+        if (state.canEdit) {
+          var addRow = document.createElement('div');
+          addRow.className = 'pre-add-block-row';
+          // V3.315 — `callout` replaces note/safety; heading + docHeader added.
+          // V3.316 — table, kv, timeline.
+          // V3.318 — calculator. V3.324 — builder + layoutMap.
+          // FuturePlan 06 — design (node-graph).
+          ['step', 'materials', 'callout', 'heading', 'figure', 'formula',
+           'design', 'calculator', 'builder', 'layoutMap', 'table', 'kv', 'timeline',
+           'docHeader'].forEach(function (kind) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn pre-add-block-btn';
+            b.textContent = '+ ' + kind;
+            b.addEventListener('click', function () { addBlockToSection(ySec, kind); });
+            addRow.appendChild(b);
+          });
+          secEl.appendChild(addRow);
+        }
       }
 
       contentEl.appendChild(secEl);
@@ -802,7 +1292,7 @@
     setSaveState('loading…');
 
     // 1. Wait for auth + lab-member gate
-    var gate = await firebridge.gateSignedIn('Sign in to view this protocol.');
+    var gate = await firebridge.requireSignIn('Sign in to view this protocol.');
     if (!gate.allowed) { setSaveState(''); return; }
     if (!firebridge.isLabMember()) {
       // firebridge already shows a pending-access overlay; nothing to do.
@@ -990,7 +1480,29 @@
       markDirty: markDirty,
     };
 
-    // 7. Bind title + render content
+    // 7. Bind title + render content (restoring the last viewing mode)
+    try { state.view = localStorage.getItem(VIEW_LS_KEY) === 'nodes' ? 'nodes' : 'editor'; } catch (e) {}
+    // V3.389 — ?tour=<id> (demo guided builds): force the Nodes view and
+    // queue the tour for renderNodesView; strip the param so a reload
+    // doesn't restart the walkthrough.
+    try {
+      var _params = new URLSearchParams(window.location.search);
+      var _tourParam = _params.get('tour');
+      if (_tourParam) {
+        state._pendingTour = _tourParam;
+        // V3.391 — &reset=1 (demo "Start from scratch"): empty the design
+        // block on mount so the guided build walks from a blank canvas.
+        state._resetTourGraph = _params.get('reset') === '1';
+        state.view = 'nodes';
+        var _u = new URL(window.location.href);
+        _u.searchParams.delete('tour');
+        _u.searchParams.delete('reset');
+        window.history.replaceState(null, '', _u.toString());
+      }
+    } catch (e) {}
+    buildViewSeg();
+    buildRefVarButton(); // V3.403 — 🔗 Reference (variable picker)
+    document.addEventListener('pre-open-nodes', function () { setView('nodes'); });
     bindTitle();
     render();
 
@@ -1031,6 +1543,16 @@
     if (window.ProtocolFormulas) {
       window.ProtocolFormulas.setRoot(document);
       window.ProtocolFormulas.rebuild(state.yTree);
+      // capture math for the completed-section preview ctx; re-render once
+      // it's ready so any already-complete section resolves its widgets.
+      window.ProtocolFormulas.ensureMathjs().then(function (m) {
+        state._math = m;
+        // Nodes view: the graph editor loads its own math instance, so a
+        // render here would only remount the canvas — which killed the
+        // freshly started guided tour on every demo load (V3.394). The
+        // editor-view previews pick `_math` up on their next render.
+        if (currentView() !== 'nodes') render();
+      }).catch(function () {});
     }
 
     // V3.121 — kick off inventory load now so chips + materials cells

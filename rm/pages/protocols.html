@@ -11,16 +11,23 @@
   <link rel="stylesheet" href="/rm/css/paper-editor.css">
   <link rel="stylesheet" href="/rm/css/protocol-editor.css">
   <link rel="stylesheet" href="/rm/css/protocol-doc.css">
+  <link rel="stylesheet" href="/rm/css/protocol-cheat.css">
+  <link rel="stylesheet" href="/rm/css/protocol-graph-editor.css">
   <script>
     /* V3.113 — unified Protocols shell. ?protocol=<id> activates the
      * editor for that protocol; absence of the param shows the list view
      * (the default). Mirrors the V3.60 paper-builder dual-mode pattern.
      * V3.315 — &view=doc adds a third mode: the read-only document view
-     * (print/export rendering). */
+     * (print/export rendering).
+     * V3.503 — &view=cheat adds a fourth mode: the condensed "cheat sheet"
+     * (a boiled-down, print-first render for users who know the protocol). */
     (function () {
       var qp = new URLSearchParams(location.search);
       var prid = qp.get('protocol');
-      var mode = prid ? (qp.get('view') === 'doc' ? 'doc' : 'editor') : 'list';
+      var view = qp.get('view');
+      var mode = prid
+        ? (view === 'doc' ? 'doc' : view === 'cheat' ? 'cheat' : 'editor')
+        : 'list';
       window.__PROTOCOL_MODE = mode;
       window.__PROTOCOL_ID = prid;
       document.title = (mode === 'editor')
@@ -31,11 +38,17 @@
   </script>
   <style>
     html[data-protocol-mode="editor"] .pr-list-mode,
-    html[data-protocol-mode="editor"] .pr-doc-mode { display: none; }
+    html[data-protocol-mode="editor"] .pr-doc-mode,
+    html[data-protocol-mode="editor"] .pr-cheat-mode { display: none; }
     html[data-protocol-mode="list"]   .pr-editor-mode,
-    html[data-protocol-mode="list"]   .pr-doc-mode { display: none; }
+    html[data-protocol-mode="list"]   .pr-doc-mode,
+    html[data-protocol-mode="list"]   .pr-cheat-mode { display: none; }
     html[data-protocol-mode="doc"]    .pr-list-mode,
-    html[data-protocol-mode="doc"]    .pr-editor-mode { display: none; }
+    html[data-protocol-mode="doc"]    .pr-editor-mode,
+    html[data-protocol-mode="doc"]    .pr-cheat-mode { display: none; }
+    html[data-protocol-mode="cheat"]  .pr-list-mode,
+    html[data-protocol-mode="cheat"]  .pr-editor-mode,
+    html[data-protocol-mode="cheat"]  .pr-doc-mode { display: none; }
   </style>
 </head>
 <body>
@@ -44,6 +57,7 @@
     <div class="page-header">
       <h1 class="page-title">Protocols</h1>
       <div class="pr-list-actions">
+        <button class="btn" id="pr-demos-btn" title="Load a guided demo that teaches the node workflow">🎓 Demos</button>
         <button class="btn" id="pr-import-btn" title="Import a Claude-converted protocol JSON file">📥 Import protocol</button>
         <button class="btn btn-primary" id="pr-new-btn">+ New protocol</button>
       </div>
@@ -67,6 +81,9 @@
         </select>
       </label>
       <input type="text" id="pr-filter-search" placeholder="Search title or tag…">
+      <label id="pr-filter-demos-wrap" class="pr-filter-demos" hidden>
+        <input type="checkbox" id="pr-filter-demos"> <span id="pr-filter-demos-label">show demos</span>
+      </label>
     </div>
     <div id="pr-list" class="pb-list"></div>
   </div>
@@ -105,6 +122,32 @@
       <div class="pb-modal-actions">
         <button class="btn" id="pr-import-cancel">Cancel</button>
         <button class="btn btn-primary" id="pr-import-create" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- V3.382 — Demo lessons chooser -->
+  <div id="pr-demo-modal" class="pb-modal pr-list-mode pr-demo-modal" hidden>
+    <div class="pb-modal-card">
+      <div class="pb-modal-header">
+        <h2>Node lessons</h2>
+        <button class="pb-icon-btn" id="pr-demo-close" aria-label="Close">×</button>
+      </div>
+      <div class="pb-modal-body">
+        <p class="pr-import-hint">
+          Each lesson is a <b>guided build</b>: it opens on an empty node
+          canvas and an interactive tour walks you through constructing
+          the workflow yourself — a pulsing ring shows the next control,
+          and steps advance as you do them. Your copy is yours to edit or
+          delete; reopening a lesson resumes where you left off.
+        </p>
+        <div id="pr-demo-list" class="pr-demo-list"></div>
+        <div id="pr-demo-progress" class="pr-import-progress" hidden></div>
+        <div class="pb-modal-error" id="pr-demo-error" hidden></div>
+      </div>
+      <div class="pb-modal-actions">
+        <button class="btn pr-demo-clean" id="pr-demo-clean" hidden>🗑 Remove my demo copies</button>
+        <button class="btn" id="pr-demo-cancel">Close</button>
       </div>
     </div>
   </div>
@@ -307,6 +350,17 @@
     <article class="prd-doc" id="prd-doc" hidden></article>
   </div>
 
+  <!-- ===== Cheat mode (V3.503) — condensed printable cheat sheet, populated by protocol-cheat.js ===== -->
+  <div class="pr-cheat-mode prc-shell" id="prc-shell">
+    <div class="prc-toolbar" id="prc-toolbar">
+      <a class="btn pre-action-btn" id="prc-back" href="#">← Back to editor</a>
+      <a class="btn pre-action-btn" id="prc-fulldoc" href="#" title="Open the full read-only document view">📄 Full document</a>
+      <button class="btn btn-primary pre-action-btn" id="prc-print">🖨 Print / PDF</button>
+    </div>
+    <div class="prc-status" id="prc-status">Loading…</div>
+    <article class="prd-doc prc-doc" id="prc-doc" hidden></article>
+  </div>
+
   <!-- Shared scripts -->
   <script src="/rm/js/util.js"></script>
   <script src="/rm/js/nav.js"></script>
@@ -315,6 +369,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
@@ -349,7 +404,21 @@
         // formatLabel,formatStockChipHtml,renderTextWithTokens,
         // textHasTokens,TOKEN_RE} on first body-text + materials render.
         '/rm/js/protocol-inventory.js',
+        // FuturePlan 06 — graph engine before blocks (renderDesign compiles
+        // + mounts the canvas editor); the canvas editor after blocks.
+        '/rm/js/protocol-graph.js',
         '/rm/js/protocol-blocks.js',
+        // V3.379 — pure wire-routing + cut geometry, before the canvas
+        // editor that calls WireRouter.routeAll from drawWires.
+        '/rm/js/wire-router.js',
+        // V3.385 — guided tours (engine + content), before the editor so
+        // the 🎓 Tours palette button mounts.
+        '/rm/js/protocol-graph-tours.js',
+        '/rm/js/protocol-graph-editor.js',
+        // shared live widgets + read-only block renderers — the editor's
+        // per-section "complete" preview renders final form through these.
+        '/rm/js/protocol-widgets.js',
+        '/rm/js/protocol-doc-render.js',
         // V3.119 — versioning + forking. Loaded AFTER blocks so it can
         // call dehydrateTree on save; loaded BEFORE editor so the editor
         // can wire its buttons.
@@ -366,10 +435,31 @@
       var docScripts = [
         '/rm/js/protocol-formulas.js',
         '/rm/js/protocol-inventory.js',
+        // FuturePlan 06 — graph engine + shared widget module load
+        // before the doc view (it compiles `design` blocks + mounts the
+        // shared interactive widgets).
+        '/rm/js/protocol-graph.js',
+        '/rm/js/protocol-widgets.js',
+        '/rm/js/protocol-doc-render.js',
         '/rm/js/protocol-doc.js',
+      ];
+      // V3.503 — cheat mode mirrors doc mode's deps (no Yjs); it reuses
+      // ProtocolDocRender for kept blocks + the shared symbol table so
+      // [!var:] tokens resolve. Terminal module = protocol-cheat.js.
+      var cheatScripts = [
+        '/rm/js/protocol-formulas.js',
+        '/rm/js/protocol-inventory.js',
+        '/rm/js/protocol-graph.js',
+        '/rm/js/protocol-widgets.js',
+        '/rm/js/protocol-doc-render.js',
+        // V3.506 — shared cheat-sheet renderers (also used by lab-notebook),
+        // before the page terminal module.
+        '/rm/js/protocol-cheat-render.js',
+        '/rm/js/protocol-cheat.js',
       ];
       var srcs = (mode === 'editor') ? editorScripts
                : (mode === 'doc')    ? docScripts
+               : (mode === 'cheat')  ? cheatScripts
                : listScripts;
       srcs.forEach(function (s) {
         document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');

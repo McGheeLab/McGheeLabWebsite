@@ -63,7 +63,10 @@
       pages.push({ id: id, label: label, href: href, group: group, gate: gate || null });
     }
     NAV_ITEMS.forEach(function (item) {
-      var groupLabel = item.label;
+      // V3.542 — a top-level nav item may declare `pageGroup` so the
+      // All Pages grid files it under an existing section instead of
+      // minting a one-tile group (e.g. My Day → Activity).
+      var groupLabel = item.pageGroup || item.label;
       if (item.children && item.children.length) {
         // Group entry — also add the group's own href if it points somewhere.
         if (item.href) add(item.label, item.href, groupLabel, item.gate);
@@ -155,7 +158,9 @@
         'activity-overview__tab__timeline',
         'activity-overview__tab__email',
         'scheduler',
-        'task-market',
+        // V3.480 — Task Market moved to tasks.html?tab=market, so the
+        // nav-derived page id is now `tasks__tab__market` (was `task-market`).
+        'tasks__tab__market',
         'pmr',
       ],
     },

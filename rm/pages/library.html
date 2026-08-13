@@ -6,21 +6,42 @@
   <title>Library — McGhee Lab</title>
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/library-groups.css">
+  <link rel="stylesheet" href="/rm/css/library-associations.css">
+  <link rel="stylesheet" href="/rm/css/library-themes.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script>
+    /* V3.613 — inside the Ourlab native app the Library tab uses the
+     * dedicated mobile page; this desktop page redirects so push deep
+     * links and stale bookmarks land on the phone experience. No effect
+     * in any browser (Capacitor is only defined in the native webview). */
+    (function () {
+      try {
+        var C = window.Capacitor;
+        if (C && C.isNativePlatform && C.isNativePlatform()) {
+          location.replace('/rm/pages/library-mobile.html');
+        }
+      } catch (e) { /* never block the desktop page */ }
+    })();
+  </script>
   <script>
     /* V3.59 — unified Library shell. ?tab=comments switches to the
      * cross-paper Annotations feed; default tab is the paper list.
      * Replaces the V3.40-era split where library-comments.html was a
-     * separate page reached via the previous nav entry. The two DOM
-     * blocks live side-by-side; CSS hides the inactive one, and only
-     * the active tab's renderer script is loaded. */
+     * separate page reached via the previous nav entry. The DOM
+     * blocks live side-by-side; CSS hides the inactive ones, and only
+     * the active tab's renderer script is loaded.
+     * V3.367 — third tab: ?tab=themes (Lab Themes — shared lit-review
+     * clusters with synthesis notes + helped-me voting). */
     (function () {
-      var tab = (new URLSearchParams(location.search).get('tab') === 'comments')
-        ? 'comments' : 'papers';
+      var tab = new URLSearchParams(location.search).get('tab');
+      tab = (tab === 'comments' || tab === 'themes') ? tab : 'papers';
       window.__LIB_TAB = tab;
       document.title = (tab === 'comments')
         ? 'Comments & Annotations — McGhee Lab'
-        : 'Library — McGhee Lab';
+        : (tab === 'themes')
+          ? 'Lab Themes — McGhee Lab'
+          : 'Library — McGhee Lab';
       document.documentElement.dataset.libTab = tab;
     })();
   </script>
@@ -31,11 +52,15 @@
     body.lib-hide-search .lib-search-input { display: none; }
     body.lib-hide-stars  .lib-col-star { display: none; }
 
-    /* Tab-driven block visibility. Both blocks are in the DOM; hide the
-       inactive one. Renderer scripts are loaded conditionally below so
-       the hidden block doesn't trigger Firestore queries. */
-    html[data-lib-tab="comments"] .lib-papers-block { display: none; }
-    html[data-lib-tab="papers"]   .lib-comments-block { display: none; }
+    /* Tab-driven block visibility. All blocks are in the DOM; hide the
+       inactive ones. Renderer scripts are loaded conditionally below so
+       hidden blocks don't trigger Firestore queries. */
+    html[data-lib-tab="comments"] .lib-papers-block,
+    html[data-lib-tab="themes"]   .lib-papers-block { display: none; }
+    html[data-lib-tab="papers"]   .lib-comments-block,
+    html[data-lib-tab="themes"]   .lib-comments-block { display: none; }
+    html[data-lib-tab="papers"]   .lib-themes-block,
+    html[data-lib-tab="comments"] .lib-themes-block { display: none; }
 
     /* Library Comments view — verbatim from former library-comments.html.
        Scoped to .lc-* / .lib-comments-block, harmless on the papers tab. */
@@ -97,12 +122,13 @@
         const HUB = [
           { tab: 'papers',   label: 'Papers' },
           { tab: 'comments', label: 'Comments' },
+          { tab: 'themes',   label: 'Lab Themes' },   // V3.367
         ];
         const bar = document.getElementById('lib-hub-tabs');
         const current = window.__LIB_TAB;
         HUB.forEach(t => {
           const a = document.createElement('a');
-          a.href = '/rm/pages/library.html' + (t.tab === 'comments' ? '?tab=comments' : '');
+          a.href = '/rm/pages/library.html' + (t.tab === 'papers' ? '' : '?tab=' + t.tab);
           a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
           a.textContent = t.label;
           a.style.textDecoration = 'none';
@@ -119,7 +145,11 @@
         <button class="btn" id="library-customize-btn" title="Customize what you see (filters, sort, visibility)">⚙ Customize</button>
         <button class="btn" id="library-sync-btn" title="Pull pending captures from the Chrome extension">↻ Sync captures</button>
         <button class="btn" id="library-add-doi">+ Add by DOI / arXiv / PMID</button>
+        <button class="btn" id="library-import-refs" title="Bulk-import a reference list (BibTeX or a list of DOIs) as citation entries (V3.483)">⇪ Import references</button>
         <button class="btn" id="library-missing-pdfs" style="display:none;" title="Filter to entries without a PDF — retry the OA fetch, upload manually, or mark unobtainable (V3.311)">Missing PDFs</button>
+        <button class="btn" id="library-fetch-pdfs" title="Auto-fetch open-access PDFs for every entry missing one — server-side, tries Unpaywall + arXiv + PMC + Semantic Scholar + the publisher's PDF link (V3.498)">⤓ Fetch missing PDFs</button>
+        <button class="btn" id="library-bookmarklet" title="Get the 'Grab PDF for RM' bookmarklet — click it on a paywalled paper's page to pull the PDF using your UArizona access (V3.500)">🔖 PDF grabber</button>
+        <button class="btn" id="library-recheck" title="Bulk re-check every paper's metadata — re-lookup identifiers, fill gaps, enrich references; title matches queue for review (V3.326)">⟳ Re-check metadata</button>
         <span id="library-status" class="lib-status"></span>
       </div>
     </div>
@@ -196,8 +226,13 @@
       </div>
     </div>
 
+    <!-- V3.363 — groups shelf (📖 open in reader / 📌 pinned / 📁 groups).
+         Rendered by js/library-groups.js; hidden while a filter is active. -->
+    <div id="lib-groups-shelf" style="display:none;"></div>
+
     <div class="lib-toolbar">
-      <input type="text" id="library-search" placeholder="Search title, author, year, journal, tag — try 'author:smith year:2024' or 'tag:research:papers:2026'" class="lib-search-input">
+      <input type="text" id="library-search" placeholder="Search title, author, year, journal, tag, draft, theme — try 'author:smith year:2024' or 'draft:gels'" class="lib-search-input">
+      <button class="btn btn-sm" id="library-save-group" style="display:none;" title="Save the current search + tag filter as a smart group — it auto-updates as matching papers arrive (V3.363)">💾 Save as group</button>
       <span id="library-count" class="lib-count"></span>
     </div>
 
@@ -235,6 +270,7 @@
           <option value="title">Title (A→Z)</option>
           <option value="date_added">Date added (newest first)</option>
           <option value="starred">Starred first</option>
+          <option value="associations">Draft associations (most first)</option>
         </select>
 
         <h3 style="margin:14px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#374151;">Visible filter widgets</h3>
@@ -323,6 +359,33 @@
 
       <div id="lc-rows"></div>
     </div><!-- /.lib-comments-block -->
+
+    <!-- ===== Lab Themes tab (V3.367) =====
+         Shared literature-review clusters. Rendered by js/library-themes.js:
+         theme cards → detail view with the ranked paper list, co-written
+         synthesis notes (V3.368), and a SECTION_COMMENTS discussion. -->
+    <div class="lib-themes-block lt-page">
+      <div class="page-header">
+        <h1 class="page-title">Lab Themes</h1>
+        <div>
+          <button class="btn btn-primary" id="lt-new-theme">+ New theme</button>
+          <span id="lt-status" class="lib-status"></span>
+        </div>
+      </div>
+      <div id="lt-auth-hint" style="display:none;padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;margin-bottom:12px;font-size:13px;">
+        <strong>Not signed in.</strong> Lab Themes load once you sign in.
+        <a href="/rm/pages/profile.html" style="color:#92400e;text-decoration:underline;">Sign in on the profile page →</a>
+      </div>
+      <div class="lt-intro">
+        Themes are shared literature-review clusters around the lab's core
+        concepts. Tag papers with themes from the library or the reader,
+        co-write synthesis notes with the whole lab, and vote 👍 on the
+        papers that helped you most — new students start with the
+        top-voted <b>Start here</b> papers.
+      </div>
+      <div id="lt-cards" class="lt-cards"></div>
+      <div id="lt-detail" class="lt-detail" style="display:none;"></div>
+    </div><!-- /.lib-themes-block -->
   </div>
 
   <!-- Shared scripts (used by both tabs) -->
@@ -332,6 +395,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
@@ -370,6 +434,27 @@
         '/rm/js/library-edit.js',
         // V3.310 — fullRefresh pipeline (shared with the paper reader).
         '/rm/js/library-refresh.js',
+        // V3.326 — bulk metadata re-check modal.
+        '/rm/js/library-recheck.js',
+        // V3.498 — bulk server-side OA PDF fetcher (missing-PDF sweep).
+        '/rm/js/library-fetch-pdfs.js',
+        // V3.500 — "Grab PDF for RM" bookmarklet generator (paywalled papers).
+        '/rm/js/library-bookmarklet.js',
+        // V3.483 — bulk references importer (BibTeX / DOI list → citation
+        // entries). Shared with the paper editor's import-and-attach.
+        '/rm/js/reference-import.js',
+        // V3.365 — atomic linked_drafts writer + association pills/resolver.
+        // Both must load before library.js (badge, popover, draft: token).
+        '/rm/js/library-links.js',
+        '/rm/js/library-associations.js',
+        // V3.363 — groups shelf (open-in-reader / pinned / groups). Must
+        // load before library.js, which calls LIBRARY_GROUPS.init().
+        '/rm/js/library-groups.js',
+        // V3.601 — 🗺 attach a paper to a research-roadmap experiment or
+        // analysis with a "why" note. roadmap-data.js is standalone (no
+        // RESEARCH_DATA dependency), so this is two files, not the stack.
+        '/rm/js/roadmap-data.js',
+        '/rm/js/roadmap-attach.js',
         '/rm/js/library.js'
       ];
       var commentsScripts = [
@@ -377,7 +462,26 @@
         '/rm/js/annotation-groups.js',
         '/rm/js/library-comments.js'
       ];
-      var srcs = (tab === 'comments') ? commentsScripts : papersScripts;
+      // V3.367 — Lab Themes tab. library-links.js provides the atomic
+      // meta.library.themes writer; section-comments.js the per-theme
+      // discussion pane (V3.368).
+      var themesScripts = [
+        '/rm/js/library-links.js',
+        '/rm/js/section-comments.js',
+        // V3.496 — "find recent papers by this lab" imports via
+        // LIBRARY_UPLOAD.fromDoi (needs LIBRARY_METADATA; PAPER_SS enriches
+        // imported papers, best-effort/fire-and-forget).
+        '/rm/js/library-metadata.js',
+        '/rm/js/paper-semantic-scholar.js',
+        '/rm/js/library-upload.js',
+        // V3.499 — bulk "import list into theme" reuses REFERENCE_IMPORT's
+        // BibTeX/DOI-list parse + resolve + dedupe + commit primitives.
+        '/rm/js/reference-import.js',
+        '/rm/js/library-themes.js'
+      ];
+      var srcs = (tab === 'comments') ? commentsScripts
+               : (tab === 'themes')   ? themesScripts
+               : papersScripts;
       srcs.forEach(function (s) {
         document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');
       });
@@ -388,6 +492,9 @@
        text from imported PDFs without rendering a viewer. Module load
        is async and won't block the dynamic scripts above; the parse
        runs after upload completes so timing is fine. -->
+  <!-- V3.371 — shared page-layout segmentation engine; must load before
+       pdf-viewer so extractTextItemsFromPdf + the viewer both use it. -->
+  <script src="/rm/js/page-layout.js"></script>
   <script type="module" src="/rm/js/pdf-viewer.js"></script>
 </body>
 </html>

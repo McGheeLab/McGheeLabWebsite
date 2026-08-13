@@ -9,6 +9,21 @@
  */
 
 (function () {
+  /* V3.583 — deploy detection that survives runtime-mode.js not loading.
+   * `window.RM_RUNTIME && window.RM_RUNTIME.isDeploy` reads FALSE both when
+   * we're on localhost AND when runtime-mode.js never ran, and those two
+   * cases want opposite behavior: on the static deploy there is no
+   * /api/library/pdf-proxy, so guessing "local" means the viewer fetches an
+   * endpoint that doesn't exist and the PDF never renders while the metadata
+   * panel looks perfectly healthy. Fall back to the same hostname test
+   * runtime-mode.js uses instead of inferring local from an absent global. */
+  function _isDeployRuntime() {
+    if (window.RM_RUNTIME) return !!window.RM_RUNTIME.isDeploy;
+    const host = (window.location && window.location.hostname) || '';
+    return !(host === 'localhost' || host === '127.0.0.1' ||
+             host === '0.0.0.0' || host.endsWith('.local'));
+  }
+
   let _viewer = null;          // the ACTIVE tab's pdf.js viewer
   let _item = null;            // the ACTIVE tab's library item
   let _allItems = [];          // full items list, kept in memory for save + tag index
@@ -17,6 +32,8 @@
   let _colors = [];
   let _colorsLoaded = false;
   let _unsubscribeSync = null;
+  /* V3.350 — one-shot #ann- deep-link target. */
+  let _pendingHashAnn = null;
   let _unsubGroups = null;     // V3.294 — annotation-groups subscription, freed on detach
   let _fitMode = true;  // when true, layout changes re-fit to viewer width
 
@@ -30,8 +47,88 @@
   let _booted = false;
   let _tagEditorDocClick = null;       // named handler so re-render replaces, not stacks
   let _copyBound = false;              // copy listener bound once in bootOnce
-  let _drafts = [];                    // active paper's linked-draft shortlist
+  let _drafts = [];                    // draft picker list (all active, linked-first)
   let _allDrafts = [];                 // global paper+grant draft pool
+
+  /* V3.605 — per-user access flags, computed once in bootOnce after sign-in.
+   * Lab members keep exactly the pre-V3.605 behavior; guests/collaborators
+   * granted 'library-paper:*' capabilities (admin permissions page) get the
+   * matching UI. firestore.rules hasCap() is the enforcement layer. */
+  let _canAnnotate = true;             // member OR 'library-paper:annotate'
+  let _allowNewGroup = false;          // admin OR allowlist OR 'library-paper:groups'
+
+  async function _computeAccess() {
+    try { await firebridge.loadAccessGrant(); } catch (_) { /* fall through to role-only */ }
+    const isMember = firebridge.isAdmin() || firebridge.isLabMember();
+    _canAnnotate = isMember || firebridge.hasCapability('library-paper:annotate');
+    _allowNewGroup = firebridge.isAdmin()
+      || firebridge.hasCapability('library-paper:groups')
+      || await _emailOnContributorAllowlists();
+    // Live-profile follow-up: the users/{uid} snapshot can settle to a
+    // better role after boot (fresh promotion, or a transiently-cached
+    // guest doc for a real member). The selection-commit guard reads
+    // _canAnnotate live, so recomputing here re-enables highlighting
+    // without a reload; the read-only note is removed to match.
+    firebridge.onAuth(function () {
+      const member = firebridge.isAdmin() || firebridge.isLabMember();
+      const next = member || firebridge.hasCapability('library-paper:annotate');
+      if (next && !_canAnnotate) {
+        _canAnnotate = true;
+        const note = document.querySelector('#lp-annotations .lp-readonly-note');
+        if (note) note.remove();
+      }
+    });
+  }
+
+  /* Client mirror of firestore.rules isLabContributor() (minus admin, checked
+   * above): email membership in labConfig/extensionMembers or guestEditors.
+   * Both docs are any-authenticated-read, so this preflight is allowed; it
+   * only decides whether "+ New group…" renders — rules still gate the write. */
+  async function _emailOnContributorAllowlists() {
+    const user = firebase.auth().currentUser;
+    const email = user && user.email && user.email.toLowerCase();
+    if (!email) return false;
+    try {
+      const [ext, guest] = await Promise.all([
+        firebridge.db().collection('labConfig').doc('extensionMembers').get(),
+        firebridge.db().collection('labConfig').doc('guestEditors').get(),
+      ]);
+      const inList = (snap) => {
+        const emails = (snap.exists && snap.data().emails) || [];
+        return Array.isArray(emails) && emails.indexOf(email) >= 0;
+      };
+      return inList(ext) || inList(guest);
+    } catch (_) { return false; }
+  }
+
+  /* V3.605 — items loader that works for cap-granted non-members. The rules
+   * scope their read to library entries only, so the api adapter's whole-
+   * collection items.json query is unprovable for them; query with the
+   * matching filter instead. Members keep the cached api path. */
+  async function _loadLibraryItems() {
+    if (firebridge.isAdmin() || firebridge.isLabMember()) return api.load('items.json');
+    const snap = await firebridge.db().collection('items')
+      .where('meta.library.is_library_entry', '==', true).get();
+    const items = [];
+    snap.forEach(d => items.push(Object.assign({ id: d.id }, d.data())));
+    return { items };
+  }
+
+  /* V3.475 — the annotation panel's evidence + cite pickers show ALL active
+   * paper/grant drafts (linked ones first), not just the drafts already linked
+   * to this journal paper via meta.library.linked_drafts. Previously the list
+   * was filtered to linked-only, so on a paper that had never been linked the
+   * "Tag as evidence" dropdown was empty ("(no drafts)") — a dead end. Each
+   * returned entry carries a `linked` flag so the panel can group "Linked to
+   * this paper" above "Other drafts"; tagging evidence on an unlinked draft
+   * auto-links it (see onEnsureDraftLinked wired into ANNOTATION_PANEL.init). */
+  function _draftShortlist(linkedIds) {
+    const flagged = _allDrafts.map(d => Object.assign({}, d, { linked: linkedIds.has(d.id) }));
+    // Stable sort keeps original (paper-then-grant, load) order within each
+    // group while floating linked drafts to the top.
+    flagged.sort((a, b) => (b.linked ? 1 : 0) - (a.linked ? 1 : 0));
+    return flagged;
+  }
 
   function _qs(key) {
     return new URLSearchParams(window.location.search).get(key);
@@ -166,7 +263,7 @@
         ${lib.pdf_candidate_url ? `<div style="font-size:11px;margin-bottom:10px;">Known OA copy (auto-fetch was CORS-blocked): <a href="${lib.pdf_candidate_url}" target="_blank" rel="noopener">open in a new tab</a>, download it, then ⬆ upload here.</div>` : ''}
         ${lib.pdf_retry && lib.pdf_retry.last_error ? `<div style="font-size:11px;color:#92400e;margin-bottom:10px;">Last retry: ${_esc(lib.pdf_retry.last_error)}</div>` : ''}
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          ${lib.doi && !unob ? '<button class="btn btn-sm" id="lp-nopdf-retry">↻ Try Unpaywall</button>' : ''}
+          ${(lib.doi || lib.pmid || lib.arxiv_id || lib.url) && !unob ? '<button class="btn btn-sm" id="lp-nopdf-retry" title="Auto-fetch the open-access PDF — server-side (Unpaywall + arXiv + PMC + Semantic Scholar + the publisher\'s PDF link)">↻ Auto-fetch PDF</button>' : ''}
           <button class="btn btn-sm" id="lp-nopdf-upload">⬆ Upload PDF</button>
           <button class="btn btn-sm" id="lp-nopdf-unob">${unob ? '↩ Clear unobtainable' : '🚫 Mark unobtainable'}</button>
         </div>
@@ -179,6 +276,13 @@
       delete payload.updatedAt;
       payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
       await firebase.firestore().collection('items').doc(item.id).set(payload);
+      // This is a direct write (bypasses api.save) followed by location.reload()
+      // on the success paths — bust the list route caches so the reload doesn't
+      // serve the stale pre-write copy and re-show the "No PDF" pane (V3.498).
+      if (typeof api !== 'undefined' && api.invalidate) {
+        api.invalidate('items.json');
+        api.invalidate('library/papers.json');
+      }
     }
 
     async function attach(blob) {
@@ -203,24 +307,58 @@
     const retryBtn = pane.querySelector('#lp-nopdf-retry');
     if (retryBtn) retryBtn.addEventListener('click', async () => {
       retryBtn.disabled = true;
-      retryBtn.textContent = '↻ Checking…';
+      retryBtn.textContent = '↻ Fetching…';
       const retry = Object.assign({ attempts: 0 }, lib.pdf_retry || {});
       retry.attempts = (retry.attempts || 0) + 1;
       retry.last_at = new Date().toISOString();
       retry.last_error = '';
+      // 1. V3.498 — server-side fetch (no CORS; Unpaywall all-locations + arXiv
+      // + Europe PMC + Semantic Scholar + the publisher's citation_pdf_url). It
+      // uploads to Storage itself, so on success we just stamp + reload.
       try {
-        const oa = await LIBRARY_UPLOAD.unpaywallLookup(lib.doi);
-        if (oa && oa.bestPdfUrl) {
-          const blob = await LIBRARY_UPLOAD.fetchPdfBlob(oa.bestPdfUrl);
-          if (blob) { lib.pdf_retry = retry; await attach(blob); return; }
-          retry.last_error = 'OA PDF found but CORS-blocked — open it manually, then ⬆ upload.';
-          lib.pdf_candidate_url = oa.bestPdfUrl;
-          lib.pdf_candidate_source = oa.source || '';
-        } else {
-          retry.last_error = 'No open-access copy found on Unpaywall.';
+        const out = await LIBRARY_UPLOAD.serverFetchPdf(item);
+        if (out && out.ok && out.storage_path) {
+          const me = (firebase.auth && firebase.auth().currentUser) || null;
+          lib.pdf = {
+            storage_path: out.storage_path,
+            hash: out.hash,
+            filename_safe: `${item.id}.pdf`,
+            size_bytes: out.size_bytes,
+            uploaded_at: new Date().toISOString().slice(0, 10),
+            uploaded_by: (me && me.email) || '',
+            source: out.source ? `oa_${out.source}` : 'oa_auto',
+          };
+          delete lib.pdf_status;
+          delete lib.pdf_candidate_url;
+          lib.pdf_retry = retry;
+          await saveOne();
+          if (LIBRARY_UPLOAD.enrichItemFromSemanticScholar) {
+            LIBRARY_UPLOAD.enrichItemFromSemanticScholar(item.id).catch(() => { /* best-effort */ });
+          }
+          location.reload();
+          return;
         }
-      } catch (e) {
-        retry.last_error = e.message || String(e);
+        retry.last_error = (out && out.error) || 'No open-access PDF found.';
+      } catch (eServer) {
+        // 2. Client Unpaywall fallback (function unreachable / auth issue).
+        if (lib.doi && LIBRARY_UPLOAD.unpaywallLookup) {
+          try {
+            const oa = await LIBRARY_UPLOAD.unpaywallLookup(lib.doi);
+            if (oa && oa.bestPdfUrl) {
+              const blob = await LIBRARY_UPLOAD.fetchPdfBlob(oa.bestPdfUrl);
+              if (blob) { lib.pdf_retry = retry; await attach(blob); return; }
+              retry.last_error = 'OA PDF found but auto-fetch was blocked — open it manually, then ⬆ upload.';
+              lib.pdf_candidate_url = oa.bestPdfUrl;
+              lib.pdf_candidate_source = oa.source || '';
+            } else {
+              retry.last_error = eServer.message || 'No open-access copy found.';
+            }
+          } catch (e) {
+            retry.last_error = e.message || String(e);
+          }
+        } else {
+          retry.last_error = eServer.message || String(eServer);
+        }
       }
       lib.pdf_retry = retry;
       try { await saveOne(); } catch (_) { /* stamp is best-effort */ }
@@ -370,6 +508,215 @@
     await _saveTags(next);
   }
 
+  // V3.365 — "Used in paper drafts" association pills (LIBRARY_ASSOC).
+  // Sits between the Categories editor and the share widget. Two-way
+  // synced with the overlays widget: pill toggles call
+  // PAPER_OVERLAYS.refreshLinks(), and the overlays onChange handler
+  // (registered in _attachActive) re-renders this block.
+  function _renderAssocEditor(item) {
+    const sideInner = document.querySelector('.lp-side-inner');
+    if (!sideInner || !window.LIBRARY_ASSOC || !window.LIBRARY_LINKS) return;
+    let host = document.getElementById('lp-assoc-editor');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'lp-assoc-editor';
+      host.style.margin = '10px 0';
+      const after = document.getElementById('lp-tag-editor') || document.getElementById('lp-tags');
+      if (after) after.insertAdjacentElement('afterend', host);
+      else sideInner.appendChild(host);
+    }
+    host.innerHTML = `
+      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Used in paper drafts</div>
+      <div id="lp-assoc-pills"></div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">Which papers we're writing this journal paper feeds. Published drafts show as inactive; <span style="display:inline-block;width:7px;height:7px;border-radius:50%;border:1.5px solid #fbbf24;vertical-align:baseline;"></span> = linked but not yet cited in that draft.</div>
+    `;
+    LIBRARY_ASSOC.renderPills(document.getElementById('lp-assoc-pills'), item, {
+      showCited: true,
+      onChanged: (fresh) => {
+        if (_item && _item.id === item.id) {
+          _item.meta = _item.meta || {};
+          _item.meta.library = _item.meta.library || {};
+          _item.meta.library.linked_drafts = fresh;
+          _drafts = _draftShortlist(new Set(fresh));
+        }
+        if (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.refreshLinks) {
+          try { window.PAPER_OVERLAYS.refreshLinks(); } catch (_) { /* ignore */ }
+        }
+      },
+    });
+  }
+
+  // V3.367 — "Lab themes" chips (LIBRARY_THEMES + LIBRARY_LINKS.toggleTheme).
+  // Chips link to the theme's detail view on the library's Lab Themes tab;
+  // the select adds this paper to another (non-archived) theme.
+  function _renderThemeEditor(item) {
+    const sideInner = document.querySelector('.lp-side-inner');
+    if (!sideInner || !window.LIBRARY_THEMES || !window.LIBRARY_LINKS) return;
+    let host = document.getElementById('lp-theme-editor');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'lp-theme-editor';
+      host.style.margin = '10px 0';
+      const after = document.getElementById('lp-assoc-editor')
+                 || document.getElementById('lp-tag-editor')
+                 || document.getElementById('lp-tags');
+      if (after) after.insertAdjacentElement('afterend', host);
+      else sideInner.appendChild(host);
+    }
+
+    // V3.496 — per-theme relevance weight (Core 3 / Supporting 2 /
+    // Tangential 1); unset reads as Supporting. Feeds the Lab Themes
+    // research-group ranking; assignable here "at the time of adding".
+    const REL = { 3: 'Core', 2: 'Supporting', 1: 'Tangential' };
+    const relOf = (id) => {
+      const m = (item.meta && item.meta.library && item.meta.library.theme_relevance) || {};
+      const w = parseInt(m[id], 10);
+      return (w === 1 || w === 2 || w === 3) ? w : 2;
+    };
+    const relOpts = (selWeight) => [3, 2, 1].map((w) =>
+      `<option value="${w}"${selWeight === w ? ' selected' : ''}>${REL[w]}</option>`).join('');
+    const patchRel = (id, w) => {
+      item.meta = item.meta || {};
+      item.meta.library = item.meta.library || {};
+      item.meta.library.theme_relevance = item.meta.library.theme_relevance || {};
+      if (w) item.meta.library.theme_relevance[id] = w;
+      else delete item.meta.library.theme_relevance[id];
+    };
+
+    const paint = (themes) => {
+      // Re-check the active item — the themes load is async and the user
+      // may have switched tabs meanwhile.
+      if (!_item || _item.id !== item.id) return;
+      const lib = (item.meta && item.meta.library) || {};
+      const mine = Array.isArray(lib.themes) ? lib.themes : [];
+      const chips = mine.map((id) => {
+        const name = LIBRARY_THEMES.getThemeNameById(id);
+        return `<span class="lp-theme-chip" title="Open this theme's notes & ranked papers">` +
+          `<a class="lp-theme-chip-link" href="/rm/pages/library.html?tab=themes&theme=${encodeURIComponent(id)}" style="color:inherit;text-decoration:none;overflow:hidden;text-overflow:ellipsis;">${_esc(name)}</a>` +
+          `<select class="lp-theme-rel" data-theme-rel="${_esc(id)}" title="How central is this paper to this theme? (feeds the lab ranking)">${relOpts(relOf(id))}</select>` +
+          `<button class="lp-theme-x" data-theme-remove="${_esc(id)}" title="Remove this theme">×</button></span>`;
+      }).join('');
+      const options = (themes || [])
+        .filter((t) => mine.indexOf(t.id) < 0)
+        .map((t) => `<option value="${_esc(t.id)}">${_esc(t.name || t.id)}</option>`)
+        .join('');
+      host.innerHTML = `
+        <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Lab themes</div>
+        <div id="lp-theme-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+          ${chips || '<span style="font-size:11px;color:#9ca3af;font-style:italic;">No themes yet.</span>'}
+        </div>
+        ${options
+          ? `<div style="display:flex;gap:4px;align-items:center;">
+              <select id="lp-theme-add-select" style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;"><option value="">Add to theme…</option>${options}</select>
+              <select id="lp-theme-add-rel" title="Relevance to the theme" style="font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;">${relOpts(2)}</select>
+              <button class="btn btn-sm" id="lp-theme-add-btn" style="padding:3px 10px;font-size:11px;">Add</button>
+            </div>`
+          : `<div style="font-size:10px;color:#9ca3af;">${(themes && themes.length) ? 'This paper is in every theme.' : 'No themes exist yet — create one on the <a href="/rm/pages/library.html?tab=themes" style="color:#5b21b6;">Lab Themes tab</a>.'}</div>`}
+      `;
+
+      host.onclick = async (ev) => {
+        const rm = ev.target.closest('[data-theme-remove]');
+        if (rm) {
+          ev.preventDefault();
+          rm.disabled = true;
+          try {
+            const remId = rm.getAttribute('data-theme-remove');
+            const fresh = await window.LIBRARY_LINKS.toggleTheme(item.id, remId, false);
+            item.meta = item.meta || {};
+            item.meta.library = item.meta.library || {};
+            item.meta.library.themes = fresh;
+            patchRel(remId, null);
+            paint(themes);
+          } catch (e) {
+            rm.disabled = false;
+            alert('Failed to remove theme: ' + (e.message || e));
+          }
+          return;
+        }
+        if (ev.target.id === 'lp-theme-add-btn') {
+          const sel = document.getElementById('lp-theme-add-select');
+          const id = sel && sel.value;
+          if (!id) return;
+          const relSel = document.getElementById('lp-theme-add-rel');
+          const w = relSel ? (parseInt(relSel.value, 10) || 2) : 2;
+          ev.target.disabled = true;
+          try {
+            const fresh = await window.LIBRARY_LINKS.toggleTheme(item.id, id, true);
+            item.meta = item.meta || {};
+            item.meta.library = item.meta.library || {};
+            item.meta.library.themes = fresh;
+            if (w !== 2) await window.LIBRARY_LINKS.setThemeRelevance(item.id, id, w);
+            patchRel(id, w);
+            paint(themes);
+          } catch (e) {
+            ev.target.disabled = false;
+            alert('Failed to add theme: ' + (e.message || e));
+          }
+        }
+      };
+      host.onchange = (ev) => {
+        const rs = ev.target.closest('[data-theme-rel]');
+        if (!rs) return;
+        const id = rs.getAttribute('data-theme-rel');
+        const w = parseInt(rs.value, 10) || 2;
+        patchRel(id, w);
+        window.LIBRARY_LINKS.setThemeRelevance(item.id, id, w).catch((e) => {
+          console.warn('[library-paper] relevance save failed:', e.message || e);
+        });
+      };
+    };
+
+    const cached = LIBRARY_THEMES.getThemes();
+    if (cached) paint(cached);
+    else {
+      host.innerHTML = '<div style="font-size:11px;color:#9ca3af;font-style:italic;">Loading themes…</div>';
+      LIBRARY_THEMES.loadThemes().then(paint).catch(() => {
+        host.innerHTML = '<div style="font-size:11px;color:#9ca3af;font-style:italic;">Themes unavailable.</div>';
+      });
+    }
+  }
+
+  // V3.601 — "On these roadmaps" (ROADMAP_ATTACH). Sits below the theme
+  // chips: themes are what a paper is ABOUT, roadmaps are what it's FOR.
+  // Each chip deep-links to the exact experiment or analysis it was
+  // attached to and carries the "why" note as its tooltip.
+  function _renderRoadmapEditor(item) {
+    const sideInner = document.querySelector('.lp-side-inner');
+    if (!sideInner || !window.ROADMAP_ATTACH) return;
+    let host = document.getElementById('lp-roadmap-editor');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'lp-roadmap-editor';
+      host.style.margin = '10px 0';
+      const after = document.getElementById('lp-theme-editor')
+                 || document.getElementById('lp-assoc-editor')
+                 || document.getElementById('lp-tag-editor')
+                 || document.getElementById('lp-tags');
+      if (after) after.insertAdjacentElement('afterend', host);
+      else sideInner.appendChild(host);
+    }
+    host.innerHTML = `
+      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">On these roadmaps</div>
+      <div id="lp-roadmap-chips" class="rmap-chips"><span class="rmap-chip-empty">Loading…</span></div>
+      <div style="display:flex;gap:4px;align-items:center;margin-top:6px;">
+        <button class="btn btn-sm" id="lp-roadmap-add" style="padding:3px 10px;font-size:11px;">🗺 Add to a roadmap…</button>
+      </div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">Which experiment or analysis this paper informs — and why.</div>
+    `;
+
+    const paint = () => {
+      // The reader is multi-tab; a slow read must not paint into the
+      // sidebar of a paper the user has since switched away from.
+      if (!_item || _item.id !== item.id) return;
+      ROADMAP_ATTACH.renderPaperChips(document.getElementById('lp-roadmap-chips'), item);
+    };
+    paint();
+
+    document.getElementById('lp-roadmap-add').onclick = () => {
+      ROADMAP_ATTACH.open({ item, onDone: paint });
+    };
+  }
+
   // Render the public-share widget below the tag editor. Hidden when the
   // paper has no PDF (nothing to share) or when LIBRARY_SHARE didn't load.
   function _renderShareWidget(item) {
@@ -380,7 +727,12 @@
       host = document.createElement('div');
       host.id = 'lp-share-widget';
       host.style.margin = '10px 0';
-      const after = document.getElementById('lp-tag-editor') || document.getElementById('lp-tags');
+      /* V3.365 — prefer the newest sidebar block so the stack reads
+       * tags → categories → themes → associations → share → assign. */
+      const after = document.getElementById('lp-assoc-editor')
+                 || document.getElementById('lp-theme-editor')
+                 || document.getElementById('lp-tag-editor')
+                 || document.getElementById('lp-tags');
       if (after) after.insertAdjacentElement('afterend', host);
       else sideInner.appendChild(host);
     }
@@ -471,7 +823,7 @@
       if (after) after.insertAdjacentElement('afterend', host);
       else sideInner.appendChild(host);
     }
-    const isMember = window.firebridge && firebridge.isLabMember && firebridge.isLabMember();
+    const isMember = typeof firebridge !== 'undefined' && firebridge.isLabMember && firebridge.isLabMember();
     if (!isMember || !window.TASK_ASSIGN) {
       host.style.display = 'none';
       return;
@@ -655,6 +1007,17 @@
       }
     });
 
+    // V3.610 — ⬚ Snip mode toggle: arms geom-selection's free-rectangle
+    // marquee (drag a box over a figure; text items not required). The
+    // gesture-level alternative (Alt-drag) needs no toggle.
+    const marqueeBtn = document.getElementById('lp-marquee');
+    marqueeBtn?.addEventListener('click', () => {
+      if (!window.GEOM_SELECTION || !window.GEOM_SELECTION.setMarquee) return;
+      const on = !window.GEOM_SELECTION.isMarquee();
+      window.GEOM_SELECTION.setMarquee(on);
+      marqueeBtn.classList.toggle('btn-primary', on);
+    });
+
     // Keyboard nav within the viewer
     document.addEventListener('keydown', (e) => {
       if (!_viewer) return;
@@ -743,6 +1106,11 @@
         if (window.PAPER_CITATIONS && pageNum === _viewer.currentPage) {
           try { window.PAPER_CITATIONS.refreshForPage(pageNum); } catch (_) { /* not initialized yet */ }
         }
+        // V3.616 — click-to-snip figure hotspots (annotate access only;
+        // the capture write would be rules-denied anyway).
+        if (_canAnnotate && window.FIGURE_CAPTURE && window.FIGURE_CAPTURE.refreshHotspots) {
+          try { window.FIGURE_CAPTURE.refreshHotspots(pageNum); } catch (_) { /* detection optional */ }
+        }
       },
     });
     return viewer;
@@ -761,15 +1129,46 @@
 
   // ---- Annotation wiring -------------------------------------------------
 
+  /* V3.608 — the lab's standard palette, used whenever the user has no
+   * saved palette. `library/highlight_colors.json` is a PER-USER route
+   * (userData/{uid}/libraryPrefs/highlightColors) and most lab members
+   * have never saved one; the old code set `_colors = []` on that empty
+   * result (the yellow fallback only fired on a THROWN load), and the
+   * create toolbar renders one button per color — so everyone without a
+   * palette doc got a toolbar with ONLY the ƒ equation button and could
+   * never create a highlight. This was the real cause of "students can't
+   * highlight" — not permissions. */
+  const DEFAULT_COLORS = [
+    { id: 'yellow', name: 'Note', hex: '#facc15', meaning: 'Interesting / general note', auto_flags: [] },
+    { id: 'green', name: 'Evidence', hex: '#4ade80', meaning: 'Evidence supporting a claim (use evidence_stance="for" when linked to a claim)', auto_flags: [] },
+    { id: 'red', name: 'Critique', hex: '#f87171', meaning: 'Counter-evidence / critique / disagree', auto_flags: [] },
+    { id: 'blue', name: 'Method', hex: '#60a5fa', meaning: 'Method or technique to remember', auto_flags: [] },
+    { id: 'purple', name: 'Investigate', hex: '#a78bfa', meaning: 'Come back to this — needs further investigation', auto_flags: ['marked_for_investigation'] },
+    { id: 'orange', name: 'Quote', hex: '#fb923c', meaning: 'Quote-worthy for direct citation in a draft', auto_flags: [] },
+  ];
+
+  /* V3.619 — color IS the category. Every new highlight stamps an
+   * annotation_type derived from its color so the type-pill filter
+   * (paper-overlay-types.js) actually works for hand-made highlights —
+   * before this, no UI could set annotation_type at all and every plain
+   * highlight was implicitly 'note'. Keep in step with DEFAULT_COLORS. */
+  const COLOR_TO_TYPE = {
+    yellow: 'note',
+    green: 'evidence',
+    red: 'limitation',
+    blue: 'method',
+    purple: 'question',
+    orange: 'quote',
+  };
+
   async function _loadColors() {
     try {
       const data = await api.load('library/highlight_colors.json');
-      _colors = (data && data.colors) || [];
+      const saved = (data && Array.isArray(data.colors)) ? data.colors : [];
+      _colors = saved.length ? saved : DEFAULT_COLORS;
     } catch (e) {
       console.warn('[library-paper] could not load highlight_colors.json', e);
-      _colors = [
-        { id: 'yellow', name: 'Note', hex: '#facc15', meaning: 'General note', auto_flags: [] },
-      ];
+      _colors = DEFAULT_COLORS;
     }
   }
 
@@ -805,41 +1204,89 @@
       viewer: _viewer,
       container: viewerEl,
       getColors: () => _colors,
-      onCreate: async ({ anchors, colorId }) => {
+      onCreate: async ({ anchors, colorId, comment, draftIds }) => {
         const color = _colors.find(c => c.id === colorId);
         const autoFlags = (color && color.auto_flags) || [];
         const visibility = window.ANNOTATION_PANEL.getDefaultVisibility() || 'lab';
-        // Stamp the active overlay set onto new highlights so they belong
-        // to whatever review-task overlays the user currently has on. If
-        // no overlays are active (or PAPER_OVERLAYS isn't loaded), the
-        // highlight is "general" and renders unconditionally.
-        const bucketIds = (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getActiveBucketIds)
-          ? window.PAPER_OVERLAYS.getActiveBucketIds()
-          : [];
+        // V3.619 — stamp the active draft overlays into cite_in_drafts (the
+        // field the overlay filter, the panel's draft chips, and the paper
+        // builder's Evidence Inbox all read). Previously this wrote the
+        // retired bucket_ids field, so highlights made with a draft overlay
+        // active never reached the builder. `draftIds` (from the create
+        // popover, V3.620) overrides when provided.
+        const citeDrafts = Array.isArray(draftIds)
+          ? draftIds
+          : ((window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getActiveDraftIds)
+              ? window.PAPER_OVERLAYS.getActiveDraftIds()
+              : []);
         try {
-          await window.ANNOTATION_SYNC.create(paperId, {
+          return await window.ANNOTATION_SYNC.create(paperId, {
             color_id: colorId,
+            annotation_type: COLOR_TO_TYPE[colorId] || 'note',
             visibility,
+            comment: (typeof comment === 'string') ? comment.trim() : '',
             target: { pages: anchors },
-            bucket_ids: bucketIds,
+            cite_in_drafts: citeDrafts,
             marked_for_investigation: autoFlags.includes('marked_for_investigation'),
           });
         } catch (e) {
           alert(`Could not save highlight: ${e.message}`);
+          return null;
         }
       },
       onSelect: (annId) => {
         window.ANNOTATION_OVERLAY.focus(annId);
       },
+      /* E3 — "ƒ" toolbar action: snip the selected region + transcribe
+       * it as a captured equation (a kind:'equation' annotation). */
+      onCaptureEquation: ({ anchors }) => {
+        if (window.EQUATION_CAPTURE) {
+          window.EQUATION_CAPTURE.open({ anchors });
+        }
+      },
+      /* V3.610 — 🖼 toolbar action: snip the selected region as a
+       * reference FIGURE (Storage upload + kind:'figure' annotation;
+       * shows up in the builder's Figure board picker). */
+      onCaptureFigure: ({ anchors }) => {
+        if (window.FIGURE_CAPTURE) {
+          window.FIGURE_CAPTURE.open({ anchors });
+        }
+      },
     });
+    if (window.EQUATION_CAPTURE) {
+      window.EQUATION_CAPTURE.init({ paperId, viewer: _viewer });
+    }
+    if (window.FIGURE_CAPTURE) {
+      window.FIGURE_CAPTURE.init({ paperId, viewer: _viewer });
+    }
 
     // Geometric selection — replaces browser-native Range walking. Drives
     // the create-toolbar via ANNOTATION_OVERLAY.onSelectionCommit.
+    // V3.605 — users without annotate access still get selection (copy
+    // works) but never see the create toolbar; rules would reject the
+    // write anyway.
     window.GEOM_SELECTION.init({
       viewer: _viewer,
       viewerEl,
-      onCommit: (anchors) => window.ANNOTATION_OVERLAY.onSelectionCommit(anchors),
+      onCommit: (anchors) => {
+        if (!_canAnnotate) return;
+        window.ANNOTATION_OVERLAY.onSelectionCommit(anchors);
+      },
     });
+
+    // V3.605 — read-only banner in the annotation panel for users without
+    // annotate access (they still see lab-visible highlights below it).
+    const panelHost = document.getElementById('lp-annotations');
+    const oldNote = panelHost && panelHost.querySelector('.lp-readonly-note');
+    if (oldNote) oldNote.remove();
+    if (!_canAnnotate && panelHost) {
+      const note = document.createElement('div');
+      note.className = 'lp-readonly-note';
+      note.style.cssText = 'font-size:11.5px;color:#92400e;background:#fffbeb;' +
+        'border:1px solid #fde68a;border-radius:6px;padding:6px 8px;margin:6px;';
+      note.textContent = 'Read-only: you can view lab annotations, but creating highlights needs the annotate permission (ask the PI).';
+      panelHost.insertBefore(note, panelHost.firstChild);
+    }
 
     // (Cmd+C / Ctrl+C copy of the geometric selection is wired once in
     // bootOnce — it reads GEOM_SELECTION live, so it's paper-agnostic and
@@ -862,7 +1309,7 @@
     const GRANT_DRAFT_STATUSES = new Set(['drafting', 'submitted', 'under_review', 'revising', 'rejected']);
     try {
       const [itemsData, papersData] = await Promise.all([
-        api.load('items.json'),
+        _loadLibraryItems(),   // V3.605 — cap-guest-safe items read
         api.load('projects/papers.json').catch(() => ({ papers: [] })),
       ]);
       const items = (itemsData.items || []);
@@ -876,9 +1323,9 @@
         .filter(it => it.type === 'grant' && GRANT_DRAFT_STATUSES.has(it.status))
         .map(it => ({ id: it.id, title: it.title || it.id, kind: 'grant' }));
       _allDrafts = paperDrafts.concat(grantDrafts);
-      // Per-paper shortlist: only drafts the user has linked.
+      // V3.475 — picker shows all active drafts, linked ones first.
       const linkedIds = new Set(((_item.meta && _item.meta.library && _item.meta.library.linked_drafts) || []));
-      _drafts = _allDrafts.filter(d => linkedIds.has(d.id));
+      _drafts = _draftShortlist(linkedIds);
     } catch (e) {
       console.warn('[library-paper] could not load drafts:', e.message);
     }
@@ -909,9 +1356,25 @@
       getGroups: () => _groups,
       currentUserUid: (user && user.uid) || '',
       defaultVisibility: 'lab',
+      // V3.605 — hide "+ New group…" unless allowlisted or cap-granted
+      // (labConfig/annotation_groups write is isLabContributor OR
+      // hasCap('library-paper:groups') in rules).
+      allowNewGroup: _allowNewGroup,
       onFocus: (annId) => window.ANNOTATION_OVERLAY.focus(annId),
       onUpdate: async (annId, patch) => {
         try {
+          // V3.619 — color IS the category: an owner recoloring a highlight
+          // also moves it to the matching annotation_type so the type-pill
+          // filter stays truthful. Captures (kind: equation/figure) keep
+          // their own type.
+          if (patch && patch.color_id) {
+            const ann = _annotations.find(a => a.id === annId);
+            if (!ann || !ann.kind) {
+              patch = Object.assign({}, patch, {
+                annotation_type: COLOR_TO_TYPE[patch.color_id] || 'note',
+              });
+            }
+          }
           await window.ANNOTATION_SYNC.update(paperId, annId, patch);
         } catch (e) {
           alert(`Update failed: ${e.message}`);
@@ -936,6 +1399,30 @@
           await window.ANNOTATION_SYNC.toggleCiteInDraft(paperId, annId, draftId, op);
         } catch (e) {
           alert(`Could not ${on ? 'tag' : 'untag'} draft: ${e.message}`);
+        }
+      },
+      // V3.475 — when a member tags a highlight as evidence for a draft that
+      // isn't yet linked to this journal paper, auto-link it so the "Used in
+      // paper drafts" association accrues (reuses the same LIBRARY_LINKS path
+      // as the association pills). No-op if already linked or the module is
+      // absent. Failures are non-fatal — the evidence itself already saved.
+      onEnsureDraftLinked: async (draftId) => {
+        if (!draftId || !_item || !window.LIBRARY_LINKS) return;
+        const lib = (_item.meta && _item.meta.library) || {};
+        const already = Array.isArray(lib.linked_drafts) && lib.linked_drafts.indexOf(draftId) >= 0;
+        if (already) return;
+        try {
+          const fresh = await window.LIBRARY_LINKS.toggleDraftLink(_item.id, draftId, true);
+          _item.meta = _item.meta || {};
+          _item.meta.library = _item.meta.library || {};
+          _item.meta.library.linked_drafts = fresh;
+          _drafts = _draftShortlist(new Set(fresh));
+          _renderAssocEditor(_item);   // keep the "Used in paper drafts" pills in sync
+          if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.setAnnotations) {
+            window.ANNOTATION_PANEL.setAnnotations(_annotations);
+          }
+        } catch (e) {
+          console.warn('[library-paper] auto-link draft failed:', e.message);
         }
       },
       getBuckets: () => (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getLinkedBuckets)
@@ -964,6 +1451,20 @@
         window.ANNOTATION_OVERLAY.setAnnotations(list);
         window.ANNOTATION_PANEL.setAnnotations(list);
         _applyFilter();
+        /* V3.350 — land the #ann- deep link once its annotation arrives
+         * (onChange fires twice: lab snapshot then private merge). focus()
+         * gotoPage()s to the annotation's first page; the per-page render
+         * hook re-applies the focused ring on lazy-rendered pages. The
+         * 250 ms second nudge covers the async page render. */
+        if (_pendingHashAnn && _pendingHashAnn.paperId === paperId &&
+            list.some((a) => a.id === _pendingHashAnn.annId)) {
+          const annId = _pendingHashAnn.annId;
+          _pendingHashAnn = null;
+          try { window.ANNOTATION_OVERLAY.focus(annId); } catch (e) {}
+          setTimeout(() => {
+            try { window.ANNOTATION_OVERLAY.focus(annId); } catch (e) {}
+          }, 250);
+        }
       },
       onError: (err) => {
         console.error('[library-paper] annotation sync error:', err);
@@ -1244,7 +1745,7 @@
     // pdf.js range-fetch trips CORS on Firebase Storage. Local dev proxies
     // through server.py; the static deploy hits Storage directly with
     // disableRange+disableStream (one full GET).
-    const isDeploy = window.RM_RUNTIME && window.RM_RUNTIME.isDeploy;
+    const isDeploy = _isDeployRuntime();
     const fetchUrl = isDeploy ? signedUrl : `/api/library/pdf-proxy?url=${encodeURIComponent(signedUrl)}`;
     _setStatus('Rendering…');
     const viewer = await _mountViewer(fetchUrl, { container: pane, disableRange: isDeploy, disableStream: isDeploy });
@@ -1292,6 +1793,9 @@
       : null;
     _renderMetadata(_item);
     _renderTagEditor(_item);
+    _renderAssocEditor(_item);   // V3.365 — association pills
+    _renderThemeEditor(_item);   // V3.367 — lab theme chips
+    _renderRoadmapEditor(_item); // V3.601 — research roadmap chips
     _renderShareWidget(_item);
     _renderAssignWidget(_item);
 
@@ -1441,7 +1945,8 @@
           if (updated) {
             _item = updated;
             const linkedIds = new Set(((updated.meta && updated.meta.library && updated.meta.library.linked_drafts) || []));
-            _drafts = _allDrafts.filter(d => linkedIds.has(d.id));
+            _drafts = _draftShortlist(linkedIds);
+            _renderAssocEditor(updated);   // V3.365 — keep pills in sync
             if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.setAnnotations) {
               window.ANNOTATION_PANEL.setAnnotations(_annotations);
             }
@@ -1512,7 +2017,7 @@
   // the initially-opened paper. Captured before _updateUrl strips the params.
   async function _maybeAutoImport(overlayId, draftId) {
     if (!overlayId || !draftId) return;
-    if (!window.PAPER_OVERLAY_IMPORT || !window.firebridge) return;
+    if (!window.PAPER_OVERLAY_IMPORT || typeof firebridge === 'undefined') return;
     try {
       const snap = await firebridge.db()
         .collection('grantDrafts').doc(draftId)
@@ -1532,6 +2037,10 @@
   async function bootOnce() {
     if (_booted) return;
     _booted = true;
+    if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+      await firebridge.requireSignIn('Sign in to read library papers.');
+    }
+    await _computeAccess();   // V3.605 — capability flags for the whole session
     _wireLayout();
     _wireToolbar();
     _wireMobileDrawers();
@@ -1540,8 +2049,20 @@
 
     try {
       _setStatus('Loading library…');
-      const data = await api.load('items.json');
+      const data = await _loadLibraryItems();
       _allItems = (data && data.items) || [];
+      // V3.493 — if the requested paper isn't in the stale-while-revalidate
+      // list, it may be a freshly-imported/added entry written out of band
+      // (direct single-doc set, which bypasses api.save's cache-clear). Bust
+      // the cache and reload ONCE before treating it as missing.
+      const wantId = _qs('id');
+      if (wantId && !_allItems.some(it => it.id === wantId) && window.api && api.invalidate) {
+        try {
+          await api.invalidate('items.json');
+          const fresh = await _loadLibraryItems();
+          if (fresh && fresh.items) _allItems = fresh.items;
+        } catch (e) { /* fall through to the not-found message */ }
+      }
     } catch (e) {
       _setStatus(`Error loading library: ${e.message || e}`, 'error');
       return;
@@ -1571,6 +2092,12 @@
     // strips them.
     const dlImport = _qs('import');
     const dlDraft = _qs('draft') || _qs('grant');
+    /* V3.350 — #ann-{annId} deep link (emitted by the builder's Evidence
+     * Inbox, claims panel, and bullet-claims evidence pills). Stash it,
+     * keyed to the deep-linked paper, and land on it once the annotation
+     * sync delivers the list (see the onChange handler). */
+    const dlAnnMatch = (location.hash || '').match(/^#ann-(.+)$/);
+    _pendingHashAnn = dlAnnMatch ? { annId: decodeURIComponent(dlAnnMatch[1]), paperId: initial } : null;
 
     if (!initial) {
       _renderTabs();

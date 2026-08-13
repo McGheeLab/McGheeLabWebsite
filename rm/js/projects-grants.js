@@ -159,7 +159,7 @@ document.getElementById('add-project').onclick = function () {
 };
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view projects and grants.');
   await loadAndRender();
   // No LIVE_SYNC.attach: projects-grants overview rolls up cached data;
   // edits happen on projects.html / grants.html which own their own sync.

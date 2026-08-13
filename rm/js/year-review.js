@@ -66,7 +66,7 @@ async function boot() {
     try { await firebridge.whenAuthResolved(); } catch (_) {}
   }
   if (typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
-    const gate = await firebridge.gateSignedIn('Sign in to view your year review.');
+    const gate = await firebridge.requireSignIn('Sign in to view your year review.');
     if (!gate.allowed) return;
   }
 

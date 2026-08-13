@@ -30,6 +30,18 @@
    firestore.rules: chatConfig (line 383), chatChannels
    (line 389), chatMessages (line 398), chatReadState (line 409),
    chatUserMeta (line 414) — all in place; no rule changes.
+
+   V3.503 — incremental rendering foundation:
+     - renderShell() mounts a stable skeleton once per layout mode
+       (desktop 3-pane / mobile tabs); render() only refreshes region
+       contents into `.chat-slot` containers (display: contents, so
+       the CSS layout tree is unchanged).
+     - ALL clicks flow through ONE delegated listener on #chat-root
+       (CLICK_ROUTES, first-match-wins ordering). The old wireAll()
+       re-wiring cascade is gone; only non-click wiring (inputs,
+       drag-drop, scroll) re-attaches per region rebuild.
+     - Composer text/focus survive render(); resize across the 700px
+       breakpoint rebuilds the shell (previously required a reload).
    ================================================================ */
 
 window.McgheeLab = window.McgheeLab || {};
@@ -55,8 +67,12 @@ window.McgheeLab = window.McgheeLab || {};
      CONSTANTS & CONFIG
      ═══════════════════════════════════════════════════════════ */
   const MSG_PAGE_SIZE = 50;
-  const READ_RECEIPT_BATCH = 20;
-  const MAX_VISIBLE_RECEIPTS = 5;
+  // R2 — one-time subscriberUids backfill endpoint (functions/chat.js).
+  const BACKFILL_FN_URL = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/chatBackfillSubscribers';
+  // V3.582 — Slack-history import endpoint (Admin SDK; rules pin
+  // authorUid == auth.uid on client creates, so cross-user attribution
+  // must go server-side).
+  const IMPORT_FN_URL = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/chatImportSlackHistory';
   const EMOJI_SET = [
     { key: 'thumbsup', label: '👍' },
     { key: 'thumbsdown', label: '👎' },
@@ -109,6 +125,26 @@ window.McgheeLab = window.McgheeLab || {};
   let _hasMoreMessages = true;
   let _loadingOlder = false;
 
+  /* R6 — feed mode. 'live' = newest-50 onSnapshot tail (the normal
+   * state). 'history' = a detached window around a jumped-to message:
+   * the live listener is off, upward pagination works as usual, and a
+   * new downward pager (loadNewerMessages) walks back toward the tail.
+   * Catching the tail (or the banner / sending a message) transitions
+   * back to live. */
+  let _feedMode = 'live';
+  let _histNewestLoaded = null;  // doc SNAPSHOT cursor for the asc pager
+  let _histHasNewer = false;
+  let _loadingNewer = false;
+
+  /* R6 — progressive full-history search. The scan pages backward
+   * through chatMessages (200/batch) filtering client-side; scanned
+   * docs are cached per scope+channel so query refinement re-filters
+   * without re-reading. A generation counter cancels superseded scans. */
+  let _searchScope = 'channel'; // 'channel' | 'all'
+  let _searchScanGen = 0;
+  let _searchDebounceTimer = null;
+  let _searchCache = { scope: null, channelKey: null, docs: [], cursorSnap: null, exhausted: false };
+
   // Read state
   let _readStates = {}; // { channelId: { lastReadAt, lastReadMessageId, mentionCount } }
 
@@ -133,6 +169,13 @@ window.McgheeLab = window.McgheeLab || {};
   let _showManageContacts = false;
   let _showSeenBy = null;
 
+  /* V3.582 — Slack-history import modal. step: 'input' → 'map' →
+   * 'preview' → 'progress' → 'done'. parsed = CHAT_SLACK_IMPORT.parse
+   * output; mapping = { slackName → {uid|null, displayName} | 'SKIP' };
+   * batches = this channel's chatImports docs (previously-imported list). */
+  let _showImport = false;
+  let _importState = null;
+
   /* V3.86 — embed-mode detection. True when chat is loaded inside a
    * shell popout (rm/pages/workflow-shell.html or split-view.html).
    * In embed mode we:
@@ -148,7 +191,21 @@ window.McgheeLab = window.McgheeLab || {};
    *     the popout returns to the same conversation. */
   const _IS_EMBED = (function () {
     try {
-      if (window.parent !== window) return true;
+      if (window.parent !== window) {
+        // The Ourlab app shell (app-shell.html, <body data-app-shell="1">)
+        // hosts FULL-SCREEN tabs, not narrow split-view/workflow preview
+        // panes — so it is NOT "embed": chat must render its normal
+        // full-screen layout (Overview default, full channel list) and skip
+        // the split-view parent integration (parent.location.hash /
+        // postMessage) that only makes sense inside those shells. Other
+        // iframe hosts still count as embed.
+        var _appShellHost = false;
+        try {
+          _appShellHost = !!(window.parent.document && window.parent.document.body
+            && window.parent.document.body.getAttribute('data-app-shell') === '1');
+        } catch (e) { _appShellHost = false; }
+        if (!_appShellHost) return true;
+      }
       if (typeof window.name === 'string' && /^rm-(embed|shell)/.test(window.name)) return true;
       const sp = new URLSearchParams(location.search);
       if (sp.get('embed') === '1') return true;
@@ -157,15 +214,36 @@ window.McgheeLab = window.McgheeLab || {};
   })();
   const _LAST_CHANNEL_LS_KEY = 'mcgheelab.chat.lastChannelId';
 
-  // Mobile tab state. In embed mode default to 'chat' so popout opens
-  // straight into the conversation pane (Overview is one tap away).
-  let _mobileTab = _IS_EMBED ? 'chat' : 'overview';
+  /* V3.581 — restore the last conversation in ONE paint (Alex: opening the
+   * chat tab rendered Overview, then the V3.86 auto-select swapped to the
+   * remembered channel — three visible renders in series, wasted effort).
+   * Resolve the restore target SYNCHRONOUSLY at parse time (?channel deep
+   * link wins over the remembered channel, same precedence as the old
+   * auto-select), start on the chat pane, and let init() pre-seed the
+   * channel + message stream so the first content render IS the
+   * conversation you left. Overview stays one tap away. */
+  const _restoreChannelId = (() => {
+    try {
+      const req = new URLSearchParams(location.search).get('channel');
+      if (req) return req;
+    } catch (e) { /* ignore */ }
+    try { return localStorage.getItem(_LAST_CHANNEL_LS_KEY) || null; } catch (e) { return null; }
+  })();
+  // True while the pre-seeded channel awaits validation against the real
+  // channel list (it may have been deleted since last visit).
+  let _pendingRestore = false;
+
+  // Mobile tab state. In embed mode — or when restoring a remembered
+  // conversation — default to 'chat' so the page opens straight into the
+  // conversation pane (Overview is one tap away).
+  let _mobileTab = (_IS_EMBED || _restoreChannelId) ? 'chat' : 'overview';
   let _conversationFilter = 'newest';
   let _mobileFilterOpen = false;
   let _mobileHamburgerOpen = false;
 
-  // Collapsed sections on mobile overview
-  let _collapsedSections = new Set();
+  // Collapsed sections on mobile overview ('alumni' starts collapsed —
+  // the auto-sorted Alumni group is reference material, not daily chat)
+  let _collapsedSections = new Set(['alumni']);
 
   // Drag state for sidebar organization
   let _dragChannelId = null;
@@ -180,6 +258,15 @@ window.McgheeLab = window.McgheeLab || {};
   let _unsubReadState = null;
   let _unsubThread = null;
   let _unsubUserMeta = null;
+  // R7 — per-channel read states (uid -> lastReadAt) powering DERIVED
+  // read receipts: "seen by M" = lastReadAt >= msg.createdAt. Replaces
+  // the old readBy[] arrayUnion batch (up to 20 message-doc writes per
+  // user per channel open).
+  let _unsubChannelReadStates = null;
+  let _channelReadStates = {};
+  // R2 lifecycle: registry for listeners whose unsubs were previously
+  // dropped on the floor (config, users). destroy() drains it.
+  const _unsubs = [];
 
   let _toastTimer = null;
   let _autoScroll = true;
@@ -187,12 +274,64 @@ window.McgheeLab = window.McgheeLab || {};
   let _drafts = (() => { try { return JSON.parse(localStorage.getItem('chat-drafts') || '{}'); } catch { return {}; } })();
   let _draftSaveTimer = null;
 
+  // R3 — markdown hint bar under the composer (Aa button toggles;
+  // choice persists per device).
+  let _mdHintOpen = (() => { try { return localStorage.getItem('chat-md-hint') === 'open'; } catch { return false; } })();
+  // V3.570 — compact inline formatting toolbar (app), toggled by Aa.
+  let _formatBarOpen = false;
+
+  /* Corner alert for new messages (Alex request) — an in-page popup
+   * (bottom corner) when a message lands in a channel you're NOT
+   * currently looking at. One popup per burst: while visible it updates
+   * in place instead of stacking, and after it hides (dismissed,
+   * clicked, or auto-faded) a cooldown suppresses re-alerts so a busy
+   * conversation doesn't nag. Driven by the existing chatChannels
+   * listener (lastMessage changes) — zero extra Firestore reads. */
+  const ALERT_COOLDOWN_MS = 3 * 60 * 1000;
+  const ALERT_AUTOFADE_MS = 8000;
+  let _alertInit = false;        // first channels snapshot = baseline only
+  let _lastMsgSeen = {};         // channelId -> millis of newest processed lastMessage
+  let _alertChannels = [];       // channel ids accumulated while the popup is visible
+  let _alertCooldownUntil = 0;
+  let _alertTimer = null;
+
+  // R5 — presence & typing (chatPresence/{uid}, one listener for both)
+  const PRESENCE_ONLINE_MS = 5 * 60 * 1000;   // green dot
+  const PRESENCE_AWAY_MS = 30 * 60 * 1000;    // amber dot
+  const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000;
+  const TYPING_THROTTLE_MS = 4000;            // max one typing write per 4s
+  const TYPING_TTL_MS = 8000;                 // entry expires after 8s
+  let _presence = {};            // uid -> { lastActiveAt, typingChannelId, typingAt }
+  let _typingLastWriteAt = 0;
+  let _typingClearTimer = null;
+  let _typingRerenderTimer = null;
+  let _heartbeatTimer = null;
+  let _onVisibilityChange = null;
+  // V3.585 — tab-lifecycle (Ourlab app multi-WebView shell): while this
+  // WebView is a hidden background tab, listeners are detached but DOM +
+  // state stay warm. See pauseChat()/resumeChat().
+  let _paused = false;
+  let _hadUserMeta = false;        // was subscribeUserMeta live at pause?
+  let _suppressAutoSelect = false; // resume while parked on Overview: don't
+                                   // let the V3.86 auto-select re-fire
+
+  /* V3.503 — incremental-render state. The shell (stable containers +
+   * one delegated click listener) builds once per layout mode; render()
+   * only refreshes region contents after that. */
+  let _shellMode = null;     // 'desktop' | 'mobile' — which skeleton is mounted
+  let _mainContentKey = null; // signature of the content slot; rebuild only on change
+  let _resizeTimer = null;
+
   /* ═══════════════════════════════════════════════════════════
      BOOTSTRAP
      ═══════════════════════════════════════════════════════════ */
-  // Prevent pinch-to-zoom on iOS
-  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
-  document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+  // Prevent pinch-to-zoom on iOS — named so destroy() can remove them
+  // (chat runs inside split-view iframes / popouts, so document-level
+  // listeners outlive the page unless explicitly detached).
+  const _onGestureStart = (e) => e.preventDefault();
+  const _onGestureChange = (e) => e.preventDefault();
+  document.addEventListener('gesturestart', _onGestureStart, { passive: false });
+  document.addEventListener('gesturechange', _onGestureChange, { passive: false });
 
   /* ═══════════════════════════════════════════════════════════
      RM bootstrap — replaces the dual AppBridge / direct-Firebase
@@ -207,8 +346,7 @@ window.McgheeLab = window.McgheeLab || {};
       console.warn('[Chat] firebridge not available');
       return;
     }
-    firebridge.gateSignedIn();
-    if (firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+    if (firebridge.requireSignIn) await firebridge.requireSignIn();
 
     _user = firebridge.getUser ? firebridge.getUser() : null;
     _profile = firebridge.getProfile ? firebridge.getProfile() : null;
@@ -228,14 +366,39 @@ window.McgheeLab = window.McgheeLab || {};
     await loadConfig();
     await loadUsers();
     await loadUserMeta();
+    wireDelegatedClicks();
+    wireLayoutResize();
+    wirePageScroll();
+    // V3.581 — pre-seed the remembered channel BEFORE the first content
+    // render and subscribe its messages right after it (in PARALLEL with
+    // the channel list) so the page comes back exactly as it was left, in
+    // one paint, instead of Overview → auto-select → conversation.
+    if (_restoreChannelId) {
+      _activeChannelId = _restoreChannelId;
+      _pendingRestore = true;
+    }
     render();
+    if (_restoreChannelId) subscribeMessages(_restoreChannelId);
     subscribeChannels();
     subscribeReadState();
     subscribeUsers();
     subscribeConfig();
+    startPresence();
+
+    // V3.585 — tab-lifecycle race guard: if the native shell hid this tab
+    // while the awaits above were in flight, 'ourlab:tab-hidden' already
+    // flipped _paused but there was nothing to detach yet. Re-run the pause
+    // now so the freshly attached listeners are detached; resume re-attaches
+    // when the tab is next shown. Simple and correct over clever.
+    if (_paused) { _paused = false; pauseChat(); }
 
     // Tab swipe for mobile (no-ops without MobileShell loaded).
     initChatTabSwipe();
+
+    // V3.525 — voice-call.js broadcasts active-call changes; re-render the
+    // header so the 📞 button flips between start/join-live states. Named
+    // handler so destroy() can detach it (tab-lifecycle re-inits in place).
+    window.addEventListener('voice-call-change', _onVoiceCallChange);
 
     // Re-render on profile-role flips (admin promotion unlocks chat-admin
     // affordances; chatAdmins list updates flow through subscribeConfig).
@@ -256,8 +419,11 @@ window.McgheeLab = window.McgheeLab || {};
     const doc = await db().collection('chatConfig').doc('settings').get();
     if (doc.exists) {
       _config = doc.data();
-    } else {
-      // First boot — initialize config and default channels
+    } else if (_profile?.role === 'admin') {
+      // First boot — initialize config and default channels. Admin only:
+      // firestore.rules rejects this write for anyone else anyway, so a
+      // non-admin first visitor previously just got a console permission
+      // error here (R2 makes the gate explicit).
       _config = {
         categories: DEFAULT_CATEGORIES,
         defaultChannels: DEFAULT_CHANNELS.map(c => c.name),
@@ -277,16 +443,28 @@ window.McgheeLab = window.McgheeLab || {};
           lastActivityAt: TS(),
           memberCount: 0,
           messageCount: 0,
+          subscriberUids: [],
           createdAt: TS()
         });
       }
+    } else {
+      // Not initialized and we can't seed it — read-only defaults until
+      // an admin visits chat for the first time.
+      _config = {
+        categories: DEFAULT_CATEGORIES,
+        defaultChannels: [],
+        chatAdmins: [],
+        userRoles: {},
+        initialized: false,
+        gdriveScriptUrl: ''
+      };
     }
   }
 
   function subscribeConfig() {
-    db().collection('chatConfig').doc('settings').onSnapshot(doc => {
+    _unsubs.push(db().collection('chatConfig').doc('settings').onSnapshot(doc => {
       if (doc.exists) _config = doc.data();
-    });
+    }));
   }
 
   async function loadUsers() {
@@ -295,9 +473,9 @@ window.McgheeLab = window.McgheeLab || {};
   }
 
   function subscribeUsers() {
-    db().collection('users').onSnapshot(snap => {
+    _unsubs.push(db().collection('users').onSnapshot(snap => {
       _allUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
-    });
+    }));
   }
 
   async function loadUserMeta() {
@@ -332,6 +510,116 @@ window.McgheeLab = window.McgheeLab || {};
   }
 
   /* ═══════════════════════════════════════════════════════════
+     PRESENCE & TYPING (R5)
+     One chatPresence/{uid} doc per user carries both the activity
+     heartbeat and the typing state; one collection listener serves
+     every dot and the typing row. Lab-scale (10–30 docs) so the
+     listener is cheap; heartbeats only fire while the tab is visible.
+     ═══════════════════════════════════════════════════════════ */
+  function subscribePresence() {
+    _unsubs.push(db().collection('chatPresence').onSnapshot(snap => {
+      _presence = {};
+      snap.docs.forEach(d => { _presence[d.id] = d.data(); });
+      updatePresenceUI();
+      updateTypingRow();
+    }, err => console.warn('[Chat] presence listener error:', err)));
+  }
+
+  function writePresence(patch) {
+    if (!_user) return;
+    db().collection('chatPresence').doc(_user.uid)
+      .set({ uid: _user.uid, ...patch }, { merge: true })
+      .catch(() => {});
+  }
+
+  function heartbeatPresence() {
+    writePresence({ lastActiveAt: TS() });
+  }
+
+  function startPresence() {
+    subscribePresence();
+    heartbeatPresence();
+    _heartbeatTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') heartbeatPresence();
+    }, HEARTBEAT_INTERVAL_MS);
+    _onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        heartbeatPresence();
+        // Corner alerts queued while the tab was hidden show now
+        if (_alertChannels.length && !document.getElementById('chat-corner-alert')) {
+          showCornerAlert();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', _onVisibilityChange);
+  }
+
+  // channelId to declare "typing in this channel", null to clear.
+  function writeTyping(channelId) {
+    if (channelId) {
+      const now = Date.now();
+      if (now - _typingLastWriteAt < TYPING_THROTTLE_MS) return;
+      _typingLastWriteAt = now;
+      writePresence({ typingChannelId: channelId, typingAt: TS() });
+    } else {
+      _typingLastWriteAt = 0;
+      writePresence({ typingChannelId: null, typingAt: null });
+    }
+  }
+
+  function getPresenceBucket(uid) {
+    const p = _presence[uid];
+    const d = p && tsToDate(p.lastActiveAt);
+    if (!d) return null;
+    const age = Date.now() - d.getTime();
+    if (age < PRESENCE_ONLINE_MS) return 'online';
+    if (age < PRESENCE_AWAY_MS) return 'away';
+    return null;
+  }
+
+  function renderPresenceDotHTML(uid, inline) {
+    return `<span class="chat-presence-dot${inline ? ' chat-presence-dot--inline' : ''}" data-presence-uid="${escHTML(uid)}"></span>`;
+  }
+
+  // Toggle dot classes in place — no region re-render (R1's stable DOM
+  // is what makes this cheap).
+  function updatePresenceUI() {
+    document.querySelectorAll('[data-presence-uid]').forEach(el => {
+      const bucket = getPresenceBucket(el.dataset.presenceUid);
+      el.classList.toggle('chat-presence-dot--online', bucket === 'online');
+      el.classList.toggle('chat-presence-dot--away', bucket === 'away');
+    });
+  }
+
+  function updateTypingRow() {
+    const row = document.getElementById('chat-typing-row');
+    if (!row) return;
+    const now = Date.now();
+    const names = [];
+    for (const uid of Object.keys(_presence)) {
+      if (uid === _user.uid) continue;
+      const p = _presence[uid];
+      if (!p.typingChannelId || p.typingChannelId !== _activeChannelId) continue;
+      const t = tsToDate(p.typingAt);
+      if (!t || now - t.getTime() > TYPING_TTL_MS) continue;
+      const u = _allUsers.find(a => a.uid === uid);
+      names.push(((u && (u.name || u.displayName || u.email)) || 'Someone').split(/\s+/)[0]);
+    }
+    let text = '';
+    if (names.length === 1) text = `${names[0]} is typing…`;
+    else if (names.length === 2) text = `${names[0]} and ${names[1]} are typing…`;
+    else if (names.length > 2) text = `${names.length} people are typing…`;
+    row.innerHTML = text
+      ? `<span class="chat-typing-dots"><i></i><i></i><i></i></span> ${escHTML(text)}`
+      : '';
+    row.classList.toggle('chat-typing-row--active', !!text);
+    // Re-evaluate while anyone is shown so stale entries expire without
+    // needing another snapshot.
+    clearTimeout(_typingRerenderTimer);
+    if (text) _typingRerenderTimer = setTimeout(updateTypingRow, 3000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
      FIRESTORE — Channel Listeners
      ═══════════════════════════════════════════════════════════ */
   function subscribeChannels() {
@@ -350,23 +638,185 @@ window.McgheeLab = window.McgheeLab || {};
               subscribedChannels: defaultIds,
               sidebarLayout: _userMeta.sidebarLayout
             });
+            // Mirror onto each channel's authoritative subscriber list (R2)
+            defaultIds.forEach(id => {
+              db().collection('chatChannels').doc(id)
+                .update({ subscriberUids: ARR_UNION(_user.uid) })
+                .catch(() => {});
+            });
+          }
+        }
+        // V3.581 — pre-seeded restore: the channel list just arrived.
+        // If the remembered channel still exists, one re-render attaches
+        // its real header/sidebar state (messages are already streaming).
+        // If it was deleted since last visit, drop the pre-seed and let
+        // the normal auto-select below pick a fallback.
+        if (_pendingRestore) {
+          _pendingRestore = false;
+          if (_channels.some(c => c.id === _activeChannelId)) {
+            render();
+            restoreDraft();
+          } else {
+            _activeChannelId = null;
+            if (_unsubMessages) { _unsubMessages(); _unsubMessages = null; }
+            if (!_IS_EMBED && isMobile()) _mobileTab = 'overview';
           }
         }
         // V3.86 — auto-select last opened channel (from localStorage) if
         // it still exists; falls back to most recent channel. Skips
         // when an _activeChannelId is already set (e.g., the user
         // already navigated to a different channel during this session).
-        if (!_activeChannelId && _channels.length > 0) {
+        // V3.585: also skipped right after a tab-lifecycle resume when the
+        // user had parked on Overview — resuming must not yank them into a
+        // conversation they deliberately left.
+        if (!_activeChannelId && !_suppressAutoSelect && _channels.length > 0) {
           let pick = null;
+          // ?channel= deep link (FCM push clicks + the RM-wide corner
+          // alert) wins over the remembered channel. Never handled
+          // before — push taps landed on whatever channel was last open.
           try {
-            const remembered = localStorage.getItem(_LAST_CHANNEL_LS_KEY);
-            if (remembered && _channels.some(c => c.id === remembered)) pick = remembered;
+            const requested = new URLSearchParams(location.search).get('channel');
+            if (requested && _channels.some(c => c.id === requested)) pick = requested;
           } catch (e) { /* ignore */ }
+          if (!pick) {
+            try {
+              const remembered = localStorage.getItem(_LAST_CHANNEL_LS_KEY);
+              if (remembered && _channels.some(c => c.id === remembered)) pick = remembered;
+            } catch (e) { /* ignore */ }
+          }
           selectChannel(pick || _channels[0].id);
         }
+        healDmMemberships();
+        processChannelAlerts();
         renderSidebar();
       });
     subscribeUserMeta();
+  }
+
+  /* Am I actually watching the live feed of the active channel? "On the
+     chat page" is not enough — scrolled up into history, or off on the
+     files/pinned view, means a new message would slide past unseen.
+     Deliberately excludes document.visibilityState: callers that need it
+     add it (processChannelAlerts), and RM_PRESENCE owns visibility itself. */
+  function isWatchingFeed() {
+    return !!_activeChannelId
+      && _feedMode === 'live'
+      && _autoScroll
+      && (_shellMode === 'mobile' ? _mobileTab === 'chat' : _desktopView === 'chat');
+  }
+
+  /* V3.596 — publish the active channel to userPresence/{uid} so the push
+     pipeline can skip notifying me about a message I'm looking at, while
+     still notifying me about every OTHER channel and every other app.
+     `setContext` no-ops when unchanged, so calling this from render() is
+     free; `[]` means "on the page but not watching" → notify normally. */
+  function publishPresenceContext() {
+    if (!window.RM_PRESENCE) return;
+    window.RM_PRESENCE.setContext(isWatchingFeed() ? [_activeChannelId] : []);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     CORNER ALERT (Alex request) — see state block for the design.
+     ═══════════════════════════════════════════════════════════ */
+  function processChannelAlerts() {
+    const fresh = [];
+    for (const ch of _channels) {
+      const lm = ch.lastMessage;
+      const t = (lm && lm.timestamp && lm.timestamp.toMillis) ? lm.timestamp.toMillis() : 0;
+      const prev = _lastMsgSeen[ch.id] || 0;
+      if (t > prev) _lastMsgSeen[ch.id] = t;
+      if (!_alertInit) continue;           // baseline pass — never alert on load
+      if (!lm || t <= prev) continue;      // nothing new in this channel
+      if (lm.authorUid === _user.uid) continue;
+      if ((_userMeta?.mutedChannels || []).includes(ch.id)) continue;
+      // Only channels I'm in: subscriptions, or DMs I'm a member of
+      const isMine = ch.type === 'dm'
+        ? (ch.members || []).includes(_user.uid)
+        : (_userMeta?.subscribedChannels || []).includes(ch.id);
+      if (!isMine) continue;
+      // Suppress only when the message is actually IN VIEW: visible
+      // tab + that channel's live feed on screen + following the tail
+      // (scrolled up = you'd miss it, so alert anyway).
+      const feedVisible = document.visibilityState === 'visible'
+        && ch.id === _activeChannelId
+        && isWatchingFeed();
+      if (feedVisible) continue;
+      fresh.push(ch.id);
+    }
+    _alertInit = true;
+    if (!fresh.length) return;
+    const cardShowing = !!document.getElementById('chat-corner-alert');
+    // One popup per burst: a hidden popup respects the cooldown; a
+    // visible one just absorbs the new channels.
+    if (!cardShowing && Date.now() < _alertCooldownUntil) return;
+    fresh.forEach(id => { if (!_alertChannels.includes(id)) _alertChannels.push(id); });
+    // Hidden tab: queue instead of showing — otherwise the card fades
+    // unseen and burns the cooldown. The visibilitychange handler shows
+    // the queued alert the moment the tab returns.
+    if (document.visibilityState === 'visible') showCornerAlert();
+  }
+
+  function showCornerAlert() {
+    const names = _alertChannels.slice(0, 2).map(id => {
+      const ch = _channels.find(c => c.id === id);
+      return ch ? (ch.type === 'dm' ? getDMDisplayName(ch) : '#' + (ch.displayName || ch.name)) : '';
+    }).filter(Boolean);
+    const extra = _alertChannels.length > 2 ? ` +${_alertChannels.length - 2}` : '';
+    const label = _alertChannels.length === 1
+      ? `New message in ${names[0]}`
+      : `New messages in ${names.join(', ')}${extra}`;
+
+    let el = document.getElementById('chat-corner-alert');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'chat-corner-alert';
+      el.className = 'chat-corner-alert';
+      el.innerHTML = `
+        <button class="chat-corner-alert-body" type="button"></button>
+        <button class="chat-corner-alert-close" type="button" title="Dismiss">${svgX()}</button>`;
+      document.body.appendChild(el);
+      el.querySelector('.chat-corner-alert-body').addEventListener('click', () => {
+        // Most recent alerting channel; selectChannel lands on the
+        // newest message (open-at-bottom, V3.518)
+        const target = _alertChannels[_alertChannels.length - 1];
+        hideCornerAlert();
+        if (target) selectChannel(target);
+      });
+      el.querySelector('.chat-corner-alert-close').addEventListener('click', () => hideCornerAlert());
+    }
+    el.querySelector('.chat-corner-alert-body').innerHTML =
+      `${svgChat()} <span>${escHTML(label)}</span>`;
+    requestAnimationFrame(() => el.classList.add('chat-corner-alert--show'));
+    clearTimeout(_alertTimer);
+    _alertTimer = setTimeout(hideCornerAlert, ALERT_AUTOFADE_MS);
+  }
+
+  function hideCornerAlert() {
+    clearTimeout(_alertTimer);
+    const el = document.getElementById('chat-corner-alert');
+    if (el) el.remove();
+    _alertChannels = [];
+    _alertCooldownUntil = Date.now() + ALERT_COOLDOWN_MS;
+  }
+
+  // R4 — DM membership self-heal. chatUserMeta is owner-only, so a DM
+  // created by someone ELSE can't stamp our dmChannelIds. When the
+  // channels snapshot shows a DM listing us as a member that our own
+  // meta doesn't track yet, adopt it into our meta ourselves.
+  function healDmMemberships() {
+    if (!_userMeta || !_user) return;
+    const known = new Set(_userMeta.dmChannelIds || []);
+    const missing = _channels.filter(c =>
+      c.type === 'dm' && Array.isArray(c.members)
+      && c.members.includes(_user.uid) && !known.has(c.id));
+    if (!missing.length) return;
+    const ids = missing.map(c => c.id);
+    _userMeta.dmChannelIds = [...(_userMeta.dmChannelIds || []), ...ids];
+    _userMeta.subscribedChannels = [...new Set([...(_userMeta.subscribedChannels || []), ...ids])];
+    db().collection('chatUserMeta').doc(_user.uid).update({
+      dmChannelIds: ARR_UNION(...ids),
+      subscribedChannels: ARR_UNION(...ids)
+    }).catch(() => {});
   }
 
   function subscribeReadState() {
@@ -384,15 +834,67 @@ window.McgheeLab = window.McgheeLab || {};
       });
   }
 
+  // R7 — everyone's read state for the ACTIVE channel (single-field
+  // query, auto-indexed; readable by any signed-in user per the R4
+  // rules). Receipts derive from lastReadAt, so a channel open costs
+  // exactly ONE write (markChannelRead) instead of up to 21.
+  function subscribeChannelReadStates(channelId) {
+    if (_unsubChannelReadStates) _unsubChannelReadStates();
+    _channelReadStates = {};
+    _unsubChannelReadStates = db().collection('chatReadState')
+      .where('channelId', '==', channelId)
+      .onSnapshot(snap => {
+        _channelReadStates = {};
+        snap.docs.forEach(d => {
+          const data = d.data();
+          if (data.uid && data.lastReadAt) _channelReadStates[data.uid] = data.lastReadAt;
+        });
+        renderMessages(); // receipts update live as others read
+      }, err => console.warn('[Chat] channel readState listener error:', err));
+  }
+
+  // Readers of msg = anyone (minus the author) whose lastReadAt in this
+  // channel is at/after the message's createdAt. Slightly different
+  // semantics than the old readBy[] ("read the channel since this
+  // message" vs "had it in their last-20 window") — arguably more
+  // correct, and it works for ALL historical messages.
+  function getSeenByUids(msg) {
+    const msgTime = tsToDate(msg.createdAt);
+    if (!msgTime) return [];
+    return Object.keys(_channelReadStates).filter(uid => {
+      if (uid === msg.authorUid) return false;
+      const last = tsToDate(_channelReadStates[uid]);
+      return last && last >= msgTime;
+    });
+  }
+
+  // "Seen by everyone" denominator: DM members / channel subscribers
+  // (minus the author) — better than the old all-chat-users heuristic.
+  function getSeenByDenominator(msg) {
+    const ch = _channels.find(c => c.id === (msg.channelId || _activeChannelId));
+    if (ch && ch.type === 'dm' && Array.isArray(ch.members)) {
+      return ch.members.filter(u => u !== msg.authorUid).length;
+    }
+    if (ch && Array.isArray(ch.subscriberUids)) {
+      return ch.subscriberUids.filter(u => u !== msg.authorUid).length;
+    }
+    return _allUsers.filter(u => u.uid !== msg.authorUid && canAccessChat(u)).length;
+  }
+
   /* ═══════════════════════════════════════════════════════════
      FIRESTORE — Message Listeners
      ═══════════════════════════════════════════════════════════ */
   function subscribeMessages(channelId) {
     if (_unsubMessages) _unsubMessages();
+    _feedMode = 'live';
+    _histNewestLoaded = null;
+    _histHasNewer = false;
+    removeHistoryBanner();
     _messages = [];
     _oldestLoaded = null;
     _hasMoreMessages = true;
     _autoScroll = true;
+    subscribeChannelReadStates(channelId); // R7 — receipts source
 
     _unsubMessages = db().collection('chatMessages')
       .where('channelId', '==', channelId)
@@ -472,6 +974,170 @@ window.McgheeLab = window.McgheeLab || {};
     renderMessages();
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     R6 — JUMP TO MESSAGE + HISTORY MODE
+     Single entry point for search results, pinned items, and any
+     [data-goto-msg] affordance. Fast path scroll+flash when the target
+     is already loaded; otherwise the live listener detaches and a
+     window of messages around the target loads (25 before + 25 after).
+     ═══════════════════════════════════════════════════════════ */
+  const HIST_WINDOW = 25;
+
+  async function jumpToMessage(msgId, channelId) {
+    // Make sure the message feed view is what's showing
+    if (isMobile()) { _mobileTab = 'chat'; _showPinned = false; }
+    else if (_desktopView !== 'chat') _desktopView = 'chat';
+    render();
+
+    const inActive = !channelId || channelId === _activeChannelId;
+    if (inActive && _messages.some(m => m.id === msgId)) {
+      flashMessage(msgId);
+      return;
+    }
+
+    let doc;
+    try { doc = await db().collection('chatMessages').doc(msgId).get(); }
+    catch (e) { console.error('jumpToMessage fetch failed', e); }
+    if (!doc || !doc.exists) { showToast('Message not found'); return; }
+    const target = doc.data();
+
+    // Thread replies live in the side panel: jump to the parent in the
+    // channel, then open its thread.
+    if (target.threadParentId) {
+      await jumpToMessage(target.threadParentId, target.channelId);
+      _threadParentId = target.threadParentId;
+      subscribeThread(_threadParentId);
+      refreshThreadPanel();
+      return;
+    }
+
+    // Switching channel context for a history jump — no live subscribe.
+    if (target.channelId !== _activeChannelId) {
+      saveDraft();
+      clearTimeout(_typingClearTimer);
+      writeTyping(null);
+      _activeChannelId = target.channelId;
+      _threadParentId = null;
+      _threadMessages = [];
+      if (_unsubThread) { _unsubThread(); _unsubThread = null; }
+      _editingMessageId = null;
+      _selectedMsgId = null;
+      try { localStorage.setItem(_LAST_CHANNEL_LS_KEY, target.channelId); } catch (e) {}
+    }
+
+    await enterHistoryMode(doc);
+  }
+
+  async function enterHistoryMode(targetSnap) {
+    if (_unsubMessages) { _unsubMessages(); _unsubMessages = null; }
+    _feedMode = 'history';
+    _autoScroll = false;
+    const channelId = targetSnap.data().channelId;
+    subscribeChannelReadStates(channelId); // receipts in the window too
+
+    const base = db().collection('chatMessages').where('channelId', '==', channelId);
+    let beforeSnap, afterSnap;
+    try {
+      [beforeSnap, afterSnap] = await Promise.all([
+        base.orderBy('createdAt', 'desc').startAfter(targetSnap).limit(HIST_WINDOW).get(),
+        base.orderBy('createdAt', 'asc').startAfter(targetSnap).limit(HIST_WINDOW).get()
+      ]);
+    } catch (e) {
+      // Most likely the (channelId ASC, createdAt ASC) composite hasn't
+      // finished building — fall back to live mode at the tail.
+      console.error('history window query failed', e);
+      showToast('Could not open message history');
+      transitionToLive(true);
+      return;
+    }
+
+    const before = beforeSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(m => !m.threadParentId).reverse();
+    const after = afterSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(m => !m.threadParentId);
+    _messages = [...before, { id: targetSnap.id, ...targetSnap.data() }, ...after];
+    _oldestLoaded = _messages[0].createdAt;
+    _hasMoreMessages = beforeSnap.docs.length >= HIST_WINDOW;
+    _histNewestLoaded = afterSnap.docs.length
+      ? afterSnap.docs[afterSnap.docs.length - 1] : targetSnap;
+    _histHasNewer = afterSnap.docs.length >= HIST_WINDOW;
+
+    _mainContentKey = null; // force the content slot to rebuild for the new context
+    render();
+    updateHistoryBanner();
+    flashMessage(targetSnap.id, true);
+  }
+
+  async function loadNewerMessages() {
+    if (_feedMode !== 'history' || _loadingNewer || !_histHasNewer || !_histNewestLoaded) return;
+    _loadingNewer = true;
+    renderMessages();
+    let snap;
+    try {
+      snap = await db().collection('chatMessages')
+        .where('channelId', '==', _activeChannelId)
+        .orderBy('createdAt', 'asc')
+        .startAfter(_histNewestLoaded)
+        .limit(MSG_PAGE_SIZE)
+        .get();
+    } catch (e) {
+      console.error('loadNewerMessages failed', e);
+      _loadingNewer = false;
+      transitionToLive(true);
+      return;
+    }
+    const newer = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(m => !m.threadParentId);
+    _messages = [..._messages, ...newer];
+    if (snap.docs.length) _histNewestLoaded = snap.docs[snap.docs.length - 1];
+    _histHasNewer = snap.docs.length >= MSG_PAGE_SIZE;
+    _loadingNewer = false;
+    if (!_histHasNewer) {
+      // Caught the tail — hand back to the live listener (which resets
+      // _messages to the newest page; visually identical at the tail).
+      transitionToLive(false);
+    } else {
+      renderMessages();
+    }
+  }
+
+  function transitionToLive(jumpToLatest) {
+    removeHistoryBanner();
+    _feedMode = 'live';
+    _histNewestLoaded = null;
+    _histHasNewer = false;
+    _loadingNewer = false;
+    subscribeMessages(_activeChannelId); // sets _autoScroll = true
+    if (!jumpToLatest) _autoScroll = true; // at the tail either way
+  }
+
+  function updateHistoryBanner() {
+    removeHistoryBanner();
+    if (_feedMode !== 'history') return;
+    const feed = document.getElementById('chat-feed');
+    if (!feed || !feed.parentElement) return;
+    const btn = document.createElement('button');
+    btn.id = 'chat-history-banner';
+    btn.className = 'chat-history-banner';
+    btn.innerHTML = `Viewing message history &nbsp;·&nbsp; <strong>Jump to latest ↓</strong>`;
+    btn.addEventListener('click', () => transitionToLive(true));
+    feed.parentElement.insertBefore(btn, feed);
+  }
+
+  function removeHistoryBanner() {
+    const b = document.getElementById('chat-history-banner');
+    if (b) b.remove();
+  }
+
+  function flashMessage(msgId, instant) {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`msg-${msgId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'center' });
+      el.classList.add('chat-msg--jump-flash');
+      setTimeout(() => el.classList.remove('chat-msg--jump-flash'), 2000);
+    });
+  }
+
   function subscribeThread(parentId) {
     if (_unsubThread) _unsubThread();
     _threadMessages = [];
@@ -482,16 +1148,9 @@ window.McgheeLab = window.McgheeLab || {};
         _threadMessages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderThread();
       }, err => {
+        // The (threadParentId ASC, createdAt ASC) composite index ships
+        // with V3.507 — the old unordered fallback branch is gone.
         console.error('Thread listener error:', err);
-        // Fallback without orderBy
-        if (_unsubThread) _unsubThread();
-        _unsubThread = db().collection('chatMessages')
-          .where('threadParentId', '==', parentId)
-          .onSnapshot(snap => {
-            _threadMessages = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-              .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
-            renderThread();
-          });
       });
   }
 
@@ -520,6 +1179,8 @@ window.McgheeLab = window.McgheeLab || {};
 
   function selectChannel(channelId) {
     saveDraft(); // Save draft for current channel before switching
+    clearTimeout(_typingClearTimer);
+    writeTyping(null); // R5 — don't stay "typing" in the channel we left
     _activeChannelId = channelId;
     _threadParentId = null;
     _threadMessages = [];
@@ -566,60 +1227,27 @@ window.McgheeLab = window.McgheeLab || {};
       threadReplyCount: 0,
       threadLastReplyAt: null,
       reactions: {},
-      readBy: [_user.uid],
       editedAt: null,
       deleted: false,
       pinned: false,
+      // R2 (server fan-out): tells functions/chat.js's onCreate trigger
+      // that THIS client does no secondary writes — the function owns
+      // mention-badge increments + channel/thread counters. Messages
+      // without the flag (stale clients) keep their client-side writes
+      // and the function skips them, so no double counting either way.
+      fanout: 'v2',
       createdAt: TS()
     };
 
+    // Send = ONE round trip. The channel lastMessage/messageCount bump,
+    // thread parent reply counter, and mention fan-out (previously a
+    // get+update loop over every mentioned user — @channel hit EVERY
+    // lab user) all moved into onChatMessageCreate.
     const ref = await db().collection('chatMessages').add(msgData);
 
     // Clear draft for this channel after successful send
     delete _drafts[_activeChannelId];
     localStorage.setItem('chat-drafts', JSON.stringify(_drafts));
-
-    // Update channel lastMessage
-    if (!threadParentId) {
-      await db().collection('chatChannels').doc(_activeChannelId).update({
-        lastMessage: {
-          text: file ? `📎 ${file.name}` : text.trim().substring(0, 100),
-          authorName: msgData.authorName,
-          authorUid: _user.uid,
-          timestamp: TS()
-        },
-        lastActivityAt: TS(),
-        messageCount: firebase.firestore.FieldValue.increment(1)
-      });
-    }
-
-    // Update thread parent if this is a reply
-    if (threadParentId) {
-      const parentRef = db().collection('chatMessages').doc(threadParentId);
-      const parentSnap = await parentRef.get();
-      if (parentSnap.exists) {
-        const count = (parentSnap.data().threadReplyCount || 0) + 1;
-        await parentRef.update({
-          threadReplyCount: count,
-          threadLastReplyAt: TS()
-        });
-      }
-    }
-
-    // Increment mention counts for mentioned users
-    if (mentions.length > 0 || mentionsChannel) {
-      const targetUids = mentionsChannel
-        ? _allUsers.map(u => u.uid).filter(uid => uid !== _user.uid)
-        : mentions.filter(uid => uid !== _user.uid);
-      for (const uid of targetUids) {
-        const stateId = `${uid}_${_activeChannelId}`;
-        const stateRef = db().collection('chatReadState').doc(stateId);
-        const stateSnap = await stateRef.get();
-        if (stateSnap.exists) {
-          await stateRef.update({ mentionCount: firebase.firestore.FieldValue.increment(1) });
-        }
-      }
-    }
 
     return ref;
   }
@@ -631,6 +1259,7 @@ window.McgheeLab = window.McgheeLab || {};
     });
     _editingMessageId = null;
     renderMessages();
+    renderThread(); // exits edit mode when the message lives in the thread panel
   }
 
   async function deleteMessage(messageId) {
@@ -687,6 +1316,7 @@ window.McgheeLab = window.McgheeLab || {};
       lastActivityAt: TS(),
       memberCount: 1,
       messageCount: 0,
+      subscriberUids: [], // filled by subscribeToChannel below
       createdAt: TS()
     });
 
@@ -733,17 +1363,14 @@ window.McgheeLab = window.McgheeLab || {};
       createdAt: TS()
     });
 
-    // Subscribe all members
-    for (const uid of memberUids) {
-      const metaRef = db().collection('chatUserMeta').doc(uid);
-      const metaSnap = await metaRef.get();
-      if (metaSnap.exists) {
-        await metaRef.update({
-          subscribedChannels: ARR_UNION(ref.id),
-          dmChannelIds: ARR_UNION(ref.id)
-        });
-      }
-    }
+    // Subscribe SELF only — chatUserMeta is owner-only in rules, so the
+    // old loop's cross-user get/update always failed for other members.
+    // Each other member adopts the DM via healDmMemberships() when their
+    // own channels snapshot delivers it (R4).
+    await db().collection('chatUserMeta').doc(_user.uid).update({
+      subscribedChannels: ARR_UNION(ref.id),
+      dmChannelIds: ARR_UNION(ref.id)
+    });
 
     // Update local meta
     if (!_userMeta.dmChannelIds) _userMeta.dmChannelIds = [];
@@ -770,11 +1397,14 @@ window.McgheeLab = window.McgheeLab || {};
       sidebarLayout: _userMeta.sidebarLayout
     });
 
-    // Increment member count
+    // Increment member count + join the channel's authoritative
+    // subscriber list (R2 — the Cloud Function reads subscriberUids to
+    // target notifications/mentions instead of scanning chatUserMeta).
     const ch = _channels.find(c => c.id === channelId);
     if (ch) {
       await db().collection('chatChannels').doc(channelId).update({
-        memberCount: firebase.firestore.FieldValue.increment(1)
+        memberCount: firebase.firestore.FieldValue.increment(1),
+        subscriberUids: ARR_UNION(_user.uid)
       });
     }
 
@@ -795,13 +1425,15 @@ window.McgheeLab = window.McgheeLab || {};
     });
 
     await db().collection('chatChannels').doc(channelId).update({
-      memberCount: firebase.firestore.FieldValue.increment(-1)
+      memberCount: firebase.firestore.FieldValue.increment(-1),
+      subscriberUids: ARR_REMOVE(_user.uid)
     });
 
     renderSidebar();
   }
 
   async function markChannelRead(channelId) {
+    if (_feedMode !== 'live') return; // history windows never mark read
     const stateId = `${_user.uid}_${channelId}`;
     const ch = _channels.find(c => c.id === channelId);
     const currentCount = ch?.messageCount || 0;
@@ -813,24 +1445,11 @@ window.McgheeLab = window.McgheeLab || {};
       readMessageCount: currentCount,
       mentionCount: 0
     }, { merge: true });
-
-    // Update read receipts on recent messages
-    updateReadReceipts(channelId);
-  }
-
-  async function updateReadReceipts(channelId) {
-    const recent = _messages.slice(-READ_RECEIPT_BATCH);
-    const batch = db().batch();
-    let count = 0;
-    for (const msg of recent) {
-      if (!msg.readBy || !msg.readBy.includes(_user.uid)) {
-        batch.update(db().collection('chatMessages').doc(msg.id), {
-          readBy: ARR_UNION(_user.uid)
-        });
-        count++;
-      }
-    }
-    if (count > 0) await batch.commit();
+    // R7 — that single write above IS the read receipt now. The old
+    // updateReadReceipts() batch (readBy arrayUnion on up to 20 message
+    // docs, per user, per channel open) is gone; receipts derive from
+    // lastReadAt via getSeenByUids(). Historical readBy arrays are
+    // simply ignored — no migration.
   }
 
   async function saveConfig(updates) {
@@ -973,16 +1592,96 @@ window.McgheeLab = window.McgheeLab || {};
   }
 
   /* ═══════════════════════════════════════════════════════════
-     SEARCH
+     SEARCH (R6 — progressive full-history scan)
+     The old search only substring-filtered the ≤50 loaded messages.
+     This pages backward through chatMessages (200/batch, existing
+     indexes: channel scope uses (channelId, createdAt DESC); all-
+     channels is a plain orderBy), filters client-side, streams results
+     into the modal, and caches scanned docs per scope so refining the
+     query re-filters without re-reading. A full 2,000-message channel
+     scan costs ~$0.001 — the right trade at lab scale vs. maintaining
+     a keyword index on every write.
      ═══════════════════════════════════════════════════════════ */
-  function searchMessages(query) {
-    if (!query.trim()) return _messages;
-    const q = query.toLowerCase();
-    return _messages.filter(m =>
-      (m.text || '').toLowerCase().includes(q) ||
+  const SEARCH_BATCH = 200;
+  const SEARCH_TARGET_RESULTS = 20;
+  const SEARCH_MAX_DOCS_PER_RUN = 2000;
+
+  function messageMatches(m, q) {
+    return (m.text || '').toLowerCase().includes(q) ||
       (m.authorName || '').toLowerCase().includes(q) ||
-      (m.file && m.file.name && m.file.name.toLowerCase().includes(q))
-    );
+      (m.file && m.file.name && m.file.name.toLowerCase().includes(q));
+  }
+
+  function searchCacheFor(scope) {
+    const channelKey = scope === 'channel' ? _activeChannelId : '*';
+    if (_searchCache.scope !== scope || _searchCache.channelKey !== channelKey) {
+      _searchCache = { scope, channelKey, docs: [], cursorSnap: null, exhausted: false };
+    }
+    return _searchCache;
+  }
+
+  async function runProgressiveSearch(query, extend) {
+    const gen = ++_searchScanGen;
+    const q = (query || '').trim().toLowerCase();
+    if (!q) { renderSearchResults([], '', false); return; }
+    const cache = searchCacheFor(_searchScope);
+    const results = cache.docs.filter(m => messageMatches(m, q));
+    const target = extend ? results.length + SEARCH_TARGET_RESULTS
+      : Math.max(results.length, SEARCH_TARGET_RESULTS);
+    renderSearchResults(results, `Searched ${cache.docs.length} messages · ${results.length} results…`, !cache.exhausted);
+
+    let scanned = 0;
+    while (gen === _searchScanGen && !cache.exhausted
+           && results.length < target && scanned < SEARCH_MAX_DOCS_PER_RUN) {
+      let ref = db().collection('chatMessages');
+      if (_searchScope === 'channel') ref = ref.where('channelId', '==', _activeChannelId);
+      ref = ref.orderBy('createdAt', 'desc');
+      if (cache.cursorSnap) ref = ref.startAfter(cache.cursorSnap);
+      let snap;
+      try { snap = await ref.limit(SEARCH_BATCH).get(); }
+      catch (e) { console.error('search batch failed', e); break; }
+      if (gen !== _searchScanGen) return; // superseded by a newer keystroke
+      if (snap.docs.length) cache.cursorSnap = snap.docs[snap.docs.length - 1];
+      if (snap.docs.length < SEARCH_BATCH) cache.exhausted = true;
+      const batch = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      cache.docs.push(...batch);
+      scanned += batch.length;
+      results.push(...batch.filter(m => messageMatches(m, q)));
+      renderSearchResults(results, `Searched ${cache.docs.length} messages · ${results.length} results…`, !cache.exhausted);
+    }
+    if (gen === _searchScanGen) {
+      const n = results.length;
+      renderSearchResults(results,
+        `Searched ${cache.docs.length} messages · ${n} result${n === 1 ? '' : 's'}${cache.exhausted ? ' · full history' : ''}`,
+        !cache.exhausted);
+    }
+  }
+
+  function renderSearchResults(results, status, hasMore) {
+    const statusEl = document.getElementById('chat-search-status');
+    if (statusEl) statusEl.textContent = status;
+    const container = document.getElementById('chat-search-results');
+    if (!container) return;
+    const rows = results.map(m => {
+      const ch = _channels.find(c => c.id === m.channelId);
+      const chName = ch ? (ch.type === 'dm' ? getDMDisplayName(ch) : '#' + (ch.displayName || ch.name)) : '';
+      const d = tsToDate(m.createdAt);
+      const abs = d
+        ? d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + formatClockTime(m.createdAt)
+        : '';
+      return `<div class="chat-search-result" data-goto-msg="${m.id}" data-goto-channel="${escHTML(m.channelId || '')}">
+        <div class="chat-search-result-meta">
+          <span class="chat-msg-author">${escHTML(m.authorName)}</span>
+          ${chName ? `<span class="chat-search-result-channel">${escHTML(chName)}</span>` : ''}
+          <span class="chat-msg-time">${abs}</span>
+        </div>
+        <div class="chat-msg-text">${parseMarkdown(m.text)}</div>
+      </div>`;
+    }).join('');
+    container.innerHTML = `
+      ${results.length === 0 && _searchQuery.trim() ? `<p class="chat-muted">No results${hasMore ? ' yet' : ''}.</p>` : ''}
+      ${rows}
+      ${hasMore && _searchQuery.trim() ? '<button class="chat-load-more" id="chat-search-older">Search older messages</button>' : ''}`;
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -991,63 +1690,312 @@ window.McgheeLab = window.McgheeLab || {};
   // Desktop view tab: which panel the main area shows
   let _desktopView = 'chat'; // 'chat' | 'files'
 
-  function render() {
-    if (typeof McgheeLab !== 'undefined' && McgheeLab.MobileShell?.saveTabScroll) McgheeLab.MobileShell.saveTabScroll('chat-tab-bar');
-    const channel = _channels.find(c => c.id === _activeChannelId);
-    if (typeof McgheeLab !== 'undefined' && McgheeLab.MobileShell?.getHandPreference) {
-      document.body.dataset.hand = McgheeLab.MobileShell.getHandPreference();
-    }
-
-    if (isMobile()) {
+  /* V3.503 — incremental rendering. renderShell() mounts the stable
+   * skeleton once per layout mode; render() only refreshes region
+   * contents. All clicks are handled by ONE delegated listener
+   * (wireDelegatedClicks), so updaters never re-wire click handlers —
+   * only region-scoped non-click wiring (inputs, drag-drop, scroll)
+   * re-attaches when its region rebuilds. Slot wrappers use
+   * `display: contents` (.chat-slot) so the CSS layout tree is
+   * unchanged from the pre-shell markup. */
+  function renderShell() {
+    _shellMode = isMobile() ? 'mobile' : 'desktop';
+    _mainContentKey = null;
+    if (_shellMode === 'mobile') {
       // V3.86 — in embed mode (rendering inside a shell popout), skip
       // the page-title top bar and the cross-app bottom bar; they're
       // designed for full-screen mobile and just steal vertical space.
-      // The popout's own header chrome handles "what is this" + close.
       appEl.innerHTML = `
-        ${_IS_EMBED ? '' : renderMobileTopBarHTML()}
+        <div id="chat-mobile-topbar-slot" class="chat-slot"></div>
         <nav class="chat-tab-bar" id="chat-tab-bar">
           ${['overview','chat','files','search'].map(t =>
-            `<button class="chat-tab${_mobileTab === t ? ' chat-tab--active' : ''}" data-chat-tab="${t}">${({overview:'Overview',chat:'Chat',files:'Files',search:'Search'})[t]}</button>`
+            `<button class="chat-tab" data-chat-tab="${t}">${({overview:'Overview',chat:'Chat',files:'Files',search:'Search'})[t]}</button>`
           ).join('')}
         </nav>
-        <div class="chat-layout">
-          ${renderMobileTabContent(channel)}
-        </div>
-        ${_IS_EMBED ? '' : renderMobileBottomBarHTML()}
-        ${_mobileHamburgerOpen ? renderMobileHamburgerMenuHTML() : ''}
-        ${renderModals()}
+        <div id="chat-callring-slot" class="chat-slot"></div>
+        <div class="chat-layout" id="chat-mobile-content"></div>
+        <div id="chat-mobile-bottombar-slot" class="chat-slot"></div>
+        <div id="chat-hamburger-slot" class="chat-slot"></div>
+        <div id="chat-modal-root" class="chat-slot"></div>
       `;
     } else {
       // Classic desktop: sidebar + main + thread
       appEl.innerHTML = `
-        <div class="chat-layout${_mobileSidebarOpen ? ' chat-sidebar-open' : ''}">
+        <div class="chat-layout" id="chat-layout">
           <div class="chat-sidebar-overlay" id="chat-sidebar-overlay"></div>
-          <aside class="chat-sidebar" id="chat-sidebar">
-            ${renderSidebarHTML()}
-          </aside>
+          <aside class="chat-sidebar" id="chat-sidebar"></aside>
           <section class="chat-main">
-            ${renderHeaderHTML(channel)}
-            ${renderDesktopViewTabs()}
-            ${_desktopView === 'chat' ? `
-              <div class="chat-feed" id="chat-feed">
-                ${_messages.length === 0 ? '<div class="chat-empty">No messages yet. Start the conversation!</div>' : ''}
-                ${_hasMoreMessages ? '<button class="chat-load-more" id="chat-load-more">Load older messages</button>' : ''}
-                ${_loadingOlder ? '<div class="chat-loading">Loading...</div>' : ''}
-                ${renderMessagesHTML()}
-              </div>
-              ${renderInputAreaHTML()}
-            ` : ''}
-            ${_desktopView === 'pinned' ? renderPinnedPageHTML() : ''}
-            ${_desktopView === 'files' ? renderFilesTabHTML() : ''}
+            <div class="chat-sticky-top">
+              <div id="chat-callring-slot" class="chat-slot"></div>
+              <div id="chat-header-slot" class="chat-slot"></div>
+              <div id="chat-view-tabs-slot" class="chat-slot"></div>
+            </div>
+            <div id="chat-content-slot" class="chat-slot"></div>
           </section>
-          ${_threadParentId ? renderThreadHTML() : ''}
+          <div id="chat-thread-slot" class="chat-slot"></div>
         </div>
-        ${renderModals()}
+        <div id="chat-modal-root" class="chat-slot"></div>
       `;
     }
-    wireAll();
+  }
+
+  function render() {
+    if (typeof McgheeLab !== 'undefined' && McgheeLab.MobileShell?.saveTabScroll) McgheeLab.MobileShell.saveTabScroll('chat-tab-bar');
+    if (typeof McgheeLab !== 'undefined' && McgheeLab.MobileShell?.getHandPreference) {
+      document.body.dataset.hand = McgheeLab.MobileShell.getHandPreference();
+    }
+    const mode = isMobile() ? 'mobile' : 'desktop';
+    if (mode !== _shellMode) renderShell();
+    const channel = _channels.find(c => c.id === _activeChannelId);
+
+    if (mode === 'mobile') {
+      updateMobileTopBar();
+      updateMobileTabBar();
+      updateMobileContent(channel);
+      updateMobileBottomBar();
+      updateHamburger();
+    } else {
+      const layoutEl = document.getElementById('chat-layout');
+      if (layoutEl) layoutEl.classList.toggle('chat-sidebar-open', _mobileSidebarOpen);
+      renderSidebar();
+      updateHeader(channel);
+      updateViewTabs();
+      updateMainContent();
+      updateThread();
+    }
+    updateCallRing();
+    updateModals();
+    updatePresenceUI();
+    updateStickyOffsets();
     notifyResize();
     requestNotificationPermission();
+    // V3.599 — LAST, not first: isWatchingFeed() reads _shellMode, which
+    // renderShell() assigns partway through this function. Publishing at the
+    // top read a stale/null _shellMode on the first render of a mount.
+    // Every state change that can flip isWatchingFeed() re-renders, and
+    // setContext dedupes, so this one call covers all of them.
+    publishPresenceContext();
+  }
+
+  /* Sticky chat chrome (Alex request) — the channel header + view tabs
+   * (desktop) / tab bar + channel header (mobile) pin below RM's sticky
+   * .top-nav while the DOCUMENT scrolls (the page's real scroller, see
+   * pinFeedToBottom). Offsets are measured, not hardcoded: the nav is
+   * absent in embed popouts and its height shifts across breakpoints.
+   * --chat-chrome-b = bottom edge of all pinned chrome, used by the
+   * date separators + history banner so they stack beneath it. */
+  function updateStickyOffsets() {
+    const navH = document.querySelector('.top-nav')?.offsetHeight || 0;
+    const tabH = document.getElementById('chat-tab-bar')?.offsetHeight || 0;
+    const style = document.documentElement.style;
+    style.setProperty('--chat-nav-h', navH + 'px');
+    style.setProperty('--chat-nav-tab-h', (navH + tabH) + 'px');
+    const chromeBottom = _shellMode === 'mobile'
+      ? navH + tabH + (appEl.querySelector('.chat-main .chat-header')?.offsetHeight || 0)
+      : navH + (appEl.querySelector('.chat-sticky-top')?.offsetHeight || 0);
+    style.setProperty('--chat-chrome-b', chromeBottom + 'px');
+  }
+
+  /* ── Desktop region updaters ── */
+  function updateHeader(channel) {
+    const slot = document.getElementById('chat-header-slot');
+    if (!slot) return;
+    const ch = channel !== undefined ? channel : _channels.find(c => c.id === _activeChannelId);
+    slot.innerHTML = renderHeaderHTML(ch);
+  }
+
+  /* ── Incoming-call banner (V3.584) ──
+   * The answer surface for a voice call: inline bar pinned with the chat
+   * chrome (desktop sticky-top / above mobile content) with Join +
+   * Decline. Pulses ("ringing") for the first RING window of a call,
+   * then calms to a "call in progress" bar. VOICE_CALL owns which calls
+   * are answerable (excludes own/joined/declined/dismissed); chat owns
+   * membership — only ring for DMs I'm in / channels I subscribe to,
+   * mirroring who the FCM push targets. */
+  const CALL_RING_MS = 60000;
+  let _callRingTimer = null;
+  const _onVoiceCallChange = () => { updateHeader(); updateCallRing(); };
+
+  /* Who the call's audience is — the SAME split functions/chat.js uses for
+     push (DM: members[], channel: subscriberUids[]). Passed to
+     VOICE_CALL.open so the call doc carries `memberUids`, which
+     firestore.rules uses to scope the active-call watcher query. */
+  function callMemberUids(ch) {
+    if (!ch) return [];
+    if (ch.type === 'dm') return (ch.members || []).slice();
+    if (Array.isArray(ch.subscriberUids)) return ch.subscriberUids.slice();
+    return (_userMeta?.subscribedChannels || []).includes(ch.id) && _user
+      ? [_user.uid] : [];
+  }
+
+  function amRecipientOfCall(call) {
+    const ch = _channels.find(c => c.id === call.id);
+    if (!ch || !_user) return false;
+    if (ch.type === 'dm') return (ch.members || []).includes(_user.uid);
+    if (Array.isArray(ch.subscriberUids)) return ch.subscriberUids.includes(_user.uid);
+    return (_userMeta?.subscribedChannels || []).includes(ch.id);
+  }
+
+  function channelLabelFor(channelId, call) {
+    const ch = _channels.find(c => c.id === channelId);
+    if (ch) return ch.type === 'dm' ? getDMDisplayName(ch) : `#${ch.displayName || ch.name}`;
+    return (call && call.channelName) || channelId;
+  }
+
+  function renderCallRingHTML() {
+    if (!window.VOICE_CALL?.getIncomingCalls) return '';
+    const calls = VOICE_CALL.getIncomingCalls().filter(amRecipientOfCall);
+    return calls.map(call => {
+      const startMs = call.startedAt?.toMillis ? call.startedAt.toMillis() : Date.now();
+      const ringing = Date.now() - startMs < CALL_RING_MS;
+      const label = channelLabelFor(call.id, call);
+      return `<div class="chat-callring${ringing ? ' chat-callring--ringing' : ''}">
+        <span class="chat-callring-icon">📞</span>
+        <span class="chat-callring-text"><strong>${escHTML(call.startedByName || 'Someone')}</strong>
+          ${ringing ? 'is calling' : 'started a call'} · <strong>${escHTML(label)}</strong></span>
+        <span class="chat-callring-actions">
+          <button class="chat-callring-btn chat-callring-btn--join" data-vc-ring-join="${escHTML(call.id)}">Join</button>
+          <button class="chat-callring-btn chat-callring-btn--decline" data-vc-ring-decline="${escHTML(call.id)}">Decline</button>
+        </span>
+      </div>`;
+    }).join('');
+  }
+
+  function updateCallRing() {
+    const slot = document.getElementById('chat-callring-slot');
+    if (!slot) return;
+    slot.innerHTML = renderCallRingHTML();
+    updateStickyOffsets(); // banner changes the pinned-chrome height
+
+    // One re-render at the moment the newest ringing banner calms down.
+    clearTimeout(_callRingTimer);
+    _callRingTimer = null;
+    if (window.VOICE_CALL?.getIncomingCalls) {
+      const now = Date.now();
+      const remaining = VOICE_CALL.getIncomingCalls().filter(amRecipientOfCall)
+        .map(c => (c.startedAt?.toMillis ? c.startedAt.toMillis() : now) + CALL_RING_MS - now)
+        .filter(ms => ms > 0);
+      if (remaining.length) {
+        _callRingTimer = setTimeout(updateCallRing, Math.max(...remaining) + 250);
+      }
+    }
+  }
+
+  function updateViewTabs() {
+    const slot = document.getElementById('chat-view-tabs-slot');
+    if (slot) slot.innerHTML = renderDesktopViewTabs();
+  }
+
+  function updateMainContent() {
+    const slot = document.getElementById('chat-content-slot');
+    if (!slot) return;
+    const key = `${_desktopView}:${_activeChannelId}`;
+    if (key === _mainContentKey) {
+      // Same view + channel — refresh contents in place (keeps scroll,
+      // composer focus + text).
+      if (_desktopView === 'chat') { renderMessages(); renderInputArea(); }
+      else if (_desktopView === 'pinned') slot.innerHTML = renderPinnedPageHTML();
+      else if (_desktopView === 'files') slot.innerHTML = renderFilesTabHTML();
+      return;
+    }
+    _mainContentKey = key;
+    if (_desktopView === 'chat') {
+      slot.innerHTML = `
+        <div class="chat-feed" id="chat-feed"></div>
+        <div class="chat-typing-row" id="chat-typing-row"></div>
+        ${renderInputAreaHTML()}`;
+      renderMessages();
+      wireInput();
+      wireFeedScroll();
+      wireFileDrop();
+      updateTypingRow();
+      if (_autoScroll) scrollToBottom();
+    } else if (_desktopView === 'pinned') {
+      slot.innerHTML = renderPinnedPageHTML();
+    } else {
+      slot.innerHTML = renderFilesTabHTML();
+    }
+  }
+
+  function updateThread() {
+    const slot = document.getElementById('chat-thread-slot');
+    if (!slot) return;
+    const html = _threadParentId ? renderThreadHTML() : '';
+    slot.innerHTML = html;
+    if (html) {
+      wireThreadInput();
+      const feed = document.getElementById('chat-thread-feed');
+      if (feed) feed.scrollTop = feed.scrollHeight;
+    }
+  }
+
+  // Thread lives in the desktop slot OR inside the mobile chat tab —
+  // route the refresh to whichever shell is mounted. Desktop gets a
+  // targeted slot update (feed scroll untouched — no save/restore hack).
+  function refreshThreadPanel() {
+    if (_shellMode === 'mobile') updateMobileContent();
+    else updateThread();
+  }
+
+  /* ── Mobile region updaters ── */
+  function updateMobileTopBar() {
+    const slot = document.getElementById('chat-mobile-topbar-slot');
+    if (slot) slot.innerHTML = _IS_EMBED ? '' : renderMobileTopBarHTML();
+  }
+
+  function updateMobileTabBar() {
+    const bar = document.getElementById('chat-tab-bar');
+    if (!bar) return;
+    bar.querySelectorAll('[data-chat-tab]').forEach(btn => {
+      btn.classList.toggle('chat-tab--active', btn.dataset.chatTab === _mobileTab);
+    });
+    if (McgheeLab.MobileShell?.centerActiveTab) {
+      McgheeLab.MobileShell.centerActiveTab(bar, '.chat-tab--active');
+    }
+  }
+
+  function updateMobileContent(channel) {
+    const slot = document.getElementById('chat-mobile-content');
+    if (!slot) return;
+    const ch = channel !== undefined ? channel : _channels.find(c => c.id === _activeChannelId);
+    // Preserve scroll when re-rendering the chat tab in place (e.g.
+    // opening/closing a thread). V3.522: the DOCUMENT is the real
+    // scroller, so capture/restore the page position, not the feed's.
+    const oldFeed = document.getElementById('chat-feed');
+    const keep = (_mobileTab === 'chat' && oldFeed)
+      ? { top: pageScroller().scrollTop, auto: _autoScroll } : null;
+    slot.innerHTML = renderMobileTabContent(ch);
+    if (_mobileTab === 'chat') {
+      wireInput();
+      wireFeedScroll();
+      wireFileDrop();
+      wireThreadInput();
+      updateTypingRow();
+      const feed = document.getElementById('chat-feed');
+      if (feed) {
+        _isRendering = true;
+        if (keep && !keep.auto) pageScroller().scrollTop = keep.top;
+        else pinFeedToBottom();
+        _isRendering = false;
+      }
+    }
+  }
+
+  function updateMobileBottomBar() {
+    const slot = document.getElementById('chat-mobile-bottombar-slot');
+    if (slot) slot.innerHTML = _IS_EMBED ? '' : renderMobileBottomBarHTML();
+  }
+
+  function updateHamburger() {
+    const slot = document.getElementById('chat-hamburger-slot');
+    if (slot) slot.innerHTML = _mobileHamburgerOpen ? renderMobileHamburgerMenuHTML() : '';
+  }
+
+  function updateModals() {
+    const root = document.getElementById('chat-modal-root');
+    if (!root) return;
+    root.innerHTML = renderModals();
+    wireModalsNonClick();
   }
 
   function renderModals() {
@@ -1055,10 +2003,11 @@ window.McgheeLab = window.McgheeLab || {};
       ${_showChannelDirectory ? renderChannelDirectoryHTML() : ''}
       ${_showCreateChannel ? renderCreateChannelHTML() : ''}
       ${_showSettings ? renderSettingsHTML() : ''}
-      ${_showSearch ? renderSearchHTML() : ''}
+      ${(_showSearch && !isMobile()) ? renderSearchHTML() : ''}
       ${_showNewDM ? renderNewDMHTML() : ''}
       ${_showManageContacts ? renderManageContactsHTML() : ''}
-      ${_showSeenBy ? renderSeenByHTML() : ''}`;
+      ${_showSeenBy ? renderSeenByHTML() : ''}
+      ${_showImport ? renderImportHTML() : ''}`;
   }
 
   function renderDesktopViewTabs() {
@@ -1091,6 +2040,7 @@ window.McgheeLab = window.McgheeLab || {};
                 ${_loadingOlder ? '<div class="chat-loading">Loading...</div>' : ''}
                 ${renderMessagesHTML()}
               </div>
+              <div class="chat-typing-row" id="chat-typing-row"></div>
               ${renderInputAreaHTML()}
             `}
           </section>
@@ -1098,10 +2048,18 @@ window.McgheeLab = window.McgheeLab || {};
       case 'files':
         return renderFilesTabHTML();
       case 'search':
-        return `<section class="chat-main" style="display:flex;flex:1;flex-direction:column">
-          <div class="chat-feed" id="chat-feed">
-            <div class="chat-empty">Use the search modal to find messages.</div>
+        // V3.569 — inline search in the tab (no modal). Uses the same ids
+        // the search logic binds (chat-search-input / -status / -results).
+        return `<section class="chat-main chat-mobile-search" style="display:flex;flex:1;flex-direction:column">
+          <div class="chat-search-controls">
+            <input class="app-input" id="chat-search-input" placeholder="Search all history…" value="${escHTML(_searchQuery)}" />
+            <div class="chat-search-scope">
+              <button class="chat-search-scope-btn${_searchScope === 'channel' ? ' chat-search-scope-btn--active' : ''}" data-search-scope="channel">This channel</button>
+              <button class="chat-search-scope-btn${_searchScope === 'all' ? ' chat-search-scope-btn--active' : ''}" data-search-scope="all">All channels</button>
+            </div>
           </div>
+          <div class="chat-search-status" id="chat-search-status"></div>
+          <div class="chat-search-results" id="chat-search-results"></div>
         </section>`;
       default:
         return '';
@@ -1188,33 +2146,42 @@ window.McgheeLab = window.McgheeLab || {};
       ${svgGrid()} Browse All Channels
     </button>`;
 
-    // DMs section — user-managed contact groups
-    const contacts = _userMeta.dmContacts || [];
-    const dmIds = _userMeta.dmChannelIds || [];
+    // DMs section — user-managed contact groups (alumni auto-sorted
+    // out into their own collapsed section at render time)
+    const { groups: contactGroups, alumni: alumniUids } = splitContactsForRender();
+    const hasAnyContacts = contactGroups.some(g => g.uids.length > 0) || alumniUids.length > 0;
     html += `<div class="chat-sidebar-section-header">
       <span>People</span>
       <button class="chat-icon-btn chat-icon-btn--sm" id="chat-manage-contacts-btn" title="Manage contacts">${svgEdit()}</button>
     </div>`;
 
-    if (contacts.length > 0) {
-      for (let gi = 0; gi < contacts.length; gi++) {
-        const group = contacts[gi];
+    const renderDmItemHTML = (uid) => {
+      const u = _allUsers.find(a => a.uid === uid);
+      if (!u) return '';
+      const name = u.name || u.displayName || u.email;
+      // Find existing DM channel for unread badge
+      const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
+      const active = dmCh && dmCh.id === _activeChannelId ? ' chat-sidebar-item--active' : '';
+      const unread = dmCh ? getUnreadCount(dmCh.id) : 0;
+      const photo = u.photo?.thumb;
+      return `<div class="chat-sidebar-item${active}" data-dm-contact="${uid}">
+        <span class="chat-avatar-wrap">${photo ? `<img class="chat-dm-avatar" src="${escHTML(photo)}" alt="" />` : `<span class="chat-dm-avatar">${getInitials(name)}</span>`}${renderPresenceDotHTML(uid)}</span>
+        <span class="chat-sidebar-item-name">${escHTML(name)}</span>
+        ${unread > 0 ? `<span class="chat-sidebar-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+      </div>`;
+    };
+
+    if (hasAnyContacts) {
+      for (const group of contactGroups) {
+        if (group.uids.length === 0) continue; // e.g. everyone in it is alumni now
         html += `<div class="chat-sidebar-dm-category">${escHTML(group.groupName)}</div>`;
-        for (const uid of (group.uids || [])) {
-          const u = _allUsers.find(a => a.uid === uid);
-          if (!u) continue;
-          const name = u.name || u.displayName || u.email;
-          // Find existing DM channel for unread badge
-          const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
-          const active = dmCh && dmCh.id === _activeChannelId ? ' chat-sidebar-item--active' : '';
-          const unread = dmCh ? getUnreadCount(dmCh.id) : 0;
-          const photo = u.photo?.thumb;
-          html += `<div class="chat-sidebar-item${active}" data-dm-contact="${uid}">
-            ${photo ? `<img class="chat-dm-avatar" src="${escHTML(photo)}" alt="" />` : `<span class="chat-dm-avatar">${getInitials(name)}</span>`}
-            <span class="chat-sidebar-item-name">${escHTML(name)}</span>
-            ${unread > 0 ? `<span class="chat-sidebar-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
-          </div>`;
-        }
+        html += group.uids.map(renderDmItemHTML).join('');
+      }
+      if (alumniUids.length > 0) {
+        html += `<details class="chat-sidebar-alumni">
+          <summary class="chat-sidebar-dm-category">Alumni (${alumniUids.length})</summary>
+          ${alumniUids.map(renderDmItemHTML).join('')}
+        </details>`;
       }
     } else {
       html += `<div class="chat-sidebar-empty">Click ${svgEdit()} to add people</div>`;
@@ -1230,7 +2197,8 @@ window.McgheeLab = window.McgheeLab || {};
     const el = document.getElementById('chat-sidebar');
     if (!el) return;
     el.innerHTML = renderSidebarHTML();
-    wireSidebar();
+    wireSidebarNonClick();
+    updatePresenceUI();
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1244,14 +2212,22 @@ window.McgheeLab = window.McgheeLab || {};
     const subscribed = _userMeta?.subscribedChannels?.includes(channel.id);
     const pinnedCount = _messages.filter(m => m.pinned).length;
 
+    const dmOther = isDM ? getDMOtherUser(channel) : null;
     return `<div class="chat-header">
       <button class="chat-hamburger" id="chat-hamburger">${svgMenu()}</button>
       <div class="chat-header-info">
-        <h2 class="chat-header-name">${escHTML(name)}</h2>
+        <h2 class="chat-header-name">${dmOther ? renderPresenceDotHTML(dmOther.uid, true) : ''}${escHTML(name)}</h2>
         ${desc ? `<span class="chat-header-desc">${escHTML(desc)}</span>` : ''}
       </div>
       <div class="chat-header-actions">
         ${pinnedCount > 0 ? `<button class="chat-icon-btn" id="chat-pinned-btn" title="Pinned (${pinnedCount})">${svgPin()} <span class="chat-pin-count">${pinnedCount}</span></button>` : ''}
+        ${(() => {
+          const live = !!window.VOICE_CALL?.getActiveCall?.(channel.id);
+          const inIt = window.VOICE_CALL?.currentChannelId?.() === channel.id;
+          const title = inIt ? 'You\'re in this call' : live ? 'Join the call in progress' : 'Start a voice call';
+          return `<button class="chat-icon-btn${live ? ' chat-call-btn--live' : ''}" id="chat-call-btn" title="${title}">📞</button>`;
+        })()}
+        ${canImportHistory(channel) ? `<button class="chat-icon-btn" id="chat-import-btn" title="Import Slack history">📥</button>` : ''}
         <button class="chat-icon-btn" id="chat-header-search" title="Search">${svgSearch()}</button>
         ${!isDM ? `<button class="chat-sub-toggle${subscribed ? ' chat-sub-toggle--active' : ''}" id="chat-sub-toggle" title="${subscribed ? 'Unsubscribe from notifications' : 'Subscribe for notifications'}">
           ${subscribed ? svgBellOn() : svgBellOff()}
@@ -1265,23 +2241,39 @@ window.McgheeLab = window.McgheeLab || {};
      RENDERING — Messages
      ═══════════════════════════════════════════════════════════ */
   function renderMessagesHTML() {
-    const msgs = _showSearch && _searchQuery ? searchMessages(_searchQuery) : _messages;
+    const msgs = _messages; // R6: search results live in the modal only
     // Find the last message authored by current user (for read receipt eyeball)
     let lastOwnMsgId = null;
     for (let i = msgs.length - 1; i >= 0; i--) {
       if (msgs[i].authorUid === _user.uid) { lastOwnMsgId = msgs[i].id; break; }
     }
-    return msgs.map(m => renderMessageHTML(m, false, m.id === lastOwnMsgId)).join('');
+    // R3 — walk with date separators + consecutive-message grouping.
+    let html = '';
+    let prev = null;
+    for (const m of msgs) {
+      const d = tsToDate(m.createdAt);
+      const pd = prev ? tsToDate(prev.createdAt) : null;
+      if (d && (!pd || !sameDay(pd, d))) {
+        html += `<div class="chat-date-sep"><span>${formatDayLabel(d)}</span></div>`;
+      }
+      html += renderMessageHTML(m, false, m.id === lastOwnMsgId, isGroupedWith(prev, m));
+      prev = m;
+    }
+    return html;
   }
 
-  function renderMessageHTML(msg, isThread, isLastOwnMsg) {
+  function renderMessageHTML(msg, isThread, isLastOwnMsg, grouped) {
     const isOwn = msg.authorUid === _user.uid;
     const isEditing = _editingMessageId === msg.id;
     const time = formatTimestamp(msg.createdAt);
     const photoUrl = msg.authorPhoto;
-    const avatarHTML = photoUrl
-      ? `<img class="chat-msg-avatar" src="${photoUrl}" alt="" />`
-      : `<div class="chat-msg-avatar chat-msg-avatar--initials">${getInitials(msg.authorName)}</div>`;
+    // Grouped follow-up: no avatar/name row — a gutter placeholder shows
+    // the absolute time on hover (and on tap-select via CSS).
+    const avatarHTML = grouped
+      ? `<div class="chat-msg-gutter"><span class="chat-msg-gutter-time">${formatClockTime(msg.createdAt)}</span></div>`
+      : (photoUrl
+        ? `<img class="chat-msg-avatar" src="${escHTML(photoUrl)}" alt="" />`
+        : `<div class="chat-msg-avatar chat-msg-avatar--initials">${getInitials(msg.authorName)}</div>`);
 
     let bodyHTML = '';
     if (isEditing) {
@@ -1336,11 +2328,13 @@ window.McgheeLab = window.McgheeLab || {};
       </div>`;
     }
 
-    // Read receipts — Teams-style eyeball (open = seen by all, closed = unseen by some)
+    // Read receipts — Teams-style eyeball (open = seen by all, closed =
+    // unseen by some). R7: derived from chatReadState.lastReadAt, not
+    // the old readBy[] arrays.
     let receiptsHTML = '';
-    if (!isThread && isLastOwnMsg && msg.authorUid === _user.uid && msg.readBy) {
-      const readers = msg.readBy.filter(uid => uid !== msg.authorUid);
-      const totalOthers = _allUsers.filter(u => u.uid !== msg.authorUid && canAccessChat(u)).length;
+    if (!isThread && isLastOwnMsg && msg.authorUid === _user.uid) {
+      const readers = getSeenByUids(msg);
+      const totalOthers = getSeenByDenominator(msg);
       const seenCount = readers.length;
       const allSeen = totalOthers > 0 && seenCount >= totalOthers;
       const someSeen = seenCount > 0;
@@ -1392,7 +2386,7 @@ window.McgheeLab = window.McgheeLab || {};
   function renderMessages() {
     const feed = document.getElementById('chat-feed');
     if (!feed) return;
-    const wasAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 100;
+    const wasAtBottom = feedAtBottom(); // document-scroll aware (V3.522)
 
     _isRendering = true;
     feed.innerHTML = `
@@ -1400,12 +2394,13 @@ window.McgheeLab = window.McgheeLab || {};
       ${_loadingOlder ? '<div class="chat-loading">Loading...</div>' : ''}
       ${_messages.length === 0 ? '<div class="chat-empty">No messages yet. Start the conversation!</div>' : ''}
       ${renderMessagesHTML()}
+      ${_feedMode === 'history' && _histHasNewer ? '<button class="chat-load-more" id="chat-load-newer">Load newer messages</button>' : ''}
+      ${_loadingNewer ? '<div class="chat-loading">Loading...</div>' : ''}
     `;
-    wireMessages();
-    if (wasAtBottom || _autoScroll) scrollToBottom();
+    if (_feedMode === 'live' && (wasAtBottom || _autoScroll)) scrollToBottom();
     _isRendering = false;
     // Show new messages button if scrolled up
-    if (!wasAtBottom && !_autoScroll) showNewMessagesButton();
+    if (_feedMode === 'live' && !wasAtBottom && !_autoScroll) showNewMessagesButton();
   }
 
   function renderEmojiPickerHTML(msgId) {
@@ -1447,13 +2442,13 @@ window.McgheeLab = window.McgheeLab || {};
      ═══════════════════════════════════════════════════════════ */
   function renderInputAreaHTML() {
     if (isChatReadOnly()) {
-      return `<div class="chat-input-area chat-input-area--locked">
+      return `<div class="chat-input-area chat-input-area--locked" id="chat-input-area">
         <span class="chat-muted">You have read-only access to this chat</span>
       </div>`;
     }
     const channel = _channels.find(c => c.id === _activeChannelId);
     if (channel && channel.isAnnouncement && !isAdmin()) {
-      return `<div class="chat-input-area chat-input-area--locked">
+      return `<div class="chat-input-area chat-input-area--locked" id="chat-input-area">
         <span class="chat-muted">Only admins can post in announcement channels</span>
       </div>`;
     }
@@ -1462,12 +2457,16 @@ window.McgheeLab = window.McgheeLab || {};
         <textarea class="chat-input" id="chat-input" placeholder="Type a message..." rows="1"></textarea>
         ${_mentionQuery !== null ? renderMentionPopupHTML() : ''}
       </div>
+      ${_formatBarOpen ? renderFormatBarHTML() : ''}
       <div class="chat-input-actions">
-        <button class="chat-icon-btn" id="chat-attach-btn" title="Attach file">${svgPaperclip()}</button>
-        <input type="file" id="chat-file-input" style="display:none" />
+        <button class="chat-icon-btn" id="chat-md-hint-toggle" title="Formatting help">Aa</button>
+        <button class="chat-icon-btn" id="chat-composer-emoji" title="Emoji">${svgSmile()}</button>
+        <button class="chat-icon-btn" id="chat-attach-btn" title="Attach files">${svgPaperclip()}</button>
+        <input type="file" id="chat-file-input" multiple style="display:none" />
         <button class="chat-send-btn" id="chat-send-btn" title="Send">${svgSend()}</button>
       </div>
-      ${_uploadingFile ? '<div class="chat-uploading">Uploading to Google Drive...</div>' : ''}
+      ${_uploadingFile ? '<div class="chat-uploading">Uploading…</div>' : ''}
+      ${_mdHintOpen ? `<div class="chat-md-hint">*bold* &nbsp;·&nbsp; _italic_ &nbsp;·&nbsp; \`code\` &nbsp;·&nbsp; \`\`\`code block\`\`\` &nbsp;·&nbsp; @mention &nbsp;·&nbsp; @channel</div>` : ''}
     </div>`;
   }
 
@@ -1476,12 +2475,31 @@ window.McgheeLab = window.McgheeLab || {};
     if (!el) return;
     const parent = el.parentElement;
     if (!parent) return;
+    // Preserve in-progress composer text + focus across the rebuild
+    // (render() refreshes this region on every pass).
+    const oldInput = document.getElementById('chat-input');
+    const keep = oldInput ? {
+      value: oldInput.value,
+      focused: document.activeElement === oldInput,
+      selStart: oldInput.selectionStart,
+      selEnd: oldInput.selectionEnd
+    } : null;
     // Re-render just the input area section
     const newHTML = renderInputAreaHTML();
     const wrapper = document.createElement('div');
     wrapper.innerHTML = newHTML;
     parent.replaceChild(wrapper.firstElementChild, el);
     wireInput();
+    if (keep) {
+      const input = document.getElementById('chat-input');
+      if (input) {
+        input.value = keep.value;
+        if (keep.focused) {
+          input.focus();
+          try { input.setSelectionRange(keep.selStart, keep.selEnd); } catch (_) {}
+        }
+      }
+    }
   }
 
   function renderMentionPopupHTML() {
@@ -1502,12 +2520,40 @@ window.McgheeLab = window.McgheeLab || {};
   /* ═══════════════════════════════════════════════════════════
      RENDERING — Thread Panel
      ═══════════════════════════════════════════════════════════ */
+  // R3 — thread replies render with the same consecutive-message
+  // grouping as the main feed (no date separators — threads are short).
+  function renderThreadFeedHTML() {
+    let html = '';
+    let prev = null;
+    for (const m of _threadMessages) {
+      html += renderMessageHTML(m, true, false, isGroupedWith(prev, m));
+      prev = m;
+    }
+    return html;
+  }
+
+  function threadHeaderSubHTML() {
+    const channel = _channels.find(c => c.id === _activeChannelId);
+    const chName = channel
+      ? (channel.type === 'dm' ? getDMDisplayName(channel) : `#${channel.displayName || channel.name}`)
+      : '';
+    const n = _threadMessages.length;
+    return `${escHTML(chName)} · ${n} ${n === 1 ? 'reply' : 'replies'}`;
+  }
+
   function renderThreadHTML() {
     const parent = _messages.find(m => m.id === _threadParentId);
     if (!parent) return '';
+    const avatarHTML = parent.authorPhoto
+      ? `<img class="chat-dm-avatar" src="${escHTML(parent.authorPhoto)}" alt="" />`
+      : `<span class="chat-dm-avatar">${getInitials(parent.authorName)}</span>`;
     return `<aside class="chat-thread" id="chat-thread">
       <div class="chat-thread-header">
-        <h3>Thread</h3>
+        <span class="chat-avatar-wrap">${avatarHTML}${renderPresenceDotHTML(parent.authorUid)}</span>
+        <div class="chat-thread-header-info">
+          <h3>Thread with ${escHTML(parent.authorName || '')}</h3>
+          <span class="chat-thread-header-sub">${threadHeaderSubHTML()}</span>
+        </div>
         <button class="chat-icon-btn" id="chat-thread-close">${svgX()}</button>
       </div>
       <div class="chat-thread-parent">
@@ -1515,10 +2561,11 @@ window.McgheeLab = window.McgheeLab || {};
       </div>
       <div class="chat-thread-divider">${_threadMessages.length} ${_threadMessages.length === 1 ? 'reply' : 'replies'}</div>
       <div class="chat-thread-feed" id="chat-thread-feed">
-        ${_threadMessages.map(m => renderMessageHTML(m, true)).join('')}
+        ${renderThreadFeedHTML()}
       </div>
       <div class="chat-thread-input">
         <textarea class="chat-input" id="chat-thread-input" placeholder="Reply in thread..." rows="1"></textarea>
+        <button class="chat-icon-btn" id="chat-thread-emoji" title="Emoji">${svgSmile()}</button>
         <button class="chat-send-btn" id="chat-thread-send">${svgSend()}</button>
       </div>
     </aside>`;
@@ -1526,15 +2573,16 @@ window.McgheeLab = window.McgheeLab || {};
 
   function renderThread() {
     const el = document.getElementById('chat-thread');
-    if (!el) { render(); return; }
+    if (!el) { refreshThreadPanel(); return; }
     const feed = document.getElementById('chat-thread-feed');
     if (feed) {
-      feed.innerHTML = _threadMessages.map(m => renderMessageHTML(m, true)).join('');
+      feed.innerHTML = renderThreadFeedHTML();
       feed.scrollTop = feed.scrollHeight;
     }
     const divider = el.querySelector('.chat-thread-divider');
     if (divider) divider.textContent = `${_threadMessages.length} ${_threadMessages.length === 1 ? 'reply' : 'replies'}`;
-    wireThreadMessages();
+    const sub = el.querySelector('.chat-thread-header-sub');
+    if (sub) sub.innerHTML = threadHeaderSubHTML();
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1553,7 +2601,7 @@ window.McgheeLab = window.McgheeLab || {};
     }
 
     return `<div class="chat-modal-overlay" data-close-modal="directory">
-      <div class="chat-modal chat-modal--directory" onclick="event.stopPropagation()">
+      <div class="chat-modal chat-modal--directory">
         <div class="chat-modal-header">
           <h3>Browse Channels</h3>
           <button class="chat-icon-btn" data-close-modal="directory">${svgX()}</button>
@@ -1593,7 +2641,7 @@ window.McgheeLab = window.McgheeLab || {};
   function renderCreateChannelHTML() {
     const categories = _config?.categories || DEFAULT_CATEGORIES;
     return `<div class="chat-modal-overlay" data-close-modal="create">
-      <div class="chat-modal" onclick="event.stopPropagation()">
+      <div class="chat-modal">
         <div class="chat-modal-header">
           <h3>Create Channel</h3>
           <button class="chat-icon-btn" data-close-modal="create">${svgX()}</button>
@@ -1623,7 +2671,7 @@ window.McgheeLab = window.McgheeLab || {};
 
   function renderSettingsHTML() {
     return `<div class="chat-modal-overlay" data-close-modal="settings">
-      <div class="chat-modal chat-modal--settings" onclick="event.stopPropagation()">
+      <div class="chat-modal chat-modal--settings">
         <div class="chat-modal-header">
           <h3>Chat Settings</h3>
           <button class="chat-icon-btn" data-close-modal="settings">${svgX()}</button>
@@ -1665,6 +2713,11 @@ window.McgheeLab = window.McgheeLab || {};
 
           <h4 style="margin-top:1.5rem">File Uploads</h4>
           <p class="chat-muted">Files are uploaded to Firebase Storage. Max file size: 50 MB.</p>
+
+          <h4 style="margin-top:1.5rem">Maintenance</h4>
+          <p class="chat-muted">Rebuild each channel's subscriber list from every user's
+            subscriptions. Run once after the server fan-out deploy; safe to re-run.</p>
+          <button class="app-btn app-btn--secondary app-btn--sm" id="chat-backfill-subs">Backfill subscriber lists</button>
         </div>
         <div class="chat-modal-footer">
           <button class="app-btn app-btn--secondary" data-close-modal="settings">Cancel</button>
@@ -1672,6 +2725,263 @@ window.McgheeLab = window.McgheeLab || {};
         </div>
       </div>
     </div>`;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     V3.582 — Slack-history import modal
+     Slack can't export DMs, so users paste the whole conversation
+     into a .md/.txt file. Parse (chat-slack-import.js) → map Slack
+     names to lab members → preview → POST to chatImportSlackHistory
+     (Admin SDK writes backdated messages BEFORE the channel's oldest;
+     rules block client-side cross-user attribution). The input step
+     doubles as the undo surface: previously-imported batches list
+     with a Remove button.
+     ═══════════════════════════════════════════════════════════ */
+  function canImportHistory(channel) {
+    if (!channel || !_user || isChatReadOnly()) return false;
+    if (channel.type === 'dm') return (channel.members || []).includes(_user.uid);
+    return isChatAdmin();
+  }
+
+  function renderImportHTML() {
+    const st = _importState || {};
+    const bodyByStep = {
+      input: renderImportInputHTML,
+      map: renderImportMapHTML,
+      preview: renderImportPreviewHTML,
+      progress: () => `<div class="chat-import-progress"><div class="chat-loading">Importing ${CHAT_SLACK_IMPORT.applyMapping(st.parsed, st.mapping).length} messages…</div><p class="chat-muted">Keep this tab open — large histories take a few seconds.</p></div>`,
+      done: () => `<div class="chat-import-done">✅ Imported ${st.result?.count ?? 0} messages.<p class="chat-muted">They sit above the existing history — use "Load older messages" to scroll up to them. Each one carries a "from Slack" badge.</p></div>`
+    };
+    const footByStep = {
+      input: `<button class="app-btn app-btn--secondary" data-close-modal="import">Cancel</button>
+              <button class="app-btn app-btn--primary" id="chat-import-next" ${st.busy ? 'disabled' : ''}>Next →</button>`,
+      map: `<button class="app-btn app-btn--secondary" id="chat-import-back" data-back-to="input">← Back</button>
+            <button class="app-btn app-btn--primary" id="chat-import-next">Next →</button>`,
+      preview: `<button class="app-btn app-btn--secondary" id="chat-import-back" data-back-to="map">← Back</button>
+                <button class="app-btn app-btn--primary" id="chat-import-run">Import</button>`,
+      progress: '',
+      done: `<button class="app-btn app-btn--primary" data-close-modal="import">Close</button>`
+    };
+    return `<div class="chat-modal-overlay" data-close-modal="import">
+      <div class="chat-modal chat-modal--import">
+        <div class="chat-modal-header">
+          <h3>Import Slack history</h3>
+          ${st.step !== 'progress' ? `<button class="chat-icon-btn" data-close-modal="import">${svgX()}</button>` : ''}
+        </div>
+        <div class="chat-modal-body">
+          ${st.error ? `<div class="chat-import-error">${escHTML(st.error)}</div>` : ''}
+          ${(bodyByStep[st.step] || bodyByStep.input)()}
+        </div>
+        ${footByStep[st.step] ? `<div class="chat-modal-footer">${footByStep[st.step]}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function renderImportInputHTML() {
+    const st = _importState;
+    const batches = st.batches || [];
+    return `
+      <p class="chat-muted">In Slack, select the whole conversation, copy it, and save it
+        as a <b>.md</b> or <b>.txt</b> file — or paste it directly below. Slack copies
+        carry no dates, so message <b>order</b> is kept but original timestamps are
+        dropped; the imported block is inserted <b>before</b> this conversation's
+        existing messages and marked as imported.</p>
+      <input type="file" id="chat-import-file" accept=".md,.txt,text/plain,text/markdown" class="app-input" />
+      ${st.fileName && st.parsed?.ok ? `<p class="chat-import-parsed">✅ ${escHTML(st.fileName)} — ${st.parsed.messages.length} messages, ${st.parsed.participants.length} participants${st.parsed.warnings.length ? ` <span class="chat-muted">(${escHTML(st.parsed.warnings.join(' '))})</span>` : ''}</p>` : ''}
+      <details ${st.fileName ? '' : 'open'} style="margin-top:.6rem">
+        <summary class="chat-muted">…or paste the copied chat here</summary>
+        <textarea id="chat-import-paste" class="app-input chat-import-paste" rows="6" placeholder="Gabriel Leonard Galahad Declercq  [2:59 PM]&#10;Hello Dr. McGhee, …"></textarea>
+      </details>
+      ${batches.length ? `
+        <h4 style="margin-top:1.2rem">Previously imported</h4>
+        ${batches.map(b => `<div class="chat-settings-row chat-import-batch-row">
+          <span style="flex:1;font-size:.85rem">${escHTML(formatTimestamp(b.importedAt) || '')} · ${b.count} messages · ${escHTML(b.sourceFilename || '')}<br>
+            <span class="chat-muted">by ${escHTML(b.importedByName || '')}</span></span>
+          ${(b.importedBy === _user.uid || isChatAdmin()) ? `<button class="app-btn app-btn--secondary app-btn--sm" data-import-remove="${b.id}">Remove</button>` : ''}
+        </div>`).join('')}` : ''}`;
+  }
+
+  function importEligibleUsers() {
+    const channel = _channels.find(c => c.id === _activeChannelId);
+    let users = _allUsers.filter(u => canAccessChat(u) && LAB_USERS.isVisible(u));
+    // DM: the Cloud Function only accepts attribution to DM members —
+    // don't offer anyone else in the dropdown.
+    if (channel?.type === 'dm') users = users.filter(u => (channel.members || []).includes(u.uid));
+    return users;
+  }
+
+  function renderImportMapHTML() {
+    const st = _importState;
+    const users = importEligibleUsers();
+    return `
+      <p class="chat-muted">Match each Slack name to a lab member. "Name only" keeps the
+        Slack name with no account link — use it for people who aren't in RM.</p>
+      <div class="chat-import-map-table">
+        ${st.parsed.participants.map(p => {
+          const sel = st.mapping[p.name];
+          const selUid = (sel && sel !== 'SKIP') ? sel.uid : null;
+          return `<div class="chat-settings-row chat-import-map-row">
+            <span class="chat-import-map-name" title="${escHTML(p.name)}">${escHTML(p.name)} <span class="chat-muted">(${p.count})</span></span>
+            <select class="app-input" data-import-map="${escHTML(p.name)}">
+              ${users.map(u => `<option value="${u.uid}" ${selUid === u.uid ? 'selected' : ''}>${escHTML(u.name || u.displayName || u.email)}</option>`).join('')}
+              <option value="__nameonly__" ${sel && sel !== 'SKIP' && !sel.uid ? 'selected' : ''}>— Name only (no account) —</option>
+              <option value="__skip__" ${sel === 'SKIP' ? 'selected' : ''}>✕ Don't import</option>
+            </select>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  function renderImportPreviewHTML() {
+    const st = _importState;
+    const msgs = CHAT_SLACK_IMPORT.applyMapping(st.parsed, st.mapping);
+    const mapped = msgs.filter(m => m.authorUid).length;
+    const nameOnly = msgs.length - mapped;
+    const skipped = st.parsed.messages.length - msgs.length;
+    const snip = t => escHTML(t.length > 120 ? t.slice(0, 120) + '…' : t);
+    return `
+      <div class="chat-import-summary">
+        <div><b>${msgs.length}</b> messages will be imported (${mapped} linked to accounts, ${nameOnly} name-only${skipped ? `, ${skipped} skipped` : ''}).</div>
+        ${msgs.length ? `<div class="chat-import-snippet"><span class="chat-muted">First:</span> ${escHTML(msgs[0].authorName)} — ${snip(msgs[0].text)}</div>
+        <div class="chat-import-snippet"><span class="chat-muted">Last:</span> ${escHTML(msgs[msgs.length - 1].authorName)} — ${snip(msgs[msgs.length - 1].text)}</div>` : ''}
+        <p class="chat-muted" style="margin-top:.6rem">The block is inserted before this conversation's existing
+          history with a "History imported from Slack" divider at the boundary. No
+          notifications are sent. You can remove the whole import later.</p>
+      </div>`;
+  }
+
+  function openImportModal() {
+    _showImport = true;
+    _importState = { step: 'input', parsed: null, mapping: {}, fileName: null, busy: false, error: null, result: null, batches: [], };
+    updateModals();
+    loadImportBatches();
+  }
+
+  async function loadImportBatches() {
+    try {
+      const snap = await db().collection('chatImports')
+        .where('channelId', '==', _activeChannelId).get();
+      if (!_showImport || !_importState) return;
+      _importState.batches = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.importedAt?.toMillis?.() || 0) - (a.importedAt?.toMillis?.() || 0));
+      if (_importState.step === 'input') updateModals();
+    } catch (e) {
+      console.warn('[chat] loadImportBatches failed', e);
+    }
+  }
+
+  /* Preselect mapping: case-insensitive match on name / displayName /
+     email local-part; Slack pseudo-authors (huddle notices) → skip. */
+  function importDefaultMapping(parsed) {
+    const users = importEligibleUsers();
+    const mapping = {};
+    for (const p of parsed.participants) {
+      if (p.isPseudo) { mapping[p.name] = 'SKIP'; continue; }
+      const needle = p.name.toLowerCase();
+      const hit = users.find(u =>
+        (u.name || '').toLowerCase() === needle ||
+        (u.displayName || '').toLowerCase() === needle ||
+        (u.email || '').toLowerCase().split('@')[0] === needle);
+      mapping[p.name] = hit
+        ? { uid: hit.uid, displayName: hit.name || hit.displayName || hit.email }
+        : { uid: null, displayName: p.name };
+    }
+    return mapping;
+  }
+
+  function importHandleParsedText(text, fileName) {
+    const st = _importState;
+    const parsed = CHAT_SLACK_IMPORT.parse(text);
+    if (!parsed.ok) {
+      st.parsed = null; st.fileName = null;
+      st.error = parsed.errors.join(' ');
+    } else {
+      st.parsed = parsed;
+      st.fileName = fileName;
+      st.mapping = importDefaultMapping(parsed);
+      st.error = null;
+    }
+    updateModals();
+  }
+
+  function importGoNext() {
+    const st = _importState;
+    if (st.step === 'input') {
+      if (!st.parsed?.ok) {
+        const pasted = document.getElementById('chat-import-paste')?.value || '';
+        if (!pasted.trim()) { st.error = 'Choose a file or paste the copied chat first.'; updateModals(); return; }
+        const parsed = CHAT_SLACK_IMPORT.parse(pasted);
+        if (!parsed.ok) { st.error = parsed.errors.join(' '); updateModals(); return; }
+        st.parsed = parsed;
+        st.fileName = '(pasted)';
+        st.mapping = importDefaultMapping(parsed);
+      }
+      st.error = null;
+      st.step = 'map';
+    } else if (st.step === 'map') {
+      st.error = null;
+      st.step = 'preview';
+    }
+    updateModals();
+  }
+
+  async function runImport() {
+    const st = _importState;
+    const messages = CHAT_SLACK_IMPORT.applyMapping(st.parsed, st.mapping);
+    if (!messages.length) { st.error = 'Every participant is set to "Don\'t import" — nothing to do.'; updateModals(); return; }
+    st.step = 'progress'; st.busy = true; st.error = null;
+    updateModals();
+    try {
+      const out = await callChatImportFn({
+        mode: 'import',
+        channelId: _activeChannelId,
+        sourceFilename: st.fileName || '(pasted)',
+        messages
+      });
+      st.result = out; st.step = 'done'; st.busy = false;
+      // The block sits above everything already loaded — make sure the
+      // "Load older messages" affordance is back even in a fully-loaded
+      // small channel.
+      _hasMoreMessages = true;
+      showToast(`Imported ${out.count} messages from Slack`);
+      loadImportBatches();
+      renderMessages();
+    } catch (e) {
+      st.busy = false; st.step = 'preview';
+      st.error = 'Import failed: ' + (e.message || e);
+    }
+    updateModals();
+  }
+
+  async function removeImportBatch(batchId) {
+    const st = _importState;
+    st.busy = true; updateModals();
+    try {
+      const out = await callChatImportFn({ mode: 'undo', batchId });
+      showToast(`Removed ${out.deleted} imported messages`);
+      _messages = _messages.filter(m => m.importBatchId !== batchId);
+      renderMessages();
+    } catch (e) {
+      st.error = 'Remove failed: ' + (e.message || e);
+    }
+    st.busy = false;
+    await loadImportBatches();
+    updateModals();
+  }
+
+  async function callChatImportFn(body) {
+    const user = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
+    if (!user) throw new Error('Not signed in');
+    const idToken = await user.getIdToken();
+    const resp = await fetch(IMPORT_FN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify(body)
+    });
+    const out = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(out.error || resp.statusText);
+    return out;
   }
 
   function renderPinnedPageHTML() {
@@ -1683,28 +2993,31 @@ window.McgheeLab = window.McgheeLab || {};
       </div>
       ${pinned.length === 0
         ? '<div class="chat-pinned-page-empty"><p>No pinned messages in this channel yet.</p><p class="chat-muted">Pin important messages for quick reference.</p></div>'
-        : `<div class="chat-pinned-page-list">${pinned.map(m => renderMessageHTML(m, true)).join('')}</div>`
+        : `<div class="chat-pinned-page-list">${pinned.map(m => `
+            <div class="chat-pinned-item-wrap">
+              ${renderMessageHTML(m, true)}
+              <button class="chat-pinned-jump" data-goto-msg="${m.id}" data-goto-channel="${escHTML(m.channelId || '')}">Jump to message ↗</button>
+            </div>`).join('')}</div>`
       }
     </div>`;
   }
 
   function renderSearchHTML() {
-    const results = _searchQuery ? searchMessages(_searchQuery) : [];
     return `<div class="chat-modal-overlay" data-close-modal="search">
-      <div class="chat-modal chat-modal--search" onclick="event.stopPropagation()">
+      <div class="chat-modal chat-modal--search">
         <div class="chat-modal-header">
           <h3>Search Messages</h3>
           <button class="chat-icon-btn" data-close-modal="search">${svgX()}</button>
         </div>
-        <input class="app-input" id="chat-search-input" placeholder="Search..." value="${escHTML(_searchQuery)}" />
-        <div class="chat-modal-body chat-search-results">
-          ${_searchQuery && results.length === 0 ? '<p class="chat-muted">No results found.</p>' : ''}
-          ${results.map(m => `<div class="chat-search-result" data-goto-msg="${m.id}">
-            <span class="chat-msg-author">${escHTML(m.authorName)}</span>
-            <span class="chat-msg-time">${formatTimestamp(m.createdAt)}</span>
-            <div class="chat-msg-text">${parseMarkdown(m.text)}</div>
-          </div>`).join('')}
+        <div class="chat-search-controls">
+          <input class="app-input" id="chat-search-input" placeholder="Search all history..." value="${escHTML(_searchQuery)}" />
+          <div class="chat-search-scope">
+            <button class="chat-search-scope-btn${_searchScope === 'channel' ? ' chat-search-scope-btn--active' : ''}" data-search-scope="channel">This channel</button>
+            <button class="chat-search-scope-btn${_searchScope === 'all' ? ' chat-search-scope-btn--active' : ''}" data-search-scope="all">All channels</button>
+          </div>
         </div>
+        <div class="chat-search-status" id="chat-search-status"></div>
+        <div class="chat-modal-body chat-search-results" id="chat-search-results"></div>
       </div>
     </div>`;
   }
@@ -1721,7 +3034,7 @@ window.McgheeLab = window.McgheeLab || {};
     const catOrder = ['PI', 'Postdoc', 'Grad', 'Undergrad', 'High School', 'Alumni', 'Guest', 'Other'];
 
     return `<div class="chat-modal-overlay" data-close-modal="newdm">
-      <div class="chat-modal" onclick="event.stopPropagation()">
+      <div class="chat-modal">
         <div class="chat-modal-header">
           <h3>New Direct Message</h3>
           <button class="chat-icon-btn" data-close-modal="newdm">${svgX()}</button>
@@ -1734,7 +3047,7 @@ window.McgheeLab = window.McgheeLab || {};
               if (!users || users.length === 0) return '';
               return `<div class="chat-dm-category-label">${escHTML(cat)}</div>
                 ${users.map(u => `<button class="chat-dm-user-item" data-dm-user="${u.uid}">
-                  <span class="chat-dm-avatar">${getInitials(u.name || u.displayName || u.email)}</span>
+                  <span class="chat-avatar-wrap"><span class="chat-dm-avatar">${getInitials(u.name || u.displayName || u.email)}</span>${renderPresenceDotHTML(u.uid)}</span>
                   <span class="chat-dm-user-name">${escHTML(u.name || u.displayName || u.email)}</span>
                 </button>`).join('')}`;
             }).join('')}
@@ -1759,7 +3072,7 @@ window.McgheeLab = window.McgheeLab || {};
     }
 
     return `<div class="chat-modal-overlay" data-close-modal="contacts">
-      <div class="chat-modal chat-modal--directory" onclick="event.stopPropagation()">
+      <div class="chat-modal chat-modal--directory">
         <div class="chat-modal-header">
           <h3>Manage People</h3>
           <button class="chat-icon-btn" data-close-modal="contacts">${svgX()}</button>
@@ -1833,10 +3146,10 @@ window.McgheeLab = window.McgheeLab || {};
 
   function renderSeenByHTML() {
     const msg = [..._messages, ..._threadMessages].find(m => m.id === _showSeenBy);
-    if (!msg || !msg.readBy) return '';
-    const readers = msg.readBy.filter(uid => uid !== msg.authorUid);
+    if (!msg) return '';
+    const readers = getSeenByUids(msg); // R7 — derived from lastReadAt
     return `<div class="chat-modal-overlay" data-close-modal="seenby">
-      <div class="chat-modal chat-modal--sm" onclick="event.stopPropagation()">
+      <div class="chat-modal chat-modal--sm">
         <div class="chat-modal-header">
           <h3>Seen by</h3>
           <button class="chat-icon-btn" data-close-modal="seenby">${svgX()}</button>
@@ -2019,8 +3332,9 @@ window.McgheeLab = window.McgheeLab || {};
       ${svgGrid()} Browse All Channels
     </button>`;
 
-    // --- People / DMs section ---
-    const contacts = _userMeta.dmContacts || [];
+    // --- People / DMs section (alumni auto-sorted into their own
+    // collapsed group at render time) ---
+    const { groups: contacts, alumni: alumniUids } = splitContactsForRender();
     const sectionKeyDM = 'people';
     const collapsedDM = _collapsedSections.has(sectionKeyDM);
 
@@ -2033,44 +3347,50 @@ window.McgheeLab = window.McgheeLab || {};
 
     if (!collapsedDM) {
       html += `<div class="chat-overview-section-body">`;
-      if (contacts.length > 0) {
+      const renderOverviewDmItemHTML = (uid) => {
+        const u = _allUsers.find(a => a.uid === uid);
+        if (!u) return '';
+        const name = u.name || u.displayName || u.email;
+        const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
+        const active = dmCh && dmCh.id === _activeChannelId ? ' chat-overview-item--active' : '';
+        const unread = dmCh ? getUnreadCount(dmCh.id) : 0;
+        const photo = u.photo?.thumb;
+        const preview = dmCh?.lastMessage ? dmCh.lastMessage.text : 'No messages yet';
+        const time = dmCh?.lastMessage?.timestamp ? formatTimestamp(dmCh.lastMessage.timestamp) : '';
+        return `<div class="chat-overview-item${active}" data-overview-dm="${uid}">
+          <span class="chat-avatar-wrap">${photo ? `<div class="chat-conv-icon"><img src="${escHTML(photo)}" alt="" /></div>` : `<div class="chat-conv-icon">${getInitials(name)}</div>`}${renderPresenceDotHTML(uid)}</span>
+          <div class="chat-conv-body">
+            <div class="chat-conv-top">
+              <span class="chat-conv-name">${escHTML(name)}</span>
+              <span class="chat-conv-time">${time}</span>
+            </div>
+            <div class="chat-conv-preview">${escHTML(preview)}</div>
+          </div>
+          ${unread > 0 ? `<span class="chat-conv-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+        </div>`;
+      };
+      const renderDmGroupHTML = (label, key, uids) => {
+        const collapsedContact = _collapsedSections.has(key);
+        return `<div class="chat-overview-dm-group">
+          <button class="chat-overview-dm-group-header" data-toggle-section="${key}">
+            <span class="chat-overview-chevron">${collapsedContact ? chevronRight : chevronDown}</span>
+            <span>${escHTML(label)}</span>
+          </button>
+          ${collapsedContact ? '' : uids.map(renderOverviewDmItemHTML).join('')}
+        </div>`;
+      };
+
+      const hasAnyContacts = contacts.some(g => g.uids.length > 0) || alumniUids.length > 0;
+      if (hasAnyContacts) {
         for (let gi = 0; gi < contacts.length; gi++) {
           const group = contacts[gi];
-          const contactKey = `dm-group-${gi}`;
-          const collapsedContact = _collapsedSections.has(contactKey);
-
-          html += `<div class="chat-overview-dm-group">
-            <button class="chat-overview-dm-group-header" data-toggle-section="${contactKey}">
-              <span class="chat-overview-chevron">${collapsedContact ? chevronRight : chevronDown}</span>
-              <span>${escHTML(group.groupName)}</span>
-            </button>`;
-
-          if (!collapsedContact) {
-            for (const uid of (group.uids || [])) {
-              const u = _allUsers.find(a => a.uid === uid);
-              if (!u) continue;
-              const name = u.name || u.displayName || u.email;
-              const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
-              const active = dmCh && dmCh.id === _activeChannelId ? ' chat-overview-item--active' : '';
-              const unread = dmCh ? getUnreadCount(dmCh.id) : 0;
-              const photo = u.photo?.thumb;
-              const preview = dmCh?.lastMessage ? dmCh.lastMessage.text : 'No messages yet';
-              const time = dmCh?.lastMessage?.timestamp ? formatTimestamp(dmCh.lastMessage.timestamp) : '';
-
-              html += `<div class="chat-overview-item${active}" data-overview-dm="${uid}">
-                ${photo ? `<div class="chat-conv-icon"><img src="${escHTML(photo)}" alt="" /></div>` : `<div class="chat-conv-icon">${getInitials(name)}</div>`}
-                <div class="chat-conv-body">
-                  <div class="chat-conv-top">
-                    <span class="chat-conv-name">${escHTML(name)}</span>
-                    <span class="chat-conv-time">${time}</span>
-                  </div>
-                  <div class="chat-conv-preview">${escHTML(preview)}</div>
-                </div>
-                ${unread > 0 ? `<span class="chat-conv-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
-              </div>`;
-            }
-          }
-          html += `</div>`;
+          if (group.uids.length === 0) continue; // e.g. everyone in it is alumni now
+          html += renderDmGroupHTML(group.groupName, `dm-group-${gi}`, group.uids);
+        }
+        // Alumni auto-sort: users whose category is now 'alumni',
+        // regardless of which curated group they were saved in.
+        if (alumniUids.length > 0) {
+          html += renderDmGroupHTML(`Alumni (${alumniUids.length})`, 'alumni', alumniUids);
         }
       } else {
         html += `<div class="chat-overview-empty">Tap ${svgEdit()} to add people</div>`;
@@ -2113,12 +3433,9 @@ window.McgheeLab = window.McgheeLab || {};
     const channel = _channels.find(c => c.id === _activeChannelId);
     if (!channel) return '';
 
-    // Count unique readers across recent messages
-    const readerSet = new Set();
-    _messages.forEach(m => {
-      if (m.readBy) m.readBy.forEach(uid => readerSet.add(uid));
-    });
-    const readerCount = readerSet.size;
+    // R7 — readers of this channel = users with a read state here
+    const readerCount = Object.keys(_channelReadStates)
+      .filter(uid => uid !== _user.uid).length;
 
     // Count files in current channel messages
     const fileCount = _messages.filter(m => m.file).length;
@@ -2239,15 +3556,18 @@ window.McgheeLab = window.McgheeLab || {};
 
   const CHAT_TABS = ['overview', 'chat', 'files', 'search'];
 
+  // Named swipe handlers so destroy() can detach them.
+  let _onSwipeStart = null;
+  let _onSwipeEnd = null;
+
   function initChatTabSwipe() {
     let swX = 0, swY = 0, swT = 0;
-    document.addEventListener('touchstart', (e) => {
+    _onSwipeStart = (e) => {
       swX = e.touches[0].clientX;
       swY = e.touches[0].clientY;
       swT = Date.now();
-    }, { passive: true });
-
-    document.addEventListener('touchend', (e) => {
+    };
+    _onSwipeEnd = (e) => {
       if (!isMobile()) return;
       const dx = e.changedTouches[0].clientX - swX;
       const dy = e.changedTouches[0].clientY - swY;
@@ -2266,74 +3586,529 @@ window.McgheeLab = window.McgheeLab || {};
         if (_mobileTab === 'search') { _showSearch = true; _searchQuery = ''; }
         render();
       }
-    }, { passive: true });
+    };
+    document.addEventListener('touchstart', _onSwipeStart, { passive: true });
+    document.addEventListener('touchend', _onSwipeEnd, { passive: true });
   }
 
   /* ═══════════════════════════════════════════════════════════
-     WIRING — Event Handlers
+     WIRING — V3.503 delegated click dispatch
+     One listener on #chat-root replaces the old per-render wiring
+     loops (the wireAll() cascade). Routes are checked IN ORDER and
+     the first selector whose closest() match exists wins — keep
+     specific / inner elements ABOVE their containers (reactions
+     above [data-msg-select], modal buttons above [data-close-modal]).
+     Non-click wiring (inputs, drag-drop, scroll) stays region-scoped
+     and re-attaches when its region rebuilds.
      ═══════════════════════════════════════════════════════════ */
-  function wireAll() {
-    if (isMobile()) {
-      wireMobileTabBar();
-      wireMobile();
-      wireOverview();
-    } else {
-      wireSidebar();
-      wireDesktopViewTabs();
+  const CLICK_ROUTES = [
+    /* ── message-level interactive bits ── */
+    ['[data-react][data-emoji]', el => toggleReaction(el.dataset.react, el.dataset.emoji)],
+    ['[data-react-add]', el => {
+      const msgId = el.dataset.reactAdd;
+      _showEmojiPickerFor = msgId;
+      showEmojiPickerAt(el, key => toggleReaction(msgId, key));
+    }],
+    ['[data-thread-start], [data-thread]', el => {
+      const msgId = el.dataset.threadStart || el.dataset.thread;
+      _threadParentId = msgId;
+      if (el.closest('#chat-action-bar')) clearMsgSelection();
+      subscribeThread(msgId);
+      refreshThreadPanel();
+    }],
+    ['[data-pin]', el => {
+      togglePin(el.dataset.pin);
+      if (el.closest('#chat-action-bar')) clearMsgSelection();
+    }],
+    ['[data-edit]', el => {
+      _editingMessageId = el.dataset.edit;
+      if (el.closest('#chat-action-bar')) clearMsgSelection();
+      renderMessages();
+      renderThread();
+      const ta = document.getElementById(`chat-edit-${_editingMessageId}`);
+      if (ta) ta.focus();
+    }],
+    ['[data-save-edit]', el => {
+      const ta = document.getElementById(`chat-edit-${el.dataset.saveEdit}`);
+      if (ta) editMessage(el.dataset.saveEdit, ta.value);
+    }],
+    ['[data-cancel-edit]', () => {
+      _editingMessageId = null;
+      renderMessages();
+      renderThread();
+    }],
+    ['[data-delete]', el => {
+      if (!confirm('Delete this message?')) return;
+      deleteMessage(el.dataset.delete);
+      if (el.closest('#chat-action-bar')) clearMsgSelection();
+    }],
+    ['[data-seen-by]', el => { _showSeenBy = el.dataset.seenBy; updateModals(); }],
+    ['#chat-action-bar-close', () => clearMsgSelection()],
+    ['#chat-load-more', () => loadOlderMessages()],
+    ['[data-goto-msg]', el => {
+      const msgId = el.dataset.gotoMsg;
+      const channelId = el.dataset.gotoChannel || null;
+      _showSearch = false;
+      jumpToMessage(msgId, channelId);
+    }],
+    ['[data-search-scope]', el => {
+      _searchScope = el.dataset.searchScope;
+      updateModals(); // wireModalsNonClick re-kicks the scan for the new scope
+    }],
+    ['#chat-search-older', () => runProgressiveSearch(_searchQuery, true)],
+    ['#chat-load-newer', () => loadNewerMessages()],
+
+    /* ── composer / thread composer ── */
+    ['#chat-send-btn', () => {
+      const input = document.getElementById('chat-input');
+      if (input) handleSend(input);
+    }],
+    ['#chat-attach-btn', () => {
+      const fi = document.getElementById('chat-file-input');
+      if (fi) fi.click();
+    }],
+    ['#chat-thread-send', () => {
+      const input = document.getElementById('chat-thread-input');
+      if (input) handleThreadSend(input);
+    }],
+    ['#chat-composer-emoji', el => {
+      if (isOurlabApp() && window.APP_SHEET) { openComposerEmojiSheet(); return; }
+      showEmojiPickerAt(el, key => {
+        const input = document.getElementById('chat-input');
+        const em = EMOJI_SET.find(x => x.key === key);
+        if (input && em) insertAtCursor(input, em.label);
+      });
+    }],
+    ['#chat-thread-emoji', el => {
+      showEmojiPickerAt(el, key => {
+        const input = document.getElementById('chat-thread-input');
+        const em = EMOJI_SET.find(x => x.key === key);
+        if (input && em) insertAtCursor(input, em.label);
+      });
+    }],
+    ['#chat-md-hint-toggle', () => {
+      if (isOurlabApp()) { _formatBarOpen = !_formatBarOpen; renderInputArea(); return; }
+      _mdHintOpen = !_mdHintOpen;
+      try { localStorage.setItem('chat-md-hint', _mdHintOpen ? 'open' : 'closed'); } catch (e) {}
+      renderInputArea();
+    }],
+    ['[data-fmt]', el => { applyFormat(el.dataset.fmt); }],
+    ['#chat-thread-close', () => {
+      _threadParentId = null;
+      if (_unsubThread) { _unsubThread(); _unsubThread = null; }
+      refreshThreadPanel();
+    }],
+
+    /* ── mention popup ── */
+    ['[data-mention-uid]', el => {
+      const u = _allUsers.find(a => a.uid === el.dataset.mentionUid);
+      const input = document.getElementById('chat-input');
+      if (u && input) {
+        insertMention(input, `@${(u.name || u.displayName || u.email).replace(/\s+/g, '.')}`);
+      }
+      _mentionQuery = null;
+      renderMentionPopup();
+    }],
+    ['[data-mention-channel]', () => {
+      const input = document.getElementById('chat-input');
+      if (input) insertMention(input, '@channel');
+      _mentionQuery = null;
+      renderMentionPopup();
+    }],
+
+    /* ── header + view tabs ── */
+    ['#chat-hamburger', () => { _mobileSidebarOpen = true; render(); }],
+    ['#chat-sub-toggle', async () => {
+      const subscribed = _userMeta?.subscribedChannels?.includes(_activeChannelId);
+      if (subscribed) await unsubscribeFromChannel(_activeChannelId);
+      else await subscribeToChannel(_activeChannelId);
+      render();
+    }],
+    ['#chat-pinned-btn', () => {
+      if (isMobile()) _showPinned = !_showPinned;
+      else _desktopView = _desktopView === 'pinned' ? 'chat' : 'pinned';
+      render();
+    }],
+    ['#chat-header-search', () => { _searchQuery = ''; if (isMobile()) _mobileTab = 'search'; else _showSearch = true; render(); }],
+    ['#chat-call-btn', () => {
+      // V3.525 — Slack-style huddle: start/join the channel's voice call
+      const ch = _channels.find(c => c.id === _activeChannelId);
+      if (!ch || !window.VOICE_CALL) return;
+      VOICE_CALL.open(_activeChannelId, {
+        channelName: channelLabelFor(ch.id),
+        memberUids: callMemberUids(ch),
+      });
+    }],
+    /* V3.584 — incoming-call banner: answer or decline */
+    ['[data-vc-ring-join]', el => {
+      const chId = el.dataset.vcRingJoin;
+      if (!window.VOICE_CALL) return;
+      if (_activeChannelId !== chId) selectChannel(chId); // land in the conversation too
+      VOICE_CALL.open(chId, {
+        channelName: channelLabelFor(chId, VOICE_CALL.getActiveCall(chId)),
+        memberUids: callMemberUids(_channels.find(c => c.id === chId)),
+      });
+    }],
+    ['[data-vc-ring-decline]', el => {
+      window.VOICE_CALL?.decline(el.dataset.vcRingDecline);
+    }],
+    ['[data-view-tab]', el => { _desktopView = el.dataset.viewTab; render(); }],
+
+    /* ── sidebar ── */
+    ['#chat-sidebar-close', () => { _mobileSidebarOpen = false; render(); }],
+    ['#chat-sidebar-overlay', () => { _mobileSidebarOpen = false; render(); }],
+    ['#chat-browse-channels', () => { _showChannelDirectory = true; render(); }],
+    ['#chat-manage-contacts-btn', () => { _showManageContacts = true; render(); }],
+    ['#chat-new-dm-btn', () => { _showNewDM = true; render(); }],
+    ['#chat-search-btn', () => { _showSearch = true; _searchQuery = ''; render(); }],
+    ['#chat-settings-btn', () => { _showSettings = true; render(); }],
+    ['[data-dm-contact]', el => { _mobileSidebarOpen = false; createDM([el.dataset.dmContact]); }],
+    ['[data-channel]', el => { _mobileSidebarOpen = false; selectChannel(el.dataset.channel); }],
+
+    /* ── mobile chrome ── */
+    ['[data-chat-tab]', el => {
+      _mobileTab = el.dataset.chatTab;
+      if (_mobileTab === 'search') { _showSearch = true; _searchQuery = ''; }
+      render();
+    }],
+    ['#mobile-hamburger-btn', () => { _mobileHamburgerOpen = true; render(); }],
+    ['#mobile-hamburger-close', () => { _mobileHamburgerOpen = false; render(); }],
+    ['#mobile-hamburger-overlay', () => { _mobileHamburgerOpen = false; render(); }],
+    ['#mobile-menu-browse', () => { _mobileHamburgerOpen = false; _showChannelDirectory = true; render(); }],
+    ['#mobile-menu-new-dm', () => { _mobileHamburgerOpen = false; _showNewDM = true; render(); }],
+    ['#mobile-menu-contacts', () => { _mobileHamburgerOpen = false; _showManageContacts = true; render(); }],
+    ['#mobile-menu-settings', () => { _mobileHamburgerOpen = false; _showSettings = true; render(); }],
+    ['#mobile-menu-all-apps', (el, e) => { e.preventDefault(); window.parent.location.hash = '#/apps'; }],
+    ['[data-app-nav="chat"]', (el, e) => e.preventDefault()],
+    ['[data-conv-channel]', el => selectChannel(el.dataset.convChannel)],
+
+    /* ── mobile overview ── */
+    ['#chat-overview-manage-contacts', () => { _showManageContacts = true; render(); }],
+    ['#chat-overview-browse', () => { _showChannelDirectory = true; render(); }],
+    ['#chat-overview-new-dm', () => { _showNewDM = true; render(); }],
+    ['#chat-overview-search', () => { _searchQuery = ''; if (isMobile()) _mobileTab = 'search'; else _showSearch = true; render(); }],
+    ['[data-overview-channel]', el => selectChannel(el.dataset.overviewChannel)],
+    ['[data-overview-dm]', el => {
+      const uid = el.dataset.overviewDm;
+      const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
+      if (dmCh) selectChannel(dmCh.id);
+      else createDM([uid]);
+    }],
+    ['[data-toggle-section]', el => {
+      const key = el.dataset.toggleSection;
+      if (_collapsedSections.has(key)) _collapsedSections.delete(key);
+      else _collapsedSections.add(key);
+      render();
+    }],
+
+    /* ── modals (inner controls BEFORE [data-close-modal]) ── */
+    ['#chat-create-channel-btn', () => { _showChannelDirectory = false; _showCreateChannel = true; render(); }],
+    ['#chat-do-create', () => {
+      const name = document.getElementById('chat-new-name')?.value?.trim();
+      const display = document.getElementById('chat-new-display')?.value?.trim();
+      const desc = document.getElementById('chat-new-desc')?.value?.trim();
+      const cat = document.getElementById('chat-new-category')?.value;
+      const announce = document.getElementById('chat-new-announce')?.checked || false;
+      if (!name) { showToast('Channel name is required'); return; }
+      if (!cat) { showToast('Please select a category'); return; }
+      createChannel(name, display, desc, cat, announce);
+    }],
+    ['[data-sub-dir]', async el => { await subscribeToChannel(el.dataset.subDir); render(); }],
+    ['[data-unsub-dir]', async el => { await unsubscribeFromChannel(el.dataset.unsubDir); render(); }],
+    ['[data-dir-channel]', el => { _showChannelDirectory = false; selectChannel(el.dataset.dirChannel); }],
+    ['#chat-save-settings', () => {
+      const categories = [];
+      document.querySelectorAll('[data-cat-idx]').forEach(inp => {
+        const val = inp.value.trim();
+        if (val) categories.push(val);
+      });
+      saveConfig({ categories });
+      _showSettings = false;
+      render();
+    }],
+    ['#chat-add-cat', () => {
+      const list = document.getElementById('chat-categories-list');
+      if (!list) return;
+      const idx = list.children.length;
+      const row = document.createElement('div');
+      row.className = 'chat-settings-row';
+      row.innerHTML = `<input class="app-input" value="" data-cat-idx="${idx}" placeholder="New category" />
+        <button class="chat-icon-btn chat-icon-btn--danger" data-remove-cat="${idx}">${svgTrash()}</button>`;
+      list.appendChild(row);
+      row.querySelector('input').focus();
+    }],
+    ['[data-remove-cat]', el => el.closest('.chat-settings-row')?.remove()],
+    ['#chat-add-admin-btn', async () => {
+      const select = document.getElementById('chat-add-admin-select');
+      const uid = select?.value;
+      if (!uid) return;
+      await saveConfig({ chatAdmins: [...(_config.chatAdmins || []), uid] });
+      _showSettings = true;
+      render();
+    }],
+    ['[data-remove-admin]', async el => {
+      const admins = (_config.chatAdmins || []).filter(a => a !== el.dataset.removeAdmin);
+      await saveConfig({ chatAdmins: admins });
+      _showSettings = true;
+      render();
+    }],
+    ['[data-dm-user]', el => createDM([el.dataset.dmUser])],
+    ['#chat-add-contact-group', () => {
+      if (!_userMeta.dmContacts) _userMeta.dmContacts = [];
+      _userMeta.dmContacts.push({ groupName: 'New Group', uids: [] });
+      saveDmContacts();
+      render();
+    }],
+    ['[data-remove-contact-group]', el => {
+      _userMeta.dmContacts.splice(parseInt(el.dataset.removeContactGroup), 1);
+      saveDmContacts();
+      render();
+    }],
+    ['[data-remove-contact]', el => {
+      const uid = el.dataset.removeContact;
+      for (const group of (_userMeta.dmContacts || [])) {
+        group.uids = (group.uids || []).filter(id => id !== uid);
+      }
+      saveDmContacts();
+      render();
+    }],
+    ['[data-do-add-contact]', el => {
+      const uid = el.dataset.doAddContact;
+      if (!_userMeta.dmContacts) _userMeta.dmContacts = [];
+      if (_userMeta.dmContacts.length === 0) {
+        _userMeta.dmContacts.push({ groupName: 'Contacts', uids: [uid] });
+      } else if (!_userMeta.dmContacts[0].uids.includes(uid)) {
+        _userMeta.dmContacts[0].uids.push(uid);
+      }
+      saveDmContacts();
+      render();
+    }],
+    ['#chat-save-contacts', () => { _showManageContacts = false; render(); }],
+    ['#chat-backfill-subs', async el => {
+      if (el.disabled) return;
+      el.disabled = true;
+      el.textContent = 'Backfilling…';
+      try {
+        const user = (typeof firebridge !== 'undefined' && firebridge.getUser) ? firebridge.getUser() : null;
+        if (!user) throw new Error('Not signed in');
+        const idToken = await user.getIdToken();
+        const resp = await fetch(BACKFILL_FN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: '{}'
+        });
+        const out = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(out.error || resp.statusText);
+        showToast(`Subscriber lists rebuilt for ${out.channels} channels (${out.users} users scanned)`);
+      } catch (e) {
+        showToast('Backfill failed: ' + (e.message || e));
+      } finally {
+        el.disabled = false;
+        el.textContent = 'Backfill subscriber lists';
+      }
+    }],
+    /* ── V3.582 Slack-history import ── */
+    ['#chat-import-btn', () => openImportModal()],
+    ['#chat-import-next', () => importGoNext()],
+    ['#chat-import-back', el => {
+      _importState.step = el.dataset.backTo || 'input';
+      _importState.error = null;
+      updateModals();
+    }],
+    ['#chat-import-run', () => runImport()],
+    ['[data-import-remove]', el => {
+      if (_importState?.busy) return;
+      if (!confirm('Remove this entire imported history from the conversation?')) return;
+      removeImportBatch(el.dataset.importRemove);
+    }],
+    ['[data-close-modal]', (el, e) => {
+      // Backdrop overlays carry data-close-modal too — only close when
+      // the click is on the backdrop itself, not inside the dialog.
+      // (Inline stopPropagation was removed so delegated routes fire.)
+      if (el.classList.contains('chat-modal-overlay') && e.target.closest('.chat-modal')) return;
+      const which = el.dataset.closeModal;
+      if (which === 'directory') _showChannelDirectory = false;
+      if (which === 'create') _showCreateChannel = false;
+      if (which === 'settings') _showSettings = false;
+      if (which === 'pinned') _showPinned = false;
+      if (which === 'search') _showSearch = false;
+      if (which === 'newdm') _showNewDM = false;
+      if (which === 'contacts') _showManageContacts = false;
+      if (which === 'seenby') _showSeenBy = null;
+      if (which === 'import') {
+        if (_importState?.busy) return; // no closing mid-import
+        _showImport = false;
+        _importState = null;
+      }
+      render();
+    }],
+
+    /* ── broad containers LAST ── */
+    ['[data-msg-select]', (el, e) => {
+      // Don't select when clicking a link/button/interactive element
+      if (e.target.closest('a, button, textarea, input, select, .chat-reaction, .chat-thread-indicator, .chat-msg-receipt-eye')) return;
+      const msgId = el.dataset.msgSelect;
+      _selectedMsgId = _selectedMsgId === msgId ? null : msgId;
+      document.querySelectorAll('.chat-msg--selected').forEach(m => m.classList.remove('chat-msg--selected'));
+      const oldBar = document.querySelector('.chat-action-bar');
+      if (oldBar) oldBar.remove();
+      if (_selectedMsgId) {
+        el.classList.add('chat-msg--selected');
+        el.style.position = 'relative';
+        el.insertAdjacentHTML('afterbegin', renderMsgActionBarHTML());
+      }
+    }]
+  ];
+
+  function wireDelegatedClicks() {
+    appEl.addEventListener('click', (e) => {
+      for (const [sel, fn] of CLICK_ROUTES) {
+        const el = e.target.closest(sel);
+        if (el && appEl.contains(el)) { fn(el, e); return; }
+      }
+    });
+  }
+
+  function clearMsgSelection() {
+    _selectedMsgId = null;
+    document.querySelectorAll('.chat-msg--selected').forEach(m => m.classList.remove('chat-msg--selected'));
+    const bar = document.getElementById('chat-action-bar');
+    if (bar) bar.remove();
+  }
+
+  let _onWindowResize = null;
+
+  function wireLayoutResize() {
+    _onWindowResize = () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => {
+        const mode = isMobile() ? 'mobile' : 'desktop';
+        if (mode !== _shellMode) render(); // crossing 700px rebuilds the shell
+        else updateStickyOffsets();        // nav/header heights shift with width
+      }, 150);
+    };
+    window.addEventListener('resize', _onWindowResize);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     LIFECYCLE — destroy() (R2)
+     Chat mounts inside split-view iframes and shell popouts, which
+     detach/replace the page without a full navigation. Without an
+     explicit teardown the Firestore listeners and document-level
+     handlers leak across mounts. Convention per annotation-overlay.js:
+     expose a window-level handle + self-hook on pagehide.
+     ═══════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     TAB-LIFECYCLE PAUSE/RESUME (V3.585 — Ourlab app multi-WebView shell)
+     While this WebView is a hidden background tab: detach EVERY Firestore
+     listener but keep all state + DOM warm (_messages/_channels/
+     _activeChannelId/_threadParentId/_mobileTab/_userMeta/_readStates and
+     the rendered feed), so swapping back paints instantly and the
+     re-attached snapshots repaint once with fresh data. destroy() remains
+     the full teardown for real page unloads — a paused page can still be
+     destroyed (all detaches are null-guarded).
+     Accepted UX (by design): resume returns the feed to the live tail —
+     a user parked deep in history-mode scrollback comes back to bottom.
+     ═══════════════════════════════════════════════════════════ */
+  function pauseChat() {
+    if (_paused) return;
+    _paused = true;
+    try { saveDraft(); } catch (_) {}
+    clearTimeout(_typingClearTimer);
+    try { writeTyping(null); } catch (_) {}   // don't stay "typing…" while hidden
+    // V3.596 — stop claiming the channel too, so chat pushes resume while
+    // this tab sits in the background. Same "last write before detaching"
+    // slot as writeTyping(null) above.
+    try { window.RM_PRESENCE && window.RM_PRESENCE.setContext([]); } catch (_) {}
+    clearInterval(_heartbeatTimer);
+    _heartbeatTimer = null;                    // presence drifts to away — chosen policy
+    if (_onVisibilityChange) {
+      // startPresence() re-adds this on resume — MUST remove here or it
+      // duplicates on every pause/resume cycle (listener leak).
+      document.removeEventListener('visibilitychange', _onVisibilityChange);
+      _onVisibilityChange = null;
     }
-    wireMessages();
-    wireInput();
-    wireThread();
-    wireModals();
-    wireHeader();
-    wireDragDrop();
-    wireFileDrop();
-    wireFeedScroll();
+    clearTimeout(_typingRerenderTimer);
+    clearTimeout(_alertTimer);
+    _hadUserMeta = !!_unsubUserMeta;           // subscribeUserMeta isn't part of the
+                                               // init sequence — only re-attach if live
+    _unsubs.splice(0).forEach(u => { try { u(); } catch (_) {} });
+    [_unsubChannels, _unsubMessages, _unsubReadState, _unsubThread, _unsubUserMeta, _unsubChannelReadStates]
+      .forEach(u => { try { u && u(); } catch (_) {} });
+    _unsubChannels = _unsubMessages = _unsubReadState = _unsubThread = _unsubUserMeta = _unsubChannelReadStates = null;
+    // Deliberately NOT touched: DOM, message/channel caches, active channel,
+    // thread id, gesture/swipe/resize/scroll wiring (document stays alive).
   }
 
-  function wireMobileTabBar() {
-    document.querySelectorAll('[data-chat-tab]').forEach(el => {
-      el.addEventListener('click', () => {
-        _mobileTab = el.dataset.chatTab;
-        if (_mobileTab === 'search') { _showSearch = true; _searchQuery = ''; }
-        render();
-      });
-    });
-
-    // Center active tab (uses shared utility if available, else inline)
-    const tabBar = document.getElementById('chat-tab-bar');
-    if (tabBar && McgheeLab.MobileShell?.centerActiveTab) {
-      McgheeLab.MobileShell.centerActiveTab(tabBar, '.chat-tab--active');
+  function resumeChat() {
+    if (!_paused) return;
+    _paused = false;
+    if (!_user) return;            // hidden/visible arrived before init finished
+    _alertInit = false;            // first resumed channels snapshot re-baselines
+                                   // _lastMsgSeen — no alert storm for missed msgs
+    _suppressAutoSelect = !_activeChannelId;  // parked on Overview: stay there
+    if (_activeChannelId) {
+      // REUSE the V3.581 validation only: the next channels snapshot
+      // re-renders if the channel survived, or clears + falls back if it was
+      // deleted while hidden. The parse-time pre-seed (_restoreChannelId)
+      // is init-only and never re-runs.
+      _pendingRestore = true;
+      subscribeMessages(_activeChannelId);   // also re-attaches channel read
+                                             // states; snapshot marks read
+      if (_threadParentId) subscribeThread(_threadParentId);
     }
-
-    // Conversation list clicks
-    document.querySelectorAll('[data-conv-channel]').forEach(el => {
-      el.addEventListener('click', () => selectChannel(el.dataset.convChannel));
-    });
+    subscribeChannels();
+    subscribeReadState();
+    subscribeUsers();
+    subscribeConfig();
+    if (_hadUserMeta) subscribeUserMeta();
+    startPresence();               // subscribePresence + immediate heartbeat +
+                                   // fresh visibilitychange listener (old one
+                                   // was removed in pauseChat)
+    publishPresenceContext();      // V3.596 — re-claim the channel we dropped
   }
 
-  function wireDesktopViewTabs() {
-    document.querySelectorAll('[data-view-tab]').forEach(el => {
-      el.addEventListener('click', () => {
-        _desktopView = el.dataset.viewTab;
-        render();
-      });
-    });
-
-    const headerSearch = document.getElementById('chat-header-search');
-    if (headerSearch) headerSearch.addEventListener('click', () => { _showSearch = true; _searchQuery = ''; render(); });
+  function destroy() {
+    // V3.596 — unmounting (split-view swap, shell popout) fires no pagehide,
+    // so drop the channel claim explicitly or it lingers for FRESH_MS.
+    try { window.RM_PRESENCE && window.RM_PRESENCE.setContext([]); } catch (_) {}
+    _unsubs.splice(0).forEach(u => { try { u(); } catch (_) {} });
+    [_unsubChannels, _unsubMessages, _unsubReadState, _unsubThread, _unsubUserMeta, _unsubChannelReadStates]
+      .forEach(u => { try { u && u(); } catch (_) {} });
+    _unsubChannels = _unsubMessages = _unsubReadState = _unsubThread = _unsubUserMeta = _unsubChannelReadStates = null;
+    document.removeEventListener('gesturestart', _onGestureStart);
+    document.removeEventListener('gesturechange', _onGestureChange);
+    if (_onSwipeStart) document.removeEventListener('touchstart', _onSwipeStart);
+    if (_onSwipeEnd) document.removeEventListener('touchend', _onSwipeEnd);
+    if (_onWindowResize) window.removeEventListener('resize', _onWindowResize);
+    if (_onPageScroll) window.removeEventListener('scroll', _onPageScroll);
+    if (_onVisibilityChange) document.removeEventListener('visibilitychange', _onVisibilityChange);
+    clearInterval(_heartbeatTimer);
+    clearTimeout(_typingClearTimer);
+    clearTimeout(_typingRerenderTimer);
+    clearTimeout(_searchDebounceTimer);
+    _searchScanGen++; // cancel any in-flight progressive search loop
+    clearTimeout(_alertTimer);
+    const cornerAlert = document.getElementById('chat-corner-alert');
+    if (cornerAlert) cornerAlert.remove();
+    clearTimeout(_draftSaveTimer);
+    clearTimeout(_toastTimer);
+    clearTimeout(_resizeTimer);
+    clearTimeout(_callRingTimer);
+    window.removeEventListener('voice-call-change', _onVoiceCallChange);
+    try { writeTyping(null); } catch (_) {} // best-effort typing clear
+    try { saveDraft(); } catch (_) {} // don't lose in-progress text on teardown
   }
 
-  function wireSidebar() {
-    // Channel selection
-    document.querySelectorAll('.chat-sidebar-item[data-channel]').forEach(el => {
-      el.addEventListener('click', () => {
-        const chId = el.dataset.channel;
-        _mobileSidebarOpen = false;
-        selectChannel(chId);
-      });
-    });
+  window.CHAT_PAGE = { destroy, pause: pauseChat, resume: resumeChat };
+  // V3.585 — page hook consumed by tab-lifecycle.js on 'ourlab:tab-hidden'/
+  // 'ourlab:tab-visible' (Ourlab app shell). Inert on web (events never fire).
+  window.OURLAB_TAB_LIFECYCLE = { pause: pauseChat, resume: resumeChat };
+  window.addEventListener('pagehide', destroy, { once: true });
 
+  // Sidebar non-click wiring: drag-drop channel organization +
+  // contenteditable group names. Clicks are delegated (CLICK_ROUTES).
+  function wireSidebarNonClick() {
     // Sidebar drag and drop for channel organization
     document.querySelectorAll('.chat-sidebar-item[draggable]').forEach(el => {
       el.addEventListener('dragstart', (e) => {
@@ -2381,271 +4156,6 @@ window.McgheeLab = window.McgheeLab || {};
       });
     });
 
-    // Browse channels
-    const browseBtn = document.getElementById('chat-browse-channels');
-    if (browseBtn) browseBtn.addEventListener('click', () => { _showChannelDirectory = true; render(); });
-
-    // DM contact clicks — open/create DM with that person
-    document.querySelectorAll('[data-dm-contact]').forEach(el => {
-      el.addEventListener('click', () => {
-        _mobileSidebarOpen = false;
-        createDM([el.dataset.dmContact]);
-      });
-    });
-
-    // Manage contacts button
-    const manageBtn = document.getElementById('chat-manage-contacts-btn');
-    if (manageBtn) manageBtn.addEventListener('click', () => { _showManageContacts = true; render(); });
-
-    // New DM button (quick DM from + icon, still available)
-    const newDMBtn = document.getElementById('chat-new-dm-btn');
-    if (newDMBtn) newDMBtn.addEventListener('click', () => { _showNewDM = true; render(); });
-
-    // Search button
-    const searchBtn = document.getElementById('chat-search-btn');
-    if (searchBtn) searchBtn.addEventListener('click', () => { _showSearch = true; _searchQuery = ''; render(); });
-
-    // Settings button
-    const settingsBtn = document.getElementById('chat-settings-btn');
-    if (settingsBtn) settingsBtn.addEventListener('click', () => { _showSettings = true; render(); });
-
-    // Mobile close
-    const closeBtn = document.getElementById('chat-sidebar-close');
-    if (closeBtn) closeBtn.addEventListener('click', () => { _mobileSidebarOpen = false; render(); });
-
-    const overlay = document.getElementById('chat-sidebar-overlay');
-    if (overlay) overlay.addEventListener('click', () => { _mobileSidebarOpen = false; render(); });
-  }
-
-  function wireHeader() {
-    const hamburger = document.getElementById('chat-hamburger');
-    if (hamburger) hamburger.addEventListener('click', () => { _mobileSidebarOpen = true; render(); });
-
-    const subToggle = document.getElementById('chat-sub-toggle');
-    if (subToggle) {
-      subToggle.addEventListener('click', async () => {
-        const subscribed = _userMeta?.subscribedChannels?.includes(_activeChannelId);
-        if (subscribed) {
-          await unsubscribeFromChannel(_activeChannelId);
-        } else {
-          await subscribeToChannel(_activeChannelId);
-        }
-        render();
-      });
-    }
-
-    const pinnedBtn = document.getElementById('chat-pinned-btn');
-    if (pinnedBtn) pinnedBtn.addEventListener('click', () => {
-      if (isMobile()) {
-        _showPinned = !_showPinned;
-      } else {
-        _desktopView = _desktopView === 'pinned' ? 'chat' : 'pinned';
-      }
-      render();
-    });
-
-    const headerSearch = document.getElementById('chat-header-search');
-    if (headerSearch) headerSearch.addEventListener('click', () => { _showSearch = true; _searchQuery = ''; render(); });
-  }
-
-  function wireMessages() {
-    // Message selection — tap to show action bar
-    document.querySelectorAll('[data-msg-select]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        // Don't select if clicking a link, button, or interactive element
-        if (e.target.closest('a, button, textarea, input, .chat-reaction, .chat-thread-indicator, .chat-msg-receipt-eye')) return;
-        const msgId = el.dataset.msgSelect;
-        _selectedMsgId = _selectedMsgId === msgId ? null : msgId;
-        // Update selection highlight
-        document.querySelectorAll('.chat-msg--selected').forEach(m => m.classList.remove('chat-msg--selected'));
-        if (_selectedMsgId) el.classList.add('chat-msg--selected');
-        // Remove any existing floating action bar
-        const oldBar = document.querySelector('.chat-action-bar');
-        if (oldBar) oldBar.remove();
-        // Show floating action bar above the selected message
-        if (_selectedMsgId) {
-          el.style.position = 'relative';
-          el.insertAdjacentHTML('afterbegin', renderMsgActionBarHTML());
-          wireActionBar();
-        }
-      });
-    });
-
-    // Action bar close + buttons
-    wireActionBar();
-
-    // Reactions
-    document.querySelectorAll('[data-react]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const msgId = el.dataset.react;
-        const emoji = el.dataset.emoji;
-        if (emoji) toggleReaction(msgId, emoji);
-      });
-    });
-
-    // Emoji picker toggle — render as fixed-position body overlay
-    document.querySelectorAll('[data-react-add]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const msgId = el.dataset.reactAdd;
-        // Close existing picker
-        const existing = document.getElementById('chat-emoji-overlay');
-        if (existing) { existing.remove(); _showEmojiPickerFor = null; if (_showEmojiPickerFor === msgId) return; }
-        _showEmojiPickerFor = msgId;
-        showEmojiPickerAt(el, msgId);
-      });
-    });
-
-    // Thread start
-    document.querySelectorAll('[data-thread-start], [data-thread]').forEach(el => {
-      el.addEventListener('click', () => {
-        const msgId = el.dataset.threadStart || el.dataset.thread;
-        _threadParentId = msgId;
-        // Save feed scroll position before full re-render
-        const feed = document.getElementById('chat-feed');
-        const savedScroll = feed ? feed.scrollTop : null;
-        const savedAutoScroll = _autoScroll;
-        _autoScroll = false; // Prevent scrollToBottom during re-render
-        subscribeThread(msgId);
-        render();
-        // Restore feed scroll position after re-render
-        if (savedScroll !== null) {
-          requestAnimationFrame(() => {
-            const newFeed = document.getElementById('chat-feed');
-            if (newFeed) newFeed.scrollTop = savedScroll;
-            _autoScroll = savedAutoScroll;
-          });
-        }
-      });
-    });
-
-    // Pin
-    document.querySelectorAll('[data-pin]').forEach(el => {
-      el.addEventListener('click', () => togglePin(el.dataset.pin));
-    });
-
-    // Edit
-    document.querySelectorAll('[data-edit]').forEach(el => {
-      el.addEventListener('click', () => {
-        _editingMessageId = el.dataset.edit;
-        renderMessages();
-        const textarea = document.getElementById(`chat-edit-${el.dataset.edit}`);
-        if (textarea) textarea.focus();
-      });
-    });
-
-    // Save edit
-    document.querySelectorAll('[data-save-edit]').forEach(el => {
-      el.addEventListener('click', () => {
-        const textarea = document.getElementById(`chat-edit-${el.dataset.saveEdit}`);
-        if (textarea) editMessage(el.dataset.saveEdit, textarea.value);
-      });
-    });
-
-    // Cancel edit
-    document.querySelectorAll('[data-cancel-edit]').forEach(el => {
-      el.addEventListener('click', () => {
-        _editingMessageId = null;
-        renderMessages();
-      });
-    });
-
-    // Delete
-    document.querySelectorAll('[data-delete]').forEach(el => {
-      el.addEventListener('click', () => {
-        if (confirm('Delete this message?')) deleteMessage(el.dataset.delete);
-      });
-    });
-
-    // Seen by
-    document.querySelectorAll('[data-seen-by]').forEach(el => {
-      el.addEventListener('click', () => {
-        _showSeenBy = el.dataset.seenBy;
-        render();
-      });
-    });
-
-    // Load more
-    const loadMoreBtn = document.getElementById('chat-load-more');
-    if (loadMoreBtn) loadMoreBtn.addEventListener('click', () => loadOlderMessages());
-
-    // Search result navigation
-    document.querySelectorAll('[data-goto-msg]').forEach(el => {
-      el.addEventListener('click', () => {
-        _showSearch = false;
-        render();
-        const target = document.getElementById(`msg-${el.dataset.gotoMsg}`);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    });
-  }
-
-  function wireActionBar() {
-    const bar = document.getElementById('chat-action-bar');
-    if (!bar) return;
-
-    const closeBtn = document.getElementById('chat-action-bar-close');
-    if (closeBtn) closeBtn.addEventListener('click', () => {
-      _selectedMsgId = null;
-      document.querySelectorAll('.chat-msg--selected').forEach(m => m.classList.remove('chat-msg--selected'));
-      bar.remove();
-    });
-
-    // Wire action buttons on the bar (react, thread, pin, edit, delete)
-    bar.querySelectorAll('[data-react-add]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _showEmojiPickerFor = el.dataset.reactAdd;
-        showEmojiPickerAt(el, el.dataset.reactAdd);
-      });
-    });
-    bar.querySelectorAll('[data-thread-start]').forEach(el => {
-      el.addEventListener('click', () => {
-        _threadParentId = el.dataset.threadStart;
-        _selectedMsgId = null;
-        const feed = document.getElementById('chat-feed');
-        const savedScroll = feed ? feed.scrollTop : null;
-        const savedAutoScroll = _autoScroll;
-        _autoScroll = false;
-        subscribeThread(el.dataset.threadStart);
-        render();
-        if (savedScroll !== null) {
-          requestAnimationFrame(() => {
-            const newFeed = document.getElementById('chat-feed');
-            if (newFeed) newFeed.scrollTop = savedScroll;
-            _autoScroll = savedAutoScroll;
-          });
-        }
-      });
-    });
-    bar.querySelectorAll('[data-pin]').forEach(el => {
-      el.addEventListener('click', () => {
-        togglePin(el.dataset.pin);
-        _selectedMsgId = null;
-        bar.remove();
-        document.querySelectorAll('.chat-msg--selected').forEach(m => m.classList.remove('chat-msg--selected'));
-      });
-    });
-    bar.querySelectorAll('[data-edit]').forEach(el => {
-      el.addEventListener('click', () => {
-        _editingMessageId = el.dataset.edit;
-        _selectedMsgId = null;
-        renderMessages();
-        const textarea = document.getElementById(`chat-edit-${el.dataset.edit}`);
-        if (textarea) textarea.focus();
-      });
-    });
-    bar.querySelectorAll('[data-delete]').forEach(el => {
-      el.addEventListener('click', () => {
-        if (confirm('Delete this message?')) {
-          deleteMessage(el.dataset.delete);
-          _selectedMsgId = null;
-          bar.remove();
-          document.querySelectorAll('.chat-msg--selected').forEach(m => m.classList.remove('chat-msg--selected'));
-        }
-      });
-    });
   }
 
   function wireInput() {
@@ -2660,6 +4170,11 @@ window.McgheeLab = window.McgheeLab || {};
       // Debounced draft save
       clearTimeout(_draftSaveTimer);
       _draftSaveTimer = setTimeout(() => saveDraft(), 500);
+
+      // R5 — typing indicator: throttled declare + inactivity clear
+      writeTyping(_activeChannelId);
+      clearTimeout(_typingClearTimer);
+      _typingClearTimer = setTimeout(() => writeTyping(null), TYPING_TTL_MS);
 
       // Mention detection
       const cursorPos = input.selectionStart;
@@ -2718,22 +4233,20 @@ window.McgheeLab = window.McgheeLab || {};
       }
     });
 
-    // Send button
-    const sendBtn = document.getElementById('chat-send-btn');
-    if (sendBtn) sendBtn.addEventListener('click', () => handleSend(input));
-
-    // File attach — no per-user auth needed (Apps Script handles Drive access)
-    const attachBtn = document.getElementById('chat-attach-btn');
+    // Send + attach button CLICKS are delegated (CLICK_ROUTES); only the
+    // file input's change event needs re-wiring with the region.
     const fileInput = document.getElementById('chat-file-input');
-    if (attachBtn && fileInput) {
-      attachBtn.addEventListener('click', () => fileInput.click());
+    if (fileInput) {
       fileInput.addEventListener('change', async () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-        await handleFileUpload(file, input);
+        const files = Array.from(fileInput.files || []);
+        if (!files.length) return;
+        await handleFilesUpload(files, input);
         fileInput.value = '';
       });
     }
+
+    // R5 — leaving the composer clears the typing state
+    input.addEventListener('blur', () => { clearTimeout(_typingClearTimer); writeTyping(null); });
 
     // Clipboard paste
     input.addEventListener('paste', async (e) => {
@@ -2750,127 +4263,51 @@ window.McgheeLab = window.McgheeLab || {};
     });
   }
 
-  function wireThread() {
-    const closeBtn = document.getElementById('chat-thread-close');
-    if (closeBtn) closeBtn.addEventListener('click', () => {
-      _threadParentId = null;
-      if (_unsubThread) { _unsubThread(); _unsubThread = null; }
-      render();
-    });
-
+  // Thread composer non-click wiring (send/close clicks are delegated).
+  function wireThreadInput() {
     const threadInput = document.getElementById('chat-thread-input');
-    const threadSend = document.getElementById('chat-thread-send');
-    if (threadInput) {
-      threadInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          handleThreadSend(threadInput);
+    if (!threadInput) return;
+    threadInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleThreadSend(threadInput);
+      }
+    });
+    threadInput.addEventListener('input', () => {
+      threadInput.style.height = 'auto';
+      threadInput.style.height = Math.min(threadInput.scrollHeight, 100) + 'px';
+    });
+  }
+
+  // Modal non-click wiring: search filters, role selects, group-name
+  // inputs, contact drag-drop. Button clicks are delegated (CLICK_ROUTES).
+  function wireModalsNonClick() {
+    // ── V3.582 Slack-history import modal ──
+    // File pick → parse immediately (re-render shows the summary line).
+    const importFile = document.getElementById('chat-import-file');
+    if (importFile) {
+      importFile.addEventListener('change', () => {
+        const f = importFile.files && importFile.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => importHandleParsedText(String(reader.result || ''), f.name);
+        reader.onerror = () => { _importState.error = 'Could not read that file.'; updateModals(); };
+        reader.readAsText(f);
+      });
+    }
+    // Mapping selects → update mapping in place (no re-render needed).
+    document.querySelectorAll('[data-import-map]').forEach(el => {
+      el.addEventListener('change', () => {
+        const slackName = el.dataset.importMap;
+        const v = el.value;
+        if (v === '__skip__') {
+          _importState.mapping[slackName] = 'SKIP';
+        } else if (v === '__nameonly__') {
+          _importState.mapping[slackName] = { uid: null, displayName: slackName };
+        } else {
+          const u = _allUsers.find(x => x.uid === v);
+          _importState.mapping[slackName] = { uid: v, displayName: u ? (u.name || u.displayName || u.email) : slackName };
         }
-      });
-      threadInput.addEventListener('input', () => {
-        threadInput.style.height = 'auto';
-        threadInput.style.height = Math.min(threadInput.scrollHeight, 100) + 'px';
-      });
-    }
-    if (threadSend && threadInput) {
-      threadSend.addEventListener('click', () => handleThreadSend(threadInput));
-    }
-    wireThreadMessages();
-  }
-
-  function wireThreadMessages() {
-    // Wire reactions, edit, delete in thread panel
-    const threadEl = document.getElementById('chat-thread');
-    if (!threadEl) return;
-    threadEl.querySelectorAll('[data-react]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (el.dataset.emoji) toggleReaction(el.dataset.react, el.dataset.emoji);
-      });
-    });
-    threadEl.querySelectorAll('[data-react-add]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _showEmojiPickerFor = _showEmojiPickerFor === el.dataset.reactAdd ? null : el.dataset.reactAdd;
-        renderThread();
-      });
-    });
-    threadEl.querySelectorAll('[data-edit]').forEach(el => {
-      el.addEventListener('click', () => { _editingMessageId = el.dataset.edit; renderThread(); });
-    });
-    threadEl.querySelectorAll('[data-save-edit]').forEach(el => {
-      el.addEventListener('click', () => {
-        const ta = document.getElementById(`chat-edit-${el.dataset.saveEdit}`);
-        if (ta) editMessage(el.dataset.saveEdit, ta.value);
-      });
-    });
-    threadEl.querySelectorAll('[data-cancel-edit]').forEach(el => {
-      el.addEventListener('click', () => { _editingMessageId = null; renderThread(); });
-    });
-    threadEl.querySelectorAll('[data-delete]').forEach(el => {
-      el.addEventListener('click', () => { if (confirm('Delete this message?')) deleteMessage(el.dataset.delete); });
-    });
-  }
-
-  function wireModals() {
-    // Close modals
-    document.querySelectorAll('[data-close-modal]').forEach(el => {
-      el.addEventListener('click', () => {
-        const which = el.dataset.closeModal;
-        if (which === 'directory') _showChannelDirectory = false;
-        if (which === 'create') _showCreateChannel = false;
-        if (which === 'settings') _showSettings = false;
-        if (which === 'pinned') _showPinned = false;
-        if (which === 'search') _showSearch = false;
-        if (which === 'newdm') _showNewDM = false;
-        if (which === 'contacts') _showManageContacts = false;
-        if (which === 'seenby') _showSeenBy = null;
-        render();
-      });
-    });
-
-    // Create channel from directory
-    const createBtn = document.getElementById('chat-create-channel-btn');
-    if (createBtn) createBtn.addEventListener('click', () => {
-      _showChannelDirectory = false;
-      _showCreateChannel = true;
-      render();
-    });
-
-    // Do create channel
-    const doCreate = document.getElementById('chat-do-create');
-    if (doCreate) doCreate.addEventListener('click', () => {
-      const name = document.getElementById('chat-new-name')?.value?.trim();
-      const display = document.getElementById('chat-new-display')?.value?.trim();
-      const desc = document.getElementById('chat-new-desc')?.value?.trim();
-      const cat = document.getElementById('chat-new-category')?.value;
-      const announce = document.getElementById('chat-new-announce')?.checked || false;
-      if (!name) { showToast('Channel name is required'); return; }
-      if (!cat) { showToast('Please select a category'); return; }
-      createChannel(name, display, desc, cat, announce);
-    });
-
-    // Directory subscribe/unsubscribe
-    document.querySelectorAll('[data-sub-dir]').forEach(el => {
-      el.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await subscribeToChannel(el.dataset.subDir);
-        render();
-      });
-    });
-    document.querySelectorAll('[data-unsub-dir]').forEach(el => {
-      el.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await unsubscribeFromChannel(el.dataset.unsubDir);
-        render();
-      });
-    });
-
-    // Directory channel click -> navigate
-    document.querySelectorAll('[data-dir-channel]').forEach(el => {
-      el.addEventListener('click', () => {
-        _showChannelDirectory = false;
-        selectChannel(el.dataset.dirChannel);
       });
     });
 
@@ -2885,66 +4322,6 @@ window.McgheeLab = window.McgheeLab || {};
         });
       });
     }
-
-    // Settings save
-    const saveSettings = document.getElementById('chat-save-settings');
-    if (saveSettings) saveSettings.addEventListener('click', () => {
-      const categories = [];
-      document.querySelectorAll('[data-cat-idx]').forEach(el => {
-        const val = el.value.trim();
-        if (val) categories.push(val);
-      });
-      saveConfig({ categories });
-      _showSettings = false;
-      render();
-    });
-
-    // Add category
-    const addCat = document.getElementById('chat-add-cat');
-    if (addCat) addCat.addEventListener('click', () => {
-      const list = document.getElementById('chat-categories-list');
-      if (!list) return;
-      const idx = list.children.length;
-      const row = document.createElement('div');
-      row.className = 'chat-settings-row';
-      row.innerHTML = `<input class="app-input" value="" data-cat-idx="${idx}" placeholder="New category" />
-        <button class="chat-icon-btn chat-icon-btn--danger" data-remove-cat="${idx}">${svgTrash()}</button>`;
-      list.appendChild(row);
-      row.querySelector('input').focus();
-      row.querySelector('[data-remove-cat]').addEventListener('click', () => row.remove());
-    });
-
-    // Remove category
-    document.querySelectorAll('[data-remove-cat]').forEach(el => {
-      el.addEventListener('click', () => el.closest('.chat-settings-row')?.remove());
-    });
-
-    // Chat admin management
-    const addAdminBtn = document.getElementById('chat-add-admin-btn');
-    if (addAdminBtn) addAdminBtn.addEventListener('click', async () => {
-      const select = document.getElementById('chat-add-admin-select');
-      const uid = select?.value;
-      if (!uid) return;
-      const admins = [...(_config.chatAdmins || []), uid];
-      await saveConfig({ chatAdmins: admins });
-      _showSettings = true; // stay in settings
-      render();
-    });
-
-    document.querySelectorAll('[data-remove-admin]').forEach(el => {
-      el.addEventListener('click', async () => {
-        const uid = el.dataset.removeAdmin;
-        const admins = (_config.chatAdmins || []).filter(a => a !== uid);
-        await saveConfig({ chatAdmins: admins });
-        _showSettings = true;
-        render();
-      });
-    });
-
-    // DM user selection
-    document.querySelectorAll('[data-dm-user]').forEach(el => {
-      el.addEventListener('click', () => createDM([el.dataset.dmUser]));
-    });
 
     // DM search filter
     const dmSearch = document.getElementById('chat-dm-search');
@@ -2969,26 +4346,7 @@ window.McgheeLab = window.McgheeLab || {};
       });
     }
 
-    // ── Manage Contacts modal wiring ──
-    // Add contact group
-    const addGroupBtn = document.getElementById('chat-add-contact-group');
-    if (addGroupBtn) addGroupBtn.addEventListener('click', () => {
-      if (!_userMeta.dmContacts) _userMeta.dmContacts = [];
-      _userMeta.dmContacts.push({ groupName: 'New Group', uids: [] });
-      saveDmContacts();
-      render();
-    });
-
-    // Remove contact group
-    document.querySelectorAll('[data-remove-contact-group]').forEach(el => {
-      el.addEventListener('click', () => {
-        const gi = parseInt(el.dataset.removeContactGroup);
-        _userMeta.dmContacts.splice(gi, 1);
-        saveDmContacts();
-        render();
-      });
-    });
-
+    // ── Manage Contacts modal non-click wiring ──
     // Rename contact group
     document.querySelectorAll('[data-contact-group-name]').forEach(el => {
       el.addEventListener('blur', () => {
@@ -3000,38 +4358,6 @@ window.McgheeLab = window.McgheeLab || {};
         }
       });
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } });
-    });
-
-    // Remove individual contact
-    document.querySelectorAll('[data-remove-contact]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const uid = el.dataset.removeContact;
-        for (const group of (_userMeta.dmContacts || [])) {
-          group.uids = (group.uids || []).filter(id => id !== uid);
-        }
-        saveDmContacts();
-        render();
-      });
-    });
-
-    // Add contact from the people list
-    document.querySelectorAll('[data-do-add-contact]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const uid = el.dataset.doAddContact;
-        if (!_userMeta.dmContacts) _userMeta.dmContacts = [];
-        // Add to first group, or create one
-        if (_userMeta.dmContacts.length === 0) {
-          _userMeta.dmContacts.push({ groupName: 'Contacts', uids: [uid] });
-        } else {
-          if (!_userMeta.dmContacts[0].uids.includes(uid)) {
-            _userMeta.dmContacts[0].uids.push(uid);
-          }
-        }
-        saveDmContacts();
-        render();
-      });
     });
 
     // Contact search filter
@@ -3104,46 +4430,20 @@ window.McgheeLab = window.McgheeLab || {};
       });
     });
 
-    // Done button
-    const saveContacts = document.getElementById('chat-save-contacts');
-    if (saveContacts) saveContacts.addEventListener('click', () => {
-      _showManageContacts = false;
-      render();
-    });
-
-    // Search input
+    // Search input — R6 progressive scan, 400ms debounce; result clicks
+    // ([data-goto-msg]) and scope buttons are delegated.
     const searchInput = document.getElementById('chat-search-input');
     if (searchInput) {
       searchInput.focus();
+      try { searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length); } catch (e) {}
       searchInput.addEventListener('input', () => {
         _searchQuery = searchInput.value;
-        const results = searchMessages(_searchQuery);
-        const container = document.querySelector('.chat-search-results');
-        if (container) {
-          container.innerHTML = _searchQuery && results.length === 0
-            ? '<p class="chat-muted">No results found.</p>'
-            : results.map(m => `<div class="chat-search-result" data-goto-msg="${m.id}">
-                <span class="chat-msg-author">${escHTML(m.authorName)}</span>
-                <span class="chat-msg-time">${formatTimestamp(m.createdAt)}</span>
-                <div class="chat-msg-text">${parseMarkdown(m.text)}</div>
-              </div>`).join('');
-          container.querySelectorAll('[data-goto-msg]').forEach(r => {
-            r.addEventListener('click', () => {
-              _showSearch = false;
-              render();
-              setTimeout(() => {
-                const target = document.getElementById(`msg-${r.dataset.gotoMsg}`);
-                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }, 100);
-            });
-          });
-        }
+        clearTimeout(_searchDebounceTimer);
+        _searchDebounceTimer = setTimeout(() => runProgressiveSearch(_searchQuery), 400);
       });
+      // Re-opened (or scope-switched) with a query already present
+      if (_searchQuery.trim()) runProgressiveSearch(_searchQuery);
     }
-  }
-
-  function wireDragDrop() {
-    // Already handled in wireSidebar for channel organization
   }
 
   function wireFileDrop() {
@@ -3160,141 +4460,61 @@ window.McgheeLab = window.McgheeLab || {};
       el.addEventListener('drop', async (e) => {
         e.preventDefault();
         el.classList.remove('chat-file-drop-active');
-        const file = e.dataTransfer.files?.[0];
-        if (file) {
+        const files = Array.from(e.dataTransfer.files || []);
+        if (files.length) {
           const input = document.getElementById('chat-input');
-          await handleFileUpload(file, input);
+          await handleFilesUpload(files, input);
         }
       });
     });
+  }
+
+  // Shared scroll-state logic for BOTH scrollers (the document — the
+  // real one today — and the feed element, future-proof).
+  function handleFeedScrollState(scrollTopOfScroller) {
+    if (_isRendering) return; // Don't update scroll state during DOM rebuilds
+    if (!document.getElementById('chat-feed')) return; // feed not on screen
+    const atBottom = feedAtBottom();
+    if (_feedMode === 'live') _autoScroll = atBottom;
+    // Scrolling up/down flips isWatchingFeed() without a re-render.
+    publishPresenceContext();
+    // Remove new messages button if at bottom
+    if (atBottom) {
+      const btn = document.getElementById('chat-new-msgs-btn');
+      if (btn) btn.remove();
+    }
+    // Load older on scroll to top
+    if (scrollTopOfScroller < 80 && _hasMoreMessages && !_loadingOlder) {
+      loadOlderMessages();
+    }
+    // R6 — history mode: scroll near bottom walks toward the tail
+    if (_feedMode === 'history' && atBottom) loadNewerMessages();
   }
 
   function wireFeedScroll() {
     const feed = document.getElementById('chat-feed');
     if (!feed) return;
-    feed.addEventListener('scroll', () => {
-      if (_isRendering) return; // Don't update scroll state during DOM rebuilds
-      const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 100;
-      _autoScroll = atBottom;
-      // Remove new messages button if at bottom
-      if (atBottom) {
-        const btn = document.getElementById('chat-new-msgs-btn');
-        if (btn) btn.remove();
-      }
-      // Load older on scroll to top
-      if (feed.scrollTop < 50 && _hasMoreMessages && !_loadingOlder) {
-        loadOlderMessages();
-      }
-    });
+    // Future-proof: fires only if the feed ever scrolls internally
+    feed.addEventListener('scroll', () => handleFeedScrollState(feed.scrollTop));
+    // Open-at-bottom fix — images/attachments finish loading AFTER the
+    // initial scrollToBottom and grow the page, which used to strand
+    // the view mid-history on open. `load` doesn't bubble, so a
+    // capture-phase listener on the feed re-pins for every inner <img>
+    // while the feed is in follow mode.
+    feed.addEventListener('load', () => {
+      if (_feedMode === 'live' && _autoScroll) pinFeedToBottom();
+    }, true);
   }
 
-  function wireMobile() {
-    // Conversation list item clicks
-    document.querySelectorAll('[data-conv-channel]').forEach(el => {
-      el.addEventListener('click', () => {
-        selectChannel(el.dataset.convChannel);
-      });
-    });
+  // V3.522 — the DOCUMENT is the real scroller (see pinFeedToBottom):
+  // one window-level listener drives autoscroll tracking, load-older on
+  // reaching the top, and history-mode load-newer. Attached once in
+  // bootstrap; removed in destroy().
+  let _onPageScroll = null;
 
-    // Tab bar clicks
-    document.querySelectorAll('[data-chat-tab]').forEach(el => {
-      el.addEventListener('click', () => {
-        _mobileTab = el.dataset.chatTab;
-        if (_mobileTab === 'search') { _showSearch = true; _searchQuery = ''; }
-        render();
-      });
-    });
-
-    // Center active tab
-    const tabBar = document.getElementById('chat-mobile-tabs');
-    if (tabBar) {
-      const active = tabBar.querySelector('.chat-mobile-tab--active');
-      if (active) {
-        const containerW = tabBar.offsetWidth;
-        const idealScroll = active.offsetLeft - (containerW / 2) + (active.offsetWidth / 2);
-        const maxScroll = tabBar.scrollWidth - containerW;
-        tabBar.scrollTo({ left: Math.max(0, Math.min(idealScroll, maxScroll)), behavior: 'smooth' });
-      }
-    }
-
-    // Hamburger menu
-    const hamburgerBtn = document.getElementById('mobile-hamburger-btn');
-    if (hamburgerBtn) hamburgerBtn.addEventListener('click', () => { _mobileHamburgerOpen = true; render(); });
-
-    const hamburgerClose = document.getElementById('mobile-hamburger-close');
-    if (hamburgerClose) hamburgerClose.addEventListener('click', () => { _mobileHamburgerOpen = false; render(); });
-
-    const hamburgerOverlay = document.getElementById('mobile-hamburger-overlay');
-    if (hamburgerOverlay) hamburgerOverlay.addEventListener('click', () => { _mobileHamburgerOpen = false; render(); });
-
-    // Hamburger menu items
-    const menuBrowse = document.getElementById('mobile-menu-browse');
-    if (menuBrowse) menuBrowse.addEventListener('click', () => { _mobileHamburgerOpen = false; _showChannelDirectory = true; render(); });
-
-    const menuNewDM = document.getElementById('mobile-menu-new-dm');
-    if (menuNewDM) menuNewDM.addEventListener('click', () => { _mobileHamburgerOpen = false; _showNewDM = true; render(); });
-
-    const menuContacts = document.getElementById('mobile-menu-contacts');
-    if (menuContacts) menuContacts.addEventListener('click', () => { _mobileHamburgerOpen = false; _showManageContacts = true; render(); });
-
-    const menuSettings = document.getElementById('mobile-menu-settings');
-    if (menuSettings) menuSettings.addEventListener('click', () => { _mobileHamburgerOpen = false; _showSettings = true; render(); });
-
-    // "All Lab Apps" in embedded mode — navigate parent
-    const menuAllApps = document.getElementById('mobile-menu-all-apps');
-    if (menuAllApps) menuAllApps.addEventListener('click', (e) => { e.preventDefault(); window.parent.location.hash = '#/apps'; });
-
-    // Bottom bar — prevent same-app navigation
-    document.querySelectorAll('[data-app-nav]').forEach(el => {
-      if (el.dataset.appNav === 'chat') {
-        el.addEventListener('click', (e) => e.preventDefault());
-      }
-    });
-  }
-
-  function wireOverview() {
-    // Collapsible section toggles
-    document.querySelectorAll('[data-toggle-section]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        // Don't toggle if clicking the manage-contacts button inside the header
-        if (e.target.closest('#chat-overview-manage-contacts')) return;
-        const key = el.dataset.toggleSection;
-        if (_collapsedSections.has(key)) _collapsedSections.delete(key);
-        else _collapsedSections.add(key);
-        render();
-      });
-    });
-
-    // Channel clicks
-    document.querySelectorAll('[data-overview-channel]').forEach(el => {
-      el.addEventListener('click', () => selectChannel(el.dataset.overviewChannel));
-    });
-
-    // DM contact clicks
-    document.querySelectorAll('[data-overview-dm]').forEach(el => {
-      el.addEventListener('click', () => {
-        const uid = el.dataset.overviewDm;
-        const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
-        if (dmCh) {
-          selectChannel(dmCh.id);
-        } else {
-          createDM([uid]);
-        }
-      });
-    });
-
-    // Action buttons
-    const browseBtn = document.getElementById('chat-overview-browse');
-    if (browseBtn) browseBtn.addEventListener('click', () => { _showChannelDirectory = true; render(); });
-
-    const newDMBtn = document.getElementById('chat-overview-new-dm');
-    if (newDMBtn) newDMBtn.addEventListener('click', () => { _showNewDM = true; render(); });
-
-    const manageBtn = document.getElementById('chat-overview-manage-contacts');
-    if (manageBtn) manageBtn.addEventListener('click', (e) => { e.stopPropagation(); _showManageContacts = true; render(); });
-
-    const searchBtn = document.getElementById('chat-overview-search');
-    if (searchBtn) searchBtn.addEventListener('click', () => { _showSearch = true; _searchQuery = ''; render(); });
+  function wirePageScroll() {
+    _onPageScroll = () => handleFeedScrollState(pageScroller().scrollTop);
+    window.addEventListener('scroll', _onPageScroll, { passive: true });
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -3307,6 +4527,10 @@ window.McgheeLab = window.McgheeLab || {};
     input.style.height = 'auto';
     _autoScroll = true;
     _selectedMsgId = null;
+    clearTimeout(_typingClearTimer);
+    writeTyping(null);
+    // R6 — sending from a history window returns to the live tail first
+    if (_feedMode === 'history') transitionToLive(true);
     await sendMessage(text, null, null);
   }
 
@@ -3322,9 +4546,18 @@ window.McgheeLab = window.McgheeLab || {};
     const fileData = await uploadFile(file);
     if (fileData) {
       const text = textInput?.value?.trim() || '';
-      textInput.value = '';
+      if (textInput) textInput.value = '';
       _autoScroll = true;
       await sendMessage(text || `Shared a file: ${file.name}`, fileData, null);
+    }
+  }
+
+  // R3 — multi-file attach: sequential uploads, one message per file.
+  // The composer text (if any) rides along as the first file's caption.
+  async function handleFilesUpload(files, textInput) {
+    for (let i = 0; i < files.length; i++) {
+      if (files.length > 1) showToast(`Uploading ${i + 1} of ${files.length}…`);
+      await handleFileUpload(files[i], textInput);
     }
   }
 
@@ -3352,31 +4585,14 @@ window.McgheeLab = window.McgheeLab || {};
     div.innerHTML = html;
     const popup = div.firstElementChild;
     wrapper.appendChild(popup);
-
-    // Wire mention clicks
-    popup.querySelectorAll('[data-mention-uid]').forEach(el => {
-      el.addEventListener('click', () => {
-        const u = _allUsers.find(a => a.uid === el.dataset.mentionUid);
-        if (u) {
-          const input = document.getElementById('chat-input');
-          const mentionText = `@${(u.name || u.displayName || u.email).replace(/\s+/g, '.')}`;
-          insertMention(input, mentionText);
-        }
-        _mentionQuery = null;
-        renderMentionPopup();
-      });
-    });
-    popup.querySelectorAll('[data-mention-channel]').forEach(el => {
-      el.addEventListener('click', () => {
-        const input = document.getElementById('chat-input');
-        insertMention(input, '@channel');
-        _mentionQuery = null;
-        renderMentionPopup();
-      });
-    });
+    // Item clicks ([data-mention-uid] / [data-mention-channel]) are
+    // delegated — no per-popup wiring needed.
   }
 
-  function showEmojiPickerAt(triggerEl, msgId) {
+  /* R3 — generalized emoji picker: callers pass an onPick(emojiKey)
+     callback. Reaction sites pass toggleReaction; the composer buttons
+     insert the glyph at the caret. */
+  function showEmojiPickerAt(triggerEl, onPick) {
     // Remove any existing picker
     const old = document.getElementById('chat-emoji-overlay');
     if (old) old.remove();
@@ -3402,7 +4618,7 @@ window.McgheeLab = window.McgheeLab || {};
     picker.querySelectorAll('.chat-emoji-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        toggleReaction(msgId, btn.dataset.emoji);
+        onPick(btn.dataset.emoji);
         picker.remove();
         _showEmojiPickerFor = null;
       });
@@ -3417,6 +4633,93 @@ window.McgheeLab = window.McgheeLab || {};
       }
     };
     setTimeout(() => document.addEventListener('click', closeHandler), 0);
+  }
+
+  // R3 — insert text at the caret of a textarea (generalizes the
+  // @-anchored insertMention; used by the composer emoji buttons).
+  function insertAtCursor(input, text) {
+    const start = input.selectionStart != null ? input.selectionStart : input.value.length;
+    const end = input.selectionEnd != null ? input.selectionEnd : start;
+    input.value = input.value.slice(0, start) + text + input.value.slice(end);
+    const pos = start + text.length;
+    input.setSelectionRange(pos, pos);
+    input.focus();
+  }
+
+  /* ── V3.569: Ourlab app — emoji + formatting as fold-up sheets ── */
+  function isOurlabApp() {
+    try {
+      return (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform())
+        || document.body.classList.contains('ourlab-app');
+    } catch (e) { return false; }
+  }
+
+  // Insert into the composer WITHOUT stealing focus (so a bottom sheet
+  // stays open + the keyboard doesn't cover it while picking emoji).
+  function insertIntoComposer(text, keepFocusOut) {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const s = input.selectionStart != null ? input.selectionStart : input.value.length;
+    const e = input.selectionEnd != null ? input.selectionEnd : s;
+    input.value = input.value.slice(0, s) + text + input.value.slice(e);
+    const pos = s + text.length;
+    try { input.setSelectionRange(pos, pos); } catch (_) {}
+    if (!keepFocusOut) input.focus();
+  }
+
+  function wrapComposerSelection(marker, markerEnd) {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const s = input.selectionStart != null ? input.selectionStart : input.value.length;
+    const e = input.selectionEnd != null ? input.selectionEnd : s;
+    const sel = input.value.slice(s, e);
+    const close = markerEnd || marker;
+    input.value = input.value.slice(0, s) + marker + sel + close + input.value.slice(e);
+    const pos = s + marker.length + sel.length;
+    try { input.setSelectionRange(pos, pos); } catch (_) {}
+    input.focus();
+  }
+
+  function openComposerEmojiSheet() {
+    APP_SHEET.open({
+      title: 'Emoji',
+      build: (body) => {
+        const grid = document.createElement('div');
+        grid.className = 'chat-emoji-sheet';
+        grid.innerHTML = EMOJI_SET.map(e =>
+          `<button type="button" class="chat-emoji-sheet-btn" data-emoji="${e.label}">${e.label}</button>`
+        ).join('');
+        grid.addEventListener('click', (ev) => {
+          const b = ev.target.closest('[data-emoji]');
+          if (b) insertIntoComposer(b.getAttribute('data-emoji'), true); // keep sheet open
+        });
+        body.appendChild(grid);
+      },
+    });
+  }
+
+  // A compact horizontal formatting toolbar (standard rich-text-editor
+  // style: B, I, S, <>, code block, @) shown above the composer.
+  function renderFormatBarHTML() {
+    return `<div class="chat-format-bar">
+      <button type="button" class="chat-fmt-btn" data-fmt="bold" title="Bold"><b>B</b></button>
+      <button type="button" class="chat-fmt-btn" data-fmt="italic" title="Italic"><i>I</i></button>
+      <button type="button" class="chat-fmt-btn" data-fmt="strike" title="Strikethrough"><span style="text-decoration:line-through">S</span></button>
+      <button type="button" class="chat-fmt-btn" data-fmt="code" title="Inline code">&lt;&gt;</button>
+      <button type="button" class="chat-fmt-btn chat-fmt-btn--wide" data-fmt="codeblock" title="Code block">&lt;/&gt;</button>
+      <button type="button" class="chat-fmt-btn" data-fmt="mention" title="Mention">@</button>
+    </div>`;
+  }
+
+  function applyFormat(kind) {
+    switch (kind) {
+      case 'bold':      return wrapComposerSelection('*');
+      case 'italic':    return wrapComposerSelection('_');
+      case 'strike':    return wrapComposerSelection('~');
+      case 'code':      return wrapComposerSelection('`');
+      case 'codeblock': return wrapComposerSelection('```\n', '\n```');
+      case 'mention':   return insertIntoComposer('@');
+    }
   }
 
   function moveChannelToGroup(channelId, targetGroupIdx) {
@@ -3476,13 +4779,66 @@ window.McgheeLab = window.McgheeLab || {};
   }
 
   function escHTML(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (str == null || str === '') return '';
+    // V3.593 — coerce, don't assume string. Firestore fields aren't
+    // type-checked by rules, so a numeric/array value (e.g. a malformed
+    // voiceCalls.startedByName) used to throw `.replace is not a function`
+    // out of a renderer and abort the whole render() pass.
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function getInitials(name) {
     if (!name) return '?';
-    return name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    // Escaped at the source — output is interpolated raw into HTML at
+    // ~11 call sites (avatars, seen-by modal, contact rows).
+    return escHTML(name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase());
+  }
+
+  function tsToDate(ts) {
+    if (!ts) return null;
+    return ts.toDate ? ts.toDate() : new Date(ts);
+  }
+
+  function sameDay(a, b) {
+    return !!(a && b) && a.getFullYear() === b.getFullYear()
+      && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  // R3 — date separator label: Today / Yesterday / weekday+date / +year
+  function formatDayLabel(d) {
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (sameDay(d, now)) return 'Today';
+    if (sameDay(d, yesterday)) return 'Yesterday';
+    if (d.getFullYear() === now.getFullYear()) {
+      return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // R3 — absolute clock time for the grouped-message hover gutter
+  function formatClockTime(ts) {
+    const d = tsToDate(ts);
+    return d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  }
+
+  // R3 — consecutive-message grouping: same author, both non-system,
+  // < 5 min apart, same calendar day (so a group never straddles a
+  // date separator).
+  const GROUP_WINDOW_MS = 5 * 60 * 1000;
+  function isGroupedWith(prev, msg) {
+    if (!prev || !msg) return false;
+    // Identity falls back to authorName: imported name-only messages
+    // all share authorUid null, and two DIFFERENT Slack authors 1s
+    // apart must not merge into one avatar block (V3.582).
+    if ((prev.authorUid || prev.authorName) !== (msg.authorUid || msg.authorName)) return false;
+    if (prev.type === 'system' || msg.type === 'system') return false;
+    const a = tsToDate(prev.createdAt);
+    const b = tsToDate(msg.createdAt);
+    if (!a || !b || !sameDay(a, b)) return false;
+    return (b - a) < GROUP_WINDOW_MS;
   }
 
   function formatTimestamp(ts) {
@@ -3547,6 +4903,33 @@ window.McgheeLab = window.McgheeLab || {};
     return _allUsers.find(u => u.uid === otherUid) || null;
   }
 
+  /* ── Alumni auto-sort (Alex request) ──
+     Curated contact groups store raw uids and never re-check
+     users/{uid}.category, so someone who moved to alumni stayed under
+     their old grouping forever. At render time, current alumni are
+     pulled out of every curated group and shown in an automatic
+     collapsed "Alumni" section instead. Pure render-time regrouping —
+     no data migration; if a category is corrected they pop back into
+     the original group. The New DM / Manage Contacts modals already
+     group by LIVE category, so they were never stale. */
+  function isAlumniUid(uid) {
+    const u = _allUsers.find(a => a.uid === uid);
+    return !!u && (u.category || '').toLowerCase() === 'alumni';
+  }
+
+  function splitContactsForRender() {
+    const groups = [];
+    const alumni = [];
+    for (const group of (_userMeta?.dmContacts || [])) {
+      const active = [];
+      for (const uid of (group.uids || [])) {
+        (isAlumniUid(uid) ? alumni : active).push(uid);
+      }
+      groups.push({ groupName: group.groupName, uids: active });
+    }
+    return { groups, alumni: [...new Set(alumni)] };
+  }
+
   function getCategoryLabel(cat) {
     const labels = {
       pi: 'PI', postdoc: 'Postdoc', grad: 'Grad', undergrad: 'Undergrad',
@@ -3555,10 +4938,42 @@ window.McgheeLab = window.McgheeLab || {};
     return labels[(cat || '').toLowerCase()] || 'Other';
   }
 
+  /* ── Open-at-bottom (V3.522) ──
+     THE actual scroller on the RM chat page is the DOCUMENT, not
+     #chat-feed: rm/pages/chat.html mounts into #chat-root (no height
+     constraint — chat.css's viewport rule targets the legacy #app id),
+     so .chat-feed grows to content height and its overflow-y never
+     engages. Every feed.scrollTop assignment since the V3.52 port has
+     been a no-op — which is why chat opened at the TOP of history.
+     All scroll logic now targets the document, with the feed kept as
+     the target too in case a future layout makes it a real scroller. */
+  function pageScroller() {
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function pinFeedToBottom() {
+    const feed = document.getElementById('chat-feed');
+    if (feed) feed.scrollTop = feed.scrollHeight; // no-op today, future-proof
+    const de = pageScroller();
+    de.scrollTop = de.scrollHeight;
+  }
+
+  function feedAtBottom() {
+    const feed = document.getElementById('chat-feed');
+    if (feed && feed.scrollHeight > feed.clientHeight + 1) {
+      return feed.scrollHeight - feed.scrollTop - feed.clientHeight < 100;
+    }
+    const de = pageScroller();
+    return de.scrollHeight - de.scrollTop - de.clientHeight < 120;
+  }
+
   function scrollToBottom() {
+    // Double-rAF: the second pass catches layout that settles after the
+    // first frame (fonts, late flex sizing). Image growth after this is
+    // handled by the capture-phase load listener in wireFeedScroll.
     requestAnimationFrame(() => {
-      const feed = document.getElementById('chat-feed');
-      if (feed) feed.scrollTop = feed.scrollHeight;
+      pinFeedToBottom();
+      requestAnimationFrame(pinFeedToBottom);
     });
   }
 

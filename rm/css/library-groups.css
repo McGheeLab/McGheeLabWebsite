@@ -1,0 +1,273 @@
+/* library-groups.css — V3.363 groups shelf on pages/library.html.
+ * Compact collapsible sections (open-in-reader / pinned / groups) above
+ * the papers table. Buttons reuse the global .btn/.btn-sm; chips are
+ * intentionally small — the shelf is a launcher, not a second table. */
+
+.lg-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.lg-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.lg-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.lg-sec-head:hover { background: #f9fafb; border-radius: 10px; }
+
+.lg-caret { font-size: 11px; color: #6b7280; width: 12px; flex-shrink: 0; }
+
+.lg-sec-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+  white-space: nowrap;
+}
+
+.lg-sec-count {
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 9px;
+  padding: 1px 7px;
+}
+
+.lg-sec-tools, .lg-group-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lg-sec-hint {
+  font-size: 10.5px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.lg-sec-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 12px 10px 32px;
+}
+
+.lg-collapsed > .lg-sec-body,
+.lg-group.lg-collapsed > .lg-group-body { display: none; }
+
+/* ---- paper chips ---- */
+
+.lg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 280px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 3px 8px 3px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  min-width: 0;
+}
+.lg-chip:hover { background: #eef2ff; border-color: #c7d2fe; }
+
+.lg-chip-link {
+  color: #1f2937;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.lg-chip-link:hover { color: #1e3a8a; }
+
+.lg-chip-year { font-size: 10px; color: #6b7280; flex-shrink: 0; }
+
+.lg-chip-active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.lg-chip-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.lg-chip-x:hover { color: #b91c1c; }
+
+/* ---- groups list ---- */
+
+.lg-groups-body {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.lg-group { border-top: 1px dashed #eef2f7; }
+.lg-group:first-child { border-top: none; }
+
+.lg-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+.lg-group-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+.lg-badge-smart { background: #eef2ff; color: #3730a3; }
+.lg-badge-draft { background: #ecfdf5; color: #065f46; }
+.lg-badge-lab   { background: #fef3c7; color: #92400e; }
+
+.lg-group-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0 10px 20px;
+}
+
+.lg-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed #eef2f7;
+  width: 100%;
+}
+
+.lg-empty {
+  font-size: 11.5px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Pin row-action button active state (table rows, wired in library.js). */
+.lib-pin-btn.on {
+  background: #fde68a;
+  border-color: #f59e0b;
+}
+
+/* ---- picker modals ---- */
+
+.lg-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.lg-modal-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  max-width: 460px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.lg-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.lg-modal-head h2 { margin: 0; font-size: 15px; }
+
+.lg-pick-sec {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #6b7280;
+  font-weight: 700;
+  margin: 10px 0 4px;
+}
+
+.lg-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.lg-pick-row:hover { background: #f9fafb; }
+.lg-pick-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.lg-pick-new {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #e5e7eb;
+}
+.lg-pick-new input {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.lg-pick-hint {
+  font-size: 11.5px;
+  color: #6b7280;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+/* ---- mobile ---- */
+
+@media (max-width: 640px) {
+  .lg-chip { max-width: 100%; }
+  .lg-sec-body { padding-left: 12px; }
+  .lg-group-body { padding-left: 8px; }
+  .lg-sec-hint { display: none; }
+  .lg-sec-tools .btn, .lg-group-tools .btn { min-height: 30px; }
+}

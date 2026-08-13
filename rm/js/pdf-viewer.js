@@ -42,11 +42,12 @@ GlobalWorkerOptions.workerSrc = '/rm/vendor/pdfjs/pdf.worker.mjs';
  * Returns null if the canvas is empty or getImageData throws (e.g. a tainted
  * canvas), in which case the caller falls back to text-only detection.
  */
-function _makePixelProbe(canvas, cssW, cssH) {
+function _makePixelProbe(canvas, cssW, cssH, maxGrid) {
   if (!canvas || !canvas.width || !canvas.height || cssW <= 0 || cssH <= 0) return null;
   if (typeof document === 'undefined') return null;
   try {
-    const gw = Math.max(40, Math.min(360, Math.round(cssW / 2)));
+    // V3.613 — maxGrid caps the probe resolution (phone: 180, default 360).
+    const gw = Math.max(40, Math.min(maxGrid || 360, Math.round(cssW / 2)));
     const gh = Math.max(40, Math.min(2400, Math.round(gw * canvas.height / canvas.width)));
     const off = document.createElement('canvas');
     off.width = gw; off.height = gh;
@@ -80,439 +81,167 @@ function _makePixelProbe(canvas, cssW, cssH) {
   }
 }
 
-/** Reading-order comparator: same visual line → left-to-right, else top-down. */
-function _lineSort(a, b) {
-  const aMid = a.y + a.height / 2;
-  const bMid = b.y + b.height / 2;
-  const lineHere = (a.height + b.height) / 2;
-  if (Math.abs(aMid - bMid) < lineHere * 0.6) return a.x - b.x;
-  return a.y - b.y;
-}
-
 /**
- * Compute each text item's `index` (visual reading order) and `cluster`
- * (block id), mutating `items` in place. geom-selection drag-selects the
- * contiguous index range between two items, so the ONLY hard requirement
- * is: items in one column never interleave (in index space) with items in
- * another column — otherwise an in-column highlight leaks across the
- * gutter. (That was the reported "highlight spans two columns" bug.)
+ * V3.616 — detect FIGURE regions on a rendered page: connected areas of
+ * ink that no text item covers. Text glyphs all live in the text layer, so
+ * whatever ink remains after masking them is graphical content — raster
+ * images AND vector plots alike (the operator-list approach only sees
+ * raster XObjects and misses every vector figure).
  *
- * Strategy:
- *   - Detect vertical column gutters (`_detectColumnGutters`).
- *   - If a page has gutters, order column-major within horizontal bands
- *     (`_orderByColumns`) — robust to ANY bridge (narrow gutter, spanning
- *     title/figure/heading), because order is derived from geometry, not
- *     from flood-fill connectivity that a single full-width element can
- *     collapse.
- *   - If a page has no gutter (single column, figure pages), keep the
- *     original DBSCAN flood-fill (`_orderByFloodFill`) which nicely splits
- *     captions / insets / sidebars into their own blocks.
+ * Pipeline: downscale the canvas to a small grid (same trick as
+ * _makePixelProbe) → ink threshold → zero out cells under text items →
+ * 8-neighbor connected components → merge boxes closer than ~12 natural px
+ * (multi-panel figures fragment around their embedded labels) → size
+ * filters (drop icons/rules; drop near-full-page coverage, i.e. scanned
+ * pages where a hotspot would be noise).
  *
- * Pure geometry (no DOM) so it can be unit-tested with synthetic items.
+ * Returns rects in NATURAL (scale-1) top-down page coords so they survive
+ * zoom changes; getFigureRegions() rescales at access time (the
+ * getLinkAnnotations pattern). Empty array on any failure — the feature
+ * degrades to the marquee/Alt-drag flow.
  */
-function _clusterAndSort(items, pxInk) {
-  if (items.length === 0) return;
-  const heights = items.map(i => i.height).slice().sort((a, b) => a - b);
-  const lineH = heights[Math.floor(heights.length / 2)] || 12;
+function _detectFigureRegions(canvas, cssW, cssH, items, zoom) {
+  if (!canvas || !canvas.width || !canvas.height || cssW <= 0 || cssH <= 0 || !zoom) return [];
+  try {
+    const gw = Math.max(60, Math.min(300, Math.round(cssW / 3)));
+    const gh = Math.max(60, Math.min(1400, Math.round(gw * cssH / cssW)));
+    const off = document.createElement('canvas');
+    off.width = gw; off.height = gh;
+    const octx = off.getContext('2d', { willReadFrequently: true });
+    if (!octx) return [];
+    octx.drawImage(canvas, 0, 0, gw, gh);
+    const data = octx.getImageData(0, 0, gw, gh).data;
+    const sx = gw / cssW, sy = gh / cssH;
+    const N = gw * gh;
 
-  const gutters = _detectColumnGutters(items, lineH, pxInk);
-  if (typeof window !== 'undefined' && window.__PDF_VIEWER_DEBUG__ && gutters.length) {
-    console.log(`[pdf-viewer] ${gutters.length} gutter(s):`,
-      gutters.map(g => `${g.x1.toFixed(0)}–${g.x2.toFixed(0)}px`).join(' '));
-  }
-
-  if (gutters.length) _orderByColumns(items, gutters);
-  else _orderByFloodFill(items, lineH);
-}
-
-/**
- * Column-major reading order for multi-column pages. Splits the page into
- * horizontal bands of consecutive same-kind rows — "full-width" rows
- * (where every gutter is filled, e.g. a title/heading/spanning figure) vs.
- * "multi-column" rows (where a gutter is a genuine whitespace channel).
- * Full-width bands read line-by-line; multi-column bands read one column
- * slot fully before the next. Concatenating bands top-to-bottom yields
- * natural reading order AND guarantees no column ever interleaves with
- * another in index space.
- */
-function _orderByColumns(items, gutters) {
-  const rowOf = gutters[0].rowOf;
-  const centers = gutters.map(g => (g.x1 + g.x2) / 2).sort((a, b) => a - b);
-  const slotOf = (it) => {
-    const cx = it.x + it.width / 2;
-    let s = 0;
-    for (const c of centers) { if (cx > c) s++; else break; }
-    return s;
-  };
-  const isMulti = (r) => gutters.some(g => g.cleanRow.has(r));
-
-  for (const it of items) it._row = rowOf(it.y + it.height / 2);
-  const rowsPresent = Array.from(new Set(items.map(it => it._row))).sort((a, b) => a - b);
-
-  // Group consecutive present-rows of the same kind into bands.
-  const bands = [];
-  let cur = null;
-  for (const r of rowsPresent) {
-    const kind = isMulti(r) ? 'multi' : 'full';
-    if (!cur || cur.kind !== kind) { cur = { kind, rows: new Set(), items: [] }; bands.push(cur); }
-    cur.rows.add(r);
-  }
-  const rowToBand = new Map();
-  bands.forEach((b, bi) => b.rows.forEach(r => rowToBand.set(r, bi)));
-  for (const it of items) bands[rowToBand.get(it._row)].items.push(it);
-
-  let idx = 0, clusterId = 0;
-  const emit = (arr) => {
-    arr.sort(_lineSort);
-    const cid = clusterId++;
-    for (const it of arr) { it.cluster = cid; it.index = idx; items[idx++] = it; delete it._row; }
-  };
-  for (const band of bands) {
-    if (band.kind === 'full') { emit(band.items); continue; }
-    const bySlot = new Map();
-    for (const it of band.items) {
-      const s = slotOf(it);
-      let arr = bySlot.get(s); if (!arr) { arr = []; bySlot.set(s, arr); }
-      arr.push(it);
+    // Ink cells (threshold low enough for pale microscopy images).
+    const qual = new Uint8Array(N);
+    for (let i = 0, p = 0; i < N; i++, p += 4) {
+      const a = data[p + 3] / 255;
+      const lum = (data[p] + data[p + 1] + data[p + 2]) / 765;
+      if (a * (1 - lum) > 0.045) qual[i] = 1;
     }
-    for (const s of Array.from(bySlot.keys()).sort((a, b) => a - b)) emit(bySlot.get(s));
-  }
-}
+    // Mask text (pad one cell so anti-aliased glyph edges don't leak).
+    for (const it of (items || [])) {
+      const x1 = Math.max(0, Math.floor(it.x * sx) - 1);
+      const x2 = Math.min(gw - 1, Math.ceil((it.x + it.width) * sx));
+      const y1 = Math.max(0, Math.floor(it.y * sy) - 1);
+      const y2 = Math.min(gh - 1, Math.ceil((it.y + it.height) * sy));
+      for (let gy = y1; gy <= y2; gy++) qual.fill(0, gy * gw + x1, gy * gw + x2 + 1);
+    }
 
-/**
- * DBSCAN flood-fill clustering + reading-order sort — used for pages with
- * no detected column gutter (single column, figure-dominated). Two items
- * are neighbors if their bounding-rect x-gap ≤ 1.5×lineH and y-gap ≤
- * 1.0×lineH. Connected items form a block (column, inset, caption, figure
- * label); blocks sort into 2D reading order (top-to-bottom rows, left-to-
- * right within a row), items within a block by line then x.
- */
-function _orderByFloodFill(items, lineH) {
-  const epsX = lineH * 1.5;
-  const epsY = lineH * 1.0;
-
-  // Spatial bucketing for a faster neighbor search than O(n²).
-  const cellSize = Math.max(epsX, epsY) * 2;
-  const buckets = new Map();
-  function bucketKey(cx, cy) { return `${cx},${cy}`; }
-  items.forEach((it, i) => {
-    const cxs = Math.floor(it.x / cellSize);
-    const cys = Math.floor(it.y / cellSize);
-    const cxe = Math.floor((it.x + it.width) / cellSize);
-    const cye = Math.floor((it.y + it.height) / cellSize);
-    for (let cx = cxs; cx <= cxe; cx++) {
-      for (let cy = cys; cy <= cye; cy++) {
-        const key = bucketKey(cx, cy);
-        if (!buckets.has(key)) buckets.set(key, []);
-        buckets.get(key).push(i);
+    // Connected components over the remaining ink.
+    const seen = new Uint8Array(N);
+    const stack = [];
+    let boxes = [];
+    for (let i = 0; i < N; i++) {
+      if (!qual[i] || seen[i]) continue;
+      let minx = gw, maxx = 0, miny = gh, maxy = 0, count = 0;
+      stack.length = 0;
+      stack.push(i);
+      seen[i] = 1;
+      while (stack.length) {
+        const c = stack.pop();
+        const cy = (c / gw) | 0, cx = c - cy * gw;
+        count++;
+        if (cx < minx) minx = cx;
+        if (cx > maxx) maxx = cx;
+        if (cy < miny) miny = cy;
+        if (cy > maxy) maxy = cy;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue;
+            const n = ny * gw + nx;
+            if (qual[n] && !seen[n]) { seen[n] = 1; stack.push(n); }
+          }
+        }
       }
+      if (count >= 12) boxes.push({ x1: minx, y1: miny, x2: maxx, y2: maxy, count });
     }
-  });
 
-  function neighbors(idx) {
-    const a = items[idx];
-    const cxs = Math.floor((a.x - epsX) / cellSize);
-    const cys = Math.floor((a.y - epsY) / cellSize);
-    const cxe = Math.floor((a.x + a.width + epsX) / cellSize);
-    const cye = Math.floor((a.y + a.height + epsY) / cellSize);
-    const out = new Set();
-    for (let cx = cxs; cx <= cxe; cx++) {
-      for (let cy = cys; cy <= cye; cy++) {
-        const list = buckets.get(bucketKey(cx, cy));
-        if (!list) continue;
-        for (const j of list) {
-          if (j === idx) continue;
-          const b = items[j];
-          const dx = Math.max(0, Math.max(a.x - (b.x + b.width), b.x - (a.x + a.width)));
-          const dy = Math.max(0, Math.max(a.y - (b.y + b.height), b.y - (a.y + a.height)));
-          if (dx <= epsX && dy <= epsY) out.add(j);
+    // Merge boxes separated by less than ~12 natural px (panel gaps,
+    // holes left by masked axis/panel labels).
+    const gap = Math.max(2, Math.round(12 * zoom * sx));
+    let mergedSomething = true;
+    while (mergedSomething) {
+      mergedSomething = false;
+      outer:
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i], b = boxes[j];
+          if (a.x1 - gap <= b.x2 && b.x1 - gap <= a.x2 &&
+              a.y1 - gap <= b.y2 && b.y1 - gap <= a.y2) {
+            a.x1 = Math.min(a.x1, b.x1); a.y1 = Math.min(a.y1, b.y1);
+            a.x2 = Math.max(a.x2, b.x2); a.y2 = Math.max(a.y2, b.y2);
+            a.count += b.count;
+            boxes.splice(j, 1);
+            mergedSomething = true;
+            break outer;
+          }
         }
       }
     }
+
+    // Size filters + convert to natural coords (pad 4 natural px).
+    const pageWN = cssW / zoom, pageHN = cssH / zoom;
+    const out = [];
+    for (const b of boxes) {
+      if (b.count < 25) continue;
+      const wN = ((b.x2 - b.x1 + 1) / sx) / zoom;
+      const hN = ((b.y2 - b.y1 + 1) / sy) / zoom;
+      if (wN < 60 || hN < 45) continue;                    // icons, rules, ORCID logos
+      if (wN * hN > 0.85 * pageWN * pageHN) continue;      // scanned full-page image
+      const pad = 4;
+      const xN = Math.max(0, (b.x1 / sx) / zoom - pad);
+      const yN = Math.max(0, (b.y1 / sy) / zoom - pad);
+      out.push({
+        xN,
+        yN,
+        wN: Math.min(pageWN - xN, wN + 2 * pad),
+        hN: Math.min(pageHN - yN, hN + 2 * pad),
+      });
+    }
     return out;
-  }
-
-  // BFS flood-fill from each unvisited item to build clusters.
-  const visited = new Array(items.length).fill(false);
-  const clusterIds = new Array(items.length).fill(-1);
-  let clusterCount = 0;
-  for (let i = 0; i < items.length; i++) {
-    if (visited[i]) continue;
-    visited[i] = true;
-    const id = clusterCount++;
-    clusterIds[i] = id;
-    const queue = [i];
-    while (queue.length) {
-      const k = queue.shift();
-      const ns = neighbors(k);
-      for (const n of ns) {
-        if (visited[n]) continue;
-        visited[n] = true;
-        clusterIds[n] = id;
-        queue.push(n);
-      }
-    }
-  }
-
-  // Build cluster-bbox + sort clusters into reading order.
-  const clusters = [];
-  for (let i = 0; i < clusterCount; i++) clusters.push({ id: i, items: [], minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
-  items.forEach((it, idx) => {
-    const c = clusters[clusterIds[idx]];
-    c.items.push(it);
-    c.minX = Math.min(c.minX, it.x);
-    c.minY = Math.min(c.minY, it.y);
-    c.maxX = Math.max(c.maxX, it.x + it.width);
-    c.maxY = Math.max(c.maxY, it.y + it.height);
-  });
-
-  clusters.sort((a, b) => {
-    // "Same row" if vertical overlap > 30% of shorter cluster height.
-    const aH = a.maxY - a.minY;
-    const bH = b.maxY - b.minY;
-    const overlap = Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY));
-    const sameRow = overlap / Math.max(1, Math.min(aH, bH)) > 0.3;
-    if (sameRow) return a.minX - b.minX;
-    return a.minY - b.minY;
-  });
-
-  // Sort items within each cluster by line, then x.
-  for (const c of clusters) c.items.sort(_lineSort);
-
-  // Reassemble items in final reading order. Mutate the caller's array
-  // in place so callers using the same reference see the new order.
-  let idx = 0;
-  for (const c of clusters) {
-    for (const it of c.items) {
-      it.cluster = c.id;
-      it.index = idx;
-      items[idx++] = it;
-    }
+  } catch (e) {
+    return [];   // tainted canvas / anything odd → no hotspots, marquee still works
   }
 }
 
 /**
- * Detect vertical column gutters — the whitespace channels between text
- * columns — and return descriptors used to drive column-major reading
- * order:
- *
- *   { x1, x2, cleanRow: Set<rowIndex>, rowOf(yCenter) }
- *
- * [x1,x2] is the gutter's x-band; cleanRow holds the y-rows at which the
- * gutter is a *genuine* inter-column channel (vs. a full-width row that
- * fills it).
- *
- * Method:
- *   1. Project text onto the x-axis: coverage[bin] = how many rows have text
- *      over that x. The gutter is a deep valley flanked by the two columns.
- *      The valley ceiling is anchored to the valley FLOOR (not zero), so
- *      full-width content crossing the gutter (title, abstract, spanning
- *      headings/figures) raises the floor uniformly without hiding the
- *      valley — that was the bug that made heading-heavy papers read as one
- *      column. The band is centred on the valley's emptiest plateau so a
- *      ragged column edge doesn't drag it sideways.
- *   2. Per-row clean test: a row is full-width (not clean) when text fills
- *      ≥ 70% of the band — OR (when a pixel probe is supplied) when non-text
- *      ink spans the band there, so an image/figure crossing the gutter is
- *      seen even though no text item does. Two median-smoothing passes drop
- *      isolated misclassifications.
- *   3. Consistency guard: keep a gutter only if it is clean across a long
- *      contiguous run AND a large fraction of rows AND splits content into
- *      two substantial slabs — so a typographic "river" inside a single
- *      column is not mistaken for a gutter.
- *
- * Pure geometry apart from the optional `pxInk(x1,y1,x2,y2)` probe (which is
- * itself a pure function over a pre-sampled grid). Returns [] for
- * single-column / figure-dominated pages.
+ * V3.371 — the layout-segmentation engine moved to rm/js/page-layout.js
+ * (window.PAGE_LAYOUT) so the viewer, the headless extractTextItemsFromPdf
+ * path, and the layout-audit harness all share ONE implementation. This
+ * thin delegator stamps items with index/cluster/column via PAGE_LAYOUT,
+ * falling back to naive (y,x) order only if the engine script failed to
+ * load (keeps the viewer usable rather than throwing).
  */
-function _detectColumnGutters(items, lineH, pxInk) {
-  if (items.length < 12) return [];          // too little text to be multi-column
-  let contentLeft = Infinity, contentRight = -Infinity, yMin = Infinity;
-  for (const it of items) {
-    if (it.x < contentLeft) contentLeft = it.x;
-    if (it.x + it.width > contentRight) contentRight = it.x + it.width;
-    if (it.y < yMin) yMin = it.y;
+function _clusterAndSort(items, pxInk) {
+  if (!items.length) return;
+  if (typeof window !== 'undefined' && window.PAGE_LAYOUT && window.PAGE_LAYOUT.segmentPage) {
+    window.PAGE_LAYOUT.segmentPage(items, { inkProbe: pxInk });
+    return;
   }
-  const contentW = contentRight - contentLeft;
-  if (contentW <= 0) return [];
-
-  const minGutterPx = Math.max(lineH * 0.35, contentW * 0.008);
-
-  // Group items into rows (by y-center).
-  const rowH = Math.max(4, lineH * 0.9);
-  const rowOf = (yc) => Math.floor((yc - yMin) / rowH);
-  const rows = new Map();
-  for (const it of items) {
-    const r = rowOf(it.y + it.height / 2);
-    let arr = rows.get(r);
-    if (!arr) { arr = []; rows.set(r, arr); }
-    arr.push(it);
-  }
-  const sortedRows = Array.from(rows.keys()).sort((a, b) => a - b);
-  if (sortedRows.length < 5) return [];
-  for (const arr of rows.values()) arr.sort((a, b) => a.x - b.x);
-
-  // --- x-occupancy projection ------------------------------------------
-  // coverage[b] = number of rows with text overlapping x-bin b. Very fine
-  // bins so a narrow gutter isn't eroded away by column word-edges rounding
-  // into its boundary bins.
-  const binStep = Math.max(0.6, lineH * 0.07);
-  const nBins = Math.max(20, Math.min(2000, Math.round(contentW / binStep)));
-  const bw = contentW / nBins;
-  const cov = new Array(nBins).fill(0);
-  for (const arr of rows.values()) {
-    for (const it of arr) {
-      const b0 = Math.max(0, Math.floor((it.x - contentLeft) / bw));
-      const b1 = Math.min(nBins - 1, Math.floor((it.x + it.width - contentLeft) / bw));
-      for (let b = b0; b <= b1; b++) cov[b]++;
-    }
-  }
-  let maxCov = 0;
-  for (const c of cov) if (c > maxCov) maxCov = c;
-  if (maxCov < 4) return [];
-
-  // Trim sparse outer margins to the real text extent.
-  const contentFloor = maxCov * 0.15;
-  let lo = 0; while (lo < nBins && cov[lo] < contentFloor) lo++;
-  let hi = nBins - 1; while (hi > lo && cov[hi] < contentFloor) hi--;
-  if (hi - lo < 6) return [];
-
-  // The gutter is the deepest interior valley. Anchor the ceiling to the
-  // valley FLOOR (the emptiest interior bin), not to zero — full-width
-  // content that crosses the gutter (title, multi-line abstract, spanning
-  // headings, wide figures) raises the floor uniformly but the valley stays
-  // just as deep relative to the flanking columns. (An absolute near-zero
-  // ceiling was the bug that made heading-heavy papers read as one column.)
-  let interiorMin = Infinity;
-  for (let b = lo; b <= hi; b++) if (cov[b] < interiorMin) interiorMin = cov[b];
-  const depth = maxCov - interiorMin;
-  if (depth < maxCov * 0.4) return [];             // no strong interior valley → single col
-
-  const valleyCeil = interiorMin + depth * 0.3;
-  const floorCeil = interiorMin + Math.max(1, depth * 0.05);  // the truly-empty channel
-  const flankNeed = maxCov * 0.5;                  // a real column on each side
-
-  const leftMax = new Array(nBins).fill(0);
-  const rightMax = new Array(nBins).fill(0);
-  let run = 0;
-  for (let b = lo; b <= hi; b++) { run = Math.max(run, cov[b]); leftMax[b] = run; }
-  run = 0;
-  for (let b = hi; b >= lo; b--) { run = Math.max(run, cov[b]); rightMax[b] = run; }
-
-  const bands = [];
-  let s = -1;
-  for (let b = lo + 1; b <= hi - 1; b++) {
-    const low = cov[b] <= valleyCeil;
-    if (low && s < 0) s = b;
-    const runEnds = s >= 0 && (!low || b === hi - 1);
-    if (runEnds) {
-      const e = low ? b : b - 1;                    // inclusive end of low run
-      // +2·bw: the column word-edges fully occupy the gutter's boundary bins,
-      // so the empty-bin run undercounts the true channel by up to one bin
-      // each side. Restore that before the width gate.
-      const valleyW = (e - s + 1) * bw + 2 * bw;
-      const flankedLeft = leftMax[s - 1] >= flankNeed;
-      const flankedRight = rightMax[e + 1] >= flankNeed;
-      if (valleyW >= minGutterPx && flankedLeft && flankedRight) {
-        // Centre the band on the valley's emptiest floor plateau — the
-        // always-empty channel. For a ragged column this sits at the true
-        // gutter (between max line-extent and the next column), not at the
-        // valley midpoint which a ragged edge would drag sideways. Give the
-        // band a minimum width so the per-row occupancy test below is stable
-        // even for a thin gutter.
-        let cs = s, ce = e;
-        while (cs <= e && cov[cs] > floorCeil) cs++;
-        while (ce >= s && cov[ce] > floorCeil) ce--;
-        if (cs > ce) { cs = s; ce = e; }
-        const center = contentLeft + ((cs + ce + 1) / 2) * bw;
-        const halfW = Math.max((ce - cs + 1) * bw, minGutterPx) / 2;
-        bands.push({ x1: center - halfW, x2: center + halfW });
-      }
-      s = -1;
-    }
-  }
-  if (!bands.length) return [];
-
-  // --- per-row clean test -----------------------------------------------
-  // A gutter is "clean" (a genuine inter-column channel) at a row when text
-  // does NOT occupy its band there. occupancy = total width of items
-  // intersecting [x1,x2]; a row is full-width (not clean) only when text
-  // fills ≥ 70% of the band — genuine full-width text (title / abstract /
-  // spanning heading) crosses the whole band, while a long ragged body line
-  // only pokes part-way in. The high bar stops such a line from being read
-  // as full-width and fragmenting its column block (which would interleave
-  // the two columns in reading order).
-  for (const g of bands) {
-    const bandW = g.x2 - g.x1;
-    const third = bandW / 3;
-    const full = new Map();
-    for (const r of sortedRows) {
-      let occ = 0;
-      for (const it of rows.get(r)) {
-        const ov = Math.min(it.x + it.width, g.x2) - Math.max(it.x, g.x1);
-        if (ov > 0) occ += ov;
-      }
-      let isFull = occ >= bandW * 0.7;
-      // Pixel fallback: an image/figure spanning the gutter leaves no text
-      // item, so text occupancy reads 0. Require ink at BOTH band edges (a
-      // wide element actually crosses the channel) — this ignores a thin
-      // vertical column rule, which only inks the band's centre.
-      if (!isFull && pxInk) {
-        const yt = yMin + r * rowH, yb = yt + rowH;
-        const inkL = pxInk(g.x1, yt, g.x1 + third, yb);
-        const inkR = pxInk(g.x2 - third, yt, g.x2, yb);
-        if (inkL >= 0.05 && inkR >= 0.05) isFull = true;
-      }
-      full.set(r, isFull);
-    }
-    // Median-smooth over present rows: flip any single row whose both
-    // neighbours disagree. Kills isolated noise — a stray page number or a
-    // lone ragged line that pokes into the band (false "full") would
-    // otherwise fragment the body and break reading order, and a lone
-    // abstract line whose word-gap aligned with the band (false "clean")
-    // would otherwise be bisected. Genuine multi-line full-width elements
-    // (title, abstract, spanning figures) span ≥ 2 rows and survive.
-    let cls = sortedRows.map(r => full.get(r));
-    // Two smoothing passes remove isolated 1- and 2-row classification noise
-    // (a stray page number, a single ragged line poking into the band, or a
-    // lone abstract line whose word-gap aligned with the band). Genuine
-    // multi-row full-width elements survive.
-    for (let pass = 0; pass < 2; pass++) {
-      const next = cls.slice();
-      for (let i = 1; i < cls.length - 1; i++) {
-        if (cls[i] !== cls[i - 1] && cls[i] !== cls[i + 1]) next[i] = !cls[i];
-      }
-      cls = next;
-    }
-    const smoothed = cls;
-    const clean = new Set();
-    let longestRun = 0, curRun = 0;
-    sortedRows.forEach((r, i) => {
-      if (!smoothed[i]) { clean.add(r); curRun++; if (curRun > longestRun) longestRun = curRun; }
-      else curRun = 0;
-    });
-    g.cleanRow = clean;
-    g.rowOf = rowOf;
-    g._longestClean = longestRun;
-  }
-  // Consistency guard. A real gutter is a clean inter-column channel that the
-  // columns essentially never cross, so it is clean (a) across a long
-  // CONTIGUOUS block of rows — a body column — and (b) in a large FRACTION of
-  // all rows. A typographic "river" (a chance vertical alignment of word
-  // spaces within ONE column) fails both: text crosses it in most rows, so it
-  // is clean only over scattered, short runs. The run floor is absolute (not
-  // a page fraction) so a short multi-column section still qualifies when
-  // full-width headings split the page into many bands.
-  const minRun = 8;
-  const minFrac = sortedRows.length * 0.55;
-  const minSide = contentW * 0.2;     // each column must be a substantial slab
-  return bands.filter(g =>
-    g._longestClean >= minRun &&
-    g.cleanRow.size >= minFrac &&
-    (g.x1 - contentLeft) >= minSide &&
-    (contentRight - g.x2) >= minSide);
+  console.warn('[pdf-viewer] PAGE_LAYOUT not loaded — falling back to naive (y,x) order.');
+  items.sort((a, b) => a.y - b.y || a.x - b.x);
+  items.forEach((it, i) => { it.index = i; it.cluster = 0; it.column = 0; });
 }
 
+/* V3.613 — phone-reader opts (all opt-in; desktop callers pass none and get
+ * byte-identical behavior):
+ *   dprCap           — clamp the render devicePixelRatio (e.g. 2 on iPhone 3x)
+ *   maxCanvasPixels  — hard cap on canvas device pixels per page; the render
+ *                      scale shrinks to fit (CSS size is unchanged, so all
+ *                      item/anchor geometry stays correct)
+ *   lowResProbe      — halve the pixel-ink probe grid (segmentation only)
+ *   virtualize       — free canvas backing stores for pages far outside the
+ *                      scroll window (±2 viewport heights); textLayer + items
+ *                      are kept so selection/anchors keep working. Canvases
+ *                      re-render as pages approach the window.
+ *   contentWrapper   — wrap all page nodes in a single .pv-content div (a
+ *                      CSS-transform target for pinch-zoom; position:static
+ *                      so offsetTop math is unchanged)
+ */
 async function create(container, pdfUrl, opts = {}) {
   if (!container) throw new Error('PDF_VIEWER.create: container required');
   if (!pdfUrl) throw new Error('PDF_VIEWER.create: pdfUrl required');
@@ -527,7 +256,10 @@ async function create(container, pdfUrl, opts = {}) {
     zoom: opts.initialZoom || 1.25,
     pageNodes: new Map(),    // page number → { wrap, canvas, textLayer }
     renderTasks: new Map(),  // page number → cancellable RenderTask
+    naturalHeights: new Map(), // page number → scale-1 viewport height (V3.333)
     destroyed: false,
+    paused: false,           // V3.613 — tab-lifecycle pause gate
+    contentEl: null,         // V3.613 — .pv-content wrapper (contentWrapper opt)
   };
 
   const loadingTask = getDocument({
@@ -559,6 +291,19 @@ async function create(container, pdfUrl, opts = {}) {
     }
   }
 
+  // V3.613 — optional single wrapper around all page nodes: the pinch-zoom
+  // CSS-transform target. position:static (see .pv-content CSS), so
+  // wrap.offsetTop still resolves against the positioned container and the
+  // scroll-spy / overlay-focus math is unchanged.
+  let pageParent = container;
+  if (opts.contentWrapper) {
+    const content = document.createElement('div');
+    content.className = 'pv-content';
+    container.appendChild(content);
+    state.contentEl = content;
+    pageParent = content;
+  }
+
   // Build empty page wrappers up-front so the scrollbar is sized correctly
   // and gotoPage can scroll-into-view before render finishes.
   for (let i = 1; i <= state.numPages; i++) {
@@ -579,20 +324,41 @@ async function create(container, pdfUrl, opts = {}) {
     wrap.appendChild(textLayer);
     wrap.appendChild(selLayer);
     wrap.appendChild(overlay);
-    container.appendChild(wrap);
+    pageParent.appendChild(wrap);
     state.pageNodes.set(i, { wrap, canvas, textLayer, selLayer, overlay, items: [] });
   }
 
-  async function _renderPage(pageNum) {
-    if (state.destroyed) return;
+  /* V3.613 — effective render scale. Desktop (no opts) is exactly
+   * devicePixelRatio; the phone reader clamps it (dprCap) and caps the
+   * total canvas device pixels (maxCanvasPixels) so a 3x iPhone doesn't
+   * hold ~32 MB per page. CSS size is unchanged either way, so text items,
+   * anchors, and snip math never see the difference. */
+  function _effectiveDpr(viewport) {
+    let dpr = window.devicePixelRatio || 1;
+    if (opts.dprCap) dpr = Math.min(dpr, opts.dprCap);
+    if (opts.maxCanvasPixels) {
+      const cssPx = viewport.width * viewport.height;
+      if (cssPx > 0 && cssPx * dpr * dpr > opts.maxCanvasPixels) {
+        dpr = Math.max(0.75, Math.sqrt(opts.maxCanvasPixels / cssPx));
+      }
+    }
+    return dpr;
+  }
+
+  /* V3.613 — canvasOnly=true re-inflates a virtualization-freed canvas
+   * without re-running the text layer / item collection / link capture
+   * (those survive the free and are only stale after a zoom change, which
+   * forces a full render via node.itemsZoom). */
+  async function _renderPage(pageNum, canvasOnly) {
+    if (state.destroyed || state.paused) return;
     const node = state.pageNodes.get(pageNum);
     if (!node) return;
     const page = await state.doc.getPage(pageNum);
-    if (state.destroyed) return;
+    if (state.destroyed || state.paused) return;
 
     const viewport = page.getViewport({ scale: state.zoom });
     // Use devicePixelRatio for crisp rendering on hi-DPI displays.
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = _effectiveDpr(viewport);
     node.canvas.width = Math.floor(viewport.width * dpr);
     node.canvas.height = Math.floor(viewport.height * dpr);
     node.canvas.style.width = `${Math.floor(viewport.width)}px`;
@@ -632,6 +398,14 @@ async function create(container, pdfUrl, opts = {}) {
     }
     state.renderTasks.delete(pageNum);
     if (state.destroyed) return;
+    node.wrap.classList.remove('pv-canvas-empty');   // V3.613 — re-inflated
+
+    if (canvasOnly) {
+      if (opts.onPageReady) {
+        try { opts.onPageReady(pageNum, node); } catch (e) { console.error(e); }
+      }
+      return;
+    }
 
     // Text layer — selectable text overlay. pdf.js v4 ships a TextLayer
     // class that handles spacing and rotation correctly.
@@ -656,9 +430,51 @@ async function create(container, pdfUrl, opts = {}) {
     // Capture per-glyph items in visual reading order so geom-selection
     // can drag-select without relying on browser native Range walks.
     node.items = _collectTextItems(node);
+    node.itemsZoom = state.zoom;   // V3.613 — staleness marker for virtualize
+    // V3.616 — figure hotspots: ink minus text = graphical regions. Stored
+    // at natural scale; getFigureRegions() rescales per zoom.
+    node.figures = _detectFigureRegions(
+      node.canvas, viewport.width, viewport.height, node.items, state.zoom);
+    // V3.333 — capture Link annotations once per page (natural scale-1
+    // coords; getLinkAnnotations rescales at access time). Publisher PDFs
+    // encode inline citations as internal GoTo links — paper-citations
+    // consumes these as authoritative markers.
+    if (!node.linksLoaded) {
+      node.linksLoaded = true;
+      _captureLinkAnnotations(pageNum, page, node).catch(e =>
+        console.warn(`[pdf-viewer] link annotations failed on page ${pageNum}:`, e));
+    }
     if (opts.onPageReady) {
       try { opts.onPageReady(pageNum, node); } catch (e) { console.error(e); }
     }
+  }
+
+  async function _captureLinkAnnotations(pageNum, page, node) {
+    const natVp = page.getViewport({ scale: 1.0 });
+    state.naturalHeights.set(pageNum, natVp.height);
+    let annots = [];
+    try { annots = await page.getAnnotations(); } catch (_) { return; }
+    const links = [];
+    for (const a of annots) {
+      if (!a || a.subtype !== 'Link' || !Array.isArray(a.rect)) continue;
+      const [x1, y1, x2, y2] = a.rect;
+      const rec = {
+        page: pageNum,
+        xN: Math.min(x1, x2),
+        yN: natVp.height - Math.max(y1, y2),
+        wN: Math.abs(x2 - x1),
+        hN: Math.abs(y2 - y1),
+        url: a.url || '',
+        targetPage: null,
+        rawY: null,          // PDF bottom-up y of the destination
+      };
+      if (!rec.url && a.dest) {
+        const t = await _resolveDest(state.doc, a.dest);
+        if (t) { rec.targetPage = t.targetPage; rec.rawY = t.rawY; }
+      }
+      links.push(rec);
+    }
+    node.links = links;
   }
 
   /**
@@ -700,7 +516,8 @@ async function create(container, pdfUrl, opts = {}) {
     // Order into visual reading order. The pixel probe lets the gutter
     // classifier treat a row as full-width when an image/figure fills the
     // gutter there even though no text item does.
-    const pxInk = _makePixelProbe(node.canvas, pageWidth, pageHeight);
+    const pxInk = _makePixelProbe(node.canvas, pageWidth, pageHeight,
+      opts.lowResProbe ? 180 : 360);
     _clusterAndSort(items, pxInk);
 
     if (window.__PDF_VIEWER_DEBUG__) {
@@ -717,14 +534,68 @@ async function create(container, pdfUrl, opts = {}) {
   // _clusterAndSort + _detectColumnGutters live at module scope (below
   // create()) so the pure geometry is unit-testable without a DOM.
 
+  /* V3.613 — page order that radiates outward from the current page, so
+   * the page under the user sharpens first on zoom changes. At boot
+   * (currentPage=1) this degenerates to 1..N — desktop behavior unchanged. */
+  function _pageOrder() {
+    const cur = Math.max(1, Math.min(state.numPages, state.currentPage));
+    const order = [cur];
+    for (let d = 1; d < state.numPages; d++) {
+      if (cur + d <= state.numPages) order.push(cur + d);
+      if (cur - d >= 1) order.push(cur - d);
+    }
+    return order;
+  }
+
   async function _renderAll() {
     // Render sequentially to avoid hammering the worker. For a 50-page paper
     // this takes a few seconds — acceptable for v1 (Phase 2). Phase 3+ can
     // add virtualized rendering if perf becomes an issue.
-    for (let i = 1; i <= state.numPages; i++) {
-      if (state.destroyed) return;
+    for (const i of _pageOrder()) {
+      if (state.destroyed || state.paused) return;
       await _renderPage(i);
+      // V3.613 — with virtualize on, free faraway canvases as the initial
+      // sweep progresses so the render pass itself never accumulates the
+      // whole document's canvas memory.
+      if (opts.virtualize) _virtCheck();
     }
+  }
+
+  // ---- V3.613 canvas virtualization ---------------------------------------
+  // Pages whose wrap sits beyond ±2 viewport heights of the scroll window
+  // get their canvas backing store freed (0×0 — layout holds because the
+  // style sizes stay). textLayer + items survive, so selection, anchors and
+  // overlay rects keep working on freed pages. Approaching pages re-render
+  // canvas-only (or fully, after a zoom made their items stale).
+
+  let _virtRaf = 0;
+  function _virtCheck() {
+    if (!opts.virtualize || state.destroyed) return;
+    const ch = container.clientHeight || 0;
+    if (!ch) return;
+    const top = container.scrollTop - 2 * ch;
+    const bottom = container.scrollTop + 3 * ch;
+    state.pageNodes.forEach((node, n) => {
+      const wTop = node.wrap.offsetTop;
+      const wBottom = wTop + node.wrap.offsetHeight;
+      const inWindow = wBottom >= top && wTop <= bottom;
+      const hasCanvas = node.canvas.width > 0;
+      if (!inWindow && hasCanvas) {
+        const task = state.renderTasks.get(n);
+        if (task) { try { task.cancel(); } catch (_) { /* ignore */ } state.renderTasks.delete(n); }
+        node.canvas.width = 0;
+        node.canvas.height = 0;
+        node.wrap.classList.add('pv-canvas-empty');
+      } else if (inWindow && !hasCanvas && !state.renderTasks.has(n) && !state.paused) {
+        const canvasOnly = node.items.length > 0 && node.itemsZoom === state.zoom;
+        _renderPage(n, canvasOnly).catch(() => { /* logged inside */ });
+      }
+    });
+  }
+
+  function _scheduleVirtCheck() {
+    if (!opts.virtualize || _virtRaf) return;
+    _virtRaf = requestAnimationFrame(() => { _virtRaf = 0; _virtCheck(); });
   }
 
   function gotoPage(n) {
@@ -735,11 +606,60 @@ async function create(container, pdfUrl, opts = {}) {
     if (opts.onPageChange) opts.onPageChange(target);
   }
 
+  /* V3.613 — zoom-change shell resize for virtualized out-of-window pages:
+   * update wrap/layer sizes + the --scale-factor vars (the text layer
+   * rescales via CSS) and free the canvas; the full render happens when the
+   * page next approaches the window (items are stale → itemsZoom forces it). */
+  async function _resizeShellOnly(pageNum) {
+    const node = state.pageNodes.get(pageNum);
+    if (!node) return;
+    const page = await state.doc.getPage(pageNum);
+    if (state.destroyed) return;
+    const viewport = page.getViewport({ scale: state.zoom });
+    const dpr = _effectiveDpr(viewport);
+    const task = state.renderTasks.get(pageNum);
+    if (task) { try { task.cancel(); } catch (_) { /* ignore */ } state.renderTasks.delete(pageNum); }
+    node.canvas.width = 0;
+    node.canvas.height = 0;
+    node.canvas.style.width = `${Math.floor(viewport.width)}px`;
+    node.canvas.style.height = `${Math.floor(viewport.height)}px`;
+    node.wrap.style.width = `${Math.floor(viewport.width)}px`;
+    node.wrap.style.height = `${Math.floor(viewport.height)}px`;
+    node.textLayer.style.width = `${Math.floor(viewport.width)}px`;
+    node.textLayer.style.height = `${Math.floor(viewport.height)}px`;
+    node.overlay.style.width = `${Math.floor(viewport.width)}px`;
+    node.overlay.style.height = `${Math.floor(viewport.height)}px`;
+    if (node.selLayer) {
+      node.selLayer.style.width = `${Math.floor(viewport.width)}px`;
+      node.selLayer.style.height = `${Math.floor(viewport.height)}px`;
+    }
+    node.wrap.style.setProperty('--scale-factor', viewport.scale);
+    node.textLayer.style.setProperty('--scale-factor', viewport.scale);
+    node.wrap.style.setProperty('--total-scale-factor', viewport.scale * dpr);
+    node.wrap.classList.add('pv-canvas-empty');
+  }
+
   async function setZoom(z) {
     state.zoom = Math.max(0.4, Math.min(4.0, z));
     if (opts.onZoomChange) opts.onZoomChange(state.zoom);
-    // Re-render all pages at the new zoom.
-    for (let i = 1; i <= state.numPages; i++) {
+    // Re-render all pages at the new zoom — outward from the current page so
+    // the page under the user sharpens first (V3.613; boot order unchanged).
+    if (opts.virtualize) {
+      const ch = container.clientHeight || 0;
+      const top = container.scrollTop - 2 * ch;
+      const bottom = container.scrollTop + 3 * ch;
+      for (const i of _pageOrder()) {
+        if (state.destroyed || state.paused) return;
+        const node = state.pageNodes.get(i);
+        const wTop = node ? node.wrap.offsetTop : 0;
+        const wBottom = node ? wTop + node.wrap.offsetHeight : 0;
+        const inWindow = ch > 0 && wBottom >= top && wTop <= bottom;
+        if (inWindow) await _renderPage(i);
+        else await _resizeShellOnly(i);
+      }
+      return;
+    }
+    for (const i of _pageOrder()) {
       if (state.destroyed) return;
       await _renderPage(i);
     }
@@ -767,6 +687,7 @@ async function create(container, pdfUrl, opts = {}) {
           state.currentPage = best;
           if (opts.onPageChange) opts.onPageChange(best);
         }
+        _scheduleVirtCheck();   // V3.613 — no-op unless opts.virtualize
       });
     };
     container.addEventListener('scroll', _scrollHandler, { passive: true });
@@ -818,6 +739,24 @@ async function create(container, pdfUrl, opts = {}) {
       }
     },
     destroy,
+    /* V3.613 — tab-lifecycle hooks for the phone shell. pause() cancels all
+     * in-flight render work; resume() re-inflates whatever the scroll
+     * window needs (virtualize) or restarts the full sweep. Desktop never
+     * calls these. */
+    pause() {
+      state.paused = true;
+      state.renderTasks.forEach(t => { try { t.cancel(); } catch (_) { /* ignore */ } });
+      state.renderTasks.clear();
+    },
+    resume() {
+      if (!state.paused) return;
+      state.paused = false;
+      if (opts.virtualize) _virtCheck();
+      else _renderAll();
+    },
+    /* V3.613 — the .pv-content wrapper (contentWrapper opt) or null; the
+     * pinch-zoom CSS-transform target for viewer-touch.js. */
+    getContentEl() { return state.contentEl; },
     // Exposed for Phase 3 annotation-overlay to reach the per-page DOM.
     getPageNode(pageNum) { return state.pageNodes.get(pageNum); },
     // Exposed for geom-selection — text items in visual reading order.
@@ -825,8 +764,63 @@ async function create(container, pdfUrl, opts = {}) {
       const n = state.pageNodes.get(pageNum);
       return (n && n.items) || [];
     },
+    // V3.333 — per-page Link annotations in the SAME coordinate basis as
+    // getTextItems (wrap-local CSS px at the current zoom). targetY is the
+    // internal GoTo destination converted to top-down coords on its page;
+    // 0 = "top of target page" when the dest carried no explicit y.
+    getLinkAnnotations(p) {
+      const n = state.pageNodes.get(p);
+      if (!n || !n.links) return [];
+      const z = state.zoom;
+      return n.links.map(l => ({
+        page: l.page,
+        x: l.xN * z, y: l.yN * z, w: l.wN * z, h: l.hN * z,
+        url: l.url,
+        targetPage: l.targetPage,
+        targetY: (l.targetPage != null && l.rawY != null && state.naturalHeights.has(l.targetPage))
+          ? (state.naturalHeights.get(l.targetPage) - l.rawY) * z
+          : (l.targetPage != null ? 0 : null),
+      }));
+    },
+    // V3.616 — detected figure regions in the SAME coordinate basis as
+    // getTextItems (wrap-local CSS px at the current zoom). Consumed by
+    // figure-capture's click-to-snip hotspots.
+    getFigureRegions(p) {
+      const n = state.pageNodes.get(p);
+      if (!n || !n.figures) return [];
+      const z = state.zoom;
+      return n.figures.map(f => ({
+        page: p,
+        x: f.xN * z, y: f.yN * z, width: f.wN * z, height: f.hN * z,
+      }));
+    },
     forEachPage(cb) { state.pageNodes.forEach(cb); },
   };
+}
+
+/**
+ * V3.333 — resolve a Link annotation's destination (explicit array or
+ * named) to {targetPage (1-based), rawY (PDF bottom-up y | null)}.
+ * Handles the XYZ / FitH / FitBH destination forms that carry a y; other
+ * forms resolve with rawY=null (callers treat that as "top of page").
+ */
+async function _resolveDest(pdfDoc, dest) {
+  let d = dest;
+  try {
+    if (typeof d === 'string') d = await pdfDoc.getDestination(d);
+    if (!Array.isArray(d) || !d.length) return null;
+    let pageIndex = null;
+    if (d[0] && typeof d[0] === 'object') pageIndex = await pdfDoc.getPageIndex(d[0]);
+    else if (typeof d[0] === 'number') pageIndex = d[0];
+    if (pageIndex == null || pageIndex < 0) return null;
+    const name = (d[1] && d[1].name) || '';
+    let rawY = null;
+    if (name === 'XYZ' && typeof d[3] === 'number') rawY = d[3];
+    else if ((name === 'FitH' || name === 'FitBH') && typeof d[2] === 'number') rawY = d[2];
+    return { targetPage: pageIndex + 1, rawY };
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
@@ -834,6 +828,9 @@ async function create(container, pdfUrl, opts = {}) {
  * rendering canvases or DOM. Used by library-upload to parse references
  * at import time. Returns a flat array of items shaped like the ones
  * paper-citations expects: {text, x, y, width, height, page}.
+ * V3.333 — `opts.withAnnotations` switches the return to {items, links}:
+ * links are the pages' Link annotations, rects + resolved internal
+ * targets in the same top-down scale-1 coords as the items.
  *
  * `source` can be a Blob, ArrayBuffer, or { url } object.
  * `opts.maxPages` (V3.308) caps how many pages are parsed — first-page
@@ -860,10 +857,14 @@ async function extractTextItemsFromPdf(source, opts) {
   }
   const pdf = await getDocument(pdfArg).promise;
   const numPages = Math.min(pdf.numPages, (opts && opts.maxPages) || pdf.numPages);
+  const withAnn = !!(opts && opts.withAnnotations);
   const out = [];
+  const links = [];
+  const pageHeights = new Map();
   for (let p = 1; p <= numPages; p++) {
     const page = await pdf.getPage(p);
     const viewport = page.getViewport({ scale: 1.0 });
+    pageHeights.set(p, viewport.height);
     const tc = await page.getTextContent();
     const pageItems = [];
     for (const it of tc.items) {
@@ -882,11 +883,53 @@ async function extractTextItemsFromPdf(source, opts) {
         page: p,
       });
     }
-    pageItems.sort((a, b) => a.y - b.y || a.x - b.x);
+    // V3.371 — segment each page with the shared engine so the headless
+    // order matches the viewer (was naive (y,x), which bridged columns for
+    // paper-citations ref parsing + paper-search snippets). No ink probe
+    // available headless → text-only detection.
+    if (typeof window !== 'undefined' && window.PAGE_LAYOUT && window.PAGE_LAYOUT.segmentPage) {
+      window.PAGE_LAYOUT.segmentPage(pageItems, { inkProbe: null });
+    } else {
+      pageItems.sort((a, b) => a.y - b.y || a.x - b.x);
+    }
     for (const it of pageItems) out.push(it);
+    if (withAnn) {
+      let annots = [];
+      try { annots = await page.getAnnotations(); } catch (_) { annots = []; }
+      for (const a of annots) {
+        if (!a || a.subtype !== 'Link' || !Array.isArray(a.rect)) continue;
+        const [x1, y1, x2, y2] = a.rect;
+        links.push({
+          page: p,
+          x: Math.min(x1, x2),
+          y: viewport.height - Math.max(y1, y2),
+          w: Math.abs(x2 - x1),
+          h: Math.abs(y2 - y1),
+          url: a.url || '',
+          _dest: a.url ? null : (a.dest || null),
+        });
+      }
+    }
+  }
+  if (withAnn) {
+    // Resolve internal GoTo destinations (must happen before destroy()).
+    for (const l of links) {
+      const d = l._dest;
+      delete l._dest;
+      if (!d) continue;
+      const t = await _resolveDest(pdf, d);
+      if (!t) continue;
+      l.targetPage = t.targetPage;
+      let hgt = pageHeights.get(t.targetPage);
+      if (hgt == null) {
+        try { hgt = (await pdf.getPage(t.targetPage)).getViewport({ scale: 1.0 }).height; }
+        catch (_) { hgt = null; }
+      }
+      l.targetY = (t.rawY != null && hgt != null) ? (hgt - t.rawY) : 0;
+    }
   }
   try { pdf.destroy(); } catch (_) { /* ignore */ }
-  return out;
+  return withAnn ? { items: out, links } : out;
 }
 
 window.PDF_VIEWER = { create, extractTextItemsFromPdf };

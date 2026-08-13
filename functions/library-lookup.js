@@ -96,7 +96,20 @@ function _first(v) {
 function _cslToUnified(csl) {
   const authors = [];
   for (const a of csl.author || []) {
-    authors.push({ family: a.family || '', given: a.given || '' });
+    // V3.496 — also capture ORCID (bare id, stripped of the orcid.org URL)
+    // + first affiliation name + CrossRef sequence ('first'|'additional').
+    // Consumed by the Lab Themes research-group keying/labelling; older
+    // records without these fields fall back to family+initial keying.
+    const author = { family: a.family || '', given: a.given || '' };
+    // CSL puts ORCID as a URL string; `authenticated-orcid` is a boolean
+    // flag (not an id), so it is deliberately ignored here.
+    const orcid = String(a.ORCID || '')
+      .replace(/^https?:\/\/orcid\.org\//i, '').trim();
+    if (orcid) author.orcid = orcid;
+    const affil = (Array.isArray(a.affiliation) && a.affiliation[0] && a.affiliation[0].name) || '';
+    if (affil) author.affiliation = String(affil).trim();
+    if (a.sequence) author.sequence = a.sequence;
+    authors.push(author);
   }
   let year = '';
   const parts = (csl.issued && csl.issued['date-parts']) || [];

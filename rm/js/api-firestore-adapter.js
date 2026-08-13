@@ -70,9 +70,21 @@
   // unmigrated paths each firing its own 404 before the first response
   // returns to flip a flag.
   var _legacyDisabled = false;
+  /* V3.585 — same hardening as library-paper.js: an ABSENT window.RM_RUNTIME
+   * (runtime-mode.js dropped by a flaky network) must not be read as "we're
+   * on localhost", which would let every unmigrated path fire a real
+   * /api/data/... fetch against the static host. Fall back to the hostname
+   * test runtime-mode.js itself uses. */
+  function _isDeployRuntime() {
+    if (typeof window === 'undefined') return false;
+    if (window.RM_RUNTIME) return !!window.RM_RUNTIME.isDeploy;
+    var host = (window.location && window.location.hostname) || '';
+    return !(host === 'localhost' || host === '127.0.0.1' ||
+             host === '0.0.0.0' || /\.local$/.test(host));
+  }
   var _probeDone = (function () {
     if (typeof window === 'undefined') { _legacyDisabled = true; return Promise.resolve(); }
-    if (window.RM_RUNTIME && window.RM_RUNTIME.isDeploy) {
+    if (_isDeployRuntime()) {
       _legacyDisabled = true;
       return Promise.resolve();
     }
@@ -91,7 +103,7 @@
   })();
   function _shouldSkipLegacy() {
     if (_legacyDisabled) return true;
-    if (typeof window !== 'undefined' && window.RM_RUNTIME && window.RM_RUNTIME.isDeploy) return true;
+    if (_isDeployRuntime()) return true;
     return false;
   }
   function _emptyLegacyResult(path) {
@@ -342,6 +354,18 @@
       if (cacheHandle) cacheHandle.put(result);
       return result;
     } catch (err) {
+      // V3.338 — permission-denied while signed in means the user's access
+      // changed (role downgrade, session revoked, rules change). Surface it
+      // and return typed-empty; do NOT fall back to legacy JSON (locally
+      // that would serve single-tenant seed data).
+      if (err && err.code === 'permission-denied'
+          && typeof firebridge !== 'undefined' && firebridge.getUser && firebridge.getUser()) {
+        if (firebridge.notifyAccessIssue) firebridge.notifyAccessIssue(path);
+        var deniedKey = route.wrapKey || route.subcollection || route.collection;
+        var denied = {};
+        denied[deniedKey] = route.doc ? {} : [];
+        return denied;
+      }
       console.warn('[adapter] Firestore load failed for ' + path + ', falling back to JSON:', err.message);
       return _legacy.load(path);
     }
@@ -452,6 +476,19 @@
     return primaryResult;
   };
 
+  /* V3.485 — public route-cache invalidation. Callers that write a doc
+   * OUTSIDE api.save (e.g. a direct single-doc `set`, which the paper-import
+   * flow uses so a non-admin owner isn't blocked by the whole-array save)
+   * must bust the stale-while-revalidate cache themselves, else the next
+   * `api.load` returns the pre-write list until the background refresh lands
+   * (one load later) — which reads as a "not found"/blank page right after
+   * import. Returns a promise that resolves when the cache entry is cleared. */
+  api.invalidate = function (path) {
+    var route = ROUTES[path];
+    var cacheHandle = _routeCache(path, route);
+    return cacheHandle ? Promise.resolve(cacheHandle.clear()) : Promise.resolve();
+  };
+
   /* Listener registry — every api.subscribe call gets tracked here so the
    * adapter (or beforeunload) can detach them en masse. RM is multi-page and
    * Firebase auto-detaches listeners when a page unloads, so this is mostly
@@ -461,12 +498,12 @@
    * itself. The wrapped unsubscribe returned to the caller still works
    * exactly the same — calling it removes the listener AND removes the
    * registry entry. */
-  var _listeners = []; // entries: { path, raw, attachedAt }
-  function _trackListener(path, rawUnsub) {
-    var entry = { path: path, raw: rawUnsub, attachedAt: Date.now() };
+  var _listeners = []; // entries: { path, callback, raw, paused, attachedAt }
+  function _trackListener(path, callback, rawUnsub) {
+    var entry = { path: path, callback: callback, raw: rawUnsub, paused: false, attachedAt: Date.now() };
     _listeners.push(entry);
     return function () {
-      try { rawUnsub(); } catch (e) {}
+      try { if (entry.raw) entry.raw(); } catch (e) {}
       var i = _listeners.indexOf(entry);
       if (i >= 0) _listeners.splice(i, 1);
     };
@@ -474,12 +511,12 @@
   api.detachAll = function () {
     var copy = _listeners.slice();
     _listeners.length = 0;
-    copy.forEach(function (e) { try { e.raw(); } catch (err) {} });
+    copy.forEach(function (e) { try { if (e.raw) e.raw(); } catch (err) {} });
   };
   api.detachByPath = function (path) {
     var keep = [];
     _listeners.forEach(function (e) {
-      if (e.path === path) { try { e.raw(); } catch (err) {} }
+      if (e.path === path) { try { if (e.raw) e.raw(); } catch (err) {} }
       else keep.push(e);
     });
     _listeners.length = 0;
@@ -487,7 +524,32 @@
   };
   api.listListeners = function () {
     return _listeners.map(function (e) {
-      return { path: e.path, ageMs: Date.now() - e.attachedAt };
+      return { path: e.path, paused: !!e.paused, ageMs: Date.now() - e.attachedAt };
+    });
+  };
+  /* V3.585 — tab-lifecycle pause/resume (Ourlab app multi-WebView shell).
+   * pauseAll detaches every tracked snapshot listener but KEEPS the registry
+   * entry (path + callback), flagging it paused; resumeAll re-attaches each
+   * paused entry with the SAME callback. Because Firestore re-fires the
+   * current snapshot on attach, resume doubles as the refresh-on-arrival the
+   * warm-DOM policy accepts. Callers' wrapper-unsubs stay valid across
+   * pause/resume cycles (they null-guard entry.raw and remove the entry).
+   * On web these are never called (tab-lifecycle events never fire). */
+  api.pauseAll = function () {
+    _listeners.forEach(function (e) {
+      if (e.paused) return;
+      try { if (e.raw) e.raw(); } catch (err) {}
+      e.raw = null;
+      e.paused = true;
+    });
+  };
+  api.resumeAll = function () {
+    _listeners.forEach(function (e) {
+      if (!e.paused) return;
+      e.paused = false;
+      try { e.raw = _subscribeAttach(e.path, e.callback); } catch (err) {
+        console.warn('[adapter] resume re-attach failed for ' + e.path + ':', err && err.message);
+      }
     });
   };
   // Auto-cleanup on page unload (belt-and-suspenders; Firebase already does
@@ -495,6 +557,66 @@
   // teardown when DOM nodes the callback references are already gone).
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', function () { api.detachAll(); });
+  }
+
+  /* V3.585 — the attach core, extracted from api.subscribe so resumeAll can
+   * re-attach a paused entry with the original callback. Attaches the
+   * Firestore snapshot listener for a MIGRATED path and returns the raw
+   * unsubscribe. Callers outside this file must keep using api.subscribe. */
+  function _subscribeAttach(path, callback) {
+    var route = ROUTES[path];
+    var key = route.wrapKey || route.subcollection || route.collection;
+    var ref;
+    // V3.338 — shared snapshot error handler: permission-denied while signed
+    // in surfaces the access banner instead of dying silently.
+    function _snapError(err) {
+      console.warn('[adapter] subscribe error for ' + path + ':', err.message);
+      if (err && err.code === 'permission-denied'
+          && typeof firebridge !== 'undefined' && firebridge.getUser && firebridge.getUser()
+          && firebridge.notifyAccessIssue) {
+        firebridge.notifyAccessIssue(path);
+      }
+    }
+    // For single-doc routes the snapshot payload must mirror api.load exactly
+    // — load returns doc data UNWRAPPED when no wrapKey is set (so callers can
+    // treat the doc itself as the result). Wrapping it under route.subcollection
+    // here would silently nest the data one level deeper than load gives, and
+    // any subscribe consumer that mirrors load's accessors would read undefined.
+    if (route.scope === 'lab' && route.doc) {
+      ref = firebridge.db().collection(route.collection).doc(route.doc);
+      return ref.onSnapshot(function (doc) {
+        var data = doc.exists ? doc.data() : {};
+        if (route.wrapKey) {
+          var w = {}; w[route.wrapKey] = data; callback(w);
+        } else {
+          callback(data);
+        }
+      }, _snapError);
+    }
+    if (route.scope === 'user' && route.doc) {
+      var udocRef = firebridge.db().doc(_userScopePath(route) + '/' + route.doc);
+      return udocRef.onSnapshot(function (doc) {
+        var data = doc.exists ? Object.assign({ id: doc.id }, doc.data()) : {};
+        if (route.wrapKey) {
+          var w = {}; w[route.wrapKey] = data; callback(w);
+        } else {
+          callback(data);
+        }
+      }, _snapError);
+    }
+    if (route.scope === 'lab') {
+      ref = firebridge.collection(route.collection);
+    } else {
+      ref = firebridge.db().collection(_userScopePath(route));
+    }
+    if (route.where) ref = ref.where(route.where[0], route.where[1], route.where[2]);
+    if (route.orderBy) ref = ref.orderBy(route.orderBy, route.orderDir || 'asc');
+    return ref.onSnapshot(function (snap) {
+      var rows = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      var wrap = {};
+      wrap[key] = rows;
+      callback(wrap);
+    }, _snapError);
   }
 
   /* Subscribe to live updates for a migrated path. For unmigrated paths,
@@ -509,52 +631,7 @@
       });
       return function () {};
     }
-    var key = route.wrapKey || route.subcollection || route.collection;
-    var ref;
-    var raw;
-    // For single-doc routes the snapshot payload must mirror api.load exactly
-    // — load returns doc data UNWRAPPED when no wrapKey is set (so callers can
-    // treat the doc itself as the result). Wrapping it under route.subcollection
-    // here would silently nest the data one level deeper than load gives, and
-    // any subscribe consumer that mirrors load's accessors would read undefined.
-    if (route.scope === 'lab' && route.doc) {
-      ref = firebridge.db().collection(route.collection).doc(route.doc);
-      raw = ref.onSnapshot(function (doc) {
-        var data = doc.exists ? doc.data() : {};
-        if (route.wrapKey) {
-          var w = {}; w[route.wrapKey] = data; callback(w);
-        } else {
-          callback(data);
-        }
-      });
-      return _trackListener(path, raw);
-    }
-    if (route.scope === 'user' && route.doc) {
-      var udocRef = firebridge.db().doc(_userScopePath(route) + '/' + route.doc);
-      raw = udocRef.onSnapshot(function (doc) {
-        var data = doc.exists ? Object.assign({ id: doc.id }, doc.data()) : {};
-        if (route.wrapKey) {
-          var w = {}; w[route.wrapKey] = data; callback(w);
-        } else {
-          callback(data);
-        }
-      });
-      return _trackListener(path, raw);
-    }
-    if (route.scope === 'lab') {
-      ref = firebridge.collection(route.collection);
-    } else {
-      ref = firebridge.db().collection(_userScopePath(route));
-    }
-    if (route.where) ref = ref.where(route.where[0], route.where[1], route.where[2]);
-    if (route.orderBy) ref = ref.orderBy(route.orderBy, route.orderDir || 'asc');
-    raw = ref.onSnapshot(function (snap) {
-      var rows = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-      var wrap = {};
-      wrap[key] = rows;
-      callback(wrap);
-    });
-    return _trackListener(path, raw);
+    return _trackListener(path, callback, _subscribeAttach(path, callback));
   };
 
   /* Public helpers for migration scripts and per-page customization. */

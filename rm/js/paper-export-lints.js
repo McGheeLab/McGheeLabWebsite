@@ -21,13 +21,34 @@
 
 (function () {
 
-  function runAll(bundle, addonIds) {
+  function runAll(bundle, addonIds, template) {
     var results = [];
     results.push(checkRefs(bundle));
     results.push(checkCitations(bundle));
     results.push(checkFloatOrder(bundle));
     results.push(checkShellEscape(addonIds));
+    /* V3.341 — per-template submission limits (schema v2 `limits`). */
+    results.push(checkLimits(bundle, template));
+    /* Tables II — longtable is invalid in two-column classes. */
+    results.push(checkLongtable(bundle, template));
     return results.filter(Boolean);
+  }
+
+  /* Tables II — a \begin{longtable} in a two-column class (ieee,
+   * pnas-new) will not compile correctly. tableToTex already degrades
+   * it to a regular table with a warning; this lint surfaces the same
+   * conflict when raw_tex imports carry one. */
+  function checkLongtable(bundle, template) {
+    var twoCol = !!(template && template.figure_environment &&
+      template.figure_environment.compiled_columns === 2);
+    if (!twoCol) return null;
+    var src = concatAll(bundle);
+    if (src.indexOf('\\begin{longtable}') < 0) return null;
+    return {
+      id: 'longtable-2col',
+      level: 'warn',
+      message: 'A longtable appears in a two-column journal class — longtable does not work in twocolumn mode; switch the table back to a regular float or pick a one-column template.',
+    };
   }
 
   /* All file contents concatenated for grep-style scans. */
@@ -130,11 +151,76 @@
     };
   }
 
+  /* V3.341 — compare the draft against the template's submission limits
+   * (schema v2 `limits`: abstract_words, body_words, references, figures,
+   * title_chars). Counts come from bundle.tree (the plain-JS projection),
+   * not the rendered TeX, so tokens/markup don't inflate word counts.
+   * Warn-level only — journals vary and limits in the JSON are seeds. */
+  function _limitWordCount(text) {
+    if (!text) return 0;
+    var t = String(text)
+      .replace(/\$[^$]*\$/g, ' ')        // inline math
+      .replace(/\[[@!][^\]\n]*\]/g, ' ') // cite / ref tokens
+      .replace(/[*~^`_]/g, ' ');         // markdown emphasis marks
+    var m = t.match(/\S+/g);
+    return m ? m.length : 0;
+  }
+
+  function checkLimits(bundle, template) {
+    var limits = template && template.limits;
+    if (!limits || !Object.keys(limits).length) return null;
+    var tree = bundle.tree || {};
+    var over = [];
+
+    var abstractWords = 0, bodyWords = 0, numberedFigures = 0;
+    (tree.sections || []).forEach(function (sec) {
+      var isAbstract = sec.kind === 'abstract';
+      var isMeta = sec.kind === 'keywords' || sec.kind === 'references';
+      (sec.children || []).forEach(function (b) {
+        if (b.kind === 'paragraph') {
+          var n = _limitWordCount(b.body);
+          if (isAbstract) abstractWords += n;
+          else if (!isMeta) bodyWords += n;
+        }
+        if (b.kind === 'figure' && (!b.attrs || b.attrs.numbered !== false)) {
+          numberedFigures++;
+        }
+      });
+    });
+
+    if (limits.abstract_words && abstractWords > limits.abstract_words) {
+      over.push('abstract ' + abstractWords + ' / ' + limits.abstract_words + ' words');
+    }
+    if (limits.body_words && bodyWords > limits.body_words) {
+      over.push('body ' + bodyWords + ' / ' + limits.body_words + ' words');
+    }
+    if (limits.references && (bundle.citationKeys || []).length > limits.references) {
+      over.push((bundle.citationKeys || []).length + ' / ' + limits.references + ' references');
+    }
+    if (limits.figures && numberedFigures > limits.figures) {
+      over.push(numberedFigures + ' / ' + limits.figures + ' figures');
+    }
+    if (limits.title_chars && (tree.title || '').length > limits.title_chars) {
+      over.push('title ' + tree.title.length + ' / ' + limits.title_chars + ' characters');
+    }
+
+    if (!over.length) {
+      return { id: 'limits', level: 'ok', message: 'Within the template\'s submission limits.' };
+    }
+    return {
+      id: 'limits',
+      level: 'warn',
+      message: 'Over template limits: ' + over.join('; ') + '.',
+      count: over.length,
+    };
+  }
+
   window.PaperExportLints = {
     runAll: runAll,
     checkRefs: checkRefs,
     checkCitations: checkCitations,
     checkFloatOrder: checkFloatOrder,
     checkShellEscape: checkShellEscape,
+    checkLimits: checkLimits,
   };
 })();

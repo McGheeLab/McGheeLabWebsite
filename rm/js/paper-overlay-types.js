@@ -26,6 +26,9 @@
     { id: 'claim',      label: 'Claim',      color: '#eab308' }, // yellow
     { id: 'note',       label: 'Note',       color: '#9ca3af' }, // grey
     { id: 'question',   label: 'Question',   color: '#f97316' }, // orange
+    { id: 'quote',      label: 'Quote',      color: '#fb923c' }, // orange palette swatch (V3.619)
+    { id: 'equation',   label: 'Equation',   color: '#0d9488' }, // teal (E3 captures)
+    { id: 'figure',     label: 'Figure',     color: '#ec4899' }, // pink (V3.610 captures)
   ];
   const TYPE_COLORS = Object.fromEntries(TYPES.map(t => [t.id, t.color]));
   const TYPE_LABELS = Object.fromEntries(TYPES.map(t => [t.id, t.label]));
@@ -42,14 +45,19 @@
     try {
       const raw = localStorage.getItem(_storageKey());
       if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) return new Set(arr);
+        const parsed = JSON.parse(raw);
+        // V3.619 — legacy plain-array shape predates the 'quote' type; union
+        // it in once so filters saved before it existed don't silently hide
+        // every quote highlight. New saves use {v:2, types} so a deliberate
+        // toggle-off sticks.
+        if (Array.isArray(parsed)) return new Set(parsed.concat(['quote']));
+        if (parsed && Array.isArray(parsed.types)) return new Set(parsed.types);
       }
     } catch (_) { /* corrupt — fall through */ }
     return new Set(TYPES.map(t => t.id));
   }
   function _saveActive() {
-    try { localStorage.setItem(_storageKey(), JSON.stringify(Array.from(_active))); }
+    try { localStorage.setItem(_storageKey(), JSON.stringify({ v: 2, types: Array.from(_active) })); }
     catch (_) { /* quota — ignore */ }
   }
 

@@ -8,7 +8,7 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 297;
+const CACHE_VERSION = 590;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;
 const CDN_CACHE    = `mcgheelab-cdn-v${CACHE_VERSION}`;
@@ -84,17 +84,24 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
-  // Never cache Firebase API calls (Firestore, Auth, Storage)
-  if (url.hostname.includes('firestore.googleapis.com') ||
-      url.hostname.includes('identitytoolkit.googleapis.com') ||
-      url.hostname.includes('securetoken.googleapis.com') ||
-      url.hostname.includes('firebasestorage.googleapis.com')) {
-    return;
-  }
-
-  // Google Auth endpoints — never cache (auth tokens, popups, GIS client)
-  if (url.hostname.includes('accounts.google.com') ||
-      url.hostname.includes('apis.google.com')) {
+  // V3.583 — cross-origin requests: handle ONLY the two CDNs we deliberately
+  // cache, and pass everything else straight through to the network. This
+  // covers the Firebase APIs (Firestore / Auth / Storage) and Google auth
+  // endpoints that used to be listed host-by-host, plus every third-party
+  // research API the app talks to. Sitting in front of a cross-origin request
+  // we can't cache was actively harmful: a CORS-rejected fetch (e.g.
+  // api.semanticscholar.org, which sends no Access-Control-Allow-Origin) fell
+  // into staleWhileRevalidate's catch, resolved to `undefined` with nothing
+  // cached, and respondWith(undefined) threw "Failed to convert value to
+  // 'Response'" — turning a clean CORS failure the caller could handle into a
+  // dead FetchEvent.
+  if (url.origin !== self.location.origin) {
+    if (url.hostname.includes('gstatic.com') ||
+        url.hostname.includes('jsdelivr.net')) {
+      // SDK versions are pinned in HTML files, so serving the cached copy
+      // first is safe and skips a network round-trip on every app switch.
+      event.respondWith(staleWhileRevalidate(event.request));
+    }
     return;
   }
 
@@ -109,15 +116,6 @@ self.addEventListener('fetch', (event) => {
   // IndexedDB (js/local-cache.js) and is independent of this SW.
   if (url.pathname.startsWith('/rm/')) {
     event.respondWith(networkFirst(event.request, SHELL_CACHE));
-    return;
-  }
-
-  // CDN resources (Firebase SDK, Chart.js): stale-while-revalidate
-  // SDK versions are pinned in HTML files, so cache-first is safe and
-  // eliminates the network round-trip on every app switch
-  if (url.hostname.includes('gstatic.com') ||
-      url.hostname.includes('jsdelivr.net')) {
-    event.respondWith(staleWhileRevalidate(event.request));
     return;
   }
 
@@ -140,40 +138,65 @@ function canCache(response) {
   return response && response.status === 200 && response.type !== 'opaque';
 }
 
+/* V3.583 — one retry before giving up. A single dropped connection on one
+ * /rm/ script used to leave the app running with that module silently
+ * absent (see the synthetic-408 note below), which is a far worse outcome
+ * than spending one extra round-trip. GETs carry no body, so re-issuing the
+ * same Request is safe. */
+async function fetchOnceRetried(request) {
+  try {
+    return await fetch(request);
+  } catch (err) {
+    return fetch(request);
+  }
+}
+
+/* V3.583 — NEVER answer a failed fetch with a fabricated response.
+ *
+ * These three strategies used to return `new Response('', {status: 408})`
+ * when the network failed and nothing was cached. For a <script> under /rm/
+ * that reads as "this file is simply not here": the page keeps loading, the
+ * module never defines its global, and the first consumer downstream takes a
+ * silent wrong branch. That is exactly how a student's PDF failed to render
+ * while the metadata showed fine — runtime-mode.js got a 408, RM_RUNTIME was
+ * undefined, and library-paper.js concluded it was on the local dev server
+ * and pointed pdf.js at /api/library/pdf-proxy (which only exists under
+ * server.py). Propagating the real network error instead makes the failure
+ * loud and the retry the browser's problem, not a fake success.
+ */
 async function cacheFirst(request, cacheName) {
   const cached = await caches.match(request);
   if (cached) return cached;
 
-  try {
-    const response = await fetch(request);
-    if (canCache(response)) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch {
-    return new Response('', { status: 408, statusText: 'Offline' });
+  const response = await fetchOnceRetried(request);
+  if (canCache(response)) {
+    const cache = await caches.open(cacheName);
+    cache.put(request, response.clone());
   }
+  return response;
 }
 
 async function networkFirst(request, cacheName) {
   try {
-    const response = await fetch(request);
+    const response = await fetchOnceRetried(request);
     if (canCache(response)) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
     return response;
-  } catch {
+  } catch (err) {
+    // Offline: the cached copy is a genuine answer. With nothing cached,
+    // surface the network error rather than a synthetic one.
     const cached = await caches.match(request);
-    return cached || new Response('', { status: 408, statusText: 'Offline' });
+    if (cached) return cached;
+    throw err;
   }
 }
 
 async function staleWhileRevalidate(request) {
   const cached = await caches.match(request);
 
-  const fetchPromise = fetch(request).then(response => {
+  const revalidate = fetchOnceRetried(request).then(response => {
     if (canCache(response)) {
       // Single shell cache after V3.53 — APPS_CACHE retired with /apps/.
       caches.open(SHELL_CACHE).then(cache => {
@@ -181,7 +204,13 @@ async function staleWhileRevalidate(request) {
       });
     }
     return response;
-  }).catch(() => cached);
+  });
 
-  return cached || fetchPromise;
+  if (cached) {
+    // The cached copy already answered; don't let the background refresh
+    // surface as an unhandled rejection when we're offline.
+    revalidate.catch(() => { /* stale copy stands */ });
+    return cached;
+  }
+  return revalidate;   // may reject → a real network error, never `undefined`
 }

@@ -38,6 +38,15 @@
         <button class="btn btn-primary" id="gb-new-grant-btn">+ New grant</button>
       </div>
     </div>
+    <!-- V3.470 — grants are now authored in the unified Paper editor. This
+         page lists earlier grant drafts; "+ New grant" hands off there. -->
+    <div class="gb-legacy-note">
+      New grants are now created in the unified <strong>Paper editor</strong> (pick
+      “Grant” as the document type) — with per-mechanism section sets, a submission
+      checklist, a reusable biosketch / facilities / boilerplate library, and separate
+      attachment PDFs. <strong>+ New grant</strong> opens it. The drafts below are your
+      earlier grant-writer drafts and still open here.
+    </div>
     <div id="gb-status" class="pb-status"></div>
     <div id="gb-list" class="pb-list"></div>
   </div>
@@ -141,6 +150,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/toast.js"></script>
@@ -156,6 +166,8 @@
         '/rm/js/grant-budget-model.js',
         '/rm/js/grant-budget.js',
         '/rm/js/grant-export-tex.js',
+        // V3.352 — atomic linked_drafts writer shared across surfaces.
+        '/rm/js/library-links.js',
         '/rm/js/grant-editor.js',
       ];
       var srcs = (mode === 'editor') ? editorScripts : listScripts;

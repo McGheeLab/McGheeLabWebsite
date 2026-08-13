@@ -26,11 +26,25 @@
     // would just be a confusing checkbox. More widgets land as their UIs
     // are built (year-range filter, has-pdf filter, etc).
     widgets_enabled: {
-      search: true,    // hides #library-search via body.lib-hide-search
-      stars: true,     // hides .lib-col-star via body.lib-hide-stars
-      tags: true,      // hides #library-tag-strip via _renderTagStrip
+      search: true,        // hides #library-search via body.lib-hide-search
+      stars: true,         // hides .lib-col-star via body.lib-hide-stars
+      tags: true,          // hides #library-tag-strip via _renderTagStrip
+      shelf_reader: true,  // V3.363 — 📖 open-in-reader shelf section
+      shelf_pinned: true,  // V3.363 — 📌 pinned-papers shelf section
+      shelf_groups: true,  // V3.363 — 📁 groups shelf section
+      roadmap: true,       // V3.601 — 🗺 attach-to-research-roadmap row button
     },
     pinned_tags: [],                                // colon-paths shown as fixed chips
+    // V3.363 — groups shelf (library-groups.js). pinned_papers is a flat
+    // list of item ids; paper_groups entries are
+    //   { id, name, kind: 'manual'|'smart'|'draft',
+    //     paper_ids?: [itemId],   // manual
+    //     query?: string,         // smart — library.js search grammar
+    //     draft_id?: string }     // draft — matches meta.library.linked_drafts
+    // Array order = display order (↑/↓ reorder). Dangling paper ids are
+    // skipped at render, never auto-cleaned.
+    pinned_papers: [],
+    paper_groups: [],
     comments_feed: {
       default_authors: [],
       default_tags: [],

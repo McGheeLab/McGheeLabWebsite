@@ -133,13 +133,27 @@
     );
   }
 
+  /* V3.608 — same default palette as library-paper.js DEFAULT_COLORS (keep
+   * in sync). The palette route is per-user and most members have no saved
+   * doc; an empty list here blanked the legend, the color filter, and the
+   * color-change dropdown on comment cards. */
+  const DEFAULT_COLORS = [
+    { id: 'yellow', name: 'Note', hex: '#facc15', meaning: 'Interesting / general note', auto_flags: [] },
+    { id: 'green', name: 'Evidence', hex: '#4ade80', meaning: 'Evidence supporting a claim (use evidence_stance="for" when linked to a claim)', auto_flags: [] },
+    { id: 'red', name: 'Critique', hex: '#f87171', meaning: 'Counter-evidence / critique / disagree', auto_flags: [] },
+    { id: 'blue', name: 'Method', hex: '#60a5fa', meaning: 'Method or technique to remember', auto_flags: [] },
+    { id: 'purple', name: 'Investigate', hex: '#a78bfa', meaning: 'Come back to this — needs further investigation', auto_flags: ['marked_for_investigation'] },
+    { id: 'orange', name: 'Quote', hex: '#fb923c', meaning: 'Quote-worthy for direct citation in a draft', auto_flags: [] },
+  ];
+
   async function _loadColors() {
     try {
       const data = await api.load('library/highlight_colors.json');
-      _colors = (data && data.colors) || [];
+      const saved = (data && Array.isArray(data.colors)) ? data.colors : [];
+      _colors = saved.length ? saved : DEFAULT_COLORS;
     } catch (e) {
       console.warn('[library-comments] could not load highlight_colors.json:', e.message);
-      _colors = [];
+      _colors = DEFAULT_COLORS;
     }
   }
 

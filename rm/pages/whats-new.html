@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What's New — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <style>
+    .wn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
+    .wn-card h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:0 0 4px 0}
+    .wn-card .hint{font-size:12px;color:var(--text-muted);margin:0 0 14px 0}
+
+    /* Compose (admin) */
+    .wn-compose-grid{display:grid;grid-template-columns:140px 1fr;gap:10px;margin-bottom:12px}
+    .wn-compose-grid input,.wn-compose-grid textarea{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:100%;box-sizing:border-box;font-family:inherit}
+    .wn-compose-grid textarea{resize:vertical;min-height:64px}
+    .wn-compose-grid textarea#wn-changes{min-height:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+    .wn-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .wn-status{font-size:12px;color:var(--text-muted)}
+    .wn-status.ok{color:var(--green)}
+    .wn-status.err{color:#dc2626}
+
+    /* Release history */
+    .wn-release{border-bottom:1px solid var(--border);padding:16px 2px}
+    .wn-release:last-child{border-bottom:none}
+    .wn-release-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+    .wn-version{font-size:11px;font-weight:700;letter-spacing:.4px;padding:2px 9px;border-radius:10px;background:var(--primary);color:#fff;white-space:nowrap}
+    .wn-title{font-size:15px;font-weight:600;color:var(--text)}
+    .wn-date{font-size:11px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
+    .wn-summary{font-size:13px;color:var(--text);margin:4px 0 8px 0;line-height:1.5}
+    .wn-appnote{font-size:12px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin:0 0 9px 0}
+    ul.wn-changes{margin:0;padding-left:20px}
+    ul.wn-changes li{font-size:13px;color:var(--text);line-height:1.55;margin-bottom:3px}
+    .wn-del{font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px}
+    .wn-del:hover{color:#dc2626;background:var(--bg)}
+    @media (max-width:640px){.wn-compose-grid{grid-template-columns:1fr}.wn-compose-grid label{margin-bottom:-6px}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">🚀 What's New</h1>
+    </div>
+
+    <!-- Admin compose (hidden for non-admins) -->
+    <div class="wn-card" id="wn-compose" style="display:none">
+      <h2>Announce a release</h2>
+      <p class="hint">Sends ONE notification to every lab member (push + My&nbsp;Day feed) and records it below. <code>scripts/release_push.py</code> prints this whole block ready to paste — including the app build, which tells phone users which TestFlight build carries the changes.</p>
+      <div class="wn-compose-grid">
+        <label for="wn-version">Version</label>
+        <input id="wn-version" type="text" placeholder="e.g. 3.610">
+        <label for="wn-title">Title (optional)</label>
+        <input id="wn-title" type="text" placeholder="🚀 App updated — v3.610">
+        <label for="wn-appbuild">App build</label>
+        <input id="wn-appbuild" type="text" placeholder="TestFlight build number, e.g. 10 — leave blank if the app wasn't rebuilt">
+        <label for="wn-appversion">App version</label>
+        <input id="wn-appversion" type="text" placeholder="e.g. m-v0.3.3 (optional)">
+        <label for="wn-summary">Summary</label>
+        <textarea id="wn-summary" placeholder="One or two sentences — this is the notification body."></textarea>
+        <label for="wn-changes">Changes</label>
+        <textarea id="wn-changes" placeholder="One change per line, written for lab members (leading -, *, or 1. is stripped)."></textarea>
+      </div>
+      <div class="wn-actions">
+        <button class="btn btn-primary" id="wn-send">📣 Send to all lab members</button>
+        <span class="wn-status" id="wn-status"></span>
+      </div>
+    </div>
+
+    <!-- Release history -->
+    <div class="wn-card">
+      <h2>Release history</h2>
+      <div id="wn-list"><div class="empty-state">Loading&hellip;</div></div>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/whats-new.js"></script>
+</body>
+</html>

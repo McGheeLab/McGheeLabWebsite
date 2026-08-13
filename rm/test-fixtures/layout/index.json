@@ -1,0 +1,88 @@
+{
+ "fixtures": [
+  {
+   "name": "01-2col-tight",
+   "pdf": "01-2col-tight.pdf",
+   "truth": "01-2col-tight.truth.json",
+   "pages": 1,
+   "runs": 80
+  },
+  {
+   "name": "02-frontmatter",
+   "pdf": "02-frontmatter.pdf",
+   "truth": "02-frontmatter.truth.json",
+   "pages": 1,
+   "runs": 101
+  },
+  {
+   "name": "03-fig-span",
+   "pdf": "03-fig-span.pdf",
+   "truth": "03-fig-span.truth.json",
+   "pages": 1,
+   "runs": 61
+  },
+  {
+   "name": "04-fig-onecol",
+   "pdf": "04-fig-onecol.pdf",
+   "truth": "04-fig-onecol.truth.json",
+   "pages": 1,
+   "runs": 70
+  },
+  {
+   "name": "05-footnote",
+   "pdf": "05-footnote.pdf",
+   "truth": "05-footnote.truth.json",
+   "pages": 1,
+   "runs": 90
+  },
+  {
+   "name": "06-3col",
+   "pdf": "06-3col.pdf",
+   "truth": "06-3col.truth.json",
+   "pages": 1,
+   "runs": 138
+  },
+  {
+   "name": "07-sidenote",
+   "pdf": "07-sidenote.pdf",
+   "truth": "07-sidenote.truth.json",
+   "pages": 1,
+   "runs": 54
+  },
+  {
+   "name": "08-1col",
+   "pdf": "08-1col.pdf",
+   "truth": "08-1col.truth.json",
+   "pages": 1,
+   "runs": 48
+  },
+  {
+   "name": "09-refs",
+   "pdf": "09-refs.pdf",
+   "truth": "09-refs.truth.json",
+   "pages": 1,
+   "runs": 77
+  },
+  {
+   "name": "10-equations",
+   "pdf": "10-equations.pdf",
+   "truth": "10-equations.truth.json",
+   "pages": 1,
+   "runs": 62
+  },
+  {
+   "name": "11-rotated",
+   "pdf": "11-rotated.pdf",
+   "truth": "11-rotated.truth.json",
+   "pages": 1,
+   "runs": 29
+  },
+  {
+   "name": "12-multipage",
+   "pdf": "12-multipage.pdf",
+   "truth": "12-multipage.truth.json",
+   "pages": 2,
+   "runs": 176
+  }
+ ]
+}

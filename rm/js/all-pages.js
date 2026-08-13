@@ -26,6 +26,8 @@
     'dashboard':                          'RM home — workflow chooser + all-pages browser.',
 
     /* Activity */
+    'my-day':                             'Your day, planned once — focus + protocol + equipment + task combine and fan out to huddle, bookings, notebook, tracker.',
+    'team-focus':                         'Mentor↔mentee weekly focus — assign, edit, sign off, and review focus areas and their tasks.',
     'activity-overview':                  'At-a-glance summary of your activity across the lab — emails, calendar, tasks, year review.',
     'activity-overview__tab__tracker':    'Daily activity logger — track time on research, teaching, service.',
     'activity-overview__tab__email':      'Triage and rate inbound email; assign categories and tasks.',
@@ -34,7 +36,7 @@
     'pmr':                                'Project Management Reports — periodic summaries shared with the PI.',
     'calendar':                           'Lab calendar with deadlines, meetings, and Outlook/Google event imports.',
     'tasks':                              'Bucket-based task workspace — projects, sub-buckets, subtasks, evidence.',
-    'sharing':                            'Send tasks to teammates and review tasks they\'ve sent you.',
+    'tasks__tab__market':                 'Task marketplace — offer work, ask for help, claim posts from teammates.',
     'explorer':                           'Cross-cutting search across activities, emails, events, and tasks.',
 
     /* Research */
@@ -44,6 +46,11 @@
     'paper-builder':                      'Paper editor — write, draft, manage figures, export to LaTeX.',
     'teaching':                           'Course planning + outlines for current and upcoming courses.',
     'service':                            'Conferences, committees, reviews, outreach activities.',
+    'lab-notebook':                       'Electronic lab notebook — daily entries, observations, figures, live protocol runs.',
+    'protocols':                          'Protocol library — interactive documents with live calculators and run widgets.',
+    'grant-builder':                      'Grant writing workspace — proposals as structured documents with attached docs.',
+    'grant-biosketch':                    'NIH/NSF biosketches assembled from your CV data.',
+    'grant-facilities':                   'Facilities & resources documents for proposals.',
 
     /* Operations */
     'chat':                               'Lab chat — channels, DMs, file uploads via Drive.',
@@ -51,6 +58,7 @@
     'meetings':                           'Lab meetings — agenda, presenters, action items.',
     'scheduler':                          'Public scheduling pages for talks + your personal calendar.',
     'equipment':                          'Lab equipment — bookings, training, calendar overlays.',
+    'training':                           'Self-paced training modules — RM workflows, microscopy, paper writing.',
 
     /* Lab Admin */
     'compliance':                         'IACUC, IRB, IBC protocols + safety paperwork.',
@@ -64,6 +72,10 @@
     'projects-grants':                    'Funded projects — budgets, expenses by grant.',
     'budget':                             'Lab-wide budget model + projections.',
     'analytics':                          'Expense charts + trends across categories and accounts.',
+    'pcard-helper':                       'P-card purchase helper — compliant description text per expense type.',
+    'classifier-settings':                'Email auto-classification rules, categories, and review queue.',
+    'admin-teachers':                     'Manage teacher accounts for the public-site class modules (admin).',
+    'admin-guests':                       'Review guest sign-ins and promote them to lab members (admin).',
     'finance':                            'Travel trips + receipt parsing for reimbursements.',
 
     /* Settings */
@@ -89,9 +101,21 @@
     'activity-overview__tab__lab-stats':  '🧪',
     'pmr':                                '📋',
     'calendar':                           '🗓',
+    'my-day':                             '☀️',
+    'team-focus':                         '🎯',
     'tasks':                              '✅',
-    'sharing':                            '🤝',
+    'tasks__tab__market':                 '🤝',
     'explorer':                           '🔎',
+    'lab-notebook':                       '📓',
+    'protocols':                          '🧾',
+    'grant-builder':                      '💰',
+    'grant-biosketch':                    '🪪',
+    'grant-facilities':                   '🏢',
+    'training':                           '🎓',
+    'pcard-helper':                       '💳',
+    'classifier-settings':                '🏷',
+    'admin-teachers':                     '🧑‍🏫',
+    'admin-guests':                       '🚪',
     'projects':                           '📁',
     'library':                            '📚',
     'library__tab__comments':             '💬',

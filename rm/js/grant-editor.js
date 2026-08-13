@@ -713,33 +713,16 @@
     }
   }
 
+  /* V3.352 — routed through LIBRARY_LINKS.toggleDraftLink (atomic
+   * single-doc arrayUnion/arrayRemove; concurrency-safe). */
   async function tagPaperWithGrant(paperId) {
     if (!paperId || !state.grantId) return;
-    var data = await api.load('items.json');
-    var items = (data && data.items) || [];
-    var idx = items.findIndex(function (it) { return it.id === paperId; });
-    if (idx < 0) throw new Error('Paper not found in items.json: ' + paperId);
-    items[idx].meta = items[idx].meta || {};
-    items[idx].meta.library = items[idx].meta.library || {};
-    var arr = Array.isArray(items[idx].meta.library.linked_drafts)
-      ? items[idx].meta.library.linked_drafts.slice() : [];
-    if (arr.indexOf(state.grantId) < 0) arr.push(state.grantId);
-    items[idx].meta.library.linked_drafts = arr;
-    await api.save('items.json', { items: items });
+    await window.LIBRARY_LINKS.toggleDraftLink(paperId, state.grantId, true);
   }
 
   async function unlinkPaperFromGrant(paperId) {
     if (!paperId || !state.grantId) return;
-    var data = await api.load('items.json');
-    var items = (data && data.items) || [];
-    var idx = items.findIndex(function (it) { return it.id === paperId; });
-    if (idx < 0) return;
-    items[idx].meta = items[idx].meta || {};
-    items[idx].meta.library = items[idx].meta.library || {};
-    var arr = Array.isArray(items[idx].meta.library.linked_drafts)
-      ? items[idx].meta.library.linked_drafts.filter(function (x) { return x !== state.grantId; }) : [];
-    items[idx].meta.library.linked_drafts = arr;
-    await api.save('items.json', { items: items });
+    await window.LIBRARY_LINKS.toggleDraftLink(paperId, state.grantId, false);
   }
 
   async function pickPaperToLink() {

@@ -403,7 +403,7 @@ function svcOpenAddForm(tabKey) {
 }
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view service records.');
   await svcLoadAndRender();
   // No LIVE_SYNC.attach: service activities are admin-curated, infrequent
   // edits, single-tab in practice. Cached api.load + reload covers it.

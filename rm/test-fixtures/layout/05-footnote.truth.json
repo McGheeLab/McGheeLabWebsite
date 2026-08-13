@@ -1,0 +1,769 @@
+{
+ "name": "05-footnote",
+ "page_w": 612.0,
+ "page_h": 792.0,
+ "pages": [
+  {
+   "blocks": [
+    {
+     "id": "header",
+     "type": "header",
+     "column": -1,
+     "order": 0
+    },
+    {
+     "id": "footer",
+     "type": "footer",
+     "column": -1,
+     "order": 1
+    },
+    {
+     "id": "pagenum",
+     "type": "pagenum",
+     "column": -1,
+     "order": 2
+    },
+    {
+     "id": "L1",
+     "type": "body",
+     "column": 0,
+     "order": 3
+    },
+    {
+     "id": "R1",
+     "type": "body",
+     "column": 1,
+     "order": 4
+    },
+    {
+     "id": "footnote",
+     "type": "footnote",
+     "column": 0,
+     "order": 5
+    }
+   ],
+   "runs": [
+    {
+     "block": "header",
+     "text": "J. Traction Microscopy  \u00b7  Vol 12  \u00b7  2026",
+     "x": 54,
+     "y": 750.0,
+     "w": 142.73,
+     "h": 8
+    },
+    {
+     "block": "footer",
+     "text": "Downloaded from mcgheelab.com on 2026-07-14",
+     "x": 54,
+     "y": 22.0,
+     "w": 175.63,
+     "h": 8
+    },
+    {
+     "block": "pagenum",
+     "text": "5",
+     "x": 302.0,
+     "y": 22.0,
+     "w": 4.45,
+     "h": 8
+    },
+    {
+     "block": "L1",
+     "text": "bead stiffness density coating confocal fluorescent force",
+     "x": 54,
+     "y": 46.5,
+     "w": 235.5,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "cellular modulus gradient spheroid fluorescent bioprinting",
+     "x": 54,
+     "y": 59.0,
+     "w": 240.24,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "porosity elastic fluorescent granule polymer viscoelastic",
+     "x": 54,
+     "y": 71.5,
+     "w": 233.88,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "displacement adhesion bioprinting cellular microscopy",
+     "x": 54,
+     "y": 84.0,
+     "w": 227.02,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "collagen tissue collagen collagen granule granule",
+     "x": 54,
+     "y": 96.5,
+     "w": 207.52,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "polymer polymer cellular cellular field fibroblast migration",
+     "x": 54,
+     "y": 109.0,
+     "w": 238.61,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "porosity polymer adhesion migration bioprinting stress",
+     "x": 54,
+     "y": 121.5,
+     "w": 227.02,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "coating gradient viscoelastic cellular substrate bead",
+     "x": 54,
+     "y": 134.0,
+     "w": 217.01,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "microscopy matrix stress granule matrix microscopy",
+     "x": 54,
+     "y": 146.5,
+     "w": 218.01,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "stress stiffness stress spheroid fibroblast adhesion",
+     "x": 54,
+     "y": 159.0,
+     "w": 212.25,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "spheroid spheroid adhesion force bead coating stiffness",
+     "x": 54,
+     "y": 171.5,
+     "w": 234.98,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "scaffold coating diffusion viscoelastic gradient bioprinting",
+     "x": 54,
+     "y": 184.0,
+     "w": 238.66,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "granule tissue traction adhesion migration modulus",
+     "x": 54,
+     "y": 196.5,
+     "w": 214.37,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "fluorescent confocal stiffness crosslink stiffness density",
+     "x": 54,
+     "y": 209.0,
+     "w": 231.78,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "bead confocal elastic gradient field traction strain",
+     "x": 54,
+     "y": 221.5,
+     "w": 205.4,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "hydrogel polymer matrix crosslink gradient substrate",
+     "x": 54,
+     "y": 234.0,
+     "w": 219.62,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "matrix displacement porosity hydrogel stress fibroblast",
+     "x": 54,
+     "y": 246.5,
+     "w": 228.6,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "stress adhesion hydrogel substrate stress spheroid",
+     "x": 54,
+     "y": 259.0,
+     "w": 214.37,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "cellular force hydrogel porosity scaffold traction",
+     "x": 54,
+     "y": 271.5,
+     "w": 197.99,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "fluorescent stiffness bead confocal viscoelastic substrate",
+     "x": 54,
+     "y": 284.0,
+     "w": 238.66,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "force traction rheology matrix polymer collagen collagen",
+     "x": 54,
+     "y": 296.5,
+     "w": 234.94,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "viscoelastic elastic cellular strain gradient substrate force",
+     "x": 54,
+     "y": 309.0,
+     "w": 239.16,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "viscoelastic field substrate confocal cellular density",
+     "x": 54,
+     "y": 321.5,
+     "w": 213.83,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "confocal rheology fibroblast spheroid displacement field",
+     "x": 54,
+     "y": 334.0,
+     "w": 233.38,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "spheroid scaffold substrate modulus bioprinting porosity",
+     "x": 54,
+     "y": 346.5,
+     "w": 234.43,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "adhesion rheology matrix adhesion hydrogel rheology",
+     "x": 54,
+     "y": 359.0,
+     "w": 225.46,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "displacement crosslink diffusion crosslink gradient",
+     "x": 54,
+     "y": 371.5,
+     "w": 210.12,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "microscopy stiffness traction stress gradient diffusion",
+     "x": 54,
+     "y": 384.0,
+     "w": 222.27,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "displacement rheology bead field matrix adhesion granule",
+     "x": 54,
+     "y": 396.5,
+     "w": 242.89,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "spheroid diffusion bead fibroblast displacement confocal",
+     "x": 54,
+     "y": 409.0,
+     "w": 236.03,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "field crosslink stiffness stiffness displacement stiffness",
+     "x": 54,
+     "y": 421.5,
+     "w": 228.08,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "viscoelastic stiffness adhesion tissue gradient matrix",
+     "x": 54,
+     "y": 434.0,
+     "w": 220.16,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "density substrate density cellular migration gradient",
+     "x": 54,
+     "y": 446.5,
+     "w": 215.94,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "spheroid field hydrogel viscoelastic cellular density",
+     "x": 54,
+     "y": 459.0,
+     "w": 212.24,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "viscoelastic stress diffusion displacement coating",
+     "x": 54,
+     "y": 471.5,
+     "w": 206.44,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "migration cellular tissue adhesion network adhesion",
+     "x": 54,
+     "y": 484.0,
+     "w": 217.53,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "traction spheroid network cellular force collagen modulus",
+     "x": 54,
+     "y": 496.5,
+     "w": 239.17,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "fibroblast adhesion spheroid migration diffusion traction",
+     "x": 54,
+     "y": 509.0,
+     "w": 232.32,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "viscoelastic confocal stiffness bioprinting microscopy",
+     "x": 54,
+     "y": 521.5,
+     "w": 221.21,
+     "h": 9.5
+    },
+    {
+     "block": "L1",
+     "text": "polymer fluorescent gradient granule stiffness scaffold",
+     "x": 54,
+     "y": 534.0,
+     "w": 227.04,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "viscoelastic modulus diffusion gradient traction diffusion",
+     "x": 315.0,
+     "y": 46.5,
+     "w": 233.9,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "stress elastic field porosity crosslink matrix field stiffness",
+     "x": 315.0,
+     "y": 59.0,
+     "w": 236.5,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "collagen viscoelastic viscoelastic porosity gradient",
+     "x": 315.0,
+     "y": 71.5,
+     "w": 210.65,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "confocal substrate cellular bioprinting spheroid migration",
+     "x": 315.0,
+     "y": 84.0,
+     "w": 237.06,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "collagen hydrogel stiffness granule bioprinting elastic",
+     "x": 315.0,
+     "y": 96.5,
+     "w": 222.29,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "fibroblast porosity substrate fibroblast bioprinting strain",
+     "x": 315.0,
+     "y": 109.0,
+     "w": 229.67,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "strain network rheology field spheroid bioprinting",
+     "x": 315.0,
+     "y": 121.5,
+     "w": 203.8,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "bioprinting cellular bead stress rheology bead viscoelastic",
+     "x": 315.0,
+     "y": 134.0,
+     "w": 242.35,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "coating fibroblast stress rheology field substrate spheroid",
+     "x": 315.0,
+     "y": 146.5,
+     "w": 239.71,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "coating modulus tissue fluorescent field traction collagen",
+     "x": 315.0,
+     "y": 159.0,
+     "w": 237.6,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "scaffold granule spheroid porosity diffusion displacement",
+     "x": 315.0,
+     "y": 171.5,
+     "w": 238.66,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "fluorescent spheroid traction fluorescent rheology",
+     "x": 315.0,
+     "y": 184.0,
+     "w": 207.51,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "displacement substrate field field rheology spheroid",
+     "x": 315.0,
+     "y": 196.5,
+     "w": 215.95,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "density modulus coating collagen stress field porosity",
+     "x": 315.0,
+     "y": 209.0,
+     "w": 223.87,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "matrix field density coating confocal stiffness gradient",
+     "x": 315.0,
+     "y": 221.5,
+     "w": 224.4,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "collagen traction granule bead diffusion confocal elastic",
+     "x": 315.0,
+     "y": 234.0,
+     "w": 232.86,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "porosity migration granule strain strain spheroid",
+     "x": 315.0,
+     "y": 246.5,
+     "w": 200.1,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "bioprinting spheroid scaffold migration field confocal",
+     "x": 315.0,
+     "y": 259.0,
+     "w": 218.06,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "microscopy stress granule strain field spheroid stress",
+     "x": 315.0,
+     "y": 271.5,
+     "w": 223.32,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "substrate cellular spheroid diffusion rheology matrix",
+     "x": 315.0,
+     "y": 284.0,
+     "w": 216.47,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "porosity substrate strain porosity force microscopy",
+     "x": 315.0,
+     "y": 296.5,
+     "w": 211.18,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "network displacement hydrogel microscopy coating",
+     "x": 315.0,
+     "y": 309.0,
+     "w": 214.88,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "matrix strain microscopy scaffold rheology force modulus",
+     "x": 315.0,
+     "y": 321.5,
+     "w": 239.15,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "modulus network modulus collagen field tissue substrate",
+     "x": 315.0,
+     "y": 334.0,
+     "w": 237.6,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "adhesion adhesion viscoelastic cellular microscopy",
+     "x": 315.0,
+     "y": 346.5,
+     "w": 214.35,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "polymer traction diffusion elastic bioprinting microscopy",
+     "x": 315.0,
+     "y": 359.0,
+     "w": 232.29,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "displacement force modulus scaffold collagen granule",
+     "x": 315.0,
+     "y": 371.5,
+     "w": 225.99,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "strain hydrogel fibroblast rheology rheology stiffness",
+     "x": 315.0,
+     "y": 384.0,
+     "w": 219.12,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "gradient force collagen field substrate crosslink field",
+     "x": 315.0,
+     "y": 396.5,
+     "w": 217.53,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "diffusion diffusion network bead microscopy diffusion",
+     "x": 315.0,
+     "y": 409.0,
+     "w": 221.76,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "fluorescent bead field density collagen fluorescent",
+     "x": 315.0,
+     "y": 421.5,
+     "w": 210.16,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "gradient confocal bioprinting adhesion collagen coating",
+     "x": 315.0,
+     "y": 434.0,
+     "w": 231.29,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "matrix hydrogel traction hydrogel modulus crosslink",
+     "x": 315.0,
+     "y": 446.5,
+     "w": 215.93,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "confocal fluorescent bioprinting confocal spheroid",
+     "x": 315.0,
+     "y": 459.0,
+     "w": 208.04,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "fibroblast elastic density coating porosity bioprinting force",
+     "x": 315.0,
+     "y": 471.5,
+     "w": 240.24,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "substrate strain network modulus hydrogel rheology",
+     "x": 315.0,
+     "y": 484.0,
+     "w": 217.53,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "polymer collagen bioprinting stiffness fluorescent field",
+     "x": 315.0,
+     "y": 496.5,
+     "w": 224.92,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "matrix stiffness bioprinting bioprinting collagen stiffness",
+     "x": 315.0,
+     "y": 509.0,
+     "w": 231.78,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "field strain gradient density traction polymer adhesion",
+     "x": 315.0,
+     "y": 521.5,
+     "w": 224.4,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "scaffold microscopy elastic traction traction adhesion",
+     "x": 315.0,
+     "y": 534.0,
+     "w": 221.75,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "migration migration traction rheology spheroid stiffness",
+     "x": 315.0,
+     "y": 546.5,
+     "w": 230.19,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "granule strain spheroid stress strain fibroblast confocal",
+     "x": 315.0,
+     "y": 559.0,
+     "w": 229.67,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "confocal elastic migration substrate cellular microscopy",
+     "x": 315.0,
+     "y": 571.5,
+     "w": 231.76,
+     "h": 9.5
+    },
+    {
+     "block": "R1",
+     "text": "gradient bioprinting spheroid substrate diffusion bead",
+     "x": 315.0,
+     "y": 584.0,
+     "w": 223.36,
+     "h": 9.5
+    },
+    {
+     "block": "footnote",
+     "text": "1  displacement cellular field fluorescent traction spheroid traction stiffness gradient fibroblast",
+     "x": 54,
+     "y": 82.5,
+     "w": 308.46,
+     "h": 7.5
+    },
+    {
+     "block": "footnote",
+     "text": "2  force coating confocal spheroid substrate modulus fibroblast field confocal fluorescent",
+     "x": 54,
+     "y": 72.5,
+     "w": 292.63,
+     "h": 7.5
+    },
+    {
+     "block": "footnote",
+     "text": "3  cellular traction migration coating network hydrogel scaffold gradient stress adhesion",
+     "x": 54,
+     "y": 62.5,
+     "w": 288.87,
+     "h": 7.5
+    }
+   ]
+  }
+ ]
+}

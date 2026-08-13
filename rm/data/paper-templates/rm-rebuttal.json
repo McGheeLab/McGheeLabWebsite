@@ -1,0 +1,19 @@
+{
+  "id": "rm-rebuttal",
+  "schema_version": 2,
+  "name": "Response to reviewers (RM submission document)",
+  "description": "Compiles the paper's Response to Reviewers section into a standalone point-by-point document (use subheadings for Reviewer 1 / Reviewer 2 and lists for each point). Not a manuscript template.",
+  "main_file": "main.tex",
+  "preamble": "\\documentclass[11pt]{article}\n\\usepackage[margin=1in]{geometry}\n\\usepackage[T1]{fontenc}\n\\usepackage{parskip}\n\\usepackage{microtype}\n\\usepackage[numbers]{natbib}",
+  "main_template": "{{PREAMBLE}}\n\n\\begin{document}\n\n\\begin{center}\n{\\Large\\bfseries Response to Reviewers}\\\\[4pt]\n{\\large {{TITLE}}}\\\\[2pt]\n{{LEAD_AUTHOR}} et al. \\quad \\today\n\\end{center}\n\n\\vspace{0.8em}\n\n{{INPUTS}}\n\n\\bibliographystyle{unsrtnat}\n\\bibliography{{{BIB_BASENAME}}}\n\n\\end{document}",
+  "section_kind_to_command": {
+    "rebuttal": "section_star",
+    "custom": "section_star"
+  },
+  "default_section_label": {
+    "rebuttal": "Response to Reviewers"
+  },
+  "citation": { "command": "\\citep", "render_family": "numeric-bracket" },
+  "figure_environment": { "env": "figure", "placement": "H", "compiled_columns": 1 },
+  "table_environment": { "env": "table", "placement": "H" }
+}

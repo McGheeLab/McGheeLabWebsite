@@ -325,6 +325,7 @@
 
   // Wait for Firebase auth
   if (typeof firebridge !== 'undefined') {
+    if (firebridge.requireSignIn) firebridge.requireSignIn('Sign in to view lab tasks.');
     firebridge.onAuth(function () {
       loadAndRender();
       _ltAttachLiveSync();

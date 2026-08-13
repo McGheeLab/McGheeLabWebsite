@@ -42,6 +42,87 @@
     savedCaret: 0,
   };
 
+  /* Tables II — grid cell selection for merge/unmerge:
+   * {blockId, r0, c0, r1, c1} (r0/c0 = click anchor; r1/c1 = shift
+   * extent). Cleared on rebuild/merge. */
+  var _tblSel = null;
+
+  /* ── MathLive Visual ⇄ LaTeX toggle (E1) ─────────────────────────
+   * Mounts a two-button toggle before a LaTeX <textarea>. Visual mode
+   * swaps in a <math-field> (vendored MathLive via the shared
+   * ensureMathlive loader); edits write BACK THROUGH THE TEXTAREA
+   * (value + synthetic change/blur events), so every existing
+   * persistence path runs unchanged.
+   *
+   * Fidelity guard: MathLive normalizes macros it doesn't model, so an
+   * untouched visual open/close writes NOTHING (dirty flag) — the
+   * stored LaTeX stays byte-identical unless the user actually edits. */
+  function _mountVisualToggle(srcInput) {
+    if (!window.ensureMathlive || !srcInput || !srcInput.parentElement) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'pe-visual-toggle';
+    var latexBtn = document.createElement('button');
+    latexBtn.type = 'button'; latexBtn.textContent = 'LaTeX'; latexBtn.className = 'active';
+    var visualBtn = document.createElement('button');
+    visualBtn.type = 'button'; visualBtn.textContent = 'Visual';
+    visualBtn.title = 'Click-and-type equation editor (writes LaTeX back)';
+    wrap.appendChild(latexBtn);
+    wrap.appendChild(visualBtn);
+    srcInput.parentElement.insertBefore(wrap, srcInput);
+
+    var mf = null, bar = null, dirty = false, visualOn = false;
+    function reflect() {
+      latexBtn.classList.toggle('active', !visualOn);
+      visualBtn.classList.toggle('active', visualOn);
+    }
+    function commitIfDirty() {
+      if (!mf || !dirty) return;
+      var v = mf.getValue ? mf.getValue('latex') : mf.value;
+      if (typeof v === 'string' && v !== srcInput.value) {
+        srcInput.value = v;
+        srcInput.dispatchEvent(new Event('change'));
+        srcInput.dispatchEvent(new Event('blur'));
+      }
+      dirty = false;
+    }
+    function closeVisual() {
+      commitIfDirty();
+      if (mf) { try { mf.remove(); } catch (e) {} mf = null; }
+      if (bar) { try { bar.remove(); } catch (e) {} bar = null; }
+      srcInput.style.display = '';
+      visualOn = false;
+      reflect();
+    }
+    function openVisual() {
+      visualOn = true;
+      reflect();
+      window.ensureMathlive().then(function () {
+        if (!visualOn || mf) return;
+        mf = document.createElement('math-field');
+        mf.className = 'pe-mathfield';
+        mf.value = srcInput.value;
+        dirty = false;
+        mf.addEventListener('input', function () { dirty = true; });
+        mf.addEventListener('blur', commitIfDirty);
+        srcInput.parentElement.insertBefore(mf, srcInput);
+        /* V3.458 — accents/matrix/operator snippet bar above the field
+         * (inserts fire 'input', so the dirty guard sees real edits). */
+        if (window.mathliveSnippetBar) {
+          bar = window.mathliveSnippetBar(mf);
+          srcInput.parentElement.insertBefore(bar, mf);
+        }
+        srcInput.style.display = 'none';
+        try { mf.focus(); } catch (e) {}
+      }).catch(function (e) {
+        visualOn = false;
+        reflect();
+        alert('The visual editor failed to load: ' + (e.message || e));
+      });
+    }
+    latexBtn.addEventListener('click', function () { if (visualOn) closeVisual(); });
+    visualBtn.addEventListener('click', function () { if (!visualOn) openVisual(); });
+  }
+
   function attach() {
     if (_state.attached) return;
     if (!window.PaperEditor) {
@@ -55,6 +136,13 @@
     _installSubscriptions();
     _installGlobalKeydown();
     _installCitationIndexListener();
+    /* Tool page (?page=…) — mount the pane full-width immediately and
+     * honor a ?focus=<blockId> deep link. */
+    if (_isToolPage()) {
+      _mountToolPage();
+      _refreshPanel();
+      _applyFocusParam();
+    }
   }
 
   function detach() {
@@ -85,15 +173,34 @@
     });
   }
 
-  /* ── V3.120 — pill-tab bar ────────────────────────────────────────────
+  /* ── Pill PAGES ───────────────────────────────────────────────────────
    *
-   * Replaces the V3.115 single topbar toggle button. Each pill toggles
-   * its tab in the slide-out pane: clicking a non-active pill opens the
-   * pane on that tab; clicking the active pill closes the pane. */
+   * The former slide-out panel tabs are full editor PAGES:
+   * ?paper=<id>&page=guide|equations|symbols|figures|tables|references
+   * (absent = 'write', the doc editor). The pill bar is page NAVIGATION;
+   * on a tool page the pane mounts full-width into #pe-toolpage-root. */
+  function _currentPage() { return window.__PAPER_PAGE || 'write'; }
+  function _isToolPage() { return _currentPage() !== 'write'; }
+  var _pendingNav = null;   // deferred write-page navigation (showPanel shim)
+
+  /* Navigate to a pill page (or 'write'). opts.focus scrolls that page
+   * to the block on load. */
+  function _gotoPage(pageId, opts) {
+    if (_pendingNav) { clearTimeout(_pendingNav); _pendingNav = null; }
+    var pid = window.__PAPER_ID ||
+      new URLSearchParams(location.search).get('paper') || '';
+    var url = location.pathname + '?paper=' + encodeURIComponent(pid);
+    if (pageId && pageId !== 'write') url += '&page=' + encodeURIComponent(pageId);
+    if (opts && opts.focus) url += '&focus=' + encodeURIComponent(opts.focus);
+    location.href = url;
+  }
+
   function _installPillBar() {
     var bar = document.getElementById('pe-pillbar');
     if (!bar || bar.children.length) return;
-    TABS.forEach(function (t) {
+    /* Leading Write pill returns to the doc editor. */
+    var pages = [{ id: 'write', plainLabel: 'Write' }].concat(TABS);
+    pages.forEach(function (t) {
       var pill = document.createElement('button');
       pill.type = 'button';
       pill.className = 'pe-pill';
@@ -101,32 +208,41 @@
       pill.setAttribute('role', 'tab');
       pill.setAttribute('aria-selected', 'false');
       // No icons — text-only labels per V3.120 design.
-      pill.textContent = t.plainLabel || t.label.replace(/^\S+\s+/, '');
-      pill.addEventListener('click', function () { _togglePill(t.id); });
+      pill.textContent = t.plainLabel || (t.label || '').replace(/^\S+\s+/, '');
+      pill.addEventListener('click', function () {
+        if (t.id !== _currentPage()) _gotoPage(t.id);
+      });
       bar.appendChild(pill);
     });
+    _reflectPillVisibility();
     _reflectPillState();
   }
 
-  function _togglePill(tabId) {
-    if (_state.panel && !_state.panel.hidden && _activeTab === tabId) {
-      // Active pill clicked → close.
-      hidePanel();
-    } else {
-      // Switch + open.
-      _setActiveTab(tabId);
-      showPanel();
-    }
-    _reflectPillState();
+  /* V3.466 — hide pills whose TAB.visibleFor excludes this paper_type
+   * (e.g. Grant Docs on a journal paper). Called at build AND from
+   * _reflectPillState, so a paper_type that resolves slightly after the
+   * first build still corrects on the next state sync. The Write pill
+   * (not in TABS) is always shown. */
+  function _reflectPillVisibility() {
+    var bar = document.getElementById('pe-pillbar');
+    if (!bar) return;
+    var type = _paperType();
+    var byId = {};
+    TABS.forEach(function (t) { byId[t.id] = t; });
+    bar.querySelectorAll('.pe-pill').forEach(function (p) {
+      var t = byId[p.dataset.tab];
+      p.hidden = !!(t && !_tabVisibleFor(t, type));
+    });
   }
 
   function _reflectPillState() {
-    var paneOpen = !!(_state.panel && !_state.panel.hidden);
     var bar = document.getElementById('pe-pillbar');
     if (!bar) return;
+    _reflectPillVisibility();
+    var page = _currentPage();
     var pills = bar.querySelectorAll('.pe-pill');
     pills.forEach(function (p) {
-      var isActive = paneOpen && p.dataset.tab === _activeTab;
+      var isActive = p.dataset.tab === page;
       p.classList.toggle('active', isActive);
       p.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
@@ -188,6 +304,11 @@
        * the citation popover) can anchor the popover under the same
        * `+ Cite` button regardless of which surface triggered it. */
       { label: '+ Cite',      title: 'Insert citation (Cmd+K)',                      action: _toolbarInsertCitation,       id: 'pe-gt-cite' },
+      /* V3.345 — footnote token; renders as a superscript † chip and
+       * exports as \footnote{}. */
+      { label: '+ Note',      title: 'Insert footnote',                              action: _toolbarInsertFootnote,       id: 'pe-gt-footnote' },
+      /* V3.346 — discoverability: a static shortcuts & tips card. */
+      { label: '⌨',           title: 'Keyboard shortcuts & tips',                    action: _toolbarShowShortcuts,        id: 'pe-gt-shortcuts' },
     ].forEach(function (b) {
       var btn = _makeRefBtn(b);
       inlineGroup.row.appendChild(btn);
@@ -450,6 +571,63 @@
     _openCitationPopoverFallback();
   }
 
+  /* V3.345 — footnote insert: prompt for the note text, insert the
+   * [^text] token at the saved caret (renders immediately as a † chip
+   * via the bracket-token chip path in _insertAtSavedCaret). */
+  function _toolbarInsertFootnote(anchorBtn) {
+    if (!_ensureCaretOrAlert()) return;
+    var txt = window.prompt('Footnote text:', '');
+    if (txt === null) return;
+    /* Newlines always break the token; unbalanced brackets would too. */
+    txt = txt.replace(/\n/g, ' ').trim();
+    var d = 0, bal = true;
+    for (var ci = 0; ci < txt.length; ci++) {
+      if (txt[ci] === '[') d++;
+      else if (txt[ci] === ']') { d--; if (d < 0) { bal = false; break; } }
+    }
+    if (!bal || d !== 0) txt = txt.replace(/[\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!txt) return;
+    _insertAtSavedCaret('[^' + txt + ']');
+  }
+
+  /* V3.346 — static shortcuts / tips card. Singleton; dismissed on
+   * outside click or Esc. Content is curated, not generated. */
+  var _shortcutsEl = null;
+  function _toolbarShowShortcuts(anchorBtn) {
+    if (_shortcutsEl && !_shortcutsEl.hidden) { _shortcutsEl.hidden = true; return; }
+    if (!_shortcutsEl) {
+      _shortcutsEl = document.createElement('div');
+      _shortcutsEl.className = 'pe-shortcuts-pop';
+      _shortcutsEl.innerHTML =
+        '<div class="pe-shortcuts-title">Shortcuts &amp; tips</div>' +
+        '<table class="pe-shortcuts-table">' +
+          '<tr><td><kbd>Cmd/Ctrl+K</kbd></td><td>Insert citation at the caret</td></tr>' +
+          '<tr><td><kbd>Cmd/Ctrl+Enter</kbd></td><td>Commit a multi-pick in the citation popover</td></tr>' +
+          '<tr><td>Right-click a paragraph</td><td>Insert inline equation / references</td></tr>' +
+          '<tr><td>Click a chip</td><td>Edit that citation or footnote in place</td></tr>' +
+          '<tr><td><code>**b**</code> <code>*i*</code> <code>~sub~</code> <code>^sup^</code> <code>$math$</code></td><td>Inline formatting in any paragraph</td></tr>' +
+          '<tr><td><code>[^text]</code></td><td>Footnote (or use + Note)</td></tr>' +
+          '<tr><td>View selector</td><td>Mixed / all-skeleton / all-body reading modes</td></tr>' +
+          '<tr><td>✍️ Guide pill</td><td>Section-aware writing guidance + live checks</td></tr>' +
+        '</table>';
+      document.body.appendChild(_shortcutsEl);
+      document.addEventListener('mousedown', function (e) {
+        if (_shortcutsEl && !_shortcutsEl.hidden && !_shortcutsEl.contains(e.target)) {
+          _shortcutsEl.hidden = true;
+        }
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && _shortcutsEl) _shortcutsEl.hidden = true;
+      });
+    }
+    var rect = anchorBtn && anchorBtn.getBoundingClientRect ? anchorBtn.getBoundingClientRect() : null;
+    if (rect) {
+      _shortcutsEl.style.left = Math.max(10, Math.min(window.innerWidth - 380, rect.left)) + 'px';
+      _shortcutsEl.style.top = (rect.bottom + 6) + 'px';
+    }
+    _shortcutsEl.hidden = false;
+  }
+
   /* ── Yjs subscriptions to keep the panel + bullet pills fresh ────── */
   function _installSubscriptions() {
     var paperMap = window.PaperEditor.getPaperMap && window.PaperEditor.getPaperMap();
@@ -549,19 +727,73 @@
     document.addEventListener('mouseup', onUp);
   }
 
-  /* ── Slide-out panel ──────────────────────────────────────────────── */
+  /* ── Panel → tool pages ───────────────────────────────────────────────
+   * On a tool page the pane is ALWAYS mounted (full-width, in
+   * #pe-toolpage-root). On the write page there is no slide-out anymore:
+   * showPanel() is a legacy shim that NAVIGATES to the page of the tab
+   * selected in the same tick (callers do showPanel(); setActiveTab(t);
+   * — the deferred nav picks up t). */
   function showPanel() {
-    if (!_state.panel) {
-      _state.panel = _buildPanel();
-      document.body.appendChild(_state.panel);
+    if (_isToolPage()) {
+      _mountToolPage();
+      _refreshPanel();
+      return;
     }
-    _state.panel.hidden = false;
-    _refreshPanel();
-    _reflectPillState();
+    if (_pendingNav) clearTimeout(_pendingNav);
+    _pendingNav = setTimeout(function () {
+      _pendingNav = null;
+      var tab = (_activeTab && _activeTab !== 'write') ? _activeTab : 'equations';
+      _gotoPage(tab);
+    }, 10);
   }
   function hidePanel() {
+    if (_isToolPage()) return;   // tool pages have no "closed" state
+    if (_pendingNav) { clearTimeout(_pendingNav); _pendingNav = null; }
     if (_state.panel) _state.panel.hidden = true;
     _reflectPillState();
+  }
+
+  /* Mount the pane full-width into the tool-page root and pin it to the
+   * page's tab. Idempotent. */
+  function _mountToolPage() {
+    var root = document.getElementById('pe-toolpage-root');
+    if (!root) return;
+    if (!_state.panel) {
+      _state.panel = _buildPanel();
+      _state.panel.classList.add('pe-toolpage-pane');
+      root.appendChild(_state.panel);
+    }
+    _state.panel.hidden = false;
+    _setActiveTab(_currentPage(), _state.panel);
+  }
+
+  /* ?focus=<blockId> — scroll the tool page to the block's row once its
+   * list has rendered (Yjs sync is async; retry briefly). */
+  function _applyFocusParam() {
+    var focus = new URLSearchParams(location.search).get('focus');
+    if (!focus) return;
+    var page = _currentPage();
+    var tries = 0;
+    (function attempt() {
+      tries++;
+      var row = null;
+      if (page === 'figures') {
+        var fl = document.getElementById('pe-equations-fig-list');
+        row = fl && fl.querySelector('.pe-fig-row[data-block-id="' + _escAttr(focus) + '"]');
+      } else if (page === 'tables') {
+        var tl = document.getElementById('pe-equations-tab-list');
+        row = tl && tl.querySelector('.pe-tab-row[data-block-id="' + _escAttr(focus) + '"]');
+      } else if (_state.panel) {
+        row = _state.panel.querySelector('[data-block-id="' + _escAttr(focus) + '"], [data-entry-id="' + _escAttr(focus) + '"]');
+      }
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('pe-block-flash');
+        setTimeout(function () { row.classList.remove('pe-block-flash'); }, 1200);
+      } else if (tries < 10) {
+        setTimeout(attempt, 500);
+      }
+    })();
   }
 
   /* V3.115 — pane DOM shape:
@@ -589,11 +821,36 @@
      * label is the legacy V3.115 emoji-prefixed label for the in-pane
      * tab nav (kept for back-compat; slide-out pane no longer renders
      * its own tab nav, so label is unused but harmless). */
+    /* V3.334 — leftmost "Guide" tab: section-aware curated writing
+     * guidance + live self-checks (rendered by paper-writing-guide.js). */
+    { id: 'guide',      label: '✍️ Guide',      plainLabel: 'Guide' },
     { id: 'equations',  label: '📐 Equations',  plainLabel: 'Equations' },
+    /* V3.459 — math symbol palette (rendered by paper-symbols.js;
+     * copy-to-clipboard tiles, user-reorderable sections). */
+    { id: 'symbols',    label: '∑ Symbols',     plainLabel: 'Symbols' },
     { id: 'figures',    label: '🖼 Figures',    plainLabel: 'Figures' },
+    /* V3.609 — freeform planning canvas: figure/experiment/reference/note
+     * cards + arrows (rendered by paper-figure-board.js). */
+    { id: 'figure-board', label: '🧭 Figure board', plainLabel: 'Figure board' },
     { id: 'tables',     label: '📋 Tables',     plainLabel: 'Tables' },
     { id: 'references', label: '📚 References', plainLabel: 'References' },
+    /* V3.466 — grant submission documents + checklist. `visibleFor`
+     * limits the pill to grant papers; other tabs (no visibleFor) show
+     * for every paper_type. */
+    { id: 'grant-docs', label: '📎 Grant Docs', plainLabel: 'Grant Docs', visibleFor: ['grant'] },
   ];
+
+  /* V3.466 — current paper's document type (journal | grant | …), read
+   * from PaperEditor (ready by attach() time). Drives `visibleFor`. */
+  function _paperType() {
+    try {
+      var m = window.PaperEditor && window.PaperEditor.getPaperMeta && window.PaperEditor.getPaperMeta();
+      return (m && m.paper_type) || 'journal';
+    } catch (e) { return 'journal'; }
+  }
+  function _tabVisibleFor(tab, type) {
+    return !tab.visibleFor || tab.visibleFor.indexOf(type) >= 0;
+  }
 
   function _buildPanel() {
     var panel = document.createElement('aside');
@@ -647,6 +904,48 @@
     });
     panel.appendChild(nav);
 
+    /* V3.334 — Guide tab content. Scaffolded lazily by
+     * paper-writing-guide.js's buildTabContent() into #pe-guide-root. */
+    var guideTab = document.createElement('div');
+    guideTab.className = 'pe-tab-content';
+    guideTab.dataset.tab = 'guide';
+    var guideRoot = document.createElement('div');
+    guideRoot.id = 'pe-guide-root';
+    guideRoot.className = 'pe-guide';
+    guideTab.appendChild(guideRoot);
+    panel.appendChild(guideTab);
+
+    /* V3.459 — Symbols tab content (same lazy-scaffold contract as the
+     * Guide: paper-symbols.js fills #pe-symbols-root). */
+    var symTab = document.createElement('div');
+    symTab.className = 'pe-tab-content';
+    symTab.dataset.tab = 'symbols';
+    var symRoot = document.createElement('div');
+    symRoot.id = 'pe-symbols-root';
+    symTab.appendChild(symRoot);
+    panel.appendChild(symTab);
+
+    /* V3.466 — Grant Docs tab content (grant papers only; the pill is
+     * hidden otherwise). paper-grant-docs.js fills #pe-grant-docs-root
+     * in R5/R6 — until it loads, _refreshPanel renders a placeholder. */
+    var gdTab = document.createElement('div');
+    gdTab.className = 'pe-tab-content';
+    gdTab.dataset.tab = 'grant-docs';
+    var gdRoot = document.createElement('div');
+    gdRoot.id = 'pe-grant-docs-root';
+    gdTab.appendChild(gdRoot);
+    panel.appendChild(gdTab);
+
+    /* V3.609 — Figure board tab content (same lazy-scaffold contract:
+     * paper-figure-board.js fills #pe-figure-board-root). */
+    var fbTab = document.createElement('div');
+    fbTab.className = 'pe-tab-content';
+    fbTab.dataset.tab = 'figure-board';
+    var fbRoot = document.createElement('div');
+    fbRoot.id = 'pe-figure-board-root';
+    fbTab.appendChild(fbRoot);
+    panel.appendChild(fbTab);
+
     /* Equations tab content. */
     var eqTab = document.createElement('div');
     eqTab.className = 'pe-tab-content';
@@ -664,7 +963,16 @@
     eqAddBtn.className = 'pe-equations-add-btn';
     eqAddBtn.textContent = '+ Equation';
     eqAddBtn.addEventListener('click', _openEquationCreateModal);
+    /* E4 — bulk import: paste a LaTeX block (split into entries) or
+     * paste MathML from Word/MathType/Google Docs. */
+    var eqImportBtn = document.createElement('button');
+    eqImportBtn.type = 'button';
+    eqImportBtn.className = 'pe-equations-add-btn';
+    eqImportBtn.textContent = '⇪ Import';
+    eqImportBtn.title = 'Paste LaTeX (one equation per blank-line block) or MathML from Word';
+    eqImportBtn.addEventListener('click', _openEquationImportModal);
     eqAddRow.appendChild(eqAddTitle);
+    eqAddRow.appendChild(eqImportBtn);
     eqAddRow.appendChild(eqAddBtn);
     eqTab.appendChild(eqAddRow);
 
@@ -754,6 +1062,16 @@
     figAddRow.appendChild(figAddTitle);
     figAddRow.appendChild(figAddBtn);
     figTab.appendChild(figAddRow);
+
+    /* F1 — "Figure builder" placeholder (Alex's later concept — this
+     * card reserves the surface on the Figure editor page; the panel
+     * COMPOSER below each figure's Panels row is live today). */
+    var fbCard = document.createElement('div');
+    fbCard.className = 'pe-figbuilder-card';
+    fbCard.innerHTML = '<b>🏗 Figure builder</b> — a guided workspace for assembling ' +
+      'publication figures (plots, schematics, annotations) is planned here. For now, use ' +
+      '<i>🧩 Compose panels…</i> on any figure to arrange panel images into one labeled composite.';
+    figTab.appendChild(fbCard);
 
     var figUnplacedSec = document.createElement('section');
     figUnplacedSec.className = 'pe-equations-section';
@@ -866,6 +1184,44 @@
     refTab.className = 'pe-tab-content';
     refTab.dataset.tab = 'references';
 
+    /* V3.350 — "Reading evidence for this draft" (Evidence Inbox).
+     * First section so the tab reads top-to-bottom as: evidence to use →
+     * already cited → linked → bibliography. Rendered by
+     * paper-evidence-inbox.js (reader highlights flagged cite-in-draft +
+     * claims evidence). */
+    var refEvidenceSec = document.createElement('details');
+    refEvidenceSec.className = 'pe-equations-section pe-equations-collapsible';
+    refEvidenceSec.dataset.section = 'ref-evidence';
+    refEvidenceSec.open = true;
+    var refEvidenceSummary = document.createElement('summary');
+    refEvidenceSummary.className = 'pe-equations-section-head';
+    var refEvidenceTitle = document.createElement('span');
+    refEvidenceTitle.className = 'pe-equations-section-title';
+    refEvidenceTitle.textContent = 'Reading evidence for this draft';
+    var refEvidenceCount = document.createElement('span');
+    refEvidenceCount.className = 'pe-equations-section-hint';
+    refEvidenceCount.id = 'pe-evidence-count';
+    var refEvidenceRefresh = document.createElement('button');
+    refEvidenceRefresh.type = 'button';
+    refEvidenceRefresh.className = 'pe-icon-btn pe-evidence-refresh';
+    refEvidenceRefresh.textContent = '↻';
+    refEvidenceRefresh.title = 'Re-check the reader for new flagged highlights';
+    refEvidenceRefresh.addEventListener('click', function (e) {
+      e.preventDefault();   // don't toggle the <details>
+      e.stopPropagation();
+      var pid = window.PaperEditor.getPaperId && window.PaperEditor.getPaperId();
+      if (window.PaperEvidenceInbox && pid) window.PaperEvidenceInbox.refresh(pid, true);
+    });
+    refEvidenceSummary.appendChild(refEvidenceTitle);
+    refEvidenceSummary.appendChild(refEvidenceCount);
+    refEvidenceSummary.appendChild(refEvidenceRefresh);
+    refEvidenceSec.appendChild(refEvidenceSummary);
+    var refEvidenceList = document.createElement('div');
+    refEvidenceList.className = 'pe-equations-list';
+    refEvidenceList.id = 'pe-references-evidence-list';
+    refEvidenceSec.appendChild(refEvidenceList);
+    refTab.appendChild(refEvidenceSec);
+
     var refSearchSec = document.createElement('section');
     refSearchSec.className = 'pe-equations-section';
     refSearchSec.dataset.section = 'ref-search';
@@ -931,6 +1287,30 @@
     refLinkedSec.appendChild(refLinkedList);
     refTab.appendChild(refLinkedSec);
 
+    /* V3.345 — live bibliography preview: the cited entries formatted
+     * as reference-list rows, ordered as the export will number them
+     * (first appearance). Final style comes from the LaTeX template at
+     * export; this is a working preview. */
+    var refBibSec = document.createElement('details');
+    refBibSec.className = 'pe-equations-section pe-equations-collapsible';
+    refBibSec.dataset.section = 'ref-bibliography';
+    var refBibSummary = document.createElement('summary');
+    refBibSummary.className = 'pe-equations-section-head';
+    var refBibTitle = document.createElement('span');
+    refBibTitle.className = 'pe-equations-section-title';
+    refBibTitle.textContent = 'Bibliography preview';
+    var refBibHint = document.createElement('span');
+    refBibHint.className = 'pe-equations-section-hint';
+    refBibHint.textContent = '(first-appearance order — final style set by the export template)';
+    refBibSummary.appendChild(refBibTitle);
+    refBibSummary.appendChild(refBibHint);
+    refBibSec.appendChild(refBibSummary);
+    var refBibList = document.createElement('div');
+    refBibList.className = 'pe-equations-list';
+    refBibList.id = 'pe-references-bib-list';
+    refBibSec.appendChild(refBibList);
+    refTab.appendChild(refBibSec);
+
     panel.appendChild(refTab);
 
     /* Restore active tab from localStorage (default: equations). */
@@ -962,6 +1342,59 @@
 
   function _refreshPanel() {
     if (!_state.panel || _state.panel.hidden) return;
+    /* V3.351 — a stale citation index re-fetches when the References tab
+     * is on screen (fire-and-forget; rows re-render on
+     * 'paper-citations-loaded'). */
+    if (_activeTab === 'references' && window.PaperEditor &&
+        window.PaperEditor.ensureFreshCitationIndex) {
+      window.PaperEditor.ensureFreshCitationIndex();
+    }
+    if (_activeTab === 'guide') {
+      /* V3.334 — the Guide tab is rendered by paper-writing-guide.js.
+       * buildTabContent is idempotent (re-binds the root + renders). */
+      if (window.PaperWritingGuide) {
+        window.PaperWritingGuide.buildTabContent(document.getElementById('pe-guide-root'));
+      }
+      return;
+    }
+    if (_activeTab === 'symbols') {
+      /* V3.459 — rendered by paper-symbols.js (idempotent, like Guide). */
+      if (window.PaperSymbols) {
+        window.PaperSymbols.buildTabContent(document.getElementById('pe-symbols-root'));
+      }
+      return;
+    }
+    if (_activeTab === 'grant-docs') {
+      /* V3.466 — rendered by paper-grant-docs.js (loaded in R5/R6). Until
+       * then, an explanatory placeholder so the pill/page never dead-ends. */
+      var gdRoot = document.getElementById('pe-grant-docs-root');
+      if (gdRoot) {
+        if (window.PaperGrantDocs && window.PaperGrantDocs.buildTabContent) {
+          window.PaperGrantDocs.buildTabContent(gdRoot);
+        } else if (!gdRoot.dataset.placeheld) {
+          gdRoot.dataset.placeheld = '1';
+          gdRoot.innerHTML =
+            '<div class="pe-grant-docs-placeholder">' +
+            '<h2>Grant Documents</h2>' +
+            '<p>Your submission checklist and reusable biosketch / facilities / ' +
+            'boilerplate templates will appear here.</p>' +
+            '<p class="pe-grant-docs-hint">Attached documents (Biosketch, Facilities, ' +
+            'Budget Justification, …) are added from the <strong>+ Add section</strong> ' +
+            'menu on the Write page; each carries its own upload slot and compiles as a ' +
+            'separate PDF.</p>' +
+            '</div>';
+        }
+      }
+      return;
+    }
+    if (_activeTab === 'figure-board') {
+      /* V3.609 — rendered by paper-figure-board.js (idempotent, like
+       * Guide/Symbols/Grant Docs). */
+      if (window.PaperFigureBoard) {
+        window.PaperFigureBoard.buildTabContent(document.getElementById('pe-figure-board-root'));
+      }
+      return;
+    }
     if (_activeTab === 'equations') {
       _refreshLibrarySection();
       _refreshMainSection();
@@ -1075,6 +1508,7 @@
     });
     srcInput.addEventListener('blur', function () { _renderRowPreview(row, srcInput.value); });
     row.appendChild(srcInput);
+    _mountVisualToggle(srcInput);   // E1 — MathLive Visual ⇄ LaTeX
 
     var preview = document.createElement('div');
     preview.className = 'pe-eq-library-preview';
@@ -1181,6 +1615,7 @@
     srcInput.rows = 3;
     srcInput.placeholder = 'F = kx';
     body.appendChild(srcInput);
+    _mountVisualToggle(srcInput);   // E1 — MathLive Visual ⇄ LaTeX
 
     var typeLabel = document.createElement('label');
     typeLabel.textContent = 'Type';
@@ -1355,6 +1790,7 @@
       _renderRowPreview(row, srcInput.value);
     });
     row.appendChild(srcInput);
+    _mountVisualToggle(srcInput);   // E1 — MathLive Visual ⇄ LaTeX
 
     /* KaTeX preview. */
     var preview = document.createElement('div');
@@ -1780,7 +2216,16 @@
     });
     placeSel.value = attrs.get('placement') || 'H';
     placeSel.addEventListener('change', function () {
-      blk.doc.transact(function () { attrs.set('placement', placeSel.value); }, 'fig-placement');
+      blk.doc.transact(function () {
+        attrs.set('placement', placeSel.value);
+        /* V3.395 — keep the layout intent (anchor/lock) in sync so the
+         * Document view + export derive the same float. */
+        if (window.PaperLayout && window.PaperLayout.placementToAnchor) {
+          var la = window.PaperLayout.placementToAnchor(placeSel.value);
+          attrs.set('anchor', la.anchor);
+          attrs.set('lock', la.lock);
+        }
+      }, 'fig-placement');
     });
     layoutGrid.appendChild(field('Placement', placeSel));
 
@@ -1954,7 +2399,16 @@
     });
     placeSel.value = attrs.get('placement') || 'H';
     placeSel.addEventListener('change', function () {
-      blk.doc.transact(function () { attrs.set('placement', placeSel.value); }, 'fig-placement');
+      blk.doc.transact(function () {
+        attrs.set('placement', placeSel.value);
+        /* V3.395 — keep the layout intent (anchor/lock) in sync so the
+         * Document view + export derive the same float. */
+        if (window.PaperLayout && window.PaperLayout.placementToAnchor) {
+          var la = window.PaperLayout.placementToAnchor(placeSel.value);
+          attrs.set('anchor', la.anchor);
+          attrs.set('lock', la.lock);
+        }
+      }, 'fig-placement');
     });
     layoutGrid.appendChild(field('Placement', placeSel));
 
@@ -1991,6 +2445,28 @@
     lbl.className = 'pe-fig-field-label';
     lbl.textContent = 'Panels:';
     wrap.appendChild(lbl);
+
+    /* F1 — the panel COMPOSER: upload panel images, arrange in a grid
+     * with auto letters, and bake ONE composite through the normal
+     * figure pipeline (labels sync to these chips). */
+    if (window.PAPER_FIG_COMPOSE) {
+      var composeBtn = document.createElement('button');
+      composeBtn.type = 'button';
+      composeBtn.className = 'pe-section-kind pe-tbl-small-btn';
+      composeBtn.textContent = '🧩 Compose panels…';
+      composeBtn.title = 'Arrange panel images into a grid with auto A/B/C labels and bake one figure image';
+      composeBtn.addEventListener('click', function () {
+        var blk = _findFigureBlock(fig.blockId);
+        if (!blk) { alert('Figure block not found.'); return; }
+        window.PAPER_FIG_COMPOSE.open({
+          paperId: window.PaperEditor.getPaperId(),
+          blockId: fig.blockId,
+          attrs: blk.get('attrs'),
+          yBlock: blk,
+        });
+      });
+      wrap.appendChild(composeBtn);
+    }
 
     var chips = document.createElement('span');
     chips.className = 'pe-fig-subfig-chips';
@@ -2047,6 +2523,57 @@
    * the search input by name / author / year / key. Empty search ⇒
    * empty results (we don't dump the full library).
    */
+  /* V3.345 — render the bibliography preview rows. Order: the export
+   * numbers references by first appearance, which PaperCiteStyle
+   * exposes; fall back to the (alphabetical) cited-keys order when the
+   * style module isn't loaded. Unresolved keys render as warnings —
+   * the same signal the export lint gives, but live. */
+  function _refreshBibliographyPreview(citedKeys, byKey) {
+    var listEl = document.getElementById('pe-references-bib-list');
+    if (!listEl) return;
+    if (!citedKeys.length) {
+      listEl.innerHTML = '<div class="pe-equations-empty">Nothing cited yet.</div>';
+      return;
+    }
+    var keys = citedKeys.slice();
+    var PCS = window.PaperCiteStyle;
+    if (PCS && PCS.getNumber) {
+      keys.sort(function (a, b) {
+        return (PCS.getNumber(a) || 9999) - (PCS.getNumber(b) || 9999);
+      });
+    }
+    listEl.innerHTML = '';
+    keys.forEach(function (key, idx) {
+      var row = document.createElement('div');
+      row.className = 'pe-bib-row';
+      var num = document.createElement('span');
+      num.className = 'pe-bib-num';
+      num.textContent = '[' + (idx + 1) + ']';
+      row.appendChild(num);
+      var body = document.createElement('span');
+      body.className = 'pe-bib-body';
+      var e = byKey[key];
+      if (!e) {
+        row.classList.add('pe-bib-row-unresolved');
+        body.textContent = 'unresolved key: ' + key + ' — add it to the lab library before export';
+      } else {
+        var names = (e.authors && e.authors.length) ? e.authors.join(', ') : (e.firstAuthor || key);
+        if (e.authorCount > (e.authors ? e.authors.length : 0)) names += ', et al.';
+        var bits = [names];
+        if (e.year) bits.push('(' + e.year + ').');
+        if (e.title) bits.push(e.title + '.');
+        body.textContent = bits.join(' ') + ' ';
+        if (e.journal) {
+          var jr = document.createElement('em');
+          jr.textContent = e.journal;
+          body.appendChild(jr);
+        }
+      }
+      row.appendChild(body);
+      listEl.appendChild(row);
+    });
+  }
+
   function _refreshReferencesSection() {
     var citedListEl = document.getElementById('pe-references-cited-list');
     var linkedListEl = document.getElementById('pe-references-linked-list');
@@ -2067,6 +2594,13 @@
 
     var paperId = window.PaperEditor.getPaperId && window.PaperEditor.getPaperId();
     var citedKeys = (window.PaperEditor.getCitedKeysInPaper && window.PaperEditor.getCitedKeysInPaper()) || [];
+    _refreshBibliographyPreview(citedKeys, byKey);   // V3.345
+    /* V3.350 — Evidence Inbox (cached 5 min; render() decides freshness). */
+    if (window.PaperEvidenceInbox) {
+      window.PaperEvidenceInbox.render(
+        document.getElementById('pe-references-evidence-list'),
+        { paperId: paperId, insertKey: _insertCitationKeyAtSavedCaret });
+    }
     var citedSet = Object.create(null);
     citedKeys.forEach(function (k) { citedSet[k] = true; });
     var citedList = window.PaperEditor.getCitationList ? window.PaperEditor.getCitationList() : [];
@@ -2093,7 +2627,7 @@
       return Array.isArray(e.linkedDrafts) && e.linkedDrafts.indexOf(paperId) >= 0;
     });
     if (!linkedRows.length) {
-      linkedListEl.innerHTML = '<div class="pe-equations-empty">No linked papers yet. Open a paper in the library and click "Link to draft" to associate it without citing yet.</div>';
+      linkedListEl.innerHTML = '<div class="pe-equations-empty">No associated-but-uncited papers. Associate papers from the reader\u2019s "Used in paper drafts" pills, the library\u2019s \u2192 badge, or the search below \u2014 they\u2019ll queue here until cited.</div>';
     } else {
       linkedRows.forEach(function (e) {
         linkedListEl.appendChild(_buildRefRow(e, 'linked', paperId));
@@ -2105,7 +2639,7 @@
     var q = ((input && input.value) || '').trim().toLowerCase();
     searchListEl.innerHTML = '';
     if (!q) {
-      searchListEl.innerHTML = '<div class="pe-equations-empty">Type to search the lab library by title / author / year / key.</div>';
+      searchListEl.innerHTML = '<div class="pe-equations-empty">Type to search the whole lab library. "Link to draft" on a result associates it with this draft \u2014 it then appears in the citation picker and gets a pill in the library.</div>';
       return;
     }
     var matches = citedList.filter(function (e) {
@@ -2141,6 +2675,14 @@
     badge.className = 'pe-ref-status pe-ref-status-' + status;
     badge.textContent = status;
     head.appendChild(badge);
+    /* V3.366 — same amber hollow dot as the association pills: this row
+     * is associated with the draft but not cited in it yet. */
+    if (status === 'linked') {
+      var dot = document.createElement('span');
+      dot.className = 'pe-ref-uncited-dot';
+      dot.title = 'Associated with this draft but not yet cited';
+      head.appendChild(dot);
+    }
     var keyEl = document.createElement('span');
     keyEl.className = 'pe-ref-row-key';
     keyEl.textContent = entry.key;
@@ -2164,6 +2706,21 @@
     if (entry.year) metaParts.push(String(entry.year));
     if (entry.journal) metaParts.push(entry.journal);
     meta.textContent = metaParts.join(' · ') || '(no metadata)';
+    /* V3.351 — library richness: PDF availability + tags. */
+    if (entry.hasPdf) {
+      var pdfIcon = document.createElement('span');
+      pdfIcon.className = 'pe-cite-pdf';
+      pdfIcon.title = 'PDF in the library';
+      pdfIcon.textContent = ' 📄';
+      meta.appendChild(pdfIcon);
+    }
+    (entry.tags || []).forEach(function (t) {
+      var chip = document.createElement('span');
+      chip.className = 'pe-cite-tag';
+      chip.textContent = t;
+      meta.appendChild(document.createTextNode(' '));
+      meta.appendChild(chip);
+    });
     row.appendChild(meta);
 
     var actions = document.createElement('div');
@@ -2179,6 +2736,34 @@
       _insertCitationKeyAtSavedCaret(entry.key);
     });
     actions.appendChild(insertBtn);
+
+    /* V3.351 — lazy abstract preview (memoized fetch from the extras
+     * subdoc via PaperEditor.fetchAbstract). */
+    if (entry.itemId && window.PaperEditor && window.PaperEditor.fetchAbstract) {
+      var absBtn = document.createElement('button');
+      absBtn.type = 'button';
+      absBtn.className = 'pe-eq-library-insert-btn';
+      absBtn.textContent = 'Abstract ▸';
+      var absDiv = null;
+      absBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (absDiv) {
+          var open = absDiv.style.display !== 'none';
+          absDiv.style.display = open ? 'none' : '';
+          absBtn.textContent = open ? 'Abstract ▸' : 'Abstract ▾';
+          return;
+        }
+        absDiv = document.createElement('div');
+        absDiv.className = 'pe-ref-abstract';
+        absDiv.textContent = 'Loading…';
+        row.appendChild(absDiv);
+        absBtn.textContent = 'Abstract ▾';
+        window.PaperEditor.fetchAbstract(entry.itemId).then(function (text) {
+          absDiv.textContent = text || 'No abstract stored for this paper.';
+        });
+      });
+      actions.appendChild(absBtn);
+    }
 
     if (paperId && entry.itemId) {
       var isLinked = Array.isArray(entry.linkedDrafts) && entry.linkedDrafts.indexOf(paperId) >= 0;
@@ -2292,6 +2877,51 @@
     var yearField = field('Year', '2024');
     var doiField = field('DOI (optional)', '10.1000/xyz123');
 
+    /* V3.351 — DOI/title lookup via LIBRARY_METADATA (same Cloud
+     * Function path the library page uses). Prefills the fields and
+     * stashes the full metadata so _createLibraryStub can build a real
+     * entry instead of a bare stub. */
+    var lookedUpMeta = null;
+    if (window.LIBRARY_METADATA && window.LIBRARY_METADATA.lookup) {
+      var lookupBtn = document.createElement('button');
+      lookupBtn.type = 'button';
+      lookupBtn.className = 'btn btn-sm';
+      lookupBtn.textContent = '🔍 Look up metadata';
+      lookupBtn.title = 'Fetch title/authors/year/journal from the DOI (or the title)';
+      lookupBtn.style.margin = '4px 0 8px';
+      lookupBtn.addEventListener('click', async function () {
+        var doi = (doiField.value || '').trim();
+        var titleQ = (titleField.value || '').trim();
+        if (!doi && titleQ.split(/\s+/).length < 4) {
+          errEl.textContent = 'Enter a DOI (or at least a 4-word title) to look up.';
+          errEl.style.display = '';
+          return;
+        }
+        lookupBtn.disabled = true;
+        lookupBtn.textContent = 'Looking up…';
+        errEl.style.display = 'none';
+        try {
+          var meta = await window.LIBRARY_METADATA.lookup(doi ? { doi: doi } : { title: titleQ });
+          if (!meta || (!meta.title && !meta.doi)) throw new Error('No match found.');
+          lookedUpMeta = meta;
+          if (meta.title) titleField.value = meta.title;
+          var fam = (meta.authors && meta.authors[0] && (meta.authors[0].family || meta.authors[0].given)) || '';
+          if (fam) authorField.value = fam;
+          if (meta.year) yearField.value = String(meta.year);
+          if (meta.doi) doiField.value = meta.doi;
+          hint.textContent = 'Metadata found — Save creates a full library entry (not a stub).';
+        } catch (err) {
+          lookedUpMeta = null;
+          errEl.textContent = 'Lookup failed: ' + (err && err.message || err);
+          errEl.style.display = '';
+        } finally {
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = '🔍 Look up metadata';
+        }
+      });
+      body.appendChild(lookupBtn);
+    }
+
     var errEl = document.createElement('div');
     errEl.className = 'pe-claim-flag-err';
     errEl.style.display = 'none';
@@ -2328,6 +2958,7 @@
           firstAuthor: (authorField.value || '').trim(),
           year: (yearField.value || '').trim(),
           doi: (doiField.value || '').trim(),
+          lookedUpMeta: lookedUpMeta,   // V3.351
         });
         overlay.remove();
       } catch (err) {
@@ -2362,6 +2993,31 @@
     }
     var data = await api.load('items.json');
     var items = (data && data.items) || [];
+    /* V3.351 — when the modal ran a successful metadata lookup, build a
+     * REAL library entry via LIBRARY_METADATA.buildPaperItem (authors,
+     * journal, ids, extras seeds) and keep the builder-chosen citation
+     * key. The abstract goes to the extras subdoc, never inline. */
+    if (opts.lookedUpMeta && window.LIBRARY_METADATA && window.LIBRARY_METADATA.buildPaperItem) {
+      var user = null;
+      try { user = firebase.auth().currentUser; } catch (e) {}
+      var fullItem = window.LIBRARY_METADATA.buildPaperItem(opts.lookedUpMeta, null, user);
+      fullItem.meta = fullItem.meta || {};
+      fullItem.meta.library = fullItem.meta.library || {};
+      fullItem.meta.library.citation_key = opts.key;
+      fullItem.meta.library.stub_created_from_paper_builder = true;
+      items.push(fullItem);
+      await api.save('items.json', { items: items });
+      if (opts.lookedUpMeta.abstract && window.LIBRARY_EXTRAS && window.LIBRARY_EXTRAS.savePatch) {
+        try { await window.LIBRARY_EXTRAS.savePatch(fullItem.id, { abstract: opts.lookedUpMeta.abstract }); }
+        catch (e) { console.warn('[paper-equations] abstract save failed:', e.message); }
+      }
+      if (window.PaperEditor && window.PaperEditor.invalidateCitationIndex) {
+        window.PaperEditor.invalidateCitationIndex();
+      }
+      await window.PaperEditor.loadCitationIndex();
+      _refreshReferencesSection();
+      return;
+    }
     /* Generate an id; collision-resistant prefix + 7 random chars. */
     var newId = 'lib-' + (window.PaperSchemas && window.PaperSchemas.shortId
       ? window.PaperSchemas.shortId('').slice(0, 7)
@@ -2414,30 +3070,16 @@
    * meta.library.linked_drafts[] for the given library item. Reuses
    * api.load + api.save (same as the V3.106 reader-side picker). */
   async function _toggleLinkToDraft(itemId, paperId, makeLink) {
-    if (typeof api === 'undefined' || !api.load) {
-      alert('Adapter not loaded — cannot link to draft.');
+    /* V3.352 — routed through LIBRARY_LINKS.toggleDraftLink (atomic
+     * single-doc arrayUnion/arrayRemove). The old body here was one of
+     * FOUR duplicate whole-items.json read-modify-write implementations
+     * — concurrent writers silently lost updates. */
+    if (!window.LIBRARY_LINKS) {
+      alert('library-links.js not loaded — cannot link to draft.');
       return;
     }
     try {
-      var data = await api.load('items.json');
-      var items = (data && data.items) || [];
-      var idx = items.findIndex(function (it) { return it.id === itemId; });
-      if (idx < 0) {
-        alert('Library item not found in items.json.');
-        return;
-      }
-      var item = items[idx];
-      item.meta = item.meta || {};
-      item.meta.library = item.meta.library || {};
-      var arr = Array.isArray(item.meta.library.linked_drafts)
-        ? item.meta.library.linked_drafts.slice()
-        : [];
-      var pos = arr.indexOf(paperId);
-      if (makeLink && pos < 0) arr.push(paperId);
-      if (!makeLink && pos >= 0) arr.splice(pos, 1);
-      item.meta.library.linked_drafts = arr;
-      items[idx] = item;
-      await api.save('items.json', { items: items });
+      await window.LIBRARY_LINKS.toggleDraftLink(itemId, paperId, makeLink);
       /* V3.122 — invalidate the cached citation index so the next
        * _refreshReferencesSection re-reads the new linked_drafts. */
       if (window.PaperEditor && window.PaperEditor.invalidateCitationIndex) {
@@ -2713,6 +3355,13 @@
     }
     styleBar.appendChild(checkboxField('booktabs', 'booktabs', true));
     styleBar.appendChild(checkboxField('header row', 'header_row', true));
+    /* Tables II — multi-page table (\begin{longtable}: caption inside,
+     * header repeats per page; NOT a float, so anchor/span/lock don't
+     * apply; invalid in two-column classes — the export degrades it
+     * there with a warning). */
+    var ltField = checkboxField('multi-page (longtable)', 'longtable', false);
+    ltField.title = 'Long tables break across pages with the header repeated. Not available in two-column journals (IEEE, PNAS) — those compile it as a regular table with a warning.';
+    styleBar.appendChild(ltField);
 
     /* +Row / +Col buttons. */
     var addRowBtn = document.createElement('button');
@@ -2744,6 +3393,75 @@
       }, 'table-add-col');
     });
     styleBar.appendChild(addColBtn);
+
+    /* Tables II — merge / unmerge over the click(+shift-click) cell
+     * selection. Merges live in the SCALAR attr `merges_json` (survives
+     * every move path); covered cells keep their Y.Texts so unmerge
+     * restores content. */
+    function readMerges() {
+      return (window.PaperLayout && window.PaperLayout.parseTableMerges)
+        ? window.PaperLayout.parseTableMerges(attrs.get('merges_json'))
+        : {};
+    }
+    function writeMerges(m) {
+      var keys = Object.keys(m);
+      blk.doc.transact(function () {
+        if (keys.length) attrs.set('merges_json', JSON.stringify(m));
+        else attrs.delete('merges_json');
+      }, 'tab-merges');
+    }
+    var mergeBtn = document.createElement('button');
+    mergeBtn.type = 'button';
+    mergeBtn.className = 'pe-section-kind pe-tbl-small-btn';
+    mergeBtn.textContent = '⧉ Merge';
+    mergeBtn.title = 'Merge the selected cells (click a cell, shift-click another to select a block)';
+    mergeBtn.addEventListener('click', function () {
+      var sel = _tblSel && _tblSel.blockId === tab.blockId ? _tblSel : null;
+      if (!sel) { alert('Select cells first: click a cell, then shift-click another corner.'); return; }
+      var r0 = Math.min(sel.r0, sel.r1), r1 = Math.max(sel.r0, sel.r1);
+      var c0 = Math.min(sel.c0, sel.c1), c1 = Math.max(sel.c0, sel.c1);
+      var rs = r1 - r0 + 1, cs = c1 - c0 + 1;
+      if (rs === 1 && cs === 1) { alert('Select more than one cell to merge.'); return; }
+      var merges = readMerges();
+      var cover = window.PaperLayout.tableCoverMap(merges, attrs.get('rows') || 0, attrs.get('cols') || 0);
+      for (var r = r0; r <= r1; r++) {
+        for (var c = c0; c <= c1; c++) {
+          var k = r + '-' + c;
+          if (cover.anchors[k] || cover.skip[k] || cover.cont[k] != null) {
+            alert('The selection overlaps an existing merge — unmerge it first.');
+            return;
+          }
+        }
+      }
+      merges[r0 + '-' + c0] = { rs: rs, cs: cs };
+      _tblSel = null;
+      writeMerges(merges);
+    });
+    styleBar.appendChild(mergeBtn);
+
+    var unmergeBtn = document.createElement('button');
+    unmergeBtn.type = 'button';
+    unmergeBtn.className = 'pe-section-kind pe-tbl-small-btn';
+    unmergeBtn.textContent = '⧉ Unmerge';
+    unmergeBtn.title = 'Split the merged cell under the selection back into its cells';
+    unmergeBtn.addEventListener('click', function () {
+      var sel = _tblSel && _tblSel.blockId === tab.blockId ? _tblSel : null;
+      if (!sel) { alert('Click a merged cell first.'); return; }
+      var merges = readMerges();
+      var cover = window.PaperLayout.tableCoverMap(merges, attrs.get('rows') || 0, attrs.get('cols') || 0);
+      var hit = null;
+      Object.keys(cover.anchors).forEach(function (k) {
+        var parts = k.split('-');
+        var ar = +parts[0], ac = +parts[1];
+        var a = cover.anchors[k];
+        if (sel.r0 >= ar && sel.r0 < ar + a.rs && sel.c0 >= ac && sel.c0 < ac + a.cs) hit = k;
+      });
+      if (!hit) { alert('The selected cell is not part of a merge.'); return; }
+      delete merges[hit];
+      _tblSel = null;
+      writeMerges(merges);
+    });
+    styleBar.appendChild(unmergeBtn);
     rootEl.appendChild(styleBar);
 
     /* Per-column alignment. */
@@ -2756,6 +3474,20 @@
     var cols = attrs.get('cols') || 0;
     var alignStr = (attrs.get('align') || '').slice(0, cols);
     while (alignStr.length < cols) alignStr += 'l';
+    var widths = (window.PaperLayout && window.PaperLayout.parseTableWidths)
+      ? window.PaperLayout.parseTableWidths(attrs.get('widths_json'), cols)
+      : null;
+    function writeWidth(col, w) {
+      var arr = (window.PaperLayout && window.PaperLayout.parseTableWidths)
+        ? window.PaperLayout.parseTableWidths(attrs.get('widths_json'), attrs.get('cols') || 0)
+        : [];
+      arr[col] = w;
+      var any = arr.some(function (x) { return x && x.mode !== 'auto'; });
+      blk.doc.transact(function () {
+        if (any) attrs.set('widths_json', JSON.stringify(arr));
+        else attrs.delete('widths_json');
+      }, 'tab-widths');
+    }
     for (var c = 0; c < cols; c++) {
       var col = c;
       var grp = document.createElement('span');
@@ -2774,11 +3506,53 @@
         });
         grp.appendChild(btn);
       });
+      /* Column width — fixed p{} columns wrap text in the PDF. */
+      (function (colIdx) {
+        var wSel = document.createElement('select');
+        wSel.className = 'pe-table-width-sel';
+        wSel.title = 'Column width (auto = size to content; % of line width, or fixed mm)';
+        var cur = (widths && widths[colIdx]) || { mode: 'auto' };
+        var options = [
+          { v: 'auto', label: 'auto' },
+          { v: 'frac:0.15', label: '15%' }, { v: 'frac:0.2', label: '20%' },
+          { v: 'frac:0.25', label: '25%' }, { v: 'frac:0.33', label: '33%' },
+          { v: 'frac:0.4', label: '40%' }, { v: 'frac:0.5', label: '50%' },
+          { v: 'mm', label: 'mm…' },
+        ];
+        var curVal = cur.mode === 'auto' ? 'auto'
+          : cur.mode === 'frac' ? ('frac:' + cur.v) : 'mm';
+        options.forEach(function (o) {
+          var opt = document.createElement('option');
+          opt.value = o.v;
+          opt.textContent = o.v === 'mm' && cur.mode === 'mm' ? cur.v + 'mm' : o.label;
+          if (o.v === curVal) opt.selected = true;
+          wSel.appendChild(opt);
+        });
+        if (curVal.indexOf('frac:') === 0 && !options.some(function (o) { return o.v === curVal; })) {
+          var extra = document.createElement('option');
+          extra.value = curVal; extra.textContent = Math.round(cur.v * 100) + '%'; extra.selected = true;
+          wSel.appendChild(extra);
+        }
+        wSel.addEventListener('change', function () {
+          var v = wSel.value;
+          if (v === 'auto') { writeWidth(colIdx, { mode: 'auto' }); return; }
+          if (v === 'mm') {
+            var mm = parseFloat(window.prompt('Column width in mm:', '30'));
+            if (!(mm > 0)) { wSel.value = curVal; return; }
+            writeWidth(colIdx, { mode: 'mm', v: mm });
+            return;
+          }
+          writeWidth(colIdx, { mode: 'frac', v: parseFloat(v.split(':')[1]) });
+        });
+        grp.appendChild(wSel);
+      })(col);
       alignWrap.appendChild(grp);
     }
     rootEl.appendChild(alignWrap);
 
-    /* Grid editor. */
+    /* Grid editor — merge-aware: covered cells are not rendered (their
+     * Y.Texts persist for unmerge); anchors carry row/colSpan. Click a
+     * cell to select (outline), shift-click to extend the selection. */
     var hasCells = attrs.get('cells') instanceof Y.Map;
     if (hasCells) {
       var grid = document.createElement('div');
@@ -2786,13 +3560,50 @@
       var rowsN = attrs.get('rows') || 0;
       var colsN = attrs.get('cols') || 0;
       var cells = attrs.get('cells');
+      var gMerges = readMerges();
+      var gCover = (window.PaperLayout && window.PaperLayout.tableCoverMap)
+        ? window.PaperLayout.tableCoverMap(gMerges, rowsN, colsN)
+        : { anchors: {}, skip: {}, cont: {} };
       var table = document.createElement('table');
       table.className = 'pe-grid-table';
+      function paintSelection() {
+        var sel = _tblSel && _tblSel.blockId === tab.blockId ? _tblSel : null;
+        table.querySelectorAll('td.pe-cell-selected').forEach(function (t) {
+          t.classList.remove('pe-cell-selected');
+        });
+        if (!sel) return;
+        var r0 = Math.min(sel.r0, sel.r1), r1 = Math.max(sel.r0, sel.r1);
+        var c0 = Math.min(sel.c0, sel.c1), c1 = Math.max(sel.c0, sel.c1);
+        table.querySelectorAll('td[data-r]').forEach(function (t) {
+          var tr2 = +t.dataset.r, tc = +t.dataset.c;
+          if (tr2 >= r0 && tr2 <= r1 && tc >= c0 && tc <= c1) t.classList.add('pe-cell-selected');
+        });
+      }
       for (var r = 0; r < rowsN; r++) {
         var tr = document.createElement('tr');
         for (var c2 = 0; c2 < colsN; c2++) {
-          var td = document.createElement('td');
           var key = r + '-' + c2;
+          if (gCover.skip[key] || gCover.cont[key] != null) continue;   // merged away
+          var td = document.createElement('td');
+          td.dataset.r = String(r);
+          td.dataset.c = String(c2);
+          var anch = gCover.anchors[key];
+          if (anch) {
+            if (anch.cs > 1) td.colSpan = anch.cs;
+            if (anch.rs > 1) td.rowSpan = anch.rs;
+            td.classList.add('pe-cell-merged');
+          }
+          (function (rr, cc) {
+            td.addEventListener('mousedown', function (ev) {
+              if (ev.shiftKey && _tblSel && _tblSel.blockId === tab.blockId) {
+                ev.preventDefault();   // keep the anchor cell's focus
+                _tblSel.r1 = rr; _tblSel.c1 = cc;
+              } else {
+                _tblSel = { blockId: tab.blockId, r0: rr, c0: cc, r1: rr, c1: cc };
+              }
+              paintSelection();
+            });
+          })(r, c2);
           var cellY = cells.get(key);
           if (!(cellY instanceof Y.Text)) {
             cellY = new Y.Text('');
@@ -2811,6 +3622,7 @@
       }
       grid.appendChild(table);
       rootEl.appendChild(grid);
+      paintSelection();
     }
 
     /* Caption editor. */
@@ -2834,6 +3646,296 @@
       window.PaperEquations.bindContextMenu(capEl);
     }
     rootEl.appendChild(capEl);
+
+    /* Tables II — table notes (one per line; scalar attr). Regular
+     * tables wrap in threeparttable + \begin{tablenotes}; longtables
+     * emit them as full-width footnotesize rows. */
+    var notesLbl = document.createElement('div');
+    notesLbl.className = 'pe-table-caption-label';
+    notesLbl.textContent = 'Notes (one per line — footnotes under the table)';
+    rootEl.appendChild(notesLbl);
+    var notesEl = document.createElement('textarea');
+    notesEl.className = 'pe-table-notes';
+    notesEl.rows = 2;
+    notesEl.placeholder = 'e.g.  Values are mean ± SD (n = 3).';
+    notesEl.value = String(attrs.get('notes') || '');
+    notesEl.addEventListener('change', function () {
+      var v = notesEl.value.replace(/\s+$/, '');
+      blk.doc.transact(function () {
+        if (v.trim()) attrs.set('notes', v); else attrs.delete('notes');
+      }, 'tab-notes');
+    });
+    rootEl.appendChild(notesEl);
+  }
+
+  /* ── E4 — equation importers ─────────────────────────────────────
+   * ⇪ Import modal: (a) paste a LaTeX block — split on blank lines into
+   * entries with per-row names + KaTeX previews; (b) paste MathML from
+   * Word/MathType/Google Docs into a <math-field>, which parses it
+   * natively → getValue('latex'). */
+  function _openEquationImportModal() {
+    var old = document.getElementById('pe-eqimport-overlay');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.className = 'pe-eqviz-overlay';
+    overlay.id = 'pe-eqimport-overlay';
+    var card = document.createElement('div');
+    card.className = 'pe-eqviz-card';
+    overlay.appendChild(card);
+    var head = document.createElement('div');
+    head.className = 'pe-eqviz-head';
+    head.textContent = 'Import equations';
+    card.appendChild(head);
+
+    var tabs = document.createElement('div');
+    tabs.className = 'pe-visual-toggle';
+    var tabLatex = document.createElement('button');
+    tabLatex.type = 'button'; tabLatex.textContent = 'Paste LaTeX'; tabLatex.className = 'active';
+    var tabMathml = document.createElement('button');
+    tabMathml.type = 'button'; tabMathml.textContent = 'Paste from Word (MathML)';
+    tabs.appendChild(tabLatex);
+    tabs.appendChild(tabMathml);
+    card.appendChild(tabs);
+
+    var latexPane = document.createElement('div');
+    var ta = document.createElement('textarea');
+    ta.className = 'pe-eqimport-ta';
+    ta.rows = 6;
+    ta.placeholder = 'Paste LaTeX — one equation per blank-line-separated block:\n\n\\sigma = F/A\n\nE^* = \\left(\\frac{1-\\nu_1^2}{E_1}+\\frac{1-\\nu_2^2}{E_2}\\right)^{-1}';
+    latexPane.appendChild(ta);
+    var splitBtn = document.createElement('button');
+    splitBtn.type = 'button'; splitBtn.className = 'btn btn-sm';
+    splitBtn.textContent = 'Preview entries';
+    latexPane.appendChild(splitBtn);
+    var rowsHost = document.createElement('div');
+    rowsHost.className = 'pe-eqimport-rows';
+    latexPane.appendChild(rowsHost);
+    card.appendChild(latexPane);
+
+    var mathmlPane = document.createElement('div');
+    mathmlPane.style.display = 'none';
+    var mmHint = document.createElement('div');
+    mmHint.className = 'pe-eqimport-hint';
+    mmHint.textContent = 'Paste an equation copied from Word (MathML on the clipboard — works from MathType, Google Docs, and Word with "MathML for clipboard" on; plain Word copies may arrive as pictures, which cannot convert). Then name it and add.';
+    mathmlPane.appendChild(mmHint);
+    var mmHost = document.createElement('div');
+    mathmlPane.appendChild(mmHost);
+    var mmName = document.createElement('input');
+    mmName.type = 'text'; mmName.className = 'eqcap-name'; mmName.placeholder = 'Name';
+    mathmlPane.appendChild(mmName);
+    card.appendChild(mathmlPane);
+
+    tabLatex.addEventListener('click', function () {
+      tabLatex.classList.add('active'); tabMathml.classList.remove('active');
+      latexPane.style.display = ''; mathmlPane.style.display = 'none';
+    });
+    tabMathml.addEventListener('click', function () {
+      tabMathml.classList.add('active'); tabLatex.classList.remove('active');
+      latexPane.style.display = 'none'; mathmlPane.style.display = '';
+      if (!mmHost.querySelector('math-field') && window.ensureMathlive) {
+        window.ensureMathlive().then(function () {
+          var mf = document.createElement('math-field');
+          mf.className = 'pe-mathfield';
+          mmHost.appendChild(mf);
+          try { mf.focus(); } catch (e) {}
+        }).catch(function (e) { mmHost.textContent = 'MathLive failed to load: ' + (e.message || e); });
+      }
+    });
+
+    var pending = [];   // [{latex, nameInput}]
+    splitBtn.addEventListener('click', function () {
+      rowsHost.innerHTML = '';
+      pending = [];
+      var blocks = String(ta.value || '').split(/\n\s*\n/)
+        .map(function (s) { return s.trim(); }).filter(Boolean);
+      if (!blocks.length) { rowsHost.textContent = 'Nothing to import.'; return; }
+      blocks.forEach(function (latex, i) {
+        var row = document.createElement('div');
+        row.className = 'pe-eqimport-row';
+        var prev = document.createElement('div');
+        prev.className = 'pe-eqimport-prev';
+        prev.innerHTML = window.PaperEditor.renderEquationHtml(latex, true) || _escHtml(latex);
+        row.appendChild(prev);
+        var nameIn = document.createElement('input');
+        nameIn.type = 'text';
+        nameIn.placeholder = 'Name (entry ' + (i + 1) + ')';
+        row.appendChild(nameIn);
+        rowsHost.appendChild(row);
+        pending.push({ latex: latex, nameInput: nameIn });
+      });
+    });
+
+    var actions = document.createElement('div');
+    actions.className = 'pe-eqviz-actions';
+    var cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.className = 'btn btn-sm'; cancel.textContent = 'Close';
+    var add = document.createElement('button');
+    add.type = 'button'; add.className = 'btn btn-sm btn-primary'; add.textContent = 'Add to library';
+    actions.appendChild(cancel);
+    actions.appendChild(add);
+    card.appendChild(actions);
+
+    function close() { overlay.remove(); }
+    cancel.addEventListener('click', close);
+    overlay.addEventListener('mousedown', function (ev) { if (ev.target === overlay) close(); });
+    add.addEventListener('click', function () {
+      var made = 0;
+      if (tabMathml.classList.contains('active')) {
+        var mf = mmHost.querySelector('math-field');
+        var latex = mf && (mf.getValue ? mf.getValue('latex') : mf.value);
+        if (latex && latex.trim()) {
+          _createEquationLibraryEntry({ name: mmName.value.trim(), latex: latex.trim(), type: 'main' });
+          made = 1;
+        }
+      } else {
+        pending.forEach(function (p) {
+          if (!p.latex) return;
+          _createEquationLibraryEntry({ name: p.nameInput.value.trim(), latex: p.latex, type: 'main' });
+          made++;
+        });
+      }
+      if (!made) { alert('Nothing to add — paste and preview first.'); return; }
+      close();
+      _refreshPanel();
+    });
+
+    document.body.appendChild(overlay);
+  }
+  function _escHtml(s) {
+    return String(s || '').replace(/[&<>]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+    });
+  }
+
+  /* ── E4 — "From reading library": browse equation CAPTURES made in
+   * the paper reader (papers/{itemId}/annotations, kind==='equation')
+   * and insert one as a display-equation block. Items linked to THIS
+   * draft sort first. Queries mirror annotation-sync's visibility model
+   * (lab + own-private; equality-only → no composite index). */
+  function _openCaptureBrowser(sectionId, idx) {
+    var old = document.getElementById('pe-eqcapbrowse-overlay');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.className = 'pe-eqviz-overlay';
+    overlay.id = 'pe-eqcapbrowse-overlay';
+    var card = document.createElement('div');
+    card.className = 'pe-eqviz-card';
+    overlay.appendChild(card);
+    var head = document.createElement('div');
+    head.className = 'pe-eqviz-head';
+    head.textContent = 'Insert a captured equation from your reading library';
+    card.appendChild(head);
+    var search = document.createElement('input');
+    search.type = 'text';
+    search.className = 'pe-doc-picker-search';
+    search.placeholder = 'Filter papers…';
+    card.appendChild(search);
+    var listHost = document.createElement('div');
+    listHost.className = 'pe-eqcap-browse-list';
+    card.appendChild(listHost);
+    var closeRow = document.createElement('div');
+    closeRow.className = 'pe-eqviz-actions';
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button'; closeBtn.className = 'btn btn-sm'; closeBtn.textContent = 'Close';
+    closeRow.appendChild(closeBtn);
+    card.appendChild(closeRow);
+    function close() { overlay.remove(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('mousedown', function (ev) { if (ev.target === overlay) close(); });
+    document.body.appendChild(overlay);
+
+    var draftId = window.PaperEditor.getPaperId();
+    function renderItems() {
+      var q = (search.value || '').trim().toLowerCase();
+      var items = (window.PaperEditor.getCitationList() || []).slice();
+      items.sort(function (a, b) {
+        var al = (a.linkedDrafts || []).indexOf(draftId) >= 0 ? 0 : 1;
+        var bl = (b.linkedDrafts || []).indexOf(draftId) >= 0 ? 0 : 1;
+        return al - bl || a.key.localeCompare(b.key);
+      });
+      if (q) items = items.filter(function (it) { return it.searchHaystack.indexOf(q) >= 0; });
+      listHost.innerHTML = '';
+      if (!items.length) { listHost.textContent = 'No library papers found.'; return; }
+      items.slice(0, 40).forEach(function (it) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'pe-doc-picker-row';
+        row.innerHTML = '<span class="pe-doc-picker-row-title">' + _escHtml(it.shortLabel) +
+          ((it.linkedDrafts || []).indexOf(draftId) >= 0 ? ' <span class="pe-eqcap-linked">linked</span>' : '') +
+          '</span><span class="pe-doc-picker-row-subtitle">' + _escHtml((it.title || '').slice(0, 80)) + '</span>';
+        row.addEventListener('click', function () { showCaptures(it); });
+        listHost.appendChild(row);
+      });
+    }
+    search.addEventListener('input', renderItems);
+    renderItems();
+
+    function showCaptures(item) {
+      head.textContent = 'Captured equations — ' + item.shortLabel;
+      search.style.display = 'none';
+      listHost.innerHTML = 'Loading…';
+      var db = firebase.firestore();
+      var col = db.collection('papers').doc(item.itemId).collection('annotations');
+      var me = firebase.auth().currentUser;
+      var qs = [col.where('kind', '==', 'equation').where('visibility', '==', 'lab').get()];
+      if (me) {
+        qs.push(col.where('kind', '==', 'equation')
+          .where('creator.uid', '==', me.uid).where('visibility', '==', 'private').get());
+      }
+      Promise.all(qs).then(function (snaps) {
+        var seen = {};
+        var caps = [];
+        snaps.forEach(function (snap) {
+          snap.docs.forEach(function (d) {
+            if (seen[d.id]) return;
+            seen[d.id] = true;
+            caps.push(Object.assign({ id: d.id }, d.data()));
+          });
+        });
+        listHost.innerHTML = '';
+        if (!caps.length) {
+          listHost.innerHTML = '<div class="pe-eqimport-hint">No equation captures on this paper yet — capture one in the reader (select the equation → ƒ).</div>';
+          return;
+        }
+        caps.forEach(function (cap) {
+          var row = document.createElement('div');
+          row.className = 'pe-eqcap-browse-row';
+          var prev = document.createElement('div');
+          prev.className = 'pe-eqimport-prev';
+          prev.innerHTML = window.PaperEditor.renderEquationHtml(cap.latex || '', true) || _escHtml(cap.latex || '');
+          if (cap.snip_data_uri) prev.title = 'Captured from the paper';
+          row.appendChild(prev);
+          var meta = document.createElement('div');
+          meta.className = 'pe-eqcap-browse-meta';
+          meta.textContent = (cap.name || '(unnamed)') + '  ·  source [@' + item.key + ']';
+          row.appendChild(meta);
+          var opts = document.createElement('label');
+          opts.className = 'pe-eqcap-browse-copy';
+          var copyCb = document.createElement('input');
+          copyCb.type = 'checkbox'; copyCb.checked = true;
+          opts.appendChild(copyCb);
+          opts.appendChild(document.createTextNode(' also add to this paper’s equation library'));
+          row.appendChild(opts);
+          var insBtn = document.createElement('button');
+          insBtn.type = 'button'; insBtn.className = 'btn btn-sm btn-primary';
+          insBtn.textContent = 'Insert as block';
+          insBtn.addEventListener('click', function () {
+            window.PaperEditor.insertBlockAt(sectionId, idx, 'equation', {
+              body: cap.latex || '', display: true,
+            });
+            if (copyCb.checked) {
+              _createEquationLibraryEntry({ name: cap.name || '', latex: cap.latex || '', type: 'main' });
+            }
+            close();
+            _refreshPanel();
+          });
+          row.appendChild(insBtn);
+          listHost.appendChild(row);
+        });
+      }).catch(function (e) {
+        listHost.textContent = 'Could not load captures: ' + (e.message || e);
+      });
+    }
   }
 
   function _findTableBlock(blockId) {
@@ -2886,10 +3988,44 @@
       return;
     }
     if (!tab.label) {
-      alert('This table has no label yet. Set one in the Label field above before inserting a reference.');
-      return;
+      /* V3.346 — auto-assign instead of dead-ending. */
+      tab.label = _autoAssignFloatLabel(tab.blockId, 'tab:');
+      if (!tab.label) return;
     }
     _insertAtSavedCaret('[!tab:' + tab.label + ']');
+  }
+
+  /* V3.346 — auto-assign a cross-reference label to a numbered float
+   * that doesn't have one yet, so ref pickers never dead-end on an
+   * alert. Slug from the caption's first words, else the block id.
+   * Returns the assigned label (or null when the block isn't found). */
+  function _autoAssignFloatLabel(blockId, prefix) {
+    var paperMap = window.PaperEditor.getPaperMap && window.PaperEditor.getPaperMap();
+    if (!paperMap || !blockId) return null;
+    var sections = paperMap.get('sections');
+    if (!sections || typeof sections.forEach !== 'function') return null;
+    var label = null;
+    sections.forEach(function (secMap) {
+      if (label) return;
+      var children = secMap && secMap.get && secMap.get('children');
+      if (!children || typeof children.forEach !== 'function') return;
+      children.forEach(function (blk) {
+        if (label) return;
+        if (!blk || typeof blk.get !== 'function' || blk.get('id') !== blockId) return;
+        var attrs = blk.get('attrs');
+        if (!attrs || typeof attrs.get !== 'function') return;
+        if ((attrs.get('label') || '').trim()) { label = attrs.get('label'); return; }
+        var capY = (prefix === 'tab:') ? attrs.get('caption') : blk.get('body');
+        var cap = capY && capY.toString ? capY.toString() : '';
+        var base = String(cap).trim().toLowerCase()
+          .replace(/[^a-z0-9\s_-]+/g, '')
+          .trim().split(/\s+/).slice(0, 4).join('-');
+        if (!base) base = String(blockId).replace(/^p-/, '');
+        label = prefix + base.slice(0, 40);
+        blk.doc.transact(function () { attrs.set('label', label); }, 'auto-label');
+      });
+    });
+    return label;
   }
 
   /* ── Figure block mutations ──────────────────────────────────────── */
@@ -3185,6 +4321,21 @@
       });
       rows.appendChild(newRow);
 
+      /* E4 — captured equations from the reading library (papers read in
+       * the reader; select the equation → ƒ to capture). */
+      if (opts.kind === 'equation') {
+        var capRow = document.createElement('button');
+        capRow.type = 'button';
+        capRow.className = 'pe-doc-picker-row pe-doc-picker-row-new';
+        capRow.innerHTML = '<span class="pe-doc-picker-row-title">📚 From reading library…</span>' +
+          '<span class="pe-doc-picker-row-subtitle">Equations captured while reading papers</span>';
+        capRow.addEventListener('click', function () {
+          pop.remove();
+          _openCaptureBrowser(opts.sectionId, opts.idx);
+        });
+        rows.appendChild(capRow);
+      }
+
       var unplaced = [];
       var placed = [];
       if (opts.kind === 'figure') {
@@ -3359,8 +4510,7 @@
   }
 
   function _focusPanelOnBlock(tab, blockId) {
-    showPanel();
-    setActiveTab(tab);
+    if (_currentPage() !== tab) { _gotoPage(tab, { focus: blockId }); return; }
     setTimeout(function () {
       if (tab === 'figures') scrollToFigureRow(blockId);
       else if (tab === 'tables') scrollToTableRow(blockId);
@@ -3606,8 +4756,10 @@
       renderRowMode: 'plain',
       onPick: function (row) {
         if (!row.insert) {
-          alert('This table has no label yet. Set one from the Tables tab.');
-          return;
+          /* V3.346 — auto-assign instead of dead-ending. */
+          var newTabLabel = row._tabRow ? _autoAssignFloatLabel(row._tabRow.blockId, 'tab:') : null;
+          if (!newTabLabel) return;
+          row.insert = '[!tab:' + newTabLabel + ']';
         }
         _insertAtSavedCaret(row.insert);
       },
@@ -3650,8 +4802,9 @@
       onPick: function (row) {
         var fig = row._figRow;
         if (!fig.label) {
-          alert('This figure has no label yet. Add one from the Figures tab to make it referenceable.');
-          return;
+          /* V3.346 — auto-assign instead of dead-ending. */
+          fig.label = _autoAssignFloatLabel(fig.blockId, 'fig:');
+          if (!fig.label) return;
         }
         if (!fig.subfigures || fig.subfigures.length === 0) {
           _insertAtSavedCaret('[!fig:' + fig.label + ']');
@@ -3751,9 +4904,10 @@
     window.PaperEditor.openCitationPopover({
       anchorEl: citeBtn,
       paragraphEl: paragraphEl,
-      onPickKeys: function (keys) {
+      onPickKeys: function (keys, narrative) {
         if (keys && keys.length && window.PaperEditor.insertCitationKeysAtFocus) {
-          window.PaperEditor.insertCitationKeysAtFocus(keys);
+          /* V3.344 — narrative flag from the popover checkbox. */
+          window.PaperEditor.insertCitationKeysAtFocus(keys, { narrative: narrative });
         }
       },
     });
@@ -3775,8 +4929,9 @@
       return;
     }
     if (!fig.label) {
-      alert('This figure has no label yet. Set one in the Label field above before inserting a reference.');
-      return;
+      /* V3.346 — auto-assign instead of dead-ending. */
+      fig.label = _autoAssignFloatLabel(fig.blockId, 'fig:');
+      if (!fig.label) return;
     }
     if (!fig.subfigures || fig.subfigures.length === 0) {
       _insertAtSavedCaret('[!fig:' + fig.label + ']');
@@ -3983,7 +5138,8 @@
      * insertText behavior. */
     var isBracketToken = (text.charAt(0) === '[' &&
                           text.charAt(text.length - 1) === ']' &&
-                          (text.charAt(1) === '@' || text.charAt(1) === '!'));
+                          /* V3.345 — `^` = footnote token. */
+                          (text.charAt(1) === '@' || text.charAt(1) === '!' || text.charAt(1) === '^'));
     var chipInserted = false;
     if (isBracketToken && window.PaperEditor && window.PaperEditor.renderChipsOnlyHtml) {
       try {
@@ -4085,10 +5241,16 @@
    * switch tabs, and flash matching rows so the user is dropped into
    * the relevant editor. */
   function setActiveTab(tabId) {
-    _setActiveTab(tabId);
+    /* Cross-page: selecting a tab that isn't this page navigates there.
+     * On the write page this only RECORDS the tab — the deferred nav in
+     * showPanel() (same tick) picks it up, so legacy
+     * showPanel();setActiveTab(t) callers land on the right page. */
+    if (_isToolPage() && tabId !== _currentPage()) { _gotoPage(tabId); return; }
+    _activeTab = tabId;
+    if (_isToolPage()) _setActiveTab(tabId);
   }
   function scrollToFigureRow(blockId) {
-    if (!_state.panel) return;
+    if (_currentPage() !== 'figures') { _gotoPage('figures', { focus: blockId }); return; }
     var listEl = document.getElementById('pe-equations-fig-list');
     if (!listEl) return;
     var row = listEl.querySelector('.pe-fig-row[data-block-id="' + _escAttr(blockId) + '"]');
@@ -4098,7 +5260,7 @@
     setTimeout(function () { row.classList.remove('pe-block-flash'); }, 1200);
   }
   function scrollToTableRow(blockId) {
-    if (!_state.panel) return;
+    if (_currentPage() !== 'tables') { _gotoPage('tables', { focus: blockId }); return; }
     var listEl = document.getElementById('pe-equations-tab-list');
     if (!listEl) return;
     var row = listEl.querySelector('.pe-tab-row[data-block-id="' + _escAttr(blockId) + '"]');
@@ -4131,6 +5293,7 @@
     /* V3.125 — public nav helpers for the inline inserter + doc-side
      * "Edit in panel" links. */
     setActiveTab: setActiveTab,
+    gotoPage: _gotoPage,           // pill-page navigation (opts.focus deep-link)
     scrollToFigureRow: scrollToFigureRow,
     scrollToTableRow: scrollToTableRow,
     openEquationCreateModalAt: openEquationCreateModalAt,

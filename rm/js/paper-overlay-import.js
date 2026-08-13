@@ -264,7 +264,7 @@
 
     // V3.188 — closed annotation_type enum. `type:` per highlight is
     // optional; missing or unknown values fall back to 'note'.
-    const VALID_TYPES = new Set(['evidence', 'method', 'result', 'limitation', 'claim', 'note', 'question']);
+    const VALID_TYPES = new Set(['evidence', 'method', 'result', 'limitation', 'claim', 'note', 'question', 'quote']);
 
     const perHighlight = [];
     for (let i = 0; i < (parsed.highlights || []).length; i++) {

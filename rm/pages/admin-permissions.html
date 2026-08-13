@@ -8,20 +8,22 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <script>
-    /* V3.63 — workflow-permissions admin page. Four tabs:
+    /* V3.63 — workflow-permissions admin page. Tabs:
      *   ?tab=users (default) → Users × Pages matrix
      *   ?tab=workflows       → Default Workflows × Pages matrix
      *   ?tab=tracking        → Per-page activity-tracking mode (V3.228)
-     *   ?tab=mentors         → Mentor → mentee assignments (V3.243) */
+     *   ?tab=mentors         → Mentor → mentee assignments (V3.243)
+     *   ?tab=user            → Per-user access drill-in (V3.477) */
     (function () {
       var raw = new URLSearchParams(location.search).get('tab') || '';
-      var t = (raw === 'workflows' || raw === 'tracking' || raw === 'mentors') ? raw : 'users';
+      var t = (raw === 'workflows' || raw === 'tracking' || raw === 'mentors' || raw === 'user') ? raw : 'users';
       window.__PERM_TAB = t;
       document.documentElement.dataset.permTab = t;
       document.title =
         t === 'workflows' ? 'Admin · Default Workflows · McGhee Lab'
       : t === 'tracking'  ? 'Admin · Page Tracking · McGhee Lab'
       : t === 'mentors'   ? 'Admin · Mentor Assignments · McGhee Lab'
+      : t === 'user'      ? 'Admin · Per-user Access · McGhee Lab'
       : 'Admin · User Page Access · McGhee Lab';
     })();
   </script>
@@ -44,19 +46,13 @@
       padding: 6px 10px; border: 1px solid var(--border, #d1d5db);
       border-radius: 6px; font-size: 13px; min-width: 180px;
     }
-    /* Tab visibility */
-    html[data-perm-tab="users"]      .perm-tab.tab-workflows { display: none; }
-    html[data-perm-tab="users"]      .perm-tab.tab-tracking  { display: none; }
-    html[data-perm-tab="users"]      .perm-tab.tab-mentors   { display: none; }
-    html[data-perm-tab="workflows"]  .perm-tab.tab-users     { display: none; }
-    html[data-perm-tab="workflows"]  .perm-tab.tab-tracking  { display: none; }
-    html[data-perm-tab="workflows"]  .perm-tab.tab-mentors   { display: none; }
-    html[data-perm-tab="tracking"]   .perm-tab.tab-users     { display: none; }
-    html[data-perm-tab="tracking"]   .perm-tab.tab-workflows { display: none; }
-    html[data-perm-tab="tracking"]   .perm-tab.tab-mentors   { display: none; }
-    html[data-perm-tab="mentors"]    .perm-tab.tab-users     { display: none; }
-    html[data-perm-tab="mentors"]    .perm-tab.tab-workflows { display: none; }
-    html[data-perm-tab="mentors"]    .perm-tab.tab-tracking  { display: none; }
+    /* Tab visibility — V3.477: show-only pattern (hide all, reveal active). */
+    .perm-tab { display: none; }
+    html[data-perm-tab="users"]     .perm-tab.tab-users     { display: block; }
+    html[data-perm-tab="workflows"] .perm-tab.tab-workflows { display: block; }
+    html[data-perm-tab="tracking"]  .perm-tab.tab-tracking  { display: block; }
+    html[data-perm-tab="mentors"]   .perm-tab.tab-mentors   { display: block; }
+    html[data-perm-tab="user"]      .perm-tab.tab-user      { display: block; }
 
     /* V3.243 — Mentor assignments tab. List of lab members with their
        current mentors as chips + an "Add mentor" picker. */
@@ -231,6 +227,148 @@
       background: color-mix(in srgb, var(--amber, #f59e0b) 10%, white);
     }
     .perm-cell-changed { background: color-mix(in srgb, var(--amber, #f59e0b) 18%, white) !important; }
+
+    /* V3.476 — collapsible role-group header rows */
+    .perm-group-row th.perm-group-head {
+      position: sticky; left: 0; z-index: 2;
+      background: #eef1f5; text-align: left;
+      border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;
+      cursor: pointer; user-select: none; padding: 0;
+    }
+    .perm-group-head-inner {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 10px;
+    }
+    .perm-group-toggle {
+      font-size: 10px; color: #6b7280; width: 12px; text-align: center;
+      transition: transform .12s ease;
+    }
+    .perm-group-row.is-collapsed .perm-group-toggle { transform: rotate(-90deg); }
+    .perm-group-count { font-size: 11px; color: #9ca3af; }
+    .perm-group-row:hover th.perm-group-head { background: #e5e9ef; }
+
+    /* V3.476 — tri-state cells: granted (checked), baseline (default access,
+       shown as a subtle tint + native indeterminate dash), none (plain). */
+    .perm-cell[data-state="baseline"] {
+      background: color-mix(in srgb, var(--primary, #2563eb) 6%, white);
+    }
+    .perm-cell[data-state="baseline"]:hover { background: color-mix(in srgb, var(--primary, #2563eb) 12%, white); }
+    .perm-cell[data-state="none"] input[type="checkbox"] { opacity: .45; }
+
+    /* V3.476 — cell-state legend */
+    .perm-legend { display: inline-flex; gap: 12px; align-items: center; font-size: 11px; color: #6b7280; }
+    .perm-legend-item { display: inline-flex; gap: 4px; align-items: center; }
+    .perm-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid #d1d5db; display: inline-block; }
+    .perm-swatch.sw-grant { background: var(--primary, #2563eb); border-color: var(--primary, #2563eb); }
+    .perm-swatch.sw-baseline { background: color-mix(in srgb, var(--primary, #2563eb) 15%, white); }
+    .perm-swatch.sw-none { background: #fff; }
+
+    /* V3.476 — density toggle */
+    .perm-grid.is-compact th, .perm-grid.is-compact td { padding: 3px 6px; }
+    .perm-grid.is-comfortable th, .perm-grid.is-comfortable td { padding: 9px 11px; }
+    .perm-grid.is-comfortable .perm-group-head { padding: 0; }
+    .perm-grid.is-comfortable .perm-group-head-inner { padding: 8px 12px; }
+
+    /* V3.477 — Per-user access drill-in (rail + panel). */
+    .perm-user-layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+    .perm-user-rail {
+      background: #fff; border: 1px solid var(--border, #e5e7eb); border-radius: 10px;
+      padding: 8px; max-height: 74vh; overflow-y: auto; position: sticky; top: 12px;
+    }
+    .perm-user-rail-search { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+    .perm-user-person {
+      display: flex; align-items: center; gap: 8px; padding: 7px 8px;
+      border-radius: 8px; cursor: pointer; border-left: 3px solid transparent; min-height: 38px;
+    }
+    .perm-user-person:hover { background: #f3f4f6; }
+    .perm-user-person.active { background: #eff6ff; border-left-color: var(--primary, #2563eb); font-weight: 500; }
+    .perm-user-avatar {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff;
+    }
+    .perm-user-person-main { flex: 1; min-width: 0; }
+    .perm-user-person-name { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .perm-user-person-sub { font-size: 10.5px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .perm-user-panel { min-width: 0; }
+    .perm-user-section {
+      background: #fff; border: 1px solid var(--border, #e5e7eb); border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 14px;
+    }
+    .perm-user-section > h2 {
+      font-size: 13px; margin: 0 0 10px; color: #111827;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .perm-user-section-hint { font-size: 11px; color: #9ca3af; font-weight: 400; }
+    .perm-user-pagegroup { margin-bottom: 8px; }
+    .perm-user-pagegroup-head {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .3px;
+      color: #9ca3af; font-weight: 700; margin: 8px 0 4px;
+    }
+    .perm-user-page {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+      padding: 3px 8px; margin: 0 6px 6px 0; border-radius: 6px;
+      border: 1px solid #e5e7eb; cursor: pointer; user-select: none;
+    }
+    .perm-user-page[data-state="grant"] { border-color: var(--primary, #2563eb); background: color-mix(in srgb, var(--primary, #2563eb) 8%, white); }
+    .perm-user-page[data-state="baseline"] { background: color-mix(in srgb, var(--primary, #2563eb) 5%, white); color: #6b7280; }
+    .perm-user-page.perm-cell-changed { background: color-mix(in srgb, var(--amber, #f59e0b) 18%, white) !important; }
+    .perm-user-paper-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 8px 0; border-bottom: 1px solid #f1f5f9;
+    }
+    .perm-user-paper-row:last-child { border-bottom: none; }
+    .perm-user-paper-title { flex: 1; min-width: 140px; font-size: 12.5px; }
+    .perm-user-paper-role, .perm-user-add-paper { font-size: 12px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; }
+    .perm-user-status {
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px;
+      padding: 1px 7px; border-radius: 4px; background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb;
+    }
+    .perm-user-status.st-published { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+    .perm-user-status.st-submitted, .perm-user-status.st-revising { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+    .perm-user-status.st-rejected { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .perm-user-cap {
+      display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+      padding: 5px 0; border-bottom: 1px solid #f9fafb;
+    }
+    /* V3.605 — per-page capability grants (Capabilities section) */
+    .perm-user-cap-card {
+      border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+    }
+    .perm-user-cap-card-head {
+      font-size: 12px; font-weight: 700; color: #111827; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .perm-user-cap-row {
+      display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
+      padding: 5px 6px; border-radius: 6px; user-select: none;
+    }
+    .perm-user-cap-row:hover { background: #f9fafb; }
+    .perm-user-cap-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+    .perm-user-cap-row-main { display: flex; flex-direction: column; gap: 1px; }
+    .perm-user-cap-row-label { font-size: 12.5px; font-weight: 600; color: #111827; }
+    .perm-user-cap-row-label em { font-size: 10.5px; color: #9ca3af; font-style: normal; font-weight: 400; }
+    .perm-user-cap-row-desc { font-size: 11.5px; color: #6b7280; line-height: 1.4; }
+    .perm-user-cap-row.perm-cell-changed { background: color-mix(in srgb, var(--amber, #f59e0b) 18%, white) !important; }
+    .perm-user-cap-hint {
+      margin-top: 6px; font-size: 11.5px; color: #92400e; background: #fffbeb;
+      border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px;
+    }
+    .perm-cap-grant-page {
+      font-size: 11px; padding: 1px 8px; margin-left: 4px; border-radius: 5px;
+      border: 1px solid #d1d5db; background: #fff; cursor: pointer;
+    }
+    .perm-cap-grant-page:hover { background: #f3f4f6; }
+    .perm-user-cap-source {
+      font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+      padding: 1px 6px; border-radius: 4px; background: #eef2ff; color: #4338ca; border: 1px solid #e0e7ff;
+      flex-shrink: 0;
+    }
+    @media (max-width: 820px) {
+      .perm-user-layout { grid-template-columns: 1fr; }
+      .perm-user-rail { position: static; max-height: 280px; }
+    }
     .perm-empty {
       padding: 30px 16px; text-align: center; color: var(--text-muted, #6b7280);
       font-style: italic; font-size: 13px;
@@ -384,6 +522,7 @@
         document.addEventListener('DOMContentLoaded', () => {
           const HUB = [
             { tab: 'users',     label: 'Users × Pages' },
+            { tab: 'user',      label: 'Per-user' },
             { tab: 'workflows', label: 'Default Workflows × Pages' },
             { tab: 'tracking',  label: 'Page Tracking' },
             { tab: 'mentors',   label: 'Mentors' },
@@ -406,6 +545,7 @@
         <button class="btn" id="perm-revert">Revert changes</button>
         <button class="btn btn-primary" id="perm-save">Save changes</button>
         <button class="btn" id="perm-recompute-collections" title="Walk every userPermissions doc and re-derive allowedCollections from allowedPageIds via page-collections.js. Use after editing the pageId→collection map.">Recompute all collaborator grants</button>
+        <button class="btn" id="perm-recompute-authors" title="Walk every paper (projects type=paper) and materialize papers/{id}.authorUids from its lead/co-first/coauthor fields, so non-admin coauthors can open & edit the paper. Run once after deploying the V3.473 rules + paper-author-sync function; the Cloud Function keeps it in sync afterward.">Recompute paper author grants</button>
         <span id="perm-status" class="perm-status"></span>
       </div>
 
@@ -419,14 +559,25 @@
         <!-- V3.79 — sort + bulk-action bar -->
         <div class="perm-users-toolbar">
           <label style="font-size:12px;color:#374151;display:inline-flex;align-items:center;gap:6px;">
-            Sort:
+            Within role:
             <select id="perm-user-sort" style="font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;">
-              <option value="role">Role then name</option>
               <option value="name">Name</option>
               <option value="email">Email</option>
             </select>
           </label>
+          <div class="perm-legend" title="What each cell means">
+            <span class="perm-legend-item"><span class="perm-swatch sw-grant"></span>granted</span>
+            <span class="perm-legend-item"><span class="perm-swatch sw-baseline"></span>baseline</span>
+            <span class="perm-legend-item"><span class="perm-swatch sw-none"></span>none</span>
+          </div>
           <span class="perm-bulk-hint">Tick row checkboxes to start a bulk grant / revoke ↓</span>
+          <label style="font-size:12px;color:#374151;display:inline-flex;align-items:center;gap:6px;margin-left:auto;">
+            Density:
+            <select id="perm-user-density" style="font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;">
+              <option value="compact">Compact</option>
+              <option value="comfortable">Comfortable</option>
+            </select>
+          </label>
         </div>
 
         <div id="perm-bulk-bar" class="perm-bulk-bar" style="display:none;">
@@ -458,6 +609,22 @@
           Each row is a <code>users/{uid}</code> profile. Checkboxes write to <code>userPermissions/{uid}.allowedPageIds</code>.
           A user with <strong>no checked pages</strong> falls back to the <em>implicit baseline</em> — pages from any default workflow.
           Admins are not gated by this matrix and don't appear as rows.
+        </div>
+      </div>
+
+      <!-- V3.477 — Per-user access drill-in. Left rail of lab members; the
+           right panel shows one user's page grants (editable), paper coauthor
+           roles + status (editable), and a read-only list of derived action
+           capabilities. Shares the top Save / Revert with the matrix. -->
+      <div class="perm-tab tab-user">
+        <div class="perm-user-layout">
+          <aside class="perm-user-rail" id="perm-user-rail">
+            <input type="text" id="perm-user-rail-search" class="perm-search perm-user-rail-search" placeholder="Search members…">
+            <div id="perm-user-rail-list"><div class="perm-empty">Loading…</div></div>
+          </aside>
+          <div class="perm-user-panel" id="perm-user-panel">
+            <div class="perm-empty">Select a lab member from the left to view and edit their access.</div>
+          </div>
         </div>
       </div>
 
@@ -527,6 +694,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/toast.js"></script>
@@ -535,6 +703,7 @@
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/page-registry.js"></script>
   <script src="/rm/js/page-collections.js"></script>
+  <script src="/rm/js/capability-registry.js"></script>
   <script src="/rm/js/admin-permissions.js"></script>
 </body>
 </html>

@@ -42,6 +42,7 @@
     'calculator', // V3.318 — rich inputs + hero cards + computed table
     'builder',   // V3.324 — params + pickers + combination assembler → named dataset
     'layoutMap', // V3.324 — dataset → well-plate grid
+    'design',    // FuturePlan 06 — node-graph dataflow definition {nodes,edges}
     'python',    // Later phase — Pyodide-backed; not rendered yet
   ];
 
@@ -51,7 +52,7 @@
    * of any external scripts that imported it. */
   var PHASE1_BLOCK_KINDS = ['materials', 'step', 'note', 'figure', 'safety', 'formula',
     'heading', 'callout', 'docHeader', 'table', 'kv', 'timeline', 'calculator',
-    'builder', 'layoutMap'];
+    'builder', 'layoutMap', 'design'];
 
   var BLOCK_STATUSES = ['draft', 'needs-review', 'complete'];
 
@@ -142,10 +143,14 @@
       label: label || 'Untitled section',
       order: order || 0,
       status: 'draft',
+      completed: false,
       children: [],
     };
   }
 
+  /* V3.503 — `cheat` is an optional one-line "cheat sheet" version of the
+   * step, shown in the ?view=cheat condensed render. Blank → the cheat view
+   * auto-extracts the step body's first line/sentence instead. */
   function newStep(opts) {
     opts = opts || {};
     return {
@@ -153,7 +158,7 @@
       kind: 'step',
       status: 'draft',
       body: opts.body || '',
-      attrs: {},
+      attrs: { cheat: opts.cheat || '' },
     };
   }
 
@@ -441,6 +446,25 @@
     };
   }
 
+  /* FuturePlan 06 — node-graph design block. `nodes`/`edges` are plain
+   * JSON arrays on the attrs map (single-author; coarse-grained whole-
+   * blob writes; round-trips through the generic hydrate/dehydrate
+   * branches). Compiled by window.ProtocolGraph at render/run time. */
+  function newDesign(opts) {
+    opts = opts || {};
+    return {
+      id: shortId('blk-'),
+      kind: 'design',
+      status: 'draft',
+      body: '',
+      attrs: {
+        label: opts.label || 'Design',
+        nodes: Array.isArray(opts.nodes) ? opts.nodes : [],
+        edges: Array.isArray(opts.edges) ? opts.edges : [],
+      },
+    };
+  }
+
   /* Factory dispatcher used by the editor's "+ Add block" menu. */
   function newBlock(kind, opts) {
     switch (kind) {
@@ -459,6 +483,7 @@
       case 'calculator': return newCalculator(opts);
       case 'builder':   return newBuilder(opts);
       case 'layoutMap': return newLayoutMap(opts);
+      case 'design':    return newDesign(opts);
       default:          return newStep(opts);  // unknown → fall back to step
     }
   }
@@ -551,6 +576,7 @@
       if (typeof sec.label !== 'string') sec.label = 'Untitled section';
       if (typeof sec.order !== 'number') sec.order = i;
       if (BLOCK_STATUSES.indexOf(sec.status) < 0) sec.status = 'draft';
+      sec.completed = !!sec.completed;
       if (!Array.isArray(sec.children)) sec.children = [];
       sec.children.forEach(function (blk) {
         if (!blk.id) blk.id = shortId('blk-');
@@ -562,6 +588,8 @@
         if (BLOCK_STATUSES.indexOf(blk.status) < 0) blk.status = 'draft';
         if (typeof blk.body !== 'string') blk.body = '';
         if (!blk.attrs) blk.attrs = {};
+        // V3.503 — optional per-step cheat-sheet line (?view=cheat).
+        if (blk.kind === 'step' && typeof blk.attrs.cheat !== 'string') blk.attrs.cheat = '';
         // V3.315 — defaults for the new kinds so partial docs stay valid.
         if (blk.kind === 'callout' && CALLOUT_TYPES.indexOf(blk.attrs.type) < 0) {
           blk.attrs.type = 'note';
@@ -610,6 +638,12 @@
           if (typeof blk.attrs.cellSub !== 'string') blk.attrs.cellSub = '';
           if (typeof blk.attrs.colorField !== 'string') blk.attrs.colorField = '';
           if (typeof blk.attrs.spareLabel !== 'string') blk.attrs.spareLabel = '—';
+        }
+        // FuturePlan 06 defaults
+        if (blk.kind === 'design') {
+          if (typeof blk.attrs.label !== 'string') blk.attrs.label = 'Design';
+          if (!Array.isArray(blk.attrs.nodes)) blk.attrs.nodes = [];
+          if (!Array.isArray(blk.attrs.edges)) blk.attrs.edges = [];
         }
       });
     });
@@ -660,6 +694,7 @@
     newCalculator: newCalculator,
     newBuilder: newBuilder,
     newLayoutMap: newLayoutMap,
+    newDesign: newDesign,
     newTree: newTree,
     protocolEmptyDoc: protocolEmptyDoc,
     protocolHydrate: protocolHydrate,

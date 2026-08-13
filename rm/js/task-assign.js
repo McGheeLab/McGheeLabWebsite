@@ -42,6 +42,16 @@
  */
 
 (function () {
+  // V3.571 — are we running inside the Ourlab phone app? (fold-up forms)
+  function _ourlabAppTA() {
+    try {
+      if (document.body && document.body.classList.contains('ourlab-app')) return true;
+      if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
+      if (/[?&]mobileShell=1/.test(location.search)) return true;
+      return sessionStorage.getItem('ourlab-shell-preview') === '1';
+    } catch (e) { return false; }
+  }
+
   async function _loadCandidates() {
     // Pull eligible assignees from Firestore users (canonical source of uids).
     // Filter out guests (per project policy: guests don't have RM access).
@@ -290,7 +300,7 @@
     return (
       '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
         'Kind' +
-        '<select class="ta-kind" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
+        '<select class="ta-kind" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">' +
           '<option value="assigned"' + a + '>Assigned (expected to read)</option>' +
           '<option value="suggested"' + s + '>Suggested (FYI)</option>' +
         '</select>' +
@@ -319,21 +329,12 @@
     const titlePlaceholder = paperRef ? 'Override the auto-generated title…' : 'What needs to get done?';
     const defaultAssigneeUid = opts.defaultAssigneeUid || '';
 
-    const overlay = document.createElement('div');
-    overlay.style.cssText =
-      'position:fixed;inset:0;z-index:9000;background:rgba(11,13,18,.55);' +
-      'display:flex;align-items:center;justify-content:center;padding:24px;';
-    const modal = document.createElement('div');
-    modal.style.cssText =
-      'background:#fff;color:#111;border-radius:12px;max-width:540px;width:100%;' +
-      'padding:24px;box-shadow:0 24px 48px rgba(0,0,0,.4);font-family:system-ui,sans-serif;';
-    modal.innerHTML =
-      '<h2 style="margin:0 0 14px;font-size:18px;">' + _esc(heading) + '</h2>' +
+    var formHTML =
       '<form class="ta-form" style="display:grid;gap:12px;">' +
         _paperCardHtml(paperRef) +
         '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
           'Assign to' +
-          '<select class="ta-assignee" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
+          '<select class="ta-assignee" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">' +
             '<option value="">— pick a lab member —</option>' +
             candidates.map(c => '<option value="' + _esc(c.id) + '"' +
               (c.id === defaultAssigneeUid ? ' selected' : '') + '>' +
@@ -345,21 +346,21 @@
         '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
           (paperRef ? 'Title (auto-generated, editable)' : 'Task title') +
           '<input class="ta-title" type="text" value="' + _esc(titlePrefill) + '" placeholder="' + _esc(titlePlaceholder) + '" ' +
-            'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
+            'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">' +
         '</label>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
           '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
             'Due date' +
-            '<input class="ta-due" type="date" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
+            '<input class="ta-due" type="date" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">' +
           '</label>' +
           '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
             'Hours' +
             '<input class="ta-hours" type="number" step="0.25" min="0" placeholder="hrs" ' +
-              'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
+              'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">' +
           '</label>' +
           '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
             'Importance' +
-            '<select class="ta-importance" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">' +
+            '<select class="ta-importance" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">' +
               '<option value="0">—</option>' +
               '<option value="1">★</option>' +
               '<option value="2">★★</option>' +
@@ -372,7 +373,7 @@
         '<label style="display:grid;gap:4px;font-size:12px;color:#374151;">' +
           'Notes (optional)' +
           '<textarea class="ta-notes" rows="3" placeholder="' + (paperRef ? 'Why this paper, what to focus on…' : 'Context, links, deadlines…') + '" ' +
-            'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>' +
+            'style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;font-family:inherit;resize:vertical;"></textarea>' +
         '</label>' +
         '<div class="ta-status" style="font-size:13px;color:#6b7280;min-height:18px;"></div>' +
         '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
@@ -381,24 +382,52 @@
         '</div>' +
       '</form>';
 
+    // Wire submit / cancel / focus onto whichever container hosts the form.
+    function wire(scope, dismiss) {
+      const form = scope.querySelector('.ta-form');
+      form.addEventListener('submit', (e) => { e.preventDefault(); _submit(form, candidates, dismiss, opts); });
+      const cancel = scope.querySelector('.ta-cancel');
+      if (cancel) cancel.addEventListener('click', dismiss);
+      // V3.157 — when the assignee is prefilled (e.g. from PMR), focus the
+      // title field so the user can immediately type/edit it.
+      setTimeout(function () {
+        const focusEl = defaultAssigneeUid
+          ? scope.querySelector('.ta-title')
+          : scope.querySelector('.ta-assignee');
+        if (focusEl) focusEl.focus();
+      }, 60);
+    }
+
+    // V3.571 — in the phone app, render as the standard fold-up bottom
+    // sheet (APP_SHEET) instead of the centered modal; same form + submit.
+    if (_ourlabAppTA() && window.APP_SHEET) {
+      window.APP_SHEET.open({
+        title: heading,
+        build: function (body, api) {
+          body.innerHTML = formHTML;
+          wire(body, function () { api.close(); });
+        }
+      });
+      return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText =
+      'position:fixed;inset:0;z-index:9000;background:rgba(11,13,18,.55);' +
+      'display:flex;align-items:center;justify-content:center;padding:24px;';
+    const modal = document.createElement('div');
+    modal.style.cssText =
+      'background:#fff;color:#111;border-radius:12px;max-width:540px;width:100%;' +
+      'padding:24px;box-shadow:0 24px 48px rgba(0,0,0,.4);font-family:system-ui,sans-serif;';
+    modal.innerHTML =
+      '<h2 style="margin:0 0 14px;font-size:18px;">' + _esc(heading) + '</h2>' + formHTML;
+
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
     function dismiss() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
-
-    const form = modal.querySelector('.ta-form');
-    form.addEventListener('submit', (e) => { e.preventDefault(); _submit(form, candidates, dismiss, opts); });
-    modal.querySelector('.ta-cancel').addEventListener('click', dismiss);
+    wire(modal, dismiss);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
-
-    // V3.157 — when the assignee is prefilled (e.g. from PMR), focus the
-    // title field so the user can immediately type/edit it.
-    setTimeout(function () {
-      const focusEl = defaultAssigneeUid
-        ? modal.querySelector('.ta-title')
-        : modal.querySelector('.ta-assignee');
-      if (focusEl) focusEl.focus();
-    }, 0);
   }
 
   // V3.314 — writeTaskFor exported for the task marketplace's claim

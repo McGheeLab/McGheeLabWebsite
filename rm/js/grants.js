@@ -272,7 +272,7 @@ function _grantsAttachLiveSync() {
 }
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view grants.');
   _grantsWrapSaves();
   await loadAndRender();
   // No live-sync attach: grants is admin-edit, single-tab in practice.

@@ -45,6 +45,54 @@ var CVImport = (function () {
     return w['is-referenced-by-count'] != null ? w['is-referenced-by-count'] : null;
   }
 
+  /* ── batched CrossRef fetches (V3.356) ──
+   * Replaces the old strictly-sequential 350ms/DOI loop: a small worker
+   * pool (default 4) with a polite stagger. `worker(item)` does one fetch;
+   * onProgress(done, total) drives a progress readout; failures resolve to
+   * null instead of aborting the batch. */
+  async function runBatched(items, worker, onProgress, concurrency) {
+    var results = new Array(items.length);
+    var next = 0;
+    var done = 0;
+    var pool = Math.max(1, Math.min(concurrency || 4, items.length));
+    async function lane() {
+      while (next < items.length) {
+        var i = next++;
+        try { results[i] = await worker(items[i], i); }
+        catch (e) { results[i] = null; }
+        done++;
+        if (onProgress) onProgress(done, items.length);
+        await new Promise(function (r) { setTimeout(r, 150); }); // polite stagger per lane
+      }
+    }
+    var lanes = [];
+    for (var l = 0; l < pool; l++) lanes.push(lane());
+    await Promise.all(lanes);
+    return results;
+  }
+
+  function fetchCitationCountsBatched(dois, onProgress) {
+    return runBatched(dois, function (doi) { return fetchCitationCount(doi); }, onProgress);
+  }
+
+  /* Fill an entry's blank fields from its DOI (CrossRef). Existing values
+   * always win — this only completes what's missing (ORCID works come back
+   * without authors/volume/pages). Returns true if anything was filled. */
+  async function enrichEntryFromDOI(entry) {
+    if (!entry || !entry.doi) return false;
+    var r;
+    try { r = await fetchDOI(entry.doi); } catch (e) { return false; }
+    var filled = false;
+    ['title', 'authors', 'journal', 'year', 'volume', 'issue', 'pages', 'citations'].forEach(function (k) {
+      var cur = entry[k];
+      if ((cur == null || cur === '' || cur === 0) && r[k] != null && r[k] !== '') {
+        entry[k] = r[k];
+        filled = true;
+      }
+    });
+    return filled;
+  }
+
   /* ── ORCID works fetch ──
    * Returns a list of partial entries with raw_type we can use to decide
    * whether something is a journal vs conference entry. */
@@ -238,6 +286,9 @@ var CVImport = (function () {
   return {
     fetchDOI: fetchDOI,
     fetchCitationCount: fetchCitationCount,
+    fetchCitationCountsBatched: fetchCitationCountsBatched,
+    runBatched: runBatched,
+    enrichEntryFromDOI: enrichEntryFromDOI,
     fetchORCID: fetchORCID,
     orcidSectionFor: orcidSectionFor,
     parseBibtex: parseBibtex,

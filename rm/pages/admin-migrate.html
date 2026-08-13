@@ -72,6 +72,20 @@
         <tbody id="mig-tbody-lab"></tbody>
       </table>
 
+      <h3 style="margin-top:24px;font-size:14px;">One-off sweeps</h3>
+      <div style="border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-weight:600;font-size:13px;">Annotation consolidation (V3.619)</div>
+        <div style="color:var(--muted,#6b7280);font-size:12.5px;line-height:1.5;margin:6px 0 10px;">
+          Folds the retired <code>bucket_ids</code> field into <code>cite_in_drafts</code> on every
+          paper highlight (plus drafts resolved from claim evidence), backfills
+          <code>annotation_type</code> from the highlight color, and drops the dead
+          <code>parent_id: null</code> default. Idempotent — safe to re-run. Run the dry run first.
+        </div>
+        <button class="btn" id="annsweep-dry" type="button">Dry run</button>
+        <button class="btn btn-primary" id="annsweep-run" type="button" style="margin-left:8px;">Run sweep</button>
+        <span id="annsweep-status" style="margin-left:12px;font-size:12.5px;color:var(--muted,#6b7280);"></span>
+      </div>
+
       <h3 style="margin-top:24px;font-size:14px;">Log</h3>
       <div class="mig-log" id="mig-log">Ready.</div>
     </div>
@@ -84,6 +98,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
   <script src="/rm/js/api-routes.js"></script>
   <script src="/rm/js/live-sync-helper.js"></script>
@@ -92,5 +107,6 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/admin-migrate.js"></script>
+  <script src="/rm/js/admin-annotation-sweep.js"></script>
 </body>
 </html>

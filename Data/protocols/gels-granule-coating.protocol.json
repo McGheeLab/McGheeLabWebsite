@@ -1,0 +1,403 @@
+{
+  "format": "protocol-import-v1",
+  "source": { "kind": "other", "filename": "gels-granule-coating.protocol.json" },
+  "protocol": {
+    "id": "",
+    "title": "GELS — Fibroblast-Coated Granule Ratio Series (24-Well Darcy Insert)",
+    "slug": "gels-granule-coating-demo",
+    "summary": "Surface-coating granules with fibroblasts and culturing a functional:inert ratio panel in the 24-Well Darcy Imaging Insert. Node-graph calculator with hero result cards, a live well-fit check, an auto-built condition list, and a drag-arrange plate planner.",
+    "category": "microgel",
+    "tags": ["demo", "GELS", "microgel", "perfusion", "gold-standard", "node-graph"],
+    "tree": {
+      "meta": {},
+      "sections": [
+        {
+          "label": "Design & rationale",
+          "order": 0,
+          "children": [
+            {
+              "kind": "docHeader",
+              "body": "Surface-coating granules with fibroblasts (F) and culturing a functional:inert ratio panel in the 24-Well Darcy Imaging Insert.",
+              "attrs": {
+                "brand": "McGheeLab",
+                "tag": "Granule-Enabled Living Scaffolds · GELS",
+                "title": "GELS — Fibroblast-Coated Granule Ratio Series",
+                "chips": [
+                  { "text": "3 sizes · S / M / L · 1–350 µm", "var": "" },
+                  { "text": "Darcy 24-well · glass bottom", "var": "" },
+                  { "text": "bed / well", "var": "Vtot" }
+                ]
+              }
+            },
+            {
+              "kind": "step",
+              "body": "Granules (modeled as cubes) are coated on their surface with fibroblasts to make them <b>functional</b>. Coated granules are mixed with bare <b>inert</b> granules at several volume ratios and cultured under passive perfusion. The panel tests the effect of functional fraction and granule size on the culture."
+            },
+            {
+              "kind": "step",
+              "body": "Because F only covers the functional granules, the coating requirement per experiment is <code>n_F = 6 · φ · f · c · V_tot / (L_F · A_F)</code> — with φ = packing fraction, f = functional volume fraction, c = target surface coverage (1 = 100%), V_tot = granule-bed volume per well, L_F = functional granule side, A_F = footprint area of one fibroblast."
+            },
+            {
+              "kind": "step",
+              "body": "<b>Consequence 1 — inert size never enters n_F.</b> Any two combinations that share the same functional size and ratio need identical F, regardless of inert size. At f = 1 there is no inert granule at all, so all-functional combinations of the same functional size are one experiment — which is why the number of distinct experiments is fewer than every F×I×ratio permutation."
+            },
+            {
+              "kind": "step",
+              "body": "<b>Consequence 2 — coverage is a fixed F-per-volume loading</b> (<code>6φc/(L_F·A_F)</code>), independent of ratio. So you coat one master pool of functional granules per size, then split it into any ratio afterward and coverage stays on target. This is the <b>coat-once, split-later</b> workflow — surfaced live below as the per-size loading cards."
+            },
+            {
+              "kind": "callout",
+              "attrs": { "type": "assume" },
+              "body": "<b>Assumptions — confirm before running.</b> (1) Functional and inert granules are Bioconjugated LLS™ and Inert LLS™ microgel respectively, so the mixed granule bed <i>is</i> the LLS bed loaded into the sample well. (2) Fibroblasts coat functional granules only; inert granules stay bare. (3) Ratio f is a <b>volume</b> fraction of total granule solids. (4) Granules are coated individually in suspension (all 6 cube faces exposed). (5) V_tot is the packed granule-bed volume per well; because each condition is loaded as a slurry in an equal volume of medium, the ≈2×V_tot suspension must fit the 100 µL sample well — keep V_tot ≲ 50 µL. The calculator's well-fit card checks this live."
+            }
+          ]
+        },
+        {
+          "label": "Materials & equipment",
+          "order": 1,
+          "children": [
+            {
+              "kind": "materials",
+              "body": "",
+              "attrs": {
+                "rows": [
+                  { "qty": "", "unit": "", "free_text": "Bioconjugated LLS™ microgel — functional granules, Small & Medium fractions", "item_ref": null },
+                  { "qty": "", "unit": "", "free_text": "Inert LLS™ microgel — inert granules, Small & Medium fractions", "item_ref": null },
+                  { "qty": "", "unit": "", "free_text": "Fibroblast suspension, density recorded (cells/mL)", "item_ref": null },
+                  { "qty": "", "unit": "", "free_text": "Cell culture medium (sample-dependent) & 1× PBS", "item_ref": null },
+                  { "qty": "1", "unit": "ea", "free_text": "24-Well Darcy Imaging Insert + glass-bottom microplate (Cellvis™)", "item_ref": null },
+                  { "qty": "", "unit": "", "free_text": "200 µL wide-bore tips (LLS handling), 1 mL tips, 15 mL tubes", "item_ref": null }
+                ]
+              }
+            },
+            {
+              "kind": "table",
+              "body": "",
+              "attrs": {
+                "columns": [{ "key": "item", "label": "Equipment", "align": "left" }],
+                "rows": [
+                  { "item": "Centrifuge with microplate + tube carriers" },
+                  { "item": "Biosafety cabinet, 37 °C incubator, 37 °C water bath" },
+                  { "item": "200 µL & 1 mL single-channel pipettes; pipette controller" },
+                  { "item": "Sterile fine, curved-tip forceps (insert handling)" },
+                  { "item": "Aspiration system; precision balance" }
+                ]
+              }
+            },
+            {
+              "kind": "callout",
+              "attrs": { "type": "critical" },
+              "body": "Work in a biosafety cabinet with aseptic technique. Sample wells are ~5.5 mm in diameter — large samples may obstruct flow. Read all relevant SDSs first."
+            }
+          ]
+        },
+        {
+          "label": "Build your plate layout",
+          "order": 2,
+          "children": [
+            {
+              "kind": "step",
+              "body": "Set your granule sizes and measured values below. The node graph publishes each value to the shared symbol table, assembles the condition list, and feeds the plate planner live. Open the <b>Nodes</b> view to edit the calculation as a workflow: an ordered size set and two choice sets feed a <b>list</b>; scalar equations feed <b>📊 result cards</b> and the <b>🔗 reference</b> picker; and a <b>📜 code node</b> runs the well-fit safety check."
+            },
+            {
+              "kind": "design",
+              "body": "",
+              "attrs": {
+                "label": "Coating & prep calculator",
+                "formula": "n_F = 6·φ·f·c·V_tot / (L·A_F)",
+                "nodes": [
+                  { "id": "nd-size", "type": "ordered", "x": 40, "y": 40, "params": {
+                    "field": "size", "label": "Granule size", "unit": "µm",
+                    "items": [
+                      { "name": "S", "label": "Small L_S", "default": 60, "unit": "µm", "min": 1, "max": 350, "step": 0.5 },
+                      { "name": "M", "label": "Medium L_M", "default": 125, "unit": "µm", "min": 1, "max": 350, "step": 0.5 },
+                      { "name": "L", "label": "Large L_L", "default": 220, "unit": "µm", "min": 1, "max": 350, "step": 0.5 }
+                    ] } },
+                  { "id": "nd-f", "type": "choices", "x": 40, "y": 360, "params": {
+                    "field": "f", "label": "Functional ratio f", "options": ["0.4", "0.6", "0.8", "1"], "editable": true } },
+                  { "id": "nd-inert", "type": "choices", "x": 40, "y": 520, "params": {
+                    "field": "inert", "label": "Inert size", "options": ["S", "M", "L"], "editable": true } },
+                  { "id": "nd-cov", "type": "input", "x": 40, "y": 680, "params": {
+                    "name": "cov", "label": "Coverage (c)", "widget": "slider", "min": 0, "max": 2, "step": 0.05, "default": 1, "unit": "", "rangeHint": "1 = single confluent layer" } },
+                  { "id": "nd-vtot", "type": "input", "x": 40, "y": 860, "params": {
+                    "name": "Vtot", "label": "Bed volume / well", "widget": "slider", "min": 5, "max": 100, "step": 1, "default": 20, "unit": "µL", "rangeHint": "bed ≤ 50 µL" } },
+                  { "id": "nd-af", "type": "input", "x": 40, "y": 1040, "params": {
+                    "name": "AF", "label": "Fibroblast footprint A_F", "widget": "slider", "min": 1600, "max": 3600, "step": 50, "default": 2600, "unit": "µm²" } },
+                  { "id": "nd-phi", "type": "input", "x": 40, "y": 1220, "params": {
+                    "name": "phi", "label": "Packing φ", "widget": "slider", "min": 0.5, "max": 0.74, "step": 0.01, "default": 0.68, "unit": "" } },
+                  { "id": "nd-stock", "type": "input", "x": 40, "y": 1400, "params": {
+                    "name": "stock", "label": "Cell stock density", "widget": "number", "default": 5, "unit": "million/mL" } },
+                  { "id": "nd-reps", "type": "input", "x": 40, "y": 1540, "params": {
+                    "name": "reps", "label": "Wells / condition", "widget": "slider", "min": 1, "max": 4, "step": 1, "default": 1, "unit": "" } },
+                  { "id": "nd-excess", "type": "input", "x": 40, "y": 1720, "params": {
+                    "name": "excess", "label": "Prep excess", "widget": "slider", "min": 1, "max": 1.5, "step": 0.05, "default": 1.2, "unit": "" } },
+                  { "id": "nd-bedmax", "type": "constant", "x": 360, "y": 860, "params": {
+                    "name": "bedMax", "label": "Max bed volume", "value": 50, "unit": "µL" } },
+                  { "id": "nd-nf", "type": "equation", "x": 720, "y": 120, "params": {
+                    "name": "nF", "label": "Fibroblasts / well", "expr": "6 * phi * f * cov * (Vtot * 1e9) / (size_value * AF)", "unit": "cells", "decimals": 0 } },
+                  { "id": "nd-fvol", "type": "equation", "x": 720, "y": 380, "params": {
+                    "name": "Fvol", "label": "Functional volume", "expr": "f * Vtot", "unit": "µL", "decimals": 1 } },
+                  { "id": "nd-ivol", "type": "equation", "x": 720, "y": 560, "params": {
+                    "name": "Ivol", "label": "Inert volume", "expr": "(1 - f) * Vtot", "unit": "µL", "decimals": 1 } },
+                  { "id": "nd-susp", "type": "equation", "x": 1040, "y": 120, "params": {
+                    "name": "cellSusp", "label": "Cell suspension", "expr": "nF / (stock * 1000)", "unit": "µL", "decimals": 1 } },
+                  { "id": "nd-load", "type": "equation", "x": 720, "y": 780, "params": {
+                    "name": "loadS", "label": "Small loading", "expr": "6 * phi * cov * 1e9 / (S * AF)", "unit": "cells/µL", "decimals": 0,
+                    "results": [
+                      { "name": "loadS", "label": "Small loading", "expr": "6 * phi * cov * 1e9 / (S * AF)", "unit": "cells/µL", "decimals": 0 },
+                      { "name": "loadM", "label": "Medium loading", "expr": "6 * phi * cov * 1e9 / (M * AF)", "unit": "cells/µL", "decimals": 0 },
+                      { "name": "loadL", "label": "Large loading", "expr": "6 * phi * cov * 1e9 / (L * AF)", "unit": "cells/µL", "decimals": 0 }
+                    ] } },
+                  { "id": "nd-fit", "type": "code", "x": 720, "y": 1120, "params": {
+                    "label": "Well-fit check", "body": "var loaded = Vtot * 2;\nreturn { loadedVol: loaded, wellHeadroom: 100 - loaded };",
+                    "outputs": [
+                      { "name": "loadedVol", "label": "Loaded slurry (≈2×V_tot)", "unit": "µL", "decimals": 0 },
+                      { "name": "wellHeadroom", "label": "100 µL well headroom", "unit": "µL", "decimals": 0 }
+                    ] } },
+                  { "id": "nd-cards", "type": "cards", "x": 1400, "y": 780, "params": {
+                    "label": "Fixed loadings & well fit" } },
+                  { "id": "nd-refs", "type": "refs", "x": 1400, "y": 1120, "params": {
+                    "label": "Reference in the write-up" } },
+                  { "id": "nd-list", "type": "list", "x": 1400, "y": 340, "params": {
+                    "name": "conditions", "dedupe": { "when": "f >= 1", "ignore": ["inert"] } } }
+                ],
+                "edges": [
+                  { "id": "e-size-list", "from": "nd-size", "to": "nd-list", "sourceVar": "S" },
+                  { "id": "e-f-list", "from": "nd-f", "to": "nd-list", "sourceVar": "f" },
+                  { "id": "e-inert-list", "from": "nd-inert", "to": "nd-list", "sourceVar": "inert" },
+                  { "id": "e-nf-list", "from": "nd-nf", "to": "nd-list", "sourceVar": "nF" },
+                  { "id": "e-fvol-list", "from": "nd-fvol", "to": "nd-list", "sourceVar": "Fvol" },
+                  { "id": "e-ivol-list", "from": "nd-ivol", "to": "nd-list", "sourceVar": "Ivol" },
+                  { "id": "e-susp-list", "from": "nd-susp", "to": "nd-list", "sourceVar": "cellSusp" },
+
+                  { "id": "e-size-nf", "from": "nd-size", "to": "nd-nf", "sourceVar": "S", "role": "math" },
+                  { "id": "e-f-nf", "from": "nd-f", "to": "nd-nf", "sourceVar": "f", "role": "math" },
+                  { "id": "e-phi-nf", "from": "nd-phi", "to": "nd-nf", "sourceVar": "phi", "role": "math" },
+                  { "id": "e-cov-nf", "from": "nd-cov", "to": "nd-nf", "sourceVar": "cov", "role": "math" },
+                  { "id": "e-vtot-nf", "from": "nd-vtot", "to": "nd-nf", "sourceVar": "Vtot", "role": "math" },
+                  { "id": "e-af-nf", "from": "nd-af", "to": "nd-nf", "sourceVar": "AF", "role": "math" },
+
+                  { "id": "e-f-fvol", "from": "nd-f", "to": "nd-fvol", "sourceVar": "f", "role": "math" },
+                  { "id": "e-vtot-fvol", "from": "nd-vtot", "to": "nd-fvol", "sourceVar": "Vtot", "role": "math" },
+                  { "id": "e-f-ivol", "from": "nd-f", "to": "nd-ivol", "sourceVar": "f", "role": "math" },
+                  { "id": "e-vtot-ivol", "from": "nd-vtot", "to": "nd-ivol", "sourceVar": "Vtot", "role": "math" },
+                  { "id": "e-nf-susp", "from": "nd-nf", "to": "nd-susp", "sourceVar": "nF", "role": "math" },
+                  { "id": "e-stock-susp", "from": "nd-stock", "to": "nd-susp", "sourceVar": "stock", "role": "math" },
+
+                  { "id": "e-phi-load", "from": "nd-phi", "to": "nd-load", "sourceVar": "phi", "role": "math" },
+                  { "id": "e-cov-load", "from": "nd-cov", "to": "nd-load", "sourceVar": "cov", "role": "math" },
+                  { "id": "e-af-load", "from": "nd-af", "to": "nd-load", "sourceVar": "AF", "role": "math" },
+
+                  { "id": "e-vtot-fit", "from": "nd-vtot", "to": "nd-fit", "sourceVar": "Vtot", "role": "math" },
+
+                  { "id": "e-bedmax-vtot", "from": "nd-bedmax", "to": "nd-vtot", "sourceVar": "bedMax", "role": "param", "paramField": "max" },
+
+                  { "id": "e-loadS-cards", "from": "nd-load", "to": "nd-cards", "sourceVar": "loadS", "role": "display" },
+                  { "id": "e-loadM-cards", "from": "nd-load", "to": "nd-cards", "sourceVar": "loadM", "role": "display" },
+                  { "id": "e-loadL-cards", "from": "nd-load", "to": "nd-cards", "sourceVar": "loadL", "role": "display" },
+                  { "id": "e-loaded-cards", "from": "nd-fit", "to": "nd-cards", "sourceVar": "loadedVol", "role": "display" },
+                  { "id": "e-head-cards", "from": "nd-fit", "to": "nd-cards", "sourceVar": "wellHeadroom", "role": "display" },
+
+                  { "id": "e-loadS-refs", "from": "nd-load", "to": "nd-refs", "sourceVar": "loadS", "role": "display" },
+                  { "id": "e-loadM-refs", "from": "nd-load", "to": "nd-refs", "sourceVar": "loadM", "role": "display" },
+                  { "id": "e-loadL-refs", "from": "nd-load", "to": "nd-refs", "sourceVar": "loadL", "role": "display" },
+                  { "id": "e-vtot-refs", "from": "nd-vtot", "to": "nd-refs", "sourceVar": "Vtot", "role": "display" },
+                  { "id": "e-cov-refs", "from": "nd-cov", "to": "nd-refs", "sourceVar": "cov", "role": "display" }
+                ]
+              }
+            },
+            {
+              "kind": "callout",
+              "attrs": { "type": "note" },
+              "body": "At the current settings each functional size coats at a fixed <b>ratio-independent</b> loading — [!pill:functional:Small] [!var:loadS], [!pill:functional:Medium] [!var:loadM], [!pill:functional:Large] [!var:loadL] — the number you set once and split into any ratio afterward. Each condition then loads as ≈[!var:loadedVol] of slurry, leaving [!var:wellHeadroom] of headroom in the 100 µL sample well (keep this ≥ 0)."
+            },
+            {
+              "kind": "step",
+              "body": "Wells fill A1→A6, B1→…, up to 24. Raise <b>wells/condition</b> to replicate; extra wells stay as spares. At f = 1 the inert size drops out (no inert granule), so all-functional combinations of the same functional size are merged automatically. Use the planner's <b>⚙ Arrange</b> menu to fill row/column/snake, map a factor to an axis, spread replicates, or randomize."
+            },
+            {
+              "kind": "layoutMap",
+              "body": "",
+              "attrs": {
+                "label": "Plate planner — pick experiments, plates & prep",
+                "dataset": "conditions",
+                "rows": 4,
+                "cols": 6,
+                "colorField": "size",
+                "cellLabel": "size",
+                "cellSub": "f",
+                "spareLabel": "spare",
+                "assign": true,
+                "keyFields": ["size", "f", "inert"],
+                "replicateVar": "reps",
+                "factorVar": "excess",
+                "poolBy": ["size"],
+                "quantityFields": ["nF", "Fvol", "cellSusp"]
+              }
+            }
+          ]
+        },
+        {
+          "label": "Calculator — F, granules & prep volumes",
+          "order": 3,
+          "children": [
+            {
+              "kind": "step",
+              "body": "Per-well requirements recompute live from the sizes, ratios, coverage ([!var:cov]), and the [!var:Vtot] bed set above. Fibroblast count scales with coverage; at f = 1 there is no inert volume."
+            },
+            {
+              "kind": "calculator",
+              "body": "",
+              "attrs": {
+                "label": "Per condition — one well",
+                "formula": "F/I vol in µL · cell susp. µL at set stock",
+                "inputs": [],
+                "outputs": [],
+                "table": {
+                  "dataset": "conditions",
+                  "columns": [
+                    { "label": "Size", "expr": "size_label", "align": "left" },
+                    { "label": "f", "expr": "f", "mono": true },
+                    { "label": "F vol", "expr": "Fvol", "mono": true, "decimals": 1 },
+                    { "label": "I vol", "expr": "Ivol", "mono": true, "decimals": 1 },
+                    { "label": "Fibroblasts", "expr": "nF", "mono": true, "decimals": 0 },
+                    { "label": "Cell susp.", "expr": "cellSusp", "mono": true, "decimals": 1 }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "label": "LLS™ equilibration",
+          "order": 4,
+          "children": [
+            { "kind": "callout", "attrs": { "type": "timing" }, "body": "15–30 min active · &gt;2 h wait" },
+            {
+              "kind": "callout",
+              "attrs": { "type": "critical" },
+              "body": "Start ≥ 2 h before sample prep. Equilibrate every pool your plate needs — one per functional size and one per inert size actually used — in separate labeled 15 mL tubes. Hold equilibrated LLS at 37 °C until use."
+            },
+            { "kind": "step", "body": "Centrifuge each LLS™ tube <code>800 ×g, 5 min</code>, moderate accel/brake." },
+            { "kind": "step", "body": "Confirm separation of clear buffer above semi-transparent LLS™ gel." },
+            { "kind": "step", "body": "Aspirate the excess buffer until only LLS™ gel remains." },
+            { "kind": "step", "body": "Add cell culture medium at <code>2:1 medium:LLS</code> (e.g. 4 mL medium per 2 mL LLS) and pipette-mix thoroughly with a wide-bore tip." },
+            { "kind": "step", "body": "Hold at 37 °C until proceeding to coating." }
+          ]
+        },
+        {
+          "label": "Prepare granule pools",
+          "order": 5,
+          "children": [
+            { "kind": "callout", "attrs": { "type": "timing" }, "body": "15 min" },
+            { "kind": "step", "body": "From the calculator, measure the required <b>bulk volume</b> of each equilibrated pool into a labeled tube. Re-centrifuge <code>800 ×g, 5 min</code> and aspirate excess medium so you start coating from packed granules." },
+            { "kind": "callout", "attrs": { "type": "note" }, "body": "Keep the two <b>inert</b> pools bare and set aside at 37 °C — they receive no cells and are added only at the ratio-mixing step." }
+          ]
+        },
+        {
+          "label": "Coat functional granules with fibroblasts",
+          "order": 6,
+          "children": [
+            { "kind": "callout", "attrs": { "type": "timing" }, "body": "~2 h · run all sizes in parallel" },
+            { "kind": "step", "body": "Coat each functional pool (one per functional size in use) in its own tube. Use the calculator's per-pool <b>Fibroblasts</b> count — this is the exact number for your set coverage." },
+            {
+              "kind": "timeline",
+              "body": "Coating schedule",
+              "attrs": {
+                "marks": [
+                  { "at": "0", "label": "spin", "sub": "settle cells", "included": true },
+                  { "at": "20", "label": "mix", "sub": "", "included": true },
+                  { "at": "40", "label": "mix", "sub": "", "included": true },
+                  { "at": "60 min", "label": "mix + spin", "sub": "compact", "included": true },
+                  { "at": "120 min", "label": "incubate", "sub": "attach + spread", "included": true }
+                ]
+              }
+            },
+            { "kind": "step", "body": "Add the calculated fibroblast volume (calculator, <b>Cell susp.</b> for that functional pool) to the packed functional granules. Add just enough medium to form a very light LLS — enough that mixing fully resuspends the granules but not so much that cells fall straight through. Pipette-mix gently with a wide-bore tip." },
+            { "kind": "step", "body": "<b>t = 0 — spin.</b> Centrifuge gently <code>200 ×g, 5 min</code> to settle cells onto the granules, then gently resuspend to redistribute. <b>Do not remove the excess medium</b> — the light-LLS consistency lets every later mix resuspend fully and settle on its own." },
+            { "kind": "step", "body": "<b>Mix every 20 min for 1 h</b> — at <code>20, 40, 60 min</code> — by gentle pipette-mixing or rolling the tube. <b>Never vortex.</b> Mix just enough to redistribute, then let it settle." },
+            { "kind": "step", "body": "<b>After the final mix, gentle spin</b> <code>200 ×g, 5 min</code> to remove air bubbles and compact the LLS." },
+            { "kind": "step", "body": "<b>Incubate undisturbed 1 h at 37 °C</b> so cells firmly attach and spread. Total coating time ≈ 2 h." },
+            { "kind": "callout", "attrs": { "type": "critical" }, "body": "Fully mix each time without introducing bubbles. Keep to the calculated cell number: excess cells bridge granules into multilayers; too few leaves gaps below 100% coverage." }
+          ]
+        },
+        {
+          "label": "Mix the ratio conditions",
+          "order": 7,
+          "children": [
+            { "kind": "callout", "attrs": { "type": "timing" }, "body": "20–30 min" },
+            { "kind": "step", "body": "For each condition, combine the coated functional pool with the appropriate inert pool at the per-well <b>F vol</b> and <b>I vol</b>, scaled by your wells/condition. Pipette-mix gently to a uniform dispersion." },
+            { "kind": "step", "body": "<b>Ratios f &lt; 1</b> — mix coated <b>functional</b> granules with bare <b>inert</b> granules of the chosen sizes at the volume fractions f : (1−f)." },
+            { "kind": "step", "body": "<b>Ratio f = 1</b> — 100% functional, no inert: the coated pool of that functional size is loaded directly." },
+            { "kind": "callout", "attrs": { "type": "note" }, "body": "\"F vol\" uses the coated functional pool (granules + attached cells); the added cells came along during coating, so no further cell addition is needed here." }
+          ]
+        },
+        {
+          "label": "Plating map — 24-well Darcy insert",
+          "order": 8,
+          "children": [
+            { "kind": "step", "body": "Follow the interactive plate map you built above. Each colored well shows the functional size and the ratio f; spare wells are free for replicates or controls (all-inert no-cell, all-functional positive, LLS-only). Duplicate or triplicate by raising <b>wells/condition</b>." }
+          ]
+        },
+        {
+          "label": "Assemble insert & load",
+          "order": 9,
+          "children": [
+            { "kind": "callout", "attrs": { "type": "timing" }, "body": "&lt;10 min" },
+            { "kind": "step", "body": "Inspect the glass-bottom plate for damage. Seat each imaging insert with forceps until it resists — <b>feed-media opening facing down</b>. A loose insert means an incompatible plate." },
+            { "kind": "step", "body": "With a 1 mL pipette, add culture medium to the <b>plate well (feed side, a)</b> around each insert — up to <code>2.0 mL</code>. Dispense delicately." },
+            { "kind": "step", "body": "<b>Resuspend each condition into an equal volume of culture medium</b> and pipette-mix to a uniform slurry (loaded volume ≈ [!var:loadedVol])." },
+            { "kind": "step", "body": "With a 200 µL <b>wide-bore</b> tip, dispense each resuspended condition into its <b>sample well (b)</b> per the plate map — onto the membrane, not the walls. Keep the slurry ≤ <code>100 µL</code> per well." },
+            { "kind": "step", "body": "<b>Centrifuge the assembled plate</b> <code>200 ×g, 5 min</code> (moderate brake/accel). The granules pack into a bed on the membrane, priming it for passive perfusion." },
+            { "kind": "step", "body": "Using any tip on an effluent shelf, aspirate any effluent produced during the spin and return it to the feed well." },
+            { "kind": "step", "body": "Transfer to the incubator. Media perfuses and accumulates above the bed passively over ~12 h. Do not jostle the plate." },
+            { "kind": "callout", "attrs": { "type": "critical" }, "body": "Do not puncture the membrane with the tip. Adding LLS or media too fast disrupts the bed and loses 3D stability — a reasonable rate is 100 µL in 5–10 s." }
+          ]
+        },
+        {
+          "label": "Maintain perfusion culture",
+          "order": 10,
+          "children": [
+            { "kind": "callout", "attrs": { "type": "timing" }, "body": "&lt;5 min / cycle" },
+            { "kind": "step", "body": "Remove the plate to a sterile workspace. Place a tip on an insert shelf and aspirate perfused media — up to <code>375 µL</code> per cycle." },
+            { "kind": "step", "body": "Either return the effluent to the feed well (<b>recycle</b>) or replace with fresh medium (<b>refresh</b>)." },
+            { "kind": "step", "body": "Return to the incubator. Exchange medium every 2–4 days, or when the indicator color shifts." }
+          ]
+        },
+        {
+          "label": "Collect samples for analysis",
+          "order": 11,
+          "children": [
+            { "kind": "callout", "attrs": { "type": "timing" }, "body": "30–60 min · optional" },
+            { "kind": "step", "body": "Fill a 15 mL tube with 12 mL PBS or medium per condition set. Bring the plate to the bench without agitation." },
+            { "kind": "step", "body": "Lift inserts with forceps; collect each bed (granules + samples) with a wide-bore tip and add it dropwise to the tube." },
+            { "kind": "step", "body": "Settle 5–10 min; aspirate supernatant and excess LLS™, taking care not to draw off the granules." },
+            { "kind": "step", "body": "Resuspend gently in PBS/medium — <b>do not vortex</b> — and repeat the settle/aspirate wash 2–3× to enrich." },
+            { "kind": "step", "body": "Proceed to downstream analysis. Residual LLS™ particles rarely interfere with staining/digestion; complete removal needs a strainer or magnetic sort." }
+          ]
+        },
+        {
+          "label": "Derivation & validation",
+          "order": 12,
+          "children": [
+            {
+              "kind": "kv",
+              "body": "",
+              "attrs": {
+                "items": [
+                  { "term": "Functional granules per well", "def": "N = φ·f·V_tot / L_F³" },
+                  { "term": "Surface area, one cube", "def": "a = 6·L_F²" },
+                  { "term": "Fibroblasts for coverage c", "def": "n_F = c·N·a / A_F = 6·φ·f·c·V_tot / (L_F·A_F)" },
+                  { "term": "Fixed coating loading", "def": "n_F/V = 6·φ·c / (L_F·A_F) → ratio-independent (the loadS/loadM/loadL cards)" },
+                  { "term": "Volume factors per pool", "def": "Σf over conditions (functional), Σ(1−f) (inert)" }
+                ]
+              }
+            },
+            { "kind": "callout", "attrs": { "type": "note" }, "body": "<b>Validation.</b> With L = 100 µm, A_F ≈ 3000 µm², φ = 0.68, V_tot = 20 µL, f = 1, c = 1 → n_F = 272,000; the 200 µm case → 136,000, matching the bench notes." },
+            { "kind": "callout", "attrs": { "type": "note" }, "body": "<b>Polydispersity.</b> For a real size spread, the exact quantity is the Sauter mean side ΣL³/ΣL² rather than the arithmetic midpoint; for these narrow ranges the difference is a few percent." }
+          ]
+        }
+      ]
+    }
+  }
+}

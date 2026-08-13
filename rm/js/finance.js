@@ -493,7 +493,7 @@ function _finAttachLiveSync() {
 }
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view finance data.');
   _finWrapSaves();
   await loadAndRender();
   // No live-sync attach: finance is per-user travel, single-tab in practice.

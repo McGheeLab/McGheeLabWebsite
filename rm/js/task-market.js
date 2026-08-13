@@ -61,6 +61,15 @@
   let _booted = false;
 
   function $(id) { return document.getElementById(id); }
+  // V3.571 — running inside the Ourlab phone app? (composer → fold-up sheet)
+  function _ourlabAppTM() {
+    try {
+      if (document.body && document.body.classList.contains('ourlab-app')) return true;
+      if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
+      if (/[?&]mobileShell=1/.test(location.search)) return true;
+      return sessionStorage.getItem('ourlab-shell-preview') === '1';
+    } catch (e) { return false; }
+  }
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -475,15 +484,12 @@
       alert('Sign in to post to the task market.');
       return;
     }
-    const overlay = document.createElement('div');
-    overlay.className = 'tm-overlay';
+    injectStyles();
     const memberOpts = state.members
       .filter(m => m.uid !== state.me.uid)
       .map(m => '<option value="' + esc(m.uid) + '">' + esc(m.name || m.email || m.uid) + '</option>')
       .join('');
-    overlay.innerHTML =
-      '<div class="tm-modal">' +
-        '<h2>' + esc(prefill.heading || 'New marketplace post') + '</h2>' +
+    const formHTML =
         '<form class="tm-form">' +
           '<label>Kind' +
             '<select class="tmf-kind">' +
@@ -510,42 +516,67 @@
             '<button type="button" class="tm-btn tmf-cancel">Cancel</button>' +
             '<button type="submit" class="tm-btn primary tmf-submit">Post</button>' +
           '</div>' +
-        '</form>' +
-      '</div>';
-    injectStyles();
-    document.body.appendChild(overlay);
+        '</form>';
 
-    const form = overlay.querySelector('.tm-form');
-    const kindSel = overlay.querySelector('.tmf-kind');
-    const targetWrap = overlay.querySelector('.tmf-target-wrap');
+    // V3.571 — in the phone app, render as the standard fold-up bottom
+    // sheet (APP_SHEET) instead of the centered modal; same form + submit.
+    if (_ourlabAppTM() && window.APP_SHEET) {
+      window.APP_SHEET.open({
+        title: prefill.heading || 'New marketplace post',
+        build: function (body, api) {
+          body.innerHTML = formHTML;
+          wireComposer(body, function () { api.close(); }, prefill);
+        }
+      });
+      return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'tm-overlay';
+    overlay.innerHTML =
+      '<div class="tm-modal">' +
+        '<h2>' + esc(prefill.heading || 'New marketplace post') + '</h2>' +
+        formHTML +
+      '</div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) overlay.remove(); });
+    wireComposer(overlay, function () { overlay.remove(); }, prefill);
+  }
+
+  /* Wire the composer form (prefill + kind toggle + submit) onto whichever
+   * container hosts it — the desktop overlay or the app fold-up sheet. */
+  function wireComposer(scope, dismiss, prefill) {
+    prefill = prefill || {};
+    const form = scope.querySelector('.tm-form');
+    const kindSel = scope.querySelector('.tmf-kind');
+    const targetWrap = scope.querySelector('.tmf-target-wrap');
     if (prefill.kind) kindSel.value = prefill.kind;
-    if (prefill.title) overlay.querySelector('.tmf-title').value = prefill.title;
-    if (prefill.description) overlay.querySelector('.tmf-desc').value = prefill.description;
-    if (prefill.due && prefill.due !== 'TBD') overlay.querySelector('.tmf-due').value = prefill.due;
+    if (prefill.title) scope.querySelector('.tmf-title').value = prefill.title;
+    if (prefill.description) scope.querySelector('.tmf-desc').value = prefill.description;
+    if (prefill.due && prefill.due !== 'TBD') scope.querySelector('.tmf-due').value = prefill.due;
 
     function syncKind() { targetWrap.hidden = kindSel.value !== 'handoff'; }
     kindSel.addEventListener('change', syncKind);
     syncKind();
 
-    function dismiss() { overlay.remove(); }
-    overlay.querySelector('.tmf-cancel').addEventListener('click', dismiss);
-    overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) dismiss(); });
+    const cancelBtn = scope.querySelector('.tmf-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', dismiss);
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      const status = overlay.querySelector('.tmf-status');
+      const status = scope.querySelector('.tmf-status');
       const kind = kindSel.value;
-      const title = overlay.querySelector('.tmf-title').value.trim();
-      const targetUid = kind === 'handoff' ? overlay.querySelector('.tmf-target').value : '';
+      const title = scope.querySelector('.tmf-title').value.trim();
+      const targetUid = kind === 'handoff' ? scope.querySelector('.tmf-target').value : '';
       if (!title) { status.textContent = 'Add a title.'; return; }
       if (kind === 'handoff' && !targetUid) { status.textContent = 'Pick the teammate this is directed at.'; return; }
-      const hours = parseFloat(overlay.querySelector('.tmf-hours').value || '');
+      const hours = parseFloat(scope.querySelector('.tmf-hours').value || '');
       const ts = firebase.firestore.FieldValue.serverTimestamp();
       const post = {
         kind: kind,
         status: 'open',
         title: title,
-        description: overlay.querySelector('.tmf-desc').value.trim(),
+        description: scope.querySelector('.tmf-desc').value.trim(),
         createdByUid: state.me.uid,
         createdByName: myName(),
         targetUid: targetUid || null,
@@ -554,10 +585,10 @@
         claimedByName: '',
         task_payload: {
           text: title,
-          due_date: overlay.querySelector('.tmf-due').value || 'TBD',
+          due_date: scope.querySelector('.tmf-due').value || 'TBD',
           hours_estimate: isNaN(hours) ? null : hours,
-          self_importance: parseInt(overlay.querySelector('.tmf-imp').value || '0', 10),
-          notes: overlay.querySelector('.tmf-desc').value.trim(),
+          self_importance: parseInt(scope.querySelector('.tmf-imp').value || '0', 10),
+          notes: scope.querySelector('.tmf-desc').value.trim(),
         },
         source_ref: prefill.source_ref || null,
         created_at: nowIso(),
@@ -565,7 +596,7 @@
         createdAt: ts,
         updatedAt: ts,
       };
-      const submit = overlay.querySelector('.tmf-submit');
+      const submit = scope.querySelector('.tmf-submit');
       submit.disabled = true; submit.textContent = 'Posting…';
       postRef(newPostId()).set(post)
         .then(function () {
@@ -578,7 +609,7 @@
         });
     });
 
-    setTimeout(function () { overlay.querySelector('.tmf-title').focus(); }, 0);
+    setTimeout(function () { const t = scope.querySelector('.tmf-title'); if (t) t.focus(); }, 60);
   }
 
   /* V3.317 — composer/modal styles are injected on demand so embedded
@@ -595,7 +626,7 @@
       '.tm-modal h2{margin:0 0 14px;font-size:17px}' +
       '.tm-form{display:grid;gap:12px}' +
       '.tm-form label{display:grid;gap:4px;font-size:12px;color:#374151}' +
-      '.tm-form input,.tm-form select,.tm-form textarea{padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit}' +
+      '.tm-form input,.tm-form select,.tm-form textarea{padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;font-family:inherit}' +
       '.tmf-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}' +
       '.tmf-status{font-size:13px;color:#991b1b;min-height:16px}' +
       '.tmf-actions{display:flex;gap:8px;justify-content:flex-end}' +
@@ -625,8 +656,8 @@
    * Resolves false when not signed in. */
   async function ensureBoot() {
     if (_booted && state.me) return true;
-    if (typeof firebridge === 'undefined' || !firebridge.whenAuthResolved) return false;
-    const auth = await firebridge.whenAuthResolved();
+    if (typeof firebridge === 'undefined' || !firebridge.requireSignIn) return false;
+    const auth = await firebridge.requireSignIn('Sign in to view the task market.');
     if (!auth.user) return false;
     state.me = auth.user;
     state.isAdmin = !!(firebridge.isAdmin && firebridge.isAdmin());

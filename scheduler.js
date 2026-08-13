@@ -47,6 +47,11 @@ function dateLabel(iso) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
 }
 
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 function selectedDaysToDays(selectedDays) {
   return (selectedDays || []).map(iso => {
     const d = new Date(iso + 'T12:00:00');
@@ -165,6 +170,96 @@ function heatColor(count, max) {
   if (!count) return 'rgba(255,255,255,0.03)';
   const t = count / Math.max(max, 1);
   return `hsl(${220 - t * 160},${55 + t * 25}%,${18 + t * 22}%)`;
+}
+
+/* ─── Availability auto-fill (V3.348) ─────────────────────────
+   Pure helpers — the host page fetches the raw availability docs
+   (RM's My Availability collections) and passes them in; nothing
+   here touches Firestore. Guests get an "Auto-fill from my
+   availability" button when config.getAvailabilityData exists. */
+
+function mergeMinuteIvs(ivs) {
+  const sorted = ivs.filter(iv => iv[1] > iv[0]).sort((a, b) => a[0] - b[0]);
+  const out = [];
+  for (const iv of sorted) {
+    if (out.length && iv[0] <= out[out.length - 1][1]) {
+      out[out.length - 1][1] = Math.max(out[out.length - 1][1], iv[1]);
+    } else out.push([iv[0], iv[1]]);
+  }
+  return out;
+}
+
+function subtractMinuteIv(ivs, bs, be) {
+  return ivs.flatMap(([a, z]) => {
+    if (be <= a || bs >= z) return [[a, z]];
+    const keep = [];
+    if (bs > a) keep.push([a, bs]);
+    if (be < z) keep.push([be, z]);
+    return keep;
+  });
+}
+
+/* Per-date free minute-intervals from raw availability docs.
+   data: { templateBlocks (recurring weekly, dayOfWeek 0-6),
+           overrides (per-date add/remove/replace, same shape RM's
+           ScheduleService writes), customEvents, calendarBusy
+           ([{date, startTime, endTime}]) }.
+   Standalone re-implementation of ScheduleService's resolution
+   because its override subscription is week-scoped and a scheduler
+   can span several weeks. */
+function resolveFreeIntervals(dates, data) {
+  const templateBlocks = data.templateBlocks || [];
+  const overrides = data.overrides || [];
+  const customEvents = data.customEvents || [];
+  const calendarBusy = data.calendarBusy || [];
+  const out = {};
+  for (const dateStr of dates) {
+    const dow = new Date(dateStr + 'T00:00:00').getDay();
+    let eff = templateBlocks.filter(b => b.dayOfWeek === dow).map(b => ({ ...b }));
+    for (const ov of overrides) {
+      if (ov.date !== dateStr) continue;
+      if (ov.action === 'remove' && ov.blockId) eff = eff.filter(b => b.id !== ov.blockId);
+      else if (ov.action === 'replace' && ov.blockId && ov.block) eff = eff.map(b => b.id === ov.blockId ? { ...b, ...ov.block } : b);
+      else if (ov.action === 'add' && ov.block) eff.push({ ...ov.block });
+    }
+    let free = mergeMinuteIvs(eff.filter(b => b.type === 'available')
+      .map(b => [timeToMinutes(b.startTime), timeToMinutes(b.endTime)]));
+    const busy = [];
+    eff.forEach(b => { if (b.type === 'unavailable') busy.push([timeToMinutes(b.startTime), timeToMinutes(b.endTime)]); });
+    customEvents.forEach(ce => {
+      if ((ce.isRecurring && ce.dayOfWeek === dow) || (!ce.isRecurring && ce.date === dateStr)) {
+        busy.push([timeToMinutes(ce.startTime), timeToMinutes(ce.endTime)]);
+      }
+    });
+    calendarBusy.forEach(ev => {
+      if (ev.date === dateStr) busy.push([timeToMinutes(ev.startTime), timeToMinutes(ev.endTime)]);
+    });
+    for (const [bs, be] of busy) free = subtractMinuteIv(free, bs, be);
+    out[dateStr] = free;
+  }
+  return out;
+}
+
+/* Map free intervals onto pickable slot/cell ids for this schedule.
+   A slot qualifies only when its FULL window is covered. */
+function computeFreeSlotIds(schedule, expanded, freeByDate) {
+  const covered = (date, s, e) => e > s && (freeByDate[date] || []).some(([a, z]) => a <= s && z >= e);
+  const ids = [];
+  if ((schedule.mode || 'sessions') === 'freeform') {
+    const gran = schedule.granularity || 30;
+    (expanded.days || []).forEach(d => {
+      (expanded.blocks || []).forEach(b => {
+        const m = parseInt(b.time.slice(0, 2), 10) * 60 + parseInt(b.time.slice(2), 10);
+        if (covered(d.date, m, m + gran)) ids.push(`${d.date}-${b.time}`);
+      });
+    });
+  } else {
+    (expanded.allSlots || []).forEach(as => {
+      if (!as.day || !as.day.date || !as.slot || !as.slot.start || !as.slot.end) return;
+      if (covered(as.day.date, timeToMinutes(as.slot.start), timeToMinutes(as.slot.end))) ids.push(as.id);
+    });
+  }
+  return ids;
 }
 
 function defaultGuestInstructions(guestFields, mode, hasBoolQuestions) {
@@ -420,12 +515,14 @@ function dayGridHTML(sortedDays, sessionBlocks, freeformCells) {
 }
 
 /* ─── Wire the unified builder ────────────────────────────── */
-function wireBuilder(containerId, mode, sessionBlocks, freeformCells, sessionDuration, onChange) {
+function wireBuilder(containerId, mode, sessionBlocks, freeformCells, sessionDuration, onChange, initialDays) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const blocks = sessionBlocks ? sessionBlocks.map(b => ({...b})) : [];
   const ffCells = new Set(freeformCells || []);
-  let selectedDays = [];
+  // Seed with the schedule's saved days (V3.364) — without this the
+  // first mount renders no paintable grid and clicks land on nothing.
+  let selectedDays = [...(initialDays || [])];
   let calApi = null;
   let duration = sessionDuration || 60;
 
@@ -532,7 +629,9 @@ function wireBuilder(containerId, mode, sessionBlocks, freeformCells, sessionDur
         if (cell) applyPaint(cell);
       });
       gridEl.addEventListener('pointerup', () => { if (dragging) { dragging = false; fire(); } });
-      gridEl.addEventListener('pointercancel', () => { dragging = false; });
+      // Commit on cancel too — otherwise cells painted before the browser
+      // takes the gesture are shown selected but never saved (V3.342)
+      gridEl.addEventListener('pointercancel', () => { if (dragging) { dragging = false; fire(); } });
     }
   }
 
@@ -627,11 +726,15 @@ function freeformGridHTML(expanded, speakers, isAdmin) {
   speakers.forEach(sp => (sp.availability || []).forEach(bid => { if (availMap[bid]) availMap[bid].push(sp); }));
   const maxHeat = Math.max(...Object.values(availMap).map(a => a.length), 1);
 
+  const todayStr = todayISO();
   let html = `<div class="freeform-grid" style="grid-template-columns:68px repeat(${days.length},1fr);">`;
   html += '<div class="ff-cell ff-corner"></div>';
-  days.forEach(d => { html += `<div class="ff-cell ff-day-header">${esc(d.label)}</div>`; });
+  days.forEach(d => { html += `<div class="ff-cell ff-day-header${d.date === todayStr ? ' ff-today' : ''}">${esc(d.label)}</div>`; });
   blocks.forEach(b => {
-    html += `<div class="ff-cell ff-time-label">${esc(b.label)}</div>`;
+    // Skeleton (V3.349): label only on-the-hour rows; hour rows carry a
+    // strong top border, half rows stay faint.
+    const rowCls = b.time.endsWith('00') ? ' ff-hour' : ' ff-half';
+    html += `<div class="ff-cell ff-time-label${rowCls}">${rowCls === ' ff-hour' ? esc(b.label) : ''}</div>`;
     days.forEach(d => {
       const bid = `${d.date}-${b.time}`;
       const avails = availMap[bid] || [];
@@ -639,7 +742,7 @@ function freeformGridHTML(expanded, speakers, isAdmin) {
       const bg = isAdmin ? heatColor(count, maxHeat) : (count > 0 ? heatColor(count, maxHeat) : 'rgba(255,255,255,0.03)');
       const cl = isAdmin && count > 0 ? `<span class="ff-count">${count}</span>` : '';
       const tip = isAdmin && count > 0 ? ` title="${esc(avails.map(a => a.speakerName).join(', '))}"` : '';
-      html += `<div class="ff-cell ff-block" data-block="${bid}" style="background:${bg};"${tip}>${cl}</div>`;
+      html += `<div class="ff-cell ff-block${rowCls}${d.date === todayStr ? ' ff-today' : ''}" data-block="${bid}" style="background:${bg};"${tip}>${cl}</div>`;
     });
   });
   html += '</div>';
@@ -666,10 +769,16 @@ function wireFreeformDrag(containerId, selected, onSave) {
   let dragging = false, paintMode = null;
   const selectedSet = new Set(selected);
 
+  function updateCount() {
+    const el = document.getElementById('ff-selected-count');
+    if (el) el.textContent = selectedSet.size ? selectedSet.size + ' slot(s) selected' : '';
+  }
+
   function applyPaint(cell) {
     const bid = cell.dataset.block; if (!bid) return;
     if (paintMode === 'select') { selectedSet.add(bid); cell.classList.add('ff-selected'); }
     else { selectedSet.delete(bid); cell.classList.remove('ff-selected'); }
+    updateCount();
   }
 
   container.querySelectorAll('.ff-block[data-block]').forEach(cell => {
@@ -680,6 +789,8 @@ function wireFreeformDrag(containerId, selected, onSave) {
     const cell = e.target.closest('.ff-block[data-block]');
     if (!cell) return;
     e.preventDefault(); dragging = true;
+    // Capture so the drag survives leaving the grid edge (V3.342)
+    try { container.setPointerCapture(e.pointerId); } catch (err) {}
     paintMode = cell.classList.contains('ff-selected') ? 'deselect' : 'select';
     applyPaint(cell);
   });
@@ -691,7 +802,9 @@ function wireFreeformDrag(containerId, selected, onSave) {
   });
   const endDrag = () => { dragging = false; paintMode = null; };
   container.addEventListener('pointerup', endDrag);
-  container.addEventListener('pointerleave', endDrag);
+  // Keep painted state on pointercancel — the selection is only
+  // persisted by the Save button, so nothing is lost (V3.342)
+  container.addEventListener('pointercancel', endDrag);
 
   if (onSave) {
     document.getElementById('save-availability-btn')?.addEventListener('click', async () => {
@@ -701,6 +814,21 @@ function wireFreeformDrag(containerId, selected, onSave) {
       catch (e) { st.textContent = 'Error.'; console.error(e); }
     });
   }
+
+  // Additive selection handle for the auto-fill button (V3.348)
+  return {
+    addBlocks(ids) {
+      let added = 0;
+      ids.forEach(bid => {
+        if (!selectedSet.has(bid)) { selectedSet.add(bid); added++; }
+      });
+      container.querySelectorAll('.ff-block[data-block]').forEach(cell => {
+        if (selectedSet.has(cell.dataset.block)) cell.classList.add('ff-selected');
+      });
+      updateCount();
+      return added;
+    },
+  };
 }
 
 /* ================================================================
@@ -821,11 +949,12 @@ function guestViewHTML(config) {
   } else {
     const { days, blocks } = expanded;
     const sel = new Set(avail);
+    const todayStr = todayISO();
     availHTML = `<div class="freeform-grid" id="speaker-avail-grid" style="grid-template-columns:68px repeat(${days.length},1fr);touch-action:none;">
       <div class="ff-cell ff-corner"></div>
-      ${days.map(d => `<div class="ff-cell ff-day-header">${esc(d.label)}</div>`).join('')}
-      ${blocks.map(b => `<div class="ff-cell ff-time-label">${esc(b.label)}</div>
-        ${days.map(d => { const bid = `${d.date}-${b.time}`; return `<div class="ff-cell ff-block ${sel.has(bid) ? 'ff-selected' : ''}" data-block="${bid}"></div>`; }).join('')}`).join('')}
+      ${days.map(d => `<div class="ff-cell ff-day-header${d.date === todayStr ? ' ff-today' : ''}">${esc(d.label)}</div>`).join('')}
+      ${blocks.map(b => { const rowCls = b.time.endsWith('00') ? ' ff-hour' : ' ff-half'; return `<div class="ff-cell ff-time-label${rowCls}">${rowCls === ' ff-hour' ? esc(b.label) : ''}</div>
+        ${days.map(d => { const bid = `${d.date}-${b.time}`; return `<div class="ff-cell ff-block${rowCls}${d.date === todayStr ? ' ff-today' : ''} ${sel.has(bid) ? 'ff-selected' : ''}" data-block="${bid}"></div>`; }).join('')}`; }).join('')}
     </div>`;
   }
 
@@ -840,14 +969,15 @@ function guestViewHTML(config) {
     </div>
 
     <div class="card" style="padding:1.25rem;margin-bottom:16px;">
-      <h4>Your Availability</h4>
-      <p class="muted-text" style="margin:0 0 12px;font-size:.85rem;">${mode === 'freeform' ? 'Click and drag to mark available times.' : 'Check all slots you are available for.'}</p>
+      <h4>${hasAnyFields ? 'Step 1 — Pick your times' : 'Your Availability'}</h4>
+      <p class="muted-text" style="margin:0 0 12px;font-size:.85rem;">${mode === 'freeform' ? 'Tap or drag to paint the times you are available.' : 'Tap every slot you are available for.'}</p>
       ${availHTML}
-      <div style="margin-top:12px;"><button type="button" id="save-availability-btn" class="btn">Save Availability</button><span id="avail-status" class="save-status"></span></div>
+      ${config.getAvailabilityData ? `<div style="margin-bottom:10px;"><button type="button" id="autofill-avail-btn" class="btn">&#9889; Auto-fill from my availability</button><span class="muted-text" style="margin-left:8px;font-size:.8rem;">Uses the availability you keep in RM. You can adjust before saving.</span></div>` : ''}
+      <div style="margin-top:12px;"><button type="button" id="save-availability-btn" class="btn">Save Availability</button><span id="avail-status" class="save-status"></span>${mode === 'freeform' ? `<span id="ff-selected-count" class="muted-text" style="margin-left:10px;font-size:.85rem;">${avail.length ? avail.length + ' slot(s) selected' : ''}</span>` : ''}</div>
     </div>
 
     ${hasAnyFields ? `<div class="card" style="padding:1.25rem;margin-bottom:16px;">
-      <h4>Details</h4>
+      <h4>Step 2 — Your details</h4>
       <div class="speaker-form">
         ${showSummary ? `<div class="form-group"><label>Talk Summary</label><textarea id="speaker-summary" rows="4" placeholder="Brief summary...">${esc(speaker.talkSummary || '')}</textarea></div>` : ''}
         ${showQuestions ? `<div class="form-group"><label>Discussion Questions</label>
@@ -864,6 +994,20 @@ function guestViewHTML(config) {
       </div>
     </div>` : ''}
   `;
+}
+
+/* Prefilled mailto: for confirming an assigned slot with an external
+   guest (no server email infrastructure — the admin's mail app sends) */
+function assignedSlotMailto(sp, schedule, allSlots, inviteURL) {
+  const slot = slotLabel(sp.assignedSlot, allSlots);
+  const subject = 'Your ' + (schedule.title || 'schedule') + ' slot is confirmed';
+  const body = 'Hi ' + (sp.speakerName || '') + ',\n\n'
+    + 'You are scheduled for: ' + slot + '.\n\n'
+    + (inviteURL ? 'View details or update your info here:\n' + inviteURL + '\n\n' : '')
+    + 'Thanks!';
+  return 'mailto:' + encodeURIComponent(sp.speakerEmail)
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
 }
 
 /* ─── Admin View ──────────────────────────────────────────── */
@@ -901,7 +1045,10 @@ function adminViewHTML(config) {
         const yesCount = boolQs.filter(q => answers[q.id]).length;
         guestTableHTML += `<td title="${esc(tooltip)}">${yesCount} / ${boolQs.length}</td>`;
       }
-      guestTableHTML += `<td><button class="btn btn-small copy-invite-btn" data-invite-url="${esc(inviteURL)}">Copy Link</button></td><td>`;
+      const emailBtn = (sp.speakerEmail && sp.assignedSlot)
+        ? `<a class="btn btn-small" href="${esc(assignedSlotMailto(sp, schedule, allSlots, inviteURL))}" style="margin-left:4px;">&#9993; Email</a>`
+        : '';
+      guestTableHTML += `<td><button class="btn btn-small copy-invite-btn" data-invite-url="${esc(inviteURL)}">Copy Link</button>${emailBtn}</td><td>`;
       if (mode === 'sessions') guestTableHTML += `<select class="assign-select" data-speaker-id="${sp.id}"><option value="">—</option>${allSlots.map(s => `<option value="${s.id}" ${sp.assignedSlot === s.id ? 'selected' : ''} ${(sp.availability || []).includes(s.id) ? '' : 'disabled'}>${s.day.label} ${s.slot.label}</option>`).join('')}</select>`;
       guestTableHTML += `<button class="btn btn-danger btn-small" data-remove-speaker="${sp.id}" style="margin-left:4px;">Remove</button></td></tr>`;
     });
@@ -1076,6 +1223,7 @@ function wireGuestForm(speaker, schedule, expanded, config) {
     if (config.onSaveSpeaker) await config.onSaveSpeaker(speaker.id, data, config.useKeyAuth);
   };
 
+  let ffApi = null;
   if (mode === 'sessions') {
     document.getElementById('save-availability-btn')?.addEventListener('click', async () => {
       const st = document.getElementById('avail-status');
@@ -1088,8 +1236,45 @@ function wireGuestForm(speaker, schedule, expanded, config) {
       } catch (e) { st.textContent = 'Error.'; console.error(e); }
     });
   } else {
-    wireFreeformDrag('speaker-avail-grid', speaker.availability || [], async (selected) => {
+    ffApi = wireFreeformDrag('speaker-avail-grid', speaker.availability || [], async (selected) => {
       await saveFn({ availability: selected });
+    });
+  }
+
+  // Auto-fill from the guest's RM availability (V3.348). Additive:
+  // never unchecks; the guest reviews, adjusts, then saves.
+  const autofillBtn = document.getElementById('autofill-avail-btn');
+  if (autofillBtn && config.getAvailabilityData) {
+    autofillBtn.addEventListener('click', async () => {
+      const st = document.getElementById('avail-status');
+      autofillBtn.disabled = true;
+      if (st) st.textContent = 'Reading your availability…';
+      try {
+        const dates = (expanded.days || []).map(d => d.date).filter(Boolean);
+        const data = await config.getAvailabilityData(dates);
+        const freeByDate = resolveFreeIntervals(dates, data || {});
+        const ids = computeFreeSlotIds(schedule, expanded, freeByDate);
+        let added = 0;
+        if (mode === 'sessions') {
+          const idSet = new Set(ids);
+          document.querySelectorAll('.avail-checkbox').forEach(cb => {
+            if (idSet.has(cb.dataset.slot) && !cb.checked) { cb.checked = true; added++; }
+          });
+        } else if (ffApi) {
+          added = ffApi.addBlocks(ids);
+        }
+        if (st) {
+          st.textContent = added
+            ? `Marked ${added} slot(s) you're free for — adjust as needed, then Save.`
+            : (ids.length ? 'Your free slots were already selected.' : 'No matching free slots found in your availability.');
+          setTimeout(() => { if (st.textContent.includes('slot')) st.textContent = ''; }, 6000);
+        }
+      } catch (e) {
+        if (st) st.textContent = 'Could not read your availability.';
+        console.error('[scheduler] auto-fill failed:', e);
+      } finally {
+        autofillBtn.disabled = false;
+      }
     });
   }
 
@@ -1219,6 +1404,13 @@ function wireSetupForm(config) {
   const initFFCells = schedule.freeformCells || [];
   const initSelectedDays = [...(schedule.selectedDays || [])];
   const initSessionBlocks = schedule.sessionBlocks ? JSON.parse(JSON.stringify(schedule.sessionBlocks)) : [];
+  // Legacy sessions docs may lack selectedDays — derive from block days
+  // so the grid still exists on first mount (V3.364)
+  if (!initSelectedDays.length && initSessionBlocks.length) {
+    const ds = new Set();
+    initSessionBlocks.forEach(sb => { if (sb.day) ds.add(sb.day); (sb.days || []).forEach(d => ds.add(d)); });
+    initSelectedDays.push(...[...ds].sort());
+  }
 
   form.innerHTML = setupFormHTML(schedule);
 
@@ -1230,7 +1422,8 @@ function wireSetupForm(config) {
       mode === 'sessions' ? initSessionBlocks : [],
       mode === 'freeform' ? initFFCells : [],
       schedule.sessionDuration || 60,
-      () => {} // onChange — state tracked via builderApi getters
+      () => {}, // onChange — state tracked via builderApi getters
+      initSelectedDays // saved days — grid must exist on first mount (V3.364)
     );
   }
 
@@ -1376,7 +1569,9 @@ McgheeLab.Scheduler = {
   optimizeSchedule,
   heatColor,
   fmtTime,
-  slotLabel
+  slotLabel,
+  resolveFreeIntervals,
+  computeFreeSlotIds
 };
 
 })();

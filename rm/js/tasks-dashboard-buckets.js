@@ -1463,8 +1463,8 @@
       // Wait for auth to resolve so user-scope reads hit Firestore (not the
       // legacy single-tenant JSON fallback). Without this, first paint reads
       // empty and the user sees a blank workspace until they refresh.
-      if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
-        await firebridge.whenAuthResolved();
+      if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+        await firebridge.requireSignIn('Sign in to view your task dashboard.');
       }
       await Promise.all([loadDoc(), loadItemsIndex(), loadAssignedTasks(), loadTasksISent()]);
       // First-run: hide auto-migrated category projects by default so the dashboard starts clean.

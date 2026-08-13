@@ -374,8 +374,8 @@ if (_addBtn) {
 }
 
 (async function () {
-  if (typeof firebridge !== 'undefined' && firebridge.whenAuthResolved) {
-    await firebridge.whenAuthResolved();
+  if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
+    await firebridge.requireSignIn('Sign in to view lab members.');
   }
   await loadAndRender();
   attachLiveSync();

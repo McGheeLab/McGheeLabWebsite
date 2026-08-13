@@ -1,0 +1,19 @@
+{
+  "id": "rm-cover-letter",
+  "schema_version": 2,
+  "name": "Cover letter (RM submission document)",
+  "description": "Compiles the paper's Cover Letter section (plus Suggested Reviewers, when present) into a one-page letter. Not a manuscript template — used by the Submission documents card on the Export page.",
+  "main_file": "main.tex",
+  "preamble": "\\documentclass[11pt]{article}\n\\usepackage[margin=1.1in]{geometry}\n\\usepackage[T1]{fontenc}\n\\usepackage{parskip}\n\\usepackage{microtype}\n\\pagestyle{empty}",
+  "main_template": "{{PREAMBLE}}\n\n\\begin{document}\n\n\\begin{flushright}\n\\today\n\\end{flushright}\n\n\\noindent {{AUTHOR_BLOCK}}\n\n\\vspace{1.2em}\n\\noindent \\textbf{Re: {{TITLE}}}\n\n\\vspace{0.8em}\n\\noindent Dear Editor,\n\n{{BODY}}\n\n{{REVIEWERS}}\n\n\\vspace{1.6em}\n\\noindent Sincerely,\\\\[4pt]\n{{LEAD_AUTHOR}}, on behalf of the authors\n\n\\end{document}",
+  "section_kind_to_command": {
+    "cover_letter": { "type": "placeholder", "token": "{{BODY}}" },
+    "suggested_reviewers": { "type": "placeholder", "token": "{{REVIEWERS}}", "wrap": "\\subsection*{Suggested reviewers}\n%s" }
+  },
+  "default_section_label": {
+    "cover_letter": "Cover Letter",
+    "suggested_reviewers": "Suggested Reviewers"
+  },
+  "figure_environment": { "env": "figure", "placement": "H", "compiled_columns": 1 },
+  "table_environment": { "env": "table", "placement": "H" }
+}

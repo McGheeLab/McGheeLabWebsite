@@ -25,7 +25,15 @@
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/rm/index.html' },
 
+  // V3.526/V3.535 — My Day: the unified "start here" surface; entries fan
+  // out to huddle / equipment / notebook / tracker via day-distribute.js.
+  // Top-level (first after Dashboard) — it's the page students open first.
+  // pageGroup files it under Activity in the All Pages grid (V3.542).
+  { label: '☀️ My Day', href: '/rm/pages/my-day.html', gate: 'lab-member', pageGroup: 'Activity' },
+
   { label: 'Activity', href: '/rm/pages/activity-overview.html', children: [
+    // V3.536 — mentor↔mentee weekly-focus loop (assign / edit / sign off).
+    { label: 'Team Focus', href: '/rm/pages/team-focus.html', gate: 'lab-member' },
     { label: 'Overview', href: '/rm/pages/activity-overview.html' },
     { label: 'Tracker',  href: '/rm/pages/activity-overview.html?tab=tracker' },
     { label: 'Email',    href: '/rm/pages/activity-overview.html?tab=email' },
@@ -35,13 +43,18 @@ const NAV_ITEMS = [
     { label: 'Tasks',    href: '/rm/pages/tasks.html' },
     // V3.313 — the marketplace carries every cross-user task flow
     // (offers, "I need work" requests, help/handoff asks). V3.317 folded
-    // the legacy Sharing page's tabs into its Assignments view;
-    // sharing.html now redirects here.
-    { label: 'Task Market', href: '/rm/pages/task-market.html', gate: 'lab-member' },
+    // the legacy Sharing page's tabs into its Assignments view.
+    // V3.480 — the board is now the `market` tab of the unified Tasks page;
+    // task-market.html redirects here.
+    { label: 'Task Market', href: '/rm/pages/tasks.html?tab=market', gate: 'lab-member' },
     { label: 'Explorer', href: '/rm/pages/explorer.html' },
   ]},
 
-  { label: 'Research', href: '/rm/pages/projects.html', children: [
+  // V3.544 — the Research landing is now the Research Foci hub (the lab's
+  // specialty/concept/output map); the projects pin-grid stays as a child.
+  { label: 'Research', href: '/rm/pages/research.html', children: [
+    { label: 'Research Foci', href: '/rm/pages/research.html' },
+    { label: 'Outputs',      href: '/rm/pages/outputs.html' },
     { label: 'Projects',     href: '/rm/pages/projects.html' },
     { label: 'Library',      href: '/rm/pages/library.html' },
     { label: 'Comments',     href: '/rm/pages/library.html?tab=comments' },
@@ -93,8 +106,9 @@ const NAV_ITEMS = [
   { label: 'Settings', gate: 'lab-member', children: [
     { label: 'Profile',         href: '/rm/pages/profile.html' },
     { label: 'Settings',        href: '/rm/pages/settings.html' },
+    { label: "🚀 What's New",   href: '/rm/pages/whats-new.html' },
     { label: 'CV Editor',       href: '/rm/pages/cv-editor.html' },
-    { label: 'CV Overview',     href: '/rm/pages/cv-editor.html?tab=lab' },
+    { label: 'CV Overview',     href: '/rm/pages/cv-editor.html?tab=lab', gate: 'admin' },
     { label: 'Member Activity', href: '/rm/pages/activity-overview.html?tab=lab-stats', gate: 'admin' },
     { label: 'Classifier Settings', href: '/rm/pages/classifier-settings.html', gate: 'lab-member' },
     { label: 'API Usage',       href: '/rm/pages/api-usage.html', gate: 'admin' },
@@ -1163,6 +1177,9 @@ function renderNav() {
   function makeTopLink(label, href, isActive) {
     const a = document.createElement('a');
     a.href = href;
+    // V3.570 — Workflows / All Pages / Split are hidden in the Ourlab app
+    // (each page's own tab bar is the nav there).
+    a.classList.add('nav-app-hide');
     // V3.233: split "🗂 Workflows" into icon + .nav-label span so the
     // ≤640px CSS rule can hide just the label and show icons only on
     // narrow screens.
@@ -1279,7 +1296,7 @@ async function _wfPinCustomWorkflows(navEl) {
 
   // Build the dropdown.
   const wrapper = document.createElement('div');
-  wrapper.className = 'nav-dropdown nav-dropdown-pinned';
+  wrapper.className = 'nav-dropdown nav-dropdown-pinned nav-app-hide';
   const trigger = document.createElement('button');
   trigger.className = 'nav-dropdown-trigger';
   // V3.233: wrap label in .nav-label span so the ≤640px CSS rule can
@@ -1327,22 +1344,34 @@ async function _wfPinCustomWorkflows(navEl) {
 function applyNavGates() {
   const isAdmin     = (typeof firebridge !== 'undefined') && firebridge.isAdmin && firebridge.isAdmin();
   const isLabMember = (typeof firebridge !== 'undefined') && firebridge.isLabMember && firebridge.isLabMember();
-  const allowed = (gate) => {
+  const allowed = (gate, el) => {
     if (!gate) return true;
     if (gate === 'admin') return !!isAdmin;
-    if (gate === 'lab-member') return !!isLabMember;
+    if (gate === 'lab-member') {
+      if (isLabMember) return true;
+      // V3.605 — a non-member (guest/collaborator) with an explicit
+      // per-user grant on this item's page still gets the link. Page id
+      // comes from the element's href; grants are allowedPageIds entries
+      // or any 'library-paper:*'-style capability on the slug.
+      const href = el && el.getAttribute && el.getAttribute('href');
+      const m = href && href.match(/^\/rm\/pages\/([a-z0-9-]+)\.html/);
+      if (m && typeof firebridge !== 'undefined' && firebridge.hasExplicitPageGrant) {
+        return firebridge.hasExplicitPageGrant(m[1]) || firebridge.hasAnyCapabilityFor(m[1]);
+      }
+      return false;
+    }
     return true;
   };
 
   // Hide individual items whose gate is unmet.
   document.querySelectorAll('.top-nav [data-gate]').forEach(el => {
-    el.style.display = allowed(el.dataset.gate) ? '' : 'none';
+    el.style.display = allowed(el.dataset.gate, el) ? '' : 'none';
   });
 
   // Hide a dropdown group whose visible children are all hidden — keeps the
   // nav from showing an empty "Activity ▾" with no entries inside.
   document.querySelectorAll('.top-nav .nav-dropdown').forEach(group => {
-    if (group.dataset.gate && !allowed(group.dataset.gate)) {
+    if (group.dataset.gate && !allowed(group.dataset.gate, group)) {
       group.style.display = 'none';
       return;
     }
@@ -1353,7 +1382,7 @@ function applyNavGates() {
       if (a.style.display !== 'none') anyVisible = true;
     });
     if (!anyVisible) group.style.display = 'none';
-    else if (!group.dataset.gate || allowed(group.dataset.gate)) group.style.display = '';
+    else if (!group.dataset.gate || allowed(group.dataset.gate, group)) group.style.display = '';
   });
 }
 
@@ -1392,6 +1421,22 @@ window.addEventListener('DOMContentLoaded', () => {
     window.__rmPageTimeTrackerInjected = true;
     var s = document.createElement('script');
     s.src = '/rm/js/page-time-tracker.js';
+    s.async = true;
+    (document.head || document.documentElement).appendChild(s);
+  } catch (e) { /* nav.js shouldn't block on this */ }
+})();
+
+// V3.596 — auto-inject the presence heartbeat on every RM page, same
+// reasoning as the tracker above: it has to be everywhere, so injecting it
+// here beats a <script> tag on 72 pages. It publishes what this surface is
+// showing to userPresence/{uid} so the push pipeline can skip notifying
+// someone who is already looking at the thing (functions/helpers/presence.js).
+(function injectPresence() {
+  try {
+    if (window.__rmPresenceInjected) return;
+    window.__rmPresenceInjected = true;
+    var s = document.createElement('script');
+    s.src = '/rm/js/presence.js';
     s.async = true;
     (document.head || document.documentElement).appendChild(s);
   } catch (e) { /* nav.js shouldn't block on this */ }

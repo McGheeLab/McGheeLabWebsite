@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
   <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/paper-doc-view.css">
+  <!-- V3.609 — 🧭 Figure board planning canvas (editor-mode pill page). -->
+  <link rel="stylesheet" href="/rm/css/paper-figure-board.css">
   <!-- KaTeX styles for inline math rendering. The JS module is lazy-loaded
        by paper-editor.js when a paragraph blurs into render mode. Loaded
        eagerly so editor mode renders without a flash even on slow networks
@@ -21,19 +24,43 @@
      * live side-by-side in this shell; CSS hides the inactive one,
      * and only the active mode's renderer scripts are loaded. */
     (function () {
-      var pid = new URLSearchParams(location.search).get('paper');
+      var qp = new URLSearchParams(location.search);
+      var pid = qp.get('paper');
       var mode = pid ? 'editor' : 'list';
       window.__PAPER_MODE = mode;
       window.__PAPER_ID = pid;
+      /* Pill PAGES — the former side-panel tabs are full editor pages:
+       * ?paper=<id>&page=guide|equations|figures|tables|references.
+       * Absent/unknown = 'write' (the doc editor). */
+      var PAGES = ['guide', 'equations', 'symbols', 'figures', 'figure-board', 'tables', 'references', 'grant-docs'];
+      var page = qp.get('page');
+      if (PAGES.indexOf(page) < 0) page = 'write';
+      window.__PAPER_PAGE = page;
+      var PAGE_TITLES = {
+        write: 'Paper Editor', guide: 'Writing Guide — Paper Editor',
+        equations: 'Equations — Paper Editor', symbols: 'Math Symbols — Paper Editor',
+        figures: 'Figure Editor',
+        'figure-board': 'Figure Board — Paper Editor',
+        tables: 'Tables — Paper Editor', references: 'References — Paper Editor',
+        'grant-docs': 'Grant Documents — Paper Editor',
+      };
       document.title = (mode === 'editor')
-        ? 'Paper Editor — McGhee Lab'
+        ? PAGE_TITLES[page] + ' — McGhee Lab'
         : 'Papers — McGhee Lab';
       document.documentElement.dataset.paperMode = mode;
+      if (mode === 'editor') document.documentElement.dataset.paperPage = page;
     })();
   </script>
   <style>
     html[data-paper-mode="editor"] .paper-list-mode { display: none; }
     html[data-paper-mode="list"]   .paper-editor-mode { display: none; }
+    /* Tool pages hide the write surface (doc layout + editing toolbar +
+     * mobile drawer toggles) and show the full-width tool-page root.
+     * Anti-flash: lives here beside the mode rules. */
+    html[data-paper-mode="editor"]:not([data-paper-page="write"]) .pe-layout,
+    html[data-paper-mode="editor"]:not([data-paper-page="write"]) .pe-global-toolbar,
+    html[data-paper-mode="editor"]:not([data-paper-page="write"]) .pe-mobile-toggle { display: none; }
+    html[data-paper-mode="editor"][data-paper-page="write"] .pe-toolpage { display: none; }
   </style>
 </head>
 <body>
@@ -42,6 +69,9 @@
     <div class="page-header">
       <h1 class="page-title">Papers</h1>
       <div>
+        <!-- V3.47x — import a portable paper bundle (.paperbundle.zip). -->
+        <button class="btn" id="pb-import-btn" title="Import a paper bundle (.paperbundle.zip) exported from the paper editor">📥 Import paper</button>
+        <input type="file" id="pb-import-file" accept=".zip,application/zip" hidden>
         <button class="btn btn-primary" id="pb-new-paper-btn">+ New paper</button>
       </div>
     </div>
@@ -67,6 +97,21 @@
           <label for="pb-new-id">Slug (auto)</label>
           <input type="text" id="pb-new-id" placeholder="auto-generated from title">
           <small class="form-hint">Kebab-case; must be unique within the lab.</small>
+        </div>
+        <div class="form-group">
+          <label for="pb-new-type">Document type</label>
+          <select id="pb-new-type">
+            <option value="journal" selected>Journal paper</option>
+            <option value="grant">Grant</option>
+            <option value="editorial">Editorial note</option>
+            <option value="book-chapter">Book chapter</option>
+          </select>
+          <small class="form-hint">Drives the available templates, the Add Section menu, and (for grants) the Grant Docs page. Editable later on the Export page.</small>
+        </div>
+        <div class="form-group" id="pb-new-subtype-group" hidden>
+          <label for="pb-new-subtype">Grant mechanism</label>
+          <select id="pb-new-subtype"></select>
+          <small class="form-hint">Sets the submission checklist and required-document set. Follows the template unless you change it.</small>
         </div>
         <div class="form-group">
           <label for="pb-new-template">Template</label>
@@ -100,6 +145,11 @@
       <button class="rm-mobile-drawer-toggle pe-mobile-toggle" id="pe-mobile-left-toggle" type="button" aria-label="Open outline sidebar">☰ Outline</button>
       <a class="pe-back" href="/rm/pages/paper-builder.html">← All papers</a>
       <input type="text" class="pe-title-input" id="pe-title" placeholder="Untitled paper" disabled>
+      <!-- V3.365 — draft status selector. Writing projects/papers.json is
+           admin-only per firestore.rules, so paper-editor.js enables this
+           only for admins; flipping to `published` derives every library
+           association pill for this draft inactive (LIBRARY_ASSOC). -->
+      <select class="pe-status-select" id="pe-status" title="Paper status" disabled></select>
       <div class="pe-savestate" id="pe-savestate"></div>
       <button class="rm-mobile-drawer-toggle pe-mobile-toggle" id="pe-mobile-right-toggle" type="button" aria-label="Open comments pane">💬 Comments<span class="rm-mobile-drawer-toggle-badge" id="pe-mobile-right-toggle-badge" hidden>0</span></button>
     </div>
@@ -109,6 +159,10 @@
     <div class="pe-pillbar" id="pe-pillbar" role="tablist" aria-label="Paper tabs"></div>
     <div class="pe-global-toolbar" id="pe-global-toolbar" role="toolbar" aria-label="Paper toolbar"></div>
     <div class="pe-readonly-banner" id="pe-readonly-banner" hidden></div>
+    <!-- Tool-page root — the full-width host the former side-panel tabs
+         mount into on ?page=guide|equations|figures|tables|references.
+         paper-equations.js mounts the pane here on attach(). -->
+    <div class="pe-toolpage" id="pe-toolpage-root"></div>
     <div class="pe-layout">
       <aside class="pe-sidebar rm-mobile-drawer-left">
         <!-- V3.197 — tabbed sidebar. "Outline" mirrors the doc's
@@ -124,6 +178,10 @@
           <ul class="pe-sidebar-list" id="pe-outline"></ul>
           <div class="pe-sidebar-actions">
             <button class="btn pe-add-section" id="pe-add-section-btn" disabled>+ Add section</button>
+            <!-- V3.456 — places the movable appendix divider before the last
+                 section; hidden while one exists (move/remove it on the bar). -->
+            <button class="btn pe-add-section" id="pe-appendix-btn" disabled hidden
+                    title="Add the appendix divider — sections below it become Appendix A, B, C">§ Appendices</button>
           </div>
         </div>
         <div class="pe-sidebar-tab-content" data-sidebar-tab="paragraph" hidden>
@@ -198,6 +256,7 @@
   <!-- V3.102: Storage SDK for figure-block image uploads (paper-figures.js). -->
   <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
   <!-- V3.319 — lightweight activity events (first edit of the day). -->
   <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/api-firestore-adapter.js"></script>
@@ -210,14 +269,39 @@
   <script src="/rm/js/paper-schemas.js"></script>
   <!-- V3.234 — external links (Synology share URLs etc) on paper drafts. -->
   <script src="/rm/js/external-links.js"></script>
+  <!-- V3.47x — JSZip for reading imported .paperbundle.zip files (list mode). -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <!-- Per-mode scripts via document.write (same V3.58/V3.59 pattern) -->
   <script>
     (function () {
       var mode = window.__PAPER_MODE;
-      var listScripts = ['/rm/js/paper-builder.js'];
+      // V3.491 — the list page now runs the FULL import pipeline (headless
+      // PaperYjs connect + build + upload + references) so import shows
+      // progress and doesn't auto-open. These deps back PaperImportEngine.
+      var listScripts = [
+        '/rm/js/paper-yjs.js',
+        '/rm/js/paper-figures.js',
+        '/rm/js/paper-tree-build.js',
+        '/rm/js/library-metadata.js',    // reference-import buildPaperItem
+        '/rm/js/reference-import.js',
+        '/rm/js/library-links.js',       // toggleDraftLink (attach refs)
+        // V3.494 — Semantic Scholar enrichment of imported references
+        // (abstracts + reference lists). enrichItemFromSemanticScholar needs
+        // PAPER_SS + LIBRARY_EXTRAS.
+        '/rm/js/paper-semantic-scholar.js',
+        '/rm/js/library-extras.js',
+        '/rm/js/library-upload.js',
+        '/rm/js/paper-import-engine.js',
+        '/rm/js/paper-builder.js',
+      ];
       var editorScripts = [
         '/rm/js/paper-yjs.js',
+        // E1 — shared lazy loader for the vendored MathLive visual
+        // equation editor (also used by the library reader).
+        '/rm/js/mathlive-loader.js',
+        // F1 — multi-panel figure composer (bake-to-one-image).
+        '/rm/js/paper-fig-compose.js',
         '/rm/js/paper-figures.js',
         // V3.104 — skeleton bullet claims bridge sits between paper-blocks
         // (which renders the per-bullet ⚑ flag + status pill) and the
@@ -225,13 +309,68 @@
         // before paper-blocks so the renderer can probe their public APIs.
         '/rm/js/claims.js',
         '/rm/js/paper-bullet-claims.js',
+        // V3.334 — curated writing guidance data + renderer for the
+        // "✍️ Guide" pill tab. Loaded before paper-equations so
+        // window.PaperWritingGuide exists when the panel first refreshes.
+        '/rm/js/paper-writing-guide.js',
+        // V3.459 — math symbol palette for the "∑ Symbols" page. Same
+        // contract as the guide: loaded before paper-equations so
+        // window.PaperSymbols exists when _refreshPanel mounts it.
+        '/rm/js/paper-symbols.js',
+        // V3.468 — grant submission checklist (mounted by paper-grant-docs
+        // into the Grant Docs page). Loaded before it so the mount hook
+        // finds window.PaperGrantChecklist.
+        '/rm/js/paper-grant-checklist.js',
+        // V3.467 — grant document library for the "📎 Grant Docs" page
+        // (grant papers only). Same lazy-scaffold contract as the guide.
+        '/rm/js/paper-grant-docs.js',
+        // V3.611 — generic threaded comments (PMR's module) for the Figure
+        // board's per-card discussion panel. Before paper-figure-board.
+        '/rm/js/section-comments.js',
+        // V3.609 — 🧭 Figure board planning canvas (methods-and-results
+        // planning: figure/experiment/reference/note cards + arrows).
+        // Same lazy-scaffold contract; before paper-equations so
+        // window.PaperFigureBoard exists when _refreshPanel mounts it.
+        '/rm/js/paper-figure-board.js',
         // V3.109 — equation library + right-click insert + numbering UI.
         // Loaded before paper-blocks so renderEquation can register the
         // numbered-toggle / label-input controls and so the paragraph
         // body's contextmenu handler can wire up.
         '/rm/js/paper-equations.js',
         '/rm/js/paper-blocks.js',
+        // V3.395 — layout intent → LaTeX float rules (PaperLayout).
+        // Before paper-export-tex (figureToTex/tableToTex resolve
+        // anchored floats through it) and paper-doc-view (the preview
+        // derives widths through the same rules).
+        '/rm/js/paper-layout-rules.js',
+        // V3.405 — figure-box auto-fit (image maximized around the
+        // caption inside the sized box). Before paper-doc-view (block
+        // builder + resize drag share PaperFigFit.fit).
+        '/rm/js/paper-fig-fit.js',
         '/rm/js/paper-export-tex.js',
+        // V3.344 — editor-side citation styling (chips follow the export
+        // template's render_family). After paper-export-tex (uses its
+        // fetchTemplate), before paper-editor (which calls init()).
+        '/rm/js/paper-cite-style.js',
+        // V3.387 — Document view: journal template registry (select
+        // options) + the page-sheet preview module. Both before
+        // paper-editor.js so the topbar button + switcher wire up.
+        '/rm/js/paper-export-config.js',
+        '/rm/js/paper-doc-view.js',
+        // V3.350 — Evidence Inbox (reader highlights flagged cite-in-draft
+        // + claims evidence, surfaced in the References tab).
+        '/rm/js/paper-evidence-inbox.js',
+        // V3.351 — abstract fetch (extras subdoc) + DOI/title metadata
+        // lookup for the References tab's add-to-library flow. Both are
+        // light standalone modules shared with the library page.
+        '/rm/js/library-extras.js',
+        '/rm/js/library-metadata.js',
+        // V3.352 — atomic linked_drafts writer (References tab link/unlink).
+        '/rm/js/library-links.js',
+        // V3.366 — cited_in_drafts diff loop (uncited-dot data source).
+        '/rm/js/library-cited-sync.js',
+        // V3.483 — references importer (BibTeX/DOI → library) + [N]→[@key].
+        '/rm/js/reference-import.js',
         '/rm/js/mobile-drawers.js',
         '/rm/js/paper-editor.js'
       ];

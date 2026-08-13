@@ -1876,7 +1876,7 @@ function renderEventTaskBadge(e) {
     try { await firebridge.whenAuthResolved(); } catch (_) {}
   }
   if (typeof firebridge !== 'undefined' && firebridge.gateSignedIn) {
-    var gate = await firebridge.gateSignedIn(
+    var gate = await firebridge.requireSignIn(
       'Sign in to view your calendar. Connect Google Calendar or Outlook ICS in Settings.'
     );
     if (!gate.allowed) return;

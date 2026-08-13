@@ -1,4 +1,10 @@
-Alumni is by type: undergrad, masters, grad etc. 
+
+
+
+
+
+
+
 
 rm needs overhaul
     formally ake the RM into the ourlab concept its time to make this work and have mcgheelab as the first user and we need to keep all of our stuff as is. 
