@@ -256,6 +256,27 @@
   await tick();
   var fr = $('tr.expandable-row[data-item-id="fbs"]');
   eq(fr && fr.querySelectorAll('td')[4].textContent, '400 mL', 'the list shows FBS at 400 mL');
+
+  // ── V3.877: Create QR code on a custom item; one click opens a row after a re-render ──
+  fr.click(); await tick();
+  eq(fr.classList.contains('expanded'), true, 'a click opens a row');
+  si.value = 'DMEM'; si.dispatchEvent(new Event('input')); await tick();   // re-render: DMEM now sits where FBS was
+  var dr = $('tr.expandable-row[data-item-id="dmem"]');
+  dr.click(); await tick();
+  eq(dr.classList.contains('expanded'), true, 'after a re-render, ONE click opens the row in that position (a stale open-row id used to swallow it)');
+  eq(!!Array.prototype.find.call(dr.nextElementSibling.querySelectorAll('button'), function (b) { return b.textContent === 'Create QR code'; }), false, 'a bought item with no code: no Create QR code for a non-manager (unchanged)');
+  si.value = 'LLS 50'; si.dispatchEvent(new Event('input')); await tick();
+  var br = $('tr.expandable-row[data-item-id="beads-old"]');
+  br.click(); await tick();
+  var bp = br.nextElementSibling;
+  eq(/No QR code yet\. A custom item gets one when it is saved/.test(bp.textContent), true, 'a custom item with no code says so');
+  var cb = Array.prototype.find.call(bp.querySelectorAll('button'), function (b) { return b.textContent === 'Create QR code'; });
+  eq(!!cb, true, 'and offers Create QR code to a member who is not a manager');
+  if (cb) cb.click();
+  await until(function () { return !!$('tr.expandable-row.expanded[data-item-id="beads-old"] + tr .inv-qr[data-code="MG-T2"]'); });
+  eq(!!$('tr.expandable-row.expanded[data-item-id="beads-old"] + tr .inv-qr[data-code="MG-T2"]'), true, 'the code is made, and its panel stays open showing it');
+  eq([window.__labels.minted[1], window.__labels.queues.length], ['beads-old', 1], 'bound to this item; nothing printed');
+  eq(si.value, 'LLS 50', 'the search is left as it was');
   eq(window.__dialogs, [], 'no browser alert / prompt / confirm');
 
   if (demo === 'row') { _invOpenItem(id); setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 600); }

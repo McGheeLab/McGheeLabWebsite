@@ -6,6 +6,10 @@
 
 **Prior: V3.873 (inventory: aliquots and lab-made items are ordinary `kind:'item'` docs with `lab_made: true` (`lab_made_type` aliquot | made_in_lab, `made_by_uid/name`, required description + location) added by any member through `addLabMadeItem()` in `rm/js/inventory.js`; every item create — this form and + Add Item — now writes ONE doc via `_invCreateItem` (transaction refuses a taken id) instead of the whole-collection `api.save`; each new lab-made item gets its QR code at save through `INV_LABELS.ensureCode` / `queue` (one label per piece); a Made in Lab tab; `openForm` (`rm/js/forms.js`) gains `suggestions` / `hint`. No backend change. Plan: [CodeLog/ClaudesPlan/V3.873_lab_made_aliquots.md](../ClaudesPlan/V3.873_lab_made_aliquots.md).)**
 
+**Prior: V3.877 (Phase 2 complete — an RM protocol becomes Gabe's own protocol (`GET api/rm/protocols` → step texts; `def.rm`; registered or kept in the note; the same version re-runs, a changed one is imported beside it); *Something I did* lists your RM actions through the host (`rm-actions` → `USER_ACTIONS`, `rm-action-noted` → `markNoted`); RM collections are read-only cards (`GET api/rm/collections` over `userData/{uid}/litReviews`); RM's pen arcs / phone modes evaluated and not ported; regions / wires mapped.)**
+
+**Prior: V3.876 (Phase 2, part 1 — Scientia's RM cards keep their data in Scientia blocks and ask the Lab Notebook that hosts them to run RM's own UI over the postMessage bridge: `rm-read` → `CANVAS_PAPER_READER.openReader` over the notebook, `rm-report` → `MYWEEK_REPORT.open` (step back as `rm-reported`), each acked; `lab-mode.js` §8 adds the `rmpaper` card (RM highlights via `GET api/rm/annotations`), a ✓ on every component (`DocView.box` wrapped → `block.myweek[]`), and the inventory-backed material card.)**
+
 **Prior: V3.874 (Phase 1 complete — the hub turns Scientia chore / reminder occurrences into dated `userData/{uid}/tasks/sis-…` items (`source_ref.kind 'scientia-when'`, My Week holds them back until their week) with done reconciled three-way on `sis_done`, and turns closed timer segments + note edits into one `trackerEntries` event per note per day (`source 'scientia'`); `quietSyncs` runs on hello, state and every pull, throttled; `lab-mode.js` §7 asks `api/rm/sync?only=when,activity` after a local change reaches the hub.)**
 
 **Prior: V3.872 (a task component in a Scientia note is an RM task, web build — `POST api/rm/tasks` writes the `userData/{uid}/tasks` document `writeTaskFor` would (bucket assigned, source scientia, `source_ref.scientia {docId, blockId}`), the pairing lives on the hub doc as `rmTasks {taskId: blockId}`, and `syncTasks` on every hello reconciles DONE both ways (`planTaskSync`: later change wins; a removed block dismisses the RM task) by pushing block ops as device "RM tasks" — so the desktop sees My Week's ticks through ordinary sync; `lab-mode.js` §6 wraps `TASK.create/save/done/undo/body` and `WIDGETS.task.body`, and `#/tasks` lists the note's task components with their RM state.)**
@@ -113,7 +117,28 @@ sessions (closed segments) + documents (modified), ops since actCursor
 ```
 
 `lab-mode.js` §7 asks for `when` and `activity` as soon as a chore / reminder change or a stopped timer has reached
-the hub; `my-week.js` labels the items *Scientia · Chore / Meeting / Deadline / Reminder*. `lab-mode.js` §6 wraps `TASK.create / save /
+the hub; `my-week.js` labels the items *Scientia · Chore / Meeting / Deadline / Reminder*.
+
+**RM cards inside notes (V3.876, Phase 2).** The web app always runs inside `notebook.html`, which already loads RM's
+reader and My Week's report picker; rather than copy their writers into the hub, Scientia asks its host:
+
+```
+Scientia (iframe, lab-mode §8)                              notebook.html (notebook-scientia.js onFrameMessage)
+  hostRequest('rm-read',   {paper, focus})          ──▶      openReaderFor → CANVAS_PAPER_READER.openReader(item, api{canEdit}, {focus})
+  hostRequest('rm-report', {card, point})           ──▶      openReportFor → MYWEEK_REPORT.open({card, point + frame rect, onReported})
+                      ◀── rm-ack {reqId, ok}   (none in 0.9 s → not inside the notebook → new tab / a hint)
+                      ◀── rm-reported {reqId, blockId, step}  → block.myweek[] (the ✓ fills)
+                      ◀── rm-reader-closed {paperId}          → paper cards re-fetch GET api/rm/annotations
+```
+
+Cards: `rmpaper` (paperId; RM highlights in RM's colours; text `Paper: …` for the desktop, which has no such widget),
+a ✓ in every component's header (`DocView.box`; panes are `Object.create(DocView)`), and Gabe's material card for an
+inventory item (`Insert → Material…` searches RM's inventory first; the card links to RM).
+
+V3.877 completes the set: an RM protocol (`GET api/rm/protocols`, the editor's flushed `tree` → step texts) becomes a
+Scientia protocol block carrying `rm {protocolId, updated_at, url, skipped}` and runs as his run; `rmaction` (your RM
+actions via the host: `rm-actions` → `rm-actions-list`, `rm-action-noted` → `USER_ACTIONS.markNoted`) and
+`rmcollection` (`GET api/rm/collections`, read-only) are cards. Pen input, regions and wires stay each app's own. `lab-mode.js` §6 wraps `TASK.create / save /
 done / undo / body` and re-points `WIDGETS.task.body` (a reference the doc view captured at load).
 
 ## The push gate, the feature registry, git in the Stop hook, two deployers (V3.868)

@@ -20,7 +20,7 @@
     body.ourlab-app .inv-scan-fab { display: flex; }
     .inv-scan-fab svg { width: 28px; height: 28px; }
     body.ourlab-app .page-header > div { flex-wrap: wrap; }
-    body.ourlab-app #inv-scan, body.ourlab-app #inv-print-labels { display: none; }
+    body.ourlab-app #inv-scan { display: none; }
   </style>
 </head>
 <body>
@@ -39,7 +39,6 @@
         </select>
         <input id="search-input" type="text" placeholder="Search items..." style="font-size:14px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);width:220px;">
         <button class="btn" id="inv-scan" title="Scan an item's QR label — camera, or type the code, or a USB scanner (V3.834)"><i data-hi="camera"></i> Scan</button>
-        <button class="btn" id="inv-print-labels" title="Queue QR labels for every item in the current list at the lab's label printer (V3.834)"><i data-hi="tag"></i> Print labels</button>
         <button class="btn" onclick="createManualGroup()">Create Group</button>
         <button class="btn" onclick="addLabMadeItem()" title="A custom aliquot, material or medium made in the lab: name it, describe it, say where it lives and what it was made from; it gets a QR label (V3.873, V3.875)">+ Custom item</button>
         <button class="btn btn-primary" id="add-item">+ Add Item</button>

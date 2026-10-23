@@ -587,6 +587,60 @@ function visibleAnnotations(docs, uid) {
     .map(d => rmAnnotationRow(d, uid)).sort((a, b) => (a.page == null ? 1e9 : a.page) - (b.page == null ? 1e9 : b.page) || a.at.localeCompare(b.at));
 }
 
+/* ───────── RM protocols and collections for Scientia (V3.877, Phase 2 part 2) — read-only ─────────
+   PROTOCOLS: protocols/{id} {title, status, tree {sections [{label, children [{kind, body, attrs}]}]}, current_version,
+   updated_at} — the editor flushes the Yjs tree back to `tree` 1.5 s after an edit, so it is current. Scientia runs a
+   protocol as its own (a list of step texts): steps become steps, notes / safety / callouts become "Note: …" steps, the
+   first step of each section carries the section's name, `[!var:x]` (a calculator value) becomes ‹x›, and what has no
+   step form (formulas, calculators, tables, figures…) is counted so the run can say "open it in RM for those".
+   COLLECTIONS: userData/{uid}/litReviews/{itemId} — the Lab Notebook's mirror of each 📑 collection (V3.859). */
+const stripTags = s => String(s == null ? '' : s).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'");
+const varsToText = s => String(s || '').replace(/\[!var:([A-Za-z0-9_.-]+)\]/g, (m, n) => '‹' + n + '›');
+const STEP_NOTE_KINDS = new Set(['note', 'safety', 'callout']);
+function rmProtocolRow(doc) {
+  const d = doc || {}, secs = d.tree && Array.isArray(d.tree.sections) ? d.tree.sections : [];
+  const steps = secs.reduce((n, s) => n + (Array.isArray(s && s.children) ? s.children.filter(c => c && c.kind === 'step' && c.status !== 'removed' && stripTags(c.body).trim()).length : 0), 0);
+  return { id: String(d.id || ''), title: String(d.title || (d.tree && d.tree.meta && d.tree.meta.title) || d.id || 'Protocol'), status: String(d.status || 'draft'),
+    category: String(d.category || ''), version: d.current_version != null ? d.current_version : null, updated_at: String(d.updated_at || ''), steps, sections: secs.length };
+}
+function rmProtocolSteps(doc) {
+  const d = doc || {}, row = rmProtocolRow(d), secs = d.tree && Array.isArray(d.tree.sections) ? d.tree.sections.slice().sort((a, b) => (+a.order || 0) - (+b.order || 0)) : [];
+  const steps = [], skipped = {};
+  for (const s of secs) {
+    let first = true;
+    for (const c of (Array.isArray(s && s.children) ? s.children : [])) {
+      if (!c || c.status === 'removed') continue;
+      const text = varsToText(stripTags(c.body)).replace(/[ \t]+\n/g, '\n').trim();
+      if (c.kind === 'step' || (STEP_NOTE_KINDS.has(c.kind) && text)) {
+        if (!text) continue;
+        const label = String((s && s.label) || '').trim();
+        steps.push({ id: String(c.id || ''), kind: c.kind, section: label, text: (first && label ? label + ': ' : '') + (c.kind === 'step' ? '' : 'Note: ') + text });
+        first = false;
+      } else if (c.kind && c.kind !== 'docHeader' && c.kind !== 'heading' && c.kind !== 'step' && !STEP_NOTE_KINDS.has(c.kind)) skipped[c.kind] = (skipped[c.kind] || 0) + 1;
+    }
+  }
+  return Object.assign(row, { steps: steps.length, list: steps, skipped, url: '/rm/pages/protocols.html?protocol=' + encodeURIComponent(row.id) });
+}
+function searchProtocols(rows, q) {
+  const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  return rows.filter(r => r.status !== 'archived' && words.every(w => (r.title + ' ' + r.category + ' ' + r.id).toLowerCase().includes(w)))
+    .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || '') || a.title.localeCompare(b.title));
+}
+function rmCollectionRow(doc) {
+  const d = doc || {}, c = d.counts || {};
+  return { id: String(d.itemId || d.id || ''), title: String(d.title || (d.claim ? 'Claim' : 'Collection')), entryId: String(d.entryId || ''), boardId: String(d.boardId || ''),
+    papers: d.papers && typeof d.papers === 'object' ? Object.keys(d.papers).length : 0, entries: Array.isArray(d.entries) ? d.entries.length : 0,
+    claim: !!d.claim, updated_at: String(d.updated_at || ''), counts: c };
+}
+function rmCollectionFull(doc) {
+  const d = doc || {}, row = rmCollectionRow(d), P = d.papers && typeof d.papers === 'object' ? d.papers : {};
+  return Object.assign(row, {
+    query: String(d.query || ''), keyPoints: (Array.isArray(d.keyPoints) ? d.keyPoints : []).map(String).filter(Boolean).slice(0, 20),
+    paperList: Object.keys(P).map(id => ({ paperId: id, title: String((P[id] && P[id].title) || ''), cite: String((P[id] && P[id].cite) || ''), why: String((P[id] && P[id].why) || '') })),
+    entryList: (Array.isArray(d.entries) ? d.entries : []).slice(0, 60).map(e => ({ type: String(e.type || ''), rel: String(e.rel || ''), quote: String(e.quote || '').slice(0, 500), name: String(e.name || ''), cite: String(e.cite || ''), hex: String(e.hex || ''), paperId: String(e.paperId || '') })),
+    claimText: d.claim ? String(d.claim.statement || '') : '', drafts: (Array.isArray(d.drafts) ? d.drafts : []).map(x => ({ id: String(x.id || ''), title: String(x.title || '') })) });
+}
+
 async function mirrorQuietly(hub, who, force, only) {
   if (!hub || !who) return null;
   if (typeof hub.quietSyncs === 'function') { try { return await hub.quietSyncs(who, { force: !!force, only: only || null }); } catch (e) { return { ok: false, error: String(e.message || e) }; } }
@@ -616,6 +670,14 @@ async function route(req, ctx) {
     if (p === '/api/rm/tasks/sync' && post) return J(200, await hub.syncTasks({ force: true }));
     if (p === '/api/rm/tasks' && !post) return J(200, await hub.getTasks({ ids: g('ids', '') ? g('ids', '').split(',').map(s => s.trim()).filter(Boolean) : null }));
     return J(404, { ok: false });
+  }
+  if (p === '/api/rm/protocols') {
+    if (typeof hub.protocols !== 'function') return J(200, { ok: false, error: 'no RM protocols on this hub', items: [] });
+    return J(200, await hub.protocols({ q: g('q', ''), id: g('id', '') }));
+  }
+  if (p === '/api/rm/collections') {
+    if (typeof hub.collections !== 'function') return J(200, { ok: false, error: 'no RM collections on this hub', items: [] });
+    return J(200, await hub.collections({ id: g('id', '') }));
   }
   if (p === '/api/rm/annotations') {
     if (typeof hub.annotations !== 'function') return J(200, { ok: false, error: 'no RM highlights on this hub', items: [] });
@@ -793,6 +855,17 @@ MemoryHub.prototype.annotations = async function ({ paperId }) {
   const items = visibleAnnotations(raw, this.uid || 'u1');
   return { ok: true, paperId: String(paperId), total: items.length, items: items.slice(0, 300) };
 };
+/* V3.877 — `rmProtocols` (array of protocol docs with id), `rmCollections` (array of litReviews docs) */
+MemoryHub.prototype.protocols = async function ({ q, id } = {}) {
+  const all = this.rmProtocols || [];
+  if (id) { const d = all.find(x => String(x.id) === String(id)); return d ? { ok: true, protocol: rmProtocolSteps(d) } : { ok: false, error: 'no such protocol' }; }
+  const items = searchProtocols(all.map(rmProtocolRow), q); return { ok: true, total: items.length, items: items.slice(0, 100) };
+};
+MemoryHub.prototype.collections = async function ({ id } = {}) {
+  const all = this.rmCollections || [];
+  if (id) { const d = all.find(x => String(x.itemId || x.id) === String(id)); return d ? { ok: true, collection: rmCollectionFull(d) } : { ok: false, error: 'no such collection' }; }
+  const items = all.map(rmCollectionRow).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || '')); return { ok: true, total: items.length, items };
+};
 MemoryHub.prototype.inventory = async function ({ q, limit, ids } = {}) {
   let rows = (this.rmInventory || []).map(rmInventoryRow);
   if (ids && ids.length) rows = rows.filter(r => ids.includes(r.id));
@@ -809,4 +882,4 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
-  rmAnnotationRow, visibleAnnotations };
+  rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull };

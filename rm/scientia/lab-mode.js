@@ -28,7 +28,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.875', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.877', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -385,7 +385,7 @@
     var oStop = TIMER.stop; TIMER.stop = function () { var r = oStop.apply(TIMER, arguments); kickRm(); return r; };
     var oPause = TIMER.pause; TIMER.pause = function () { var r = oPause.apply(TIMER, arguments); kickRm(); return r; };
   } catch (e) { warn('kick', e); }
-  /* ---- 8. RM cards inside notes (V3.875, Phase 2) ----
+  /* ---- 8. RM cards inside notes (V3.876, Phase 2) ----
      Inside the Lab Notebook the app asks its host to run RM's own UI — the paper reader over the notebook, the My
      Week report picker (MYWEEK_REPORT → saveOutcome) — through the same postMessage bridge as V3.864. Each request
      carries a reqId and the host answers rm-ack; no answer within a moment means "not inside the notebook" and the
@@ -562,4 +562,169 @@
       '.lab-inv-line{gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}';
     document.head.appendChild(h('style', { id: 'lab-mode-css' }, css));
   } catch (e) { warn('css', e); }
+  /* ---- 9. Protocols, Something I did, collections (V3.877, Phase 2 part 2) ----
+     PROTOCOLS: the lab's protocol (RM) becomes Gabe's own protocol — its steps — so a run here is his run (check,
+     time, observe). The def carries `rm {protocolId, updated_at, url, skipped}`; the same RM version is imported once
+     and run again; a changed one is imported beside the old (past runs keep theirs). Calculators, tables and figures
+     stay in RM (the def says so and links there). SOMETHING I DID: your recorded actions, listed and marked noted by
+     RM's own code in the notebook (rm-actions / rm-action-noted). COLLECTIONS: a Lab Notebook collection, read-only. */
+  var LISTS = { actions: {} };
+  window.addEventListener('message', function (e) {
+    if (e.origin !== ORIGIN || e.source !== window.parent || !e.data || e.data.sisCmd !== 'rm-actions-list') return;
+    var f = LISTS.actions[e.data.reqId]; if (f) { delete LISTS.actions[e.data.reqId]; f(e.data); }
+  });
+  async function hubJson(path) {
+    try { var r = await fetch(path), j = r.ok ? await r.json() : null; return j || { ok: false, error: 'HTTP ' + r.status }; }
+    catch (e) { return { ok: false, error: String(e.message || e) }; }
+  }
+  function pickerModal(title, rows, opts) {
+    var m = modal({ title: title, wide: true, actions: [{ label: 'Cancel' }].concat(opts.actions || []),
+      body: optionPicker({ placeholder: opts.placeholder, sort: opts.sort, emptyText: opts.empty,
+        items: function (q) { q = String(q || '').toLowerCase(); return rows.filter(function (x) { return !q || (x.label + ' ' + x.sub).toLowerCase().indexOf(q) >= 0; }); },
+        section: opts.section, render: function (x) { return h('div', h('b', x.label), x.sub ? h('span.s', ' ' + x.sub) : null); },
+        onPick: function (x) { m.close(); opts.onPick(x); } }) });
+    return m;
+  }
+  var day16 = function (s) { return String(s || '').slice(0, 16).replace('T', ' '); };
+
+  /* protocols */
+  function rmDefFor(pid, updatedAt) {
+    return DB.where('blocks', function (b) { return b.kind === 'protocol' && b.status !== 'removed' && b.rm && b.rm.protocolId === pid && (!updatedAt || b.rm.updated_at === updatedAt); })[0] || null;
+  }
+  async function runRmProtocol(d, p, row) {
+    var res = await hubJson('api/rm/protocols?id=' + encodeURIComponent(row.id));
+    if (!res.ok || !res.protocol) { toast(res.error || 'Could not read the protocol from RM'); return null; }
+    var P = res.protocol, same = rmDefFor(P.id, P.updated_at);
+    if (same) { var run = PROTO.newRun(same, d.id, p.x, p.y); toast('A run of “' + same.label + '”'); return run; }
+    var older = rmDefFor(P.id, null), now = isoLocal(new Date());
+    var b = PROTO.create(d.id, p.x, p.y);
+    b.label = P.title + (older ? ' (RM, ' + String(P.updated_at || '').slice(0, 10) + ')' : '');
+    b.steps = (P.list.length ? P.list : [{ id: '', text: 'Open this protocol in RM — it has no steps to follow here' }]).map(function (s) {
+      return { id: uid('st'), text: s.text, created: now, status: 'live', supersedes: [], supersededBy: [], rmStepId: s.id || '' }; });
+    b.rm = { protocolId: P.id, title: P.title, version: P.version, updated_at: P.updated_at, url: P.url, skipped: P.skipped || {} };
+    PROTO.syncBody(b); DB.put('blocks', b); changed();
+    if (d.projectId) PROTO.register(b, { name: b.label, projectId: d.projectId, themeId: d.themeId || null });
+    else { b.localOnly = true; DB.put('blocks', b); changed(); }
+    toast((older ? 'RM changed it since the last import — ' : '') + plural(b.steps.length, 'step') + ' from “' + P.title + '”');
+    return b;
+  }
+  async function pickRmProtocol(d, p) {
+    var res = await hubJson('api/rm/protocols');
+    if (!res.ok) { toast(res.error || 'Could not reach RM’s protocols'); return null; }
+    var rows = (res.items || []).map(function (r) { return { r: r, label: r.title, sub: [r.category, r.status, r.updated_at ? 'changed ' + r.updated_at.slice(0, 10) : ''].filter(Boolean).join(' · '), t: r.updated_at }; });
+    return pickerModal('Run a lab protocol from RM', rows, { placeholder: 'Search the lab’s protocols…', sort: 'rm-protocol', empty: 'No protocols in RM yet',
+      actions: [{ label: 'Open RM’s Protocols', run: function () { openRM('/rm/pages/protocols.html'); return false; } }],
+      section: function (x) { return rmDefFor(x.r.id, null) ? 'Imported before' : 'The lab’s protocols'; },
+      onPick: function (x) { runRmProtocol(d, p, x.r); } });
+  }
+  try {
+    var oPBody = PROTO.body;
+    PROTO.body = function (b) {
+      var el = oPBody.apply(this, arguments);
+      try {
+        var def = PROTO.defOf(b);
+        if (def && def.rm && el && el.insertBefore) {
+          var sk = def.rm.skipped || {}, only = Object.keys(sk).map(function (k) { return sk[k] + ' ' + k; }).join(', ');
+          el.insertBefore(h('div.row.lab-proto-line', h('span.tiny.muted', 'From RM · ' + def.rm.title + (only ? ' · in RM only: ' + only : '')),
+            btn('xs', 'Open in RM', function () { openRM(def.rm.url); })), el.firstChild);
+        }
+      } catch (x) { warn('protocol line', x); }
+      return el;
+    };
+    INSERTS.push({ id: 'rmprotocol', group: 'Protocols', icon: '▶', label: 'Run a lab protocol from RM…', sub: 'The lab’s protocol as steps to check, time and observe here', run: function (d, p) { pickRmProtocol(d, p); } });
+  } catch (e) { warn('protocols', e); }
+
+  /* something I did */
+  function listActions() {
+    return new Promise(function (res) {
+      var q = hostRequest('rm-actions', {}), done = false, fin = function (v) { if (!done) { done = true; res(v); } };
+      LISTS.actions[q.id] = fin;
+      setTimeout(function () { delete LISTS.actions[q.id]; fin({ ok: false, error: 'Your actions did not arrive — try again' }); }, 8000);
+      q.ack.then(function (a) { if (!a || !a.ok) { delete LISTS.actions[q.id]; fin(null); } });
+    });
+  }
+  function actionRec(a) { return { id: a.id, kind: a.kind, text: a.text, at: a.at, note: a.note, itemId: a.itemId, equipmentId: a.equipmentId, labelCode: a.labelCode }; }
+  function actionText(a) { return 'Did: ' + a.text + (a.at ? ' (' + day16(a.at) + ')' : '') + (a.note ? '\n' + a.note : ''); }
+  function placeAction(d, p, a) {
+    var b = M.addBlock(d.id, null, { kind: 'rmaction', action: actionRec(a), label: String(a.text || '').slice(0, 80), x: Math.round(p.x / 14) * 14, y: Math.round(p.y / 14) * 14, w: 392 });
+    b.body = { text: actionText(a), marks: [] }; DB.put('blocks', b); changed();
+    hostRequest('rm-action-noted', { actionId: a.id, entryId: d.id, cardId: b.id });
+    return b;
+  }
+  async function pickAction(d, p, onPick) {
+    var got = await listActions();
+    if (!got) { toast('Open Scientia inside the Lab Notebook to add what you did'); return null; }
+    if (!got.ok) { toast(got.error || 'Could not load your actions'); return null; }
+    var rows = (got.rows || []).map(function (a) { return { a: a, label: a.text, sub: [day16(a.at), a.note].filter(Boolean).join(' · '), t: a.at }; });
+    return pickerModal('Something I did', rows, { placeholder: 'Search what you did — items used, equipment booked…', sort: 'rm-action',
+      empty: 'Nothing recorded yet — scan a label to use an item, or book equipment, and it appears here.',
+      actions: [{ label: 'My actions in RM', run: function () { openRM('/rm/pages/actions.html'); return false; } }],
+      section: function (x) { return x.a.kind === 'equipment_booking' ? 'Equipment' : 'Items used'; },
+      onPick: function (x) { (onPick || function (a) { placeAction(d, p, a); })(x.a); } });
+  }
+  function actionBody(b) {
+    var a = b.action || {};
+    return h('div.rma', h('div', h('b', a.text || 'Something I did')),
+      h('div.tiny.muted', [a.kind === 'equipment_booking' ? 'Equipment' : 'Item used', day16(a.at), a.note].filter(Boolean).join(' · ')),
+      h('div.row.rmp-act', a.itemId ? btn('xs', 'The item in RM', function () { openRM(RM.inventory + '?item=' + encodeURIComponent(a.itemId)); }) : null,
+        a.equipmentId ? btn('xs', 'Equipment in RM', function () { openRM('/rm/pages/equipment.html'); }) : null,
+        btn('xs', 'My actions in RM', function () { openRM('/rm/pages/actions.html'); })));
+  }
+  try {
+    WIDGETS.rmaction = { label: 'something I did', w: 392, icon: '•', body: actionBody, menu: function (b) {
+      return [{ label: 'Pick a different action…', run: function () { pickAction(M.doc(b.docId), { x: b.x || 0, y: b.y || 0 }, function (a) {
+        var cur = M.block(b.id); cur.action = actionRec(a); cur.label = String(a.text || '').slice(0, 80); cur.body = { text: actionText(a), marks: [] }; cur.modified = isoLocal(new Date());
+        DB.put('blocks', cur); changed(); hostRequest('rm-action-noted', { actionId: a.id, entryId: cur.docId, cardId: cur.id }); }); } }];
+    } };
+    INSERTS.push({ id: 'rmaction', group: 'Lab', icon: '•', label: 'Something I did…', sub: 'An item you used or equipment you booked, recorded in RM — placed here', run: function (d, p) { pickAction(d, p); } });
+  } catch (e) { warn('actions', e); }
+
+  /* collections */
+  var COL = { cache: {}, at: {}, ttl: 60 * 1000 };
+  async function collectionFull(id, force) {
+    var now = Date.now(); if (!force && COL.cache[id] && now - COL.at[id] < COL.ttl) return COL.cache[id];
+    var res = await hubJson('api/rm/collections?id=' + encodeURIComponent(id)); COL.cache[id] = res; COL.at[id] = now; return res;
+  }
+  function placeCollection(d, p, r) {
+    var b = M.addBlock(d.id, null, { kind: 'rmcollection', collectionId: r.id, entryId: r.entryId || '', label: r.title || 'Collection', x: Math.round(p.x / 14) * 14, y: Math.round(p.y / 14) * 14, w: 420 });
+    b.body = { text: 'Collection: ' + (r.title || 'Collection'), marks: [] }; DB.put('blocks', b); changed();
+    return b;
+  }
+  async function pickCollection(d, p, onPick) {
+    var res = await hubJson('api/rm/collections');
+    if (!res.ok) { toast(res.error || 'Could not reach RM'); return null; }
+    var rows = (res.items || []).map(function (r) { return { r: r, label: r.title, sub: [plural(r.papers, 'paper'), r.entries ? plural(r.entries, 'entry', 'entries') : '', r.claim ? 'a claim' : '', r.updated_at ? 'changed ' + r.updated_at.slice(0, 10) : ''].filter(Boolean).join(' · '), t: r.updated_at }; });
+    return pickerModal('Place a collection from the Lab Notebook', rows, { placeholder: 'Search your collections and claims…', sort: 'rm-collection',
+      empty: 'No collections yet — make one on a canvas entry of the Lab Notebook.',
+      section: function (x) { return x.r.claim ? 'Claims' : 'Collections'; },
+      onPick: function (x) { (onPick || function (r) { placeCollection(d, p, r); })(x.r); } });
+  }
+  async function fillCollection(el, b, force) {
+    var res = await collectionFull(b.collectionId, force);
+    if (!res.ok || !res.collection) { el.replaceChildren(h('div.tiny.muted', res.error || 'Could not load the collection')); return; }
+    var c = res.collection, rowFor = function (pid) { return M.lib(pid); };
+    el.replaceChildren(
+      h('div', h('b', c.title), c.claim ? h('span.pill', 'claim') : null, h('span.tiny.muted', ' ' + [plural(c.papers, 'paper'), c.entries ? plural(c.entries, 'entry', 'entries') : ''].filter(Boolean).join(' · '))),
+      c.claimText ? h('div.rmc-claim', c.claimText) : null,
+      c.keyPoints.length ? h('ul.rmc-kp', c.keyPoints.slice(0, 5).map(function (k) { return h('li', k); })) : null,
+      h('div.rmp-hl', c.entryList.filter(function (e) { return e.quote; }).slice(0, 6).map(function (e) {
+        return h('div.rmp-row', { title: (e.cite || '') + ' — open the paper', on: { click: function (ev) { ev.stopPropagation(); var r = rowFor(e.paperId); if (r) readPaper(r); else if (e.paperId) openRM(RM.paper(e.paperId)); } } },
+          h('i', { style: { background: e.hex || '#d4d4d8' } }), h('span', snippet(e.quote, 140)), e.cite ? h('span.tiny.muted', e.cite) : null); }).concat(
+        c.paperList.slice(0, 8).map(function (pp) {
+          return h('div.rmp-row', { title: (pp.why || pp.cite || '') + ' — open the paper', on: { click: function (ev) { ev.stopPropagation(); var r = rowFor(pp.paperId); if (r) readPaper(r); else openRM(RM.paper(pp.paperId)); } } },
+            h('i', { style: { background: 'transparent', border: '1px solid #a1a1aa' } }), h('span', pp.title || pp.cite || pp.paperId), pp.cite ? h('span.tiny.muted', pp.cite) : null); }))),
+      h('div.row.rmp-act', c.entryId ? btn('xs', 'Open its entry', function () { openRM('/rm/pages/notebook.html?entry=' + encodeURIComponent(c.entryId)); }) : null,
+        btn('xs', 'Refresh', function () { fillCollection(el, b, true); })));
+  }
+  function collectionBody(b) { var el = h('div.rmc', { 'data-col': b.collectionId }, h('div.tiny.muted', 'Loading the collection…')); fillCollection(el, b, false); return el; }
+  try {
+    WIDGETS.rmcollection = { label: 'collection', w: 420, icon: '≡', body: collectionBody, menu: function (b) {
+      return [b.entryId ? { label: 'Open its entry in the Lab Notebook', run: function () { openRM('/rm/pages/notebook.html?entry=' + encodeURIComponent(b.entryId)); } } : null,
+        { label: 'Change the collection…', run: function () { pickCollection(M.doc(b.docId), { x: b.x || 0, y: b.y || 0 }, function (r) {
+          var cur = M.block(b.id); cur.collectionId = r.id; cur.entryId = r.entryId || ''; cur.label = r.title; cur.body = { text: 'Collection: ' + r.title, marks: [] }; cur.modified = isoLocal(new Date()); DB.put('blocks', cur); changed(); }); } }].filter(Boolean);
+    } };
+    INSERTS.push({ id: 'rmcollection', group: 'Reading', icon: '≡', label: 'Collection from the Lab Notebook…', sub: 'Quotes, key points and papers collected on a canvas entry — read-only here', run: function (d, p) { pickCollection(d, p); } });
+  } catch (e) { warn('collections', e); }
+  LAB.pickRmProtocol = pickRmProtocol; LAB.runRmProtocol = runRmProtocol; LAB.pickAction = pickAction; LAB.placeAction = placeAction; LAB.pickCollection = pickCollection; LAB.placeCollection = placeCollection;
+  try { var st9 = document.getElementById('lab-mode-css'); if (st9) st9.textContent += '.rma{line-height:1.4}.rmc-kp{margin:4px 0 4px 18px;padding:0;font-size:12px}.rmc-claim{font-style:italic;margin:4px 0}.lab-proto-line{gap:6px;margin:0 0 6px;flex-wrap:wrap;align-items:center}'; } catch (e) {}
 })();

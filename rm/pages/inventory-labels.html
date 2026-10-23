@@ -106,7 +106,7 @@
       host.style.gridTemplateColumns = 'repeat(' + s.cols + ', ' + s.w + 'in)';
       host.style.columnGap = s.gapX + 'in';
       host.style.rowGap = '0';
-      if (!_items.length) { host.innerHTML = '<div class="il-empty">No items to print. Open this page from the inventory (' + ICON.svg('tag') + ' Print labels) so it carries the item ids.</div>'; return; }
+      if (!_items.length) { host.innerHTML = '<div class="il-empty">No items to print. Open this page from an item in the inventory (its ' + ICON.svg('printer') + ' Sheet button) so it carries the item ids.</div>'; return; }
       host.innerHTML = _items.map(function (it) {
         var code = C.codeOf(it);
         var sub = [it.vendor, it.catalogue_number].filter(Boolean).join(' · ');

@@ -556,6 +556,8 @@ function invLabelHtml(item, realIdx) {
   if (code) {
     d += '<div style="font-family:ui-monospace,Menlo,monospace;font-size:15px;margin:2px 0;">' + escAttr(code) + '</div>';
     d += '<div style="font-size:12px;color:var(--text-muted);">Scan it to use this item · <a href="/l/' + escAttr(code) + '" onclick="event.stopPropagation(); return invCopyLink(' + realIdx + ', event)" title="Copy the link a phone camera opens">copy link</a></div>';
+  } else if (item.lab_made) {
+    d += '<div style="font-size:13px;color:var(--text-muted);margin:2px 0;">No QR code yet. A custom item gets one when it is saved; if that did not go through, create it here.</div>';
   } else {
     d += '<div style="font-size:13px;color:var(--text-muted);margin:2px 0;">No code yet — printing a label mints one and links it to this item for good.</div>';
   }
@@ -563,7 +565,12 @@ function invLabelHtml(item, realIdx) {
   d += '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); invUse(' + realIdx + ')" title="What one scan does for this item">' + ((typeof INV_USE !== 'undefined' && INV_USE.modeOf(item) === 'per_use') ? '✓ I used it' : '✓ Use / take') + '</button>';
   d += '<button class="btn btn-sm" onclick="event.stopPropagation(); invQueueLabel(' + realIdx + ')" title="Queue this label at the lab\'s label printer (Queue tab on the printer PC)">' + ICON.svg('tag') + ' Print label</button>';
   d += '<button class="btn btn-sm" onclick="event.stopPropagation(); invPrintSheet([' + realIdx + '])" title="A browser print page for sticker sheets or any other printer">' + ICON.svg('printer') + ' Sheet</button>';
-  if (!code && mgr) d += '<button class="btn btn-sm" onclick="event.stopPropagation(); invMakeLabel(' + realIdx + ')" title="Mint the code without printing yet">Make code</button>';
+  // V3.877 — anyone may create a CUSTOM item's code (whoever made it is
+  // rarely a manager, and labels/{CODE} + label_code are member-writable); a
+  // bought item's code stays a manager's call, as in V3.835.
+  if (!code && (mgr || item.lab_made)) {
+    d += '<button class="btn btn-sm' + (item.lab_made ? ' btn-primary' : '') + '" onclick="event.stopPropagation(); invMakeLabel(' + realIdx + ')" title="Create this item\'s QR code without printing a label yet">Create QR code</button>';
+  }
   d += '</div></div></div>';
   if (code) invScheduleQr();
   return d;
@@ -597,15 +604,15 @@ window.invUse = function (realIdx, labelCode) {
 };
 window.invMakeLabel = async function (realIdx) {
   var item = _data.items[realIdx];
-  try { var code = await INV_LABELS.ensureCode(item); if (typeof TOAST !== 'undefined') TOAST.success('Code ' + code + ' is now this item’s label'); render(); }
-  catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(e.message || 'Could not mint a code.'); }
+  try { var code = await INV_LABELS.ensureCode(item); if (typeof TOAST !== 'undefined') TOAST.success('QR code ' + code + ' is now this item’s label'); _invShowItem(item.id); }
+  catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(e.message || 'Could not create a QR code.'); }
 };
 window.invQueueLabel = async function (realIdx) {
   var item = _data.items[realIdx];
   try {
     var r = await INV_LABELS.queue([item], { note: 'Inventory label — ' + (item.name || item.id) });
     if (typeof TOAST !== 'undefined') TOAST.success('Queued at the label printer (open its Queue tab to print)');
-    render();
+    _invShowItem(item.id);   // V3.877 — keep its panel open; render() alone closed it
     void r;
   } catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(e.message || 'Could not queue the label.'); }
 };
@@ -666,21 +673,9 @@ function invWireScanAndLabels() {
   var hero = document.getElementById('inv-scan-hero');
   if (hero && typeof SCAN !== 'undefined') hero.addEventListener('click', invOpenScanner);
   // (V3.844: the floating camera button went — the bar's ＋ fans out to Scan a label on every page; the hero stays.)
-  var printBtn = document.getElementById('inv-print-labels');
-  if (printBtn) {
-    printBtn.addEventListener('click', async function () {
-      var rows = document.querySelectorAll('tr.expandable-row[data-item-id], .variant-row[data-item-id]');
-      var ids = Array.prototype.map.call(rows, function (r) { return r.getAttribute('data-item-id'); }).filter(Boolean);
-      var items = ids.map(function (id) { return _data.items.find(function (i) { return i.id === id; }); }).filter(Boolean);
-      if (!items.length) { if (typeof TOAST !== 'undefined') TOAST.error('Nothing in the list to print.'); return; }
-      if (items.length > 60 && !confirm('Queue ' + items.length + ' labels at the printer?')) return;
-      try {
-        var r = await INV_LABELS.queue(items, { note: 'Inventory labels — ' + items.length + ' item' + (items.length === 1 ? '' : 's') });
-        if (typeof TOAST !== 'undefined') TOAST.success('Queued ' + r.cells + ' label' + (r.cells === 1 ? '' : 's') + ' at the label printer');
-        render();
-      } catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(e.message || 'Could not queue labels.'); }
-    });
-  }
+  // V3.877 — the toolbar's Print labels (every item in the list) is gone: Alex,
+  // "the print labels button should not be there in the inventory". A label is
+  // printed from its item's panel (Print label / Sheet).
 }
 
 /* ---- Build detail panel HTML for a single item ---- */
@@ -791,6 +786,9 @@ function itemDetailHtml(item, realIdx) {
 function render() {
   var items = getFiltered();
   var content = document.getElementById('content');
+  // V3.877 — the rows are rebuilt closed, so forget which one was open: a stale
+  // id made the next click on that row position close nothing and open nothing.
+  _expandedRow = ''; _expandedVariant = '';
 
   // Subtabs
   var tab = TABS.find(function (t) { return t.key === activeTab; });
@@ -1441,15 +1439,22 @@ function _invOpenItem(wantId) {
   var si = document.getElementById('search-input');
   if (si) si.value = want.name || '';
   ['category-filter', 'stock-filter'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = 'all'; });
-  activeTab = 'all'; activeSubtab = 'all'; updateTabActive(); render();
+  activeTab = 'all'; activeSubtab = 'all'; updateTabActive();
+  return _invShowItem(wantId, true);
+}
+
+/* V3.877 — repaint and (re)open one item's panel, leaving the person's search,
+ * tab and filters as they are. For a button inside a panel (Create QR code,
+ * Print label): render() alone rebuilt the rows closed. */
+function _invShowItem(wantId, scroll) {
+  render();
   _expandedRow = ''; _expandedVariant = '';   // render() rebuilt the rows closed; toggleRow would otherwise CLOSE an id it thinks is open
   var tr = document.querySelector('tr.expandable-row[data-item-id="' + wantId + '"]');
-  if (tr) { toggleRow(tr.dataset.rid); if (tr.scrollIntoView) tr.scrollIntoView({ block: 'center' }); }
-  else {   // a variant inside a product family: open the family, then the variant
-    var vr = document.querySelector('.variant-row[data-item-id="' + wantId + '"]');
-    if (vr) { toggleRow(vr.dataset.gid); toggleVariant(vr.dataset.vid); if (vr.scrollIntoView) vr.scrollIntoView({ block: 'center' }); }
-  }
-  return true;
+  if (tr) { toggleRow(tr.dataset.rid); if (scroll && tr.scrollIntoView) tr.scrollIntoView({ block: 'center' }); return true; }
+  // a variant inside a product family: open the family, then the variant
+  var vr = document.querySelector('.variant-row[data-item-id="' + wantId + '"]');
+  if (vr) { toggleRow(vr.dataset.gid); toggleVariant(vr.dataset.vid); if (scroll && vr.scrollIntoView) vr.scrollIntoView({ block: 'center' }); return true; }
+  return false;
 }
 
 /* ---- Init ---- */
@@ -1471,7 +1476,7 @@ function _invOpenItem(wantId) {
   try { _invOpenItem(new URLSearchParams(location.search).get('item')); }
   catch (e) { console.warn('[inventory] ?item= open failed:', e); }
   // V3.834 — a phone camera's visit to /l/CODE lands here with ?code=; the
-  // toolbar's Scan / Print labels buttons.
+  // toolbar's Scan button.
   try {
     invWireScanAndLabels();
     var code = new URLSearchParams(location.search).get('code');

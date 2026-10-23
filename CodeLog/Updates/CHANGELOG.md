@@ -4,6 +4,115 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.877] — 2026-10-23 — Custom items: a Create QR code button for every member; the toolbar's Print labels is gone
+
+Alex: *"For thes custom items, we should add a button for create a qr code for this item?"* and *"the print labels
+button should not be there in the inventory."* A custom item already gets its code at save (V3.873/875); production
+holds no custom items yet, so none is missing one. The button is the way back when that save-time step did not go
+through, and it was manager-only. FTP only.
+
+### Added
+- `invLabelHtml`: a custom item (`lab_made`) with no `label_code` says *"No QR code yet. A custom item gets one when it
+  is saved; if that did not go through, create it here."* and offers **Create QR code** (primary) to **any member**
+  (`labels/{CODE}` create and a `label_code` update are member-writable). A bought item's button stays manager-only, as
+  in V3.835, and is renamed from *Make code* to *Create QR code*.
+- `_invShowItem(id, scroll)` — repaint and reopen one item's panel without touching the search, tab or filters;
+  `_invOpenItem` now sets those and calls it.
+
+### Changed
+- `invMakeLabel` and `invQueueLabel` reopen the item (`_invShowItem`) instead of a bare `render()`, which closed the
+  panel the button was in.
+- **The toolbar's Print labels (`#inv-print-labels`, a label for every item in the list) is removed** from
+  `inventory.html`, with its handler in `invWireScanAndLabels` and its app-only hide rule. Labels are printed per item
+  from its panel (Print label / Sheet). `inventory-labels.html`'s empty-state hint now points at the panel's Sheet.
+- `sw.js` CACHE_VERSION 859 → 860.
+
+### Bug Fixes
+- `render()` resets `_expandedRow` / `_expandedVariant`. Every re-render (typing in search, a live update from another
+  tab) rebuilt the rows closed but kept the old open id, so the next click on that row position closed nothing and
+  opened nothing; it took a second click.
+
+### Tests
+- `v3875-custom-inventory-selftest.html` 46 → 54: one click opens a row after a re-render; a bought item with no code
+  shows no Create QR code to a non-manager; a custom item with no code says so, offers it, mints it bound to that item
+  with nothing printed, keeps its panel open and the search as it was.
+
+## [V3.877] — 2026-10-23 — Phase 2 complete: RM protocols run as Scientia protocols, "Something I did", RM collections in notes; pen and regions evaluated
+
+Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.877_scientia_rm_protocols_actions_collections.md](../ClaudesPlan/V3.877_scientia_rm_protocols_actions_collections.md).
+`scientia/src` untouched; the hub deployed before the client.
+
+### Added
+- Hub (read-only): `GET api/rm/protocols[?q=|?id=]` — `rmProtocolRow`, `rmProtocolSteps` (RM's `tree.sections` by order →
+  step texts: the section name on its first step, note / safety / callout as `Note: …`, `[!var:x]` → ‹x›, tags stripped,
+  empty and removed blocks ignored, the rest counted in `skipped`; `url` `protocols.html?protocol=<id>`),
+  `searchProtocols` (archived dropped, newest first); `FirestoreHub.protocols` lists by **field selection** and reads one
+  in full. `GET api/rm/collections[?id=]` — `rmCollectionRow`, `rmCollectionFull` over `userData/{uid}/litReviews`.
+  `MemoryHub` serves `rmProtocols` / `rmCollections`. Health V3.877. **Deployed.**
+- Host (`rm/js/notebook-scientia.js`): `rm-actions` → `listActionsFor` (`USER_ACTIONS.list / pending / describe`) →
+  `rm-actions-list {reqId, ok, rows}`; `rm-action-noted` → `noteActionFor` (`USER_ACTIONS.markNoted(id, {entryId:
+  'scientia:<note>', cardId})`).
+- `rm/scientia/lab-mode.js` §9: **Run a lab protocol from RM…** (`pickRmProtocol` → `runRmProtocol`: `PROTO.create` with
+  RM's steps and `def.rm {protocolId, title, version, updated_at, url, skipped}`, then `PROTO.register` in a project note
+  or `localOnly` otherwise; the same RM version again → `PROTO.newRun` of the same def; a changed version imported beside
+  it); `PROTO.body` wrapped — *From RM · <title> · in RM only: …* + Open in RM on the def and its runs. **Something I
+  did…** (`pickAction` over the host's list, `placeAction` → block `rmaction` + `rm-action-noted`; `WIDGETS.rmaction`,
+  ⋯ Pick a different action…). **Collection from the Lab Notebook…** (`pickCollection`, `placeCollection` → block
+  `rmcollection`; `WIDGETS.rmcollection` — title, claim, key points, quotes in their colours, papers → RM's reader, Open
+  its entry, Refresh; ⋯ Change the collection…). `pickerModal()`. New blocks carry readable text for the desktop.
+  `SIS_LAB.version` V3.877.
+- Tests: hub **52/52** (+2), lab-mode harness **80/80** (+12), notebook harness **39/39** + 6/6 (+2, the real host).
+
+### Evaluated, not ported
+- RM's pen arcs and phone modes (V3.860 / V3.863): Gabe's ink (pressure curves, pen-near cursor, finger undo/redo, lasso
+  connect / merge) and his five-screen phone layout stay; the reverse port is a separate decision. Regions, wires and
+  instances (V3.841): the same ideas on two engines with their own data — mapped, nothing to synchronise. Figure cards:
+  mapped (V3.876).
+
+### Changed
+- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 859 → 860; `CodeLog/features.json`; the V3.866 plan: Phase 2
+  complete.
+
+### Found, not changed
+- `rm/js/day-distribute.js` (~282) links My Week protocol steps to `protocols.html?id=`; the page reads `?protocol=`.
+
+## [V3.876] — 2026-10-23 — Phase 2, part 1: RM cards inside Scientia notes — the paper card, reading in place, ✓ report to My Week, the inventory material card
+
+Alex: *"MOVE ON TO PHASE 2"*. Plan: [V3.876_scientia_rm_cards_paper_report.md](../ClaudesPlan/V3.876_scientia_rm_cards_paper_report.md).
+Scientia's cards keep their data in its blocks and ask the Lab Notebook that hosts them to run RM's own UI (the paper
+reader, My Week's report picker) over the V3.864 bridge. `scientia/src` untouched; the hub deployed before the client.
+
+### Added
+- Hub `GET api/rm/annotations?paperId=` (`functions/scientia-hub-core.js` `rmAnnotationRow(doc, uid)` → `{id, color,
+  type, page, exact, comment, mine, by, at}`, `visibleAnnotations(docs, uid)` — the rule's read: `visibility 'lab'` or the
+  creator; by page; ≤ 300; `MemoryHub.annotations` over `rmAnnotations`; `FirestoreHub.annotations` reads
+  `papers/{paperId}/annotations`). Health string V3.876. **Deployed.**
+- Host bridge (`rm/js/notebook-scientia.js`): `rm-read` → `openReaderFor(paper, focus)` (RM's reader over the notebook;
+  a watch posts `rm-reader-closed` when it closes); `rm-report` → `openReportFor(card, point, reqId)` (`MYWEEK_REPORT.open`
+  at the click translated into the notebook; `onReported` posts `rm-reported {reqId, blockId, step}`); both answer
+  `rm-ack {reqId, ok}`.
+- `rm/scientia/lab-mode.js` §8: `hostRequest(type, payload, ms)` (an ack or `null` after 0.9 s), `ORIGIN`; `readPaper(r,
+  focus)` (reader over the notebook, else a new tab) used by the Library tab, `#/read/<paper>` and the paper card;
+  **`WIDGETS.rmpaper`** + `INSERTS 'rmpaper'` (*Reading → Paper from the library…*: `pickPaper` over the library mirror,
+  `placePaper` — text `Paper: <title>\n<APA>` for the desktop), the card body (sigil, title, APA, pdf pill, Read / Open in
+  RM / Refresh, your highlights in RM's colours with counts, each row opening the reader there), ⋯ Read / Open in RM /
+  Change the paper…; **✓ on every component's header** (`DocView.box` wrapped → `reportBlock(b, e)` → the host's picker →
+  `block.myweek[]`, the ✓ fills); **the material card for an inventory item** (`+ Insert → Material…` →
+  `materialFromInventory`: search RM's inventory, *Place its card here*, or *Pick one of your materials…*; `MATS2.cardBody`
+  wrapped — *In the lab inventory · Open in RM · Log a use in RM*; `WIDGETS.matcard.body` re-pointed). A small
+  `<style id="lab-mode-css">`. `SIS_LAB.version` V3.876; `SIS_LAB.host / readPaper / reportBlock / placePaper / pickPaper /
+  materialFromInventory`.
+- Tests: hub 50/50 (+1); lab-mode harness **68/68** (+12; the harness page stands in for the host); notebook harness
+  **37/37** + 6/6 (+6; the REAL host answers the frame).
+
+### Changed
+- The Library tab's and `#/read/<paper>`'s *Read in RM* open the reader over the notebook (V3.869 opened a tab).
+- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 858 → 859; `CodeLog/features.json` notes.
+
+### Not in this version
+- Figure cards are mapped, not ported (Gabe's image panel already stores through the hub's media). Protocols, *Something
+  I did*, collections and the pen / regions evaluation are V3.877.
+
 ## [V3.875] — 2026-10-23 — Custom items: custom aliquot / material / media, a units row, groups, and "made from" that never miscounts
 
 Alex: *"the what is it dropdown should be: custom alliquot, custom material, custom media / for how many, we need units

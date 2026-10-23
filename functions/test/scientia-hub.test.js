@@ -519,6 +519,37 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(hub, web, 'GET', '/api/rm/annotations', { query: { paperId: 'nope' } })).body.total, 0);
   });
 
+  /* ---- V3.877: RM protocols and collections for Scientia ---- */
+  const proto = { id: 'agarose-lls', title: 'Agarose LLS', status: 'draft', category: 'gels', current_version: 2, updated_at: '2026-10-20T10:00:00',
+    tree: { sections: [
+      { label: 'Making the gel', order: 1, children: [{ id: 'f1', kind: 'formula', body: '' }, { id: 's1', kind: 'step', body: 'Weigh [!var:agarose_mass] of agarose.' }, { id: 's2', kind: 'step', body: '<p>Add [!var:vol] of PBS &amp; heat.</p>' }, { id: 'c1', kind: 'callout', body: 'Hot — use the clamp.' }] },
+      { label: 'Design', order: 0, children: [{ id: 'm1', kind: 'materials', body: '' }, { id: 'sa', kind: 'safety', body: 'Work in the hood.' }, { id: 'n0', kind: 'note', body: '' }, { id: 't1', kind: 'table', body: '' }] },
+      { label: 'Sieving', order: 2, children: [{ id: 's3', kind: 'step', body: 'Press through the 300 µm sieve.' }, { id: 'sx', kind: 'step', body: '   ' }, { id: 'sr', kind: 'step', body: 'gone', status: 'removed' }] }] } };
+  await test('protocols: RM’s tree becomes Scientia steps (sections in order, notes as steps, variables named, the rest counted)', () => {
+    const p = C.rmProtocolSteps(proto);
+    assert.deepStrictEqual(p.list.map(s => s.text), ['Design: Note: Work in the hood.', 'Making the gel: Weigh ‹agarose_mass› of agarose.', 'Add ‹vol› of PBS & heat.', 'Note: Hot — use the clamp.', 'Sieving: Press through the 300 µm sieve.']);
+    assert.deepStrictEqual(p.skipped, { materials: 1, table: 1, formula: 1 });
+    assert.deepStrictEqual([p.id, p.title, p.version, p.steps, p.url], ['agarose-lls', 'Agarose LLS', 2, 5, '/rm/pages/protocols.html?protocol=agarose-lls']);
+    assert.strictEqual(C.rmProtocolRow(proto).steps, 3, 'the list row counts real steps (not removed, not blank)');
+    assert.deepStrictEqual(C.searchProtocols([C.rmProtocolRow(proto), C.rmProtocolRow({ id: 'old', title: 'Old', status: 'archived' }), C.rmProtocolRow({ id: 'b', title: 'Bradford assay', updated_at: '2026-10-22' })], '').map(r => r.id), ['b', 'agarose-lls']);
+    assert.deepStrictEqual(C.searchProtocols([C.rmProtocolRow(proto), C.rmProtocolRow({ id: 'b', title: 'Bradford assay' })], 'gels').map(r => r.id), ['agarose-lls'], 'category is searched');
+  });
+  await test('collections: the Lab Notebook’s mirror as a list row and in full; routes', async () => {
+    const lr = { id: 'col-1', itemId: 'col-1', kind: 'collection', title: 'Granule stiffness', entryId: 'nb-7', boardId: 'b-7', keyPoints: ['packing sets G′', ''],
+      papers: { 'p-smith-2024': { title: 'Granular hydrogels', cite: 'Smith 2024', why: 'the method' } }, entries: [{ type: 'quote', quote: 'stiffness rises', hex: '#4ade80', paperId: 'p-smith-2024', cite: 'Smith 2024' }],
+      counts: { papers: 1, quotes: 1 }, claim: null, updated_at: '2026-10-21T09:00:00' };
+    const row = C.rmCollectionRow(lr), full = C.rmCollectionFull(lr);
+    assert.deepStrictEqual([row.id, row.title, row.entryId, row.papers, row.entries, row.claim], ['col-1', 'Granule stiffness', 'nb-7', 1, 1, false]);
+    assert.deepStrictEqual(full.keyPoints, ['packing sets G′']); assert.strictEqual(full.paperList[0].why, 'the method'); assert.strictEqual(full.entryList[0].hex, '#4ade80');
+    const hub = new C.MemoryHub(); hub.rmCollections = [lr]; hub.rmProtocols = [proto];
+    const web = { id: 'u1', kind: 'browser', name: 'Gabe' };
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/collections')).body.items[0].id, 'col-1');
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/collections', { query: { id: 'col-1' } })).body.collection.title, 'Granule stiffness');
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/collections', { query: { id: 'nope' } })).body.ok, false);
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/protocols', { query: { q: 'agarose' } })).body.items[0].id, 'agarose-lls');
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/protocols', { query: { id: 'agarose-lls' } })).body.protocol.list.length, 5);
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

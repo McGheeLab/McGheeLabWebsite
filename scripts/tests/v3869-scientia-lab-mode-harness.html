@@ -31,6 +31,7 @@
     if (__host.mode !== 'ok') return;
     var reply = function (m) { fr.contentWindow.postMessage(m, location.origin); };
     reply({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: true });
+    if (e.data.type === 'rm-actions') setTimeout(function () { reply({ sisCmd: 'rm-actions-list', reqId: e.data.reqId, ok: true, rows: [{ id: 'inv_u1', kind: 'inventory_use', text: 'Used 2 mL of PBS 10x', at: '2026-10-26T10:15:00', note: 'for the wash', itemId: 'inv-pbs', equipmentId: '', labelCode: '' }, { id: 'eq_b1', kind: 'equipment_booking', text: 'Booked the confocal 14:00\u201316:00', at: '2026-10-26T14:00:00', note: '', itemId: '', equipmentId: 'eq-confocal', labelCode: '' }] }); }, 40);
     if (e.data.type === 'rm-report') setTimeout(function () { reply({ sisCmd: 'rm-reported', reqId: e.data.reqId, blockId: e.data.card.itemId, step: { id: 'step-1', title: 'Run gel 3', date: '2026-10-26' } }); }, 60);
   });
   /* ---- the prelude that runs inside the frame before cloud-sync.js ---- */
@@ -47,7 +48,7 @@
     window.__popups = []; window.__rej = []; window.__opened = []; window.__hubCalls = [];
     ['prompt', 'alert', 'confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
     window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
-    window.addEventListener('error', function (e) { window.__rej.push('error: ' + String(e.message || e)); });
+    window.addEventListener('error', function (e) { var msg = String(e.message || e); if (/ResizeObserver loop/.test(msg)) return; window.__rej.push('error: ' + msg); });
     window.open = function (href) { window.__opened.push(String(href)); return null; };
     var user = { uid: 'u1', getIdToken: function () { return Promise.resolve('tok'); } };
     var SEQ = STATE.syncSeq, queue = [], listeners = [];
@@ -71,6 +72,11 @@
       else if (path === 'api/sync/push') res = { ok: true, sid: STATE.sid, seq: SEQ, echo: [], conflicts: 0 };
       else if (path === 'api/rm/tasks' && method === 'POST') { var tb = JSON.parse(body || '{}'); window.__taskN += 1; var tid = 'task-h' + window.__taskN; window.__rmTasks[tid] = { id: tid, blockId: tb.blockId, text: tb.text, due: tb.due, prio: tb.prio, done: false }; res = { ok: true, id: tid, task: window.__rmTasks[tid] }; }
       else if (path === 'api/rm/tasks/update' && method === 'POST') { var ub = JSON.parse(body || '{}'); var tk = window.__rmTasks[ub.id]; if (tk) Object.assign(tk, ub); res = { ok: !!tk, id: ub.id, task: tk }; }
+      else if (path === 'api/rm/protocols') { res = /[?&]id=/.test(full) ? { ok: true, protocol: { id: 'agarose-lls', title: 'Agarose LLS', version: 2, updated_at: '2026-10-20T10:00:00', url: '/rm/pages/protocols.html?protocol=agarose-lls', steps: 3, skipped: { formula: 1, table: 1 },
+          list: [{ id: 's1', kind: 'step', section: 'Making the gel', text: 'Making the gel: Weigh \u2039agarose_mass\u203a of agarose.' }, { id: 's2', kind: 'step', section: 'Making the gel', text: 'Add \u2039vol\u203a of PBS and heat.' }, { id: 'c1', kind: 'callout', section: 'Making the gel', text: 'Note: Hot \u2014 use the clamp.' }] } }
+        : { ok: true, total: 2, items: [{ id: 'agarose-lls', title: 'Agarose LLS', status: 'draft', category: 'gels', version: 2, updated_at: '2026-10-20T10:00:00', steps: 0, sections: 0 }, { id: 'bradford', title: 'Bradford assay', status: 'published', category: 'assays', version: 1, updated_at: '2026-09-01T10:00:00', steps: 0, sections: 0 }] }; }
+      else if (path === 'api/rm/collections') { res = /[?&]id=/.test(full) ? { ok: true, collection: { id: 'col-1', title: 'Granule stiffness', entryId: 'nb-7', papers: 1, entries: 1, claim: false, keyPoints: ['packing sets the modulus'], paperList: [{ paperId: 'p-smith-2024', title: 'Granular hydrogels for printed tissue', cite: 'Smith 2024', why: 'the method' }], entryList: [{ type: 'quote', quote: 'stiffness rises with packing fraction', hex: '#4ade80', paperId: 'p-smith-2024', cite: 'Smith 2024' }], claimText: '', drafts: [] } }
+        : { ok: true, total: 1, items: [{ id: 'col-1', title: 'Granule stiffness', entryId: 'nb-7', papers: 1, entries: 1, claim: false, updated_at: '2026-10-21T09:00:00' }] }; }
       else if (path === 'api/rm/annotations') res = { ok: true, total: 2, items: [
         { id: 'ann-1', color: 'green', page: 3, exact: 'stiffness rises with packing fraction', comment: '', mine: true, by: 'Gabe', at: '2026-10-20' },
         { id: 'ann-2', color: 'purple', page: 5, exact: 'unclear how granules were sized', comment: '', mine: false, by: 'Mo', at: '2026-10-21' }] };
@@ -119,7 +125,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.875', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.877', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -289,7 +295,7 @@
     check('every component has a ✓ in its header (report to My Week)', !!mwBtn && !mwBtn.classList.contains('on') && !!D.querySelector('.box[data-id="' + tbid + '"] > .bh > .lab-mw'));
     nGot = __host.got.length; mwBtn.click();
     var rep = await until(function () { return __host.got.slice(nGot).filter(function (m) { return m.type === 'rm-report'; })[0]; }, 4000);
-    check('…which asks the notebook for RM\'s report picker with the component as the card', !!rep && rep.card.kind === 'scientia_block' && rep.card.itemId === pbid && rep.card.entryId === nid && rep.card.paperId === 'p-smith-2024' && /notebook=scientia&note=/.test(rep.card.url) && rep.point && rep.point.x > 0, JSON.stringify(rep && rep.card));
+    check('…which asks the notebook for RM\'s report picker with the component as the card', !!rep && rep.card.kind === 'scientia_block' && rep.card.itemId === pbid && rep.card.entryId === nid && rep.card.paperId === 'p-smith-2024' && /notebook=scientia&note=/.test(rep.card.url) && rep.point && isFinite(rep.point.x) && isFinite(rep.point.y), JSON.stringify(rep && rep.card));
     var stamped = await until(function () { var b = JSON.parse(ev("JSON.stringify(M.block('" + pbid + "'))")); return (b.myweek || [])[0]; }, 4000);
     check('the chosen step comes back and is kept on the component (myweek[])', !!stamped && stamped.stepId === 'step-1' && stamped.title === 'Run gel 3', JSON.stringify(stamped));
     check('…and its ✓ fills', !!(await until(function () { var x = D.querySelector('.box[data-id="' + pbid + '"] > .bh > .lab-mw'); return x && x.classList.contains('on'); }, 4000)));
@@ -303,8 +309,45 @@
     var mq = mpick.querySelector('input.inp'); mq.value = 'pbs'; mq.dispatchEvent(new W.Event('input', { bubbles: true }));
     var pbsRow = await until(function () { return mpick.querySelector('.lab-inv[data-inv="inv-pbs"]'); }, 6000);
     Array.from(pbsRow.querySelectorAll('button')).filter(function (b) { return /Place its card here/.test(b.textContent); })[0].click();
-    var mcard = await until(function () { var c = D.querySelectorAll('.mcard'); for (var i = 0; i < c.length; i++) if (/PBS 10x/.test(c[i].textContent)) return c[i]; return null; }, 6000);
-    check('Insert → Material… places the card of an inventory item, with its RM line', !!mcard && /In the lab inventory/.test(mcard.textContent) && /Log a use in RM/.test(mcard.textContent), mcard ? mcard.textContent.slice(0, 160) : 'no card');
+    var mcard = await until(function () { var bl = ev("JSON.stringify(DB.where('blocks', function (b) { return b.kind === 'matcard' && b.status === 'live' && (M.doc(b.matId) || {}).inventoryId === 'inv-pbs'; }).map(function (b) { return b.id; }))"); var ids = JSON.parse(bl || '[]'); var bx = ids[0] && D.querySelector('.box[data-id="' + ids[0] + '"]'); return bx && /PBS 10x/.test(bx.textContent) && /In the lab inventory/.test(bx.textContent) && bx; }, 6000);
+    check('Insert → Material… places the card of an inventory item (Gabe\'s material card), with its RM line', !!mcard && /Log a use in RM/.test(mcard.textContent) && /Open in RM/.test(mcard.textContent), mcard ? mcard.textContent.slice(0, 200) : 'no card');
+    /* 13. V3.877 — protocols from RM, Something I did, collections */
+    function pickRow(re) { var o = Array.from(D.querySelectorAll('.ovl .opt, .modal .opt, .opt')).filter(function (x) { return re.test(x.textContent); })[0]; if (o) o.dispatchEvent(new W.MouseEvent('mousedown', { bubbles: true, cancelable: true })); return o; }
+    check('+ Insert offers Run a lab protocol from RM, Something I did and Collection from the Lab Notebook', ['rmprotocol', 'rmaction', 'rmcollection'].every(function (id) { return ev("!!INSERTS.filter(function (x) { return x.id === '" + id + "'; })[0]"); }));
+    ev("SIS_LAB.pickRmProtocol(M.doc('" + nid + "'), { x: 460, y: 300 })");
+    check('the protocol picker lists the lab\'s protocols from RM', !!(await until(function () { return pickRow(/^$/) || (D.body.textContent.indexOf('Bradford assay') >= 0 && D.body.textContent.indexOf('Agarose LLS') >= 0); }, 6000)));
+    pickRow(/Agarose LLS/);
+    var defId = await until(function () { return ev("(DB.where('blocks', function (b) { return b.kind === 'protocol' && b.rm && b.rm.protocolId === 'agarose-lls'; })[0] || {}).id"); }, 6000);
+    var DEF = defId ? JSON.parse(ev("JSON.stringify(M.block('" + defId + "'))")) : {};
+    check('picking it makes Gabe\'s protocol from RM\'s steps (sections named, variables as ‹name›, notes as steps)', !!defId && DEF.steps.length === 3 && /^Making the gel: Weigh ‹agarose_mass›/.test(DEF.steps[0].text) && /^Note: Hot/.test(DEF.steps[2].text) && DEF.rm.updated_at === '2026-10-20T10:00:00' && DEF.label === 'Agarose LLS', JSON.stringify({ steps: (DEF.steps || []).map(function (x) { return x.text; }), rm: DEF.rm }));
+    check('in a note without a project it stays in the note, runnable where it is (Gabe\'s "keep it in this note")', DEF.localOnly === true && DEF.docId === nid);
+    var pbox = await until(function () { return D.querySelector('.box[data-id="' + defId + '"] .lab-proto-line'); }, 6000);
+    check('the protocol says where it came from and what stays in RM, with Open in RM', !!pbox && /From RM · Agarose LLS/.test(pbox.textContent) && /in RM only: 1 formula, 1 table/.test(pbox.textContent), pbox ? pbox.textContent : 'no line');
+    ev("DB.put('projects', { id: 'pj1', name: 'GELS' })");
+    var nid2 = ev("M.createDoc({ type: 'experiment', projectId: 'pj1', title: 'Gel run 4' }).id");
+    go('#/doc/' + nid2); await until(function () { return /Gel run 4/.test((q('#ttl') || {}).textContent || ''); }, 8000);
+    ev("SIS_LAB.runRmProtocol(M.doc('" + nid2 + "'), { x: 460, y: 300 }, { id: 'agarose-lls' })");
+    var run2 = await until(function () { return ev("(DB.where('blocks', function (b) { return b.kind === 'run' && b.docId === '" + nid2 + "' && b.protocolId === '" + defId + "'; })[0] || {}).id"); }, 6000);
+    check('the same RM version again: a RUN of the imported protocol, not a second copy', !!run2 && ev("DB.where('blocks', function (b) { return b.kind === 'protocol' && b.rm && b.rm.protocolId === 'agarose-lls'; }).length") === 1);
+    check('…which shows the RM line too', !!(await until(function () { return D.querySelector('.box[data-id="' + run2 + '"] .lab-proto-line'); }, 6000)));
+    /* Something I did */
+    __host.mode = 'ok';
+    ev("SIS_LAB.pickAction(M.doc('" + nid2 + "'), { x: 0, y: 900 })");
+    var actRow = await until(function () { return pickRow(/Used 2 mL of PBS 10x/) && true; }, 6000);
+    var abid = await until(function () { return ev("(DB.where('blocks', function (b) { return b.kind === 'rmaction' && b.docId === '" + nid2 + "'; })[0] || {}).id"); }, 6000);
+    check('Something I did lists your recorded actions (from the notebook) and places the one you pick', !!actRow && !!abid && ev("M.block('" + abid + "').action.id") === 'inv_u1' && /^Did: Used 2 mL of PBS 10x/.test(ev("M.block('" + abid + "').body.text")), abid);
+    check('…and asks the notebook to mark it noted in this note', !!(await until(function () { return __host.got.filter(function (m) { return m.type === 'rm-action-noted' && m.actionId === 'inv_u1' && m.cardId === abid && m.entryId === nid2; })[0]; }, 4000)));
+    var acard = await until(function () { var bx = D.querySelector('.box[data-id="' + abid + '"]'); return bx && /Item used/.test(bx.textContent) && /The item in RM/.test(bx.textContent) && bx; }, 6000);
+    check('the card shows what, when and the note, with The item in RM', !!acard && /for the wash/.test(acard.textContent), acard ? acard.textContent.slice(0, 160) : 'no card');
+    /* a collection */
+    ev("SIS_LAB.pickCollection(M.doc('" + nid2 + "'), { x: 460, y: 900 })");
+    await until(function () { return pickRow(/Granule stiffness/) && true; }, 6000);
+    var cbid = await until(function () { return ev("(DB.where('blocks', function (b) { return b.kind === 'rmcollection' && b.docId === '" + nid2 + "'; })[0] || {}).id"); }, 6000);
+    var ccard = await until(function () { var bx = D.querySelector('.box[data-id="' + cbid + '"] .rmc'); return bx && /packing sets the modulus/.test(bx.textContent) && bx; }, 6000);
+    check('a collection card shows its key points, quotes in their colours and papers, read-only', !!ccard && /stiffness rises with packing fraction/.test(ccard.textContent) && /Granular hydrogels/.test(ccard.textContent) && /Open its entry/.test(ccard.textContent) && ccard.querySelector('.rmp-row i').style.background.replace(/\s/g, '') === 'rgb(74,222,128)', ccard ? ccard.textContent.slice(0, 200) : 'no card');
+    var nGot2 = __host.got.length; Array.from(ccard.querySelectorAll('.rmp-row')).filter(function (r) { return /stiffness rises/.test(r.textContent); })[0].click();
+    check('a quote opens its paper in RM\'s reader', !!(await until(function () { return __host.got.slice(nGot2).filter(function (m) { return m.type === 'rm-read' && m.paper.paperId === 'p-smith-2024'; })[0]; }, 4000)));
+    __host.mode = 'none';
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

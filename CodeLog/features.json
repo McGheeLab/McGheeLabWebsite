@@ -1459,7 +1459,7 @@
     "scientia.reader"
    ],
    "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
-   "note": "V3.869: the WEB build shows RM’s library (the hub mirrors `items` into `library` rows, rm: true); the in-app adders are gone there. The desktop app keeps its own."
+   "note": "V3.869: the WEB build shows RM’s library (the hub mirrors `items` into `library` rows, rm: true); the in-app adders are gone there. The desktop app keeps its own. V3.876: a paper card (`rmpaper`) shows RM highlights; Read opens RM’s reader over the Lab Notebook."
   },
   {
    "id": "scientia.reader",
@@ -1757,10 +1757,18 @@
     "scientia/CLAUDE.md"
    ],
    "related": [
+    "rm.activity",
+    "rm.inventory",
+    "rm.library",
+    "rm.my-week",
     "rm.notebook",
-    "scientia.desktop-server",
-    "rm.platform"
-   ]
+    "rm.paper-reader",
+    "rm.platform",
+    "rm.protocols",
+    "rm.tasks",
+    "scientia.desktop-server"
+   ],
+   "note": "The lab layer bridges Scientia to RM features (Phase 1 V3.869–874; Phase 2 V3.876+): it reads them through the hub or asks the Lab Notebook host to run their UI — it never re-implements them."
   }
  ]
 }

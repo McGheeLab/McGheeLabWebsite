@@ -298,6 +298,23 @@ class FirestoreHub {
     const items = C.visibleAnnotations(snap.docs.map(x => Object.assign({ id: x.id }, x.data() || {})), this.uid);
     return { ok: true, paperId: String(paperId), total: items.length, items: items.slice(0, 300) };
   }
+  /* ---- V3.877: RM protocols (list by field selection; one protocol in full) and the person's collections ---- */
+  async protocols({ q, id } = {}) {
+    if (id) {
+      const s = await db().collection('protocols').doc(String(id)).get();
+      return s.exists ? { ok: true, protocol: C.rmProtocolSteps(Object.assign({ id: s.id }, s.data() || {})) } : { ok: false, error: 'no such protocol' };
+    }
+    const snap = await db().collection('protocols').select('title', 'status', 'category', 'current_version', 'updated_at').get();
+    const items = C.searchProtocols(snap.docs.map(x => C.rmProtocolRow(Object.assign({ id: x.id }, x.data() || {}))), q);
+    return { ok: true, total: items.length, items: items.slice(0, 100) };
+  }
+  async collections({ id } = {}) {
+    const coll = db().collection('userData').doc(this.uid).collection('litReviews');
+    if (id) { const s = await coll.doc(String(id)).get(); return s.exists ? { ok: true, collection: C.rmCollectionFull(Object.assign({ id: s.id }, s.data() || {})) } : { ok: false, error: 'no such collection' }; }
+    const snap = await coll.get();
+    const items = snap.docs.map(x => C.rmCollectionRow(Object.assign({ id: x.id }, x.data() || {}))).filter(r => r.id).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+    return { ok: true, total: items.length, items };
+  }
   /** One read of the hub doc decides which throttled syncs are due (every pull calls this). */
   async quietSyncs(who, { force, only } = {}) {
     const d = (await this.ref.get()).data() || {}, now = Date.now(), out = {};
@@ -356,7 +373,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.874' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.877' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }
