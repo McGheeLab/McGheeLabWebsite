@@ -1409,7 +1409,8 @@
    ],
    "status": "retiring",
    "merges_into": "rm.activity",
-   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md"
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
+   "note": "V3.869: not a tab in the web build (a pointer to RM’s tracker). V3.872: timer sessions → ActivitySignals."
   },
   {
    "id": "scientia.terms",
@@ -1457,7 +1458,8 @@
     "rm.paper-reader",
     "scientia.reader"
    ],
-   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md"
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
+   "note": "V3.869: the WEB build shows RM’s library (the hub mirrors `items` into `library` rows, rm: true); the in-app adders are gone there. The desktop app keeps its own."
   },
   {
    "id": "scientia.reader",
@@ -1502,7 +1504,8 @@
    "desktop_only": true,
    "related": [
     "rm.outputs"
-   ]
+   ],
+   "note": "V3.869: not a tab in the web build (desktop only)."
   },
   {
    "id": "scientia.materials",
@@ -1603,7 +1606,7 @@
     "rm.meetings"
    ],
    "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
-   "note": "Found by the checker (V3.868): Scientia chores (passaging, media changes) overlap RM meeting chores — Phase 1 maps them."
+   "note": "Found by the checker (V3.868): Scientia chores (passaging, media changes) overlap RM meeting chores — Phase 1 maps them. V3.869: the Tasks PAGE is gone from the web build (a pointer to RM tasks); the task component stays until V3.871."
   },
   {
    "id": "scientia.protocol-blocks",
@@ -1723,16 +1726,18 @@
    "side": "shared",
    "summary": "The lab layer: the hub on Firestore speaking Gabe's sync protocol, the web shim, the desktop bridge, Scientia as a notebook of the Lab Notebook.",
    "keywords": [
-    "hub",
-    "sync",
-    "shim",
     "bridge",
     "cloud",
     "device",
-    "push",
+    "hub",
+    "key",
+    "lab-mode",
+    "mirror",
     "pull",
+    "push",
     "relay",
-    "key"
+    "shim",
+    "sync"
    ],
    "paths": [
     "rm/scientia/**",
