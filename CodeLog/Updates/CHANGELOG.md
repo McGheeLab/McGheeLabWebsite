@@ -4,6 +4,64 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.873] — 2026-10-23 — Lab members add aliquots and things we make in the lab, each with its own QR code
+
+Alex: *"in the inventory, i want users to be able to add alliquots and custom inventory that we make in the lab… users
+will name this accordingly, we dont need to make anything custom for these, but users should describe custom items so
+we know about them, also they should say where they live for example fridge/box/001"*, then *"these custom inventory
+items should also get a qr code"*. Plan: [V3.873_lab_made_aliquots.md](../ClaudesPlan/V3.873_lab_made_aliquots.md).
+FTP only: no rules, index or function change (`allow create` on `inventory/{id}` already admits any lab member for a
+non-stock item, `qty_*` included; `labels` and `labelQueue` creates are member-open).
+
+### Added
+- **+ Aliquot or lab-made** on `inventory.html` → `addLabMadeItem()` in `rm/js/inventory.js`: an `openForm` with
+  *What is it?* (`aliquot` | `made_in_lab`, required), Name (required), Description (required), *Where it lives*
+  (required; `<datalist>` from `_invLocationSuggestions()`, every location name already on an item; tidied by
+  `_invTidyLocation()` — spaces around `/` collapse), optional *How many* + *Of what* (`LAB_MADE_UNITS`; counts are
+  rounded, `LAB_MADE_MEASURES` mL/µL/g/mg are not), *Made on* (local date, `_invLocalToday()`), and *Send its labels to
+  the lab's label printer* (default on). The doc is an ordinary `kind:'item'` with `lab_made: true`, `lab_made_type`,
+  `category: 'lab_made'`, `subcategory` = the type, `made_by_uid`, `made_by_name`, `date_acquired`, `is_consumable:
+  true`, `locations: [{name, quantity, notes}]`, `locIds: []`, `reorder: null`; with a count it is created tracked
+  (`qty_tracked`, `qty_unit`, `qty_made` = `qty_remaining` = n, legacy `quantity` = n). Ids are
+  `aliquot-<date>-<name>` / `lab-<date>-<name>`.
+- **A QR code on every lab-made item at save** — `_invLabelNewItem(item, labels)` after the form closes: with the
+  printer box ticked, `INV_LABELS.queue()` with one copy of the item per piece (a counted batch in a count unit, capped
+  at `LAB_MADE_MAX_LABELS` = 100; otherwise 1), every label carrying the batch's one code; unticked,
+  `INV_LABELS.ensureCode()` mints the code alone. A failure toasts and leaves the item (Print label in its panel).
+- `_invCreateItem(vals)` — writes ONE `inventory/{id}` doc in a transaction that refuses an id already taken (slug,
+  then `-2`, `-3`… up to 30; ids in the page's list are skipped without a read), `updatedAt` server time, then
+  `api.invalidate(DATA_PATH)`, pushes the row and repaints. Local JSON dev (no `firebridge.db`) keeps the old save.
+- `_invOpenItem(id)` — the V3.813 `?item=` opener factored out; also clears the category / stock filters and resets
+  `_expandedRow` / `_expandedVariant` (after a re-render `toggleRow` would otherwise CLOSE a row id it still thinks is
+  open). `_invPaintChrome()` — tabs, counts, category filter and table from memory, split out of `loadAndRender()`.
+- A **Made in Lab** tab (`i.lab_made`) with *Aliquots* / *Made in lab* subtabs (`SUBTAB_LABELS`), `lab_made` in
+  `CATEGORY_OPTIONS`. Row: `labMadeChip(item)` beside the name, `vendorCell(item)` → "made by <name>". Panel: an
+  inline **Description** (`inlineTextarea(…, 'description', …)`, shown for any item that has one), "Made by / Aliquoted
+  by <name> on <date>" in place of Date Acquired, no *Request reorder*.
+- `rm/js/forms.js` (`openForm`, used across RM): optional `suggestions` (a `<datalist>` with a unique id) and `hint`
+  (`.form-hint` line) on a field; `placeholder` on a textarea.
+- `scripts/tests/v3873-lab-made-selftest.html` — 44 checks headless against the real forms / inventory-qty /
+  inventory-use / inventory scripts (stub Firestore holding a colliding slug, stub `INV_LABELS`; `?demo=form` /
+  `?demo=row` for screenshots). `inventory-labels.test.mjs` 18 → 19.
+
+### Changed
+- **+ Add Item** saves through `_invCreateItem` (one doc) instead of `api.save(DATA_PATH, _data)`, which re-set all
+  ~3,500 inventory docs to add one (the V3.729 "+ New paper" shape), then opens the new item.
+- The Qty column shows what is LEFT for a tracked item (`qtyCell(item)`: `qty_remaining` + unit); the legacy `quantity`
+  never moves on a scan, so a batch would have shown its starting count forever.
+- Search also matches location names and `made_by_name` — typing `fridge/box/001` lists what lives there.
+- `INV_LABELS_CORE.storageFor(item)` falls back to the location names when the item has no storage field, so a
+  `fridge/box/001` tube prints 4C rather than RT (a storage field still wins).
+- `INV_USE.take`: no *Request a reorder* action on the low-stock toast for a `lab_made` item.
+- `openForm`: a required field holding only whitespace is refused and the first empty one takes the focus; a failed
+  save is a `TOAST.error` (`_formSaveFailed`) instead of `alert()`, which stays only where `toast.js` is not loaded.
+- `sw.js` CACHE_VERSION 855 → 856; `CodeLog/features.json` `rm.inventory` summary.
+
+### Bug Fixes
+- Names, location names and descriptions are escaped in the inventory list and panel (`escAttr` in the name cell,
+  `locationsChips`, the locations table, `inlineText`, `inlineTextarea`). A name like `LLS <50 µm` used to break the row
+  and a `</textarea>` in notes broke the panel; members now type these names themselves.
+
 ## [V3.872] — 2026-10-23 — A task component in a Scientia note is an RM task, done flows both ways (Phase 1, step 3, web build)
 
 Alex: *"continue."* Plan: [V3.872_scientia_tasks_rm.md](../ClaudesPlan/V3.872_scientia_tasks_rm.md). `scientia/src` untouched;

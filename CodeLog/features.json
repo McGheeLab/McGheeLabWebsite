@@ -872,7 +872,7 @@
    "id": "rm.inventory",
    "name": "Inventory",
    "side": "rm",
-   "summary": "Lab inventory: items, quantities, lots, locations, QR labels, scan-to-use, stock take, reorder alerts; the source for materials elsewhere.",
+   "summary": "Lab inventory: items, quantities, lots, locations, QR labels, scan-to-use, stock take, reorder alerts; aliquots and lab-made items added by any member (V3.873); the source for materials elsewhere.",
    "keywords": [
     "inventory",
     "stock",

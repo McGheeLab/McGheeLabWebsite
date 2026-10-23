@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3.873 lab-made items selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<script>
+  // Stubs: a signed-in non-admin member, an in-memory Firestore (transactions,
+  // batches) that already holds one doc the slug will collide with, and an
+  // INV_LABELS that records mints and queued labels. The REAL forms.js,
+  // inventory-qty.js, inventory-use.js and inventory.js run. No network.
+  window.__dialogs = [];
+  window.alert = function (m) { window.__dialogs.push('alert:' + m); };
+  window.prompt = function (m) { window.__dialogs.push('prompt:' + m); return null; };
+  window.confirm = function (m) { window.__dialogs.push('confirm:' + m); return false; };
+  (function () {
+    var d = new Date();
+    window.__today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  })();
+  window.__fs = { docs: {}, sets: [], batchSets: [], fullSaves: 0, invalidated: 0 };
+  // The slug "aliquot-<today>-lls-100-m-rhodamine-spheres" is taken in Firestore
+  // but NOT in the page's list — only the transaction can catch it.
+  window.__fs.docs['aliquot-' + window.__today + '-lls-100-m-rhodamine-spheres'] = { name: 'a twin someone else made' };
+  window.__items = [
+    { id: 'beads-old', kind: 'item', name: 'LLS 50 µm, FITC', lab_made: true, lab_made_type: 'made_in_lab', category: 'lab_made', subcategory: 'made_in_lab',
+      made_by_name: 'Someone', description: 'An older batch', locations: [{ name: 'fridge/box/001' }], is_consumable: true, stock_status: 'full' },
+    { id: 'tips', kind: 'item', name: 'Tips 200 µL', vendor: 'Fisher', category: 'consumable', locations: [{ name: 'BSRL 312/Shelf A2', quantity: 4 }], is_consumable: true, stock_status: 'full' },
+    { id: 'scope', kind: 'item', name: 'Microscope', vendor: 'Nikon', category: 'equipment', locations: [{ name: 'BSRL 312/scope room' }], stock_status: 'n/a' },
+  ];
+  var firebridge = {
+    requireSignIn: async function () {},
+    loadAccessGrant: async function () {},
+    isAdmin: function () { return false; },
+    hasCapability: function () { return false; },
+    getUser: function () { return { uid: 'u1', displayName: 'Test User', email: 'test@example.edu' }; },
+    getProfile: function () { return { name: 'Test User', initials: 'TU' }; },
+    db: function () {
+      return {
+        collection: function (name) {
+          return { doc: function (id) { return { id: id, coll: name, update: async function () {} }; } };
+        },
+        runTransaction: async function (fn) {
+          var pending = [];
+          await fn({
+            get: async function (ref) { return { exists: !!window.__fs.docs[ref.id] }; },
+            set: function (ref, row) { pending.push([ref, row]); },
+          });
+          pending.forEach(function (p) { window.__fs.docs[p[0].id] = p[1]; window.__fs.sets.push({ id: p[0].id, row: p[1] }); });
+        },
+        batch: function () {
+          var ops = [];
+          return { set: function (ref, row) { ops.push({ id: ref.id, row: row }); }, commit: async function () { ops.forEach(function (o) { window.__fs.batchSets.push(o); }); } };
+        },
+      };
+    },
+  };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; } } } };
+  window.__labels = { minted: [], queues: [] };
+  window.INV_LABELS = {
+    core: { payloadFor: function (c) { return 'MCGHEELAB.COM/L/' + c; } },
+    loadQr: async function () { return {}; },
+    qrSvg: async function () { return '<svg width="96" height="96" data-test-qr="1"></svg>'; },
+    ensureCode: async function (item) {
+      if (!item.label_code) { item.label_code = 'MG-T' + (window.__labels.minted.length + 1); window.__labels.minted.push(item.id); }
+      return item.label_code;
+    },
+    queue: async function (items, opts) {
+      window.__labels.queues.push({ n: items.length, ids: Array.from(new Set(items.map(function (i) { return i.id; }))), note: opts && opts.note });
+      for (var i = 0; i < items.length; i++) await window.INV_LABELS.ensureCode(items[i]);
+      return { jobs: ['j1'], cells: items.length };
+    },
+  };
+</script>
+<style> #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 12px; } </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Lab Inventory</h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="category-filter" class="btn" style="font-size:14px;"><option value="all">All Categories</option></select>
+        <select id="stock-filter" class="btn" style="font-size:14px;"><option value="all">All Stock</option><option value="full">Full</option></select>
+        <input id="search-input" type="text" placeholder="Search items...">
+        <button class="btn" onclick="addLabMadeItem()" id="add-lab-made">+ Aliquot or lab-made</button>
+        <button class="btn btn-primary" id="add-item">+ Add Item</button>
+      </div>
+    </div>
+    <div class="tab-bar" id="tabs"></div>
+    <div id="content"></div>
+  </div>
+  <div id="r"></div>
+  <script src="/rm/js/icons.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script>
+    // util.js's `api` is a lexical const: patch its methods, never replace it.
+    api.load = async function (path) {
+      if (path === 'inventory/items.json') return { items: JSON.parse(JSON.stringify(window.__items)) };
+      return { projects: [] };
+    };
+    api.save = async function () { window.__fs.fullSaves++; return {}; };
+    api.invalidate = async function () { window.__fs.invalidated++; };
+  </script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/forms.js"></script>
+  <script src="/rm/js/app-sheet.js"></script>
+  <script src="/rm/js/inventory-qty.js"></script>
+  <script src="/rm/js/inventory-use.js"></script>
+  <script src="/rm/js/inventory.js"></script>
+<script>
+(async function () {
+  var r = document.getElementById('r'); var pass = 0, fail = 0;
+  var demo = new URLSearchParams(location.search).get('demo');
+  function ok(name) { pass++; r.textContent += 'ok    ' + name + '\n'; }
+  function bad(name, d) { fail++; r.textContent += 'FAIL  ' + name + (d ? '  → ' + d : '') + '\n'; }
+  function eq(got, want, name) { var g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) ok(name); else bad(name, 'got ' + g + ' want ' + w); }
+  function tick(ms) { return new Promise(function (res) { setTimeout(res, ms || 40); }); }
+  function $(q, root) { return (root || document).querySelector(q); }
+  async function until(fn, ms) { var t = Date.now(); while (Date.now() - t < (ms || 2000)) { if (fn()) return true; await tick(20); } return false; }
+  function field(label) {
+    var groups = document.querySelectorAll('.modal .form-group');
+    for (var i = 0; i < groups.length; i++) {
+      var l = groups[i].querySelector('label');
+      if (l && l.textContent.replace(/\s*\*$/, '').trim().indexOf(label) === 0) return groups[i].querySelector('input, select, textarea');
+    }
+    return null;
+  }
+  function set(label, value) {
+    var el = field(label);
+    if (!el) { bad('field ' + label, 'missing'); return; }
+    if (el.type === 'checkbox') el.checked = !!value; else el.value = value;
+  }
+  function save() { var b = $('.modal .modal-actions .btn-primary'); if (b) b.click(); else bad('save button', 'missing'); }
+  function tabText(prefix) { var b = Array.prototype.find.call(document.querySelectorAll('#tabs .tab-btn'), function (x) { return x.textContent.indexOf(prefix) === 0; }); return b ? b.textContent : null; }
+
+  await until(function () { return document.querySelectorAll('#tabs .tab-btn').length > 0; });
+  eq(tabText('Made in Lab'), 'Made in Lab (1)', 'a Made in Lab tab counts the lab-made item already there');
+
+  // ── the form ────────────────────────────────────────────────────────────
+  $('#add-lab-made').click();
+  await tick();
+  eq(!!$('.modal'), true, '+ Aliquot or lab-made opens a form in the page');
+  eq(($('.modal-title') || {}).textContent, 'Add an aliquot or something we made', 'form title');
+  var typeSel = field('What is it?');
+  eq(typeSel && Array.prototype.map.call(typeSel.options, function (o) { return o.textContent; }),
+     ['— select —', 'An aliquot of something we bought', 'Something we made in the lab'], 'the two kinds, in words');
+  var locInput = field('Where it lives');
+  var dl = locInput && locInput.getAttribute('list') && document.getElementById(locInput.getAttribute('list'));
+  eq(dl ? Array.prototype.map.call(dl.options, function (o) { return o.value; }) : null,
+     ['BSRL 312/scope room', 'BSRL 312/Shelf A2', 'fridge/box/001'], 'where-it-lives suggests every location already used');
+  eq(!!(locInput && locInput.parentNode.querySelector('.form-hint')), true, 'location carries a hint line');
+  eq(field('Made on') && field('Made on').value, window.__today, 'made on defaults to today (local date)');
+  eq(field('Of what') && field('Of what').value, 'tube', 'unit defaults to tubes');
+  eq(field('Send its labels') && field('Send its labels').checked, true, 'labels to the printer default on');
+
+  if (demo === 'form') {
+    set('What is it?', 'aliquot'); set('Name', 'LLS 100 µm, rhodamine, spheres');
+    set('Description', 'Inert LLS beads, 100 µm, rhodamine-labelled, spherical. Made 2026-10-21 from the 50 µm protocol scaled up.');
+    set('Where it lives', 'fridge/box/001'); set('How many', '20');
+    setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 600);
+    return;
+  }
+
+  // required: an empty save writes nothing and keeps the form
+  save();
+  await tick();
+  eq(window.__fs.sets.length, 0, 'an empty save writes nothing');
+  eq(!!$('.modal'), true, 'and the form stays open');
+  // whitespace is not a description
+  set('What is it?', 'aliquot'); set('Name', 'LLS 100 µm, rhodamine, spheres'); set('Description', '    '); set('Where it lives', 'fridge/box/001');
+  save();
+  await tick();
+  eq(window.__fs.sets.length, 0, 'a blank (whitespace) description is refused');
+  eq(document.activeElement === field('Description'), true, 'and the cursor goes to it');
+
+  // ── save a counted aliquot batch ────────────────────────────────────────
+  var desc = 'Inert LLS beads, 100 µm, rhodamine-labelled, spherical. Scaled-up 50 µm protocol.';
+  set('Description', desc);
+  set('Where it lives', '  fridge / box / 001 ');
+  set('How many', '20');
+  save();
+  await until(function () { return window.__fs.sets.length > 0 && !$('.modal'); });
+  var base = 'aliquot-' + window.__today + '-lls-100-m-rhodamine-spheres';
+  var s1 = window.__fs.sets[0] || {};
+  eq(s1.id, base + '-2', 'the slug already taken in Firestore is refused by the transaction → -2');
+  var row = s1.row || {};
+  eq([row.kind, row.lab_made, row.lab_made_type, row.category, row.subcategory], ['item', true, 'aliquot', 'lab_made', 'aliquot'], 'an ordinary item, flagged lab-made / aliquot');
+  eq([row.name, row.description], ['LLS 100 µm, rhodamine, spheres', desc], 'name and description as typed');
+  eq(row.locations, [{ name: 'fridge/box/001', quantity: 20, notes: '' }], 'where it lives, spaces around the slashes collapsed');
+  eq([row.qty_tracked, row.qty_made, row.qty_remaining, row.qty_unit, row.quantity], [true, 20, 20, 'tube', 20], 'a count makes it tracked: 20 of 20 tubes');
+  eq([row.made_by_uid, row.made_by_name, row.date_acquired, row.is_consumable], ['u1', 'Test User', window.__today, true], 'who made it and when');
+  eq(row.updatedAt, 'TS', 'stamped with a server time');
+  eq('id' in row, false, 'the id is the doc id, not a field');
+  eq(window.__fs.fullSaves, 0, 'no whole-collection save');
+  eq(window.__fs.invalidated > 0, true, 'the route cache is invalidated');
+
+  await until(function () { return window.__labels.queues.length > 0; });
+  eq(window.__labels.queues[0] && [window.__labels.queues[0].n, window.__labels.queues[0].ids], [20, [base + '-2']], 'one label per tube (20) queued at the printer, all with this item’s code');
+
+  var tr = $('tr.expandable-row.expanded[data-item-id="' + base + '-2"]');
+  eq(!!tr, true, 'the new item is open in the list');
+  if (tr) {
+    var tds = tr.querySelectorAll('td');
+    eq(tds[0].textContent.indexOf('LLS 100 µm, rhodamine, spheres') === 0 && /aliquot/i.test(tds[0].textContent), true, 'name cell: the name and an Aliquot chip');
+    eq(tds[2].textContent, 'made by Test User', 'vendor cell: who made it');
+    eq(tds[4].textContent, '20 tube', 'Qty: what is left, in its unit');
+    eq(tds[6].textContent, 'fridge/box/001 (20)', 'location chip');
+  }
+  var panel = tr && tr.nextElementSibling;
+  eq(panel && $('textarea[data-field="description"]', panel) && $('textarea[data-field="description"]', panel).value, desc, 'the panel shows an editable description');
+  eq(!!(panel && /Aliquoted by\s*Test User on/.test(panel.textContent)), true, 'the panel says who aliquoted it, and when');
+  eq(!!(panel && $('a[href*="reorder="]', panel)), false, 'no Request reorder for something we made');
+  await until(function () { return panel && document.querySelector('tr.expandable-row.expanded + tr .inv-qr[data-code="MG-T1"]'); });
+  eq(!!document.querySelector('tr.expandable-row.expanded + tr .inv-qr[data-code="MG-T1"]'), true, 'its QR code shows in the panel once minted');
+  eq(tabText('Made in Lab'), 'Made in Lab (2)', 'the tab count moves without a reload');
+
+  // ── search by where it lives ────────────────────────────────────────────
+  var si = $('#search-input'); si.value = 'fridge/box/001'; si.dispatchEvent(new Event('input'));
+  await tick();
+  eq(Array.prototype.map.call(document.querySelectorAll('tr.expandable-row'), function (t) { return t.getAttribute('data-item-id'); }).sort(),
+     [base + '-2', 'beads-old'].sort(), 'searching a location lists what lives there');
+  si.value = 'Test User'; si.dispatchEvent(new Event('input'));
+  await tick();
+  eq(document.querySelectorAll('tr.expandable-row').length, 1, 'searching a maker finds what they made');
+
+  // ── made in lab, no count, no printer: just its code ────────────────────
+  $('#add-lab-made').click();
+  await tick();
+  set('What is it?', 'made_in_lab'); set('Name', 'Beads <50 µm "blue"'); set('Description', 'PEG beads, blue dye, irregular.');
+  set('Where it lives', 'bench 3/drawer 2'); set('Send its labels', false);
+  save();
+  await until(function () { return window.__fs.sets.length > 1 && window.__labels.minted.length > 1; });
+  var s2 = window.__fs.sets[1] || {};
+  eq(s2.id, 'lab-' + window.__today + '-beads-50-m-blue', 'a made-in-lab id');
+  eq([s2.row && s2.row.subcategory, s2.row && ('qty_tracked' in s2.row), s2.row && s2.row.quantity], ['made_in_lab', false, null], 'no count: not tracked');
+  eq(window.__labels.queues.length, 1, 'printer unticked: nothing queued');
+  eq(window.__labels.minted[1], s2.id, 'but it still gets its QR code');
+  var tr2 = $('tr.expandable-row[data-item-id="' + s2.id + '"]');
+  var strong = tr2 && tr2.querySelector('td strong');
+  eq(strong && [strong.textContent, strong.children.length], ['Beads <50 µm "blue"', 0], 'a name with < and quotes renders as text');
+
+  // ── + Add Item writes one doc too ───────────────────────────────────────
+  $('#add-item').click();
+  await tick();
+  set('Item Name', 'Nitrile gloves M');
+  save();
+  await until(function () { return window.__fs.sets.length > 2; });
+  var s3 = window.__fs.sets[2] || {};
+  eq([s3.id, s3.row && s3.row.kind, s3.row && s3.row.name], ['nitrile-gloves-m', 'item', 'Nitrile gloves M'], '+ Add Item writes one doc');
+  eq(window.__fs.fullSaves, 0, 'still no whole-collection save');
+  eq(window.__dialogs, [], 'no browser alert / prompt / confirm anywhere');
+
+  if (demo === 'row') {
+    _invOpenItem(base + '-2');
+    setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 600);
+  }
+  r.textContent += '\n' + pass + ' passed, ' + fail + ' failed\n';
+  r.setAttribute('data-done', '1');
+})().catch(function (e) { var r = document.getElementById('r'); r.textContent += 'CRASH ' + (e && e.stack || e) + '\n'; r.setAttribute('data-done', '1'); });
+</script>
+</body>
+</html>
