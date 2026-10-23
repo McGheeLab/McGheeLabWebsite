@@ -154,6 +154,11 @@ function flush() { const q = S.queue.splice(0); q.forEach(send); }
 function onFrameMessage(e) {
   if (e.origin !== location.origin || !S.frame || e.source !== S.frame.contentWindow || !e.data || !e.data.sis) return;
   if (e.data.type === 'ready') { S.ready = true; flush(); }
+  if (e.data.type === 'rm-open' && typeof e.data.href === 'string' && /^\/rm\/pages\/[a-z0-9-]+\.html(\?|$)/.test(e.data.href)) {
+    // V3.869: the web app asks for an RM page (a paper's page, the library, tasks); the app opened a tab itself,
+    // so this is the hook for an in-notebook reader later (canvas-paper-reader's overlay).
+    S.lastRmOpen = e.data.href;
+  }
   if (typeof e.data.hash === 'string' && e.data.hash !== S.route) {
     S.route = e.data.hash;
     if (S.active) { setUrl(); if (S.hooks.renderTabs) S.hooks.renderTabs(); }

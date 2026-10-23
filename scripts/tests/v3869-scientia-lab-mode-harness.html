@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.869 — the web Scientia is RM-native (lab mode)</title>
+<!-- Gabe's REAL web build (rm/scientia/scientia.html: his app + cloud-sync.js + lab-mode.js) runs in an iframe whose
+     document is the built file with a prelude injected after <head>: a stub Firebase (signed in as u1), the gstatic
+     SDK loads short-circuited, and fetch() to the scientiaHub function answered here — a hub whose state holds two
+     RM-mirrored papers (one with a PDF), one desktop-only paper and one note. The parent drives the app through its
+     hash and reads the DOM; results land in #r (data-done=1 for the headless runner). -->
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:0}.ok{color:#15803d}.bad{color:#b91c1c}
+#fr{width:100vw;height:70vh;border:0;display:block}
+#r{position:fixed;right:8px;bottom:8px;z-index:99999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:60vw;max-height:28vh;overflow:auto;opacity:.95}</style>
+</head>
+<body>
+<iframe id="fr" title="Scientia (web build)"></iframe>
+<div id="r">running…</div>
+<script>
+(async function () {
+  var out = [], fails = 0;
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'PASS' : 'FAIL') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(50); } return null; }
+
+  /* ---- the prelude that runs inside the frame before cloud-sync.js ---- */
+  var RM_ROWS = [
+    { id: 'p-smith-2024', rm: true, rmId: 'p-smith-2024', kind: 'paper', doi: '10.1000/smith2024', cslType: 'article-journal', title: 'Granular hydrogels for printed tissue', authors: [{ family: 'Smith', given: 'A' }, { family: 'McGhee', given: 'A' }], container: 'Soft Matter', publisher: '', year: 2024, volume: '20', issue: '3', page: '100-110', issn: '', url: 'https://doi.org/10.1000/smith2024', isPreprint: false, csl: { id: 'p-smith-2024', type: 'article-journal', DOI: '10.1000/smith2024', title: 'Granular hydrogels for printed tissue', author: [{ family: 'Smith', given: 'A' }], 'container-title': 'Soft Matter', issued: { 'date-parts': [[2024]] }, _source: 'rm' }, rmPdf: true, pdf: 'rm:p-smith-2024', added: '2026-10-02', rmUpdated: '2026-10-20' },
+    { id: 'p-lee-2023', rm: true, rmId: 'p-lee-2023', kind: 'paper', doi: '10.1000/lee2023', cslType: 'article-journal', title: 'Traction forces in confined cells', authors: [{ family: 'Lee', given: 'B' }], container: 'Biophysical Journal', publisher: '', year: 2023, volume: '', issue: '', page: '', issn: '', url: 'https://doi.org/10.1000/lee2023', isPreprint: false, csl: { id: 'p-lee-2023', type: 'article-journal', DOI: '10.1000/lee2023', title: 'Traction forces in confined cells', author: [{ family: 'Lee', given: 'B' }], issued: { 'date-parts': [[2023]] }, _source: 'rm' }, rmPdf: false, pdf: '', added: '2026-10-05', rmUpdated: '2026-10-19' },
+    { id: 'l-local-1', kind: 'paper', title: 'A desktop-only preprint', authors: [{ family: 'Nguyen', given: 'T' }], container: '', publisher: '', year: 2023, volume: '', issue: '', page: '', issn: '', doi: '', url: 'https://example.org/preprint', isPreprint: true, csl: { title: 'A desktop-only preprint' }, added: '2026-10-20T10:00:00' }
+  ];
+  var STATE = { app: 'Scientia In Situ', sid: 'sidA', syncSeq: 12, savedAt: '2026-10-23T12:00:00',
+    stores: { documents: [{ id: 'd1', type: 'note', title: 'Plan for coverslips', created: '2026-10-23T10:00:00', modified: '2026-10-23T10:00:00' }], library: RM_ROWS },
+    counts: { documents: 1, library: 3 } };
+  var PRELUDE = '<base href="/rm/scientia/"><script>(' + (function (STATE) {
+    window.__popups = []; window.__rej = []; window.__opened = []; window.__hubCalls = [];
+    ['prompt', 'alert', 'confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+    window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
+    window.open = function (href) { window.__opened.push(String(href)); return null; };
+    var user = { uid: 'u1', getIdToken: function () { return Promise.resolve('tok'); } };
+    window.firebase = { apps: [{}], initializeApp: function () {}, auth: function () { return { currentUser: user, onAuthStateChanged: function (cb) { setTimeout(function () { cb(user); }, 0); return function () {}; } }; },
+      firestore: function () { return { doc: function () { return { onSnapshot: function (cb) { setTimeout(function () { cb({ data: function () { return { seq: STATE.syncSeq, conflictsN: 0 }; } }); }, 0); return function () {}; } }; } }; } };
+    var ac = Node.prototype.appendChild;
+    Node.prototype.appendChild = function (child) { if (child && child.tagName === 'SCRIPT' && /gstatic\.com\/firebasejs/.test(child.src || '')) { setTimeout(function () { child.onload && child.onload(); }, 0); return child; } return ac.call(this, child); };
+    var realFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+      var u = typeof input === 'string' ? input : input.url;
+      if (u.indexOf('cloudfunctions.net/scientiaHub/') < 0) return realFetch(input, init);
+      var full = u.split('/scientiaHub/')[1], path = full.split('?')[0], method = (init && init.method) || 'GET';
+      window.__hubCalls.push({ path: path, method: method, auth: !!(init && init.headers && init.headers.Authorization) });
+      var res = { ok: true };
+      if (path === 'api/sync/hello') res = { ok: true, auth: true, local: false, device: 'Alex', deviceId: 'u1', notebook: true, sid: STATE.sid, seq: STATE.syncSeq, records: 4, savedAt: STATE.savedAt, conflicts: 0 };
+      else if (path === 'api/sync/state' || path === 'api/snapshot') res = STATE;
+      else if (path === 'api/sync/pull') res = { ok: true, sid: STATE.sid, seq: STATE.syncSeq, more: false, conflicts: 0, ops: [] };
+      else if (path === 'api/sync/push') res = { ok: true, sid: STATE.sid, seq: STATE.syncSeq, echo: [], conflicts: 0 };
+      else if (path === 'api/sync/conflicts') res = { ok: true, conflicts: [] };
+      else if (path === 'api/media/list') res = { ok: true, files: {} };
+      else if (path === 'api/rm/library/refresh') res = { ok: true, total: 2, written: 0, changed: 0, removed: 0 };
+      else if (path === 'api/rm/library/pdf') res = { ok: true, url: 'https://storage.example/p.pdf' };
+      else if (path === 'api/ping') res = { ok: true, images: 'images', data: false, notebook: 'cloud' };
+      else if (path === 'api/notebook') res = { ok: true, path: 'cloud', record: { savedAt: STATE.savedAt, records: 4, syncSeq: STATE.syncSeq } };
+      return Promise.resolve(new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    };
+  }).toString() + ')(' + JSON.stringify(STATE) + ');<\/script>';
+
+  try {
+    var html = await (await fetch('/rm/scientia/scientia.html', { cache: 'no-store' })).text();
+    check('the web build carries the target flag and lab-mode.js', /window\.SIS_TARGET = 'web'/.test(html) && /<script src="lab-mode\.js\?v=/.test(html) && /<script src="cloud-sync\.js\?v=/.test(html));
+    var fr = document.getElementById('fr');
+    fr.srcdoc = html.replace('<head>', '<head>' + PRELUDE);
+    var W = await until(function () { return fr.contentWindow && fr.contentWindow.__ready === true && fr.contentWindow.SIS_LAB && fr.contentWindow; }, 40000);
+    check('his build booted on the stub hub (the record loaded, the page restarted, __ready)', !!W, W ? 'ready' : 'timed out');
+    if (!W) { finish(); return; }
+    var D = fr.contentDocument;
+    function q(s) { return D.querySelector(s); }
+    function qa(s) { return Array.from(D.querySelectorAll(s)); }
+    function ev(code) { return W.eval(code); }
+    function go(hash) { W.location.hash = hash; }
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.869', W.SIS_LAB.version);
+    /* 1. the tab row */
+    var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
+    check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
+    check('Today, Portfolio, Review, Terms, Library, Materials, Canvas, Settings stay', ['home', 'portfolio', 'review', 'terms', 'library', 'materials', 'settings'].every(function (k) { return keys.indexOf(k) >= 0; }), keys.join(','));
+    /* 2. the record arrived: cites resolve RM papers */
+    check('the library store holds the 2 RM papers and the desktop-only one', ev("DB.all('library').length") === 3 && ev("DB.all('library').filter(function (r) { return r.rm; }).length") === 2, ev("DB.all('library').map(function (r) { return r.id; }).join(',')"));
+    check('M.lib(<RM id>) resolves, so a cite in a note renders', ev("(M.lib('p-smith-2024') || {}).title") === 'Granular hydrogels for printed tissue');
+    check('LIB.search finds RM papers by author', ev("LIB.search('smith').map(function (r) { return r.id; }).join(',')") === 'p-smith-2024');
+    /* 3. the Library tab */
+    go('#/library');
+    var cards = await until(function () { var c = qa('.lab-papers .lab-paper'); return c.length === 2 && c; }, 6000);
+    check('#/library lists the lab\'s papers from RM (2 cards)', !!cards, qa('.lab-papers .lab-paper').length);
+    check('the title and meta say it is the lab\'s library', /Library/.test((q('#ttl') || {}).textContent || '') && /2 lab papers/.test((q('#meta') || {}).textContent || '') && /from RM/.test((q('#meta') || {}).textContent || ''), ((q('#ttl') || {}).textContent || '') + ' | ' + ((q('#meta') || {}).textContent || ''));
+    var smith = q('.lab-paper[data-rm="p-smith-2024"]'), lee = q('.lab-paper[data-rm="p-lee-2023"]');
+    check('a paper with a PDF in RM offers Read in RM; one without does not', !!(smith && smith.textContent.indexOf('Read in RM') >= 0) && !!(lee && lee.textContent.indexOf('Read in RM') < 0 && lee.textContent.indexOf('no pdf') >= 0), (smith || {}).textContent);
+    check('every RM paper offers Open in RM', qa('.lab-paper').every(function (c) { return c.textContent.indexOf('Open in RM') >= 0; }));
+    check('the desktop-only paper sits under "Only in this notebook" with Gabe\'s own card', !!q('.lab-mine') && /desktop-only preprint/.test(q('.lab-mine').textContent) && !q('.lab-mine .lab-paper'), (q('.lab-mine') || {}).textContent);
+    check('no DOI lookup or paste box: papers are added in RM', !q('input.inp.mono') && !q('textarea.inp') && /Add a paper/.test(q('.page').textContent) && /Open RM/.test(q('.page').textContent));
+    /* 4. reading and opening go to RM */
+    Array.from(smith.querySelectorAll('button')).filter(function (b) { return /Read in RM/.test(b.textContent); })[0].click();
+    check('Read in RM opens the paper\'s page on the lab site in a new tab', W.__opened.slice(-1)[0] === '/rm/pages/library-paper.html?id=p-smith-2024' && W.SIS_LAB.opened.slice(-1)[0] === '/rm/pages/library-paper.html?id=p-smith-2024', JSON.stringify(W.__opened));
+    var lib = qa('.page button').filter(function (b) { return /Open RM/.test(b.textContent); })[0]; lib.click();
+    check('Open RM\'s Library opens the library page', W.__opened.slice(-1)[0] === '/rm/pages/library.html', JSON.stringify(W.__opened));
+    /* 5. the filter + refresh */
+    var filt = q('.page input.inp'); filt.value = 'lee'; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
+    var one = await until(function () { return qa('.lab-papers .lab-paper').length === 1 && qa('.lab-papers .lab-paper')[0].dataset.rm === 'p-lee-2023'; }, 3000);
+    check('the filter narrows the lab papers (and the desktop-only list)', !!one && /Nothing matches/.test(q('.lab-mine').textContent), qa('.lab-papers .lab-paper').length);
+    var before = W.__hubCalls.length;
+    qa('.page button').filter(function (b) { return /Refresh from RM/.test(b.textContent); })[0].click();
+    var refreshed = await until(function () { return W.__hubCalls.slice(before).some(function (c) { return c.path === 'api/rm/library/refresh' && c.method === 'POST' && c.auth; }); }, 4000);
+    check('Refresh from RM asks the hub (POST api/rm/library/refresh, signed)', !!refreshed, JSON.stringify(W.__hubCalls.slice(before)));
+    var st = await until(function () { var s = q('.page .tiny.mono.muted'); return s && /mirrored: 2 papers/.test(s.textContent) && s.textContent; }, 4000);
+    check('and reports what the hub said', !!st, st);
+    /* 6. #/read/<RM paper> is RM's reader, not the in-app one */
+    go('#/read/p-smith-2024');
+    var rd = await until(function () { return q('.lab-read'); }, 6000);
+    check('#/read/<RM paper> shows the paper and Read in RM — no "attach the PDF" prompt', !!rd && /Read in RM/.test(rd.textContent) && !/Attach the PDF/.test(D.body.textContent) && /Smith/.test(rd.textContent), (rd || {}).textContent);
+    check('the Library tab is lit for it', !!(await until(function () { var on = q('#tabs a.tab.on'); return on && on.dataset.k === 'library'; }, 3000)));
+    /* 7. the pointer pages */
+    go('#/activity');
+    var act = await until(function () { var p = q('.page'); return p && /Open Activity in RM/.test(p.textContent) && p; }, 6000);
+    check('#/activity points at RM\'s activity tracker', !!act);
+    Array.from(act.querySelectorAll('button')).filter(function (b) { return /Open Activity/.test(b.textContent); })[0].click();
+    check('…and opens it on the lab site', W.__opened.slice(-1)[0] === '/rm/pages/activity-overview.html?tab=tracker', W.__opened.slice(-1)[0]);
+    go('#/tasks');
+    check('#/tasks points at RM tasks', !!(await until(function () { var p = q('.page'); return p && /Open Tasks in RM/.test(p.textContent); }, 6000)));
+    go('#/data');
+    check('#/data says desktop only (no button to nowhere)', !!(await until(function () { var p = q('.page'); return p && /Desktop only/.test(p.textContent) && !/Open .* in RM/.test(p.textContent); }, 6000)));
+    /* 8. Gabe's pages still work */
+    go('#/doc/d1');
+    check('a note still opens in his editor', !!(await until(function () { return /Plan for coverslips/.test((q('#ttl') || {}).textContent || ''); }, 8000)), (q('#ttl') || {}).textContent);
+    go('#/materials');
+    check('Materials is untouched in this version (his page renders)', !!(await until(function () { return /Materials/.test((q('#ttl') || {}).textContent || ''); }, 6000)), (q('#ttl') || {}).textContent);
+    check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
+  } catch (e) { check('harness error', false, (e && e.stack) || e); }
+  finish();
+})();
+</script>
+</body>
+</html>

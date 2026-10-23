@@ -150,6 +150,37 @@ class FirestoreHub {
   }
   async mediaList() { const snap = await this.media.get(); const files = {}; snap.docs.forEach(d => { const x = d.data() || {}; if (x.path && x.url) files[x.path] = x.url; }); return { ok: true, files }; }
 
+  /* ---- the RM library mirror (V3.869): RM `items` → this hub's `library` rows, device 'rm' ---- */
+  async mirrorLibrary({ force } = {}) {
+    const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
+    if (!force && d.mirrorAt && now - tsMs(d.mirrorAt) < C.MIRROR_MS) return { ok: true, skipped: true, total: d.mirrorN || 0 };
+    const itemsSnap = await db().collection('items').where('type', '==', 'paper').where('meta.library.is_library_entry', '==', true).get();
+    const items = itemsSnap.docs.map(x => Object.assign({ id: x.id }, x.data() || {}));
+    const rowsSnap = await this.rows.where('store', '==', 'library').get();
+    const rows = new Map();
+    rowsSnap.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) rows.set(C.keyOf('library', r.id), r); });
+    const st = await this.loadState();
+    const plan = C.planMirror({ state: st, rows, items });
+    if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM library', ops: plan.ops });
+    await this.ref.set({ mirrorAt: FieldValue.serverTimestamp(), mirrorN: items.length, mirrorWritten: plan.ops.length }, { merge: true });
+    return { ok: true, total: items.length, written: plan.ops.length, changed: plan.changed, removed: plan.removed };
+  }
+  /** A download URL for an RM paper's PDF (the same token scheme as the hub's own media). */
+  async rmPdfUrl(id) {
+    id = String(id || '').trim();
+    if (!id) return { ok: false, error: 'no id' };
+    const snap = await db().collection('items').doc(id).get();
+    const data = snap.exists ? (snap.data() || {}) : {}, L = data.meta && data.meta.library;
+    const path = L && L.pdf && L.pdf.storage_path;
+    if (!path) return { ok: false, error: 'no PDF in RM for this paper' };
+    const f = bucket().file(String(path));
+    let meta = null; try { [meta] = await f.getMetadata(); } catch (e) { meta = null; }
+    if (!meta) return { ok: false, error: 'the PDF file is missing from Storage' };
+    let tok = meta.metadata && meta.metadata.firebaseStorageDownloadTokens;
+    if (!tok) { tok = crypto.randomUUID(); await f.setMetadata({ metadata: Object.assign({}, meta.metadata || {}, { firebaseStorageDownloadTokens: tok }) }); }
+    tok = String(tok).split(',')[0];
+    return { ok: true, id, path: String(path), url: 'https://firebasestorage.googleapis.com/v0/b/' + bucket().name + '/o/' + encodeURIComponent(f.name) + '?alt=media&token=' + tok };
+  }
   async keyMake(name) {
     const secret = C.token(16), id = C.token(5);
     await this.keys.doc(id).set({ id, name, hash: C.sha(secret), created: FieldValue.serverTimestamp(), lastSeen: null });

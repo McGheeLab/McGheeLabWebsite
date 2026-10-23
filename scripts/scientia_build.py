@@ -23,13 +23,23 @@ WEB = os.path.join(ROOT, 'rm', 'scientia')
 DESKTOP_OUT = os.path.join(SRC, 'scientia.html')
 WEB_OUT = os.path.join(WEB, 'scientia.html')
 SHIM = os.path.join(WEB, 'cloud-sync.js')
+LAB = os.path.join(WEB, 'lab-mode.js')
 ANCHOR = re.compile(r'<script>\n/\* =+\n   01 · Util')
 COPY = ['MANUAL.md', 'icons']
 
 
+def _h(path):
+    return hashlib.sha1(open(path, 'rb').read()).hexdigest()[:10]
+
+
 def shim_tag():
-    h = hashlib.sha1(open(SHIM, 'rb').read()).hexdigest()[:10]
-    return '<script src="cloud-sync.js?v=%s"></script>\n' % h
+    # V3.869: the target flag first (lab-mode.js reads it), then the cloud layer
+    return "<script>window.SIS_TARGET = 'web';</script>\n<script src=\"cloud-sync.js?v=%s\"></script>\n" % _h(SHIM)
+
+
+def lab_tag():
+    # V3.869: the lab layer runs AFTER the app (it reshapes TABS / VIEWS before the first render)
+    return '<script src="lab-mode.js?v=%s"></script>\n' % _h(LAB)
 
 
 def build_desktop():
@@ -45,7 +55,11 @@ def web_variant(desktop_html):
     m = list(ANCHOR.finditer(desktop_html))
     if len(m) != 1:
         print('anchor found %d times (expected 1) — the app script no longer starts with 01 · Utilities; fix ANCHOR' % len(m)); sys.exit(1)
-    return desktop_html[:m[0].start()] + shim_tag() + desktop_html[m[0].start():]
+    html = desktop_html[:m[0].start()] + shim_tag() + desktop_html[m[0].start():]
+    end = html.rfind('</body>')
+    if end < 0:
+        print('no </body> in the build — the shell changed shape; fix web_variant'); sys.exit(1)
+    return html[:end] + lab_tag() + html[end:]
 
 
 def same(path, text):
@@ -54,8 +68,9 @@ def same(path, text):
 
 def main():
     check = '--check' in sys.argv
-    if not os.path.isfile(SHIM):
-        print('missing ' + os.path.relpath(SHIM, ROOT)); sys.exit(1)
+    for need in (SHIM, LAB):
+        if not os.path.isfile(need):
+            print('missing ' + os.path.relpath(need, ROOT)); sys.exit(1)
     before = open(DESKTOP_OUT, encoding='utf-8').read() if os.path.exists(DESKTOP_OUT) else None
     desktop = build_desktop()
     web = web_variant(desktop)

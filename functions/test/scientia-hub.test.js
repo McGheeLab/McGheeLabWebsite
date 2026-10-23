@@ -214,6 +214,65 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(hub, web, 'GET', '/api/nope')).status, 404);
   });
 
+  /* ---- V3.869: the RM library mirror ---- */
+  const rmItem = (id, extra) => Object.assign({ id, type: 'paper', title: 'Paper ' + id, created_at: '2026-10-01', updated_at: '2026-10-20',
+    meta: { library: Object.assign({ is_library_entry: true, doi: '10.1000/' + id, authors: [{ family: 'Smith', given: 'A' }, { family: 'Lee', given: 'B' }], year: '2024', journal: 'Soft Matter', volume: '20', issue: '3', pages: '100-110', url: '', date_added: '2026-10-02', pdf: null }, extra || {}) } });
+  await test('rmItemToLibraryRow: RM item → Scientia library row (id = the RM id, CSL built, pdf flag)', () => {
+    const r = C.rmItemToLibraryRow(rmItem('p1', { pdf: { storage_path: 'papers/p1.pdf', hash: 'h' } }));
+    assert.strictEqual(r.id, 'p1'); assert.strictEqual(r.rmId, 'p1'); assert.strictEqual(r.rm, true); assert.strictEqual(r.kind, 'paper');
+    assert.strictEqual(r.doi, '10.1000/p1'); assert.strictEqual(r.title, 'Paper p1'); assert.strictEqual(r.container, 'Soft Matter'); assert.strictEqual(r.year, 2024);
+    assert.deepStrictEqual(r.authors, [{ family: 'Smith', given: 'A' }, { family: 'Lee', given: 'B' }]);
+    assert.strictEqual(r.url, 'https://doi.org/10.1000/p1'); assert.strictEqual(r.cslType, 'article-journal'); assert.strictEqual(r.isPreprint, false);
+    assert.strictEqual(r.csl.DOI, '10.1000/p1'); assert.deepStrictEqual(r.csl.issued, { 'date-parts': [[2024]] }); assert.strictEqual(r.csl['container-title'], 'Soft Matter'); assert.strictEqual(r.csl.page, '100-110');
+    assert.strictEqual(r.rmPdf, true); assert.strictEqual(r.added, '2026-10-02'); assert.strictEqual(r.rmUpdated, '2026-10-20');
+    const pre = C.rmItemToLibraryRow(rmItem('p2', { journal: '', authors: ['Solo Author'] }));
+    assert.strictEqual(pre.cslType, 'posted-content'); assert.strictEqual(pre.isPreprint, true); assert.deepStrictEqual(pre.authors, [{ family: 'Solo Author', given: '' }]); assert.strictEqual(pre.rmPdf, false);
+  });
+  await test('planMirror: new papers are added, unchanged ones skipped, changed ones updated, gone ones tombstoned; desktop fields survive', () => {
+    const st = { seq: 7 };
+    const rows = new Map();
+    const cur = Object.assign(C.rmItemToLibraryRow(rmItem('p1')), { pdf: 'm-desktop', note: 'mine' });  // mirrored earlier, pdf attached on the desktop
+    rows.set(C.keyOf('library', 'p1'), { store: 'library', id: 'p1', rec: cur });
+    rows.set(C.keyOf('library', 'gone'), { store: 'library', id: 'gone', rec: C.rmItemToLibraryRow(rmItem('gone')) });
+    rows.set(C.keyOf('library', 'l-local'), { store: 'library', id: 'l-local', rec: { id: 'l-local', title: 'Desktop-only paper' } });
+    const plan = C.planMirror({ state: st, rows, items: [rmItem('p1'), rmItem('p3', { pdf: { storage_path: 'papers/p3.pdf' } })] });
+    assert.strictEqual(plan.total, 2);
+    assert.deepStrictEqual(plan.ops.map(o => [o.id, o.del]), [['p3', false], ['gone', true]]);
+    const p3 = plan.ops[0]; assert.strictEqual(p3.base, 7); assert.strictEqual(p3.prev, null); assert.strictEqual(p3.rec.pdf, 'rm:p3'); assert.strictEqual(p3.rec.rmPdf, true);
+    assert.strictEqual(plan.ops[1].prev.id, 'gone'); assert.strictEqual(plan.changed, 1); assert.strictEqual(plan.removed, 1);
+    // p1 changed in RM (new year) → updated, keeping the desktop's pdf and the note
+    const plan2 = C.planMirror({ state: st, rows, items: [rmItem('p1', { year: '2025' })] });
+    const up = plan2.ops.find(o => o.id === 'p1'); assert.ok(up); assert.strictEqual(up.rec.year, 2025); assert.strictEqual(up.rec.pdf, 'm-desktop'); assert.strictEqual(up.rec.note, 'mine'); assert.strictEqual(up.prev.year, 2024);
+    // the local (non-RM) row is never touched
+    assert.ok(!plan2.ops.find(o => o.id === 'l-local'));
+  });
+  await test('mirror on the hub: hello mirrors (throttled), refresh forces, devices receive the rows through pull, RM is a device named RM library', async () => {
+    const hub = new C.MemoryHub(); hub.rmItems = [rmItem('p1'), rmItem('p2', { pdf: { storage_path: 'papers/p2.pdf' } })];
+    const web = { id: 'u1', kind: 'browser', name: 'Alex' };
+    const h1 = await call(hub, web, 'GET', '/api/sync/hello');
+    assert.strictEqual(h1.body.records, 2); assert.strictEqual(hub.mirrorRuns, 1);
+    await call(hub, web, 'GET', '/api/sync/hello');
+    assert.strictEqual(hub.mirrorRuns, 1, 'a second hello within 5 minutes does not re-read RM');
+    const st = await hub.state('state');
+    assert.deepStrictEqual(st.stores.library.map(r => r.id).sort(), ['p1', 'p2']);
+    assert.strictEqual(st.stores.library.find(r => r.id === 'p2').pdf, 'rm:p2');
+    const d = dev(hub, 'desktop', 'c1'); await d.load();
+    hub.rmItems = [Object.assign(rmItem('p1'), { title: 'Paper p1 (revised)' })];
+    const r = await call(hub, web, 'POST', '/api/rm/library/refresh', {});
+    assert.strictEqual(r.body.ok, true); assert.strictEqual(r.body.total, 1); assert.strictEqual(r.body.changed, 1); assert.strictEqual(r.body.removed, 1);
+    const pulled = await d.pull();
+    assert.deepStrictEqual(pulled.ops.map(o => [o.store, o.id, o.del, o.name]), [['library', 'p1', false, 'RM library'], ['library', 'p2', true, 'RM library']]);
+    assert.deepStrictEqual(hub.ops.slice(-2).map(o => o.dev), ['rm', 'rm'], 'the hub records RM as the device');
+    assert.strictEqual(pulled.ops[0].rec.title, 'Paper p1 (revised)');
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/library/pdf?id=p1')).status, 404, 'the in-memory hub has no Storage');
+  });
+  await test('mirror: a hub whose devices never see RM (no mirrorLibrary) still answers hello and refresh', async () => {
+    const hub = new C.MemoryHub(); hub.mirrorLibrary = undefined;
+    const web = { id: 'u1', kind: 'browser', name: 'Alex' };
+    assert.strictEqual((await call(hub, web, 'GET', '/api/sync/hello')).body.ok, true);
+    assert.strictEqual((await call(hub, web, 'POST', '/api/rm/library/refresh', {})).body.ok, false);
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

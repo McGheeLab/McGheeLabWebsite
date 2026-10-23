@@ -282,13 +282,70 @@ function parseBody(req) {
   return {};
 }
 
+/* ───────── the RM library mirror (V3.869, Phase 1 of V3.866) ─────────
+   RM's library (`items` where type=paper and meta.library.is_library_entry) is mirrored into the hub's `library`
+   rows in Scientia's own record shape, id = the RM item id, so cites, M.lib(id), the canvas and the vault keep
+   working and every device (the web app, the desktop bridge) receives the lab's papers through ordinary sync.
+   The mirror runs on hello/state (throttled) and on demand (api/rm/library/refresh); the device is 'rm'. Fields the
+   mirror does not own (a desktop-attached pdf when RM has none, flags) survive a re-mirror. */
+const MIRROR_MS = 5 * 60 * 1000;
+const MIRROR_FIELDS = ['rm', 'rmId', 'kind', 'doi', 'cslType', 'title', 'authors', 'container', 'publisher', 'year', 'volume', 'issue', 'page', 'issn', 'url', 'isPreprint', 'csl', 'rmPdf', 'added', 'rmUpdated'];
+function rmItemToLibraryRow(item) {
+  const L = (item && isObj(item.meta) && isObj(item.meta.library)) ? item.meta.library : {};
+  const id = String(item.id), year = parseInt(L.year, 10) || null;
+  const authors = Array.isArray(L.authors) ? L.authors.map(a => typeof a === 'string' ? { family: a, given: '' } : { family: (a && (a.family || a.literal)) || '', given: (a && a.given) || '' }).filter(a => a.family || a.given) : [];
+  const container = String(L.journal || ''), doi = String(L.doi || '').toLowerCase(), url = String(L.url || (doi ? 'https://doi.org/' + doi : ''));
+  const hasPdf = !!(isObj(L.pdf) && L.pdf.storage_path);
+  const type = container ? 'article-journal' : 'posted-content';
+  const csl = { id, type, DOI: doi || undefined, title: String(item.title || ''), author: authors.map(a => ({ family: a.family, given: a.given })),
+    'container-title': container || undefined, issued: year ? { 'date-parts': [[year]] } : undefined, volume: L.volume ? String(L.volume) : undefined,
+    issue: L.issue ? String(L.issue) : undefined, page: L.pages ? String(L.pages) : undefined, ISSN: L.issn ? String(L.issn) : undefined,
+    URL: url || undefined, abstract: L.abstract ? String(L.abstract) : undefined, _source: 'rm' };
+  for (const k of Object.keys(csl)) if (csl[k] === undefined) delete csl[k];
+  return { id, rm: true, rmId: id, kind: 'paper', doi, cslType: type, title: String(item.title || ''), authors, container, publisher: '', year,
+    volume: L.volume ? String(L.volume) : '', issue: L.issue ? String(L.issue) : '', page: L.pages ? String(L.pages) : '', issn: L.issn ? String(L.issn) : '',
+    url, isPreprint: !container, csl, rmPdf: hasPdf, added: String(L.date_added || item.created_at || ''), rmUpdated: String(item.updated_at || '') };
+}
+function mirrorSame(cur, row) { return MIRROR_FIELDS.every(k => eq(cur[k] === undefined ? null : cur[k], row[k] === undefined ? null : row[k])); }
+/** rows: Map keyOf('library', id) → {rec} of the hub's current library rows. items: RM item docs (with id). */
+function planMirror({ state, rows, items }) {
+  const seen = new Set(), ops = [];
+  for (const it of items || []) {
+    if (!it || it.id === undefined || it.id === null) continue;
+    const row = rmItemToLibraryRow(it), key = keyOf('library', row.id); seen.add(key);
+    const ex = rows.get(key), cur = ex && isObj(ex.rec) ? ex.rec : null;
+    if (cur && mirrorSame(cur, row)) continue;
+    const rec = Object.assign({}, cur || {}, row);
+    if (row.rmPdf) rec.pdf = 'rm:' + row.id; else if (typeof rec.pdf === 'string' && rec.pdf.startsWith('rm:')) rec.pdf = '';
+    ops.push({ store: 'library', id: row.id, rec, del: false, prev: cur, base: state.seq });
+  }
+  for (const [key, ex] of rows) {
+    const cur = ex && isObj(ex.rec) ? ex.rec : null;
+    if (cur && cur.rm && !seen.has(key)) ops.push({ store: 'library', id: cur.id, rec: null, del: true, prev: cur, base: state.seq });
+  }
+  return { ops, total: (items || []).length, changed: ops.filter(o => !o.del).length, removed: ops.filter(o => o.del).length };
+}
+async function mirrorQuietly(hub, who) {
+  if (!hub || !who || typeof hub.mirrorLibrary !== 'function') return;
+  try { await hub.mirrorLibrary({}); } catch (e) { /* the library mirror never breaks hello */ }
+}
+
 async function route(req, ctx) {
   const { hub, who } = ctx, q = req.query || {}, p = String(req.path || '/').replace(/\/+$/, '') || '/', post = req.method === 'POST';
   const J = (status, body) => ({ status, body });
   const g = (k, d) => (q[k] === undefined ? d : String(q[k]));
-  if (p === '/api/sync/hello') return J(200, helloResult({ state: who && hub ? await hub.loadState() : emptyState(), who }));
+  if (p === '/api/sync/hello') { await mirrorQuietly(hub, who); return J(200, helloResult({ state: who && hub ? await hub.loadState() : emptyState(), who })); }
   if (!who) return J(401, { ok: false, error: 'not signed in' });
+  if (p === '/api/rm/library/refresh' && post) {
+    if (typeof hub.mirrorLibrary !== 'function') return J(200, { ok: false, error: 'no RM library on this hub' });
+    return J(200, await hub.mirrorLibrary({ force: true }));
+  }
+  if (p === '/api/rm/library/pdf') {
+    if (typeof hub.rmPdfUrl !== 'function') return J(404, { ok: false, error: 'no RM library on this hub' });
+    const r = await hub.rmPdfUrl(g('id', '')); return J(r.ok ? 200 : 404, r);
+  }
   if (p === '/api/sync/state' || (p === '/api/snapshot' && !post)) {
+    await mirrorQuietly(hub, who);
     const st = await hub.loadState();
     if (p === '/api/snapshot' && !st.seq && !st.records) return J(404, { ok: false });
     return J(200, await hub.state('state'));
@@ -353,4 +410,22 @@ async function route(req, ctx) {
   return J(404, { ok: false, error: 'no such route' });
 }
 
-module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token };
+/* the in-memory hub mirrors whatever `hub.rmItems` holds (tests, the dev hub) */
+MemoryHub.prototype.mirrorLibrary = async function ({ force } = {}) {
+  const now = Date.now();
+  if (!force && this.mirrorAt && now - this.mirrorAt < MIRROR_MS) return { ok: true, skipped: true, total: this.mirrorN || 0 };
+  const rows = new Map();
+  for (const [key, row] of this.libraryRows()) rows.set(key, row);
+  const plan = planMirror({ state: this.st, rows, items: this.rmItems || [] });
+  if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM library', ops: plan.ops });
+  this.mirrorAt = now; this.mirrorN = plan.total; this.mirrorRuns = (this.mirrorRuns || 0) + 1;
+  return { ok: true, total: plan.total, written: plan.ops.length, changed: plan.changed, removed: plan.removed };
+};
+MemoryHub.prototype.libraryRows = function () {
+  const out = new Map();
+  for (const [key, row] of this.rows) if (row && row.store === 'library' && !row.deleted && row.rec) out.set(key, row);
+  return out;
+};
+
+module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
+  MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror };
