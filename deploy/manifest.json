@@ -4868,8 +4868,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-23T14:46:45-07:00",
-   "sha256": "f8fc999162cbe28f839aec08e4d85621baab1f414eacc36d0d6cc5709a95b99a",
+   "deployedAt": "2026-10-23T14:49:57-07:00",
+   "sha256": "f9ea762a437a87fd64022837e7dfbe946351d6f3991a055ee26feb7434515e64",
    "size": 9016,
    "via": "verify"
   },
