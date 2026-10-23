@@ -55,14 +55,15 @@ it needs to be flagged to combination"*; then Gabe's FTP + Firebase access. Plan
   batch push) and an **Access** section for Gabe (GitHub, Firebase Editor — done, FTP via `scripts/.env`).
   `rm/CLAUDE.md` + root `CLAUDE.md` point at it.
 
-- `autoPushSkip` (deploy/site.json): paths the hook leaves for a hand push. The batch push was refused by GitHub for
-  `.github/workflows/merge-check.yml` — the Keychain credential is an OAuth token without the `workflow` scope — so
-  the workflow file is skipped until Alex runs `gh auth refresh -h github.com -s workflow && gh auth setup-git` and
-  pushes it; the message names skipped files each turn.
+- `autoPushSkip` (deploy/site.json): paths the hook leaves for a hand push; the message names them each turn. The
+  batch push (`791bda16`, 1,706 files) was first refused by GitHub for `.github/workflows/merge-check.yml` — the
+  Keychain credential was an OAuth token without the `workflow` scope — so the file was skipped for that push. Alex
+  then ran `gh auth refresh -s workflow && gh auth setup-git` and pushed it (`03a383fe`); the list is empty again. The
+  Action's first run on `main` passed (21 s).
 
 ### Not in this version
-- Branch protection on `main` (needs the Action's first run); making the repo private; purging the payroll history;
-  Gabe's FTP account itself (cPanel); the workflow file's push (token scope) — all Alex's.
+- Branch protection on `main` (the Action exists now — require "merge check / gate"); making the repo private; purging
+  the payroll/roster history; Gabe's FTP account itself (cPanel) — all Alex's.
 
 ## [V3.867] — 2026-10-23 — When the app won't open, it still gets the crash report out (native share, no page needed)
 
