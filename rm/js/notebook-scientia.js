@@ -159,10 +159,45 @@ function onFrameMessage(e) {
     // so this is the hook for an in-notebook reader later (canvas-paper-reader's overlay).
     S.lastRmOpen = e.data.href;
   }
+  // V3.875 — Phase 2: Scientia's RM cards ask the notebook to run RM's own UI here (the reader overlay, the My Week
+  // report picker). Every request carries a reqId and gets an rm-ack; no ack means "not here" and the app falls back.
+  if (e.data.type === 'rm-read') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: openReaderFor(e.data.paper, e.data.focus) });
+  if (e.data.type === 'rm-report') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: openReportFor(e.data.card, e.data.point, e.data.reqId) });
   if (typeof e.data.hash === 'string' && e.data.hash !== S.route) {
     S.route = e.data.hash;
     if (S.active) { setUrl(); if (S.hooks.renderTabs) S.hooks.renderTabs(); }
   }
+}
+/* V3.875 — RM's paper reader over the whole notebook, for a paper card or the Library tab in Scientia. Highlights
+   are RM's own (papers/{id}/annotations); when the reader closes the frame is told, so its cards refresh. */
+function openReaderFor(paper, focus) {
+  const R = window.CANVAS_PAPER_READER;
+  if (!R || !R.openReader || !paper || !paper.paperId) return false;
+  const item = { id: 'sis-paper-' + paper.paperId, kind: 'paper', type: 'widget',
+    data: { paperId: String(paper.paperId), title: String(paper.title || ''), cite: String(paper.cite || ''), journal: String(paper.journal || ''), pdf: paper.pdf ? 'yes' : '' } };
+  const api = { canEdit: () => true, save() {}, saveData() {}, refresh() {}, remove() {}, collapse() {} };
+  try { Promise.resolve(R.openReader(item, api, { focus: focus || null })).catch(err => console.warn('[scientia] reader', err)); }
+  catch (err) { console.warn('[scientia] reader', err); return false; }
+  clearInterval(S.readerWatch);
+  S.readerWatch = setInterval(() => {
+    if (document.querySelector('.cpr-reader')) return;
+    clearInterval(S.readerWatch); send({ sisCmd: 'rm-reader-closed', paperId: String(paper.paperId) });
+  }, 700);
+  return true;
+}
+/* V3.875 — "✓ Report to My Week" for a Scientia component: RM's picker and writer (MYWEEK_REPORT → DAY_DISTRIBUTE.saveOutcome),
+   placed at the click inside the frame; the chosen step goes back so the component's ✓ fills. */
+function openReportFor(card, point, reqId) {
+  const MR = window.MYWEEK_REPORT;
+  if (!MR || !MR.open || !card || !card.itemId) return false;
+  const r = S.frame ? S.frame.getBoundingClientRect() : { left: 0, top: 0 };
+  const pt = point && isFinite(point.x) && isFinite(point.y) ? { x: r.left + point.x, y: r.top + point.y } : null;
+  try {
+    Promise.resolve(MR.open({ card, point: pt, onReported: (step) => send({ sisCmd: 'rm-reported', reqId, blockId: card.itemId,
+      step: { id: String(step && step.id || ''), title: String(step && step.title || ''), date: String(step && step.date || '') } }) }))
+      .catch(err => console.warn('[scientia] report', err));
+  } catch (err) { console.warn('[scientia] report', err); return false; }
+  return true;
 }
 function setUrl() {
   const id = noteIdOf(S.route);

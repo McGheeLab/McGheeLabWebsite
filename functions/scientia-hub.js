@@ -292,6 +292,12 @@ class FirestoreHub {
     await this.ref.set({ actCursor: nextCursor, actSyncAt: FieldValue.serverTimestamp() }, { merge: true });
     return { ok: true, events: writes.length };
   }
+  /* ---- V3.875: RM highlights for a paper card — what the rules would let this person read ---- */
+  async annotations({ paperId }) {
+    const snap = await db().collection('papers').doc(String(paperId)).collection('annotations').limit(1000).get();
+    const items = C.visibleAnnotations(snap.docs.map(x => Object.assign({ id: x.id }, x.data() || {})), this.uid);
+    return { ok: true, paperId: String(paperId), total: items.length, items: items.slice(0, 300) };
+  }
   /** One read of the hub doc decides which throttled syncs are due (every pull calls this). */
   async quietSyncs(who, { force, only } = {}) {
     const d = (await this.ref.get()).data() || {}, now = Date.now(), out = {};

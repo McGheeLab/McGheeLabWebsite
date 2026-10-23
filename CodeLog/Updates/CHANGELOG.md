@@ -4,6 +4,66 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.875] — 2026-10-23 — Custom items: custom aliquot / material / media, a units row, groups, and "made from" that never miscounts
+
+Alex: *"the what is it dropdown should be: custom alliquot, custom material, custom media / for how many, we need units
+dropdown. / there should also be an option for a group of items for example a user could me 4 15mL tubes of LLS these
+should all be palced in the same locaiton. / we should be able to consume something in the inventory to make an
+alliquot of something or to make custom media etc. … Be careful about consumption since some things we have qr codes
+for packs of items, but here the user may mark down 4 15mL tubes were consumed, that should not mean 4 packs of 15 mL
+tubes."* Plan: [V3.875_custom_inventory_made_from.md](../ClaudesPlan/V3.875_custom_inventory_made_from.md). FTP only:
+no rules, index or function change (members may already write a delta-0 or negative-delta `use` row and update an
+untracked item's `quantity`).
+
+### Added
+- **`rm/js/inventory-made.js`** — `INV_MADE_CORE` (DOM-free; `module.exports` for node): `TYPES` (`aliquot` Custom
+  aliquot, `material` Custom material, `media` Custom media; V3.873 `made_in_lab` reads as material), `typeOf(item)`
+  ('' for anything bought, even with subcategory `media`), `typeLabel`, `unitWord` / `amountText` (plurals, µL),
+  `tidyLocation`, `locationNames`, `stockText` ("counted in mL · 450 left" / "not counted (Qty 3)"),
+  **`unitChoices(item)`** (the first choice is the default and cannot over-subtract: a `pack` / `box` / `ea` item
+  offers *single pieces from an open pack* first, then whole units as counted; a measure item its family; a container
+  item that container, plus volumes when it has `each_amount`; an untracked item *pieces*, *whole packages, as the Qty
+  column counts them* when Qty is a number, and measures), **`planIngredient(item, amount, unit)`** → `{take, via:
+  'qty'|'legacy'|'note', qty, unit, takeQty, takeUnit, before, after, over, reason, text}` or `{error}` — subtracts only
+  an amount exact in the item's own `qty_unit` (same-family measures convert; a group's measure that is a whole number
+  of containers becomes containers; whole packages off an untracked Qty column only when chosen); single pieces of a
+  pack, part of a container, cross-family units and anything untracked are **noted** with a reason (`pieces` | `part` |
+  `mismatch` | `untracked`); below zero is allowed and said; `groupLine(v)`, `labelCount(v)` (one per container,
+  capped at 100), `validate(v, rows)` → `[{field, row?, message}]` (a location of only slashes fails), `buildItem(v,
+  who, today)` (`subcategory: 'custom_<type>'`, id `<type>-<date>-<name>`, a counted batch tracked in its container or
+  measure, `each_amount` / `each_unit` for containers only, `composition: []`), `compositionEntry(item, plan)` →
+  `{itemId, name, kind, qty, unit, taken, taken_qty, taken_unit, note}`, `search(pool, q, limit, skipIds)` (every word,
+  name-prefix first, retired/lost out).
+- `INV_MADE.open({items, chemicals, create, opened})` — its own form (`.imd-*` CSS injected): a desktop modal whose
+  fields scroll under a pinned Cancel / Save, or the app's bottom sheet. **How many** is one row: count + a units
+  `<select>` (Containers: tubes … pieces; Amount: µL … g) + *each holds* amount + unit (hidden for an amount); the kind
+  sets the starting unit (media → bottles) until the person picks one; the group line and label count update live.
+  **Made from**: search items, custom items and chemicals (`api.load('inventory/chemicals.json')` on first focus) →
+  a row per ingredient with how it is counted, an amount, `unitChoices`, and the plan in words (green taken, amber
+  below zero, grey noted). Errors sit beside their field or row and take the focus; a failed create stays in the form
+  footer. After save: each ingredient through `INV_QTY.consume` (`via 'qty'`, in the item's unit, `purpose:
+  'lab-made:<id>'`, `context: 'lab-made'`) or `noteOrLegacy` (one transaction, live `before`; `legacy` patches
+  `quantity` and writes a row with `legacy: true`, refusing if the item became tracked; `note` writes `delta: 0` in the
+  person's unit), both with `madeItemId`; then `INV_LABELS.queue` (one copy per container) or `ensureCode`; one toast
+  lists the code, labels, what was taken off and what was noted, a second any failures.
+- The item panel: **Made from** (`madeFromHtml`: each line "(N taken off)" or "(noted, not taken off)", linking to
+  ingredients still in the list) and **Each tube holds 15 mL**.
+- `scripts/tests/inventory-made.test.mjs` (69: the case table, defaults never take packs, builder, labels, validation,
+  search) and `scripts/tests/v3875-custom-inventory-selftest.html` (46 against the real form and the real `INV_QTY`
+  write: 4 tubes from a pack noted with the pack count unchanged and a delta-0 ledger row, 50 mL FBS 450 → 400, a DMEM
+  package 3 → 2, a chemical noted, a missing amount stopped beside its row, recipe stored, 4 labels, the panel lines);
+  replaces `v3873-lab-made-selftest.html`. `inventory-labels.test.mjs` 19 → 20.
+
+### Changed
+- `rm/js/inventory.js`: `addLabMadeItem()` opens `INV_MADE.open` (the V3.873 `openForm` form, `_invLabelNewItem`,
+  `_invTidyLocation`, `_invLocationSuggestions`, `_invLocalToday` and the `LAB_MADE_*` constants are gone); the tab is
+  **Custom Items**; `SUBTAB_LABELS` gains `custom_aliquot` / `custom_material` / `custom_media`; the chip reads
+  `labMadeLabel(item)`; `qtyCell` pluralises and adds "· 15 mL each".
+- `rm/pages/inventory.html`: **+ Custom item**; loads `inventory-made.js` before `inventory.js`.
+- `INV_LABELS_CORE.cellFor`: a custom item's second label line is its `each_amount each_unit` (µL for uL), not an empty
+  vendor line.
+- `sw.js` CACHE_VERSION 857 → 858; `CodeLog/features.json` `rm.inventory` summary.
+
 ## [V3.874] — 2026-10-23 — Phase 1 complete: Scientia's reminders and chores land in My Week, its notes and timer count as RM activity
 
 Alex: *"continue to the rest of phase 1"*. Plan: [V3.874_scientia_reminders_chores_activity.md](../ClaudesPlan/V3.874_scientia_reminders_chores_activity.md).

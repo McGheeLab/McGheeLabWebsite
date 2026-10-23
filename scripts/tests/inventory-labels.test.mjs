@@ -31,6 +31,9 @@ eq([L.storageFor({ storage: '4C fridge' }), L.storageFor({ storage_temp: '−80'
 // V3.873 — a lab-made item has no storage field; where it lives decides, and a storage field still wins.
 eq([L.storageFor({ locations: [{ name: 'fridge/box/001' }] }), L.storageFor({ locations: [{ name: '-80/rack 2/box 7' }] }), L.storageFor({ locations: [{ name: 'bench 3/drawer' }] }), L.storageFor({ storage_temp: '-20', locations: [{ name: 'fridge/box/001' }] })],
    ['4C', '-80C', 'RT', '-20C'], 'storage from the location when the item has no storage field');
+// V3.875 — a custom item's second line is what each container holds, never an empty vendor.
+eq([L.cellFor({ id: 'c1', name: 'LLS', lab_made: true, each_amount: 15, each_unit: 'mL' }, 'mg-1').conc, L.cellFor({ id: 'c2', name: 'M', lab_made: true, each_amount: 200, each_unit: 'uL' }, 'mg-2').conc, L.cellFor({ id: 'c3', name: 'X', lab_made: true }, 'mg-3').conc],
+   ['15 mL', '200 µL', ''], 'custom label line: each amount (µ for uL), else blank');
 const many = Array.from({ length: 205 }, (_, i) => ({ id: 'i' + i, name: 'Item ' + i, label_code: 'MG-' + String(i).padStart(5, '0') }));
 const jobs = L.jobsFor(many, L.codeOf, { note: 'bulk' });
 eq([jobs.length, jobs[0].cells.length, jobs[1].cells.length, jobs[0].part, jobs[0].parts, jobs[0].itemIds.length, jobs[1].itemIds[0], jobs[0].status, jobs[0].source], [2, 200, 5, 1, 2, 200, 'i200', 'queued', 'inventory'], 'jobs split at the rules cap of 200 cells, item ids aligned');

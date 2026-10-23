@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3.875 custom inventory selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<script>
+  // Stubs: a signed-in NON-admin member, an in-memory Firestore (transactions
+  // with get/set/update, batches, auto ids) that holds the inventory, and an
+  // INV_LABELS that records mints and queued labels. The REAL forms.js,
+  // inventory-qty.js (its consume transaction), inventory-use.js,
+  // inventory-made.js and inventory.js run. No network.
+  // Serve the repo root and open /scripts/tests/v3875-custom-inventory-selftest.html;
+  // result in #r[data-done=1]. ?demo=form / ?demo=row stop for a screenshot.
+  window.__dialogs = [];
+  window.alert = function (m) { window.__dialogs.push('alert:' + m); };
+  window.prompt = function (m) { window.__dialogs.push('prompt:' + m); return null; };
+  window.confirm = function (m) { window.__dialogs.push('confirm:' + m); return false; };
+  (function () {
+    var d = new Date();
+    window.__today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  })();
+  window.__items = [
+    { id: 'beads-old', kind: 'item', name: 'LLS 50 µm, FITC', lab_made: true, lab_made_type: 'made_in_lab', category: 'lab_made', subcategory: 'made_in_lab',
+      made_by_name: 'Someone', description: 'A V3.873 batch', locations: [{ name: 'fridge/box/001' }], is_consumable: true, stock_status: 'full' },
+    { id: 'conical-15', kind: 'item', name: 'Conical tubes 15 mL, pack of 50', vendor: 'Fisher', category: 'consumable', qty_tracked: true, qty_unit: 'pack',
+      qty_made: 20, qty_remaining: 12, label_code: 'MG-PACK', locations: [{ name: 'BSRL 312/Shelf A2' }], is_consumable: true, stock_status: 'full' },
+    { id: 'fbs', kind: 'item', name: 'FBS, heat inactivated', vendor: 'Gibco', catalogue_number: '10082147', category: 'research_cells', qty_tracked: true,
+      qty_unit: 'mL', qty_made: 500, qty_remaining: 450, locations: [{ name: 'freezer -20/rack 1' }], is_consumable: true, stock_status: 'full' },
+    { id: 'dmem', kind: 'item', name: 'DMEM high glucose', vendor: 'Gibco', category: 'research_cells', quantity: 3, locations: [{ name: 'fridge 2' }], is_consumable: true, stock_status: 'full' },
+    { id: 'matrigel', kind: 'item', name: 'Matrigel', vendor: 'Corning', category: 'research_gels', qty_tracked: true, qty_unit: 'vial', qty_made: 5, qty_remaining: 3, locations: [{ name: 'freezer -80' }], stock_status: 'full' },
+  ];
+  window.__chems = [{ id: 'pbs-10x', name: 'PBS 10X', vendor: 'CellPro', quantity: 1, locations: [] }];
+  window.__fs = { docs: {}, itemSets: [], usage: [], updates: [], fullSaves: 0, auto: 0 };
+  window.__items.concat(window.__chems).forEach(function (it) { window.__fs.docs[it.id] = JSON.parse(JSON.stringify(it)); });
+  var firebridge = {
+    requireSignIn: async function () {},
+    loadAccessGrant: async function () {},
+    isAdmin: function () { return false; },
+    hasCapability: function () { return false; },
+    getUser: function () { return { uid: 'u1', displayName: 'Test User', email: 'test@example.edu' }; },
+    getProfile: function () { return { name: 'Test User', initials: 'TU' }; },
+    db: function () {
+      return {
+        collection: function (name) {
+          return { doc: function (id) { return { id: id || ('auto' + (++window.__fs.auto)), coll: name, update: async function () {} }; } };
+        },
+        runTransaction: async function (fn) {
+          var ops = [];
+          await fn({
+            get: async function (ref) { var d = window.__fs.docs[ref.id]; return { exists: !!d, data: function () { return JSON.parse(JSON.stringify(d)); } }; },
+            set: function (ref, row) { ops.push(['set', ref, row]); },
+            update: function (ref, patch) { ops.push(['update', ref, patch]); },
+          });
+          ops.forEach(function (o) {
+            var ref = o[1], row = o[2];
+            if (ref.coll === 'inventoryUsage') { window.__fs.usage.push(row); return; }
+            if (o[0] === 'set') { window.__fs.docs[ref.id] = JSON.parse(JSON.stringify(row)); window.__fs.itemSets.push({ id: ref.id, row: row }); }
+            else { Object.assign(window.__fs.docs[ref.id], patch(row)); window.__fs.updates.push({ id: ref.id, patch: row }); }
+          });
+          function patch(r) { return JSON.parse(JSON.stringify(r)); }
+        },
+        batch: function () { var ops = []; return { set: function (ref, row) { ops.push([ref, row]); }, commit: async function () { ops.forEach(function (o) { Object.assign(window.__fs.docs[o[0].id] || (window.__fs.docs[o[0].id] = {}), o[1]); }); } }; },
+      };
+    },
+  };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; } } } };
+  window.__labels = { minted: [], queues: [] };
+  window.INV_LABELS = {
+    core: { payloadFor: function (c) { return 'MCGHEELAB.COM/L/' + c; } },
+    loadQr: async function () { return {}; },
+    qrSvg: async function () { return '<svg width="96" height="96"></svg>'; },
+    ensureCode: async function (item) {
+      if (!item.label_code) { item.label_code = 'MG-T' + (window.__labels.minted.length + 1); window.__labels.minted.push(item.id); }
+      return item.label_code;
+    },
+    queue: async function (items, opts) {
+      window.__labels.queues.push({ n: items.length, ids: Array.from(new Set(items.map(function (i) { return i.id; }))), note: opts && opts.note });
+      for (var i = 0; i < items.length; i++) await window.INV_LABELS.ensureCode(items[i]);
+      return { jobs: ['j1'], cells: items.length };
+    },
+  };
+</script>
+<style> #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 12px; } </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Lab Inventory</h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="category-filter" class="btn" style="font-size:14px;"><option value="all">All Categories</option></select>
+        <select id="stock-filter" class="btn" style="font-size:14px;"><option value="all">All Stock</option><option value="full">Full</option></select>
+        <input id="search-input" type="text" placeholder="Search items...">
+        <button class="btn" onclick="addLabMadeItem()" id="add-custom">+ Custom item</button>
+        <button class="btn btn-primary" id="add-item">+ Add Item</button>
+      </div>
+    </div>
+    <div class="tab-bar" id="tabs"></div>
+    <div id="content"></div>
+  </div>
+  <div id="r"></div>
+  <script src="/rm/js/icons.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script>
+    // util.js's `api` is a lexical const: patch its methods, never replace it.
+    api.load = async function (path) {
+      if (path === 'inventory/items.json') return { items: JSON.parse(JSON.stringify(window.__items)) };
+      if (path === 'inventory/chemicals.json') return { chemicals: JSON.parse(JSON.stringify(window.__chems)) };
+      return { projects: [] };
+    };
+    api.save = async function () { window.__fs.fullSaves++; return {}; };
+    api.invalidate = async function () {};
+  </script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/forms.js"></script>
+  <script src="/rm/js/app-sheet.js"></script>
+  <script src="/rm/js/inventory-qty.js"></script>
+  <script src="/rm/js/inventory-use.js"></script>
+  <script src="/rm/js/inventory-made.js"></script>
+  <script src="/rm/js/inventory.js"></script>
+<script>
+(async function () {
+  var r = document.getElementById('r'); var pass = 0, fail = 0;
+  var demo = new URLSearchParams(location.search).get('demo');
+  function ok(name) { pass++; r.textContent += 'ok    ' + name + '\n'; }
+  function bad(name, d) { fail++; r.textContent += 'FAIL  ' + name + (d ? '  → ' + d : '') + '\n'; }
+  function eq(got, want, name) { var g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) ok(name); else bad(name, 'got ' + g + ' want ' + w); }
+  function tick(ms) { return new Promise(function (res) { setTimeout(res, ms || 40); }); }
+  function $(q, root) { return (root || document).querySelector(q); }
+  async function until(fn, ms) { var t = Date.now(); while (Date.now() - t < (ms || 2500)) { if (fn()) return true; await tick(20); } return false; }
+  function f(name) { return $('.imd-modal [name="' + name + '"]'); }
+  function set(name, value, evt) { var el = f(name); if (!el) { bad('field ' + name, 'missing'); return; } if (el.type === 'checkbox') el.checked = !!value; else el.value = value; el.dispatchEvent(new Event(evt || (el.tagName === 'SELECT' ? 'change' : 'input'), { bubbles: true })); }
+  function opts(sel) { return Array.prototype.map.call(sel.options, function (o) { return o.value; }); }
+  async function addIngredient(q, id) {
+    var find = f('find');
+    find.dispatchEvent(new Event('focus'));
+    await tick(30);
+    find.value = q; find.dispatchEvent(new Event('input', { bubbles: true }));
+    await until(function () { return !!$('.imd-modal [data-pick="' + id + '"]'); }, 1500);
+    var b = $('.imd-modal [data-pick="' + id + '"]');
+    if (!b) { bad('search "' + q + '" lists ' + id); return -1; }
+    b.click();
+    await tick();
+    return document.querySelectorAll('.imd-modal .imd-ing').length - 1;
+  }
+  function rowAmt(i, v) { var el = $('.imd-modal [data-amt="' + i + '"]'); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }
+  function rowUnit(i, v) { var el = $('.imd-modal [data-unit="' + i + '"]'); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); }
+  function plan(i) { var el = $('.imd-modal .imd-ing[data-i="' + i + '"] .imd-plan'); return el ? { cls: el.className.replace('imd-plan', '').trim(), text: el.textContent } : null; }
+  function tabText(prefix) { var b = Array.prototype.find.call(document.querySelectorAll('#tabs .tab-btn'), function (x) { return x.textContent.indexOf(prefix) === 0; }); return b ? b.textContent : null; }
+  function usageFor(id) { return window.__fs.usage.filter(function (u) { return u.itemId === id; }); }
+
+  await until(function () { return document.querySelectorAll('#tabs .tab-btn').length > 0; });
+  eq(tabText('Custom Items'), 'Custom Items (1)', 'a Custom Items tab');
+  var oldRow = $('tr.expandable-row[data-item-id="beads-old"]');
+  eq(!!(oldRow && /Custom material/i.test(oldRow.textContent)), true, 'a V3.873 "made in lab" item reads Custom material');
+
+  // ── the form ────────────────────────────────────────────────────────────
+  $('#add-custom').click();
+  await tick();
+  eq(!!$('.imd-modal'), true, '+ Custom item opens the form in the page');
+  eq(Array.prototype.map.call(f('type').options, function (o) { return o.textContent; }), ['— select —', 'Custom aliquot', 'Custom material', 'Custom media'], 'What is it?: custom aliquot / material / media');
+  eq(opts(f('unit')), ['tube', 'vial', 'aliquot', 'bottle', 'plate', 'slide', 'box', 'ea', 'uL', 'mL', 'L', 'mg', 'g'], 'How many has a units dropdown: containers, then amounts');
+  eq(f('unit').value, 'tube', 'starts on tubes');
+  set('type', 'media');
+  eq(f('unit').value, 'bottle', 'media starts on bottles (the person has not picked a unit yet)');
+  set('type', 'material');
+  eq(f('unit').value, 'tube', 'material: tubes');
+  set('name', 'LLS 100 µm, rhodamine');
+  set('description', 'Inert LLS beads, 100 µm, rhodamine-labelled.');
+  set('location', ' fridge / box / 001 ');
+  set('count', '4'); set('each_amount', '15'); set('each_unit', 'mL');
+  eq($('.imd-modal .imd-group').textContent, '4 tubes of 15 mL each, together at fridge/box/001; the same QR code goes on every tube.', 'a group of 4 × 15 mL tubes, one place, one QR code');
+  eq($('.imd-modal .imd-print-n').textContent, '(one per tube: 4 labels)', 'one label per tube');
+  set('unit', 'mL');
+  eq([$('.imd-modal .imd-each').style.display, $('.imd-modal .imd-group').textContent], ['none', '4 mL at fridge/box/001, one QR code.'], 'an amount (mL) hides "each holds"');
+  set('unit', 'tube');
+  set('type', 'media');
+  eq(f('unit').value, 'tube', 'once the person picks a unit, the kind no longer changes it');
+  set('type', 'material');
+
+  // ── made from ──────────────────────────────────────────────────────────
+  var iConical = await addIngredient('conical', 'conical-15');
+  eq(opts($('.imd-modal [data-unit="' + iConical + '"]')), ['piece', 'pack'], 'a pack of tubes offers single pieces first');
+  rowAmt(iConical, '4');
+  var pc = plan(iConical);
+  eq([pc.cls, /^Noted only: it is counted in packs/.test(pc.text)], ['is-note', true], '4 tubes from the pack: noted, not 4 packs — "' + pc.text + '"');
+  var iFbs = await addIngredient('fbs', 'fbs');
+  rowAmt(iFbs, '50');
+  eq(plan(iFbs), { cls: 'is-take', text: 'Takes 50 mL off · 400 mL left' }, '50 mL of FBS: taken, says what is left');
+  var iDmem = await addIngredient('dmem', 'dmem');
+  eq(opts($('.imd-modal [data-unit="' + iDmem + '"]')).slice(0, 2), ['piece', 'package'], 'untracked DMEM: pieces first, whole packages offered');
+  rowUnit(iDmem, 'package'); rowAmt(iDmem, '1');
+  eq(plan(iDmem), { cls: 'is-take', text: 'Takes 1 package off its Qty column · 3 → 2' }, 'a whole package of DMEM, on purpose: off the Qty column');
+  var iPbs = await addIngredient('pbs', 'pbs-10x');
+  rowUnit(iPbs, 'mL'); rowAmt(iPbs, '10');
+  eq(plan(iPbs) && plan(iPbs).cls, 'is-note', 'a chemical nobody counts: noted');
+  eq(!!($('.imd-modal .imd-ing[data-i="' + iPbs + '"] .imd-ing-meta') || {}).textContent.match(/chemical/), true, 'chemicals are searchable, and marked');
+  var iMat = await addIngredient('matrigel', 'matrigel');
+  if (demo === 'form') { rowAmt(iMat, '1'); setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 600); return; }
+
+  // A row with no amount stops the save, beside the row.
+  $('.imd-modal .imd-save').click();
+  await tick();
+  eq(window.__fs.itemSets.length, 0, 'a row with no amount: nothing written');
+  eq($('.imd-modal [data-f="from"] .imd-err').textContent, 'Matrigel: How much did you use?', 'the error sits under Made from, naming the row');
+  eq(document.activeElement === $('.imd-modal [data-amt="' + iMat + '"]'), true, 'and the cursor goes to its amount');
+  $('.imd-modal [data-rm="' + iMat + '"]').click();
+  await tick();
+  eq(document.querySelectorAll('.imd-modal .imd-ing').length, 4, 'a row can be removed');
+
+  // ── save ──────────────────────────────────────────────────────────────
+  $('.imd-modal .imd-save').click();
+  await until(function () { return !$('.imd-modal') && window.__labels.queues.length > 0; }, 4000);
+  var id = 'material-' + window.__today + '-lls-100-m-rhodamine';
+  var made = (window.__fs.itemSets.find(function (s) { return s.id === id; }) || {}).row || {};
+  eq([made.lab_made_type, made.subcategory, made.qty_unit, made.qty_made, made.each_amount, made.each_unit], ['material', 'custom_material', 'tube', 4, 15, 'mL'], 'saved: a custom material, 4 tubes of 15 mL');
+  eq(made.locations, [{ name: 'fridge/box/001', quantity: 4, notes: '' }], 'all four at one location');
+  eq((made.composition || []).map(function (c) { return [c.itemId, c.qty, c.unit, c.taken, c.taken_qty, c.taken_unit]; }),
+     [['conical-15', 4, 'piece', false, 0, ''], ['fbs', 50, 'mL', true, 50, 'mL'], ['dmem', 1, 'package', true, 1, 'package'], ['pbs-10x', 10, 'mL', false, 0, '']],
+     'the recipe is stored on the item, each line taken or noted');
+
+  eq(window.__fs.docs['conical-15'].qty_remaining, 12, 'the pack count did NOT move (12 packs, not 8)');
+  var uc = usageFor('conical-15')[0] || {};
+  eq([uc.event, uc.qty, uc.unit, uc.delta, uc.before, uc.after, uc.purpose, uc.madeItemId], ['use', 4, 'piece', 0, 12, 12, 'lab-made:' + id, id], 'but the 4 tubes are in the ledger: delta 0, in pieces');
+  eq(window.__fs.docs.fbs.qty_remaining, 400, 'FBS: 450 → 400 mL');
+  var uf = usageFor('fbs')[0] || {};
+  eq([uf.qty, uf.unit, uf.delta, uf.before, uf.after, uf.purpose], [50, 'mL', -50, 450, 400, 'lab-made:' + id], 'through the real INV_QTY ledger, with the purpose');
+  eq(window.__fs.docs.dmem.quantity, 2, 'DMEM Qty column: 3 → 2');
+  var ud = usageFor('dmem')[0] || {};
+  eq([ud.legacy, ud.delta, ud.unit, ud.before, ud.after], [true, -1, 'package', 3, 2], 'a legacy row, before + delta = after');
+  var up = usageFor('pbs-10x')[0] || {};
+  eq([up.delta, up.qty, up.unit, up.itemKind], [0, 10, 'mL', 'chemical'], 'the chemical: noted in the ledger, as a chemical');
+  eq(window.__fs.docs['pbs-10x'].quantity, 1, 'and untouched');
+  eq(window.__labels.queues[0] && [window.__labels.queues[0].n, window.__labels.queues[0].ids], [4, [id]], '4 labels queued, one code');
+  eq(window.__fs.fullSaves, 0, 'no whole-collection save');
+
+  // ── the list and the panel ─────────────────────────────────────────────
+  await until(function () { return !!$('tr.expandable-row.expanded[data-item-id="' + id + '"]'); });
+  var tr = $('tr.expandable-row.expanded[data-item-id="' + id + '"]');
+  eq(!!tr, true, 'the new item is open in the list');
+  if (tr) {
+    var tds = tr.querySelectorAll('td');
+    eq(/Custom material/i.test(tds[0].textContent), true, 'chip: Custom material');
+    eq(tds[4].textContent, '4 tubes · 15 mL each', 'Qty: 4 tubes · 15 mL each');
+    var panel = tr.nextElementSibling;
+    eq(/Each tube holds\s*15 mL/.test(panel.textContent), true, 'panel: each tube holds 15 mL');
+    var lis = Array.prototype.map.call(panel.querySelectorAll('li'), function (li) { return li.textContent; });
+    eq(lis, ['Conical tubes 15 mL, pack of 50 — 4 pieces (noted, not taken off)', 'FBS, heat inactivated — 50 mL (50 mL taken off)', 'DMEM high glucose — 1 package (1 package taken off)', 'PBS 10X — 10 mL (noted, not taken off)'], 'panel: made from, line by line');
+    eq(!!panel.querySelector('li a[href="?item=fbs"]'), true, 'an ingredient in the list links to it');
+    eq(!!panel.querySelector('.inv-qr[data-code="MG-T1"]'), true, 'its QR code shows');
+  }
+  eq(tabText('Custom Items'), 'Custom Items (2)', 'the tab count moved');
+  var si = $('#search-input'); si.value = 'FBS, heat'; si.dispatchEvent(new Event('input'));
+  await tick();
+  var fr = $('tr.expandable-row[data-item-id="fbs"]');
+  eq(fr && fr.querySelectorAll('td')[4].textContent, '400 mL', 'the list shows FBS at 400 mL');
+  eq(window.__dialogs, [], 'no browser alert / prompt / confirm');
+
+  if (demo === 'row') { _invOpenItem(id); setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 600); }
+  r.textContent += '\n' + pass + ' passed, ' + fail + ' failed\n';
+  r.setAttribute('data-done', '1');
+})().catch(function (e) { var r = document.getElementById('r'); r.textContent += 'CRASH ' + (e && e.stack || e) + '\n'; r.setAttribute('data-done', '1'); });
+</script>
+</body>
+</html>

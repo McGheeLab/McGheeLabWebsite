@@ -62,7 +62,10 @@
     var c = String(code || '').toUpperCase();
     return {
       reagent: str(item.name).slice(0, 80) || 'Item',
-      conc: [str(item.vendor), str(item.catalogue_number)].filter(Boolean).join(' · ').slice(0, 48),
+      // V3.875 — a custom item has no vendor; its second line is what each container holds.
+      conc: (item.lab_made
+        ? (item.each_amount ? str(item.each_amount) + ' ' + (item.each_unit === 'uL' ? 'µL' : str(item.each_unit)) : '')
+        : [str(item.vendor), str(item.catalogue_number)].filter(Boolean).join(' · ')).slice(0, 48),
       solvent: '',
       owner: str(opts.initials).toUpperCase().slice(0, 4),
       date: opts.date || today(),

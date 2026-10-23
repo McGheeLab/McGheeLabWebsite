@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (3 changes — push at 5+)
+## Pending (4 changes — push at 5+)
 
+- **V3.875 — Custom items are cleaner, can be a group, and can use up what they were made from.** **+ Custom item** asks what it is (custom aliquot, material or media) and how many with a units dropdown, so "4 tubes, each holds 15 mL" is one entry in one place with the same QR code on every tube. Under **Made from**, search the inventory for what you used and say how much; each line tells you before you save whether it comes off the count ("Takes 50 mL off, 400 mL left") or is only noted. Using 4 tubes from a pack never takes 4 packs off.
 - **V3.874 — Scientia's reminders and chores show up in My Week, and its notes count as activity.** Chores (passaging, media changes), deadlines, meetings and reminders from Scientia appear in My Week in their week, labelled Scientia; tick them in either place and the other follows. Notes you work on in Scientia, and its timer, now appear in RM's activity tracker, one entry per note per day. This includes the desktop app's data.
 - **V3.873 — Add your aliquots and the things we make in the lab to the inventory.** On the Inventory page, press **+ Aliquot or lab-made**: name it (size, shape, colour, whatever tells it apart), describe it, and say where it lives (for example fridge/box/001). It gets its own QR code, and its labels can go straight to the lab’s label printer, one per tube. Give a count and scanning a tube takes one off; the lab is warned when the batch runs low. Find them under the new **Made in Lab** tab, or search a location to see what lives there.
 - **V3.872 — A task you write in a Scientia note is now an RM task.** On the web, a task component in a note goes straight to your RM list (My Week, your phone, your mentor); tick it in either place and the other follows. Removing it from the note dismisses it in RM. The desktop app is unchanged.

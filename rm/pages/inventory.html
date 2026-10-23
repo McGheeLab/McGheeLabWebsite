@@ -41,7 +41,7 @@
         <button class="btn" id="inv-scan" title="Scan an item's QR label — camera, or type the code, or a USB scanner (V3.834)"><i data-hi="camera"></i> Scan</button>
         <button class="btn" id="inv-print-labels" title="Queue QR labels for every item in the current list at the lab's label printer (V3.834)"><i data-hi="tag"></i> Print labels</button>
         <button class="btn" onclick="createManualGroup()">Create Group</button>
-        <button class="btn" onclick="addLabMadeItem()" title="An aliquot, or something we made in the lab (beads, gels, stocks): name it, describe it, say where it lives; it gets a QR label (V3.873)">+ Aliquot or lab-made</button>
+        <button class="btn" onclick="addLabMadeItem()" title="A custom aliquot, material or medium made in the lab: name it, describe it, say where it lives and what it was made from; it gets a QR label (V3.873, V3.875)">+ Custom item</button>
         <button class="btn btn-primary" id="add-item">+ Add Item</button>
       </div>
     </div>
@@ -84,6 +84,8 @@
   <script src="/rm/js/inventory-use.js"></script>
   <script src="/rm/js/user-actions.js"></script>
   <script src="/rm/js/stock-take.js"></script>
+  <!-- V3.875 — the custom-item form + the "made from" planner (needs INV_QTY, INV_LABELS) -->
+  <script src="/rm/js/inventory-made.js"></script>
   <script src="/rm/js/inventory.js"></script>
 </body>
 </html>

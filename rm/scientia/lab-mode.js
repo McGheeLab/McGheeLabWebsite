@@ -28,7 +28,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.874', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.875', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -76,7 +76,7 @@
       h('div', { style: { flex: '1 1 auto', minWidth: 0 } }, h('div', h('b', r.title || r.url || 'Untitled')), h('div.tiny.muted', LIB.apa(r))),
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' } },
         h('span.pill', pdf ? 'pdf in RM' : 'no pdf'),
-        pdf ? btn('xs pri', 'Read in RM', function () { openRM(RM.paper(r.rmId)); }, 'Read and highlight in RM’s reader') : null,
+        pdf ? btn('xs pri', 'Read in RM', function () { readPaper(r); }, 'Read and highlight in RM’s reader') : null,
         btn('xs', 'Open in RM', function () { openRM(RM.paper(r.rmId)); }, 'The paper’s page on the lab site')));
   }
 
@@ -129,7 +129,7 @@
           if (isRm(r)) {
             App.setTitle(r.title || 'Paper', [h('span', 'from RM')]);
             return h('div.page.lab-read', h('div.eyebrow', 'The lab'), h('h1.title', r.title || 'Paper'), h('p.stand', LIB.apa(r)),
-              h('div.card.flat', h('div.row', r.rmPdf ? btn('pri', 'Read in RM', function () { openRM(RM.paper(r.rmId)); }) : h('span.muted', 'No PDF in RM yet — attach one on the paper’s page.'),
+              h('div.card.flat', h('div.row', r.rmPdf ? btn('pri', 'Read in RM', function () { readPaper(r); }) : h('span.muted', 'No PDF in RM yet — attach one on the paper’s page.'),
                 btn('', 'Open in RM', function () { openRM(RM.paper(r.rmId)); }))));
           }
           return OrigRead.render.apply(this, arguments);
@@ -385,4 +385,181 @@
     var oStop = TIMER.stop; TIMER.stop = function () { var r = oStop.apply(TIMER, arguments); kickRm(); return r; };
     var oPause = TIMER.pause; TIMER.pause = function () { var r = oPause.apply(TIMER, arguments); kickRm(); return r; };
   } catch (e) { warn('kick', e); }
+  /* ---- 8. RM cards inside notes (V3.875, Phase 2) ----
+     Inside the Lab Notebook the app asks its host to run RM's own UI — the paper reader over the notebook, the My
+     Week report picker (MYWEEK_REPORT → saveOutcome) — through the same postMessage bridge as V3.864. Each request
+     carries a reqId and the host answers rm-ack; no answer within a moment means "not inside the notebook" and the
+     app falls back (a new tab for reading; a hint for reporting). The cards' own data lives in Scientia's blocks, so
+     it syncs; a block kind the desktop does not know shows there as its text. */
+  var ORIGIN = (location.origin && location.origin !== 'null') ? location.origin : (window.origin || location.origin);
+  var HOST = { n: 0, waits: {}, onReported: {}, sent: [] };
+  LAB.host = HOST; LAB.readPaper = readPaper; LAB.reportBlock = reportBlock;
+  function inHost() { try { return !!(window.parent && window.parent !== window); } catch (e) { return false; } }
+  function hostRequest(type, payload, ms) {
+    var id = 'q' + (++HOST.n) + '-' + Date.now().toString(36);
+    var ack = new Promise(function (res) {
+      if (!inHost()) return res(null);
+      var t = setTimeout(function () { delete HOST.waits[id]; res(null); }, ms || 900);
+      HOST.waits[id] = function (a) { clearTimeout(t); res(a); };
+      try { window.parent.postMessage(Object.assign({ sis: true, type: type, reqId: id }, payload), ORIGIN); }
+      catch (e) { clearTimeout(t); delete HOST.waits[id]; res(null); }
+    });
+    HOST.sent = HOST.sent.concat([{ id: id, type: type }]).slice(-30);
+    return { id: id, ack: ack };
+  }
+  window.addEventListener('message', function (e) {
+    if (e.origin !== ORIGIN || e.source !== window.parent || !e.data || !e.data.sisCmd) return;
+    var m = e.data;
+    if (m.sisCmd === 'rm-ack' && HOST.waits[m.reqId]) { var w = HOST.waits[m.reqId]; delete HOST.waits[m.reqId]; w(m); }
+    else if (m.sisCmd === 'rm-reported' && HOST.onReported[m.reqId]) { var f = HOST.onReported[m.reqId]; delete HOST.onReported[m.reqId]; try { f(m); } catch (x) { warn('reported', x); } }
+    else if (m.sisCmd === 'rm-reader-closed') refreshPaperCards(m.paperId);
+  });
+
+  /* reading: RM's reader over the notebook, else the paper's page in a new tab */
+  async function readPaper(r, focus) {
+    if (!r) return;
+    var paper = { paperId: String(r.rmId || r.id), title: r.title || '', cite: LIB.shortRef ? LIB.shortRef(r) : '', journal: r.container || '', pdf: !!(r.rmPdf || r.pdf) };
+    var q = hostRequest('rm-read', { paper: paper, focus: focus || null }), ack = await q.ack;
+    if (!ack || !ack.ok) openRM(RM.paper(paper.paperId));
+  }
+
+  /* the paper card: a library paper (the lab's, from RM, or one only in this notebook) with your RM highlights */
+  var HL = { yellow: '#facc15', green: '#4ade80', red: '#f87171', blue: '#60a5fa', purple: '#a78bfa', orange: '#fb923c', pink: '#f472b6' };
+  var ANN = { cache: {}, at: {}, ttl: 60 * 1000 };
+  async function highlights(paperId, force) {
+    var now = Date.now();
+    if (!force && ANN.cache[paperId] && now - ANN.at[paperId] < ANN.ttl) return ANN.cache[paperId];
+    try {
+      var r = await fetch('api/rm/annotations?paperId=' + encodeURIComponent(paperId)), j = r.ok ? await r.json() : null;
+      var out = j && j.ok ? j : { ok: false, items: [], error: (j && j.error) || 'Could not load the highlights' };
+      ANN.cache[paperId] = out; ANN.at[paperId] = now; return out;
+    } catch (e) { return { ok: false, items: [], error: String(e.message || e) }; }
+  }
+  async function fillHl(list, r, force) {
+    if (!r.rm) { list.replaceChildren(h('div.tiny.muted', 'Only in this notebook \u2014 highlights live in RM for the lab\u2019s papers.')); return; }
+    var res = await highlights(String(r.rmId || r.id), force);
+    if (!res.ok) { list.replaceChildren(h('div.tiny.muted', res.error)); return; }
+    var items = res.items || [], mine = items.filter(function (x) { return x.mine; }).length, others = items.length - mine;
+    var head = h('div.tiny.muted', items.length ? (plural(mine, 'highlight') + ' of yours' + (others ? ' \u00b7 ' + others + ' from the lab' : '')) : 'No highlights yet \u2014 Read it to highlight in RM\u2019s reader.');
+    list.replaceChildren.apply(list, [head].concat(items.slice(0, 8).map(function (x) {
+      return h('div.rmp-row', { 'data-ann': x.id, title: (x.by ? x.by + ' \u00b7 ' : '') + (x.page != null ? 'p. ' + x.page : '') + ' \u2014 open it in the reader',
+        on: { click: function (e) { e.stopPropagation(); readPaper(r, x.id); } } },
+        h('i', { style: { background: HL[x.color] || '#d4d4d8' } }), h('span', snippet(x.exact || x.comment || '(a figure or region)', 140)), x.page != null ? h('span.tiny.muted', 'p. ' + x.page) : null);
+    }), items.length > 8 ? [h('div.tiny.muted', (items.length - 8) + ' more in the reader')] : []));
+  }
+  function refreshPaperCards(paperId) {
+    delete ANN.cache[paperId];
+    Array.prototype.forEach.call(document.querySelectorAll('.rmp[data-paper]'), function (el) {
+      var r = M.lib(el.getAttribute('data-paper')); if (!r || String(r.rmId || r.id) !== String(paperId)) return;
+      var list = el.querySelector('.rmp-hl'); if (list) fillHl(list, r, true);
+    });
+  }
+  function paperBody(b, d, pane, ro) {
+    var r = M.lib(b.paperId);
+    if (!r) return h('div.rmp.gone', h('div.tiny.muted', 'This paper is no longer in the library.'));
+    var list = h('div.rmp-hl', h('div.tiny.muted', 'Loading the highlights\u2026'));
+    var el = h('div.rmp', { 'data-paper': r.id },
+      h('div.rmp-h', LIB.sigil ? LIB.sigil(r, 30) : null, h('div.rmp-t', h('b', r.title || r.url || 'Untitled'), h('div.tiny.muted', LIB.apa(r)))),
+      h('div.row.rmp-act', h('span.pill', r.rmPdf ? 'pdf in RM' : r.pdf ? 'pdf here' : 'no pdf'),
+        r.rm ? btn('xs pri', 'Read', function () { readPaper(r); }, 'Read and highlight it in RM\u2019s reader') : null,
+        r.rm ? btn('xs', 'Open in RM', function () { openRM(RM.paper(r.rmId)); }) : null,
+        r.rm ? btn('xs', 'Refresh', function () { fillHl(list, r, true); }, 'Fetch the highlights again') : null),
+      list);
+    fillHl(list, r, false);
+    return el;
+  }
+  function placePaper(d, p, r) {
+    var b = M.addBlock(d.id, null, { kind: 'rmpaper', paperId: r.id, label: r.title || 'Paper', x: Math.round(p.x / 14) * 14, y: Math.round(p.y / 14) * 14, w: 420 });
+    b.body = { text: 'Paper: ' + (r.title || r.url || 'Untitled') + '\n' + LIB.apa(r), marks: [] }; DB.put('blocks', b); changed();
+    return b;
+  }
+  function pickPaper(d, p, onPick) {
+    var rows = DB.all('library').map(function (r) { return { r: r, label: r.title || r.url || 'Untitled', sub: LIB.shortRef ? LIB.shortRef(r) : '', t: r.added || '' }; });
+    var m = modal({ title: 'Place a paper in this note', wide: true, actions: [{ label: 'Cancel' }, { label: 'Add a paper in RM', run: function () { openRM(RM.library); return false; } }],
+      body: optionPicker({ placeholder: 'Search the library \u2014 author, year, title, journal\u2026', sort: 'rm-paper', items: function (q) {
+          q = String(q || '').toLowerCase();
+          return rows.filter(function (x) { return !q || (x.label + ' ' + x.sub + ' ' + (x.r.container || '') + ' ' + (x.r.year || '')).toLowerCase().indexOf(q) >= 0; });
+        }, section: function (x) { return x.r.rm ? 'The lab\u2019s library' : 'Only in this notebook'; },
+        render: function (x) { return h('div', h('b', x.label), h('span.s', ' ' + x.sub + (x.r.container ? ' \u00b7 ' + x.r.container : ''))); },
+        emptyText: 'No papers yet \u2014 add them in RM\u2019s Library',
+        onPick: function (x) { m.close(); (onPick || function (r) { placePaper(d, p, r); })(x.r); } }) });
+    return m;
+  }
+  LAB.placePaper = placePaper; LAB.pickPaper = pickPaper;
+  try {
+    WIDGETS.rmpaper = { label: 'paper', w: 420, icon: '\u25a4', body: paperBody, menu: function (b) {
+      var r = M.lib(b.paperId);
+      return [r && r.rm ? { label: 'Read', sub: 'RM\u2019s reader, with your highlights', run: function () { readPaper(r); } } : null,
+        r && r.rm ? { label: 'Open in RM', run: function () { openRM(RM.paper(r.rmId)); } } : null,
+        { label: 'Change the paper\u2026', run: function () { var d = M.doc(b.docId); pickPaper(d, { x: b.x || 0, y: b.y || 0 }, function (nr) { var cur = M.block(b.id); cur.paperId = nr.id; cur.label = nr.title || 'Paper'; cur.body = { text: 'Paper: ' + (nr.title || '') + '\n' + LIB.apa(nr), marks: [] }; cur.modified = isoLocal(new Date()); DB.put('blocks', cur); changed(); }); } }].filter(Boolean);
+    } };
+    INSERTS.push({ id: 'rmpaper', group: 'Reading', icon: '\u25a4', label: 'Paper from the library\u2026', sub: 'A paper with your highlights from RM \u2014 read it in RM\u2019s reader', run: function (d, p) { pickPaper(d, p); } });
+  } catch (e) { warn('paper card', e); }
+
+  /* ✓ Report to My Week on every component: RM's picker and writer run in the notebook; the step comes back */
+  async function reportBlock(b, e) {
+    b = M.block(b.id || b) || b; if (!b) return;
+    var title = (M.blockName ? M.blockName(b) : '') || b.label || String((b.body && b.body.text) || '').split('\n')[0] || 'a component';
+    var card = { kind: 'scientia_block', itemId: b.id, boardId: '', entryId: b.docId, paperId: b.kind === 'rmpaper' ? String(b.paperId || '') : '', item_kind: 'scientia-' + b.kind,
+      title: String(title).slice(0, 140), url: '/rm/pages/notebook.html?notebook=scientia&note=' + encodeURIComponent(b.docId), thumb: '' };
+    var q = hostRequest('rm-report', { card: card, point: e ? { x: e.clientX, y: e.clientY } : null });
+    HOST.onReported[q.id] = function (msg) {
+      var cur = M.block(b.id); if (!cur || !msg.step || !msg.step.id) return;
+      var list = (cur.myweek || []).filter(function (x) { return x.stepId !== msg.step.id; });
+      list.push({ stepId: msg.step.id, title: msg.step.title || '', date: msg.step.date || '', at: isoLocal(new Date()) });
+      cur.myweek = list.slice(-20); cur.modified = isoLocal(new Date()); DB.put('blocks', cur); changed();
+    };
+    var ack = await q.ack;
+    if (!ack || !ack.ok) { delete HOST.onReported[q.id]; toast('Open Scientia inside the Lab Notebook to report to My Week'); }
+  }
+  try {
+    var oBox = DocView.box;
+    DocView.box = function (b) {
+      var el = oBox.apply(this, arguments);
+      try {
+        if (!this.travel && b && b.status === 'live' && b.kind !== 'ref') {
+          var bh = el.querySelector(':scope > .bh'), more = bh && bh.querySelector(':scope > .bmore'), n = (b.myweek || []).length;
+          if (bh) bh.insertBefore(h('button.ib.lab-mw' + (n ? '.on' : ''), { title: n ? 'Reported to My Week: ' + b.myweek.map(function (x) { return x.title; }).join(', ') + ' \u2014 report it again' : 'Report this as the result of a My Week step',
+            on: { click: function (ev) { ev.stopPropagation(); reportBlock(b, ev); } } }, '\u2713'), more || null);
+        }
+      } catch (x) { warn('report button', x); }
+      return el;
+    };
+  } catch (e) { warn('box', e); }
+
+  /* the material card for an inventory item: Insert → Material… searches RM's inventory first */
+  function materialFromInventory(d, p, mine) {
+    var m = modal({ title: 'Insert a material', wide: true, actions: [{ label: 'Cancel' }, { label: 'Pick one of your materials\u2026', run: function () { setTimeout(mine, 30); } }],
+      body: h('div', h('h3.lab', { style: { marginTop: 0 } }, 'From the lab inventory'),
+        invSearch(function (item) { var r = useInventory(item, d); m.close(); MATS2.place(d, p, r); toast('Placed \u00b7 ' + item.name); }, 'Place its card here',
+          { hint: 'Type to search RM\u2019s inventory \u2014 its material note is made (or reused) and its card placed here.' })) });
+    return m;
+  }
+  LAB.materialFromInventory = materialFromInventory;
+  try {
+    var oCard = MATS2.cardBody;
+    MATS2.cardBody = function (b) {
+      var el = oCard.apply(this, arguments);
+      try {
+        var r = M.doc(b.matId);
+        if (r && r.inventoryId && el && el.appendChild) el.appendChild(h('div.row.lab-inv-line', h('span.tiny.muted', 'In the lab inventory'),
+          btn('xs', 'Open in RM', function () { openRM(RM.inventory + '?item=' + encodeURIComponent(r.inventoryId)); }),
+          btn('xs', 'Log a use in RM', function () { openRM(RM.inventory + '?item=' + encodeURIComponent(r.inventoryId)); })));
+      } catch (x) { warn('material card', x); }
+      return el;
+    };
+    if (WIDGETS.matcard && WIDGETS.matcard.body === oCard) WIDGETS.matcard.body = MATS2.cardBody;   // a captured reference (the V3.872 lesson)
+    var insMat = INSERTS.filter(function (x) { return x.id === 'material'; })[0];
+    if (insMat) { var oMatRun = insMat.run; insMat.run = function (d, p) { materialFromInventory(d, p, function () { oMatRun(d, p); }); }; }
+  } catch (e) { warn('material insert', e); }
+
+  /* the few styles the lab cards need (Gabe's tokens where they exist) */
+  try {
+    var css = '.rmp-h{display:flex;gap:8px;align-items:flex-start}.rmp-t{min-width:0}.rmp-act{gap:6px;margin-top:6px;flex-wrap:wrap}' +
+      '.rmp-hl{margin-top:6px;display:flex;flex-direction:column;gap:3px}.rmp-row{display:flex;gap:6px;align-items:baseline;cursor:pointer;font-size:12px;line-height:1.35}' +
+      '.rmp-row i{flex:none;width:8px;height:12px;border-radius:2px;display:inline-block;transform:translateY(2px)}.rmp-row:hover>span:first-of-type{text-decoration:underline}' +
+      '.ib.lab-mw{font-size:12px;opacity:.5}.ib.lab-mw:hover{opacity:.9}.ib.lab-mw.on{opacity:1;color:var(--ok,#1b7a43);font-weight:700}' +
+      '.lab-inv-line{gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}';
+    document.head.appendChild(h('style', { id: 'lab-mode-css' }, css));
+  } catch (e) { warn('css', e); }
 })();

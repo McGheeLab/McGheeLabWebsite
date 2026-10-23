@@ -23,6 +23,16 @@
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(50); } return null; }
 
+  /* V3.875 — a stand-in for the Lab Notebook host: records the frame's RM requests; in mode 'ok' it answers like notebook-scientia.js */
+  var __host = window.__host = { mode: 'none', got: [] };
+  window.addEventListener('message', function (e) {
+    var fr = document.getElementById('fr'); if (!fr || e.source !== fr.contentWindow || !e.data || !e.data.sis || !/^rm-/.test(e.data.type || '')) return;
+    __host.got.push(e.data);
+    if (__host.mode !== 'ok') return;
+    var reply = function (m) { fr.contentWindow.postMessage(m, location.origin); };
+    reply({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: true });
+    if (e.data.type === 'rm-report') setTimeout(function () { reply({ sisCmd: 'rm-reported', reqId: e.data.reqId, blockId: e.data.card.itemId, step: { id: 'step-1', title: 'Run gel 3', date: '2026-10-26' } }); }, 60);
+  });
   /* ---- the prelude that runs inside the frame before cloud-sync.js ---- */
   var RM_ROWS = [
     { id: 'p-smith-2024', rm: true, rmId: 'p-smith-2024', kind: 'paper', doi: '10.1000/smith2024', cslType: 'article-journal', title: 'Granular hydrogels for printed tissue', authors: [{ family: 'Smith', given: 'A' }, { family: 'McGhee', given: 'A' }], container: 'Soft Matter', publisher: '', year: 2024, volume: '20', issue: '3', page: '100-110', issn: '', url: 'https://doi.org/10.1000/smith2024', isPreprint: false, csl: { id: 'p-smith-2024', type: 'article-journal', DOI: '10.1000/smith2024', title: 'Granular hydrogels for printed tissue', author: [{ family: 'Smith', given: 'A' }], 'container-title': 'Soft Matter', issued: { 'date-parts': [[2024]] }, _source: 'rm' }, rmPdf: true, pdf: 'rm:p-smith-2024', added: '2026-10-02', rmUpdated: '2026-10-20' },
@@ -61,6 +71,9 @@
       else if (path === 'api/sync/push') res = { ok: true, sid: STATE.sid, seq: SEQ, echo: [], conflicts: 0 };
       else if (path === 'api/rm/tasks' && method === 'POST') { var tb = JSON.parse(body || '{}'); window.__taskN += 1; var tid = 'task-h' + window.__taskN; window.__rmTasks[tid] = { id: tid, blockId: tb.blockId, text: tb.text, due: tb.due, prio: tb.prio, done: false }; res = { ok: true, id: tid, task: window.__rmTasks[tid] }; }
       else if (path === 'api/rm/tasks/update' && method === 'POST') { var ub = JSON.parse(body || '{}'); var tk = window.__rmTasks[ub.id]; if (tk) Object.assign(tk, ub); res = { ok: !!tk, id: ub.id, task: tk }; }
+      else if (path === 'api/rm/annotations') res = { ok: true, total: 2, items: [
+        { id: 'ann-1', color: 'green', page: 3, exact: 'stiffness rises with packing fraction', comment: '', mine: true, by: 'Gabe', at: '2026-10-20' },
+        { id: 'ann-2', color: 'purple', page: 5, exact: 'unclear how granules were sized', comment: '', mine: false, by: 'Mo', at: '2026-10-21' }] };
       else if (path === 'api/rm/sync') res = { ok: true, when: { ok: true, created: 0 }, activity: { ok: true, events: 0 } };
       else if (path === 'api/rm/tasks/sync') res = { ok: true, paired: Object.keys(window.__rmTasks).length, blocksUpdated: 0, tasksUpdated: 0, dropped: 0 };
       else if (path === 'api/rm/tasks') res = { ok: true, tasks: Object.keys(window.__rmTasks).map(function (k) { return window.__rmTasks[k]; }) };
@@ -106,7 +119,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.874', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.875', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -127,7 +140,8 @@
     check('no DOI lookup or paste box: papers are added in RM', !q('input.inp.mono') && !q('textarea.inp') && /Add a paper/.test(q('.page').textContent) && /Open RM/.test(q('.page').textContent));
     /* 4. reading and opening go to RM */
     Array.from(smith.querySelectorAll('button')).filter(function (b) { return /Read in RM/.test(b.textContent); })[0].click();
-    check('Read in RM opens the paper\'s page on the lab site in a new tab', W.__opened.slice(-1)[0] === '/rm/pages/library-paper.html?id=p-smith-2024' && W.SIS_LAB.opened.slice(-1)[0] === '/rm/pages/library-paper.html?id=p-smith-2024', JSON.stringify(W.__opened));
+    var readTab = await until(function () { return W.__opened.slice(-1)[0] === '/rm/pages/library-paper.html?id=p-smith-2024'; }, 4000);
+    check('Read in RM, outside the Lab Notebook (no host answers), falls back to the paper\'s page in a new tab', !!readTab && __host.got.some(function (m) { return m.type === 'rm-read' && m.paper && m.paper.paperId === 'p-smith-2024'; }), JSON.stringify(W.__opened));
     var lib = qa('.page button').filter(function (b) { return /Open RM/.test(b.textContent); })[0]; lib.click();
     check('Open RM\'s Library opens the library page', W.__opened.slice(-1)[0] === '/rm/pages/library.html', JSON.stringify(W.__opened));
     /* 5. the filter + refresh */
@@ -253,6 +267,44 @@
     check('…and a change that came FROM the hub does not ask for another sync', syncCalls().length === kAfter, syncCalls().length - kAfter);
     go('#/activity');
     check('#/activity says notes and timer sessions are recorded in RM', !!(await until(function () { var p = q('.page'); return p && /one entry per note per day/.test(p.textContent) && /timer sessions/.test(p.textContent); }, 6000)));
+    /* 12. V3.875 — Phase 2: RM cards inside notes */
+    go('#/doc/' + nid);
+    await until(function () { return /Plan for coverslips \(web\)/.test((q('#ttl') || {}).textContent || ''); }, 8000);
+    check('+ Insert offers "Paper from the library…" (Reading)', ev("!!INSERTS.filter(function (x) { return x.id === 'rmpaper' && x.group === 'Reading'; })[0]") && ev("typeof WIDGETS.rmpaper.body") === 'function');
+    var pbid = ev("SIS_LAB.placePaper(M.doc('" + nid + "'), { x: 0, y: 700 }, M.lib('p-smith-2024')).id");
+    var pcard = await until(function () { return D.querySelector('.box[data-id="' + pbid + '"] .rmp[data-paper="p-smith-2024"]'); }, 8000);
+    check('a paper card shows the paper (title, APA, pdf in RM, Read, Open in RM)', !!pcard && /Granular hydrogels/.test(pcard.textContent) && /pdf in RM/.test(pcard.textContent) && /Read/.test(pcard.textContent) && /Open in RM/.test(pcard.textContent), pcard ? pcard.textContent.slice(0, 160) : 'no card');
+    var rows = await until(function () { var r = pcard.querySelectorAll('.rmp-row'); return r.length === 2 && r; }, 6000);
+    check('…and your RM highlights in RM\'s colours (api/rm/annotations), mine and the lab\'s counted', !!rows && /1 highlight of yours/.test(pcard.textContent) && /1 from the lab/.test(pcard.textContent) && rows[0].querySelector('i').style.background.replace(/\s/g, '') === 'rgb(74,222,128)' && W.__hubCalls.some(function (c) { return c.path === 'api/rm/annotations' && /paperId=p-smith-2024/.test(c.full); }), pcard.textContent.slice(0, 220));
+    check('the block keeps readable text for the desktop app (which has no paper card)', /^Paper: Granular hydrogels/.test(ev("M.block('" + pbid + "').body.text")) && ev("M.block('" + pbid + "').paperId") === 'p-smith-2024');
+    __host.mode = 'ok'; var nOpen = W.__opened.length, nGot = __host.got.length;
+    rows[0].click();
+    var asked = await until(function () { return __host.got.slice(nGot).filter(function (m) { return m.type === 'rm-read'; })[0]; }, 4000);
+    await sleep(1100);
+    check('inside the Lab Notebook, a highlight opens RM\'s reader over the notebook at that highlight — no new tab', !!asked && asked.paper.paperId === 'p-smith-2024' && asked.focus === 'ann-1' && W.__opened.length === nOpen, JSON.stringify(asked) + ' opened ' + (W.__opened.length - nOpen));
+    W.postMessage({ sisCmd: 'rm-reader-closed', paperId: 'p-smith-2024' }, location.origin);
+    check('closing the reader refreshes the card\'s highlights', !!(await until(function () { return W.__hubCalls.filter(function (c) { return c.path === 'api/rm/annotations'; }).length >= 2; }, 4000)));
+    /* ✓ Report to My Week on every component */
+    var mwBtn = await until(function () { return D.querySelector('.box[data-id="' + pbid + '"] > .bh > .lab-mw'); }, 4000);
+    check('every component has a ✓ in its header (report to My Week)', !!mwBtn && !mwBtn.classList.contains('on') && !!D.querySelector('.box[data-id="' + tbid + '"] > .bh > .lab-mw'));
+    nGot = __host.got.length; mwBtn.click();
+    var rep = await until(function () { return __host.got.slice(nGot).filter(function (m) { return m.type === 'rm-report'; })[0]; }, 4000);
+    check('…which asks the notebook for RM\'s report picker with the component as the card', !!rep && rep.card.kind === 'scientia_block' && rep.card.itemId === pbid && rep.card.entryId === nid && rep.card.paperId === 'p-smith-2024' && /notebook=scientia&note=/.test(rep.card.url) && rep.point && rep.point.x > 0, JSON.stringify(rep && rep.card));
+    var stamped = await until(function () { var b = JSON.parse(ev("JSON.stringify(M.block('" + pbid + "'))")); return (b.myweek || [])[0]; }, 4000);
+    check('the chosen step comes back and is kept on the component (myweek[])', !!stamped && stamped.stepId === 'step-1' && stamped.title === 'Run gel 3', JSON.stringify(stamped));
+    check('…and its ✓ fills', !!(await until(function () { var x = D.querySelector('.box[data-id="' + pbid + '"] > .bh > .lab-mw'); return x && x.classList.contains('on'); }, 4000)));
+    __host.mode = 'none';
+    ev("SIS_LAB.reportBlock(M.block('" + tbid + "'), null)");
+    await sleep(1200);
+    check('outside the notebook, reporting changes nothing (a hint instead)', ev("(M.block('" + tbid + "').myweek || []).length") === 0 && Object.keys(W.SIS_LAB.host.onReported).length === 0);
+    /* Insert → Material… searches the lab inventory first; the card links to RM */
+    ev("INSERTS.filter(function (x) { return x.id === 'material'; })[0].run(M.doc('" + nid + "'), { x: 0, y: 1000 })");
+    var mpick = await until(function () { return D.querySelector('.lab-inv-search'); }, 4000);
+    var mq = mpick.querySelector('input.inp'); mq.value = 'pbs'; mq.dispatchEvent(new W.Event('input', { bubbles: true }));
+    var pbsRow = await until(function () { return mpick.querySelector('.lab-inv[data-inv="inv-pbs"]'); }, 6000);
+    Array.from(pbsRow.querySelectorAll('button')).filter(function (b) { return /Place its card here/.test(b.textContent); })[0].click();
+    var mcard = await until(function () { var c = D.querySelectorAll('.mcard'); for (var i = 0; i < c.length; i++) if (/PBS 10x/.test(c[i].textContent)) return c[i]; return null; }, 6000);
+    check('Insert → Material… places the card of an inventory item, with its RM line', !!mcard && /In the lab inventory/.test(mcard.textContent) && /Log a use in RM/.test(mcard.textContent), mcard ? mcard.textContent.slice(0, 160) : 'no card');
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

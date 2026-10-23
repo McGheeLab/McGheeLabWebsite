@@ -571,6 +571,22 @@ function planActivity({ groups, docs, existing }) {
   return writes;
 }
 
+/* ───────── RM highlights for Scientia's paper card (V3.875, Phase 2) ─────────
+   papers/{paperId}/annotations/{id}: what the Firestore rule lets the person read (visibility 'lab', or their own),
+   as compact rows for the card — colour, page, the quoted text, the comment, mine or the lab's. Read-only. */
+const tsText = v => (v && typeof v === 'object' && typeof v.toDate === 'function') ? v.toDate().toISOString() : (v ? String(v) : '');
+function rmAnnotationRow(doc, uid) {
+  const d = doc || {}, pages = d.target && Array.isArray(d.target.pages) ? d.target.pages : [], pg = pages[0] || {}, q = (pg.selectors && pg.selectors.textQuote) || {};
+  const by = d.creator || {};
+  return { id: String(d.id || ''), color: String(d.color_id || 'yellow'), type: String(d.annotation_type || 'note'), page: pg.page != null && !isNaN(+pg.page) ? +pg.page : null,
+    exact: String(q.exact || '').slice(0, 400), comment: String(d.comment || '').slice(0, 400), mine: !!(by.uid && by.uid === uid),
+    by: String(by.displayName || by.email || ''), at: tsText(d.created || d.created_at) };
+}
+function visibleAnnotations(docs, uid) {
+  return (docs || []).filter(d => d && !d.deleted && (d.visibility === 'lab' || (d.creator && d.creator.uid === uid)))
+    .map(d => rmAnnotationRow(d, uid)).sort((a, b) => (a.page == null ? 1e9 : a.page) - (b.page == null ? 1e9 : b.page) || a.at.localeCompare(b.at));
+}
+
 async function mirrorQuietly(hub, who, force, only) {
   if (!hub || !who) return null;
   if (typeof hub.quietSyncs === 'function') { try { return await hub.quietSyncs(who, { force: !!force, only: only || null }); } catch (e) { return { ok: false, error: String(e.message || e) }; } }
@@ -600,6 +616,11 @@ async function route(req, ctx) {
     if (p === '/api/rm/tasks/sync' && post) return J(200, await hub.syncTasks({ force: true }));
     if (p === '/api/rm/tasks' && !post) return J(200, await hub.getTasks({ ids: g('ids', '') ? g('ids', '').split(',').map(s => s.trim()).filter(Boolean) : null }));
     return J(404, { ok: false });
+  }
+  if (p === '/api/rm/annotations') {
+    if (typeof hub.annotations !== 'function') return J(200, { ok: false, error: 'no RM highlights on this hub', items: [] });
+    const paperId = g('paperId', '').trim(); if (!paperId) return J(400, { ok: false, error: 'paperId required' });
+    return J(200, await hub.annotations({ paperId }));
   }
   if (p === '/api/rm/inventory') {
     if (typeof hub.inventory !== 'function') return J(200, { ok: false, error: 'no RM inventory on this hub', items: [], total: 0 });
@@ -766,6 +787,12 @@ MemoryHub.prototype.quietSyncs = async function (who, { force, only } = {}) {
   if (want('activity') && typeof this.syncActivity === 'function') out.activity = await this.syncActivity({ force });
   return out;
 };
+/* V3.875 — `rmAnnotations`: Map paperId → raw annotation docs (with id); `uid` is the person the hub belongs to */
+MemoryHub.prototype.annotations = async function ({ paperId }) {
+  const raw = (this.rmAnnotations && this.rmAnnotations.get(String(paperId))) || [];
+  const items = visibleAnnotations(raw, this.uid || 'u1');
+  return { ok: true, paperId: String(paperId), total: items.length, items: items.slice(0, 300) };
+};
 MemoryHub.prototype.inventory = async function ({ q, limit, ids } = {}) {
   let rows = (this.rmInventory || []).map(rmInventoryRow);
   if (ids && ids.length) rows = rows.filter(r => ids.includes(r.id));
@@ -781,4 +808,5 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
-  whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes };
+  whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
+  rmAnnotationRow, visibleAnnotations };

@@ -2822,9 +2822,9 @@
    "via": "verify"
   },
   "rm/js/my-week.js": {
-   "deployedAt": "2026-10-23T12:49:57-07:00",
-   "sha256": "6cbe5a9fbaffa34dada399d0d7a1629c6a9b458fe9d03d45cfed78c153f883f1",
-   "size": 139666,
+   "deployedAt": "2026-10-23T15:44:35-07:00",
+   "sha256": "a7d6b878cea61274e178c020b03800d722e8fd686df01befd7eddd3ba3f8af50",
+   "size": 140084,
    "via": "verify"
   },
   "rm/js/myweek-report.js": {
@@ -4478,9 +4478,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-23T14:46:45-07:00",
-   "sha256": "3f3fbba10ebdedf47c76be16e593ec34132762224ada5e1981337b6fdf693864",
-   "size": 25591,
+   "deployedAt": "2026-10-23T15:44:35-07:00",
+   "sha256": "019cf3239485dc2ce98871929b124d3a4c10de961667100fe7d4e02465b508ca",
+   "size": 27467,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4490,8 +4490,8 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-23T14:46:45-07:00",
-   "sha256": "fac5bd3570e567749d1172bf772a98905d8d49042a8c666be60525573e9f03ec",
+   "deployedAt": "2026-10-23T15:44:35-07:00",
+   "sha256": "f8dfaac2cc7e847a9fe52bdfb7da2a365a04029656178ed325668291ac8b1b01",
    "size": 4382355,
    "via": "verify"
   },
@@ -4868,8 +4868,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-23T14:49:57-07:00",
-   "sha256": "f9ea762a437a87fd64022837e7dfbe946351d6f3991a055ee26feb7434515e64",
+   "deployedAt": "2026-10-23T15:44:35-07:00",
+   "sha256": "a30ddb8e8b4d9626adbed25ee67bad665c670c6d77d0a6494b561888ebd4b115",
    "size": 9016,
    "via": "verify"
   },

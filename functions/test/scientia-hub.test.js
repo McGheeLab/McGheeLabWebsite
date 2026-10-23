@@ -501,6 +501,24 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual(hub.tracker.size, 1, 'one event per note per day');
   });
 
+  /* ---- V3.875: RM highlights for a paper card ---- */
+  await test('annotations: what the rule lets the person read (lab-visible or their own), compact rows, by page; route + errors', async () => {
+    const ann = (id, extra) => Object.assign({ id, paperId: 'p1', visibility: 'lab', color_id: 'yellow', annotation_type: 'note', comment: '', creator: { uid: 'u2', displayName: 'Mo' },
+      target: { pages: [{ page: 3, selectors: { textQuote: { exact: 'granular hydrogels', prefix: '', suffix: '' } } }] }, created: '2026-10-20T10:00:00Z' }, extra || {});
+    const raw = [ann('a1', { creator: { uid: 'u1', displayName: 'Gabe' }, color_id: 'green', comment: 'key result', target: { pages: [{ page: 7, selectors: { textQuote: { exact: 'stiffness rises' } } }] } }),
+      ann('a2'), ann('a3', { visibility: 'private', creator: { uid: 'u2' } }), ann('a4', { visibility: 'private', creator: { uid: 'u1', displayName: 'Gabe' }, target: { pages: [] } }), ann('a5', { deleted: true })];
+    const rows = C.visibleAnnotations(raw, 'u1');
+    assert.deepStrictEqual(rows.map(r => r.id), ['a2', 'a1', 'a4'], 'someone else’s private one and a deleted one are not shown; by page, page-less last');
+    assert.deepStrictEqual([rows[1].color, rows[1].page, rows[1].exact, rows[1].comment, rows[1].mine, rows[1].by], ['green', 7, 'stiffness rises', 'key result', true, 'Gabe']);
+    assert.deepStrictEqual([rows[0].mine, rows[2].page], [false, null]);
+    const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.rmAnnotations = new Map([['p1', raw]]);
+    const web = { id: 'u1', kind: 'browser', name: 'Gabe' };
+    const r = await call(hub, web, 'GET', '/api/rm/annotations', { query: { paperId: 'p1' } });
+    assert.strictEqual(r.body.ok, true); assert.strictEqual(r.body.total, 3);
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/annotations', { query: {} })).status, 400);
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/annotations', { query: { paperId: 'nope' } })).body.total, 0);
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();
