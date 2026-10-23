@@ -125,7 +125,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.877', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.878', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -311,7 +311,7 @@
     Array.from(pbsRow.querySelectorAll('button')).filter(function (b) { return /Place its card here/.test(b.textContent); })[0].click();
     var mcard = await until(function () { var bl = ev("JSON.stringify(DB.where('blocks', function (b) { return b.kind === 'matcard' && b.status === 'live' && (M.doc(b.matId) || {}).inventoryId === 'inv-pbs'; }).map(function (b) { return b.id; }))"); var ids = JSON.parse(bl || '[]'); var bx = ids[0] && D.querySelector('.box[data-id="' + ids[0] + '"]'); return bx && /PBS 10x/.test(bx.textContent) && /In the lab inventory/.test(bx.textContent) && bx; }, 6000);
     check('Insert → Material… places the card of an inventory item (Gabe\'s material card), with its RM line', !!mcard && /Log a use in RM/.test(mcard.textContent) && /Open in RM/.test(mcard.textContent), mcard ? mcard.textContent.slice(0, 200) : 'no card');
-    /* 13. V3.877 — protocols from RM, Something I did, collections */
+    /* 13. V3.878 — protocols from RM, Something I did, collections */
     function pickRow(re) { var o = Array.from(D.querySelectorAll('.ovl .opt, .modal .opt, .opt')).filter(function (x) { return re.test(x.textContent); })[0]; if (o) o.dispatchEvent(new W.MouseEvent('mousedown', { bubbles: true, cancelable: true })); return o; }
     check('+ Insert offers Run a lab protocol from RM, Something I did and Collection from the Lab Notebook', ['rmprotocol', 'rmaction', 'rmcollection'].every(function (id) { return ev("!!INSERTS.filter(function (x) { return x.id === '" + id + "'; })[0]"); }));
     ev("SIS_LAB.pickRmProtocol(M.doc('" + nid + "'), { x: 460, y: 300 })");

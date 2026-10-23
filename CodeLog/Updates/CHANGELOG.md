@@ -37,9 +37,9 @@ through, and it was manager-only. FTP only.
   shows no Create QR code to a non-manager; a custom item with no code says so, offers it, mints it bound to that item
   with nothing printed, keeps its panel open and the search as it was.
 
-## [V3.877] — 2026-10-23 — Phase 2 complete: RM protocols run as Scientia protocols, "Something I did", RM collections in notes; pen and regions evaluated
+## [V3.878] — 2026-10-23 — Phase 2 complete: RM protocols run as Scientia protocols, "Something I did", RM collections in notes; pen and regions evaluated
 
-Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.877_scientia_rm_protocols_actions_collections.md](../ClaudesPlan/V3.877_scientia_rm_protocols_actions_collections.md).
+Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.878_scientia_rm_protocols_actions_collections.md](../ClaudesPlan/V3.878_scientia_rm_protocols_actions_collections.md).
 `scientia/src` untouched; the hub deployed before the client.
 
 ### Added
@@ -48,7 +48,7 @@ Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.877_scientia_rm_protocols_actio
   empty and removed blocks ignored, the rest counted in `skipped`; `url` `protocols.html?protocol=<id>`),
   `searchProtocols` (archived dropped, newest first); `FirestoreHub.protocols` lists by **field selection** and reads one
   in full. `GET api/rm/collections[?id=]` — `rmCollectionRow`, `rmCollectionFull` over `userData/{uid}/litReviews`.
-  `MemoryHub` serves `rmProtocols` / `rmCollections`. Health V3.877. **Deployed.**
+  `MemoryHub` serves `rmProtocols` / `rmCollections`. Health V3.878. **Deployed.**
 - Host (`rm/js/notebook-scientia.js`): `rm-actions` → `listActionsFor` (`USER_ACTIONS.list / pending / describe`) →
   `rm-actions-list {reqId, ok, rows}`; `rm-action-noted` → `noteActionFor` (`USER_ACTIONS.markNoted(id, {entryId:
   'scientia:<note>', cardId})`).
@@ -60,7 +60,7 @@ Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.877_scientia_rm_protocols_actio
   ⋯ Pick a different action…). **Collection from the Lab Notebook…** (`pickCollection`, `placeCollection` → block
   `rmcollection`; `WIDGETS.rmcollection` — title, claim, key points, quotes in their colours, papers → RM's reader, Open
   its entry, Refresh; ⋯ Change the collection…). `pickerModal()`. New blocks carry readable text for the desktop.
-  `SIS_LAB.version` V3.877.
+  `SIS_LAB.version` V3.878.
 - Tests: hub **52/52** (+2), lab-mode harness **80/80** (+12), notebook harness **39/39** + 6/6 (+2, the real host).
 
 ### Evaluated, not ported
@@ -70,7 +70,7 @@ Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.877_scientia_rm_protocols_actio
   mapped (V3.876).
 
 ### Changed
-- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 859 → 860; `CodeLog/features.json`; the V3.866 plan: Phase 2
+- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 860 → 861 (V3.877 was claimed by another session at the same moment); `CodeLog/features.json`; the V3.866 plan: Phase 2
   complete.
 
 ### Found, not changed

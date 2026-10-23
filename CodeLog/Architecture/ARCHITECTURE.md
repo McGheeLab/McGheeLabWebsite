@@ -6,7 +6,7 @@
 
 **Prior: V3.873 (inventory: aliquots and lab-made items are ordinary `kind:'item'` docs with `lab_made: true` (`lab_made_type` aliquot | made_in_lab, `made_by_uid/name`, required description + location) added by any member through `addLabMadeItem()` in `rm/js/inventory.js`; every item create — this form and + Add Item — now writes ONE doc via `_invCreateItem` (transaction refuses a taken id) instead of the whole-collection `api.save`; each new lab-made item gets its QR code at save through `INV_LABELS.ensureCode` / `queue` (one label per piece); a Made in Lab tab; `openForm` (`rm/js/forms.js`) gains `suggestions` / `hint`. No backend change. Plan: [CodeLog/ClaudesPlan/V3.873_lab_made_aliquots.md](../ClaudesPlan/V3.873_lab_made_aliquots.md).)**
 
-**Prior: V3.877 (Phase 2 complete — an RM protocol becomes Gabe's own protocol (`GET api/rm/protocols` → step texts; `def.rm`; registered or kept in the note; the same version re-runs, a changed one is imported beside it); *Something I did* lists your RM actions through the host (`rm-actions` → `USER_ACTIONS`, `rm-action-noted` → `markNoted`); RM collections are read-only cards (`GET api/rm/collections` over `userData/{uid}/litReviews`); RM's pen arcs / phone modes evaluated and not ported; regions / wires mapped.)**
+**Prior: V3.878 (Phase 2 complete — an RM protocol becomes Gabe's own protocol (`GET api/rm/protocols` → step texts; `def.rm`; registered or kept in the note; the same version re-runs, a changed one is imported beside it); *Something I did* lists your RM actions through the host (`rm-actions` → `USER_ACTIONS`, `rm-action-noted` → `markNoted`); RM collections are read-only cards (`GET api/rm/collections` over `userData/{uid}/litReviews`); RM's pen arcs / phone modes evaluated and not ported; regions / wires mapped.)**
 
 **Prior: V3.876 (Phase 2, part 1 — Scientia's RM cards keep their data in Scientia blocks and ask the Lab Notebook that hosts them to run RM's own UI over the postMessage bridge: `rm-read` → `CANVAS_PAPER_READER.openReader` over the notebook, `rm-report` → `MYWEEK_REPORT.open` (step back as `rm-reported`), each acked; `lab-mode.js` §8 adds the `rmpaper` card (RM highlights via `GET api/rm/annotations`), a ✓ on every component (`DocView.box` wrapped → `block.myweek[]`), and the inventory-backed material card.)**
 
@@ -135,7 +135,7 @@ Cards: `rmpaper` (paperId; RM highlights in RM's colours; text `Paper: …` for 
 a ✓ in every component's header (`DocView.box`; panes are `Object.create(DocView)`), and Gabe's material card for an
 inventory item (`Insert → Material…` searches RM's inventory first; the card links to RM).
 
-V3.877 completes the set: an RM protocol (`GET api/rm/protocols`, the editor's flushed `tree` → step texts) becomes a
+V3.878 completes the set: an RM protocol (`GET api/rm/protocols`, the editor's flushed `tree` → step texts) becomes a
 Scientia protocol block carrying `rm {protocolId, updated_at, url, skipped}` and runs as his run; `rmaction` (your RM
 actions via the host: `rm-actions` → `rm-actions-list`, `rm-action-noted` → `USER_ACTIONS.markNoted`) and
 `rmcollection` (`GET api/rm/collections`, read-only) are cards. Pen input, regions and wires stay each app's own. `lab-mode.js` §6 wraps `TASK.create / save /

@@ -1561,7 +1561,7 @@
    "related": [
     "rm.canvas-engine"
    ],
-   "note": "V3.866 plan §4: pen arcs evaluated only; the two engines stay separate for now."
+   "note": "V3.878 evaluation: RM’s pen arcs and phone modes are NOT ported — Gabe’s ink is the fuller system; regions / wires mapped (same ideas, separate data)."
   },
   {
    "id": "scientia.settings",
@@ -1631,11 +1631,11 @@
     "scientia/src/13t-chaindrop.js",
     "scientia/src/13e-plate.js"
    ],
-   "status": "decision",
+   "status": "active",
    "related": [
     "rm.protocols"
    ],
-   "note": "V3.866 plan §4 (Phase 2): the RM protocol-run card is ported in; decide whether these blocks retire."
+   "note": "V3.866 §4 decision resolved by V3.878: Gabe’s protocol blocks STAY — an RM protocol is imported as one (`def.rm`), so runs are his. RM stays the source of the protocol text."
   },
   {
    "id": "scientia.timer",

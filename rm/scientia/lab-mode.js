@@ -28,7 +28,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.877', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.878', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -562,7 +562,7 @@
       '.lab-inv-line{gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}';
     document.head.appendChild(h('style', { id: 'lab-mode-css' }, css));
   } catch (e) { warn('css', e); }
-  /* ---- 9. Protocols, Something I did, collections (V3.877, Phase 2 part 2) ----
+  /* ---- 9. Protocols, Something I did, collections (V3.878, Phase 2 part 2) ----
      PROTOCOLS: the lab's protocol (RM) becomes Gabe's own protocol — its steps — so a run here is his run (check,
      time, observe). The def carries `rm {protocolId, updated_at, url, skipped}`; the same RM version is imported once
      and run again; a changed one is imported beside the old (past runs keep theirs). Calculators, tables and figures

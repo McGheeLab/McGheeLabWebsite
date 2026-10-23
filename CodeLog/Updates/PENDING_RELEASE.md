@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (6 changes — push at 5+)
+## Pending (7 changes — push at 5+)
 
+- **V3.878 — Lab protocols, what you did, and collections inside Scientia notes.** In Scientia on the web, Insert now offers "Run a lab protocol from RM" (its steps become a protocol you check off, time and observe), "Something I did" (an item you used or equipment you booked, from your RM actions) and "Collection from the Lab Notebook" (your quotes, key points and papers, read-only).
 - **V3.877 — A Create QR code button on custom items, and no more Print labels in the toolbar.** A custom item gets its QR code when you save it; if that ever doesn’t go through, open the item and press **Create QR code** (anyone in the lab can). Print a label from the item itself (Print label or Sheet); the Print labels button that queued a label for every item in the list is gone. Also fixed: after searching, one click opens a row (it sometimes took two).
 - **V3.876 — Lab Notebook cards inside Scientia notes.** In Scientia on the web you can place a paper from the lab library in a note and see your RM highlights on it; Read opens RM's paper reader right over the Lab Notebook. Every component has a tick that reports it as the result of a My Week step. Insert, then Material, now searches the lab inventory first.
 - **V3.875 — Custom items are cleaner, can be a group, and can use up what they were made from.** **+ Custom item** asks what it is (custom aliquot, material or media) and how many with a units dropdown, so "4 tubes, each holds 15 mL" is one entry in one place with the same QR code on every tube. Under **Made from**, search the inventory for what you used and say how much; each line tells you before you save whether it comes off the count ("Takes 50 mL off, 400 mL left") or is only noted. Using 4 tubes from a pack never takes 4 packs off.

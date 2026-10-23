@@ -243,7 +243,7 @@ const firebridge = window.firebridge; delete window.firebridge;</script>
     hw.eval("window.parent.postMessage({ sis: true, type: 'rm-report', reqId: 'h3', card: { kind: 'scientia_block', itemId: 'c2' } }, location.origin);");
     var ack3 = await until(function () { return hw.__acks.filter(function (m) { return m.sisCmd === 'rm-ack' && m.reqId === 'h3'; })[0]; }, 4000);
     check('without My Week\'s picker on the page the host answers ok:false (Scientia then shows a hint)', !!ack3 && ack3.ok === false, JSON.stringify(ack3));
-    /* 6c. V3.877 — Something I did: the host lists your actions with RM's own code and marks the picked one noted */
+    /* 6c. V3.878 — Something I did: the host lists your actions with RM's own code and marks the picked one noted */
     var UA0 = window.USER_ACTIONS;
     window.USER_ACTIONS = { list: function () { return Promise.resolve([{ id: 'inv_u1', kind: 'inventory_use', at: '2026-10-26T10:15:00', itemName: 'PBS', qty: 2, unit: 'mL', itemId: 'inv-pbs', note: 'wash' }, { id: 'old', kind: 'inventory_use', status: 'ignored' }]); },
       pending: function (all) { return all.filter(function (a) { return a.status !== 'ignored'; }); }, describe: function (a) { return 'Used ' + a.qty + ' ' + a.unit + ' of ' + a.itemName; },

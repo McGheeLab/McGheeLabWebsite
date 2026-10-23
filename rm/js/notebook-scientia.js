@@ -163,7 +163,7 @@ function onFrameMessage(e) {
   // report picker). Every request carries a reqId and gets an rm-ack; no ack means "not here" and the app falls back.
   if (e.data.type === 'rm-read') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: openReaderFor(e.data.paper, e.data.focus) });
   if (e.data.type === 'rm-report') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: openReportFor(e.data.card, e.data.point, e.data.reqId) });
-  // V3.877 — "Something I did": your recorded actions (USER_ACTIONS, V3.844), listed and marked noted by RM's own code
+  // V3.878 — "Something I did": your recorded actions (USER_ACTIONS, V3.844), listed and marked noted by RM's own code
   if (e.data.type === 'rm-actions') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: listActionsFor(e.data.reqId) });
   if (e.data.type === 'rm-action-noted') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: noteActionFor(e.data.actionId, e.data.entryId, e.data.cardId) });
   if (typeof e.data.hash === 'string' && e.data.hash !== S.route) {
@@ -202,7 +202,7 @@ function openReportFor(card, point, reqId) {
   } catch (err) { console.warn('[scientia] report', err); return false; }
   return true;
 }
-/* V3.877 — the actions not yet placed or ignored, described by RM (USER_ACTIONS.describe), sent to the frame */
+/* V3.878 — the actions not yet placed or ignored, described by RM (USER_ACTIONS.describe), sent to the frame */
 function listActionsFor(reqId) {
   const UA = window.USER_ACTIONS;
   if (!UA || !UA.list) return false;

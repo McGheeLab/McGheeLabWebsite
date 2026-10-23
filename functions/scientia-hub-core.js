@@ -587,7 +587,7 @@ function visibleAnnotations(docs, uid) {
     .map(d => rmAnnotationRow(d, uid)).sort((a, b) => (a.page == null ? 1e9 : a.page) - (b.page == null ? 1e9 : b.page) || a.at.localeCompare(b.at));
 }
 
-/* ───────── RM protocols and collections for Scientia (V3.877, Phase 2 part 2) — read-only ─────────
+/* ───────── RM protocols and collections for Scientia (V3.878, Phase 2 part 2) — read-only ─────────
    PROTOCOLS: protocols/{id} {title, status, tree {sections [{label, children [{kind, body, attrs}]}]}, current_version,
    updated_at} — the editor flushes the Yjs tree back to `tree` 1.5 s after an edit, so it is current. Scientia runs a
    protocol as its own (a list of step texts): steps become steps, notes / safety / callouts become "Note: …" steps, the
@@ -855,7 +855,7 @@ MemoryHub.prototype.annotations = async function ({ paperId }) {
   const items = visibleAnnotations(raw, this.uid || 'u1');
   return { ok: true, paperId: String(paperId), total: items.length, items: items.slice(0, 300) };
 };
-/* V3.877 — `rmProtocols` (array of protocol docs with id), `rmCollections` (array of litReviews docs) */
+/* V3.878 — `rmProtocols` (array of protocol docs with id), `rmCollections` (array of litReviews docs) */
 MemoryHub.prototype.protocols = async function ({ q, id } = {}) {
   const all = this.rmProtocols || [];
   if (id) { const d = all.find(x => String(x.id) === String(id)); return d ? { ok: true, protocol: rmProtocolSteps(d) } : { ok: false, error: 'no such protocol' }; }
