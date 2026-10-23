@@ -4,39 +4,6 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
-## [V3.877] — 2026-10-23 — Custom items: a Create QR code button for every member; the toolbar's Print labels is gone
-
-Alex: *"For thes custom items, we should add a button for create a qr code for this item?"* and *"the print labels
-button should not be there in the inventory."* A custom item already gets its code at save (V3.873/875); production
-holds no custom items yet, so none is missing one. The button is the way back when that save-time step did not go
-through, and it was manager-only. FTP only.
-
-### Added
-- `invLabelHtml`: a custom item (`lab_made`) with no `label_code` says *"No QR code yet. A custom item gets one when it
-  is saved; if that did not go through, create it here."* and offers **Create QR code** (primary) to **any member**
-  (`labels/{CODE}` create and a `label_code` update are member-writable). A bought item's button stays manager-only, as
-  in V3.835, and is renamed from *Make code* to *Create QR code*.
-- `_invShowItem(id, scroll)` — repaint and reopen one item's panel without touching the search, tab or filters;
-  `_invOpenItem` now sets those and calls it.
-
-### Changed
-- `invMakeLabel` and `invQueueLabel` reopen the item (`_invShowItem`) instead of a bare `render()`, which closed the
-  panel the button was in.
-- **The toolbar's Print labels (`#inv-print-labels`, a label for every item in the list) is removed** from
-  `inventory.html`, with its handler in `invWireScanAndLabels` and its app-only hide rule. Labels are printed per item
-  from its panel (Print label / Sheet). `inventory-labels.html`'s empty-state hint now points at the panel's Sheet.
-- `sw.js` CACHE_VERSION 859 → 860.
-
-### Bug Fixes
-- `render()` resets `_expandedRow` / `_expandedVariant`. Every re-render (typing in search, a live update from another
-  tab) rebuilt the rows closed but kept the old open id, so the next click on that row position closed nothing and
-  opened nothing; it took a second click.
-
-### Tests
-- `v3875-custom-inventory-selftest.html` 46 → 54: one click opens a row after a re-render; a bought item with no code
-  shows no Create QR code to a non-manager; a custom item with no code says so, offers it, mints it bound to that item
-  with nothing printed, keeps its panel open and the search as it was.
-
 ## [V3.878] — 2026-10-23 — Phase 2 complete: RM protocols run as Scientia protocols, "Something I did", RM collections in notes; pen and regions evaluated
 
 Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.878_scientia_rm_protocols_actions_collections.md](../ClaudesPlan/V3.878_scientia_rm_protocols_actions_collections.md).
@@ -75,6 +42,39 @@ Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.878_scientia_rm_protocols_actio
 
 ### Found, not changed
 - `rm/js/day-distribute.js` (~282) links My Week protocol steps to `protocols.html?id=`; the page reads `?protocol=`.
+
+## [V3.877] — 2026-10-23 — Custom items: a Create QR code button for every member; the toolbar's Print labels is gone
+
+Alex: *"For thes custom items, we should add a button for create a qr code for this item?"* and *"the print labels
+button should not be there in the inventory."* A custom item already gets its code at save (V3.873/875); production
+holds no custom items yet, so none is missing one. The button is the way back when that save-time step did not go
+through, and it was manager-only. FTP only.
+
+### Added
+- `invLabelHtml`: a custom item (`lab_made`) with no `label_code` says *"No QR code yet. A custom item gets one when it
+  is saved; if that did not go through, create it here."* and offers **Create QR code** (primary) to **any member**
+  (`labels/{CODE}` create and a `label_code` update are member-writable). A bought item's button stays manager-only, as
+  in V3.835, and is renamed from *Make code* to *Create QR code*.
+- `_invShowItem(id, scroll)` — repaint and reopen one item's panel without touching the search, tab or filters;
+  `_invOpenItem` now sets those and calls it.
+
+### Changed
+- `invMakeLabel` and `invQueueLabel` reopen the item (`_invShowItem`) instead of a bare `render()`, which closed the
+  panel the button was in.
+- **The toolbar's Print labels (`#inv-print-labels`, a label for every item in the list) is removed** from
+  `inventory.html`, with its handler in `invWireScanAndLabels` and its app-only hide rule. Labels are printed per item
+  from its panel (Print label / Sheet). `inventory-labels.html`'s empty-state hint now points at the panel's Sheet.
+- `sw.js` CACHE_VERSION 859 → 860.
+
+### Bug Fixes
+- `render()` resets `_expandedRow` / `_expandedVariant`. Every re-render (typing in search, a live update from another
+  tab) rebuilt the rows closed but kept the old open id, so the next click on that row position closed nothing and
+  opened nothing; it took a second click.
+
+### Tests
+- `v3875-custom-inventory-selftest.html` 46 → 54: one click opens a row after a re-render; a bought item with no code
+  shows no Create QR code to a non-manager; a custom item with no code says so, offers it, mints it bound to that item
+  with nothing printed, keeps its panel open and the search as it was.
 
 ## [V3.876] — 2026-10-23 — Phase 2, part 1: RM cards inside Scientia notes — the paper card, reading in place, ✓ report to My Week, the inventory material card
 
