@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.870] — 2026-10-23 — Fix: the phone app crashed at launch on iOS 27 (adopt the UIScene lifecycle)
+
+Gabe's crash log (iPhone 16 Plus, **iOS 27.0.1**, build 18): `EXC_BREAKPOINT (SIGTRAP)` 66 ms after launch in
+`___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke` ← `-[UIApplication
+workspace:didCreateScene:withTransitionContext:completion:]`, no app frame. iOS 27 refuses to launch an app built with the
+iOS 27 SDK that has not adopted the UIScene lifecycle; Ourlab was still app-delegate-only (`UIMainStoryboardFile`) and is built
+with Xcode 27.1. Every iOS 27 phone was affected; iOS 26 phones (Alex, Cason) only log a warning, and the simulator here was
+iOS 26.5. The V3.867 theory (a page dying on Gabe's data) was wrong — no web code is involved.
+
+### Bug Fixes — native (OurlabMobile, build 21)
+- `ios/App/App/SceneDelegate.swift` (new, in the App target): `UIWindowSceneDelegate`; the window comes from
+  `Main.storyboard`, so `TabShellViewController` is the root as before. `scene(_:willConnectTo:options:)` (cold-launch links),
+  `scene(_:openURLContexts:)` and `scene(_:continue:)` forward to `ApplicationDelegateProxy.shared` exactly as AppDelegate's
+  `application(_:open:options:)` / `continue userActivity` did.
+- `Info.plist`: `UIApplicationSceneManifest` (single scene; `UISceneDelegateClassName = $(PRODUCT_MODULE_NAME).SceneDelegate`,
+  `UISceneStoryboardFile = Main`); `UIMainStoryboardFile` removed.
+- `AppDelegate.application(_:configurationForConnecting:options:)` → "Default Configuration".
+- `OurlabDiagnostics.start()` also observes `UIScene.didActivateNotification` / `willDeactivateNotification` /
+  `didEnterBackgroundNotification`.
+
+### Tests
+- iOS 26.5 simulator: the scene build opens to the sign-in screen, all four tab pages load, the marker reads `foreground`.
+- iOS 27 simulator runtime: see the plan's test note — the pre-fix app (build 20 code) vs the fix.
+
+Plan: [V3.870_ios27_scene_lifecycle.md](../ClaudesPlan/V3.870_ios27_scene_lifecycle.md). Native only — no sw.js bump.
+
 ## [V3.869] — 2026-10-23 — Scientia on the web is RM-native (Phase 1): the lab's library mirrored into the notebook, Activity / Data / Tasks page replaced by RM's
 
 Alex: *"continue to phase 1"* (of V3.866 §3). Plan: [V3.869_scientia_lab_mode_library_mirror.md](../ClaudesPlan/V3.869_scientia_lab_mode_library_mirror.md).

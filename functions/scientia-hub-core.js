@@ -325,6 +325,31 @@ function planMirror({ state, rows, items }) {
   }
   return { ops, total: (items || []).length, changed: ops.filter(o => !o.del).length, removed: ops.filter(o => o.del).length };
 }
+/* ───────── RM inventory for Scientia's materials (V3.870, Phase 1) ─────────
+   The web app's Materials picker and page read the lab's inventory through the hub: a compact row per item
+   (3,500 docs ≈ 1 MB in Firestore; the function keeps the compact list per instance for ten minutes and searches
+   server-side, so a keystroke costs one small response). Nothing is written: usage is logged in RM itself. */
+const INVENTORY_MS = 10 * 60 * 1000, INVENTORY_LIMIT = 40;
+function rmInventoryRow(doc) {
+  const d = doc || {}, id = String(d.id || '');
+  const locs = Array.isArray(d.locations) ? d.locations.map(l => typeof l === 'string' ? l : (l && (l.name || l.location || l.label)) || '').filter(Boolean)
+    : (d.locations && typeof d.locations === 'object') ? Object.keys(d.locations) : [];
+  return { id, kind: d.kind === 'chemical' || d.is_chemical ? 'chemical' : 'item', name: String(d.name || d.description || id), description: String(d.description || '').slice(0, 160),
+    category: String(d.category || ''), subcategory: String(d.subcategory || ''), vendor: String(d.vendor || ''), catalogue_number: String(d.catalogue_number || ''),
+    quantity: typeof d.quantity === 'number' ? d.quantity : (parseFloat(d.quantity) || 0), stock_status: String(d.stock_status || ''), condition: String(d.condition || ''),
+    use_mode: d.use_mode === 'per_use' || d.use_mode === 'package' ? d.use_mode : '', is_consumable: !!d.is_consumable, locations: locs.slice(0, 4), updatedAt: String(d.updatedAt || '') };
+}
+function searchInventory(items, q, limit) {
+  const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean), n = Math.max(1, Math.min(200, parseInt(limit, 10) || INVENTORY_LIMIT));
+  const hay = r => (r.name + ' ' + r.description + ' ' + r.vendor + ' ' + r.catalogue_number + ' ' + r.category + ' ' + r.subcategory).toLowerCase();
+  let rows = items || [];
+  if (words.length) rows = rows.filter(r => { const H = hay(r); return words.every(w => H.includes(w)); });
+  rows = rows.slice().sort((a, b) => {
+    if (words.length) { const an = a.name.toLowerCase().startsWith(words[0]) ? 0 : 1, bn = b.name.toLowerCase().startsWith(words[0]) ? 0 : 1; if (an !== bn) return an - bn; }
+    return (b.updatedAt || '').localeCompare(a.updatedAt || '') || a.name.localeCompare(b.name);
+  });
+  return { ok: true, total: rows.length, items: rows.slice(0, n) };
+}
 async function mirrorQuietly(hub, who) {
   if (!hub || !who || typeof hub.mirrorLibrary !== 'function') return;
   try { await hub.mirrorLibrary({}); } catch (e) { /* the library mirror never breaks hello */ }

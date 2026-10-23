@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (2 changes — push at 5+)
+## Pending (3 changes — push at 5+)
 
+- Fixed: the Ourlab app closed the moment it opened on iPhones running iOS 27. It opens normally again.
 - **V3.869 — Scientia on the web now uses the lab's library.** Open Scientia inside the Lab Notebook and its Library tab shows the lab's papers from RM (cite them in any note; Read in RM opens the reader with highlights). Papers are added in RM, not in Scientia. The Activity and Data tabs and the Tasks page have left the web version in favour of RM's; the desktop app is unchanged.
 - **V3.868 — Gabe can work in the same code as the lab.** The lab's code repository now updates itself at the end of every change, and every push (ours or Gabe's) is checked before it lands: it must merge cleanly, and a new feature that looks like one the lab already has is flagged so the two get combined instead of living twice. Gabe has Firebase access and can get his own FTP login to ship his part of the site.
 
