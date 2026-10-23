@@ -1,0 +1,45 @@
+# The push gate on GitHub (V3.868): the same scripts/merge_check.py that runs in the local pre-push hook,
+# so a push made with --no-verify, or from a clone that never ran `merge_check.py install`, is still checked
+# before it is merged. Branch protection on `main` should require this check ("merge check / gate").
+name: merge check
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: feature registry, overlap, gates
+        env:
+          MERGE_CHECK_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git fetch --quiet origin main || true
+          python3 scripts/merge_check.py ci --target origin/main
+      - name: scientia builds from source
+        if: always()
+        run: |
+          if git diff --name-only ${MERGE_CHECK_BASE:-HEAD~1} HEAD -- scientia/ rm/scientia/cloud-sync.js | grep -q .; then
+            python3 scripts/scientia_build.py
+          else
+            echo "scientia unchanged"
+          fi
+        env:
+          MERGE_CHECK_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+      - name: hub protocol tests
+        if: always()
+        run: node functions/test/scientia-hub.test.js
+      - name: merge-check fixtures
+        if: always()
+        run: python3 scripts/tests/merge_check_test.py
