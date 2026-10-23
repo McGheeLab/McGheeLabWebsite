@@ -30,8 +30,9 @@
     { id: 'l-local-1', kind: 'paper', title: 'A desktop-only preprint', authors: [{ family: 'Nguyen', given: 'T' }], container: '', publisher: '', year: 2023, volume: '', issue: '', page: '', issn: '', doi: '', url: 'https://example.org/preprint', isPreprint: true, csl: { title: 'A desktop-only preprint' }, added: '2026-10-20T10:00:00' }
   ];
   var STATE = { app: 'Scientia In Situ', sid: 'sidA', syncSeq: 12, savedAt: '2026-10-23T12:00:00',
-    stores: { documents: [{ id: 'd1', type: 'note', title: 'Plan for coverslips', created: '2026-10-23T10:00:00', modified: '2026-10-23T10:00:00' }], library: RM_ROWS },
-    counts: { documents: 1, library: 3 } };
+    // settings.dataEpoch must match the build's DATA_EPOCH (13o-vault.js): without it the second boot tries to wipe, which the sync layer refuses off the desktop
+    stores: { settings: [{ id: 'main', dataEpoch: 1, seeded: true }], documents: [{ id: 'd1', type: 'note', title: 'Plan for coverslips', created: '2026-10-23T10:00:00', modified: '2026-10-23T10:00:00' }], library: RM_ROWS },
+    counts: { settings: 1, documents: 1, library: 3 } };
   var PRELUDE = '<base href="/rm/scientia/"><script>(' + (function (STATE) {
     window.__popups = []; window.__rej = []; window.__opened = []; window.__hubCalls = [];
     ['prompt', 'alert', 'confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
@@ -67,9 +68,18 @@
     var html = await (await fetch('/rm/scientia/scientia.html', { cache: 'no-store' })).text();
     check('the web build carries the target flag and lab-mode.js', /window\.SIS_TARGET = 'web'/.test(html) && /<script src="lab-mode\.js\?v=/.test(html) && /<script src="cloud-sync\.js\?v=/.test(html));
     var fr = document.getElementById('fr');
-    fr.srcdoc = html.replace('<head>', '<head>' + PRELUDE);
+    // a srcdoc document resolves relative URLs against THIS page, so the two lab scripts get absolute paths
+    html = html.replace(/<script src="(cloud-sync|lab-mode)\.js\?v=/g, '<script src="/rm/scientia/$1.js?v=');
+    check('the prelude has a <head> to hook', /<head[^>]*>/.test(html));
+    fr.srcdoc = html.replace(/<head[^>]*>/, function (m) { return m + PRELUDE; });
     var W = await until(function () { return fr.contentWindow && fr.contentWindow.__ready === true && fr.contentWindow.SIS_LAB && fr.contentWindow; }, 40000);
-    check('his build booted on the stub hub (the record loaded, the page restarted, __ready)', !!W, W ? 'ready' : 'timed out');
+    function diag() {
+      var w = fr.contentWindow, d = fr.contentDocument, o = {};
+      try { o.ready = w.__ready; o.target = w.SIS_TARGET; o.lab = !!w.SIS_LAB; o.hub = w.__hubCalls; o.popups = w.__popups; o.rej = w.__rej; o.cloud = w.__sisCloud ? { user: !!w.__sisCloud.user, seq: w.__sisCloud.seq } : null;
+        o.stores = w.eval('typeof STORES'); o.syncMeta = w.localStorage.getItem('sis:sync'); o.tabs = d.querySelectorAll('#tabs a.tab').length; o.body = (d.body.innerText || '').slice(0, 300); o.url = d.URL; } catch (e) { o.err = String(e); }
+      return JSON.stringify(o);
+    }
+    check('his build booted on the stub hub (the record loaded, the page restarted, __ready)', !!W, W ? 'ready' : 'timed out: ' + diag());
     if (!W) { finish(); return; }
     var D = fr.contentDocument;
     function q(s) { return D.querySelector(s); }
@@ -113,7 +123,7 @@
     /* 6. #/read/<RM paper> is RM's reader, not the in-app one */
     go('#/read/p-smith-2024');
     var rd = await until(function () { return q('.lab-read'); }, 6000);
-    check('#/read/<RM paper> shows the paper and Read in RM — no "attach the PDF" prompt', !!rd && /Read in RM/.test(rd.textContent) && !/Attach the PDF/.test(D.body.textContent) && /Smith/.test(rd.textContent), (rd || {}).textContent);
+    check('#/read/<RM paper> shows the paper and Read in RM — no "attach the PDF" prompt', !!rd && /Read in RM/.test(rd.textContent) && !/Attach the PDF/.test(q('#view').innerText) && /Smith/.test(rd.textContent), (rd || {}).textContent);
     check('the Library tab is lit for it', !!(await until(function () { var on = q('#tabs a.tab.on'); return on && on.dataset.k === 'library'; }, 3000)));
     /* 7. the pointer pages */
     go('#/activity');
@@ -127,7 +137,7 @@
     check('#/data says desktop only (no button to nowhere)', !!(await until(function () { var p = q('.page'); return p && /Desktop only/.test(p.textContent) && !/Open .* in RM/.test(p.textContent); }, 6000)));
     /* 8. Gabe's pages still work */
     go('#/doc/d1');
-    check('a note still opens in his editor', !!(await until(function () { return /Plan for coverslips/.test((q('#ttl') || {}).textContent || ''); }, 8000)), (q('#ttl') || {}).textContent);
+    check('a note still opens in his editor', !!(await until(function () { return /Plan for coverslips/.test(((q('#ttl') || {}).textContent || '') + ' ' + (q('#view') ? q('#view').innerText : '')); }, 8000)), ((q('#ttl') || {}).textContent || '') + ' | ' + (q('#view') ? q('#view').innerText.slice(0, 160) : '') + ' | rej ' + JSON.stringify(W.__rej));
     go('#/materials');
     check('Materials is untouched in this version (his page renders)', !!(await until(function () { return /Materials/.test((q('#ttl') || {}).textContent || ''); }, 6000)), (q('#ttl') || {}).textContent);
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));

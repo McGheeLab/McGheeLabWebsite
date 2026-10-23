@@ -93,7 +93,7 @@
   }
 
   var LabLibrary = {
-    q: '',
+    q: '', title: true,   // title: true — the view sets its own title line; App.refresh() leaves the meta alone
     render: function () {
       var rows = DB.all('library'), rm = rows.filter(isRm), mine = rows.filter(function (r) { return !isRm(r); });
       var q = h('input.inp', { placeholder: 'Filter by author, year, journal, title…', value: LabLibrary.q, style: { width: '100%' },
