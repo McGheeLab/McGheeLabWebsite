@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.869] — 2026-10-23 — Scientia on the web is RM-native (Phase 1): the lab's library mirrored into the notebook, Activity / Data / Tasks page replaced by RM's
+
+Alex: *"continue to phase 1"* (of V3.866 §3). Plan: [V3.869_scientia_lab_mode_library_mirror.md](../ClaudesPlan/V3.869_scientia_lab_mode_library_mirror.md).
+The desktop app is untouched (`scientia/src` unchanged); everything is in the web build's lab layer and the hub.
+
+### Added
+- **The RM library mirror** (`functions/scientia-hub-core.js`): `rmItemToLibraryRow(item)` maps an RM paper (`items`,
+  `type: paper`, `meta.library.is_library_entry`) to Scientia's library record — `id` = the RM item id, `rm: true`,
+  `rmId`, `doi`, `cslType`, `title`, `authors[{family, given}]`, `container`, `year`, `volume/issue/page`, `issn`, `url`,
+  `isPreprint`, a built `csl` (`_source: 'rm'`), `rmPdf`, `added`, `rmUpdated`; `pdf = 'rm:<id>'` when RM holds a PDF.
+  `planMirror({state, rows, items})` → ops for the hub's own `push` (device `rm`, name **RM library**): new added,
+  unchanged skipped (`MIRROR_FIELDS`), changed updated keeping desktop-owned fields (`pdf`, notes), papers gone from RM
+  tombstoned, non-RM rows never touched. `route()`: `hello` and `state` mirror first (quietly, throttled);
+  `POST api/rm/library/refresh` forces it; `GET api/rm/library/pdf?id=` → `{url}` (download-token URL for Phase 3).
+  `MemoryHub.mirrorLibrary` mirrors `hub.rmItems`. `MIRROR_MS` = 5 min.
+- `functions/scientia-hub.js` `FirestoreHub.mirrorLibrary({force})` (equality-only `items` query, the hub's `library`
+  rows, `mirrorAt / mirrorN / mirrorWritten` on the hub doc) and `rmPdfUrl(id)` (reuses or sets the object's
+  `firebaseStorageDownloadTokens`). **Deployed** (`functions:scientiaHub`) before the client.
+- `rm/scientia/lab-mode.js` — the web build's lab layer, loaded after the app (`window.SIS_TARGET === 'web'`):
+  `TABS` loses `activity` and `data` before the first render; `VIEWS.activity / tasks / data` are pointer pages (Open
+  Activity / Tasks in RM; Data = desktop only); `VIEWS.library` is the lab library — RM papers as cards (sigil, APA
+  line, *pdf in RM* / *no pdf*, **Read in RM**, **Open in RM**), a filter, **Refresh from RM** (signed POST + status
+  line), *Open RM's Library* instead of DOI/paste adders, desktop-only papers in a second list with Gabe's own card
+  (`title: true` keeps the meta line); `VIEWS.read` wraps Gabe's reader — an RM row renders *Read in RM*, anything else
+  falls through (`after` / `update` guarded). `openRM(href)` → new tab (`noopener`) + `{sis, type: 'rm-open', href}`
+  to the notebook host. `window.SIS_LAB = { version, RM, opened, openRM, refresh }`.
+- `scripts/tests/v3869-scientia-lab-mode-harness.html` — 30 checks headless against the REAL web build (iframe +
+  injected prelude: stub Firebase signed in, SDK loads short-circuited, the function answered in-page with a record
+  of 2 RM papers, 1 desktop-only paper, 1 note, a `settings` row). 30/30.
+- 4 fixtures in `functions/test/scientia-hub.test.js` (36/36): the mapping, the plan, hello-mirrors-once / refresh /
+  pull as ops from `rm` / PDF 404 off Firestore, a hub without a mirror.
+
+### Changed
+- `scripts/scientia_build.py`: the web variant now carries `<script>window.SIS_TARGET = 'web';</script>` before
+  `cloud-sync.js` and `<script src="lab-mode.js?v=<hash>">` before `</body>`; both lab files are required.
+- `rm/js/notebook-scientia.js` `onFrameMessage`: records `rm-open` (`S.lastRmOpen`) — the hook for an in-notebook reader.
+- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 851 → 852.
+- `CodeLog/features.json`: notes on `scientia.library` / `activity` / `tasks` / `data` (what the web build does now);
+  the V3.866 plan §3 carries the status.
+
+### Not in this version (the rest of Phase 1, each its own V3.x)
+- V3.870 Materials from RM inventory; V3.871 the task component as an RM task; V3.872 timer sessions → ActivitySignals.
+  Still Alex's: the Review tab, the purple highlight colour.
+
 ## [V3.868] — 2026-10-23 — git keeps up with the site: the push hook, the merge checker, the feature registry, two deployers
 
 Alex: *"ensure there is a hook for pushing git as well, and part of this hook is a merge checker, and part of this merge

@@ -30,6 +30,7 @@ makes the untouched app a *device* of the cloud hub and lets the Lab Notebook dr
 | `scientia/serve.py`, `sisync.py`, `winink.py`, `sttread.py`, `slides.py`, `hwread.py`, `launch.bat`, `diagnose-pairing.*` | Gabe (the desktop server) | desktop only; never deployed |
 | `scientia/vendor/`, `fonts.css`, `icons/` | Gabe | third-party, licences included |
 | `rm/scientia/cloud-sync.js` | the lab | the web layer: hub protocol over `fetch`, notebook bridge (postMessage), media map |
+| `rm/scientia/lab-mode.js` | the lab | **V3.869, Phase 1**: the web build only (`window.SIS_TARGET === 'web'`, loaded after the app). Reshapes the running app from outside — the Library tab is the lab's library mirrored from RM by the hub (`library` rows with `rm: true`, id = the RM item id, so cites keep working); Activity and Data tabs are gone; the Tasks page points at RM. Nothing in `src/` branches on the target. Harness: `scripts/tests/v3869-scientia-lab-mode-harness.html` |
 | `rm/scientia/scientia-cloud.py` | the lab | the desktop bridge: a device of both hubs (Gabe downloads it from the notebook's sync panel) |
 | `functions/scientia-hub.js`, `scientia-hub-core.js` | the lab | the cloud hub (Gabe's protocol on Firestore) |
 | `rm/js/notebook-scientia.js`, `rm/css/notebook-scientia.css` | the lab | Scientia as a notebook of the Lab Notebook |

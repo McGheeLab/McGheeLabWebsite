@@ -37,6 +37,7 @@
     window.__popups = []; window.__rej = []; window.__opened = []; window.__hubCalls = [];
     ['prompt', 'alert', 'confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
     window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
+    window.addEventListener('error', function (e) { window.__rej.push('error: ' + String(e.message || e)); });
     window.open = function (href) { window.__opened.push(String(href)); return null; };
     var user = { uid: 'u1', getIdToken: function () { return Promise.resolve('tok'); } };
     window.firebase = { apps: [{}], initializeApp: function () {}, auth: function () { return { currentUser: user, onAuthStateChanged: function (cb) { setTimeout(function () { cb(user); }, 0); return function () {}; } }; },
@@ -136,8 +137,10 @@
     go('#/data');
     check('#/data says desktop only (no button to nowhere)', !!(await until(function () { var p = q('.page'); return p && /Desktop only/.test(p.textContent) && !/Open .* in RM/.test(p.textContent); }, 6000)));
     /* 8. Gabe's pages still work */
-    go('#/doc/d1');
-    check('a note still opens in his editor', !!(await until(function () { return /Plan for coverslips/.test(((q('#ttl') || {}).textContent || '') + ' ' + (q('#view') ? q('#view').innerText : '')); }, 8000)), ((q('#ttl') || {}).textContent || '') + ' | ' + (q('#view') ? q('#view').innerText.slice(0, 160) : '') + ' | rej ' + JSON.stringify(W.__rej));
+    var nid = ev("M.createDoc({ type: 'note', title: 'Plan for coverslips (web)' }).id");  // a well-formed note, made by his own model
+    go('#/doc/' + nid);
+    check('a note still opens in his editor', !!(await until(function () { return /Plan for coverslips \(web\)/.test(((q('#ttl') || {}).textContent || '') + ' ' + (q('#view') ? q('#view').innerText : '')) && q('#view .box, #view .paper, #view [contenteditable]'); }, 8000)), ((q('#ttl') || {}).textContent || '') + ' | ' + (q('#view') ? q('#view').innerText.slice(0, 160) : '') + ' | rej ' + JSON.stringify(W.__rej));
+    check('…and the change went to the hub as a push', W.__hubCalls.some(function (c) { return c.path === 'api/sync/push' && c.method === 'POST'; }) || !!(await until(function () { return W.__hubCalls.some(function (c) { return c.path === 'api/sync/push'; }); }, 6000)), JSON.stringify(W.__hubCalls.map(function (c) { return c.path; })));
     go('#/materials');
     check('Materials is untouched in this version (his page renders)', !!(await until(function () { return /Materials/.test((q('#ttl') || {}).textContent || ''); }, 6000)), (q('#ttl') || {}).textContent);
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
