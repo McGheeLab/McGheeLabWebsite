@@ -21,6 +21,19 @@
     .inv-scan-fab svg { width: 28px; height: 28px; }
     body.ourlab-app .page-header > div { flex-wrap: wrap; }
     body.ourlab-app #inv-scan { display: none; }
+    /* V3.879 — category pills: filled = shown. On a phone the row scrolls sideways rather than stacking. */
+    .inv-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 14px; }
+    .inv-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font: 600 13px var(--font); cursor: pointer; white-space: nowrap; }
+    .inv-pill:hover { border-color: var(--primary); color: var(--text); }
+    .inv-pill .n { font-weight: 500; opacity: .75; font-variant-numeric: tabular-nums; }
+    .inv-pill[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .inv-pill-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex: 0 0 auto; }
+    .inv-hidden-hint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); margin: -2px 0 10px; }
+    @media (max-width: 640px) {
+      .inv-pills { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+      .inv-pills::-webkit-scrollbar { display: none; }
+      .inv-pill { flex: 0 0 auto; }
+    }
   </style>
 </head>
 <body>
@@ -28,15 +41,6 @@
     <div class="page-header">
       <h1 class="page-title">Lab Inventory</h1>
       <div style="display:flex;gap:8px;align-items:center;">
-        <select id="category-filter" class="btn" style="font-size:14px;">
-          <option value="all">All Categories</option>
-        </select>
-        <select id="stock-filter" class="btn" style="font-size:14px;">
-          <option value="all">All Stock</option>
-          <option value="full">Full</option>
-          <option value="low">Low</option>
-          <option value="out_of_stock">Out of Stock</option>
-        </select>
         <input id="search-input" type="text" placeholder="Search items..." style="font-size:14px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);width:220px;">
         <button class="btn" id="inv-scan" title="Scan an item's QR label — camera, or type the code, or a USB scanner (V3.834)"><i data-hi="camera"></i> Scan</button>
         <button class="btn" onclick="createManualGroup()">Create Group</button>
@@ -49,7 +53,8 @@
       <span class="ish-icon"><i data-hi="camera"></i></span>
       <span class="ish-text"><strong>Scan a label</strong><small>then say how much you are taking</small></span>
     </button>
-    <div class="tab-bar" id="tabs"></div>
+    <!-- V3.879 — category pills (any number on) replace the tab bar and the category / stock dropdowns -->
+    <div class="inv-pills" id="inv-pills" role="group" aria-label="Show these categories"></div>
     <div id="content"></div>
   </div>
   <script src="/rm/js/util.js"></script>

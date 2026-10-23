@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.879] — 2026-10-23 — Inventory: category pills replace the tab bar and the filter dropdowns
+
+Alex: *"on the lab inventory page, i dont like the top row of filters, these are not commonly used. we should have a set
+of pills for each category, and by default all but consumables, research are off."* Plan:
+[V3.879_inventory_category_pills.md](../ClaudesPlan/V3.879_inventory_category_pills.md). FTP only.
+
+### Added
+- **Category pills** (`#inv-pills`, `rm/js/inventory.js`): `INV_PILLS` — Research, Consumables, Custom, Equipment,
+  Computers & Software, Furniture & Office, Infrastructure, Other — any number on at once. `invPillOf(item)` puts every
+  item in exactly one (custom first, then `research_*`, `consumable`, `equipment`, `computer`/`software`,
+  `lab_furniture`/`office`, `infrastructure`, else Other, so nothing is unreachable). **On by default: Research and
+  Consumables** (`INV_PILLS_DEFAULT`). Each pill shows its count; an empty group is hidden unless on. After a divider,
+  **Low or out** and **Preferred** narrow whatever is shown (`_invIsLow`, `_invIsPreferred`), keeping what those two
+  tabs did.
+- `_invLoadPills` / `_invSavePills` — the choice is remembered per viewer in `localStorage` `rm.inventory.pills.v1`
+  (`{on, low, preferred}`, unknown keys dropped, every access in try/catch; blocked storage = the defaults each visit).
+  Only the person's clicks are saved.
+- `_invReveal(item)` — `invHandleScan` (desktop) and `_invOpenItem` (`?item=`, a just-made custom item) turn the item's
+  pill on **for this visit only** and lift the narrowing pills, so a filter never hides what was asked for.
+- `_invHiddenMatches()` / `invShowHidden()` — a search that matches items in groups that are off says *"N more matches
+  in Equipment and Other, which are off."* with **Show them** (turns those on, saved), above the list or in place of
+  the empty state.
+- `scripts/tests/v3879-inventory-pills-selftest.html` — 25 checks on the real `inventory.js` (and the real page's
+  markup and CSS): default pills and counts, hidden empty groups, toggling and saving, subcategories only with one
+  pill on, Low or out / Preferred, everything off, the hidden-matches line and Show them, an opened item revealed but
+  not saved, blocked storage.
+
+### Changed
+- `getFiltered()`: pills → narrowing → subcategory (only while exactly one category pill is on) → search
+  (`_invMatchesSearch`, unchanged fields). `render()` paints the pills (fresh counts on every repaint);
+  `_invPaintChrome()` is now just `render()`. The subcategory buttons follow the single pill that is on.
+- `rm/pages/inventory.html`: **All Categories ▾ and All Stock ▾ removed**; the tab bar `#tabs` becomes `#inv-pills`;
+  pill CSS (filled = on; sideways scroll under 640 px).
+- Removed: `TABS`, `activeTab`, `updateTabActive`, the two dropdown handlers.
+- `v3875-custom-inventory-selftest.html` follows the pills (Custom is off by default; the test turns it on), still 54.
+- `sw.js` CACHE_VERSION 861 → 862.
+
 ## [V3.878] — 2026-10-23 — Phase 2 complete: RM protocols run as Scientia protocols, "Something I did", RM collections in notes; pen and regions evaluated
 
 Alex: *"MOVE ON TO PHASE 2"* (part 2). Plan: [V3.878_scientia_rm_protocols_actions_collections.md](../ClaudesPlan/V3.878_scientia_rm_protocols_actions_collections.md).

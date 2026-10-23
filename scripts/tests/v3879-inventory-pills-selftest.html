@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3.879 inventory pills selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<script>
+  // The REAL inventory.js (+ inventory-qty / -use / -made) against stub data:
+  // one item or more in every pill except Furniture & Office and
+  // Infrastructure. Serve the repo root and open
+  // /scripts/tests/v3879-inventory-pills-selftest.html; result in
+  // #r[data-done=1]. ?demo=1 stops on the default view for a screenshot.
+  try { localStorage.removeItem('rm.inventory.pills.v1'); } catch (e) {}
+  window.__dialogs = [];
+  window.alert = function (m) { window.__dialogs.push('alert:' + m); };
+  window.prompt = function (m) { window.__dialogs.push('prompt:' + m); return null; };
+  window.confirm = function (m) { window.__dialogs.push('confirm:' + m); return false; };
+  window.__items = [
+    { id: 'r1', kind: 'item', name: 'FBS, heat inactivated', vendor: 'Gibco', category: 'research_cells', subcategory: 'supplements', stock_status: 'full', is_consumable: true, locations: [{ name: 'freezer -20' }] },
+    { id: 'r2', kind: 'item', name: 'Trypsin-EDTA 0.25%', vendor: 'Gibco', category: 'research_reagents', subcategory: 'buffers', stock_status: 'low', is_consumable: true, locations: [] },
+    { id: 'r3', kind: 'item', name: 'DMEM high glucose', vendor: 'Gibco', category: 'research_cells', subcategory: 'culture_media', stock_status: 'full', is_consumable: true, locations: [] },
+    { id: 'c1', kind: 'item', name: 'Pipette tips 200 µL', vendor: 'Fisher', category: 'consumable', subcategory: 'pipette_tips', stock_status: 'full', preferred: true, product_group: 'tips-200', product_group_name: 'Tips 200', is_consumable: true, locations: [] },
+    { id: 'c2', kind: 'item', name: 'Conical tubes 15 mL', vendor: 'Fisher', category: 'consumable', subcategory: 'tubes', stock_status: 'out_of_stock', is_consumable: true, locations: [] },
+    { id: 'e1', kind: 'item', name: 'Microscope, inverted', vendor: 'Nikon', category: 'equipment', subcategory: 'instruments', stock_status: 'n/a', locations: [{ name: 'BSRL 312/scope room' }] },
+    { id: 'e2', kind: 'item', name: 'Centrifuge', vendor: 'Eppendorf', category: 'equipment', subcategory: 'instruments', stock_status: 'n/a', locations: [] },
+    { id: 'k1', kind: 'item', name: 'Analysis workstation', vendor: 'Dell', category: 'computer', stock_status: 'n/a', locations: [] },
+    { id: 'o1', kind: 'item', name: 'Bench remodel parts', category: 'remodel', stock_status: 'n/a', locations: [] },
+    { id: 'o2', kind: 'item', name: 'Mystery box', stock_status: 'n/a', locations: [] },
+    { id: 'l1', kind: 'item', name: 'LLS 50 µm, FITC', lab_made: true, lab_made_type: 'material', category: 'lab_made', subcategory: 'custom_material', description: 'beads', made_by_name: 'Someone', stock_status: 'full', is_consumable: true, locations: [{ name: 'fridge/box/001' }] },
+  ];
+  var firebridge = {
+    requireSignIn: async function () {}, loadAccessGrant: async function () {},
+    isAdmin: function () { return false; }, hasCapability: function () { return false; },
+    getUser: function () { return { uid: 'u1', displayName: 'Test User' }; }, getProfile: function () { return { name: 'Test User' }; },
+    db: function () { return { collection: function () { return { doc: function (id) { return { id: id }; } }; }, batch: function () { return { set: function () {}, commit: async function () {} }; } }; },
+  };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; } } } };
+</script>
+<style> #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 12px; } </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Lab Inventory</h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input id="search-input" type="text" placeholder="Search items..." style="font-size:14px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);width:220px;">
+        <button class="btn" id="add-custom">+ Custom item</button>
+        <button class="btn btn-primary" id="add-item">+ Add Item</button>
+      </div>
+    </div>
+    <div class="inv-pills" id="inv-pills" role="group" aria-label="Show these categories"></div>
+    <div id="content"></div>
+  </div>
+  <div id="r"></div>
+  <script src="/rm/js/icons.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script>
+    api.load = async function (path) { return path === 'inventory/items.json' ? { items: JSON.parse(JSON.stringify(window.__items)) } : { projects: [] }; };
+    api.save = async function () { return {}; };
+    api.invalidate = async function () {};
+  </script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/forms.js"></script>
+  <script src="/rm/js/app-sheet.js"></script>
+  <script src="/rm/js/inventory-qty.js"></script>
+  <script src="/rm/js/inventory-use.js"></script>
+  <script src="/rm/js/inventory-made.js"></script>
+  <script src="/rm/js/inventory.js"></script>
+<script>
+(async function () {
+  var r = document.getElementById('r'); var pass = 0, fail = 0;
+  function ok(name) { pass++; r.textContent += 'ok    ' + name + '\n'; }
+  function bad(name, d) { fail++; r.textContent += 'FAIL  ' + name + (d ? '  → ' + d : '') + '\n'; }
+  function eq(got, want, name) { var g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) ok(name); else bad(name, 'got ' + g + ' want ' + w); }
+  function tick(ms) { return new Promise(function (res) { setTimeout(res, ms || 40); }); }
+  function $(q) { return document.querySelector(q); }
+  async function until(fn, ms) { var t = Date.now(); while (Date.now() - t < (ms || 2500)) { if (fn()) return true; await tick(20); } return false; }
+  function pills() {
+    return Array.prototype.map.call(document.querySelectorAll('#inv-pills .inv-pill'), function (b) {
+      return b.textContent.replace(/\s+/g, ' ').trim() + (b.getAttribute('aria-pressed') === 'true' ? ' *' : '');
+    });
+  }
+  function rows() { return Array.prototype.map.call(document.querySelectorAll('tr.expandable-row[data-item-id], .variant-row[data-item-id]'), function (t) { return t.getAttribute('data-item-id'); }).sort(); }
+  function click(sel) { var b = $(sel); if (!b) { bad('click ' + sel, 'missing'); return; } b.click(); }
+  function saved() { try { return JSON.parse(localStorage.getItem('rm.inventory.pills.v1') || 'null'); } catch (e) { return 'unreadable'; } }
+  function search(q) { var si = $('#search-input'); si.value = q; si.dispatchEvent(new Event('input')); }
+
+  await until(function () { return document.querySelectorAll('#inv-pills .inv-pill').length > 0; });
+
+  // ── the real page's markup ──
+  var page = await (await fetch('/rm/pages/inventory.html')).text();
+  // The pill CSS lives in the real page's own <style>; use THAT, so a screenshot shows what ships.
+  var css = (page.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+  var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+  eq(/\.inv-pill\[aria-pressed="true"\]/.test(css), true, 'the real page styles a pill that is on');
+  eq([/id="category-filter"/.test(page), /id="stock-filter"/.test(page), /id="tabs"/.test(page), /id="inv-pills"/.test(page)], [false, false, false, true],
+     'inventory.html: no category / stock dropdowns, no tab bar, one pill row');
+
+  // ── the default ──
+  eq(pills(), ['Research 3 *', 'Consumables 2 *', 'Custom 1', 'Equipment 2', 'Computers & Software 1', 'Other 2', 'Low or out 2', 'Preferred 1'],
+     'one pill per category with its count; only Research and Consumables on; empty categories hidden; Low or out / Preferred count what is shown');
+  eq(rows(), ['c1', 'c2', 'r1', 'r2', 'r3'], 'by default the list is research + consumables');
+  if (new URLSearchParams(location.search).get('demo')) { setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 400); return; }
+  eq(saved(), null, 'nothing saved until the person clicks');
+
+  // ── toggling ──
+  click('#inv-pills [data-pill="equipment"]'); await tick();
+  eq(rows(), ['c1', 'c2', 'e1', 'e2', 'r1', 'r2', 'r3'], 'Equipment on: its items join the list (any number of pills at once)');
+  eq(saved(), { on: ['research', 'consumables', 'equipment'], low: false, preferred: false }, 'and the choice is remembered');
+  click('#inv-pills [data-pill="research"]'); await tick();
+  eq(rows(), ['c1', 'c2', 'e1', 'e2'], 'Research off: its items leave');
+  eq(document.querySelectorAll('[onclick^="setSubtab"]').length, 0, 'two pills on: no subcategory buttons');
+  click('#inv-pills [data-pill="equipment"]'); await tick();
+  eq(Array.prototype.map.call(document.querySelectorAll('[onclick^="setSubtab"]'), function (b) { return b.textContent; }), ['All (2)', 'Pipette Tips (1)', 'Tubes (1)'],
+     'exactly one pill on (Consumables): its subcategories are offered, as a tab used to');
+  click('[onclick="setSubtab(\'tubes\')"]'); await tick();
+  eq(rows(), ['c2'], 'a subcategory narrows within it');
+  click('#inv-pills [data-pill="research"]'); await tick();
+  eq(rows(), ['c1', 'c2', 'r1', 'r2', 'r3'], 'changing a pill clears the subcategory');
+
+  // ── narrowing pills ──
+  click('#inv-pills [data-narrow="low"]'); await tick();
+  eq(rows(), ['c2', 'r2'], 'Low or out: only low or out items, within the pills that are on');
+  click('#inv-pills [data-narrow="low"]'); click('#inv-pills [data-narrow="preferred"]'); await tick();
+  eq(rows(), ['c1'], 'Preferred: only preferred product groups');
+  click('#inv-pills [data-narrow="preferred"]'); await tick();
+
+  // ── all off ──
+  click('#inv-pills [data-pill="research"]'); click('#inv-pills [data-pill="consumables"]'); await tick();
+  eq([rows().length, ($('.empty-state') || {}).textContent], [0, 'Every category is off. Turn one on above.'], 'every pill off: an empty list that says why');
+  click('#inv-pills [data-pill="research"]'); click('#inv-pills [data-pill="consumables"]'); await tick();
+
+  // ── a search never silently finds nothing ──
+  search('microscope'); await tick();
+  eq(rows(), [], 'searching for something in a category that is off: no rows…');
+  var hint = $('.inv-hidden-hint');
+  eq(hint && hint.textContent.replace(/\s+/g, ' ').trim(), '1 more match in Equipment, which is off. Show them', '…but a line says where it is');
+  click('.inv-hidden-hint button'); await tick();
+  eq([rows(), saved().on], [['e1'], ['research', 'consumables', 'equipment']], 'Show them turns that pill on (and remembers it)');
+  search('o'); await tick();
+  var h2 = $('.inv-hidden-hint');
+  eq(h2 && h2.textContent.replace(/\s+/g, ' ').trim(), '4 more matches in Custom, Computers & Software and Other, which are off. Show them', 'several hidden groups are named together');
+  search(''); await tick();
+
+  // ── opening an item reveals its pill for this visit only ──
+  _invOpenItem('l1'); await tick();
+  eq([!!$('tr.expandable-row.expanded[data-item-id="l1"]'), pills()[2]], [true, 'Custom 1 *'], 'opening a custom item (scan, link, just made) turns Custom on and opens it');
+  eq(saved().on, ['research', 'consumables', 'equipment'], 'but that is not saved');
+  search('');   // opening an item put its name in the search
+  _invLoadPills(); render(); await tick();
+  eq(pills().filter(function (p) { return /\*$/.test(p); }), ['Research 3 *', 'Consumables 2 *', 'Equipment 2 *'], 'next visit: the person’s own choice, not the reveal');
+
+  // ── storage that refuses ──
+  var get = Storage.prototype.getItem, setI = Storage.prototype.setItem;
+  Storage.prototype.getItem = function () { throw new Error('blocked'); };
+  Storage.prototype.setItem = function () { throw new Error('blocked'); };
+  try {
+    _invLoadPills(); render(); await tick();
+    eq(pills().filter(function (p) { return /\*$/.test(p); }), ['Research 3 *', 'Consumables 2 *'], 'blocked storage: the defaults');
+    click('#inv-pills [data-pill="other"]'); await tick();
+    eq(rows().indexOf('o2') >= 0, true, 'and the pills still work for the visit');
+  } finally { Storage.prototype.getItem = get; Storage.prototype.setItem = setI; }
+  eq(window.__dialogs, [], 'no browser alert / prompt / confirm');
+
+  r.textContent += '\n' + pass + ' passed, ' + fail + ' failed\n';
+  r.setAttribute('data-done', '1');
+})().catch(function (e) { var r = document.getElementById('r'); r.textContent += 'CRASH ' + (e && e.stack || e) + '\n'; r.setAttribute('data-done', '1'); });
+</script>
+</body>
+</html>

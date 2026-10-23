@@ -3,7 +3,6 @@
 var DATA_PATH = 'inventory/items.json';
 var PROJECTS_PATH = 'finance/projects.json';
 var DATA_KEY = 'items';
-var activeTab = 'all';
 var _items = [];
 var _data = null; // keep loaded data reference for inline saves
 var _projects = []; // funded projects/grants
@@ -22,18 +21,29 @@ var LOCATION_FIELDS = [
   { key: 'notes', label: 'Notes', type: 'text', placeholder: 'e.g. opened bottle, backup supply' },
 ];
 
-var TABS = [
-  { key: 'all', label: 'All Items', filter: null },
-  { key: 'research', label: 'Research', filter: function (i) { return i.category && i.category.indexOf('research_') === 0; }},
-  { key: 'lab_made', label: 'Custom Items', filter: function (i) { return !!i.lab_made; }},   // V3.873, V3.875
-  { key: 'consumables', label: 'Consumables', filter: function (i) { return i.category === 'consumable'; }},
-  { key: 'equipment', label: 'Equipment', filter: function (i) { return i.category === 'equipment'; }},
-  { key: 'computers', label: 'Computers & Software', filter: function (i) { return i.category === 'computer' || i.category === 'software'; }},
-  { key: 'furniture', label: 'Furniture & Office', filter: function (i) { return i.category === 'lab_furniture' || i.category === 'office'; }},
-  { key: 'infrastructure', label: 'Infrastructure', filter: function (i) { return i.category === 'infrastructure'; }},
-  { key: 'preferred', label: 'Preferred', filter: function (i) { return i.preferred && i.product_group; }},
-  { key: 'low_stock', label: 'Low / Out of Stock', filter: function (i) { return i.stock_status === 'low' || i.stock_status === 'out_of_stock'; }},
+/* ---- V3.879 — category pills ----
+ *
+ * Alex: "i dont like the top row of filters, these are not commonly used. we
+ * should have a set of pills for each category, and by default all but
+ * consumables, research are off." The pills replace the tab bar (one view at a
+ * time) and the category / stock dropdowns. Any number can be on; an item shows
+ * when its group's pill is on. Low or out / Preferred narrow whatever is shown
+ * (what the old tabs of those names did). The choice is remembered per viewer;
+ * opening an item from a scan, a link or a new custom item turns its pill on
+ * for this visit only (_invReveal). */
+var INV_PILLS = [
+  { key: 'research', label: 'Research' },
+  { key: 'consumables', label: 'Consumables' },
+  { key: 'custom', label: 'Custom' },
+  { key: 'equipment', label: 'Equipment' },
+  { key: 'computers', label: 'Computers & Software' },
+  { key: 'furniture', label: 'Furniture & Office' },
+  { key: 'infrastructure', label: 'Infrastructure' },
+  { key: 'other', label: 'Other' },
 ];
+var INV_PILLS_DEFAULT = ['research', 'consumables'];
+var INV_PILLS_KEY = 'rm.inventory.pills.v1';
+var _pills = { on: {}, low: false, preferred: false };
 
 var SUBTAB_LABELS = {
   assay_kits: 'Assay Kits', growth_factors: 'Growth Factors', antibodies: 'Antibodies',
@@ -74,12 +84,101 @@ var TABLE_COLUMNS = [
   { label: 'Stock', key: 'stock_status' },
 ];
 
-/* ---- Tab helpers ---- */
+/* ---- Pill helpers (V3.879) ---- */
 
-function updateTabActive() {
-  var btns = document.querySelectorAll('#tabs .tab-btn');
-  btns.forEach(function (btn, i) { btn.className = 'tab-btn' + (TABS[i].key === activeTab ? ' active' : ''); });
+/* The one group an item belongs to. Custom first, so a custom item keeps its
+ * pill even if someone re-categorises it; anything unrecognised is Other, so
+ * every item is reachable. */
+function invPillOf(i) {
+  if (!i) return 'other';
+  if (i.lab_made) return 'custom';
+  var c = i.category || '';
+  if (c.indexOf('research_') === 0) return 'research';
+  if (c === 'consumable') return 'consumables';
+  if (c === 'equipment') return 'equipment';
+  if (c === 'computer' || c === 'software') return 'computers';
+  if (c === 'lab_furniture' || c === 'office') return 'furniture';
+  if (c === 'infrastructure') return 'infrastructure';
+  return 'other';
 }
+function _invIsLow(i) { return i.stock_status === 'low' || i.stock_status === 'out_of_stock'; }
+function _invIsPreferred(i) { return !!(i.preferred && i.product_group); }
+function _invOnKeys() { return INV_PILLS.map(function (p) { return p.key; }).filter(function (k) { return _pills.on[k]; }); }
+
+function _invLoadPills() {
+  var on = INV_PILLS_DEFAULT, low = false, preferred = false;
+  try {
+    var saved = JSON.parse(localStorage.getItem(INV_PILLS_KEY) || 'null');
+    if (saved && Array.isArray(saved.on)) {
+      on = saved.on.filter(function (k) { return INV_PILLS.some(function (p) { return p.key === k; }); });
+      low = !!saved.low;
+      preferred = !!saved.preferred;
+    }
+  } catch (e) { /* private window or blocked storage: the defaults */ }
+  _pills = { on: {}, low: low, preferred: preferred };
+  on.forEach(function (k) { _pills.on[k] = true; });
+}
+function _invSavePills() {
+  try {
+    localStorage.setItem(INV_PILLS_KEY, JSON.stringify({ on: _invOnKeys(), low: _pills.low, preferred: _pills.preferred }));
+  } catch (e) { /* not remembered; it still works for this visit */ }
+}
+
+/* Counts are of the whole inventory per group; Low or out / Preferred count
+ * within the groups that are on. A group with no items is hidden unless on. */
+function _invPaintPills() {
+  var host = document.getElementById('inv-pills');
+  if (!host) return;
+  var counts = {};
+  _items.forEach(function (i) { var k = invPillOf(i); counts[k] = (counts[k] || 0) + 1; });
+  var shown = _items.filter(function (i) { return _pills.on[invPillOf(i)]; });
+  var pill = function (attr, label, n, on) {
+    return '<button type="button" class="inv-pill" ' + attr + ' aria-pressed="' + (on ? 'true' : 'false') + '">' +
+           escAttr(label) + ' <span class="n">' + n + '</span></button>';
+  };
+  var html = INV_PILLS.filter(function (p) { return counts[p.key] || _pills.on[p.key]; }).map(function (p) {
+    return pill('data-pill="' + p.key + '"', p.label, counts[p.key] || 0, !!_pills.on[p.key]);
+  }).join('');
+  html += '<span class="inv-pill-sep" aria-hidden="true"></span>';
+  html += pill('data-narrow="low"', 'Low or out', shown.filter(_invIsLow).length, _pills.low);
+  html += pill('data-narrow="preferred"', 'Preferred', shown.filter(_invIsPreferred).length, _pills.preferred);
+  host.innerHTML = html;
+}
+
+/* An item opened from a scan, a ?item= link or a just-made custom item: turn
+ * its pill on for THIS VISIT (not saved) and lift the narrowing pills, so a
+ * filter can never hide what the person asked to see. */
+function _invReveal(item) {
+  if (!item) return;
+  _pills.on[invPillOf(item)] = true;
+  _pills.low = false;
+  _pills.preferred = false;
+  activeSubtab = 'all';
+}
+
+/* Search matches in groups that are off: { n, keys } — shown as "N more matches
+ * in …" with Show them, so a search never silently finds nothing. */
+function _invSearchText() { return (document.getElementById('search-input').value || '').trim().toLowerCase(); }
+function _invMatchesSearch(i, search) {
+  // V3.873 — location names and the maker too, so "fridge/box/001" lists what is in that box.
+  var locs = (i.locations || []).map(function (l) { return l && l.name; }).join(' ');
+  return [i.name, i.description, i.vendor, i.catalogue_number, i.account_number, i.subcategory, locs, i.made_by_name].join(' ').toLowerCase().indexOf(search) >= 0;
+}
+function _invHiddenMatches() {
+  var search = _invSearchText();
+  if (!search) return { n: 0, keys: [] };
+  var keys = {}, n = 0;
+  _items.forEach(function (i) {
+    var k = invPillOf(i);
+    if (!_pills.on[k] && _invMatchesSearch(i, search)) { n++; keys[k] = true; }
+  });
+  return { n: n, keys: INV_PILLS.filter(function (p) { return keys[p.key]; }).map(function (p) { return p.key; }) };
+}
+window.invShowHidden = function () {
+  _invHiddenMatches().keys.forEach(function (k) { _pills.on[k] = true; });
+  _invSavePills();
+  render();
+};
 
 /* ---- Chips ---- */
 
@@ -464,23 +563,14 @@ function priceHistoryDetail(history) {
 /* ---- Filtering ---- */
 
 function getFiltered() {
-  var items = _items.slice();
-  var catFilter = document.getElementById('category-filter').value;
-  var stockFilter = document.getElementById('stock-filter').value;
-  var search = (document.getElementById('search-input').value || '').trim().toLowerCase();
-
-  var tab = TABS.find(function (t) { return t.key === activeTab; });
-  if (tab && tab.filter) items = items.filter(tab.filter);
-  if (activeSubtab !== 'all') items = items.filter(function (i) { return (i.subcategory || '') === activeSubtab; });
-  if (catFilter !== 'all') items = items.filter(function (i) { return i.category === catFilter; });
-  if (stockFilter !== 'all') items = items.filter(function (i) { return i.stock_status === stockFilter; });
-  if (search) {
-    items = items.filter(function (i) {
-      // V3.873 — location names and the maker too, so "fridge/box/001" lists what is in that box.
-      var locs = (i.locations || []).map(function (l) { return l && l.name; }).join(' ');
-      return [i.name, i.description, i.vendor, i.catalogue_number, i.account_number, i.subcategory, locs, i.made_by_name].join(' ').toLowerCase().indexOf(search) >= 0;
-    });
-  }
+  var search = _invSearchText();
+  // V3.879 — the category pills, then the narrowing pills, then the subcategory
+  // (offered only while exactly one category pill is on), then the search.
+  var items = _items.filter(function (i) { return !!_pills.on[invPillOf(i)]; });
+  if (_pills.low) items = items.filter(_invIsLow);
+  if (_pills.preferred) items = items.filter(_invIsPreferred);
+  if (activeSubtab !== 'all' && _invOnKeys().length === 1) items = items.filter(function (i) { return (i.subcategory || '') === activeSubtab; });
+  if (search) items = items.filter(function (i) { return _invMatchesSearch(i, search); });
   return items;
 }
 
@@ -494,35 +584,11 @@ async function loadAndRender() {
   _invPaintChrome();
 }
 
-/* Tabs (with counts) + the category filter + the table, from what is already
- * in memory. V3.873 — split out of loadAndRender so adding one item repaints
- * the counts without refetching the whole collection. */
+/* The pills (with counts) + the table, from what is already in memory.
+ * V3.873 — split out of loadAndRender so adding one item repaints the counts
+ * without refetching the whole collection. */
 function _invPaintChrome() {
-  var tabsEl = document.getElementById('tabs');
-  tabsEl.innerHTML = '';
-  TABS.forEach(function (t) {
-    var btn = document.createElement('button');
-    btn.className = 'tab-btn' + (activeTab === t.key ? ' active' : '');
-    var count = t.filter ? _items.filter(t.filter).length : _items.length;
-    btn.textContent = t.label + ' (' + count + ')';
-    btn.onclick = function () { activeTab = t.key; activeSubtab = 'all'; updateTabActive(); render(); };
-    tabsEl.appendChild(btn);
-  });
-
-  var catFilter = document.getElementById('category-filter');
-  var currentCat = catFilter.value;
-  var cats = {};
-  _items.forEach(function (i) { if (i.category) cats[i.category] = true; });
-  catFilter.innerHTML = '<option value="all">All Categories</option>';
-  Object.keys(cats).sort().forEach(function (c) {
-    var opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = c.replace(/_/g, ' ');
-    if (c === currentCat) opt.selected = true;
-    catFilter.appendChild(opt);
-  });
-
-  render();
+  render();   // V3.879 — render() paints the pills (with counts) too
 }
 
 /* ---- V3.834: QR label + scan-to-use ----------------------------------
@@ -641,7 +707,7 @@ async function invHandleScan(raw) {
   // opens the row so the ledger and label block are in view.
   if (!invIsApp()) {
     var si = document.getElementById('search-input'); if (si) si.value = _data.items[idx].name || '';
-    activeTab = 'all'; activeSubtab = 'all'; updateTabActive(); render();
+    _invReveal(_data.items[idx]); render();
     var tr = document.querySelector('tr.expandable-row[data-item-id="' + id + '"]');
     if (tr) { toggleRow(tr.dataset.rid); if (tr.scrollIntoView) tr.scrollIntoView({ block: 'center' }); }
   }
@@ -790,15 +856,17 @@ function render() {
   // id made the next click on that row position close nothing and open nothing.
   _expandedRow = ''; _expandedVariant = '';
 
-  // Subtabs
-  var tab = TABS.find(function (t) { return t.key === activeTab; });
-  var tabItems = tab && tab.filter ? _items.filter(tab.filter) : _items;
+  _invPaintPills();   // V3.879
+
+  // Subcategories, while exactly one category pill is on (what a tab used to offer)
+  var onKeys = _invOnKeys();
+  var tabItems = onKeys.length === 1 ? _items.filter(function (i) { return invPillOf(i) === onKeys[0]; }) : [];
   var subcats = {};
   tabItems.forEach(function (i) { var sub = i.subcategory || ''; if (sub) subcats[sub] = (subcats[sub] || 0) + 1; });
 
   var html = '';
   var sortedSubs = Object.entries(subcats).sort(function (a, b) { return b[1] - a[1]; });
-  if (sortedSubs.length > 1 && activeTab !== 'all' && activeTab !== 'low_stock') {
+  if (sortedSubs.length > 1 && onKeys.length === 1) {
     html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
     html += '<button class="btn btn-sm' + (activeSubtab === 'all' ? ' btn-primary' : '') + '" onclick="setSubtab(\'all\')" style="font-size:12px;">All (' + tabItems.length + ')</button>';
     sortedSubs.forEach(function (kv) {
@@ -819,8 +887,17 @@ function render() {
   if (lowCount > 0) html += '<div class="card" style="flex:1;min-width:130px;padding:10px 14px;border-left:3px solid var(--amber);"><div class="card-title">Low / Out</div><div class="card-count" style="color:var(--amber);">' + lowCount + '</div></div>';
   html += '</div>';
 
+  var hidden = _invHiddenMatches();
+  var hiddenHtml = '';
+  if (hidden.n) {
+    var names = hidden.keys.map(function (k) { return INV_PILLS.find(function (p) { return p.key === k; }).label; });
+    hiddenHtml = '<div class="inv-hidden-hint">' + hidden.n + ' more ' + (hidden.n === 1 ? 'match' : 'matches') + ' in ' +
+      escAttr(names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]) +
+      ', which ' + (names.length > 1 ? 'are' : 'is') + ' off. <button type="button" class="btn btn-sm" onclick="invShowHidden()">Show them</button></div>';
+  }
   if (items.length === 0) {
-    html += '<div class="empty-state">No items match your filters.</div>';
+    html += hiddenHtml;
+    html += '<div class="empty-state">' + (onKeys.length ? 'No items match your filters.' : 'Every category is off. Turn one on above.') + '</div>';
     content.innerHTML = html;
     return;
   }
@@ -844,6 +921,7 @@ function render() {
   });
 
   html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">' + items.length + ' items in ' + grouped.length + ' rows</div>';
+  html += hiddenHtml;
   html += '<table class="data-table">';
   html += sortableHeader(TABLE_COLUMNS, _sortKey, _sortDir, 'onInventorySort');
   html += '<tbody>';
@@ -1332,9 +1410,18 @@ window.onInventorySort = function (key) {
 
 /* ---- Filters ---- */
 
-document.getElementById('category-filter').onchange = function () { render(); };
-document.getElementById('stock-filter').onchange = function () { render(); };
 document.getElementById('search-input').oninput = function () { render(); };
+// V3.879 — one delegated handler for every pill; only the person's own clicks are remembered.
+document.getElementById('inv-pills').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-pill], [data-narrow]');
+  if (!b) return;
+  var k = b.getAttribute('data-pill');
+  if (k) _pills.on[k] = !_pills.on[k];
+  else { var n = b.getAttribute('data-narrow'); _pills[n] = !_pills[n]; }
+  activeSubtab = 'all';
+  _invSavePills();
+  render();
+});
 
 /* ---- Live tab-to-tab sync ----
  *
@@ -1431,15 +1518,14 @@ function _invAttachQtyListener() {
 }
 
 /* Narrow the list to one item and open its detail panel (?item=, and V3.873 a
- * just-created item). Filters are cleared so a set category or stock filter
- * cannot hide it. */
+ * just-created item). Its category pill is turned on for this visit so no
+ * filter can hide it. */
 function _invOpenItem(wantId) {
   var want = wantId && _items.find(function (i) { return i.id === wantId; });
   if (!want) return false;
   var si = document.getElementById('search-input');
   if (si) si.value = want.name || '';
-  ['category-filter', 'stock-filter'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = 'all'; });
-  activeTab = 'all'; activeSubtab = 'all'; updateTabActive();
+  _invReveal(want);   // V3.879 — its pill on for this visit, narrowing lifted
   return _invShowItem(wantId, true);
 }
 
@@ -1468,6 +1554,7 @@ function _invShowItem(wantId, scroll) {
   }
   _invWrapSaves();
   _invAttachQtyListener();
+  _invLoadPills();   // V3.879 — before the first paint, so the remembered pills show at once
   await loadAndRender();
   _invAttachLiveSync();
   // V3.813 — ?item=<id> (a procurement ticket's "open in inventory" link)

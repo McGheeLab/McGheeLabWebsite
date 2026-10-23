@@ -14,6 +14,7 @@
   // inventory-made.js and inventory.js run. No network.
   // Serve the repo root and open /scripts/tests/v3875-custom-inventory-selftest.html;
   // result in #r[data-done=1]. ?demo=form / ?demo=row stop for a screenshot.
+  try { localStorage.removeItem('rm.inventory.pills.v1'); } catch (e) {}   // V3.879 — start from the default pills
   window.__dialogs = [];
   window.alert = function (m) { window.__dialogs.push('alert:' + m); };
   window.prompt = function (m) { window.__dialogs.push('prompt:' + m); return null; };
@@ -90,14 +91,12 @@
     <div class="page-header">
       <h1 class="page-title">Lab Inventory</h1>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="category-filter" class="btn" style="font-size:14px;"><option value="all">All Categories</option></select>
-        <select id="stock-filter" class="btn" style="font-size:14px;"><option value="all">All Stock</option><option value="full">Full</option></select>
         <input id="search-input" type="text" placeholder="Search items...">
         <button class="btn" onclick="addLabMadeItem()" id="add-custom">+ Custom item</button>
         <button class="btn btn-primary" id="add-item">+ Add Item</button>
       </div>
     </div>
-    <div class="tab-bar" id="tabs"></div>
+    <div class="inv-pills" id="inv-pills"></div>
     <div id="content"></div>
   </div>
   <div id="r"></div>
@@ -148,11 +147,13 @@
   function rowAmt(i, v) { var el = $('.imd-modal [data-amt="' + i + '"]'); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }
   function rowUnit(i, v) { var el = $('.imd-modal [data-unit="' + i + '"]'); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); }
   function plan(i) { var el = $('.imd-modal .imd-ing[data-i="' + i + '"] .imd-plan'); return el ? { cls: el.className.replace('imd-plan', '').trim(), text: el.textContent } : null; }
-  function tabText(prefix) { var b = Array.prototype.find.call(document.querySelectorAll('#tabs .tab-btn'), function (x) { return x.textContent.indexOf(prefix) === 0; }); return b ? b.textContent : null; }
+  function pill(key) { var b = $('#inv-pills [data-pill="' + key + '"]'); return b ? b.textContent.replace(/\s+/g, ' ').trim() + (b.getAttribute('aria-pressed') === 'true' ? ' [on]' : ' [off]') : null; }
   function usageFor(id) { return window.__fs.usage.filter(function (u) { return u.itemId === id; }); }
 
   await until(function () { return document.querySelectorAll('#tabs .tab-btn').length > 0; });
-  eq(tabText('Custom Items'), 'Custom Items (1)', 'a Custom Items tab');
+  eq(pill('custom'), 'Custom 1 [off]', 'a Custom pill, off by default (V3.879)');
+  $('#inv-pills [data-pill="custom"]').click();
+  await tick();
   var oldRow = $('tr.expandable-row[data-item-id="beads-old"]');
   eq(!!(oldRow && /Custom material/i.test(oldRow.textContent)), true, 'a V3.873 "made in lab" item reads Custom material');
 
@@ -251,7 +252,7 @@
     eq(!!panel.querySelector('li a[href="?item=fbs"]'), true, 'an ingredient in the list links to it');
     eq(!!panel.querySelector('.inv-qr[data-code="MG-T1"]'), true, 'its QR code shows');
   }
-  eq(tabText('Custom Items'), 'Custom Items (2)', 'the tab count moved');
+  eq(pill('custom'), 'Custom 2 [on]', 'the Custom count moved');
   var si = $('#search-input'); si.value = 'FBS, heat'; si.dispatchEvent(new Event('input'));
   await tick();
   var fr = $('tr.expandable-row[data-item-id="fbs"]');
